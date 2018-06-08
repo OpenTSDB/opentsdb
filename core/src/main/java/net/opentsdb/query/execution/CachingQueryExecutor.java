@@ -36,21 +36,19 @@ import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceFactory;
-import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -87,40 +85,6 @@ public class CachingQueryExecutor implements QuerySourceFactory {
   /** A key generator used for reading and writing the cache data. */
   private final TimeSeriesCacheKeyGenerator key_generator;
   
-  public CachingQueryExecutor(final ExecutionGraphNode node) {
-    if (node == null) {
-      throw new IllegalArgumentException("Node cannot be null.");
-    }
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Config cannot be null.");
-    }
-    tsdb = node.graph().tsdb();
-    plugin = (QueryCachePlugin) 
-        node.graph().tsdb().getRegistry().getPlugin(
-            QueryCachePlugin.class, 
-            ((Config) node.getConfig()).cache_id);
-    if (plugin == null) {
-      throw new IllegalArgumentException("Unable to find a caching plugin "
-          + "for ID: " + ((Config) node.getConfig()).cache_id);
-    }
-    serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
-        .getRegistry()).getSerdes(
-            ((Config) node.getConfig()).serdes_id);
-    if (serdes == null) {
-      throw new IllegalArgumentException("Unable to find a serdes implementation "
-          + "for ID: " + ((Config) node.getConfig()).serdes_id);
-    }
-    
-    key_generator = (TimeSeriesCacheKeyGenerator) 
-        node.graph().tsdb().getRegistry().getPlugin(
-            TimeSeriesCacheKeyGenerator.class, 
-            ((Config) node.getConfig()).getKeyGeneratorId());
-    if (key_generator == null) {
-      throw new IllegalArgumentException("Unable to find a key generator "
-          + "for ID: " + ((Config) node.getConfig()).getKeyGeneratorId());
-    }
-  }
-
   /**
    * <b>TEMPORARY</b> Ctor till we get the execution graph code merged
    * with the pipeline.
@@ -147,9 +111,22 @@ public class CachingQueryExecutor implements QuerySourceFactory {
   }
   
   @Override
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id) {
+    // TODO pull the default config from some place
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+  
+  @Override
+  public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    return Config.class;
+  }
+  
+  @Override
   public TimeSeriesDataSource newNode(final QueryPipelineContext context,
+                                      final String id,
                                       final QueryNodeConfig config) {
-    return new LocalExecution(context, config);
+    return new LocalExecution(context, id, config);
   }
   
   /** Local execution class. */
@@ -177,8 +154,9 @@ public class CachingQueryExecutor implements QuerySourceFactory {
      * @param QueryNodeConfig The config for the node.
      */
     public LocalExecution(final QueryPipelineContext context, 
+                          final String id,
                           final QueryNodeConfig config) {
-      super(CachingQueryExecutor.this, context);
+      super(CachingQueryExecutor.this, context, id);
       complete = new AtomicBoolean();
 
       key = key_generator.generate(
@@ -547,9 +525,8 @@ public class CachingQueryExecutor implements QuerySourceFactory {
   }
   
   @JsonInclude(Include.NON_NULL)
-  @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     private final String cache_id;
     private final String serdes_id;
     private final boolean simultaneous;
@@ -572,7 +549,7 @@ public class CachingQueryExecutor implements QuerySourceFactory {
       bypass = builder.bypass;
       use_timestamps = builder.useTimestamps;
     }
-
+    
     /** @return A cache ID representing a plugin in the registry. */
     public String getCacheId() {
       return cache_id;
@@ -620,8 +597,7 @@ public class CachingQueryExecutor implements QuerySourceFactory {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(cache_id, config.cache_id)
           && Objects.equal(serdes_id, config.serdes_id)
           && Objects.equal(simultaneous, config.simultaneous)
@@ -639,8 +615,7 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     @Override
     public HashCode buildHashCode() {
       return Const.HASH_FUNCTION().newHasher()
-          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(cache_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(serdes_id), Const.UTF8_CHARSET)
           .putBoolean(simultaneous)
@@ -652,12 +627,13 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     }
 
     @Override
-    public int compareTo(final QueryExecutorConfig config) {
+    public int compareTo(final QueryNodeConfig other) {
+      if (!(other instanceof Config)) {
+        return -1;
+      }
+      final Config config = (Config) other;
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
-              Ordering.natural().nullsFirst())
+          .compare(id, config.id, Ordering.natural().nullsFirst())
           .compare(cache_id, ((Config) config).cache_id, 
               Ordering.natural().nullsFirst())
           .compare(serdes_id, ((Config) config).serdes_id, 
@@ -688,11 +664,11 @@ public class CachingQueryExecutor implements QuerySourceFactory {
           .setKeyGeneratorId(config.key_generator_id)
           .setExpiration(config.expiration)
           .setUseTimestamps(config.use_timestamps)
-          .setExecutorId(config.executor_id)
-          .setExecutorType(config.executor_type);
+          .setId(config.id);
     }
     
-    public static class Builder extends QueryExecutorConfig.Builder {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private String cacheId;
       @JsonProperty
@@ -782,13 +758,7 @@ public class CachingQueryExecutor implements QuerySourceFactory {
       }
       
     }
-
     
-    @Override
-    public String getId() {
-      // TODO Auto-generated method stub
-      return null;
-    }
   }
   
   @VisibleForTesting
@@ -806,4 +776,5 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     return key_generator;
   }
 
+  
 }

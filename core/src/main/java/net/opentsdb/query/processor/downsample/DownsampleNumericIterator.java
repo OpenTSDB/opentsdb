@@ -28,6 +28,8 @@ import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 
 /**
@@ -122,10 +124,28 @@ public class DownsampleNumericIterator implements QueryIterator {
     this.source = source;
     aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
     config = (DownsampleConfig) node.config();
-    interpolator = (QueryInterpolator<NumericType>) config
-        .interpolationConfig().newInterpolator(
+    final QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericType.TYPE);
+    if (interpolator_config == null) {
+      throw new IllegalArgumentException("No interpolator config found for type");
+    }
+    
+    final QueryInterpolatorFactory factory = node.pipelineContext()
+        .tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
+                                        interpolator_config.id());
+    if (factory == null) {
+      throw new IllegalArgumentException("No interpolator factory found for: " + 
+          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+    }
+    
+    final QueryInterpolator<?> interp = factory.newInterpolator(
         NumericType.TYPE, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) new Downsampler());
+        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) new Downsampler(),
+        interpolator_config);
+    if (interp == null) {
+      throw new IllegalArgumentException("No interpolator implementation found for: " + 
+          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+    }
+    interpolator = (QueryInterpolator<NumericType>) interp;
     interval_ts = config.start().getCopy();
     
     if (config.fill() && !config.runAll()) {

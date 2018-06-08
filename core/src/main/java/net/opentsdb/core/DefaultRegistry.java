@@ -492,6 +492,9 @@ public class DefaultRegistry implements Registry {
   /** Sets up default objects in the registry. */
   @SuppressWarnings("unchecked")
   private Deferred<Object> initDefaults() {
+    if (true) {
+      return Deferred.fromResult(null);
+    }
     final DataShardMerger shards_merger = new DataShardMerger();
     shards_merger.registerStrategy(new NumericMergeLargest());
     data_mergers.put(null, shards_merger);

@@ -286,8 +286,9 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
+                           final String id,
                            final QueryNodeConfig config) {
-    return new Tsdb1xQueryNode(this, context, (QuerySourceConfig) config);
+    return new Tsdb1xQueryNode(this, context, id, (QuerySourceConfig) config);
   }
   
   public Deferred<Object> shutdown() {

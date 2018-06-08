@@ -19,6 +19,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +38,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -46,10 +50,12 @@ import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
@@ -57,32 +63,41 @@ import net.opentsdb.query.processor.groupby.GroupByConfig;
 public class TestGroupByNumericIterator {
 
   private NumericInterpolatorConfig numeric_config;
-  private DefaultInterpolationConfig interpolation_config;
   private GroupByConfig config;
   private GroupBy node;
   private TimeSeries ts1;
   private TimeSeries ts2;
   private TimeSeries ts3;
   private Map<String, TimeSeries> source_map;
+  private QueryResult result;
   
   @Before
   public void before() throws Exception {
-    numeric_config = NumericInterpolatorConfig.newBuilder()
+    result = mock(QueryResult.class);
+    
+    numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     node = mock(GroupBy.class);
     when(node.config()).thenReturn(config);
+    final QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    final TSDB tsdb = mock(TSDB.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    final Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
+    interp_factory.initialize(tsdb).join();
+    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
     
     ts1 = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -119,64 +134,64 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void ctor() throws Exception {
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
-    iterator = new GroupByNumericIterator(node, source_map.values());
+    iterator = new GroupByNumericIterator(node, result, source_map.values());
     assertTrue(iterator.hasNext());
     
     try {
-      new GroupByNumericIterator(null, source_map);
+      new GroupByNumericIterator(null, result, source_map);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericIterator(node, (Map<String, TimeSeries>) null);
+      new GroupByNumericIterator(node, result, (Map<String, TimeSeries>) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericIterator(node, Maps.newHashMap());
+      new GroupByNumericIterator(node, result, Maps.newHashMap());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericIterator(null, source_map.values());
+      new GroupByNumericIterator(null, result, source_map.values());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericIterator(node, (Collection<TimeSeries>) null);
+      new GroupByNumericIterator(node, result, (Collection<TimeSeries>) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericIterator(node, Lists.newArrayList());
+      new GroupByNumericIterator(node, result, Lists.newArrayList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericIterator(node, Lists.newArrayList(ts1, null, ts3));
+      new GroupByNumericIterator(node, result, Lists.newArrayList(ts1, null, ts3));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // invalid agg
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("nosuchagg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     try {
-      new GroupByNumericIterator(node, source_map.values());
+      new GroupByNumericIterator(node, result, source_map.values());
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
   }
 
   @Test
   public void iterateLongsAlligned() throws Exception {
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -231,7 +246,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -282,20 +297,18 @@ public class TestGroupByNumericIterator {
   @Test
   public void iterateLongsOffsetsScalarFill() throws Exception {
     numeric_config = 
-        ScalarNumericInterpolatorConfig.newBuilder()
+        (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
         .setValue(42)
         .setFillPolicy(FillPolicy.SCALAR)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -322,7 +335,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -382,7 +395,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -428,7 +441,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -492,7 +505,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -529,7 +542,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", new MockSeries());
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -566,25 +579,23 @@ public class TestGroupByNumericIterator {
     source_map.put("b", new MockSeries());
     source_map.put("c", new MockSeries());
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertFalse(iterator.hasNext());
   }
   
   @Test
   public void itearateFillNonInfectiousNans() throws Exception {
-    numeric_config = NumericInterpolatorConfig.newBuilder()
+    numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -602,7 +613,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -634,19 +645,17 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateFillNulls() throws Exception {
-    numeric_config = NumericInterpolatorConfig.newBuilder()
+    numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -664,7 +673,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -696,20 +705,18 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateFillInfectiousNan() throws Exception {
-    numeric_config = NumericInterpolatorConfig.newBuilder()
+    numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -727,7 +734,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -758,20 +765,18 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateNonInfectiousNan() throws Exception {
-    numeric_config = NumericInterpolatorConfig.newBuilder()
+    numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(false)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -794,7 +799,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
 
@@ -827,20 +832,18 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateInfectiousNan() throws Exception {
-    numeric_config = NumericInterpolatorConfig.newBuilder()
+    numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    config = GroupByConfig.newBuilder()
+    
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -863,7 +866,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -895,12 +898,12 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateNulls() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")        
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -925,7 +928,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -957,12 +960,12 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateDownsampledNulls() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -1017,7 +1020,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -1047,12 +1050,12 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateDownsampledNaNs() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -1101,7 +1104,7 @@ public class TestGroupByNumericIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericIterator iterator = new GroupByNumericIterator(node, source_map);
+    GroupByNumericIterator iterator = new GroupByNumericIterator(node, result, source_map);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());

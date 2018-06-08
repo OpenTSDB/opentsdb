@@ -57,9 +57,9 @@ import java.util.TreeMap;
  * 
  * @since 2.4
  */
-@JsonDeserialize(builder = RollupConfig.Builder.class)
-public class RollupConfig {
-  private static final Logger LOG = LoggerFactory.getLogger(RollupConfig.class);
+@JsonDeserialize(builder = DefaultRollupConfig.Builder.class)
+public class DefaultRollupConfig implements RollupConfig {
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultRollupConfig.class);
   
   /** The interval to interval map where keys are things like "10m" or "1d"*/
   protected final Map<String, RollupInterval> forward_intervals;
@@ -77,7 +77,7 @@ public class RollupConfig {
    * Default ctor for the builder.
    * @param builder A non-null builder to load from.
    */
-  protected RollupConfig(final Builder builder) {
+  protected DefaultRollupConfig(final Builder builder) {
     forward_intervals = Maps.newHashMapWithExpectedSize(2);
     reverse_intervals = Maps.newHashMapWithExpectedSize(2);
     ids_to_aggregations = Maps.newHashMapWithExpectedSize(4);
@@ -290,25 +290,17 @@ public class RollupConfig {
     return Lists.newArrayList(forward_intervals.values());
   }
   
-  /** @return The immutable map of aggregations to IDs for serialization. */
+  @Override
   public Map<String, Integer> getAggregationIds() {
     return Collections.unmodifiableMap(aggregations_to_ids);
   }
   
-  /**
-   * @param id The ID of an aggregator to search for.
-   * @return The aggregator if found, null if it was not mapped.
-   */
+  @Override
   public String getAggregatorForId(final int id) {
     return ids_to_aggregations.get(id);
   }
   
-  /**
-   * @param aggregator The non-null and non-empty aggregator to search for.
-   * @return The ID of the aggregator if found.
-   * @throws IllegalArgumentException if the aggregator was not found or if the
-   * aggregator was null or empty.
-   */
+  @Override
   public int getIdForAggregator(final String aggregator) {
     if (Strings.isNullOrEmpty(aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
@@ -458,8 +450,8 @@ public class RollupConfig {
       return this;
     }
     
-    public RollupConfig build() {
-      return new RollupConfig(this);
+    public DefaultRollupConfig build() {
+      return new DefaultRollupConfig(this);
     }
   }
 }

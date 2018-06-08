@@ -39,7 +39,7 @@ public class TestRollupConfig {
   private final static String rollup_table = "tsdb-rollup-10m";
   private final static String preagg_table = "tsdb-rollup-agg-10m";
   
-  private RollupConfig.Builder builder;
+  private DefaultRollupConfig.Builder builder;
   private RollupInterval raw;
   private RollupInterval tenmin;
   
@@ -60,7 +60,7 @@ public class TestRollupConfig {
         .setRowSpan("1d")
         .build();
     
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addAggregationId("count", 2)
@@ -71,7 +71,7 @@ public class TestRollupConfig {
   
   @Test
   public void ctor() throws Exception {
-    RollupConfig config = builder.build();
+    DefaultRollupConfig config = builder.build();
     assertEquals(2, config.forward_intervals.size());
     assertSame(raw, config.forward_intervals.get("1m"));
     assertSame(config, config.forward_intervals.get("1m").rollupConfig());
@@ -97,7 +97,7 @@ public class TestRollupConfig {
     assertEquals("min", config.ids_to_aggregations.get(3));
     
     // missing aggregations
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addInterval(raw)
         .addInterval(tenmin);
     try {
@@ -106,7 +106,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // duplicate aggregation id
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 1)
         .addAggregationId("Max", 1)
         .addInterval(raw)
@@ -117,7 +117,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // invalid ID
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 128)
         .addInterval(raw)
@@ -128,7 +128,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // empty intervals
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1);
     try {
@@ -137,7 +137,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // dupe intervals
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addInterval(raw)
@@ -155,7 +155,7 @@ public class TestRollupConfig {
         .setRowSpan("1d")
         .setDefaultInterval(true)
         .build();
-    builder = RollupConfig.builder()
+    builder = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addInterval(raw)
@@ -168,7 +168,7 @@ public class TestRollupConfig {
 
   @Test
   public void getRollupIntervalString() throws Exception {
-    final RollupConfig config = builder.build();
+    final DefaultRollupConfig config = builder.build();
     assertSame(raw, config.getRollupInterval("1m"));
     assertSame(tenmin, config.getRollupInterval("10m"));
     
@@ -192,7 +192,7 @@ public class TestRollupConfig {
   
   @Test
   public void getRollupIntervalForTable() throws Exception {
-    final RollupConfig config = builder.build();
+    final DefaultRollupConfig config = builder.build();
     
     assertSame(raw, config.getRollupIntervalForTable(tsdb_table));
     assertSame(tenmin, config.getRollupIntervalForTable(rollup_table));
@@ -216,7 +216,7 @@ public class TestRollupConfig {
   
   @Test
   public void getRollupIntervals() throws Exception {
-    RollupConfig config = builder.build();
+    DefaultRollupConfig config = builder.build();
     
     List<RollupInterval> intervals = config.getRollupIntervals(60, "1m");
     assertEquals(1, intervals.size());
@@ -272,7 +272,7 @@ public class TestRollupConfig {
   
   @Test
   public void serdes() throws Exception {
-    RollupConfig config = builder.build();
+    DefaultRollupConfig config = builder.build();
     String json = JSON.serializeToString(config);
     
     assertTrue(json.contains("\"intervals\":["));
@@ -288,7 +288,7 @@ public class TestRollupConfig {
         + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
         + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
         + "{\"sum\":0,\"max\":1}}";
-    config = JSON.parseToObject(json, RollupConfig.class);
+    config = JSON.parseToObject(json, DefaultRollupConfig.class);
     assertEquals(2, config.forward_intervals.size());
     assertNotNull(config.forward_intervals.get("1m"));
     assertNotNull(config.forward_intervals.get("10m"));
@@ -310,7 +310,7 @@ public class TestRollupConfig {
   
   @Test
   public void getIdForAggregatorString() throws Exception {
-    RollupConfig config = builder.build();
+    DefaultRollupConfig config = builder.build();
     assertEquals(0, config.getIdForAggregator("sum"));
     assertEquals(0, config.getIdForAggregator("ZimSum"));
     assertEquals(1, config.getIdForAggregator("max"));
@@ -333,7 +333,7 @@ public class TestRollupConfig {
   
   @Test
   public void getIdForAggregatorQualifier() throws Exception {
-    RollupConfig config = builder.build();
+    DefaultRollupConfig config = builder.build();
     assertEquals(0, config.getIdForAggregator(new byte[] { 's', 'u', 'm', ':', 0, 0 }));
     assertEquals(0, config.getIdForAggregator(new byte[] { 'S', 'U', 'M', ':', 0, 0 }));
     assertEquals(1, config.getIdForAggregator(new byte[] { 'm', 'a', 'x', ':', 0, 0 }));
@@ -362,7 +362,7 @@ public class TestRollupConfig {
   
   @Test
   public void getOffsetStartFromQualifier() throws Exception {
-    RollupConfig config = builder.build();
+    DefaultRollupConfig config = builder.build();
     assertEquals(4, config.getOffsetStartFromQualifier(new byte[] { 's', 'u', 'm', ':', 0, 0 }));
     assertEquals(4, config.getOffsetStartFromQualifier(new byte[] { 'S', 'U', 'M', ':', 0, 0 }));
     assertEquals(4, config.getOffsetStartFromQualifier(new byte[] { 'm', 'a', 'x', ':', 0, 0 }));
@@ -393,14 +393,14 @@ public class TestRollupConfig {
   
   @Test
   public void queryToRollupAggregation() throws Exception {
-    assertEquals("sum", RollupConfig.queryToRollupAggregation("ZimSum"));
-    assertEquals("sum", RollupConfig.queryToRollupAggregation("sum"));
-    assertEquals("max", RollupConfig.queryToRollupAggregation("MimMax"));
-    assertEquals("min", RollupConfig.queryToRollupAggregation("MimMin"));
-    assertEquals("avg", RollupConfig.queryToRollupAggregation("Avg"));
-    assertEquals("", RollupConfig.queryToRollupAggregation(""));
+    assertEquals("sum", DefaultRollupConfig.queryToRollupAggregation("ZimSum"));
+    assertEquals("sum", DefaultRollupConfig.queryToRollupAggregation("sum"));
+    assertEquals("max", DefaultRollupConfig.queryToRollupAggregation("MimMax"));
+    assertEquals("min", DefaultRollupConfig.queryToRollupAggregation("MimMin"));
+    assertEquals("avg", DefaultRollupConfig.queryToRollupAggregation("Avg"));
+    assertEquals("", DefaultRollupConfig.queryToRollupAggregation(""));
     try {
-      RollupConfig.queryToRollupAggregation(null);
+      DefaultRollupConfig.queryToRollupAggregation(null);
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
   }

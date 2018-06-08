@@ -25,7 +25,9 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-import net.opentsdb.query.execution.TimedQueryExecutor;
+import com.google.common.collect.Lists;
+
+import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.utils.JSON;
 
 public class TestExecutionGraphNode {
@@ -33,84 +35,66 @@ public class TestExecutionGraphNode {
   @Test
   public void builder() throws Exception {
     ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorType("TimedQueryExecutor")
-            .setExecutorId("TestNode")
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node2"))
+        .setConfig(RateOptions.newBuilder()
+            .setResetValue(1)
             .build())
         .build();
     
-    assertEquals("TestNode", node.getExecutorId());
-    assertEquals("TimedQueryExecutor", node.getExecutorType());
-    assertEquals("UpstreamNode", node.getUpstream());
-    assertEquals(TimedQueryExecutor.Config.class, 
-        node.getConfig().getClass());
+    assertEquals("TestNode", node.getId());
+    assertEquals("Rate", node.getType());
+    assertEquals(2, node.getSources().size());
+    assertEquals("node1", node.getSources().get(0));
+    assertEquals("node2", node.getSources().get(1));
+    assertEquals(1, ((RateOptions) node.getConfig()).getResetValue());
     assertNotNull(node.toString());
     
-    String json = "{\"upstream\":\"UpstreamNode\",\"executorId\":\"TestNode\","
-        + "\"executorType\":\"TimedQueryExecutor\","
-        + "\"config\":{\"executorType\":\"TimedQueryExecutor\","
-        + "\"timeout\":60000,\"executorId\":\"TestNode\"}}";
+    String json = "{\"sources\":[\"node1\",\"node2\"],\"id\":\"TestNode\","
+        + "\"type\":\"Rate\"}";
     node = JSON.parseToObject(json, ExecutionGraphNode.class);
     
-    assertEquals("TestNode", node.getExecutorId());
-    assertEquals("TimedQueryExecutor", node.getExecutorType());
-    assertEquals("UpstreamNode", node.getUpstream());
-    assertEquals(TimedQueryExecutor.Config.class, 
-        node.getConfig().getClass());
+    assertEquals("TestNode", node.getId());
+    assertEquals("Rate", node.getType());
+    assertEquals(2, node.getSources().size());
+    assertEquals("node1", node.getSources().get(0));
+    assertEquals("node2", node.getSources().get(1));
     
     json = JSON.serializeToString(node);
-    assertTrue(json.contains("\"executorId\":\"TestNode\""));
-    assertTrue(json.contains("\"upstream\":\"UpstreamNode\""));
-    assertTrue(json.contains("\"executorType\":\"TimedQueryExecutor\""));
-    assertTrue(json.contains("\"config\":{"));
+    assertTrue(json.contains("\"id\":\"TestNode\""));
+    assertTrue(json.contains("\"sources\":[\"node1\",\"node2\"]"));
+    assertTrue(json.contains("\"type\":\"Rate\""));
     
     // minimum reqs
     node = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
+        .setId("Rate")
         .build();
-    assertEquals("TestNode", node.getExecutorId());
-    assertEquals("TimedQueryExecutor", node.getExecutorType());
-    assertNull(node.getUpstream());
-    assertNull(node.getConfig());
+    assertEquals("Rate", node.getId());
+    assertEquals("Rate", node.getType());
+    assertNull(node.getSources());
     assertNotNull(node.toString());
     
     json = JSON.serializeToString(node);
-    assertTrue(json.contains("\"executorId\":\"TestNode\""));
-    assertFalse(json.contains("\"upstream\":\"UpstreamNode\""));
-    assertTrue(json.contains("\"executorType\":\"TimedQueryExecutor\""));
-    assertFalse(json.contains("\"defaultConfig\":{"));
+    assertTrue(json.contains("\"id\":\"Rate\""));
+    assertFalse(json.contains("\"sources\""));
+    assertTrue(json.contains("\"type\":\"Rate\""));
     
-    json = "{\"executorId\":\"TestNode\",\"executorType\":"
-        + "\"TimedQueryExecutor\"}";
+    json = "{\"id\":\"Rate\"}";
     node = JSON.parseToObject(json, ExecutionGraphNode.class);
-    assertEquals("TestNode", node.getExecutorId());
-    assertEquals("TimedQueryExecutor", node.getExecutorType());
-    assertNull(node.getUpstream());
-    assertNull(node.getConfig());
+    assertEquals("Rate", node.getId());
+    assertEquals("Rate", node.getType());
+    assertNull(node.getSources());
     assertNotNull(node.toString());
     
-    // clone
-    final ExecutionGraphNode clone = ExecutionGraphNode.newBuilder(node).build();
-    assertNotSame(clone, node);
-    assertEquals("TestNode", clone.getExecutorId());
-    assertEquals("TimedQueryExecutor", clone.getExecutorType());
-    assertNull(clone.getUpstream());
-    assertNull(clone.getConfig());
-    assertNotNull(clone.toString());
-    
     // missing args
-    json = "{\"id\":\"TestNode\"}";
+    json = "{\"type\":\"Rate\"}";
     try {
       JSON.parseToObject(json, ExecutionGraphNode.class);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    json = "{\"executorType\":\"TimedQueryExecutor\"}";
+    json = "{\"id\":\"\"}";
     try {
       JSON.parseToObject(json, ExecutionGraphNode.class);
       fail("Expected IllegalArgumentException");
@@ -121,159 +105,112 @@ public class TestExecutionGraphNode {
       JSON.parseToObject(json, ExecutionGraphNode.class);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    // uknowns are ok
+    json = "{\"id\":\"Rate\",\"someJunk\":\"field\"}";
+    node = JSON.parseToObject(json, ExecutionGraphNode.class);
+    assertEquals("Rate", node.getId());
+    assertEquals("Rate", node.getType());
+    assertNull(node.getSources());
+    assertNotNull(node.toString());
   }
   
   @Test
-  public void resetExecutorId() throws Exception {
-    final ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
+  public void builderClone() throws Exception {
+    ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node2"))
         .build();
-    assertEquals("TestNode", node.getExecutorId());
     
-    node.resetId("DiffNode");
-    assertEquals("DiffNode", node.getExecutorId());
+    ExecutionGraphNode clone = ExecutionGraphNode.newBuilder(node).build();
+    assertEquals("TestNode", clone.getId());
+    assertEquals("Rate", clone.getType());
+    assertEquals(2, clone.getSources().size());
+    assertEquals("node1", clone.getSources().get(0));
+    assertEquals("node2", clone.getSources().get(1));
+    assertNotNull(clone.toString());
     
-    try {
-      node.resetId(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertNotSame(node.getSources(), clone.getSources());
     
-    try {
-      node.resetId("");
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-  
-  @Test
-  public void resetUpstream() throws Exception {
-    final ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setUpstream("Node1")
-        .setExecutorType("TimedQueryExecutor")
+    node = ExecutionGraphNode.newBuilder()
+        .setId("TestNode")
+        .setType("Rate")
         .build();
-    assertEquals("Node1", node.getUpstream());
     
-    node.resetUpstream("Cluster_Node1");
-    assertEquals("Cluster_Node1", node.getUpstream());
-    
-    try {
-      node.resetUpstream(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      node.resetUpstream("");
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    clone = ExecutionGraphNode.newBuilder(node).build();
+    assertEquals("TestNode", clone.getId());
+    assertEquals("Rate", clone.getType());
+    assertNull(clone.getSources());
+    assertNotNull(clone.toString());
   }
-  
+
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final ExecutionGraphNode n1 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node2"))
         .build();
     
     ExecutionGraphNode n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node2"))
         .build();
     assertEquals(n1.hashCode(), n2.hashCode());
     assertEquals(n1, n2);
     assertEquals(0, n1.compareTo(n2));
     
     n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("Foo")  // <-- Diff
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
+        .setId("Foo")  // <-- Diff
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node2"))
         .build();
     assertNotEquals(n1.hashCode(), n2.hashCode());
     assertNotEquals(n1, n2);
     assertEquals(1, n1.compareTo(n2));
     
     n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("Another Type")  // <-- Diff
-        .setUpstream("UpstreamNode")
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
+        .setId("TestNode")
+        .setType("SomeOtherType")  // <-- DIFF
+        .setSources(Lists.newArrayList("node1", "node2"))
         .build();
     assertNotEquals(n1.hashCode(), n2.hashCode());
     assertNotEquals(n1, n2);
     assertEquals(1, n1.compareTo(n2));
     
     n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("DiffNode")  // <-- Diff
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node2", "node1")) // <-- DIFF order is OK!
+        .build();
+    assertEquals(n1.hashCode(), n2.hashCode());
+    assertEquals(n1, n2);
+    assertEquals(0, n1.compareTo(n2));
+    
+    n2 = ExecutionGraphNode.newBuilder()
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node3")) // <-- DIFF
+        .build();
+    assertNotEquals(n1.hashCode(), n2.hashCode());
+    assertNotEquals(n1, n2);
+    assertEquals(-1, n1.compareTo(n2));
+    
+    n2 = ExecutionGraphNode.newBuilder()
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1")) // <-- DIFF
         .build();
     assertNotEquals(n1.hashCode(), n2.hashCode());
     assertNotEquals(n1, n2);
     assertEquals(1, n1.compareTo(n2));
     
     n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        //.setUpstream("UpstreamNode")  // <-- Diff
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
-        .build();
-    assertNotEquals(n1.hashCode(), n2.hashCode());
-    assertNotEquals(n1, n2);
-    assertEquals(1, n1.compareTo(n2));
-    
-    n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        .setConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(30000)  // <-- Diff
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
-        .build();
-    assertNotEquals(n1.hashCode(), n2.hashCode());
-    assertNotEquals(n1, n2);
-    assertEquals(1, n1.compareTo(n2));
-    
-    n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        //.setDefaultConfig(TimedQueryExecutor.Config.newBuilder()  // <-- Diff
-        //    .setTimeout(60000)
-        //.setExecutorId("TestNode")
-        //.setExecutorType("TimedQueryExecutor")
-        //    .build())
+        .setId("TestNode")
+        .setType("Rate")
+        //.setSources(Lists.newArrayList("node1", "node2")) // <-- DIFF
         .build();
     assertNotEquals(n1.hashCode(), n2.hashCode());
     assertNotEquals(n1, n2);

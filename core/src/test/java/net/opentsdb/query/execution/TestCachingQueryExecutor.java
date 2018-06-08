@@ -89,8 +89,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     serdes = mock(TimeSeriesSerdes.class);
     
@@ -100,16 +99,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(tsdb.getConfig()).thenReturn(tsd_config);
     key_generator = new DefaultTimeSeriesCacheKeyGenerator();
     key_generator.initialize(tsdb).join();
-    when(node.graph()).thenReturn(graph);
-    when(node.getConfig()).thenReturn(config);
-    when(graph.getDownstreamExecutor(anyString()))
-      .thenAnswer(new Answer<QueryExecutor<?>>() {
-      @Override
-      public QueryExecutor<?> answer(InvocationOnMock invocation)
-          throws Throwable {
-        return executor;
-      }
-    });
+    
     when(executor.close()).thenReturn(Deferred.fromResult(null));
     when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
       .thenReturn(plugin);
@@ -151,60 +141,60 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
       .thenReturn(Deferred.fromResult(null));
   }
   
-  @Test
-  public void ctor() throws Exception {
-    CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    assertSame(plugin, executor.plugin());
-    assertSame(serdes, executor.serdes());
-    assertTrue(executor.keyGenerator() instanceof 
-        DefaultTimeSeriesCacheKeyGenerator);
-    
-    try {
-      new CachingQueryExecutor((ExecutionGraphNode) null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(node.getConfig()).thenReturn(null);
-    try {
-      new CachingQueryExecutor(node);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(node.getConfig()).thenReturn(config);
-    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
-      .thenReturn(plugin);
-    when(registry.getSerdes(anyString())).thenReturn(null);
-    try {
-      new CachingQueryExecutor(node);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(registry.getSerdes(anyString()))
-      .thenAnswer(new Answer<TimeSeriesSerdes>() {
-      @Override
-      public TimeSeriesSerdes answer(
-          final InvocationOnMock invocation) throws Throwable {
-        return serdes;
-      }
-    });
-    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
-      .thenReturn(null);
-    try {
-      new CachingQueryExecutor(node);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    executor = new CachingQueryExecutor(tsdb);
-    assertSame(plugin, executor.plugin());
-    assertSame(serdes, executor.serdes());
-    assertTrue(executor.keyGenerator() instanceof 
-        DefaultTimeSeriesCacheKeyGenerator);
-  }
+//  @Test
+//  public void ctor() throws Exception {
+//    CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    assertSame(plugin, executor.plugin());
+//    assertSame(serdes, executor.serdes());
+//    assertTrue(executor.keyGenerator() instanceof 
+//        DefaultTimeSeriesCacheKeyGenerator);
+//    
+//    try {
+//      new CachingQueryExecutor((ExecutionGraphNode) null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    when(node.getConfig()).thenReturn(null);
+//    try {
+//      new CachingQueryExecutor(tsdb);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    when(node.getConfig()).thenReturn(config);
+//    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+//      .thenReturn(plugin);
+//    when(registry.getSerdes(anyString())).thenReturn(null);
+//    try {
+//      new CachingQueryExecutor(tsdb);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    when(registry.getSerdes(anyString()))
+//      .thenAnswer(new Answer<TimeSeriesSerdes>() {
+//      @Override
+//      public TimeSeriesSerdes answer(
+//          final InvocationOnMock invocation) throws Throwable {
+//        return serdes;
+//      }
+//    });
+//    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+//      .thenReturn(null);
+//    try {
+//      new CachingQueryExecutor(tsdb);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    executor = new CachingQueryExecutor(tsdb);
+//    assertSame(plugin, executor.plugin());
+//    assertSame(serdes, executor.serdes());
+//    assertTrue(executor.keyGenerator() instanceof 
+//        DefaultTimeSeriesCacheKeyGenerator);
+//  }
 
   @Test
   public void executeCacheMiss() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -242,8 +232,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void executeCacheHit() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -284,12 +274,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
-    when(node.getConfig()).thenReturn(config);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -313,12 +301,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setBypass(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
-    when(node.getConfig()).thenReturn(config);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -339,8 +325,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void executeCacheException() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -381,12 +367,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
-    when(node.getConfig()).thenReturn(config);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -426,8 +410,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeExceptionThrown() throws Exception {
     when(plugin.fetch(any(QueryContext.class), any(byte[].class), 
         any(Span.class))).thenThrow(new UnitTestException());
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -450,8 +434,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void onNextFromDownstream() throws Exception {
     final QueryResult next = mock(QueryResult.class);
     when(next.source()).thenReturn(downstream);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     
     execution.onNext(next);
@@ -477,14 +461,12 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
-    when(node.getConfig()).thenReturn(config);
     QueryResult next = mock(QueryResult.class);
     
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     when(next.source()).thenReturn(execution);
     execution.initialize(null);
     execution.fetchNext(null);
@@ -534,14 +516,12 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
-    when(node.getConfig()).thenReturn(config);
     QueryResult next = mock(QueryResult.class);
     when(next.source()).thenReturn(downstream);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -590,8 +570,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     // Would happen if a plugin fails to set the source.
     QueryResult next = mock(QueryResult.class);
     
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     execution.cache_execution = null;
@@ -626,8 +606,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     });
     PowerMockito.mockStatic(ConvertedQueryResult.class);
     
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     execution.cache_execution = null;
@@ -660,8 +640,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         any(SerdesOptions.class), any(OutputStream.class), 
         any(QueryResult.class), any(Span.class)))
       .thenThrow(new UnitTestException());
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     
     execution.onNext(next);
@@ -690,8 +670,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         any(SerdesOptions.class), any(OutputStream.class), 
         any(QueryResult.class), any(Span.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     
     execution.onNext(next);
@@ -716,14 +696,12 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void onNextZeroExpiration() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(0)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
-    when(node.getConfig()).thenReturn(config);
     QueryResult next = mock(QueryResult.class);
     when(next.source()).thenReturn(downstream);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -747,8 +725,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void onErrorDownstreamExceptionNotComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     
     execution.onError(new UnitTestException());
@@ -771,8 +749,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void onErrorDownstreamExceptionComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.complete.set(true);
     
@@ -796,8 +774,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void onComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     
     execution.onComplete(mock(QueryNode.class), 42, 42);
@@ -806,8 +784,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void closeNotComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -845,8 +823,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   
   @Test
   public void closeComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
     execution.initialize(null);
     execution.fetchNext(null);
     
@@ -886,19 +864,17 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   @Test
   public void builder() throws Exception {
     String json = JSON.serializeToString(config);
-    assertTrue(json.contains("\"executorType\":\"CachingQueryExecutor\""));
     assertTrue(json.contains("\"simultaneous\":false"));
     assertTrue(json.contains("\"expiration\":60000"));
-    assertTrue(json.contains("\"executorId\":\"LocalCache\""));
+    assertTrue(json.contains("\"id\":\"LocalCache\""));
     assertTrue(json.contains("\"useTimestamps\":false"));
     assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
     
-    json = "{\"executorType\":\"CachingQueryExecutor\",\"simultaneous\":false,"
+    json = "{\"simultaneous\":false,"
         + "\"expiration\":60000,\"bypass\":true,\"keyGeneratorId\":\"MyKeyGen\","
-        + "\"useTimestamps\":false,\"executorId\":\"LocalCache\"}";
+        + "\"useTimestamps\":false,\"id\":\"LocalCache\"}";
     config = JSON.parseToObject(json, Config.class);
-    assertEquals("CachingQueryExecutor", config.executorType());
-    assertEquals("LocalCache", config.getExecutorId());
+    assertEquals("LocalCache", config.getId());
     assertFalse(config.getSimultaneous());
     assertEquals(60000, config.getExpiration());
     assertTrue(config.getBypass());
@@ -914,8 +890,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     
     Config c2 = (Config) Config.newBuilder()
@@ -924,8 +899,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertEquals(c1.hashCode(), c2.hashCode());
     assertEquals(c1, c2);
@@ -937,8 +911,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -950,8 +923,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -963,8 +935,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         //.setSimultaneous(true)  // <-- Diff
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -976,8 +947,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         //.setUseTimestamps(true)  // <-- Diff
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -989,8 +959,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen2")  // <-- Diff
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -1002,8 +971,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         //.setKeyGeneratorId("MyKeyGen")  // <-- Diff
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
+        .setId("LocalCache")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -1015,21 +983,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("TestCache")  // <-- Diff
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    assertNotEquals(c1.hashCode(), c2.hashCode());
-    assertNotEquals(c1, c2);
-    assertEquals(-1, c1.compareTo(c2));
-    
-    c2 = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setBypass(true)
-        .setSimultaneous(true)
-        .setUseTimestamps(true)
-        .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor2")  // <-- Diff
+        .setId("TestCache")  // <-- Diff
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);

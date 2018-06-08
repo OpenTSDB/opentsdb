@@ -18,12 +18,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
@@ -34,8 +37,11 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.storage.TimeSeriesDataStore;
 
 /**
  * A result from the {@link GroupBy} node for a segment. The grouping is 
@@ -106,17 +112,40 @@ public class GroupByResult implements QueryResult {
         final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
         GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
         if (group == null) {
-          group = new GroupByTimeSeries(node);
+          group = new GroupByTimeSeries(node, next);
           groups.put(hash, group);
         }
         group.addSource(series);
       }
     } else if (next.idType().equals(Const.TS_BYTE_ID)) {
+      final List<byte[]> keys;
       if (!((GroupByConfig) node.config()).groupAll() && 
           ((GroupByConfig) node.config()).getEncodedTagKeys() == null) {
-        // TODO - proper exception
-        throw new RuntimeException("Time series IDs were returned as "
-            + "bytes but no encoded tags were provided in the group-by config.");
+        // resolve em
+        final Iterator<TimeSeries> iterator = next.timeSeries().iterator();
+        if (iterator.hasNext()) {
+          final TimeSeriesDataStore store = ((TimeSeriesByteId) 
+              iterator.next().id()).dataStore();
+          if (store == null) {
+            throw new RuntimeException("The data store was null for a byte series!");
+          }
+          try {
+            keys = store.encodeJoinKeys(
+                Lists.newArrayList(((GroupByConfig) node.config()).getTagKeys()), null /* TODO */)
+                .join(); // TODO <--- DO NOT JOIN here! Find a way to async it.
+          } catch (InterruptedException e) {
+            throw new QueryExecutionException("Unexpected interruption", 0, e);
+          } catch (Exception e) {
+            throw new QueryExecutionException("Unexpected exception", 0, e);
+          }
+        } else {
+//        // TODO - proper exception
+//        throw new RuntimeException("Time series IDs were returned as "
+//            + "bytes but no encoded tags were provided in the group-by config.");
+          keys = null;
+        }
+      } else {
+        keys = ((GroupByConfig) node.config()).getEncodedTagKeys();
       }
       
       for (final TimeSeries series : next.timeSeries()) {
@@ -128,8 +157,7 @@ public class GroupByResult implements QueryResult {
           buf.write(id.metric());
           if (!group_all) {
             boolean matched = true;
-            for (final byte[] key : ((GroupByConfig) node.config())
-                  .getEncodedTagKeys()) {
+            for (final byte[] key : keys) {
               if (id.tags() == null || id.tags().size() < 1) {
                 matched = false;
                 break;
@@ -155,7 +183,7 @@ public class GroupByResult implements QueryResult {
           final long hash = LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
           GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
           if (group == null) {
-            group = new GroupByTimeSeries(node);
+            group = new GroupByTimeSeries(node, next);
             groups.put(hash, group);
           }
           group.addSource(series);
@@ -199,6 +227,11 @@ public class GroupByResult implements QueryResult {
   @Override
   public ChronoUnit resolution() {
     return next.resolution();
+  }
+  
+  @Override
+  public RollupConfig rollupConfig() {
+    return next.rollupConfig();
   }
   
   @Override

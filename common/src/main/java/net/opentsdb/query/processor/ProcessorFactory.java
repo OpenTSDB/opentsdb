@@ -26,6 +26,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryResult;
 
 /**
  * A factory for generating {@link QueryNode}s that perform some kind of
@@ -53,6 +54,7 @@ public interface ProcessorFactory extends QueryNodeFactory {
    * Returns an instantiated iterator of the given type if supported
    * @param type A non-null type.
    * @param node The parent node.
+   * @param result The result this source is a part of.
    * @param sources A collection of sources to incorporate in the iterator.
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
@@ -60,12 +62,14 @@ public interface ProcessorFactory extends QueryNodeFactory {
   public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
       final TypeToken<?> type,
       final QueryNode node,
+      final QueryResult result,
       final Collection<TimeSeries> sources);
   
   /**
    * Returns an instantiated iterator of the given type if supported
    * @param type A non-null type.
    * @param node The parent node.
+   * @param result The result this source is a part of.
    * @param sources A map of sources to incorporate in the iterator.
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
@@ -73,5 +77,6 @@ public interface ProcessorFactory extends QueryNodeFactory {
   public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
       final TypeToken<?> type,
       final QueryNode node,
+      final QueryResult result,
       final Map<String, TimeSeries> sources);
 }

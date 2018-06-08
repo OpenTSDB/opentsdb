@@ -18,11 +18,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -33,14 +37,16 @@ import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 
 import org.junit.Before;
@@ -58,13 +64,14 @@ public class TestGroupByNumericSummaryIterator {
   private MockTimeSeries ts3;
   private Map<String, TimeSeries> source_map;
   private NumericSummaryInterpolatorConfig interpolator_config;
-  private RollupConfig rollup_config;
+  private DefaultRollupConfig rollup_config;
+  private QueryResult result;
   
   private static final long BASE_TIME = 1356998400000L;
   
   @Before
   public void before() throws Exception {
-    rollup_config = RollupConfig.builder()
+    rollup_config = DefaultRollupConfig.builder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
@@ -75,22 +82,22 @@ public class TestGroupByNumericSummaryIterator {
             .setInterval("1h")
             .setRowSpan("1d"))
         .build();
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = 
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
+    result = mock(QueryResult.class);
+    when(result.rollupConfig()).thenReturn(rollup_config);
   }
   
   @Test
@@ -100,7 +107,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -122,7 +129,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -154,7 +161,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, true);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -181,15 +188,12 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextStaggeredNaNsInfectiousNans() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { -1, 11, 12, -1, 21, 22, -1, 24, 31, 32, 33, 34 };
@@ -197,7 +201,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, true);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -229,7 +233,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -261,7 +265,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -293,7 +297,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -320,22 +324,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextNoSummariesStartFillInfectiousNan() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { -1, 11, 12, 13, -1, 22, 23, 24, -31, 32, 33, 34 };
@@ -343,7 +344,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -370,22 +371,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextNoSummariesEndFillInfectiousNan() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { 10, 11, 12, -1, 22, 22, 23, -1, 31, 32, 33, -1 };
@@ -393,7 +391,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -420,22 +418,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextNoSummariesMiddleFillInfectiousNan() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { 10, -1, 12, 13, 22, -1, 23, 24, 31, -1, 33, 34 };
@@ -443,7 +438,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -476,7 +471,7 @@ public class TestGroupByNumericSummaryIterator {
     ts2.clear();
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -495,22 +490,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountAllPresent() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { 10, 11, 12, 13, 21, 22, 23, 24, 31, 32, 33, 34 };
@@ -518,7 +510,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -536,22 +528,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountEmpty() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { 10, 11, 12, 13, 21, 22, 23, 24, 31, 32, 33, 34 };
@@ -562,28 +551,25 @@ public class TestGroupByNumericSummaryIterator {
     ts2.clear();
     ts3.clear();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     assertFalse(iterator.hasNext());
   }
   
   @Test
   public void nextAvgSumAndCountStaggeredMissing() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { -1, 11, 12, -1, 21, 22, -1, 24, 31, 32, 33, 34 };
@@ -591,7 +577,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -609,22 +595,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountStaggeredMissingStaggeredNaNs() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { -1, 11, 12, -1, 21, 22, -1, 24, 31, 32, 33, 34 };
@@ -632,7 +615,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, true);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -650,23 +633,20 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountStaggeredMissingStaggeredNaNsInfectious() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { -1, 11, 12, -1, 21, 22, -1, 24, 31, 32, 33, 34 };
@@ -674,7 +654,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, true);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -697,22 +677,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountNoSummariesStart() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { -1, 11, 12, 13, -1, 22, 23, 24, -1, 32, 33, 34 };
@@ -720,7 +697,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -741,22 +718,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountNoSummariesEnd() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { 10, 11, 12, -1, 22, 22, 23, -1, 31, 32, 33, -1 };
@@ -764,7 +738,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -785,22 +759,19 @@ public class TestGroupByNumericSummaryIterator {
   
   @Test
   public void nextAvgSumAndCountNoSummariesMiddle() throws Exception {
-    interpolator_config = NumericSummaryInterpolatorConfig.newBuilder()
+    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setRollupConfig(rollup_config)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, interpolator_config, 
-                new NumericInterpolatorFactory.Default())
-            .build())
+        .setId("Testing")
+        .addInterpolatorConfig(interpolator_config)
         .build();
     
     long[] sums = new long[] { 10, -1, 12, 13, 22, -1, 23, 24, 31, -1, 33, 34 };
@@ -808,7 +779,7 @@ public class TestGroupByNumericSummaryIterator {
     setupData(sums, counts, false);
     setupMock();
     
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, source_map);
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
     long ts = BASE_TIME;
     int i = 0;
     while (iterator.hasNext()) {
@@ -827,6 +798,75 @@ public class TestGroupByNumericSummaryIterator {
     assertEquals(4, i);
   }
   
+  @Test
+  public void nextFromNumericInterpolatorConfig() throws Exception {
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("dc")
+        .setId("Testing")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build();
+    
+    long[] sums = new long[] { 10, 11, 12, 13, 21, 22, 23, 24, 31, 32, 33, 34 };
+    long[] counts = new long[] { 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 }; 
+    setupData(sums, counts, false);
+    setupMock();
+    
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
+    long ts = BASE_TIME;
+    int i = 0;
+    while (iterator.hasNext()) {
+      TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+      print(tsv);
+      assertEquals(ts, tsv.timestamp().msEpoch());
+      assertEquals(sum(sums, i, false), tsv.value().value(0).longValue());
+      assertNull(tsv.value().value(2));
+      ts += 3600 * 1000L;
+      i++;
+    }
+    assertEquals(4, i);
+  }
+  
+  @Test
+  public void nextFromNumericInterpolatorConfigAvg() throws Exception {
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("avg")
+        .addTagKey("dc")
+        .setId("Testing")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build();
+    
+    long[] sums = new long[] { 10, 11, 12, 13, 21, 22, 23, 24, 31, 32, 33, 34 };
+    long[] counts = new long[] { 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 }; 
+    setupData(sums, counts, false);
+    setupMock();
+    
+    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
+    long ts = BASE_TIME;
+    int i = 0;
+    while (iterator.hasNext()) {
+      TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+      print(tsv);
+      assertEquals(ts, tsv.timestamp().msEpoch());
+      double avg = avg(sums, counts, i, true);
+      if (avg < 0) {
+        assertNull(tsv.value());
+      } else {
+        assertEquals(avg, tsv.value().value(5).doubleValue(), 0.0001);
+      }
+      ts += 3600 * 1000L;
+      i++;
+    }
+    assertEquals(4, i);
+  }
   // TODO - ints the doubles
   
   private long sum(long[] dps, int i, boolean infectious) {
@@ -1092,13 +1132,22 @@ public class TestGroupByNumericSummaryIterator {
     source_map.put("c", ts3);
   }
   
-  private void setupMock() {
+  private void setupMock() throws Exception {
     node = mock(QueryNode.class);
     when(node.config()).thenReturn(config);
     query_context = mock(QueryContext.class);
     pipeline_context = mock(QueryPipelineContext.class);
     when(pipeline_context.queryContext()).thenReturn(query_context);
     when(node.pipelineContext()).thenReturn(pipeline_context);
+    final QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    final TSDB tsdb = mock(TSDB.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    final Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
+    interp_factory.initialize(tsdb).join();
+    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
   }
   
   void print(final TimeSeriesValue<NumericSummaryType> tsv) {

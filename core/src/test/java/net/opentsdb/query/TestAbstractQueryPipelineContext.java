@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,37 +15,47 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
-import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.AbstractQueryPipelineContext.CumulativeQueryResult;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.UnitTestException;
 
 public class TestAbstractQueryPipelineContext {
 
-  private DefaultTSDB tsdb;
+  private MockTSDB tsdb;
   private TimeSeriesQuery query;
   private QueryContext context;
   private QuerySink sink1;
@@ -53,17 +63,36 @@ public class TestAbstractQueryPipelineContext {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(DefaultTSDB.class);
+    tsdb = new MockTSDB();
     query = mock(TimeSeriesQuery.class);
     context = mock(QueryContext.class);
     sink1 = mock(QuerySink.class);
     sink2 = mock(QuerySink.class);
+    
+    when(tsdb.getRegistry().getQueryNodeFactory("MockFactoryA".toLowerCase()))
+      .thenReturn(new MockFactoryA());
+    when(tsdb.getRegistry().getQueryNodeFactory("MockFactoryB".toLowerCase()))
+      .thenReturn(new MockFactoryB());
+    when(tsdb.getRegistry().getQueryNodeFactory("MockSourceFactory".toLowerCase()))
+      .thenReturn(new MockSourceFactory());
+    
+    final QueryNodeFactory null_factory = mock(QueryNodeFactory.class);
+    when(tsdb.getRegistry().getQueryNodeFactory("MockFactoryY".toLowerCase()))
+      .thenReturn(null_factory);
+    when(null_factory.newNode(any(QueryPipelineContext.class), anyString()))
+      .thenReturn(null);
+    
+    final QueryNodeFactory ex_factory = mock(QueryNodeFactory.class);
+    when(tsdb.getRegistry().getQueryNodeFactory("MockFactoryZ".toLowerCase()))
+      .thenReturn(ex_factory);
+    when(ex_factory.newNode(any(QueryPipelineContext.class), anyString()))
+      .thenThrow(new UnitTestException());
   }
   
   @Test
   public void ctor() throws Exception {
-    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1));
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph4(), Lists.newArrayList(sink1));
     assertSame(context, ctx.queryContext());
     assertSame(ctx, ctx.pipelineContext());
     assertSame(query, ctx.query());
@@ -72,114 +101,499 @@ public class TestAbstractQueryPipelineContext {
     assertNull(ctx.config());
     
     try {
-      new TestContext(null, query, context, Lists.newArrayList(sink1));
+      new TestContext(null, query, context, graph4(), Lists.newArrayList(sink1));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TestContext(tsdb, null, context, Lists.newArrayList(sink1));
+      new TestContext(tsdb, null, context, graph4(), Lists.newArrayList(sink1));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TestContext(tsdb, query, null, Lists.newArrayList(sink1));
+      new TestContext(tsdb, query, null, graph4(), Lists.newArrayList(sink1));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TestContext(tsdb, query, context, null);
+      new TestContext(tsdb, query, context, null, Lists.newArrayList(sink1));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TestContext(tsdb, query, context, Lists.newArrayList());
+      new TestContext(tsdb, query, context, graph4(), null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new TestContext(tsdb, query, context, graph4(), Lists.newArrayList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
-  public void upstream() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1));
-    ctx.init1();
-    assertTrue(ctx.upstream(ctx).isEmpty());
+  public void initializeGraph1Node() throws Exception {
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph1(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
     
-    Collection<QueryNode> us = ctx.upstream(ctx.n3);
-    assertEquals(2, us.size());
-    assertTrue(us.contains(ctx.n1));
-    assertTrue(us.contains(ctx.n2));
+    assertEquals(2, ctx.graph.vertexSet().size());
+    assertEquals(1, ctx.roots().size());
+   
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode self = nodes.get("Graph1");
+    final QueryNode node1 = nodes.get("S1");
+    assertTrue(self instanceof AbstractQueryPipelineContext);
+    assertEquals("Graph1", self.id());
+    assertSame(ctx, self.pipelineContext());
+    assertFalse(ctx.roots().contains(self));
     
-    assertSame(ctx.n4, ctx.upstream(ctx.s1).iterator().next());
-    assertSame(ctx.n5, ctx.upstream(ctx.s2).iterator().next());
+    assertTrue(node1 instanceof MockSource);
+    assertEquals("S1", node1.id());
+    assertSame(ctx, node1.pipelineContext());
+    assertTrue(ctx.roots().contains(node1));
+    assertTrue(((MockSource) node1).downstream().isEmpty());
+    assertTrue(((MockSource) node1).upstream().contains(ctx));
+  }
+  
+  @Test
+  public void initializeGraph2Nodes() throws Exception {
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph2(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
     
+    assertEquals(3, ctx.graph.vertexSet().size());
+    assertEquals(1, ctx.roots().size());
+    
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode self = nodes.get("Graph2");
+    final QueryNode node1 = nodes.get("N1");
+    final QueryNode node2 = nodes.get("S1");
+    assertTrue(self instanceof AbstractQueryPipelineContext);
+    assertEquals("Graph2", self.id());
+    assertSame(ctx, self.pipelineContext());
+    assertFalse(ctx.roots().contains(self));
+    
+    assertTrue(node1 instanceof MockNodeA);
+    assertEquals("N1", node1.id());
+    assertSame(ctx, node1.pipelineContext());
+    assertTrue(ctx.roots().contains(node1));
+    assertTrue(((MockNodeA) node1).downstream().contains(node2));
+    assertTrue(((MockNodeA) node1).upstream().contains(ctx));
+    
+    assertTrue(node2 instanceof MockSource);
+    assertEquals("S1", node2.id());
+    assertSame(ctx, node2.pipelineContext());
+    assertFalse(ctx.roots().contains(node2));
+    assertTrue(((MockSource) node2).downstream().isEmpty());
+    assertTrue(((MockSource) node2).upstream().contains(node1));
+  }
+  
+  @Test
+  public void initializeGraph3Nodes() throws Exception {
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph3(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    assertEquals(4, ctx.graph.vertexSet().size());
+    assertEquals(2, ctx.roots().size());
+    
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode self = nodes.get("Graph3");
+    final QueryNode node1 = nodes.get("N1");
+    final QueryNode node2 = nodes.get("N2");
+    final QueryNode node3 = nodes.get("S1");
+    assertTrue(self instanceof AbstractQueryPipelineContext);
+    assertEquals("Graph3", self.id());
+    assertSame(ctx, self.pipelineContext());
+    assertFalse(ctx.roots().contains(self));
+    
+    assertTrue(node1 instanceof MockNodeA);
+    assertEquals("N1", node1.id());
+    assertSame(ctx, node1.pipelineContext());
+    assertTrue(ctx.roots().contains(node1));
+    assertTrue(((MockNodeA) node1).downstream().contains(node3));
+    assertTrue(((MockNodeA) node1).upstream().contains(ctx));
+    
+    assertTrue(node2 instanceof MockNodeB);
+    assertEquals("N2", node2.id());
+    assertSame(ctx, node2.pipelineContext());
+    assertTrue(ctx.roots().contains(node2));
+    assertTrue(((MockNodeB) node2).downstream().contains(node3));
+    assertTrue(((MockNodeB) node2).upstream().contains(ctx));
+    
+    assertTrue(node3 instanceof MockSource);
+    assertEquals("S1", node3.id());
+    assertSame(ctx, node3.pipelineContext());
+    assertFalse(ctx.roots().contains(node3));
+    assertTrue(((MockSource) node3).downstream().isEmpty());
+    assertTrue(((MockSource) node3).upstream().contains(node1));
+    assertTrue(((MockSource) node3).upstream().contains(node2));
+  }
+  
+  @Test
+  public void initialize3NodesDiffOrder() throws Exception {
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph4(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    assertEquals(4, ctx.graph.vertexSet().size());
+    assertEquals(1, ctx.roots().size());
+    
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode self = nodes.get("Graph4");
+    final QueryNode node1 = nodes.get("N1");
+    final QueryNode node2 = nodes.get("S1");
+    final QueryNode node3 = nodes.get("S2");
+    assertTrue(self instanceof AbstractQueryPipelineContext);
+    assertEquals("Graph4", self.id());
+    assertSame(ctx, self.pipelineContext());
+    assertFalse(ctx.roots().contains(self));
+    
+    assertTrue(node1 instanceof MockNodeA);
+    assertEquals("N1", node1.id());
+    assertSame(ctx, node1.pipelineContext());
+    assertTrue(ctx.roots().contains(node1));
+    assertTrue(((MockNodeA) node1).downstream().contains(node2));
+    assertTrue(((MockNodeA) node1).downstream().contains(node3));
+    assertTrue(((MockNodeA) node1).upstream().contains(ctx));
+    
+    assertTrue(node2 instanceof MockSource);
+    assertEquals("S1", node2.id());
+    assertSame(ctx, node2.pipelineContext());
+    assertFalse(ctx.roots().contains(node2));
+    assertTrue(((MockSource) node2).downstream().isEmpty());
+    assertTrue(((MockSource) node2).upstream().contains(node1));
+    
+    assertTrue(node3 instanceof MockSource);
+    assertEquals("S2", node3.id());
+    assertSame(ctx, node3.pipelineContext());
+    assertFalse(ctx.roots().contains(node3));
+    assertTrue(((MockSource) node3).downstream().isEmpty());
+    assertTrue(((MockSource) node3).upstream().contains(node1));
+  }
+  
+  @Test
+  public void initializeDupeId() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryA")
+          .addSource("MockFactoryB2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB2")
+          .addSource("MockFactoryB2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB2")
+          .setType("MockFactoryB"))
+        .build();
+    
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph, Lists.newArrayList(sink1));
     try {
-      ctx.upstream(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      ctx.upstream(mock(QueryNode.class));
+      ctx.initialize(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
-  public void downstream() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1));
-    ctx.init1();
-    assertSame(ctx.n3, ctx.downstream(ctx.n1).iterator().next());
-    assertSame(ctx.n3, ctx.downstream(ctx.n2).iterator().next());
+  public void initializeCycle() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryA")
+          .addSource("MockFactoryB"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB")
+          .addSource("MockFactoryB2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB2")
+          .setType("MockFactoryB")
+          .addSource("MockFactoryA"))
+        .build();
     
-    Collection<QueryNode> ds = ctx.downstream(ctx.n3);
-    assertEquals(2, ds.size());
-    assertTrue(ds.contains(ctx.n4));
-    assertTrue(ds.contains(ctx.n5));
-    
-    assertTrue(ctx.downstream(ctx.s1).isEmpty());
-    assertTrue(ctx.downstream(ctx.s2).isEmpty());
-    
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph, Lists.newArrayList(sink1));
     try {
-      ctx.downstream(null);
+      ctx.initialize(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void initializeNoFactory() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryA")
+          .addSource("MockFactoryB")
+          .addSource("MockFactoryC"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryC"))
+        .build();
     
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph, Lists.newArrayList(sink1));
     try {
-      ctx.downstream(mock(QueryNode.class));
+      ctx.initialize(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void initializeFactoryReturnedNullExecutor() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryA")
+          .addSource("MockFactoryB")
+          .addSource("MockFactoryY"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryY"))
+        .build();
+    
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph, Lists.newArrayList(sink1));
+    try {
+      ctx.initialize(null);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+  }
+  
+  @Test
+  public void initializeFactoryThrows() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryA")
+          .addSource("MockFactoryB")
+          .addSource("MockFactoryZ"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryZ"))
+        .build();
+
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph, Lists.newArrayList(sink1));
+    try {
+      ctx.initialize(null);
+      fail("Expected UnitTestException");
+    } catch (UnitTestException e) { }
+  }
+  
+  @Test
+  public void initializeNoSuchUpstreamNode() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryA")
+          .addSource("MockFactoryB"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB")
+          .addSource("MockFactoryC"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("MockFactoryB2")
+          .setType("MockFactoryB")
+          .addSource("MockFactoryA"))
+        .build();
+    
+    AbstractQueryPipelineContext ctx = new TestContext(tsdb, query, 
+        context, graph, Lists.newArrayList(sink1));
+    try {
+      ctx.initialize(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void initializeConfigs() throws Exception {
+    // First - all defaults to null
+    TestContext ctx = new TestContext(tsdb, query, context, 
+        graph5(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode n1 = nodes.get("N1");
+    QueryNode n2 = nodes.get("N2");
+    QueryNode n3 = nodes.get("N3");
+    QueryNode n4 = nodes.get("N4");
+    QueryNode n5 = nodes.get("N5");
+    QueryNode s1 = nodes.get("S1");
+    QueryNode s2 = nodes.get("S2");
+    
+    assertNull(n1.config());
+    assertNull(n2.config());
+    assertNull(n3.config());
+    assertNull(n4.config());
+    assertNull(n5.config());
+    assertNull(s1.config());
+    assertNull(s2.config());
+    
+    // Types only
+    ExecutionGraph graph = graph5();
+    QueryNodeConfig config_a = mock(QueryNodeConfig.class);
+    when(config_a.getId()).thenReturn("MockFactoryA");
+    graph.addNodeConfig(config_a);
+    
+    QueryNodeConfig config_source = mock(QueryNodeConfig.class);
+    when(config_source.getId()).thenReturn("MockSourceFactory");
+    graph.addNodeConfig(config_source);
+    
+    ctx = new TestContext(tsdb, query, context, graph, Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    nodes = graphToMap(ctx);
+    n1 = nodes.get("N1");
+    n2 = nodes.get("N2");
+    n3 = nodes.get("N3");
+    n4 = nodes.get("N4");
+    n5 = nodes.get("N5");
+    s1 = nodes.get("S1");
+    s2 = nodes.get("S2");
+    
+    assertSame(config_a, n1.config());
+    assertSame(config_a, n2.config());
+    assertNull(n3.config());
+    assertSame(config_a, n4.config());
+    assertSame(config_a, n5.config());
+    assertSame(config_source, s1.config());
+    assertSame(config_source, s2.config());
+    
+    // named overrides
+    graph = graph5();
+    graph.addNodeConfig(config_a);
+    graph.addNodeConfig(config_source);
+    
+    QueryNodeConfig config_n2 = mock(QueryNodeConfig.class);
+    when(config_n2.getId()).thenReturn("N2");
+    graph.addNodeConfig(config_n2);
+    
+    QueryNodeConfig config_s1 = mock(QueryNodeConfig.class);
+    when(config_s1.getId()).thenReturn("S1");
+    graph.addNodeConfig(config_s1);
+    
+    ctx = new TestContext(tsdb, query, context, graph, Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    nodes = graphToMap(ctx);
+    n1 = nodes.get("N1");
+    n2 = nodes.get("N2");
+    n3 = nodes.get("N3");
+    n4 = nodes.get("N4");
+    n5 = nodes.get("N5");
+    s1 = nodes.get("S1");
+    s2 = nodes.get("S2");
+    
+    assertSame(config_a, n1.config());
+    assertSame(config_n2, n2.config());
+    assertNull(n3.config());
+    assertSame(config_a, n4.config());
+    assertSame(config_a, n5.config());
+    assertSame(config_s1, s1.config());
+    assertSame(config_source, s2.config());
+    
+    // override in graph
+    graph = ExecutionGraph.newBuilder()
+      .setId("Graph5")
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("N1")
+        .setType("MockFactoryA")
+        .addSource("N3"))
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("N2")
+        .setType("MockFactoryA")
+        .addSource("N3"))
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("N3")
+        .setType("MockFactoryB")
+        .addSource("N4")
+        .addSource("N5"))
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("N4")
+        .setType("MockFactoryA")
+        .addSource("S1")
+        .setConfig(config_a))
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("N5")
+        .setType("MockFactoryA")
+        .addSource("S2"))
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("S1")
+        .setType("MockSourceFactory"))
+      .addNode(ExecutionGraphNode.newBuilder()
+        .setId("S2")
+        .setType("MockSourceFactory"))
+      .build();
+    
+    ctx = new TestContext(tsdb, query, context, graph, Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    nodes = graphToMap(ctx);
+    n1 = nodes.get("N1");
+    n2 = nodes.get("N2");
+    n3 = nodes.get("N3");
+    n4 = nodes.get("N4");
+    n5 = nodes.get("N5");
+    s1 = nodes.get("S1");
+    s2 = nodes.get("S2");
+    
+    assertNull(n1.config());
+    assertNull(n2.config());
+    assertNull(n3.config());
+    assertSame(config_a, n4.config());
+    assertNull(n5.config());
+    assertNull(s1.config());
+    assertNull(s2.config());
   }
   
   @Test
   public void downstreamSources() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1));
-    ctx.init1();
-    Collection<TimeSeriesDataSource> ds = ctx.downstreamSources(ctx.n1);
-    assertEquals(2, ds.size());
-    assertTrue(ds.contains(ctx.s1));
-    assertTrue(ds.contains(ctx.s2));
+        graph5(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
     
-    ds = ctx.downstreamSources(ctx.n2);
-    assertEquals(2, ds.size());
-    assertTrue(ds.contains(ctx.s1));
-    assertTrue(ds.contains(ctx.s2));
+    assertEquals(8, ctx.graph.vertexSet().size());
+    assertEquals(2, ctx.roots().size());
     
-    ds = ctx.downstreamSources(ctx.n3);
-    assertEquals(2, ds.size());
-    assertTrue(ds.contains(ctx.s1));
-    assertTrue(ds.contains(ctx.s2));
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode n1 = nodes.get("N1");
+    final QueryNode n2 = nodes.get("N2");
+    final QueryNode n3 = nodes.get("N3");
+    final QueryNode n4 = nodes.get("N4");
+    final QueryNode n5 = nodes.get("N5");
+    final QueryNode s1 = nodes.get("S1");
+    final QueryNode s2 = nodes.get("S2");
     
-    ds = ctx.downstreamSources(ctx.n4);
+    Collection<TimeSeriesDataSource> ds = ctx.downstreamSources(n1);
+    assertEquals(2, ds.size());
+    assertTrue(ds.contains(s1));
+    assertTrue(ds.contains(s2));
+    
+    ds = ctx.downstreamSources(n2);
+    assertEquals(2, ds.size());
+    assertTrue(ds.contains(s1));
+    assertTrue(ds.contains(s2));
+    
+    ds = ctx.downstreamSources(n3);
+    assertEquals(2, ds.size());
+    assertTrue(ds.contains(s1));
+    assertTrue(ds.contains(s2));
+    
+    ds = ctx.downstreamSources(n4);
     assertEquals(1, ds.size());
-    assertTrue(ds.contains(ctx.s1));
+    assertTrue(ds.contains(s1));
     
-    ds = ctx.downstreamSources(ctx.n5);
+    ds = ctx.downstreamSources(n5);
     assertEquals(1, ds.size());
-    assertTrue(ds.contains(ctx.s2));
+    assertTrue(ds.contains(s2));
 
-    assertTrue(ctx.downstream(ctx.s1).isEmpty());
-    assertTrue(ctx.downstream(ctx.s2).isEmpty());
+    assertTrue(ctx.downstream(s1).isEmpty());
+    assertTrue(ctx.downstream(s2).isEmpty());
     
     try {
       ctx.downstream(null);
@@ -194,115 +608,154 @@ public class TestAbstractQueryPipelineContext {
   
   @Test
   public void close() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
+    final TestContext ctx = new TestContext(tsdb, query, context, graph5(),
         Lists.newArrayList(sink1));
-    ctx.init1();
+    ctx.initialize(null);
+    
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode n1 = nodes.get("N1");
+    final QueryNode n2 = nodes.get("N2");
+    final QueryNode n3 = nodes.get("N3");
+    final QueryNode n4 = nodes.get("N4");
+    final QueryNode n5 = nodes.get("N5");
+    final QueryNode s1 = nodes.get("S1");
+    final QueryNode s2 = nodes.get("S2");
+    
     ctx.close();
-    verify(ctx.n1, times(1)).close();
-    verify(ctx.n2, times(1)).close();
-    verify(ctx.n3, times(1)).close();
-    verify(ctx.n4, times(1)).close();
-    verify(ctx.n5, times(1)).close();
-    verify(ctx.s1, times(1)).close();
-    verify(ctx.s2, times(1)).close();
+    assertTrue(((MockNodeA) n1).closed);
+    assertTrue(((MockNodeA) n2).closed);
+    assertTrue(((MockNodeB) n3).closed);
+    assertTrue(((MockNodeA) n4).closed);
+    assertTrue(((MockNodeA) n5).closed);
+    assertTrue(((MockSource) s1).closed);
+    assertTrue(((MockSource) s2).closed);
   }
   
   @Test
   public void fetchNext() throws Exception {
-    TestContext ctx = new TestContext(tsdb, query, context, 
+    TestContext ctx = new TestContext(tsdb, query, context, graph5(),
         Lists.newArrayList(sink1));
-    ctx.init1();
-    assertTrue(ctx.sources.contains(ctx.s1));
-    assertTrue(ctx.sources.contains(ctx.s2));
+    ctx.initialize(null);
+    
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode s1 = nodes.get("S1");
+    QueryNode s2 = nodes.get("S2");
+    
+    assertTrue(ctx.sources.contains(s1));
+    assertTrue(ctx.sources.contains(s2));
     // reset the sources so it's deterministic.
     ctx.sources.clear();
-    ctx.sources.add(ctx.s1);
-    ctx.sources.add(ctx.s2);
+    ctx.sources.add((TimeSeriesDataSource) s1);
+    ctx.sources.add((TimeSeriesDataSource) s2);
     
-    verify(ctx.s1, never()).fetchNext(null);
-    verify(ctx.s2, never()).fetchNext(null);
-    
-    ctx.fetchNext(null);
-    verify(ctx.s1, times(1)).fetchNext(null);
-    verify(ctx.s2, never()).fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), never()).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), never()).fetchNext(null);
     
     ctx.fetchNext(null);
-    verify(ctx.s1, times(1)).fetchNext(null);
-    verify(ctx.s2, times(1)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(1)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), never()).fetchNext(null);
     
     ctx.fetchNext(null);
-    verify(ctx.s1, times(2)).fetchNext(null);
-    verify(ctx.s2, times(1)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(1)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), times(1)).fetchNext(null);
     
-    doThrow(new IllegalStateException("Boo!")).when(ctx.s2).fetchNext(null);
     ctx.fetchNext(null);
-    verify(ctx.s1, times(2)).fetchNext(null);
-    verify(ctx.s2, times(2)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(2)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), times(1)).fetchNext(null);
+    
+    doThrow(new UnitTestException())
+      .when(((TimeSeriesDataSource) s2))
+      .fetchNext(null);
+    ctx.fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(2)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), times(2)).fetchNext(null);
     verify(sink1, times(1)).onError(any(Throwable.class));
     
     // Test the single mutli-source case.
     when(context.mode()).thenReturn(QueryMode.SINGLE);
-    ctx = new TestContext(tsdb, query, context, Lists.newArrayList(sink1));
-    ctx.init1();
-    assertTrue(ctx.sources.contains(ctx.s1));
-    assertTrue(ctx.sources.contains(ctx.s2));
+    ctx = new TestContext(tsdb, query, context, graph5(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    nodes = graphToMap(ctx);
+    s1 = nodes.get("S1");
+    s2 = nodes.get("S2");
+    
+    assertTrue(ctx.sources.contains(s1));
+    assertTrue(ctx.sources.contains(s2));
     // reset the sources so it's deterministic.
     ctx.sources.clear();
-    ctx.sources.add(ctx.s1);
-    ctx.sources.add(ctx.s2);
+    ctx.sources.add((TimeSeriesDataSource) s1);
+    ctx.sources.add((TimeSeriesDataSource) s2);
     
-    verify(ctx.s1, never()).fetchNext(null);
-    verify(ctx.s2, never()).fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), never()).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), never()).fetchNext(null);
     
     ctx.fetchNext(null);
-    verify(ctx.s1, times(1)).fetchNext(null);
-    verify(ctx.s2, times(1)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(1)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), times(1)).fetchNext(null);
+    
+    ctx.fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(2)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), times(2)).fetchNext(null);
+    
+    doThrow(new UnitTestException())
+      .when(((TimeSeriesDataSource) s1))
+      .fetchNext(null);
+    ctx.fetchNext(null);
+    verify(((TimeSeriesDataSource) s1), times(3)).fetchNext(null);
+    verify(((TimeSeriesDataSource) s2), times(2)).fetchNext(null);
+    verify(sink1, times(2)).onError(any(Throwable.class));
   }
   
   @Test
   public void onComplete() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
+    final TestContext ctx = new TestContext(tsdb, query, context, graph5(),
         Lists.newArrayList(sink1, sink2));
-    ctx.init1();
+    ctx.initialize(null);
+    final Map<String, QueryNode> nodes = graphToMap(ctx);
+    final QueryNode n1 = nodes.get("N1");
+    final QueryNode n2 = nodes.get("N2");
     
     doThrow(new IllegalStateException("Boo!")).when(sink1).onComplete();
     
     QueryResult result = mock(QueryResult.class);
-    when(result.source()).thenReturn(ctx.n1);
+    when(result.source()).thenReturn(n1);
     ctx.onNext(result);
-    ctx.onComplete(ctx.n1, 0, 1);
+    ctx.onComplete(n1, 0, 1);
     verify(sink1, never()).onComplete();
     verify(sink2, never()).onComplete();
     
     result = mock(QueryResult.class);
-    when(result.source()).thenReturn(ctx.n2);
+    when(result.source()).thenReturn(n2);
     ctx.onNext(result);
-    ctx.onComplete(ctx.n2, 0, 1);
+    ctx.onComplete(n2, 0, 1);
     verify(sink1, times(1)).onComplete();
     verify(sink2, times(1)).onComplete();
   }
   
   @Test
   public void onNext() throws Exception {
-    TestContext ctx = new TestContext(tsdb, query, context, 
+    TestContext ctx = new TestContext(tsdb, query, context, graph5(),
         Lists.newArrayList(sink1, sink2));
-    ctx.init1();
+    ctx.initialize(null);
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode n1 = nodes.get("N1");
+    QueryNode n2 = nodes.get("N2");
     
     doThrow(new IllegalStateException("Boo!")).when(sink1).onNext(any());
     
     QueryResult result = mock(QueryResult.class);
-    when(result.source()).thenReturn(ctx.n1);
+    when(result.source()).thenReturn(n1);
     ctx.onNext(result);
-    ctx.onComplete(ctx.n1, 0, 1);
+    ctx.onComplete(n1, 0, 1);
     verify(sink1, times(1)).onNext(result);
     verify(sink2, times(1)).onNext(result);
     verify(sink1, never()).onComplete();
     verify(sink2, never()).onComplete();
     
     result = mock(QueryResult.class);
-    when(result.source()).thenReturn(ctx.n2);
+    when(result.source()).thenReturn(n2);
     ctx.onNext(result);
-    ctx.onComplete(ctx.n2, 0, 1);
+    ctx.onComplete(n2, 0, 1);
     verify(sink1, times(1)).onNext(result);
     verify(sink2, times(1)).onNext(result);
     verify(sink1, times(1)).onComplete();
@@ -310,19 +763,22 @@ public class TestAbstractQueryPipelineContext {
     
     // Test the single multi-source case
     when(context.mode()).thenReturn(QueryMode.SINGLE);
-    ctx = new TestContext(tsdb, query, context, Lists.newArrayList(sink1, sink2));
-    ctx.init1();
+    ctx = new TestContext(tsdb, query, context, graph5(), 
+        Lists.newArrayList(sink1, sink2));
+    ctx.initialize(null);
+    nodes = graphToMap(ctx);
+    n1 = nodes.get("N1");
+    n2 = nodes.get("N2");
     
     final TimeSeries t1 = mock(TimeSeries.class);
-    final TimeSeries t2 = mock(TimeSeries.class);
     
     assertNull(ctx.single_results);
     result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
-    when(result.source()).thenReturn(ctx.n1);
+    when(result.source()).thenReturn(n1);
     ctx.onNext(result);
-    ctx.onComplete(ctx.n1, 0, 1);
+    ctx.onComplete(n1, 0, 1);
     assertNotNull(ctx.single_results);
     verify(sink1, never()).onNext(result);
     verify(sink2, never()).onNext(result);
@@ -334,9 +790,9 @@ public class TestAbstractQueryPipelineContext {
     result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
-    when(result.source()).thenReturn(ctx.n2);
+    when(result.source()).thenReturn(n2);
     ctx.onNext(result);
-    ctx.onComplete(ctx.n2, 0, 1);
+    ctx.onComplete(n2, 0, 1);
     assertNotNull(ctx.single_results);
     verify(sink1, times(2)).onComplete();
     verify(sink2, times(2)).onComplete();
@@ -348,9 +804,9 @@ public class TestAbstractQueryPipelineContext {
   
   @Test
   public void onError() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
+    TestContext ctx = new TestContext(tsdb, query, context, graph5(),
         Lists.newArrayList(sink1, sink2));
-    ctx.init1();
+    ctx.initialize(null);
     
     doThrow(new IllegalStateException("Boo!")).when(sink1).onError(any());
     
@@ -360,79 +816,25 @@ public class TestAbstractQueryPipelineContext {
   }
   
   @Test
-  public void addVertex() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1, sink2));
-    ctx.init1();
-    
-    // same is ok
-    ctx.addVertex(ctx.n1);
-    
-    try {
-      ctx.addVertex(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-  
-  @Test
-  public void addDagEdge() throws Exception {
-    final TestContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1, sink2));
-    ctx.init1();
-    
-    // add existing is ok
-    ctx.addDagEdge(ctx.n4, ctx.s1);
-    
-    try {
-      ctx.addDagEdge(null, ctx.s1);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      ctx.addDagEdge(ctx.n4, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // no cycles allowed
-    try {
-      ctx.addDagEdge(ctx.s1, ctx.n1);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // or dag to self
-    try {
-      ctx.addDagEdge(ctx.n1, ctx.n1);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-  
-  @Test
   public void chainedSources() throws Exception {
-    TestContext ctx = new TestContext(tsdb, query, context, 
+    TestContext ctx = new TestContext(tsdb, query, context, graph6(),
         Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode s1 = nodes.get("S1");
     
-    ctx.init2();
     assertEquals(1, ctx.sources.size());
-    assertSame(ctx.s2, ctx.sources.get(0));
-  }
-  
-  @Test
-  public void initializeGraph() throws Exception {
-    TestContext ctx = new TestContext(tsdb, query, context, 
-        Lists.newArrayList(sink1, sink2));
-    // empty is not allowed
-    try {
-      ctx.initializeGraph(null);
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-    ctx.init1();
+    assertSame(s1, ctx.sources.get(0));
   }
   
   @Test
   public void cumulativeQueryResult_addResults() throws Exception {
-    TestContext ctx = new TestContext(tsdb, query, context, 
+    TestContext ctx = new TestContext(tsdb, query, context, graph5(),
         Lists.newArrayList(sink1, sink2));
-    ctx.init1();
+    ctx.initialize(null);
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode n1 = nodes.get("N1");
+    QueryNode n2 = nodes.get("N2");
     
     final TimeSeries t1 = mock(TimeSeries.class);
     final TimeSeries t2 = mock(TimeSeries.class);
@@ -441,7 +843,7 @@ public class TestAbstractQueryPipelineContext {
     QueryResult result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
-    when(result.source()).thenReturn(ctx.n1);
+    when(result.source()).thenReturn(n1);
     
     CumulativeQueryResult cqr = ctx.new CumulativeQueryResult(result);
     assertEquals(1, cqr.timeSeries().size());
@@ -454,7 +856,7 @@ public class TestAbstractQueryPipelineContext {
     result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.NANOS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t2));
-    when(result.source()).thenReturn(ctx.n2);
+    when(result.source()).thenReturn(n2);
     when(result.sequenceId()).thenReturn(4L);
     
     cqr.addResults(result);
@@ -469,7 +871,7 @@ public class TestAbstractQueryPipelineContext {
     result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t3));
-    when(result.source()).thenReturn(ctx.n2);
+    when(result.source()).thenReturn(n2);
     when(result.sequenceId()).thenReturn(1L);
     
     cqr.addResults(result);
@@ -485,7 +887,7 @@ public class TestAbstractQueryPipelineContext {
     when(result.timeSpecification()).thenReturn(mock(TimeSpecification.class));
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t3));
-    when(result.source()).thenReturn(ctx.n2);
+    when(result.source()).thenReturn(n2);
     when(result.sequenceId()).thenReturn(1L);
     try {
       cqr.addResults(result);
@@ -494,82 +896,344 @@ public class TestAbstractQueryPipelineContext {
   }
   
   class TestContext extends AbstractQueryPipelineContext {
-    final QueryNode n1 = mock(QueryNode.class);
-    final QueryNode n2 = mock(QueryNode.class);
-    final QueryNode n3 = mock(QueryNode.class);
-    final QueryNode n4 = mock(QueryNode.class);
-    final QueryNode n5 = mock(QueryNode.class);
-    final TimeSeriesDataSource s1 = mock(TimeSeriesDataSource.class);
-    final TimeSeriesDataSource s2 = mock(TimeSeriesDataSource.class);
-    
-    public TestContext(DefaultTSDB tsdb, TimeSeriesQuery query, QueryContext context,
-        Collection<QuerySink> sinks) {
-      super(tsdb, query, context, sinks);
-      
-      when(n1.id()).thenReturn("n1");
-      when(n2.id()).thenReturn("n2");
-      when(n3.id()).thenReturn("n3");
-      when(n4.id()).thenReturn("n4");
-      when(n5.id()).thenReturn("n5");
-      when(s1.id()).thenReturn("s1");
-      when(s2.id()).thenReturn("s2");
+    public TestContext(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
+        ExecutionGraph execution_graph, Collection<QuerySink> sinks) {
+      super(tsdb, query, context, execution_graph, sinks);
     }
-
+  
     @Override
-    public void initialize(final Span span) {
-      initializeGraph(null);
+    public void initialize(Span span) {
+      initializeGraph(span);
     }
-    
-    public void init1() {
-      // sets up the following DAG:
-      // n1 --> n3 --> n4 --> s1
-      //        ^  |
-      // n2 ----|  |-> n5 --> s2
-      
-      addVertex(n1);
-      addVertex(n2);
-      addVertex(n3);
-      addVertex(n4);
-      addVertex(n5);
-      addVertex(s1);
-      addVertex(s2);
-    
-      addDagEdge(n4, s1);
-      addDagEdge(n5, s2);
-      addDagEdge(n3, n4);
-      addDagEdge(n3, n5);
-      addDagEdge(n1, n3);
-      addDagEdge(n2, n3);
-      addDagEdge(this, n1);
-      addDagEdge(this, n2);
-      
-      doThrow(new IllegalStateException("Boo!")).when(n4).close();
-      initialize(null);
-    }
-
-    public void init2() {
-      // sets up the following DAG:
-      // n1 --> s2 --> s1
-      //        ^
-      // n2 ----|
-      
-      addVertex(s1);
-      addVertex(s2);
-      addVertex(n1);
-      addVertex(n2);
-      
-      addDagEdge(s2, s1);
-      addDagEdge(n1, s2);
-      addDagEdge(n2, s2);
-      addDagEdge(this, n1);
-      addDagEdge(this, n2);
-      initialize(null);
-    }
-    
+  
     @Override
     public String id() {
-      return "TestContext";
+      return execution_graph.getId();
+    }
+    
+  }
+  
+  //sets up the following DAG:
+  // s1
+  ExecutionGraph graph1() {
+    return ExecutionGraph.newBuilder()
+        .setId("Graph1")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .build();
+  }
+  
+  //sets up the following DAG:
+  // n1 --> s1
+  ExecutionGraph graph2() {
+    return ExecutionGraph.newBuilder()
+        .setId("Graph2")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .build();
+  }
+  
+  //sets up the following DAG:
+  // n1 --> s1
+  //        ^
+  // n2 ----|
+  ExecutionGraph graph3() {
+    return ExecutionGraph.newBuilder()
+        .setId("Graph3")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N2")
+          .setType("MockFactoryB")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .build();
+  }
+  
+  //sets up the following DAG:
+  // n1 --> s1
+  //  |      
+  //  ----> s2
+  ExecutionGraph graph4() {
+    return ExecutionGraph.newBuilder()
+        .setId("Graph4")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("S1")
+          .addSource("S2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S2")
+          .setType("MockSourceFactory"))
+        .build();
+  }
+  
+  //sets up the following DAG:
+  // n1 --> n3 --> n4 --> s1
+  //        ^  |
+  // n2 ----|  |-> n5 --> s2
+  ExecutionGraph graph5() {
+    return ExecutionGraph.newBuilder()
+        .setId("Graph5")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("N3"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N2")
+          .setType("MockFactoryA")
+          .addSource("N3"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N3")
+          .setType("MockFactoryB")
+          .addSource("N4")
+          .addSource("N5"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N4")
+          .setType("MockFactoryA")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N5")
+          .setType("MockFactoryA")
+          .addSource("S2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S2")
+          .setType("MockSourceFactory"))
+        .build();
+  }
+
+  // sets up the following DAG:
+  // n1 --> n3 --> s1
+  //        ^
+  // n2 ----|
+  ExecutionGraph graph6() {
+    return ExecutionGraph.newBuilder()
+        .setId("Graph6")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("N3"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N2")
+          .setType("MockFactoryA")
+          .addSource("N3"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N3")
+          .setType("MockFactoryB")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .build();
+  }
+
+  private Map<String, QueryNode> graphToMap(final AbstractQueryPipelineContext pipeline) {
+    final Map<String, QueryNode> map = Maps.newHashMap();
+    final Iterator<QueryNode> iterator = 
+        pipeline.graph.vertexSet().iterator();
+    while (iterator.hasNext()) {
+      final QueryNode node = iterator.next();
+      map.put(node.id(), node);
+    }
+    return map;
+  }
+  
+  static class MockFactoryA implements QueryNodeFactory {
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id) {
+      return newNode(context, id, null);
     }
 
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id,
+        QueryNodeConfig config) {
+      return spy(new MockNodeA(this, context, id, config));
+    }
+
+    @Override
+    public String id() {
+      return "MockFactoryA";
+    }
+
+    @Override
+    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+      return null;
+    }
+    
+  }
+  
+  public static class MockNodeA extends AbstractQueryNode {
+    boolean closed;
+    QueryNodeConfig config;
+    
+    public MockNodeA(QueryNodeFactory factory, QueryPipelineContext context,
+        String id, QueryNodeConfig config) {
+      super(factory, context, id);
+      this.config = config;
+    }
+
+    @Override
+    public QueryNodeConfig config() { return config; }
+
+    @Override
+    public void close() { closed = true; }
+
+    @Override
+    public void onComplete(QueryNode downstream, long final_sequence,
+        long total_sequences) { }
+
+    @Override
+    public void onNext(QueryResult next) { }
+
+    @Override
+    public void onError(Throwable t) { }
+    
+    public Collection<QueryNode> upstream() {
+      return upstream;
+    }
+    
+    public Collection<QueryNode> downstream() {
+      return downstream;
+    }
+  }
+  
+  static class MockFactoryB implements QueryNodeFactory {
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id) {
+      return newNode(context, id, null);
+    }
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id,
+        QueryNodeConfig config) {
+      return spy(new MockNodeB(this, context, id, config));
+    }
+
+    @Override
+    public String id() {
+      return "MockFactoryB";
+    }
+
+    @Override
+    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+      return null;
+    }
+    
+  }
+  
+  public static class MockNodeB extends AbstractQueryNode {
+    boolean closed; 
+    QueryNodeConfig config;
+    
+    public MockNodeB(QueryNodeFactory factory, QueryPipelineContext context,
+        String id, QueryNodeConfig config) {
+      super(factory, context, id);
+      this.config = config;
+    }
+
+    @Override
+    public QueryNodeConfig config() { return config; }
+
+    @Override
+    public void close() { closed = true; }
+
+    @Override
+    public void onComplete(QueryNode downstream, long final_sequence,
+        long total_sequences) { }
+
+    @Override
+    public void onNext(QueryResult next) { }
+
+    @Override
+    public void onError(Throwable t) { }
+
+    public Collection<QueryNode> upstream() {
+      return upstream;
+    }
+    
+    public Collection<QueryNode> downstream() {
+      return downstream;
+    }
+  }
+
+  static class MockSourceFactory implements QueryNodeFactory {
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id) {
+      return newNode(context, id, null);
+    }
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id,
+        QueryNodeConfig config) {
+      return spy(new MockSource(this, context, id, config));
+    }
+
+    @Override
+    public String id() {
+      return "MockSourceFactory";
+    }
+
+    @Override
+    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+      return null;
+    }
+    
+  }
+  
+  public static class MockSource extends AbstractQueryNode implements TimeSeriesDataSource {
+    boolean closed;
+    QueryNodeConfig config;
+    
+    public MockSource(QueryNodeFactory factory, QueryPipelineContext context,
+        String id, QueryNodeConfig config) {
+      super(factory, context, id);
+      this.config = config;
+    }
+
+    @Override
+    public QueryNodeConfig config() { return config; }
+
+    @Override
+    public void close() { closed = true; }
+
+    @Override
+    public void onComplete(QueryNode downstream, long final_sequence,
+        long total_sequences) { }
+
+    @Override
+    public void onNext(QueryResult next) { }
+
+    @Override
+    public void onError(Throwable t) { }
+
+    public Collection<QueryNode> upstream() {
+      return upstream;
+    }
+    
+    public Collection<QueryNode> downstream() {
+      return downstream;
+    }
+
+    @Override
+    public void fetchNext(Span span) { }
   }
 }

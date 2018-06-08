@@ -143,6 +143,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
           int idx = 0;
           for (final TimeSeries series : 
             series != null ? series : result.timeSeries()) {
+            
             final TypeToken<? extends TimeSeriesDataType> type;
             Optional<Iterator<TimeSeriesValue<?>>> optional = 
                 series.iterator(NumericType.TYPE);
@@ -156,11 +157,11 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
             } else {
               type = NumericType.TYPE;
             }
+            
             final Iterator<TimeSeriesValue<?>> iterator = optional.get();
             if (!iterator.hasNext()) {
               continue;
             }
-            
             TimeSeriesValue<? extends TimeSeriesDataType> value = 
                 (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
             while (value != null && value.timestamp().compare(
@@ -171,6 +172,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
                 value = null;
               }
             }
+            
             if (value == null) {
               continue;
             }
@@ -257,10 +259,11 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
           }
           
           json.flush();
-        } catch (IOException e) {
+        } catch (Exception e) {
           LOG.error("Unexpected exception", e);
-          throw new QueryExecutionException("Unexpected exception "
-              + "serializing: " + result, 500, e);
+          return Deferred.fromError(new QueryExecutionException(
+              "Unexpected exception "
+              + "serializing: " + result, 500, e));
         }
         return Deferred.fromResult(null);
       }

@@ -43,6 +43,8 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -118,31 +120,31 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
    */
   public TimeBasedRoutingExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Default config cannot be null.");
-    }
-    if (node.graph() == null) {
-      throw new IllegalStateException("Execution graph cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(((Config) node.getConfig()).getPlannerId())) {
-      throw new IllegalArgumentException("Default planner ID must be non-empty.");
-    }
-    executors = Maps.newHashMapWithExpectedSize(
-        ((Config) node.getConfig()).times.size());
-    for (final TimeRange range : ((Config) node.getConfig()).times) {
-      @SuppressWarnings("unchecked")
-      final QueryExecutor<T> executor = (QueryExecutor<T>) 
-          node.graph().getDownstreamExecutor(range.executorId);
-      if (executor == null) {
-        throw new IllegalStateException("No downstram executor found for ID " 
-            + range.executorId);
-      }
-      executors.put(range.executorId, executor);
-      registerDownstreamExecutor(executor);
-    }
-    
-    caches = ((Config) node.getConfig()).caches;
-    tsds = ((Config) node.getConfig()).tsds;
+//    if (node.getConfig() == null) {
+//      throw new IllegalArgumentException("Default config cannot be null.");
+//    }
+//    if (node.graph() == null) {
+//      throw new IllegalStateException("Execution graph cannot be null.");
+//    }
+//    if (Strings.isNullOrEmpty(((Config) node.getConfig()).getPlannerId())) {
+//      throw new IllegalArgumentException("Default planner ID must be non-empty.");
+//    }
+//    executors = Maps.newHashMapWithExpectedSize(
+//        ((Config) node.getConfig()).times.size());
+//    for (final TimeRange range : ((Config) node.getConfig()).times) {
+//      @SuppressWarnings("unchecked")
+//      final QueryExecutor<T> executor = (QueryExecutor<T>) 
+//          node.graph().getDownstreamExecutor(range.executorId);
+//      if (executor == null) {
+//        throw new IllegalStateException("No downstram executor found for ID " 
+//            + range.executorId);
+//      }
+//      executors.put(range.executorId, executor);
+//      registerDownstreamExecutor(executor);
+//    }
+//    
+//    caches = ((Config) node.getConfig()).caches;
+//    tsds = ((Config) node.getConfig()).tsds;
   }
 
   @Override
@@ -311,21 +313,22 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
         // ------------------------------------------------------------
         // fall through means we need to query 2 or more tsds.
         final QueryExecutorConfig override = 
-            context.getConfigOverride(node.getExecutorId());
+            context.getConfigOverride(node.getId());
         final Config config;
-        if (override != null) {
-          config = (Config) override;
-        } else {
-          config = (Config) node.getConfig();
-        }
+//        if (override != null) {
+//          config = (Config) override;
+//        } else {
+//          config = (Config) node.getConfig();
+//        }
         
-        final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
-            ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
+//        final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
+//            ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
+        final String plan_id = null;
         final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
             .getQueryPlanner(plan_id);
         if (plan_factory == null) {
           throw new IllegalArgumentException("No such query plan factory: " 
-              + config.getPlannerId());
+              );//+ config.getPlannerId());
         }
         final QueryPlanner<?> temp_planner = plan_factory.newPlanner(query);
         if (temp_planner == null) {
@@ -481,7 +484,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
   /** The configuration class for this executor. */
   @JsonInclude(Include.NON_NULL)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     private List<TimeRange> times;
     private String planner_id;
     private List<TimeRange> caches;
@@ -547,8 +550,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(planner_id, config.planner_id)
           && Objects.equal(times, config.times);
     }
@@ -563,8 +565,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
       final List<HashCode> hashes = Lists.newArrayListWithCapacity(
           times.size() + 1);
       hashes.add(Const.HASH_FUNCTION().newHasher()
-        .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-        .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
         .putString(Strings.nullToEmpty(planner_id), Const.UTF8_CHARSET)
         .hash());
       for (final TimeRange range : times) {
@@ -574,12 +575,9 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public int compareTo(QueryExecutorConfig config) {
+    public int compareTo(QueryNodeConfig config) {
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
-              Ordering.natural().nullsFirst())
+          .compare(id, config.getId(), Ordering.natural().nullsFirst())
           .compare(planner_id, ((Config) config).planner_id, 
               Ordering.natural().nullsFirst())
           .compare(times, ((Config) config).times,
@@ -591,7 +589,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
       return new Builder();
     }
     
-    public static class Builder extends QueryExecutorConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private List<TimeRange> times;
       @JsonProperty

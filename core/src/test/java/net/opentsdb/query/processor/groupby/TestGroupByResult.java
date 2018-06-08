@@ -36,18 +36,13 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.storage.TimeSeriesDataStore;
 
 public class TestGroupByResult {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
   
-  private DefaultInterpolationConfig interpolation_config;
   private GroupBy node;
   private GroupByConfig config;
   private QueryResult result;
@@ -56,35 +51,32 @@ public class TestGroupByResult {
   private NumericMillisecondShard ts2;
   private NumericMillisecondShard ts3;
   private NumericMillisecondShard ts4;
+  private NumericInterpolatorConfig numeric_config;
+  private NumericSummaryInterpolatorConfig summary_config;
   
   @Before
   public void before() throws Exception {
-    NumericInterpolatorConfig numeric_config = 
-        NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .build();
+    numeric_config = 
+          (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+      .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+      .setType(NumericType.TYPE.toString())
+      .build();
     
-    NumericSummaryInterpolatorConfig summary_config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .addExpectedSummary(0)
-        .setRollupConfig(CONFIG)
-        .build();
+    summary_config = 
+          (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+      .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+      .addExpectedSummary(0)
+      .setType(NumericSummaryType.TYPE.toString())
+      .build();
     
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .add(NumericSummaryType.TYPE, summary_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     node = mock(GroupBy.class);
     result = mock(QueryResult.class);
@@ -155,12 +147,13 @@ public class TestGroupByResult {
 
   @Test
   public void strings2Tags() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .addTagKey("host")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -188,12 +181,13 @@ public class TestGroupByResult {
   
   @Test
   public void stringsNoSuchTag() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .addTagKey("foo")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -203,11 +197,12 @@ public class TestGroupByResult {
 
   @Test
   public void stringsGroupAll() throws Exception {
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .setGroupAll(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -224,12 +219,13 @@ public class TestGroupByResult {
     assertTrue(ts.sources.contains(ts3));
     assertTrue(ts.sources.contains(ts4));
     
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .setGroupAll(true)
         .addTagKey("host") // <-- ignored
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -279,14 +275,15 @@ public class TestGroupByResult {
   @Test
   public void bytes2Tags() throws Exception {
     setupBytes();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .addTagKey("host")
         .addTagKey("dc".getBytes())
         .addTagKey("host".getBytes())
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -315,14 +312,15 @@ public class TestGroupByResult {
   @Test
   public void bytesNoSuchTag() throws Exception {
     setupBytes();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .addTagKey("foo")
         .addTagKey("dc".getBytes())
         .addTagKey("foo".getBytes())
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -333,11 +331,12 @@ public class TestGroupByResult {
   @Test
   public void bytesGroupAll() throws Exception {
     setupBytes();
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .setGroupAll(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -354,12 +353,13 @@ public class TestGroupByResult {
     assertTrue(ts.sources.contains(ts3));
     assertTrue(ts.sources.contains(ts4));
     
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .setGroupAll(true)
         .addTagKey("host") // <-- ignored
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -389,12 +389,13 @@ public class TestGroupByResult {
   
   private void setupBytes() {
     final TimeSeriesDataStore data_store = mock(TimeSeriesDataStore.class);
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addTagKey("dc")
         .addTagKey("dc".getBytes())
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     when(node.config()).thenReturn(config);
     

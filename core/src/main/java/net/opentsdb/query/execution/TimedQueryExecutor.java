@@ -35,6 +35,8 @@ import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -69,22 +71,24 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public TimedQueryExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Default config cannot be null.");
-    }
-    if (node.graph() == null) {
-      throw new IllegalStateException("Execution graph cannot be null.");
-    }
-    if (((Config) node.getConfig()).timeout < 1) {
-      throw new IllegalArgumentException("Default timeout must be greater "
-          + "than zero.");
-    }
-    default_timeout = ((Config) node.getConfig()).timeout;
-    executor = (QueryExecutor<T>) 
-        node.graph().getDownstreamExecutor(node.getExecutorId());
-    if (executor == null) {
-      throw new IllegalStateException("No downstream executor found: " + this);
-    }
+//    if (node.getConfig() == null) {
+//      throw new IllegalArgumentException("Default config cannot be null.");
+//    }
+//    if (node.graph() == null) {
+//      throw new IllegalStateException("Execution graph cannot be null.");
+//    }
+//    if (((Config) node.getConfig()).timeout < 1) {
+//      throw new IllegalArgumentException("Default timeout must be greater "
+//          + "than zero.");
+//    }
+//    default_timeout = ((Config) node.getConfig()).timeout;
+//    executor = (QueryExecutor<T>) 
+//        node.graph().getDownstreamExecutor(node.getId());
+//    if (executor == null) {
+//      throw new IllegalStateException("No downstream executor found: " + this);
+//    }
+    executor = null;
+    default_timeout = 0;
     registerDownstreamExecutor(executor);
   }
 
@@ -175,12 +179,12 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       // run it!
       try {
         final QueryExecutorConfig override = 
-            context.getConfigOverride(node.getExecutorId());
+            context.getConfigOverride(node.getId());
         long timeout = default_timeout;
         if (override != null) {
-          if (override instanceof Config) {
-            timeout = ((Config) override).timeout;
-          }
+//          if (override instanceof Config) {
+//            timeout = ((Config) override).timeout;
+//          }
         }
         downstream = executor.executeQuery(context, query, upstream_span);
         downstream.deferred()
@@ -272,7 +276,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
    */
   @JsonInclude(Include.NON_NULL)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     /** The timeout in milliseconds. */
     private long timeout;
     
@@ -309,8 +313,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     public static Builder newBuilder(final Config config) {
       return (Builder) new Builder()
           .setTimeout(config.timeout)
-          .setExecutorId(config.executor_id)
-          .setExecutorType(config.executor_type);
+          .setId(config.id);
     }
     
     @Override
@@ -322,8 +325,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(timeout, config.timeout);
     }
 
@@ -335,25 +337,21 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     @Override
     public HashCode buildHashCode() {
       return Const.HASH_FUNCTION().newHasher()
-          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
           .putLong(timeout)
           .hash();
     }
 
     @Override
-    public int compareTo(QueryExecutorConfig config) {
+    public int compareTo(QueryNodeConfig config) {
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
-              Ordering.natural().nullsFirst())
+          .compare(id, config.getId(), Ordering.natural().nullsFirst())
           .compare(timeout, ((Config) config).timeout)
           .result();
     }
     
     /** The builder for TimedQueryExecutor configs. */
-    public static class Builder extends QueryExecutorConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private long timeout;
       

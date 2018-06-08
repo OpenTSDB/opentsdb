@@ -44,12 +44,11 @@ public class BaseNumericSummaryFillPolicy implements
    * @param config A non-null config.
    * @throws IllegalArgumentException if the config was null.
    */
-  public BaseNumericSummaryFillPolicy(
-      final NumericSummaryInterpolatorConfig config) {
+  public BaseNumericSummaryFillPolicy(final QueryInterpolatorConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    this.config = config;
+    this.config = (NumericSummaryInterpolatorConfig) config;
     value = new MutableNumericSummaryType();
     nulled = true;
   }

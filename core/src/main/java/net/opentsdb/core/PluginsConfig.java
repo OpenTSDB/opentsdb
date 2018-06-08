@@ -102,6 +102,7 @@ public class PluginsConfig extends Validatable {
   
   public static final List<String> DEFAULT_TYPES = Lists.newArrayList();
   static {
+    DEFAULT_TYPES.add("net.opentsdb.query.QueryNodeFactory");
     DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
     DEFAULT_TYPES.add("net.opentsdb.query.QueryInterpolatorFactory");
     DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
@@ -121,6 +122,8 @@ public class PluginsConfig extends Validatable {
         "net.opentsdb.storage.Tsdb1xHBaseFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.TimeSeriesSerdes", 
         "net.opentsdb.query.serdes.PBufSerdes");
+    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.QueryInterpolatorFactory", 
+        "net.opentsdb.query.interpolation.DefaultInterpolatorFactory");    
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 
         "net.opentsdb.stats.BraveTracer");
   }

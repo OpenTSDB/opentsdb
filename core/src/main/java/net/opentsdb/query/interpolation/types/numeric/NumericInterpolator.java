@@ -27,6 +27,7 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
 
 /**
  * An interpolator for numeric data points that fills with the given 
@@ -75,15 +76,15 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
    */
   @SuppressWarnings("unchecked")
   public NumericInterpolator(final TimeSeries source, 
-                             final NumericInterpolatorConfig config) {
+                             final QueryInterpolatorConfig config) {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    this.config = config;
-    fill_policy = config.queryFill();
+    this.config = (NumericInterpolatorConfig) config;
+    fill_policy = ((NumericInterpolatorConfig) config).queryFill();
     final Optional<Iterator<TimeSeriesValue<?>>> optional = 
         source.iterator(NumericType.TYPE);
     if (optional.isPresent()) {
@@ -108,13 +109,13 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
   @SuppressWarnings("unchecked")
   public NumericInterpolator(
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
-      final NumericInterpolatorConfig config) {
+      final QueryInterpolatorConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
     this.iterator = iterator;
-    this.config = config;
-    fill_policy = config.queryFill();
+    this.config = (NumericInterpolatorConfig) config;
+    fill_policy = ((NumericInterpolatorConfig) config).queryFill();
     if (iterator != null && iterator.hasNext()) {
       next = (TimeSeriesValue<NumericType>) iterator.next();
       has_next = true;

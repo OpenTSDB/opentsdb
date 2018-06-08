@@ -67,6 +67,9 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.context.QueryContext;
@@ -109,14 +112,15 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
    */
   public HttpQueryV2Executor(final ExecutionGraphNode node) {
     super(node);
-    if (((Config) node.getConfig()) == null) {
-      throw new IllegalArgumentException("Config connot be null.");
-    }
-    if (Strings.isNullOrEmpty(((Config) node.getConfig()).endpoint)) {
-      default_endpoint = null;
-    } else {
-      default_endpoint = ((Config) node.getConfig()).endpoint + "/api/query";
-    }
+    default_endpoint = "";
+//    if (((Config) node.getConfig()) == null) {
+//      throw new IllegalArgumentException("Config connot be null.");
+//    }
+//    if (Strings.isNullOrEmpty(((Config) node.getConfig()).endpoint)) {
+//      default_endpoint = null;
+//    } else {
+//      default_endpoint = ((Config) node.getConfig()).endpoint + "/api/query";
+//    }
   }
   
   @Override
@@ -361,8 +365,8 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
                 "startThread", Thread.currentThread().getName()));
       }
 
-      final Config override = 
-          (Config) context.getConfigOverride(node.getExecutorId());
+      final Config override = null; 
+          //(Config) context.getConfigOverride(node.getId());
       if (override != null && !Strings.isNullOrEmpty(override.endpoint)) {
         endpoint = override.endpoint + "/api/query";
       } else {
@@ -776,7 +780,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     private String endpoint;
     
     /**
@@ -796,10 +800,8 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
     @Override
     public String toString() {
       return new StringBuilder()
-          .append("executorId=")
-          .append(executor_id)
-          .append(", executorType=")
-          .append(executor_type)
+          .append("id=")
+          .append(id)
           .append(", endpoint=")
           .append(endpoint)
           .toString();
@@ -819,8 +821,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(endpoint, config.endpoint);
     }
 
@@ -832,18 +833,15 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
     @Override
     public HashCode buildHashCode() {
       return Const.HASH_FUNCTION().newHasher()
-          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(endpoint), Const.UTF8_CHARSET)
           .hash();
     }
 
     @Override
-    public int compareTo(QueryExecutorConfig config) {
+    public int compareTo(QueryNodeConfig config) {
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
+          .compare(id, config.getId(), 
               Ordering.natural().nullsFirst())
           .compare(endpoint, ((Config) config).endpoint, 
               Ordering.natural().nullsFirst())
@@ -851,7 +849,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
     }
     
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Builder extends QueryExecutorConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private String endpoint;
       

@@ -57,4 +57,15 @@ public interface QueryInterpolatorFactory extends TSDBPlugin {
       final TypeToken<? extends TimeSeriesDataType> type, 
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
       final QueryInterpolatorConfig config);
+
+  /**
+   * Called to register an interpolator for the given data type and ID
+   * of the factory.
+   * @param type A non-null type.
+   * @param clazz A non-null class with a constructor accepting the 
+   * following parameters: "TimeSeries, QueryInterpolatorConfig" or 
+   * "Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>, QueryInterpolatorConfig".
+   */
+  public void register(final TypeToken<? extends TimeSeriesDataType> type,
+                       final Class<? extends QueryInterpolator<?>> clazz); 
 }

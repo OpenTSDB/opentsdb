@@ -52,9 +52,10 @@ public class TestNumericInterpolator {
   
   @Before
   public void before() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
   }
   
@@ -236,9 +237,10 @@ public class TestNumericInterpolator {
 
   @Test
   public void previousOnly() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREVIOUS_ONLY)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -283,9 +285,10 @@ public class TestNumericInterpolator {
   
   @Test
   public void nextOnly() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -330,9 +333,10 @@ public class TestNumericInterpolator {
   
   @Test
   public void preferPrevious() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -377,9 +381,10 @@ public class TestNumericInterpolator {
   
   @Test
   public void preferNext() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -424,9 +429,10 @@ public class TestNumericInterpolator {
   
   @Test
   public void fillNone() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -471,9 +477,10 @@ public class TestNumericInterpolator {
   
   @Test
   public void fillNull() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -518,9 +525,10 @@ public class TestNumericInterpolator {
   
   @Test
   public void fillZero() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.ZERO)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -564,10 +572,11 @@ public class TestNumericInterpolator {
   
   @Test
   public void fillScalar() throws Exception {
-    config = ScalarNumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
         .setValue(42)
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()

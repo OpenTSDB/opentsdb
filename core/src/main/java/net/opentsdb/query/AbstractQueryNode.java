@@ -19,6 +19,8 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
+
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.stats.Span;
@@ -36,6 +38,9 @@ public abstract class AbstractQueryNode implements QueryNode {
   /** A reference to the query node factory that generated this node. */
   protected QueryNodeFactory factory;
   
+  /** The name of this node. */
+  protected final String id;
+  
   /** The pipeline context. */
   protected QueryPipelineContext context;
   
@@ -52,18 +57,21 @@ public abstract class AbstractQueryNode implements QueryNode {
    * The default ctor.
    * @param factory A non-null factory to generate iterators from.
    * @param context A non-null query context.
+   * @param id The ID of this node.
    * @throws IllegalArgumentException if the context was null.
    */
   public AbstractQueryNode(final QueryNodeFactory factory,
-                           final QueryPipelineContext context) {
-    if (factory == null) {
-      throw new IllegalArgumentException("Factory cannot be null.");
-    }
+                           final QueryPipelineContext context,
+                           final String id) {
+//    if (factory == null) {
+//      throw new IllegalArgumentException("Factory cannot be null.");
+//    }
     if (context == null) {
       throw new IllegalArgumentException("Context cannot be null.");
     }
     this.factory = factory;
     this.context = context;
+    this.id = id;
   }
   
   @Override
@@ -80,6 +88,11 @@ public abstract class AbstractQueryNode implements QueryNode {
     if (child != null) {
       child.setSuccessTags().finish();
     }
+  }
+
+  @Override
+  public String id() {
+    return id;
   }
   
   @Override
@@ -166,5 +179,32 @@ public abstract class AbstractQueryNode implements QueryNode {
         LOG.warn("Failed to mark upstream node complete: " + node, e);
       }
     }
+  }
+
+  @Override
+  public boolean equals(final Object obj) {
+    if (obj == null) {
+      return false;
+    }
+    if (!obj.getClass().equals(this.getClass())) {
+      return false;
+    }
+    
+    final AbstractQueryNode other = (AbstractQueryNode) obj;
+    if (Strings.isNullOrEmpty(id) && !Strings.isNullOrEmpty(other.id)) {
+      return false;
+    }
+    if (!Strings.isNullOrEmpty(id) && Strings.isNullOrEmpty(other.id)) {
+      return false;
+    }
+    if (Strings.isNullOrEmpty(id) && Strings.isNullOrEmpty(other.id)) {
+      return true;
+    }
+    return id.equals(other.id);
+  }
+  
+  @Override
+  public int hashCode() {
+    return (getClass().getCanonicalName() + id).hashCode();
   }
 }

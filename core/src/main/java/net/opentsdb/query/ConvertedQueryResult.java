@@ -34,6 +34,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -208,6 +209,11 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   @Override
   public ChronoUnit resolution() {
     return result.resolution();
+  }
+  
+  @Override
+  public RollupConfig rollupConfig() {
+    return result.rollupConfig();
   }
   
   @Override

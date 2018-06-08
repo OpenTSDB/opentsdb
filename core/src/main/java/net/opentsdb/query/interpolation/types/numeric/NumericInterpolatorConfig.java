@@ -18,7 +18,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
 /**
@@ -27,7 +27,7 @@ import net.opentsdb.query.pojo.FillPolicy;
  * 
  * @since 3.0
  */
-public class NumericInterpolatorConfig implements QueryInterpolatorConfig {
+public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
 
   /** The numeric fill policy. */
   protected final FillPolicy fill_policy;
@@ -41,6 +41,7 @@ public class NumericInterpolatorConfig implements QueryInterpolatorConfig {
    * @throws IllegalArgumentException if the fill policy was null or empty.
    */
   NumericInterpolatorConfig(final Builder builder) {
+    super(builder);
     if (builder.fill_policy == null) {
       throw new IllegalArgumentException("Fill policy cannot be null.");
     }
@@ -84,7 +85,7 @@ public class NumericInterpolatorConfig implements QueryInterpolatorConfig {
   /**
    * A builder class for the config.
    */
-  public static class Builder {
+  public static class Builder extends BaseInterpolatorConfig.Builder {
     private FillPolicy fill_policy;
     private FillWithRealPolicy real_fill;
     

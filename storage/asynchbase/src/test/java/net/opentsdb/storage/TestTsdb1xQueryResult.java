@@ -47,7 +47,7 @@ import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
@@ -66,7 +66,7 @@ public class TestTsdb1xQueryResult extends UTBase {
   private Tsdb1xQueryNode node;
   private Schema schema; 
   private QuerySourceConfig source_config;
-  public RollupConfig rollup_config;
+  public DefaultRollupConfig rollup_config;
   public TimeSeriesQuery query;
   
   @Before
@@ -336,7 +336,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setPreAggregationTable("tsdb-rollup-1h")
         .build();
     interval.setConfig(rollup_config);
-    rollup_config = RollupConfig.builder()
+    rollup_config = DefaultRollupConfig.builder()
         .addInterval(interval)
         .addAggregationId("sum", 0)
         .build();
@@ -372,7 +372,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setPreAggregationTable("tsdb-rollup-1h")
         .build();
     interval.setConfig(rollup_config);
-    rollup_config = RollupConfig.builder()
+    rollup_config = DefaultRollupConfig.builder()
         .addInterval(interval)
         .addAggregationId("sum", 0)
         .build();

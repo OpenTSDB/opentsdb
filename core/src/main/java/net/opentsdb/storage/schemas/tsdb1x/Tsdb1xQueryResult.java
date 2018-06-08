@@ -30,6 +30,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.rollup.RollupConfig;
 
 /**
  * The base class for collecting Tsdb1x data fetched from storage.
@@ -143,6 +144,11 @@ public class Tsdb1xQueryResult implements QueryResult {
   }
   
   @Override
+  public RollupConfig rollupConfig() {
+    return schema.rollupConfig();
+  }
+  
+  @Override
   public void close() {
     for (final TimeSeries series : results.values()) {
       series.close();
@@ -229,5 +235,6 @@ public class Tsdb1xQueryResult implements QueryResult {
       + dp_limit + " data points. Please try filtering "
       + "using more tags or decrease your time range.";
   }
+
   
 }

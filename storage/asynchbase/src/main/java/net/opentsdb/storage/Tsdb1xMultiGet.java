@@ -215,28 +215,28 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       Collections.sort(tsuids, Bytes.MEMCMP);
     }
     
-    final Configuration config = ((Tsdb1xHBaseDataStore) node.factory())
+    final Configuration config = node.parent()
         .tsdb().getConfig();
     
     if (query.hasKey(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY)) {
       concurrency_multi_get = query.getInt(config, 
           Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY);
     } else {
-      concurrency_multi_get = ((Tsdb1xHBaseDataStore) node.factory())
+      concurrency_multi_get = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY)) {
       batch_size = query.getInt(config, 
           Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY);
     } else {
-      batch_size = ((Tsdb1xHBaseDataStore) node.factory())
+      batch_size = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY);
     }
     if (query.hasKey(Schema.QUERY_REVERSE_KEY)) {
       reversed = query.getBoolean(config, 
           Schema.QUERY_REVERSE_KEY);
     } else {
-      reversed = ((Tsdb1xHBaseDataStore) node.factory())
+      reversed = node.parent()
           .dynamicBoolean(Schema.QUERY_REVERSE_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
@@ -320,9 +320,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           tables.add(interval.getTemporalTable());
         }
       }
-      tables.add(((Tsdb1xHBaseDataStore) node.factory()).dataTable());
+      tables.add(node.parent().dataTable());
     } else {
-      tables = Lists.newArrayList(((Tsdb1xHBaseDataStore) node.factory()).dataTable());
+      tables = Lists.newArrayList(node.parent().dataTable());
     }
     state = State.CONTINUE;
   }
@@ -666,7 +666,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     
     try {
       final Deferred<List<GetResultOrException>> deferred = 
-          ((Tsdb1xHBaseDataStore) node.factory()).client().get(requests);
+          node.parent().client().get(requests);
       if (child == null || !child.isDebug()) {
         deferred.addCallback(response_cb)
                 .addErrback(error_cb);

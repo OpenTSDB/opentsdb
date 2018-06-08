@@ -20,7 +20,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
@@ -29,33 +28,33 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 
 public class TestNumericSummaryInterpolatorConfig {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
   
   @Test
   public void build() throws Exception {
     NumericSummaryInterpolatorConfig config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
-            .put(0, FillPolicy.ZERO)
-            .build())
-        .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
-            .put(1, FillWithRealPolicy.PREFER_NEXT)
-            .build())
-        .setExpectedSummaries(Lists.newArrayList(0, 1))
-        .setRollupConfig(CONFIG)
-        .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
-        .build();
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+    .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+    .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
+        .put(0, FillPolicy.ZERO)
+        .build())
+    .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
+        .put(1, FillWithRealPolicy.PREFER_NEXT)
+        .build())
+    .setExpectedSummaries(Lists.newArrayList(0, 1))
+    .setSync(true)
+    .setComponentAggregator(Aggregators.SUM)
+    .setId("myId")
+    .setType(NumericSummaryType.TYPE.toString())
+    .build();
     assertEquals(FillPolicy.NOT_A_NUMBER, config.defaultFillPolicy());
     assertEquals(FillWithRealPolicy.NEXT_ONLY, config.defaultRealFillPolicy());
     assertEquals(1, config.summary_fill_policy_overrides.size());
@@ -65,21 +64,22 @@ public class TestNumericSummaryInterpolatorConfig {
     assertEquals(2, config.expectedSummaries().size());
     assertTrue(config.expectedSummaries().contains(0));
     assertTrue(config.expectedSummaries().contains(1));
-    assertSame(CONFIG, config.rollupConfig());
     assertTrue(config.sync());
     assertSame(Aggregators.SUM, config.componentAggregator());
+    assertEquals("myId", config.id());
+    assertEquals(NumericSummaryType.TYPE.toString(), config.type());
     
     // adders where proper
-    config = NumericSummaryInterpolatorConfig.newBuilder()
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
         .addFillPolicyOverride(0, FillPolicy.ZERO)
         .addRealFillPolicyOverride(1, FillWithRealPolicy.PREFER_NEXT)
         .addExpectedSummary(0)
         .addExpectedSummary(1)
-        .setRollupConfig(CONFIG)
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
     assertEquals(FillPolicy.NOT_A_NUMBER, config.defaultFillPolicy());
     assertEquals(FillWithRealPolicy.NEXT_ONLY, config.defaultRealFillPolicy());
@@ -90,16 +90,17 @@ public class TestNumericSummaryInterpolatorConfig {
     assertEquals(2, config.expectedSummaries().size());
     assertTrue(config.expectedSummaries().contains(0));
     assertTrue(config.expectedSummaries().contains(1));
-    assertSame(CONFIG, config.rollupConfig());
     assertTrue(config.sync());
     assertSame(Aggregators.SUM, config.componentAggregator());
+    assertNull(config.id());
+    assertEquals(NumericSummaryType.TYPE.toString(), config.type());
     
     // just the bare minimums.
-    config = NumericSummaryInterpolatorConfig.newBuilder()
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
         .addExpectedSummary(0)
-        .setRollupConfig(CONFIG)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
     assertEquals(FillPolicy.NOT_A_NUMBER, config.defaultFillPolicy());
     assertEquals(FillWithRealPolicy.NEXT_ONLY, config.defaultRealFillPolicy());
@@ -107,36 +108,35 @@ public class TestNumericSummaryInterpolatorConfig {
     assertNull(config.summary_real_fill_overrides);
     assertEquals(1, config.expectedSummaries().size());
     assertTrue(config.expectedSummaries().contains(0));
-    assertSame(CONFIG, config.rollupConfig());
     assertFalse(config.sync());
     assertNull(config.componentAggregator());
     
     try {
-      config = NumericSummaryInterpolatorConfig.newBuilder()
+      config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
           //.setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
           .addExpectedSummary(0)
-          .setRollupConfig(CONFIG)
+          .setType(NumericSummaryType.TYPE.toString())
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      config = NumericSummaryInterpolatorConfig.newBuilder()
+      config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
           .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
           //.setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
           .addExpectedSummary(0)
-          .setRollupConfig(CONFIG)
+          .setType(NumericSummaryType.TYPE.toString())
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      config = NumericSummaryInterpolatorConfig.newBuilder()
+      config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
           .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
           //.addExpectedSummary(0)
-          .setRollupConfig(CONFIG)
+          .setType(NumericSummaryType.TYPE.toString())
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -146,7 +146,6 @@ public class TestNumericSummaryInterpolatorConfig {
           .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
           .addExpectedSummary(0)
-          //.setRollupConfig(CONFIG)
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -155,20 +154,20 @@ public class TestNumericSummaryInterpolatorConfig {
   @Test
   public void fillPolicyOverrides() throws Exception {
     NumericSummaryInterpolatorConfig config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
-            .put(0, FillPolicy.ZERO)
-            .build())
-        .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
-            .put(1, FillWithRealPolicy.PREFER_NEXT)
-            .build())
-        .setExpectedSummaries(Lists.newArrayList(0, 1, 2))
-        .setRollupConfig(CONFIG)
-        .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
-        .build();
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+    .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+    .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
+        .put(0, FillPolicy.ZERO)
+        .build())
+    .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
+        .put(1, FillWithRealPolicy.PREFER_NEXT)
+        .build())
+    .setExpectedSummaries(Lists.newArrayList(0, 1, 2))
+    .setSync(true)
+    .setComponentAggregator(Aggregators.SUM)
+    .setType(NumericSummaryType.TYPE.toString())
+    .build();
     
     assertEquals(FillPolicy.ZERO, config.fillPolicy(0));
     assertEquals(FillPolicy.NOT_A_NUMBER, config.fillPolicy(1));
@@ -184,20 +183,20 @@ public class TestNumericSummaryInterpolatorConfig {
   @Test
   public void queryFill() throws Exception {
     NumericSummaryInterpolatorConfig config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
-            .put(0, FillPolicy.ZERO)
-            .build())
-        .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
-            .put(1, FillWithRealPolicy.PREFER_NEXT)
-            .build())
-        .setExpectedSummaries(Lists.newArrayList(0, 1, 2))
-        .setRollupConfig(CONFIG)
-        .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
-        .build();
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+    .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+    .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
+        .put(0, FillPolicy.ZERO)
+        .build())
+    .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
+        .put(1, FillWithRealPolicy.PREFER_NEXT)
+        .build())
+    .setExpectedSummaries(Lists.newArrayList(0, 1, 2))
+    .setSync(true)
+    .setComponentAggregator(Aggregators.SUM)
+    .setType(NumericSummaryType.TYPE.toString())
+    .build();
     
     QueryFillPolicy<NumericType> fill = config.queryFill(0);
     assertTrue(fill instanceof BaseNumericFillPolicy);

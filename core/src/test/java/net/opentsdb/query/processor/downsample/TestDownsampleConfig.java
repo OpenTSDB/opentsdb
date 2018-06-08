@@ -18,7 +18,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -32,43 +31,35 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.rollup.RollupConfig;
 
 public class TestDownsampleConfig {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
   
-  private DefaultInterpolationConfig interpolation_config;
+  private NumericInterpolatorConfig numeric_config;
+  private NumericSummaryInterpolatorConfig summary_config;
   
   @Before
   public void before() throws Exception {
-    NumericInterpolatorConfig numeric_config = 
-        NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .build();
+    numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+    .setType(NumericType.TYPE.toString())
+    .build();
     
-    NumericSummaryInterpolatorConfig summary_config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .addExpectedSummary(0)
-        .setRollupConfig(CONFIG)
-        .build();
-    
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .add(NumericSummaryType.TYPE, summary_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
+    summary_config = 
+        (NumericSummaryInterpolatorConfig) 
+          NumericSummaryInterpolatorConfig.newBuilder()
+      .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+      .addExpectedSummary(0)
+      .setType(NumericSummaryType.TYPE.toString())
+      .build();
   }
   
   @Test
@@ -83,12 +74,13 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    DownsampleConfig config = DownsampleConfig.newBuilder()
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     assertEquals("sum", config.aggregator());
     assertEquals("foo", config.getId());
@@ -96,7 +88,6 @@ public class TestDownsampleConfig {
     assertEquals(15, config.intervalPart());
     assertFalse(config.fill());
     assertSame(q, config.query());
-    assertSame(interpolation_config, config.interpolationConfig());
     assertEquals(ZoneId.of("UTC"), config.timezone());
     assertEquals(ChronoUnit.SECONDS, config.units());
     assertEquals(15000, config.start().msEpoch());
@@ -110,7 +101,6 @@ public class TestDownsampleConfig {
         //.setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -121,7 +111,6 @@ public class TestDownsampleConfig {
         .setId("")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -132,7 +121,6 @@ public class TestDownsampleConfig {
         .setId("foo")
         //.setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -143,7 +131,6 @@ public class TestDownsampleConfig {
         .setId("foo")
         .setInterval("")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -154,7 +141,6 @@ public class TestDownsampleConfig {
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -165,7 +151,6 @@ public class TestDownsampleConfig {
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -187,7 +172,6 @@ public class TestDownsampleConfig {
         .setId("foo")
         .setInterval("15s")
         //.setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -203,24 +187,24 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    config = DownsampleConfig.newBuilder()
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
         .setRunAll(true)
-        .setQueryInterpolationConfig(interpolation_config)
+        .addInterpolatorConfig(numeric_config)
         .build();
     assertEquals(1000, config.start().msEpoch());
     assertEquals(60000, config.end().msEpoch());
     
-    config = DownsampleConfig.newBuilder()
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
         .setTimeZone(ZoneId.of("America/Denver"))
-        .setQueryInterpolationConfig(interpolation_config)
+        .addInterpolatorConfig(numeric_config)
         .build();
     assertEquals(15000, config.start().msEpoch());
     assertEquals(60000, config.end().msEpoch());
@@ -245,7 +229,8 @@ public class TestDownsampleConfig {
           .setId("foo")
           .setInterval("15s")
           .setQuery(q)
-          .setQueryInterpolationConfig(interpolation_config)
+          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(summary_config)
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -266,7 +251,8 @@ public class TestDownsampleConfig {
           .setId("foo")
           .setInterval("15s")
           .setQuery(q)
-          .setQueryInterpolationConfig(interpolation_config)
+          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(summary_config)
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -287,7 +273,8 @@ public class TestDownsampleConfig {
           .setId("foo")
           .setInterval("15s")
           .setQuery(q)
-          .setQueryInterpolationConfig(interpolation_config)
+          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(summary_config)
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -305,12 +292,13 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    DownsampleConfig config = DownsampleConfig.newBuilder()
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     
     TimeStamp ts = new MillisecondTimeStamp(80000L);
@@ -347,12 +335,13 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    DownsampleConfig config = DownsampleConfig.newBuilder()
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryInterpolationConfig(interpolation_config)
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     
     TimeStamp ts = new MillisecondTimeStamp(0);
