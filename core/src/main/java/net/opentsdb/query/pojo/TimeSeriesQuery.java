@@ -49,7 +49,7 @@ import java.util.Set;
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = TimeSeriesQuery.Builder.class)
-public class TimeSeriesQuery extends Validatable implements Comparable<TimeSeriesQuery>, 
+public class TimeSeriesQuery extends Validatable implements Comparable<net.opentsdb.query.TimeSeriesQuery>, 
     net.opentsdb.query.TimeSeriesQuery {
   /** An optional name for the query */
   private String name;
@@ -423,25 +423,29 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
   }
   
   @Override
-  public int compareTo(final TimeSeriesQuery o) {
+  public int compareTo(final net.opentsdb.query.TimeSeriesQuery o) {
+    if (!(o instanceof TimeSeriesQuery)) {
+      return -1;
+    }
     ComparisonChain chain = ComparisonChain.start()
-        .compare(name, o.name, Ordering.natural().nullsFirst())
-        .compare(time, o.time, Ordering.natural().nullsFirst())
-        .compare(filters, o.filters, 
+        .compare(name, ((TimeSeriesQuery) o).name, Ordering.natural().nullsFirst())
+        .compare(time, ((TimeSeriesQuery) o).time, Ordering.natural().nullsFirst())
+        .compare(filters, ((TimeSeriesQuery) o).filters, 
             Ordering.<Filter>natural().lexicographical().nullsFirst())
-        .compare(metrics, o.metrics, 
+        .compare(metrics, ((TimeSeriesQuery) o).metrics, 
             Ordering.<Metric>natural().lexicographical().nullsFirst())
-        .compare(expressions, o.expressions, 
+        .compare(expressions, ((TimeSeriesQuery) o).expressions, 
             Ordering.<Expression>natural().lexicographical().nullsFirst())
-        .compare(outputs, o.outputs, 
+        .compare(outputs, ((TimeSeriesQuery) o).outputs, 
             Ordering.<Output>natural().lexicographical().nullsFirst());
     if (config != null) {
       final List<String> keys = Lists.newArrayList(config.keySet());
       Collections.sort(keys);
       for (final String key : keys) {
         chain = chain.compare(config.get(key), 
-            o.config == null ? null : o.config.get(key), 
-                Ordering.natural().nullsFirst());
+            ((TimeSeriesQuery) o).config == null ? 
+                null : ((TimeSeriesQuery) o).config.get(key), 
+                  Ordering.natural().nullsFirst());
       }
     }
     return chain.result();

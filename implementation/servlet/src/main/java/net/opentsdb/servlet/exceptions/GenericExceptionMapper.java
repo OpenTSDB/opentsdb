@@ -17,6 +17,7 @@ package net.opentsdb.servlet.exceptions;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
@@ -40,7 +41,9 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
   
   @Override
   public Response toResponse(final Throwable t) {
-    LOG.error("Unexpected exception", t);
+    if (!(t instanceof NotFoundException)) {
+      LOG.error("Unexpected exception", t);
+    }
     
     final ThrowableProxy tp = new ThrowableProxy(t);
     tp.calculatePackagingData();

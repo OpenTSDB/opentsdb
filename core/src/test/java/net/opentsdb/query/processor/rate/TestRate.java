@@ -44,7 +44,7 @@ public class TestRate {
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
-    factory = new RateFactory("Rate");
+    factory = new RateFactory();
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
@@ -55,33 +55,29 @@ public class TestRate {
         .build();
   }
   
+  
   @Test
   public void ctorAndInitialize() throws Exception {
-    Rate ds = new Rate(factory, context, config);
+    Rate ds = new Rate(factory, context, null, config);
     ds.initialize(null);
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
     
     try {
-      new Rate(null, context, config);
+      new Rate(factory, null, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Rate(factory, null, config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new Rate(factory, context, null);
+      new Rate(factory, context, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    Rate ds = new Rate(factory, context, config);
+    Rate ds = new Rate(factory, context, null, config);
     ds.initialize(null);
     
     ds.onComplete(mock(QueryNode.class), 42, 42);
@@ -95,7 +91,7 @@ public class TestRate {
   
   @Test
   public void onNext() throws Exception {
-    Rate ds = new Rate(factory, context, config);
+    Rate ds = new Rate(factory, context, null, config);
     final QueryResult results = mock(QueryResult.class);
     
     ds.initialize(null);
@@ -111,7 +107,7 @@ public class TestRate {
   
   @Test
   public void onError() throws Exception {
-    Rate ds = new Rate(factory, context, config);
+    Rate ds = new Rate(factory, context, null, config);
     ds.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

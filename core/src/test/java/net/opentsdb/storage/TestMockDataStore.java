@@ -64,7 +64,6 @@ public class TestMockDataStore {
     config.register("MockDataStore.sysout.enable", true, false, "UT");
     
     mds = new MockDataStore(tsdb, "Mock");
-    when(registry.getQueryNodeFactory(anyString())).thenReturn(mds);
   }
   
   @Test

@@ -18,26 +18,25 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 
 public class TestBaseNumericSummaryFillPolicy {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+  
   @Test
   public void ctor() throws Exception {
     final BaseNumericSummaryFillPolicy fill = 
-        new BaseNumericSummaryFillPolicy(NumericSummaryInterpolatorConfig.newBuilder()
+        new BaseNumericSummaryFillPolicy(
+            NumericSummaryInterpolatorConfig.newBuilder()
             .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     final NumericSummaryType value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -62,7 +61,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     NumericSummaryType value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -76,7 +75,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -90,7 +89,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     assertNull(fill.fill());
     
@@ -99,7 +98,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     assertNull(fill.fill());
     
@@ -108,7 +107,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     try {
       fill.fill();
@@ -120,7 +119,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -134,7 +133,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setRollupConfig(CONFIG)
+            .setType(NumericSummaryType.TYPE.toString())
             .build());
     value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());

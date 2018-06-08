@@ -47,6 +47,8 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -103,24 +105,26 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public MultiClusterQueryExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Config cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(((Config) node.getConfig()).cluster_config)) {
-      throw new IllegalArgumentException("Cluster config cannot be null.");
-    }
-    cluster_graph = ((DefaultRegistry) node.graph().tsdb().getRegistry()).getClusterConfig(
-        ((Config) node.getConfig()).cluster_config);
-    if (cluster_graph == null) {
-      throw new IllegalArgumentException("No cluster found for: " 
-          + ((Config) node.getConfig()).cluster_config);
-    }
-    if (((Config) node.getConfig()).timeout < 0) {
-      throw new IllegalArgumentException("Timeout cannot be negative.");
-    }
-    if (cluster_graph.clusters().isEmpty()) {
-      throw new IllegalArgumentException("The cluster graph cannot be empty.");
-    }
+//    if (node.getConfig() == null) {
+//      throw new IllegalArgumentException("Config cannot be null.");
+//    }
+//    if (Strings.isNullOrEmpty(((Config) node.getConfig()).cluster_config)) {
+//      throw new IllegalArgumentException("Cluster config cannot be null.");
+//    }
+//    cluster_graph = ((DefaultRegistry) node.graph().tsdb().getRegistry()).getClusterConfig(
+//        ((Config) node.getConfig()).cluster_config);
+//    if (cluster_graph == null) {
+//      throw new IllegalArgumentException("No cluster found for: " 
+//          + ((Config) node.getConfig()).cluster_config);
+//    }
+//    if (((Config) node.getConfig()).timeout < 0) {
+//      throw new IllegalArgumentException("Timeout cannot be negative.");
+//    }
+//    if (cluster_graph.clusters().isEmpty()) {
+//      throw new IllegalArgumentException("The cluster graph cannot be empty.");
+//    }
+    cluster_graph = null;
+    default_timeout = 0;
     executors = Maps.newHashMapWithExpectedSize(cluster_graph.clusters().size());
     for (final String cluster_id : cluster_graph.clusters().keySet()) {
       final QueryExecutor<T> executor = (QueryExecutor<T>) 
@@ -135,14 +139,14 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         LOG.debug("Instantiated executor sink for cluster: " + cluster_id);
       }
     }
-    default_timeout = ((Config) node.getConfig()).timeout;
-    default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
-        .getRegistry()).getDataMerger(
-            ((Config) node.getConfig()).merge_strategy);
-    if (default_data_merger == null) {
-      throw new IllegalArgumentException("No data merger found for: " 
-          + ((Config) node.getConfig()).merge_strategy);
-    }
+//    default_timeout = ((Config) node.getConfig()).timeout;
+//    default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
+//        .getRegistry()).getDataMerger(
+//            ((Config) node.getConfig()).merge_strategy);
+//    if (default_data_merger == null) {
+//      throw new IllegalArgumentException("No data merger found for: " 
+//          + ((Config) node.getConfig()).merge_strategy);
+//    }
   }
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -175,7 +179,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     private final QueryContext context;
     
     /** Potential override or the default config. */
-    private final QueryExecutorConfig config;
+    private final QueryNodeConfig config;
     
     /** A list of remote exceptions */
     private final Exception[] remote_exceptions;
@@ -210,11 +214,12 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       super(query);
       
       final QueryExecutorConfig override = 
-          context.getConfigOverride(node.getExecutorId());
+          context.getConfigOverride(node.getId());
       if (override != null) {
         config = override;
       } else {
-        config = node.getConfig();
+        //config = node.getConfig();
+        config = null;
       }
       clusters = cluster_graph.setupQuery(context, 
           ((Config) config).cluster_override);
@@ -533,7 +538,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     private long timeout;
     private String merge_strategy;
     private String cluster_config;
@@ -592,8 +597,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
           .setMergeStrategy(config.merge_strategy)
           .setClusterConfig(config.cluster_config)
           .setClusterOverride(config.cluster_override)
-          .setExecutorId(config.executor_id)
-          .setExecutorType(config.executor_type);
+          .setId(config.id);
     }
     
     @Override
@@ -605,8 +609,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(timeout, config.timeout)
           && Objects.equal(merge_strategy, config.merge_strategy)
           && Objects.equal(cluster_config, config.cluster_config)
@@ -621,8 +624,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     @Override
     public HashCode buildHashCode() {
       return Const.HASH_FUNCTION().newHasher()
-          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
           .putLong(timeout)
           .putString(Strings.nullToEmpty(merge_strategy), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(cluster_config), Const.UTF8_CHARSET)
@@ -631,12 +633,9 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public int compareTo(QueryExecutorConfig config) {
+    public int compareTo(QueryNodeConfig config) {
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
-              Ordering.natural().nullsFirst())
+          .compare(id, config.getId(), Ordering.natural().nullsFirst())
           .compare(timeout, ((Config) config).timeout)
           .compare(merge_strategy, ((Config) config).merge_strategy, 
               Ordering.natural().nullsFirst())
@@ -647,7 +646,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
           .result();
     }
     
-    public static class Builder extends QueryExecutorConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private long timeout;
       @JsonProperty

@@ -26,10 +26,9 @@ import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A configuration for interpolating numeric summaries (e.g. rollups and
@@ -37,7 +36,7 @@ import net.opentsdb.rollup.RollupConfig;
  * 
  * @since 3.0
  */
-public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig {
+public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
 
   /** The default numeric fill policy. */
   protected final FillPolicy fill_policy;
@@ -61,15 +60,13 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
   /** An alternative aggregator to use when downsampling or grouping
    * specific summaries. Configured at query time. */
   protected final NumericAggregator component_agg;
-  
-  /** A reference to the rollup config. */
-  private final RollupConfig rollup_config;
-  
+    
   /**
    * Package private ctor for use by the builder.
    * @param builder The non-null builder to construct from.
    */
   NumericSummaryInterpolatorConfig(final Builder builder) {
+    super(builder);
     if (builder.expected_summaries == null || 
         builder.expected_summaries.isEmpty()) {
       throw new IllegalArgumentException("Expected summaries cannot "
@@ -81,8 +78,8 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
     if (builder.real_fill == null) {
       throw new IllegalArgumentException("Default real fill policy cannot be null.");
     }
-    if (builder.rollup_config == null) {
-      throw new IllegalArgumentException("Rollup config cannot be null.");
+    if (!type.equals(NumericSummaryType.TYPE.toString())) {
+      throw new IllegalArgumentException("Type must be " + NumericSummaryType.TYPE);
     }
     fill_policy = builder.fill_policy;
     real_fill = builder.real_fill;
@@ -91,7 +88,6 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
     sync = builder.sync;
     expected_summaries = builder.expected_summaries;
     component_agg = builder.component_agg;
-    rollup_config = builder.rollup_config;
   }
   
   /** @return The default numeric fill policy. */
@@ -143,9 +139,10 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
    * @return
    */
   public QueryFillPolicy<NumericType> queryFill(final int summary) {
-    final NumericInterpolatorConfig config = NumericInterpolatorConfig.newBuilder()
+    final NumericInterpolatorConfig config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(fillPolicy(summary))
         .setRealFillPolicy(realFillPolicy(summary))
+        .setType(NumericType.TYPE.toString())
         .build();
     return new BaseNumericFillPolicy(config);
   }
@@ -170,17 +167,12 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
     return new BaseNumericSummaryFillPolicy(this);
   }
   
-  /** @return The rollup config. */
-  public RollupConfig rollupConfig() {
-    return rollup_config;
-  }
-  
   /** @return A new builder. */
   public static Builder newBuilder() {
     return new Builder();
   }
   
-  public static class Builder {
+  public static class Builder extends BaseInterpolatorConfig.Builder {
     private FillPolicy fill_policy;
     private FillWithRealPolicy real_fill;
     private Map<Integer, FillPolicy> summary_fill_policy_overrides;
@@ -188,7 +180,6 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
     private boolean sync;
     private List<Integer> expected_summaries;
     private NumericAggregator component_agg;
-    private RollupConfig rollup_config;
     
     /**
      * @param fill_policy A non-null numeric fill policy.
@@ -303,15 +294,6 @@ public class NumericSummaryInterpolatorConfig implements QueryInterpolatorConfig
     public Builder setComponentAggregator(
         final NumericAggregator component_agg) {
       this.component_agg = component_agg;
-      return this;
-    }
-    
-    /**
-     * @param rollup_config The non-null rollup config.
-     * @return The builder.
-     */
-    public Builder setRollupConfig(final RollupConfig rollup_config) {
-      this.rollup_config = rollup_config;
       return this;
     }
     

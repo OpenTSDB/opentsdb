@@ -39,6 +39,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.ProcessorFactory;
+import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A processing node that performs downsampling on each individual time series
@@ -56,12 +57,14 @@ public class Downsample extends AbstractQueryNode {
    * Default ctor.
    * @param factory A non-null {@link DownsampleFactory}.
    * @param context A non-null context.
+   * @param id An ID for the node.
    * @param config A non-null {@link DownsampleConfig}.
    */
   public Downsample(final QueryNodeFactory factory, 
                     final QueryPipelineContext context,
+                    final String id,
                     final DownsampleConfig config) {
-    super(factory, context);
+    super(factory, context, id);
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null.");
     }
@@ -72,12 +75,7 @@ public class Downsample extends AbstractQueryNode {
   public QueryNodeConfig config() {
     return config;
   }
-
-  @Override
-  public String id() {
-    return config.getId();
-  }
-
+  
   @Override
   public void close() {
     // No-op
@@ -193,6 +191,11 @@ public class Downsample extends AbstractQueryNode {
     }
     
     @Override
+    public RollupConfig rollupConfig() {
+      return results.rollupConfig();
+    }
+    
+    @Override
     public void close() {
       // NOTE - a race here. Should be idempotent.
       latch.countDown();
@@ -200,74 +203,77 @@ public class Downsample extends AbstractQueryNode {
         results.close();
       }
     }
-    
-  }
-  
-  /**
-   * The super simple wrapper around the time series source that generates 
-   * iterators using the factory.
-   */
-  class DownsampleTimeSeries implements TimeSeries {
-    /** The non-null source. */
-    private final TimeSeries source;
+
     
     /**
-     * Default ctor.
-     * @param source The non-null source to pull data from.
+     * The super simple wrapper around the time series source that generates 
+     * iterators using the factory.
      */
-    private DownsampleTimeSeries(final TimeSeries source) {
-      this.source = source;
-    }
-    
-    @Override
-    public TimeSeriesId id() {
-      return source.id();
-    }
-
-    @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        final TypeToken<?> type) {
-      if (type == null) {
-        throw new IllegalArgumentException("Type cannot be null.");
+    class DownsampleTimeSeries implements TimeSeries {
+      /** The non-null source. */
+      private final TimeSeries source;
+      
+      /**
+       * Default ctor.
+       * @param source The non-null source to pull data from.
+       */
+      private DownsampleTimeSeries(final TimeSeries source) {
+        this.source = source;
       }
-      if (!source.types().contains(type)) {
+      
+      @Override
+      public TimeSeriesId id() {
+        return source.id();
+      }
+
+      @Override
+      public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
+          final TypeToken<?> type) {
+        if (type == null) {
+          throw new IllegalArgumentException("Type cannot be null.");
+        }
+        if (!source.types().contains(type)) {
+          return Optional.empty();
+        }
+        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+            ((ProcessorFactory) Downsample.this.factory()).newIterator(
+                type, 
+                Downsample.this, 
+                results,
+                Lists.newArrayList(source));
+        if (iterator != null) {
+          return Optional.of(iterator);
+        }
         return Optional.empty();
       }
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-          ((ProcessorFactory) Downsample.this.factory()).newIterator(
+      
+      @Override
+      public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+        final Collection<TypeToken<?>> types = source.types();
+        final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+            Lists.newArrayListWithCapacity(types.size());
+        for (final TypeToken<?> type : types) {
+          iterators.add(((ProcessorFactory) Downsample.this.factory()).newIterator(
               type, 
               Downsample.this, 
-              Lists.newArrayList(source));
-      if (iterator != null) {
-        return Optional.of(iterator);
+              results,
+              Lists.newArrayList(source)));
+        }
+        return iterators;
       }
-      return Optional.empty();
-    }
-    
-    @Override
-    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-      final Collection<TypeToken<?>> types = source.types();
-      final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
-          Lists.newArrayListWithCapacity(types.size());
-      for (final TypeToken<?> type : types) {
-        iterators.add(((ProcessorFactory) Downsample.this.factory()).newIterator(
-            type, 
-            Downsample.this, 
-            Lists.newArrayList(source)));
+
+      @Override
+      public Collection<TypeToken<?>> types() {
+        // TODO - join with the factories supported.
+        return source.types();
       }
-      return iterators;
-    }
 
-    @Override
-    public Collection<TypeToken<?>> types() {
-      // TODO - join with the factories supported.
-      return source.types();
+      @Override
+      public void close() {
+        source.close();
+      }
+      
     }
-
-    @Override
-    public void close() {
-      source.close();
-    }
-    
   }
+  
 }

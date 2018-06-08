@@ -19,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +33,8 @@ import org.junit.Test;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -39,19 +42,20 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 
 public class TestGroupByTimeSeries {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
   
   private QueryNodeFactory factory;
+  private QueryResult result;
   private GroupBy node;
   private GroupByConfig config;
   private TimeSeriesStringId id_a;
@@ -62,35 +66,39 @@ public class TestGroupByTimeSeries {
   @Before
   public void before() throws Exception {
     NumericInterpolatorConfig numeric_config = 
-        NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .build();
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+    .setType(NumericType.TYPE.toString())
+    .build();
     
     NumericSummaryInterpolatorConfig summary_config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .addExpectedSummary(0)
-        .setRollupConfig(CONFIG)
-        .build();
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+    .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+    .addExpectedSummary(0)
+    .setType(NumericSummaryType.TYPE.toString())
+    .build();
     
-    DefaultInterpolationConfig interpolation_config = 
-        DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .add(NumericSummaryType.TYPE, summary_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    
-    factory = new GroupByFactory("GroupBy");
+    factory = new GroupByFactory();
     node = mock(GroupBy.class);
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("GB")
         .addTagKey("host")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("GB")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
+    result = mock(QueryResult.class);
+    final QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    final TSDB tsdb = mock(TSDB.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    final Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
+    interp_factory.initialize(tsdb).join();
+    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
     
     when(node.factory()).thenReturn(factory);
     when(node.config()).thenReturn(config);
@@ -119,21 +127,21 @@ public class TestGroupByTimeSeries {
   
   @Test
   public void ctor() throws Exception {
-    GroupByTimeSeries ts = new GroupByTimeSeries(node);
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     try {
       ts.id();
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
     
     try {
-      new GroupByTimeSeries(null);
+      new GroupByTimeSeries(null, result);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void addSource() throws Exception {
-    GroupByTimeSeries ts = new GroupByTimeSeries(node);
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);
     assertEquals(2, ts.sources().size());
@@ -156,7 +164,7 @@ public class TestGroupByTimeSeries {
   
   @Test
   public void id() throws Exception {
-    GroupByTimeSeries ts = new GroupByTimeSeries(node);
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);
     
@@ -168,7 +176,7 @@ public class TestGroupByTimeSeries {
   
   @Test
   public void iterator() throws Exception {
-    GroupByTimeSeries ts = new GroupByTimeSeries(node);
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);
     
@@ -189,7 +197,7 @@ public class TestGroupByTimeSeries {
   
   @Test
   public void iterators() throws Exception {
-    GroupByTimeSeries ts = new GroupByTimeSeries(node);
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);
     
@@ -204,7 +212,7 @@ public class TestGroupByTimeSeries {
   
   @Test
   public void types() throws Exception {
-    GroupByTimeSeries ts = new GroupByTimeSeries(node);
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);
     

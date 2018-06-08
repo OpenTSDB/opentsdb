@@ -34,6 +34,7 @@ public class TestBaseNumericFillPolicy {
         new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NOT_A_NUMBER)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setType(NumericType.TYPE.toString())
             .build());
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
     
@@ -51,6 +52,7 @@ public class TestBaseNumericFillPolicy {
         NumericInterpolatorConfig.newBuilder()
           .setFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setRealFillPolicy(FillWithRealPolicy.NONE)
+          .setType(NumericType.TYPE.toString())
           .build());
     assertFalse(fill.isInteger());
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
@@ -60,6 +62,7 @@ public class TestBaseNumericFillPolicy {
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.ZERO)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build());
     assertTrue(fill.isInteger());
     try {
@@ -72,6 +75,7 @@ public class TestBaseNumericFillPolicy {
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build());
     assertFalse(fill.isInteger());
     assertNull(fill.fill());
@@ -79,6 +83,7 @@ public class TestBaseNumericFillPolicy {
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build());
     assertFalse(fill.isInteger());
     assertNull(fill.fill());
@@ -86,6 +91,7 @@ public class TestBaseNumericFillPolicy {
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.SCALAR)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build());
     assertFalse(fill.isInteger());
     try {
@@ -96,6 +102,7 @@ public class TestBaseNumericFillPolicy {
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.MAX)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build());
     assertFalse(fill.isInteger());
     assertEquals(Double.MAX_VALUE, fill.fill().doubleValue(), 0.00001);
@@ -103,6 +110,7 @@ public class TestBaseNumericFillPolicy {
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.MIN)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build());
     assertFalse(fill.isInteger());
     assertEquals(Double.MIN_VALUE, fill.fill().doubleValue(), 0.00001);

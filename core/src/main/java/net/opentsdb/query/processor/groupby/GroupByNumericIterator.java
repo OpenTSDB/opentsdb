@@ -31,7 +31,10 @@ import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 /**
@@ -86,24 +89,28 @@ public class GroupByNumericIterator implements QueryIterator,
   /**
    * Default ctor.
    * @param node The non-null node this iterator belongs to.
+   * @param result The result this source is a part of.
    * @param sources The non-null and non-empty map of sources.
    * @throws IllegalArgumentException if a required parameter or config is 
    * not present.
    */
   public GroupByNumericIterator(final QueryNode node, 
+                                final QueryResult result,
                                 final Map<String, TimeSeries> sources) {
-    this(node, sources == null ? null : sources.values());
+    this(node, result, sources == null ? null : sources.values());
   }
   
   /**
    * Ctor with a collection of source time series.
    * @param node The non-null node this iterator belongs to.
+   * @param result The result this source is a part of.
    * @param sources The non-null and non-empty collection or sources.
    * @throws IllegalArgumentException if a required parameter or config is 
    * not present.
    */
   @SuppressWarnings("unchecked")
   public GroupByNumericIterator(final QueryNode node, 
+                                final QueryResult result,
                                 final Collection<TimeSeries> sources) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
@@ -124,14 +131,26 @@ public class GroupByNumericIterator implements QueryIterator,
     aggregator = Aggregators.get(((GroupByConfig) node.config()).getAggregator());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     interpolators = new QueryInterpolator[sources.size()];
+    
+    QueryInterpolatorConfig interpolator_config = ((GroupByConfig) node.config()).interpolatorConfig(NumericType.TYPE);
+    if (interpolator_config == null) {
+      throw new IllegalArgumentException("No interpolator config found for type");
+    }
+    
+    QueryInterpolatorFactory factory = node.pipelineContext().tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
+        interpolator_config.id());
+    if (factory == null) {
+      throw new IllegalArgumentException("No interpolator factory found for: " + 
+          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+    }
+    
     for (final TimeSeries source : sources) {
       if (source == null) {
         throw new IllegalArgumentException("Null time series are not "
             + "allowed in the sources.");
       }
       interpolators[iterator_max] = (QueryInterpolator<NumericType>) 
-          ((GroupByConfig) node.config()).interpolationConfig()
-            .newInterpolator(NumericType.TYPE, source);
+          factory.newInterpolator(NumericType.TYPE, source, interpolator_config);
       if (interpolators[iterator_max].hasNext()) {
         has_next = true;
         if (interpolators[iterator_max].nextReal().compare(Op.LT, next_ts)) {

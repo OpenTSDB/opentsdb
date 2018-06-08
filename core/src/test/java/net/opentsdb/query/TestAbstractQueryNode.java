@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
@@ -66,8 +68,32 @@ public class TestAbstractQueryNode {
   }
   
   @Test
+  public void ctor() throws Exception {
+    TestAQ node = new TestAQ(factory, context, null);
+    assertNull(node.id());
+    assertSame(factory, node.factory());
+    assertSame(context, node.pipelineContext());
+    
+    node = new TestAQ(factory, context, "");
+    assertEquals("", node.id());
+    assertSame(factory, node.factory());
+    assertSame(context, node.pipelineContext());
+    
+    node = new TestAQ(factory, context, "boo!");
+    assertEquals("boo!", node.id());
+    assertSame(factory, node.factory());
+    assertSame(context, node.pipelineContext());
+    
+    try {
+      new TestAQ(factory, null, "boo!");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
   public void initialize() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
+    assertNull(node.id());
     assertNull(node.upstream);
     assertNull(node.downstream);
     assertNull(node.downstream_sources);
@@ -80,7 +106,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void sendUpstream() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     
     try {
@@ -96,7 +122,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void sendUpstreamExceptionSecond() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(1)).onNext(any(QueryResult.class));
@@ -112,7 +138,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void sendUpstreamExceptionFirst() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(0)).onNext(any(QueryResult.class));
@@ -128,7 +154,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void sendUpstreamThrowable() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     
     try {
@@ -144,7 +170,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void sendUpstreamThrowableExceptionSecond() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(1)).onError(any(Throwable.class));
@@ -157,7 +183,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void sendUpstreamThrowableExceptionFirst() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(0)).onError(any(Throwable.class));
@@ -170,7 +196,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void completeUpstream() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     
     node.completeUpstream(42, 42);
@@ -180,7 +206,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void completeUpstreamExceptionSecond() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -192,7 +218,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void completeUpstreamExceptionFirst() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(0)).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -204,7 +230,7 @@ public class TestAbstractQueryNode {
   
   @Test
   public void fetchDownstream() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
+    final TestAQ node = new TestAQ(factory, context, null);
     node.initialize(null);
     
     node.fetchDownstream(null);
@@ -221,18 +247,77 @@ public class TestAbstractQueryNode {
     verify(downstream_sources.get(1), times(2)).fetchNext(null);
   }
   
+  @Test
+  public void hashCodeAndEquals() throws Exception {
+    QueryNode node = new TestAQ(factory, context, null);
+    QueryNode node2 = new TestAQ(factory, context, null);
+    
+    assertEquals(node, node);
+    assertEquals(node.hashCode(), node.hashCode());
+    assertEquals(node, node2);
+    assertEquals(node.hashCode(), node2.hashCode());
+    
+    node = new TestAQ(factory, context, "myId");
+    node2 = new TestAQ(factory, context, "myId");
+    assertEquals(node, node2);
+    assertEquals(node.hashCode(), node2.hashCode());
+    
+    node2 = new TestAQ(factory, context, "otherId");
+    assertNotEquals(node, node2);
+    assertNotEquals(node.hashCode(), node2.hashCode());
+    assertNotEquals(node, null);
+    
+    node2 = new TestAQ(factory, context, null);
+    assertNotEquals(node, node2);
+    assertNotEquals(node.hashCode(), node2.hashCode());
+    
+    node = new TestAQ(factory, context, null);
+    node2 = new TestAQ(factory, context, "myId");
+    assertNotEquals(node, node2);
+    assertNotEquals(node.hashCode(), node2.hashCode());
+    
+    node2 = new TestAQ2(factory, context, "myId");
+    assertNotEquals(node, node2);
+    assertNotEquals(node.hashCode(), node2.hashCode());
+  }
+  
   class TestAQ extends AbstractQueryNode {
 
-    public TestAQ(QueryNodeFactory factory, QueryPipelineContext context) {
-      super(factory, context);
+    public TestAQ(final QueryNodeFactory factory, 
+                  final QueryPipelineContext context, 
+                  final String id) {
+      super(factory, context, id);
     }
 
     @Override
     public QueryNodeConfig config() { return null; }
+    
+    @Override
+    public void close() { }
 
     @Override
-    public String id() { return "TestAQ"; }
+    public void onComplete(QueryNode downstream, long final_sequence,
+        long total_sequences) { }
 
+    @Override
+    public void onNext(QueryResult next) { }
+
+    @Override
+    public void onError(Throwable t) { }
+    
+  }
+  
+  class TestAQ2 extends AbstractQueryNode {
+
+    public TestAQ2(final QueryNodeFactory factory, 
+                  final QueryPipelineContext context, 
+                  final String id) {
+      super(factory, context, id);
+    }
+
+    @Override
+    public QueryNodeConfig config() { return null; }
+    
     @Override
     public void close() { }
 

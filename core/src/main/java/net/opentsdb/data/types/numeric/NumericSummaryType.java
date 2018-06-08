@@ -19,7 +19,7 @@ import java.util.Collection;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 
 /**
  * A summary of numeric data, e.g. a time interval rollup (downsample)
@@ -28,7 +28,7 @@ import net.opentsdb.rollup.RollupConfig;
  * values or the MAX, MIN, AVG and others.
  * 
  * TODO - For now these summary integer IDs map to those found in the 
- * {@link RollupConfig#getAggregationIds()} map. Eventually we should 
+ * {@link DefaultRollupConfig#getAggregationIds()} map. Eventually we should 
  * have it in a better, shareable location.
  * 
  * @since 3.0

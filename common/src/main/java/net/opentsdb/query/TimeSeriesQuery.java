@@ -14,12 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import com.google.common.hash.HashCode;
+
 /**
  * The base interface for OpenTSDB queries.
  * TODO - this'll need a lot of work.
  * 
  * @since 3.0
  */
-public interface TimeSeriesQuery {
+public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
 
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode();
 }

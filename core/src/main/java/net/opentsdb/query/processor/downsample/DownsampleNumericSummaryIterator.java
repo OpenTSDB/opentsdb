@@ -33,15 +33,25 @@ import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 
 /**
  * Iterator that handles summary values. Note that when the 
  * @since 3.0
  */
 public class DownsampleNumericSummaryIterator implements QueryIterator {
+  
+  /** The result we belong to. */
+  private final QueryResult result;
+  
   /** The downsampler config. */
   private final DownsampleConfig config;
     
@@ -70,11 +80,13 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
    * Default ctor. This will seek to the proper source timestamp.
    * 
    * @param node A non-null query node to pull the config from.
+   * @param result The result this source is a part of.
    * @param source A non-null source to pull numeric iterators from. 
    * @throws IllegalArgumentException if a required argument is missing.
    */
   @SuppressWarnings("unchecked")
   public DownsampleNumericSummaryIterator(final QueryNode node, 
+                                          final QueryResult result,
                                           final TimeSeries source) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
@@ -85,15 +97,53 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     if (node.config() == null) {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
+    this.result = result;
     this.source = source;
     aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
     config = (DownsampleConfig) node.config();
     
-    interpolator_config = (NumericSummaryInterpolatorConfig) config
-        .interpolationConfig().config(NumericSummaryType.TYPE);
-    interpolator = (QueryInterpolator<NumericSummaryType>) config
-        .interpolationConfig().newInterpolator(
-            NumericSummaryType.TYPE, new Downsampler());
+    QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericSummaryType.TYPE);
+    if (interpolator_config == null) {
+      interpolator_config = config.interpolatorConfig(NumericType.TYPE);
+      if (interpolator_config == null) {
+        throw new IllegalArgumentException("No interpolator config found for type");
+      }
+      
+      NumericSummaryInterpolatorConfig.Builder nsic = 
+          NumericSummaryInterpolatorConfig.newBuilder()
+          .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).fillPolicy())
+          .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).realFillPolicy());
+      if (config.aggregator().equals("avg")) {
+        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
+        .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
+        .setSync(true)
+        .setComponentAggregator(Aggregators.SUM);
+      } else {
+        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
+            DefaultRollupConfig.queryToRollupAggregation(config.aggregator())));
+      }
+      interpolator_config = nsic
+          .setType(NumericSummaryType.TYPE.toString())
+          .build();
+    }
+    this.interpolator_config = (NumericSummaryInterpolatorConfig) interpolator_config;
+    
+    QueryInterpolatorFactory factory = node.pipelineContext().tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
+        interpolator_config.id());
+    if (factory == null) {
+      throw new IllegalArgumentException("No interpolator factory found for: " + 
+          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+    }
+    
+    QueryInterpolator<?> interp = factory.newInterpolator(
+        NumericSummaryType.TYPE, 
+        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) new Downsampler(),
+        interpolator_config);
+    if (interp == null) {
+      throw new IllegalArgumentException("No interpolator implementation found for: " + 
+          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+    }
+    interpolator = (QueryInterpolator<NumericSummaryType>) interp;
     interval_ts = config.start().getCopy();
     
     // check bounds
@@ -189,9 +239,9 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         interval_end = config.start().getCopy();
         config.nextTimestamp(interval_end);
       }
-      sum_id = interpolator_config.rollupConfig().getIdForAggregator("sum");
-      count_id = interpolator_config.rollupConfig().getIdForAggregator("count");
-      avg_id = interpolator_config.rollupConfig().getIdForAggregator("avg");
+      sum_id = result.rollupConfig().getIdForAggregator("sum");
+      count_id = result.rollupConfig().getIdForAggregator("count");
+      avg_id = result.rollupConfig().getIdForAggregator("avg");
       
       final Optional<Iterator<TimeSeriesValue<?>>> optional = 
           source.iterator(NumericSummaryType.TYPE);
@@ -355,8 +405,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
             dp.nullSummary(entry.getKey());
           } else {
             if (aggregator.name().equals("count") && 
-                entry.getKey() == interpolator_config.rollupConfig()
-                .getIdForAggregator("count")) {
+                entry.getKey() == count_id) {
               accumulator.run(interpolator_config.componentAggregator() != null ? 
                   interpolator_config.componentAggregator() : aggregator, false /* TODO */);
             } else {

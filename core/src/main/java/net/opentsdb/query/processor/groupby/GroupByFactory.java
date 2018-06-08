@@ -29,6 +29,7 @@ import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
 /**
@@ -41,8 +42,8 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   /**
    * Default ctor. Registers the numeric iterator.
    */
-  public GroupByFactory(final String id) {
-    super(id);
+  public GroupByFactory() {
+    super("groupby");
     registerIteratorFactory(NumericType.TYPE, 
         new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
@@ -51,11 +52,24 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
+                           final String id,
                            final QueryNodeConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new GroupBy(this, context, (GroupByConfig) config);
+    return new GroupBy(this, context, id, (GroupByConfig) config);
+  }
+  
+  @Override
+  public QueryNode newNode(QueryPipelineContext context, String id) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
+  public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    // TODO Auto-generated method stub
+    return null;
   }
   
   /**
@@ -65,14 +79,16 @@ public class GroupByFactory extends BaseQueryNodeFactory {
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Collection<TimeSeries> sources) {
-      return new GroupByNumericIterator(node, sources);
+      return new GroupByNumericIterator(node, result, sources);
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Map<String, TimeSeries> sources) {
-      return new GroupByNumericIterator(node, sources);
+      return new GroupByNumericIterator(node, result, sources);
     }
 
     @Override
@@ -89,14 +105,16 @@ public class GroupByFactory extends BaseQueryNodeFactory {
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Collection<TimeSeries> sources) {
-      return new GroupByNumericSummaryIterator(node, sources);
+      return new GroupByNumericSummaryIterator(node, result, sources);
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Map<String, TimeSeries> sources) {
-      return new GroupByNumericSummaryIterator(node, sources);
+      return new GroupByNumericSummaryIterator(node, result, sources);
     }
     
     @Override
@@ -104,4 +122,6 @@ public class GroupByFactory extends BaseQueryNodeFactory {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
   }
+
+  
 }

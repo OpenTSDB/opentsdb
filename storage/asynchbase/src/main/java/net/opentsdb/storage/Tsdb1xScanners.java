@@ -45,7 +45,7 @@ import net.opentsdb.query.filter.TagVWildcardFilter.TagVIWildcardFilter;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -187,34 +187,34 @@ public class Tsdb1xScanners implements HBaseExecutor {
     this.node = node;
     this.query = query;
     
-    final Configuration config = ((Tsdb1xHBaseDataStore) node.factory())
+    final Configuration config = node.parent()
         .tsdb().getConfig();
     if (query.hasKey(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY)) {
       expansion_limit = query.getInt(config, 
           Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
     } else {
-      expansion_limit = ((Tsdb1xHBaseDataStore) node.factory())
+      expansion_limit = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY)) {
       rows_per_scan = query.getInt(config, 
           Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     } else {
-      rows_per_scan = ((Tsdb1xHBaseDataStore) node.factory())
+      rows_per_scan = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
       skip_nsun_tagks = query.getBoolean(config, 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     } else {
-      skip_nsun_tagks = ((Tsdb1xHBaseDataStore) node.factory())
+      skip_nsun_tagks = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
       skip_nsun_tagvs = query.getBoolean(config, 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     } else {
-      skip_nsun_tagvs = ((Tsdb1xHBaseDataStore) node.factory())
+      skip_nsun_tagvs = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
@@ -227,21 +227,21 @@ public class Tsdb1xScanners implements HBaseExecutor {
       enable_fuzzy_filter = query.getBoolean(config, 
           Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     } else {
-      enable_fuzzy_filter = ((Tsdb1xHBaseDataStore) node.factory())
+      enable_fuzzy_filter = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     }
     if (query.hasKey(Schema.QUERY_REVERSE_KEY)) {
       reverse_scan = query.getBoolean(config, 
           Schema.QUERY_REVERSE_KEY);
     } else {
-      reverse_scan = ((Tsdb1xHBaseDataStore) node.factory())
+      reverse_scan = node.parent()
           .dynamicBoolean(Schema.QUERY_REVERSE_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY)) {
       max_multi_get_cardinality = query.getInt(config, 
           Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
     } else {
-      max_multi_get_cardinality = ((Tsdb1xHBaseDataStore) node.factory())
+      max_multi_get_cardinality = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
     }
     
@@ -253,7 +253,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
       }
       
       if (ds != null) {
-        rollup_aggregation = RollupConfig.queryToRollupAggregation(
+        rollup_aggregation = DefaultRollupConfig.queryToRollupAggregation(
             ds.getAggregator());
       } else {
         rollup_aggregation = null;
@@ -732,7 +732,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
       
       int idx = 0;
       if (node.rollupIntervals() != null && 
+          !node.rollupIntervals().isEmpty() && 
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
+        
         for (int i = 0; i < node.rollupIntervals().size(); i++) {
           final RollupInterval interval = node.rollupIntervals().get(idx);
           final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
@@ -742,7 +744,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
           final byte[] stop_key = setStopKey(metric, interval);
           
           for (int x = 0; x < array.length; x++) {
-            final Scanner scanner = ((Tsdb1xHBaseDataStore) node.factory())
+            final Scanner scanner = node.parent()
                 .client().newScanner(pre_aggregate ? 
                     interval.getGroupbyTable() : interval.getTemporalTable());
             
@@ -782,16 +784,19 @@ public class Tsdb1xScanners implements HBaseExecutor {
   
       // raw scanner here if applicable
       if (node.rollupIntervals() == null || 
+          node.rollupIntervals().isEmpty() || 
           node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
+        
         final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
             node.schema().saltBuckets() : 1];
         scanners.add(array);
+        
         final byte[] start_key = setStartKey(metric, null, fuzzy_key);
         final byte[] stop_key = setStopKey(metric, null);
         
         for (int i = 0; i < array.length; i++) {
-          final Scanner scanner = ((Tsdb1xHBaseDataStore) node.factory())
-              .client().newScanner(((Tsdb1xHBaseDataStore) node.factory()).dataTable());
+          final Scanner scanner = node.parent()
+              .client().newScanner(node.parent().dataTable());
           
           scanner.setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
           scanner.setMaxNumRows(rows_per_scan);

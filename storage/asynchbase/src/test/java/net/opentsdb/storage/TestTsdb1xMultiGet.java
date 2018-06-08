@@ -62,7 +62,7 @@ import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
@@ -85,16 +85,16 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   public Tsdb1xQueryNode node;
   public TimeSeriesQuery query;
-  public RollupConfig rollup_config;
+  public DefaultRollupConfig rollup_config;
   public List<byte[]> tsuids;
   
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     when(node.schema()).thenReturn(schema);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     when(node.fetchDataType(any(byte.class))).thenReturn(true);
-    rollup_config = mock(RollupConfig.class);
+    rollup_config = mock(DefaultRollupConfig.class);
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
     PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
@@ -430,7 +430,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void ctorTimedSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(false);
     when(schema.saltWidth()).thenReturn(1);
@@ -451,7 +451,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void ctorTimelessSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(true);
     when(schema.saltWidth()).thenReturn(1);
@@ -833,7 +833,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     // salting
     node = mock(Tsdb1xQueryNode.class);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     Schema schema = mock(Schema.class);
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
@@ -861,7 +861,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void nextBatchTimedSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(false);
     when(schema.saltWidth()).thenReturn(1);
@@ -890,7 +890,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void nextBatchTimelessSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(true);
     when(schema.saltWidth()).thenReturn(1);

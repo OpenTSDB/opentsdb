@@ -31,9 +31,11 @@ public class TestNumericInterpolatorConfig {
 
   @Test
   public void build() throws Exception {
-    NumericInterpolatorConfig config = NumericInterpolatorConfig.newBuilder()
+    NumericInterpolatorConfig config = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     assertEquals(FillPolicy.NOT_A_NUMBER, config.fillPolicy());
     assertEquals(FillWithRealPolicy.PREFER_NEXT, config.realFillPolicy());
@@ -42,6 +44,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(null)
+        .setType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -50,6 +53,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         //.setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -58,6 +62,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(null)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -66,6 +71,15 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         //.setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -73,30 +87,35 @@ public class TestNumericInterpolatorConfig {
   
   @Test
   public void queryFill() throws Exception {
-    NumericInterpolatorConfig config = NumericInterpolatorConfig.newBuilder()
+    NumericInterpolatorConfig config = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     QueryFillPolicy<NumericType> fill = config.queryFill();
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
     
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill = config.queryFill();
     assertNull(fill.fill());
     
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill = config.queryFill();
     assertNull(fill.fill());
     
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.ZERO)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill = config.queryFill();
     assertEquals(0, fill.fill().longValue());

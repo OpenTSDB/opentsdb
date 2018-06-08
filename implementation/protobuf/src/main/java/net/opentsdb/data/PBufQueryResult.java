@@ -31,6 +31,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.rollup.RollupConfig;
 
 /**
  * Implementation of the {@link QueryResult} interface using Protobuf.
@@ -103,6 +104,12 @@ public class PBufQueryResult implements QueryResult {
   @Override
   public ChronoUnit resolution() {
     return ChronoUnit.values()[result.getResolution()];
+  }
+  
+  @Override
+  public RollupConfig rollupConfig() {
+    // TODO Auto-generated method stub
+    return null;
   }
   
   @Override

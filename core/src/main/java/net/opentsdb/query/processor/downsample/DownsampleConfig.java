@@ -19,13 +19,14 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 
 import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.query.QueryInterpolationConfig;
+import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
@@ -44,9 +45,8 @@ import net.opentsdb.utils.DateTime;
  * calendar for hourly and greater intervals, please supply the timezone.
  * @since 3.0
  */
-public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
-  /** The ID of this config. */
-  private final String id;
+public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators 
+                              implements TimeSpecification {
   
   /** The raw interval string. */
   private final String interval;
@@ -69,9 +69,6 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
   /** The query. */
   private final TimeSeriesQuery query;
   
-  /** The interpolator config. */
-  private QueryInterpolationConfig interpolation_config;
-  
   /** The numeric part of the parsed interval. */
   private final int interval_part;
   
@@ -92,22 +89,21 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
    * @param builder A non-null builder to pull settings from.
    */
   DownsampleConfig(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.id)) {
-      throw new IllegalArgumentException("ID cannot be null or empty.");
-    }
+    super(builder);
     if (Strings.isNullOrEmpty(builder.interval)) {
       throw new IllegalArgumentException("Interval cannot be null or empty.");
     }
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
-    if (builder.interpolation_config == null) {
-      throw new IllegalArgumentException("Interpolation config cannot be null.");
-    }
     if (builder.query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
-    id = builder.id;
+    if (interpolator_configs == null || 
+        interpolator_configs.isEmpty()) {
+      throw new IllegalArgumentException("At least one interpolator "
+          + "config must be present.");
+    }
     interval = builder.interval;
     timezone = builder.timezone != null ? builder.timezone : Const.UTC;
     aggregator = builder.aggregator;
@@ -115,7 +111,6 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     run_all = builder.run_all;
     fill = builder.fill;
     query = builder.query;
-    interpolation_config = builder.interpolation_config;
     
     if (!run_all) {
       interval_part = DateTime.getDurationInterval(interval);
@@ -161,11 +156,6 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     }
   }
   
-  @Override
-  public String getId() {
-    return id;
-  }
-  
   /** @return The non-null and non-empty interval. */
   public TemporalAmount interval() {
     return duration;
@@ -200,11 +190,6 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
   /** @return The time series query. */
   public TimeSeriesQuery query() {
     return query;
-  }
-  
-  /** @return The interpolation config. */
-  public QueryInterpolationConfig interpolationConfig() {
-    return interpolation_config;
   }
   
   /** @return The numeric part of the raw interval. */
@@ -256,13 +241,24 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     }
   }
   
+  @Override
+  public int compareTo(QueryNodeConfig o) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public HashCode buildHashCode() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
   /** @return A new builder to work from. */
   public static Builder newBuilder() {
     return new Builder();
   }
   
-  public static class Builder {
-    private String id;
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
     private String interval;
     private ZoneId timezone;
     private String aggregator;
@@ -270,7 +266,6 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     private boolean run_all;
     private boolean fill;
     private TimeSeriesQuery query;
-    private QueryInterpolationConfig interpolation_config;
     
     /**
      * @param id A non-null and on-empty Id for the group by function.
@@ -345,22 +340,12 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
       return this;
     }
     
-    /**
-     * @param interpolation_config The non-null interpolator config to use.
-     * @return The builder.
-     */
-    public Builder setQueryInterpolationConfig(
-        final QueryInterpolationConfig interpolation_config) {
-      this.interpolation_config = interpolation_config;
-      return this;
-    }
-    
     /** @return The constructed config.
      * @throws IllegalArgumentException if a required parameter is missing or
      * invalid. */
-    public DownsampleConfig build() {
-      return new DownsampleConfig(this);
+    public QueryNodeConfig build() {
+      return (QueryNodeConfig) new DownsampleConfig(this);
     }
   }
-
+  
 }

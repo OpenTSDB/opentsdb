@@ -69,12 +69,12 @@ public abstract class QueryExecutor<T> {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Default config cannot be null.");
-    }
-    if (node.graph() == null) {
-      throw new IllegalStateException("Execution graph cannot be null.");
-    }
+//    if (node.getConfig() == null) {
+//      throw new IllegalArgumentException("Default config cannot be null.");
+//    }
+//    if (node.graph() == null) {
+//      throw new IllegalStateException("Execution graph cannot be null.");
+//    }
     this.node = node;
     completed = new AtomicBoolean();
     outstanding_executions = Sets.<QueryExecution<T>>newConcurrentHashSet();
@@ -122,7 +122,7 @@ public abstract class QueryExecutor<T> {
   }
   
   public String id() {
-    return node.getExecutorId();
+    return node.getId();
   }
   
   /**
