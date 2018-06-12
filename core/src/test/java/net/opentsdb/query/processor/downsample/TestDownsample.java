@@ -111,7 +111,7 @@ public class TestDownsample {
   @Test
   public void ctorAndInitialize() throws Exception {
     Downsample ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
@@ -135,7 +135,7 @@ public class TestDownsample {
   @Test
   public void onComplete() throws Exception {
     Downsample ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     
     ds.onComplete(mock(QueryNode.class), 42, 42);
     verify(upstream, times(1)).onComplete(ds, 42, 42);
@@ -151,7 +151,7 @@ public class TestDownsample {
     Downsample ds = new Downsample(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
     
-    ds.initialize();
+    ds.initialize(null);
     
     ds.onNext(results);
     verify(upstream, times(1)).onNext(any());
@@ -165,7 +165,7 @@ public class TestDownsample {
   @Test
   public void onError() throws Exception {
     Downsample ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
     
@@ -183,7 +183,7 @@ public class TestDownsample {
     QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     Downsample ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     
     DownsampleResult dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.SECONDS, dr.resolution());
@@ -207,7 +207,7 @@ public class TestDownsample {
         .build();
     
     ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.SECONDS, dr.resolution());
     
@@ -220,7 +220,7 @@ public class TestDownsample {
         .build();
     
     ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.MILLIS, dr.resolution());
     
@@ -233,7 +233,7 @@ public class TestDownsample {
         .build();
     
     ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
     
@@ -246,7 +246,7 @@ public class TestDownsample {
         .build();
     
     ds = new Downsample(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
   }

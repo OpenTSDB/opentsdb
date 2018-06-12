@@ -58,7 +58,7 @@ public class TestRate {
   @Test
   public void ctorAndInitialize() throws Exception {
     Rate ds = new Rate(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
@@ -82,7 +82,7 @@ public class TestRate {
   @Test
   public void onComplete() throws Exception {
     Rate ds = new Rate(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     
     ds.onComplete(mock(QueryNode.class), 42, 42);
     verify(upstream, times(1)).onComplete(ds, 42, 42);
@@ -98,7 +98,7 @@ public class TestRate {
     Rate ds = new Rate(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
     
-    ds.initialize();
+    ds.initialize(null);
     
     ds.onNext(results);
     verify(upstream, times(1)).onNext(any());
@@ -112,7 +112,7 @@ public class TestRate {
   @Test
   public void onError() throws Exception {
     Rate ds = new Rate(factory, context, config);
-    ds.initialize();
+    ds.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
     

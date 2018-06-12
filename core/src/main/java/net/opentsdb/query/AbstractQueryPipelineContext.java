@@ -364,7 +364,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /**
    * A helper to initialize the nodes in depth-first order.
    */
-  protected void initializeGraph() {
+  protected void initializeGraph(final Span span) {
     if (graph.vertexSet().size() == 1) {
       throw new IllegalStateException("Graph cannot be empty (with only the context).");
     }
@@ -376,7 +376,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       if (node == this) {
         continue;
       }
-      node.initialize();
+      node.initialize(span);
       final Set<DefaultEdge> incoming = graph.incomingEdgesOf(node);
       if (incoming.size() == 1 && graph.getEdgeSource(incoming.iterator().next()) == this) {
         roots.add(node);
