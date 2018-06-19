@@ -17,6 +17,7 @@ package net.opentsdb.query.execution.graph;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -24,13 +25,29 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.YAML;
 
 public class TestExecutionGraph {
 
@@ -297,6 +314,287 @@ public class TestExecutionGraph {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertTrue(graph.nodeConfigs().isEmpty());
+  }
+  
+  @Test
+  public void parse() throws Exception {
+    TSDB tsdb = new MockTSDB();
+    when(tsdb.getRegistry().getQueryNodeFactory("mockfactorya"))
+      .thenReturn(new MockFactoryA());
+    when(tsdb.getRegistry().getQueryNodeFactory("mockfactoryb"))
+      .thenReturn(new MockFactoryB());
+    
+    String json = "{\"id\":\"Graph1\",\"nodes\":[{\"id\":\"N1\","
+        + "\"type\":\"MockFactoryA\",\"sources\":[\"S1\",\"S2\"],\"config\":"
+        + "{\"id\":\"N1\",\"foo\":\"myfoo\",\"bars\":[\"a\",\"b\",\"c\"]}},"
+        + "{\"id\":\"S1\",\"type\":\"MockFactoryB\"},"
+        + "{\"id\":\"S2\",\"type\":\"MockFactoryB\",\"config\":"
+        + "{\"id\":\"S2\",\"mynum\":42,\"settings\":{\"a\":-2.76,\"b\":42.5}}}]}";
+    JsonNode root = JSON.getMapper().readTree(json);
+    ExecutionGraph graph = ExecutionGraph.parse(tsdb, root).build();
+    assertEquals("Graph1", graph.getId());
+    assertEquals(3, graph.getNodes().size());
+   
+    ExecutionGraphNode node = graph.getNodes().get(0);
+    assertEquals("N1", node.getId());
+    assertEquals("MockFactoryA", node.getType());
+    assertEquals(2, node.getSources().size());
+    assertEquals("S1", node.getSources().get(0));
+    assertEquals("S2", node.getSources().get(1));
+    assertTrue(node.getConfig() instanceof MockConfigA);
+    assertEquals("myfoo", ((MockConfigA) node.getConfig()).foo);
+    assertEquals(3, ((MockConfigA) node.getConfig()).bars.size());
+    assertEquals("a", ((MockConfigA) node.getConfig()).bars.get(0));
+    assertEquals("b", ((MockConfigA) node.getConfig()).bars.get(1));
+    assertEquals("c", ((MockConfigA) node.getConfig()).bars.get(2));
+    
+    node = graph.getNodes().get(1);
+    assertEquals("S1", node.getId());
+    assertEquals("MockFactoryB", node.getType());
+    assertNull(node.getSources());
+    
+    node = graph.getNodes().get(2);
+    assertEquals("S2", node.getId());
+    assertEquals("MockFactoryB", node.getType());
+    assertNull(node.getSources());
+    assertTrue(node.getConfig() instanceof MockConfigB);
+    assertEquals(42, ((MockConfigB) node.getConfig()).mynum);
+    assertEquals(2, ((MockConfigB) node.getConfig()).settings.size());
+    assertEquals(-2.76, ((MockConfigB) node.getConfig()).settings.get("a"), 0.001);
+    assertEquals(42.5, ((MockConfigB) node.getConfig()).settings.get("b"), 0.001);
+    
+    // YAML!
+    String yaml = "---\n" +
+        "id: Graph1\n" +
+        "nodes:\n" +
+        "  - \n" +
+        "    id: N1\n" +
+        "    type: MockFactoryA\n" +
+        "    sources:\n" +
+        "      - S1\n" +
+        "      - S2\n" +
+        "    config:\n" +
+        "      foo: myfoo\n" +
+        "      bars:\n" +
+        "        - a\n" +
+        "        - b\n" +
+        "        - c\n" +
+        "  -\n" +
+        "    id: S1\n" +
+        "    type: MockFactoryB\n" +
+        "  -\n" +
+        "    id: S2\n" +
+        "    type: MockFactoryB\n" +
+        "    config:\n" +
+        "      mynum: 42\n" +
+        "      settings:\n" +
+        "        a: -2.76\n" +
+        "        b: 42.5";
+    root = YAML.getMapper().readTree(yaml);
+    graph = ExecutionGraph.parse(tsdb, root).build();
+    assertEquals("Graph1", graph.getId());
+    assertEquals(3, graph.getNodes().size());
+   
+    node = graph.getNodes().get(0);
+    assertEquals("N1", node.getId());
+    assertEquals("MockFactoryA", node.getType());
+    assertEquals(2, node.getSources().size());
+    assertEquals("S1", node.getSources().get(0));
+    assertEquals("S2", node.getSources().get(1));
+    assertTrue(node.getConfig() instanceof MockConfigA);
+    assertEquals("myfoo", ((MockConfigA) node.getConfig()).foo);
+    assertEquals(3, ((MockConfigA) node.getConfig()).bars.size());
+    assertEquals("a", ((MockConfigA) node.getConfig()).bars.get(0));
+    assertEquals("b", ((MockConfigA) node.getConfig()).bars.get(1));
+    assertEquals("c", ((MockConfigA) node.getConfig()).bars.get(2));
+    
+    node = graph.getNodes().get(1);
+    assertEquals("S1", node.getId());
+    assertEquals("MockFactoryB", node.getType());
+    assertNull(node.getSources());
+    
+    node = graph.getNodes().get(2);
+    assertEquals("S2", node.getId());
+    assertEquals("MockFactoryB", node.getType());
+    assertNull(node.getSources());
+    assertTrue(node.getConfig() instanceof MockConfigB);
+    assertEquals(42, ((MockConfigB) node.getConfig()).mynum);
+    assertEquals(2, ((MockConfigB) node.getConfig()).settings.size());
+    assertEquals(-2.76, ((MockConfigB) node.getConfig()).settings.get("a"), 0.001);
+    assertEquals(42.5, ((MockConfigB) node.getConfig()).settings.get("b"), 0.001);
+    
+    // No such node with config
+    json = "{\"id\":\"Graph1\",\"nodes\":[{\"id\":\"N1\","
+        + "\"type\":\"MockFactoryA\",\"sources\":[\"S1\",\"S2\"],\"config\":"
+        + "{\"id\":\"N1\",\"foo\":\"myfoo\",\"bars\":[\"a\",\"b\",\"c\"]}},"
+        + "{\"id\":\"S1\",\"type\":\"MockFactoryB\"},"
+        + "{\"id\":\"S2\",\"type\":\"MockFactoryC\",\"config\":"
+        + "{\"id\":\"S2\",\"mynum\":42,\"settings\":{\"a\":-2.76,\"b\":42.5}}}]}";
+    root = JSON.getMapper().readTree(json);
+    
+    try {
+      ExecutionGraph.parse(tsdb, root).build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // No such node, but it's OK because there isn't a config to parse.
+    json = "{\"id\":\"Graph1\",\"nodes\":[{\"id\":\"N1\","
+        + "\"type\":\"MockFactoryA\",\"sources\":[\"S1\",\"S2\"],\"config\":"
+        + "{\"id\":\"N1\",\"foo\":\"myfoo\",\"bars\":[\"a\",\"b\",\"c\"]}},"
+        + "{\"id\":\"S1\",\"type\":\"MockFactoryC\"},"
+        + "{\"id\":\"S2\",\"type\":\"MockFactoryB\",\"config\":"
+        + "{\"id\":\"S2\",\"mynum\":42,\"settings\":{\"a\":-2.76,\"b\":42.5}}}]}";
+    root = JSON.getMapper().readTree(json);
+    graph = ExecutionGraph.parse(tsdb, root).build();
+    assertEquals(3, graph.getNodes().size());
+  }
+  
+  @JsonInclude(Include.NON_NULL)
+  @JsonDeserialize(builder = MockConfigA.Builder.class)
+  static class MockConfigA extends BaseQueryNodeConfig {
+    public String foo;
+    public List<String> bars;
+    
+    protected MockConfigA(final Builder builder) {
+      super(builder);
+      foo = builder.foo;
+      bars = builder.bars;
+    }
+
+    @Override
+    public HashCode buildHashCode() { return null; }
+
+    @Override
+    public int compareTo(QueryNodeConfig o) { return 0; }
+
+    @Override
+    public boolean equals(Object o) { return false; }
+
+    @Override
+    public int hashCode() { return 0; }
+    
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class Builder extends BaseQueryNodeConfig.Builder {
+      @JsonProperty
+      private String foo;
+      @JsonProperty
+      private List<String> bars;
+      
+      public Builder setFoo(final String foo) {
+        this.foo = foo;
+        return this;
+      }
+      
+      public Builder setBars(final List<String> bars) {
+        this.bars = bars;
+        return this;
+      }
+      
+      @Override
+      public QueryNodeConfig build() {
+        return new MockConfigA(this);
+      }
+      
+    }
+  }
+  
+  static class MockFactoryA implements QueryNodeFactory {
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id) {
+      return newNode(context, id, null);
+    }
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id,
+        QueryNodeConfig config) {
+      return null;
+    }
+
+    @Override
+    public String id() {
+      return "MockFactoryA";
+    }
+
+    @Override
+    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+      return MockConfigA.class;
+    }
+    
+  }
+  
+  @JsonInclude(Include.NON_NULL)
+  @JsonDeserialize(builder = MockConfigB.Builder.class)
+  static class MockConfigB extends BaseQueryNodeConfig {
+    public long mynum;
+    public Map<String, Double> settings;
+    
+    protected MockConfigB(final Builder builder) {
+      super(builder);
+      mynum = builder.mynum;
+      settings = builder.settings;
+    }
+
+    @Override
+    public HashCode buildHashCode() { return null; }
+
+    @Override
+    public int compareTo(QueryNodeConfig o) { return 0; }
+
+    @Override
+    public boolean equals(Object o) { return false; }
+
+    @Override
+    public int hashCode() { return 0; }
+    
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class Builder extends BaseQueryNodeConfig.Builder {
+      @JsonProperty
+      private long mynum;
+      @JsonProperty
+      private Map<String, Double> settings;
+      
+      public Builder setMynum(final long mynum) {
+        this.mynum = mynum;
+        return this;
+      }
+      
+      public Builder setSEttings(final Map<String, Double> settings) {
+        this.settings = settings;
+        return this;
+      }
+      
+      @Override
+      public QueryNodeConfig build() {
+        return new MockConfigB(this);
+      }
+      
+    }
+  }
+  
+  static class MockFactoryB implements QueryNodeFactory {
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id) {
+      return newNode(context, id, null);
+    }
+
+    @Override
+    public QueryNode newNode(QueryPipelineContext context, String id,
+        QueryNodeConfig config) {
+      return null;
+    }
+
+    @Override
+    public String id() {
+      return "MockFactoryB";
+    }
+
+    @Override
+    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+      return MockConfigB.class;
+    }
+    
   }
   
 }

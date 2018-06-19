@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
@@ -38,6 +40,9 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.JSONException;
 
 /**
  * An execution graph that defines a set of executors, default configs and the
@@ -61,6 +66,10 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   
   /** The list of nodes given by the user or config. */
   protected List<ExecutionGraphNode> nodes;
+
+  /** A set of optional node configs manually de-serialized. Not counted
+   * in the equals, hash code or comparable. */
+  protected Map<String, QueryNodeConfig> node_configs;
   
   /**
    * Protected ctor that sets up maps but doesn't generate the graph.
@@ -72,16 +81,8 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
     }
     id = builder.id;
     nodes = builder.nodes;
-//    roots = Sets.newHashSet();
-//    sources = Lists.newArrayList();
-//    graph = new DirectedAcyclicGraph<QueryNode,
-//        DefaultEdge>(DefaultEdge.class);
   }
 
-  /** A set of optional node configs manually de-serialized. Not counted
-   * in the equals, hash code or comparable. */
-  protected Map<String, QueryNodeConfig> node_configs;
-  
   /** @return The unique ID of this graph. */
   public String getId() {
     return id;
@@ -283,4 +284,65 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
     }
   }
 
+  public static ExecutionGraph.Builder parse(final TSDB tsdb, 
+                                             final JsonNode graph_root) {
+    if (graph_root == null) {
+      throw new IllegalArgumentException("Graph root cannot be null.");
+    }
+    final Builder builder = newBuilder();
+    builder.setId(graph_root.get("id").asText());
+    
+    final JsonNode nodes = graph_root.get("nodes");
+    for (final JsonNode node : nodes) {
+      final ExecutionGraphNode.Builder node_builder = 
+          ExecutionGraphNode.newBuilder();
+      final String id = node.get("id").asText();
+      final String type = node.get("type").asText();
+      node_builder.setId(id);
+      if (!Strings.isNullOrEmpty(type)) {
+        node_builder.setType(type);
+      }
+      
+      final JsonNode sources = node.get("sources");
+      if (sources != null) {
+        try {
+          node_builder.setSources(JSON.getMapper().treeToValue(
+              node.get("sources"), List.class));
+        } catch (JsonProcessingException e) {
+          throw new JSONException("Failed to parse sources: " + node, e);
+        }
+      }
+      
+      final JsonNode config = node.get("config");
+      if (config != null) {
+        final QueryNodeFactory factory;
+        if (!Strings.isNullOrEmpty(type)) {
+          factory = tsdb.getRegistry().getQueryNodeFactory(type.toLowerCase());
+          if (factory == null) {
+            throw new IllegalArgumentException("No node factory found "
+                + "for node type: " + type);
+          }
+        } else {
+          factory = tsdb.getRegistry().getQueryNodeFactory(id.toLowerCase());
+          if (factory == null) {
+            throw new IllegalArgumentException("No node factory found "
+                + "for node type: " + id);
+          }
+        }
+        try {
+          final QueryNodeConfig node_config = 
+              JSON.getMapper().treeToValue(config, factory.nodeConfigClass());
+          node_builder.setConfig(node_config);
+          
+        } catch (JsonProcessingException e) {
+          throw new JSONException("Failed to parse config: " + node, e);
+        }
+      }
+      
+      builder.addNode(node_builder.build());
+    }
+    
+    return builder;
+  }
+  
 }
