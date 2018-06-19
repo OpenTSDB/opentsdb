@@ -46,7 +46,6 @@ import net.opentsdb.query.QueryNodeConfig;
   include = JsonTypeInfo.As.PROPERTY,
   property = "executorType",
   visible = true)
-@JsonTypeIdResolver(QueryExecutorConfigResolver.class)
 public abstract class QueryExecutorConfig implements QueryNodeConfig {
   /** The class type of executor. */
   protected final String executor_type;
