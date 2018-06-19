@@ -109,6 +109,7 @@ public class TestPBufSerdes {
     SerdesOptions options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
+        .setId("pbuf")
         .build();
     
     TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
@@ -287,6 +288,7 @@ public class TestPBufSerdes {
     SerdesOptions options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
+        .setId("pbuf")
         .build();
     
     TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
@@ -333,6 +335,7 @@ public class TestPBufSerdes {
     SerdesOptions options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
+        .setId("pbuf")
         .build();
     
     TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
@@ -392,6 +395,7 @@ public class TestPBufSerdes {
     SerdesOptions options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
+        .setId("pbuf")
         .build();
     
     QueryNode node = mock(QueryNode.class);

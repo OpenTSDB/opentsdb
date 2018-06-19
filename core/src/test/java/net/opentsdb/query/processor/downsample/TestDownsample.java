@@ -33,19 +33,21 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
 public class TestDownsample {
@@ -54,24 +56,28 @@ public class TestDownsample {
   private QueryNodeFactory factory;
   private DownsampleConfig config;
   private QueryNode upstream;
-  private TimeSeriesQuery q;
+  private TimeSeriesDataSource downstream;
+  private QuerySourceConfig source_config;
   
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
     factory = new DownsampleFactory();
     upstream = mock(QueryNode.class);
-    when(context.upstream(any(QueryNode.class))).thenReturn(Lists.newArrayList(upstream));
+    downstream = mock(TimeSeriesDataSource.class);
+    when(context.upstream(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(upstream));
+    when(context.downstreamSources(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(downstream));
     
-    q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:01:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setStart("1970/01/01-00:00:01")
+        .setEnd("1970/01/01-00:01:00")
+        .setMetric("sys.cpu.user")
+        .setQuery(mock(TimeSeriesQuery.class))
+        .setId("m1")
         .build();
+    when(downstream.config()).thenReturn(source_config);
     
     NumericInterpolatorConfig numeric_config = 
           (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
@@ -90,11 +96,10 @@ public class TestDownsample {
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
-        .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("foo")
         .build();
   }
   
@@ -173,15 +178,14 @@ public class TestDownsample {
     DownsampleResult dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.SECONDS, dr.resolution());
     
-    q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:00")
-            .setEnd("1970/01/01-12:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setStart("1970/01/01-00:00:01")
+        .setEnd("1970/01/01-12:00:00")
+        .setMetric("sys.cpu.user")
+        .setQuery(mock(TimeSeriesQuery.class))
+        .setId("m1")
         .build();
+    when(downstream.config()).thenReturn(source_config);
     
     NumericInterpolatorConfig numeric_config = 
           (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
@@ -194,7 +198,6 @@ public class TestDownsample {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1h")
-        .setQuery(q)
         .addInterpolatorConfig(numeric_config)
         .build();
     
@@ -207,7 +210,6 @@ public class TestDownsample {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("100ms")
-        .setQuery(q)
         .addInterpolatorConfig(numeric_config)
         .build();
     
@@ -220,7 +222,6 @@ public class TestDownsample {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1000mu")
-        .setQuery(q)
         .addInterpolatorConfig(numeric_config)
         .build();
     
@@ -233,7 +234,6 @@ public class TestDownsample {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("500ns")
-        .setQuery(q)
         .addInterpolatorConfig(numeric_config)
         .build();
     
@@ -241,5 +241,58 @@ public class TestDownsample {
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
+  }
+  
+  @Test
+  public void downsampleResultUpdateTimestamp() throws Exception {
+    QueryResult result = mock(QueryResult.class);
+    when(result.timeSeries()).thenReturn(Collections.emptyList());
+    Downsample ds = new Downsample(factory, context, null, config);
+    ds.initialize(null);
+    
+    DownsampleResult dr = ds.new DownsampleResult(result);
+    
+    TimeStamp ts = new MillisecondTimeStamp(80000L);
+    assertEquals(80000L, ts.msEpoch());
+    dr.updateTimestamp(0, ts);
+    assertEquals(15000, ts.msEpoch());
+    
+    dr.updateTimestamp(0, ts);
+    assertEquals(15000, ts.msEpoch());
+    
+    dr.updateTimestamp(3, ts);
+    assertEquals(60000, ts.msEpoch());
+   
+    try {
+      dr.updateTimestamp(-1, ts);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      dr.updateTimestamp(0, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void downsampleResultNextTimestamp() throws Exception {
+    QueryResult result = mock(QueryResult.class);
+    when(result.timeSeries()).thenReturn(Collections.emptyList());
+    Downsample ds = new Downsample(factory, context, null, config);
+    ds.initialize(null);
+    
+    DownsampleResult dr = ds.new DownsampleResult(result);
+    
+    TimeStamp ts = new MillisecondTimeStamp(0);
+    assertEquals(0, ts.msEpoch());
+    
+    dr.nextTimestamp(ts);
+    assertEquals(15000, ts.msEpoch());
+
+    dr.nextTimestamp(ts);
+    assertEquals(30000, ts.msEpoch());
+    
+    dr.nextTimestamp(ts);
+    assertEquals(45000, ts.msEpoch());
   }
 }

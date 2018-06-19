@@ -43,10 +43,11 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
@@ -66,28 +67,35 @@ public class TestTsdb1xQueryResult extends UTBase {
   private Tsdb1xQueryNode node;
   private Schema schema; 
   private QuerySourceConfig source_config;
-  public DefaultRollupConfig rollup_config;
-  public TimeSeriesQuery query;
+  private DefaultRollupConfig rollup_config;
+  private SemanticQuery query;
   
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     schema = spy(new Schema(tsdb, null));
-    source_config = mock(QuerySourceConfig.class);
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+
+    query = SemanticQuery.newBuilder()
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .setId("graph")
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource"))
+            .build())
         .build();
     
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setId("m1")
+        .build();
+    final QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    when(node.pipelineContext()).thenReturn(context);
     when(node.fetchDataType(any(byte.class))).thenReturn(true);
     when(node.schema()).thenReturn(schema);
     when(node.config()).thenReturn(source_config);
-    when(source_config.configuration()).thenReturn(tsdb.config);
-    when(source_config.query()).thenReturn(query);
   }
   
   @Test

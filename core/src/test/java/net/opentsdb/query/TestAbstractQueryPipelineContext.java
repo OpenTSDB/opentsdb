@@ -26,7 +26,6 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -648,27 +647,25 @@ public class TestAbstractQueryPipelineContext {
     ctx.sources.add((TimeSeriesDataSource) s1);
     ctx.sources.add((TimeSeriesDataSource) s2);
     
-    verify(((TimeSeriesDataSource) s1), never()).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), never()).fetchNext(null);
+    assertEquals(0, ((MockSource) s1).fetched_next);
+    assertEquals(0, ((MockSource) s2).fetched_next);
     
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(1)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), never()).fetchNext(null);
+    assertEquals(1, ((MockSource) s1).fetched_next);
+    assertEquals(0, ((MockSource) s2).fetched_next);
     
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(1)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), times(1)).fetchNext(null);
+    assertEquals(1, ((MockSource) s1).fetched_next);
+    assertEquals(1, ((MockSource) s2).fetched_next);
     
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(2)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), times(1)).fetchNext(null);
+    assertEquals(2, ((MockSource) s1).fetched_next);
+    assertEquals(1, ((MockSource) s2).fetched_next);
     
-    doThrow(new UnitTestException())
-      .when(((TimeSeriesDataSource) s2))
-      .fetchNext(null);
+    ((MockSource) s2).throw_on_next = true;
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(2)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), times(2)).fetchNext(null);
+    assertEquals(2, ((MockSource) s1).fetched_next);
+    assertEquals(2, ((MockSource) s2).fetched_next);
     verify(sink1, times(1)).onError(any(Throwable.class));
     
     // Test the single mutli-source case.
@@ -686,23 +683,21 @@ public class TestAbstractQueryPipelineContext {
     ctx.sources.add((TimeSeriesDataSource) s1);
     ctx.sources.add((TimeSeriesDataSource) s2);
     
-    verify(((TimeSeriesDataSource) s1), never()).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), never()).fetchNext(null);
+    assertEquals(0, ((MockSource) s1).fetched_next);
+    assertEquals(0, ((MockSource) s2).fetched_next);
     
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(1)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), times(1)).fetchNext(null);
+    assertEquals(1, ((MockSource) s1).fetched_next);
+    assertEquals(1, ((MockSource) s2).fetched_next);
     
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(2)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), times(2)).fetchNext(null);
+    assertEquals(2, ((MockSource) s1).fetched_next);
+    assertEquals(2, ((MockSource) s2).fetched_next);
     
-    doThrow(new UnitTestException())
-      .when(((TimeSeriesDataSource) s1))
-      .fetchNext(null);
+    ((MockSource) s1).throw_on_next = true;
     ctx.fetchNext(null);
-    verify(((TimeSeriesDataSource) s1), times(3)).fetchNext(null);
-    verify(((TimeSeriesDataSource) s2), times(2)).fetchNext(null);
+    assertEquals(3, ((MockSource) s1).fetched_next);
+    assertEquals(2, ((MockSource) s2).fetched_next);
     verify(sink1, times(2)).onError(any(Throwable.class));
   }
   
@@ -895,6 +890,255 @@ public class TestAbstractQueryPipelineContext {
     } catch (IllegalStateException e) { }
   }
   
+  @Test
+  public void upstreamOfType() throws Exception {
+    TestContext ctx = new TestContext(tsdb, query, context, 
+        graph5(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    assertEquals(8, ctx.graph.vertexSet().size());
+    assertEquals(2, ctx.roots().size());
+    
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode n1 = nodes.get("N1");
+    QueryNode n2 = nodes.get("N2");
+    QueryNode n3 = nodes.get("N3");
+    QueryNode n4 = nodes.get("N4");
+    QueryNode n5 = nodes.get("N5");
+    QueryNode s1 = nodes.get("S1");
+    QueryNode s2 = nodes.get("S2");
+    
+    Collection<QueryNode> upstreams = ctx.upstreamOfType(s1, MockNodeA.class);
+    assertEquals(1, upstreams.size());
+    assertTrue(upstreams.contains(n4));
+    
+    upstreams = ctx.upstreamOfType(s2, MockNodeA.class);
+    assertEquals(1, upstreams.size());
+    assertTrue(upstreams.contains(n5));
+    
+    upstreams = ctx.upstreamOfType(n4, MockNodeA.class);
+    assertEquals(2, upstreams.size());
+    assertTrue(upstreams.contains(n1));
+    assertTrue(upstreams.contains(n2));
+    
+    upstreams = ctx.upstreamOfType(n5, MockNodeA.class);
+    assertEquals(2, upstreams.size());
+    assertTrue(upstreams.contains(n1));
+    assertTrue(upstreams.contains(n2));
+    
+    upstreams = ctx.upstreamOfType(n3, MockNodeA.class);
+    assertEquals(2, upstreams.size());
+    assertTrue(upstreams.contains(n1));
+    assertTrue(upstreams.contains(n2));
+    
+    assertTrue(ctx.upstreamOfType(n1, MockNodeA.class).isEmpty());
+    assertTrue(ctx.upstreamOfType(n2, MockNodeA.class).isEmpty());
+    
+    // different points upstream
+    // n1 --> n3(b) --> n4(b) --> s1
+    //                            ^
+    // n2(b) -> n5 ---> n6 -------|
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph7")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("N3"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N2")
+          .setType("MockFactoryB")
+          .addSource("N5"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N3")
+          .setType("MockFactoryB")
+          .addSource("N4"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N4")
+          .setType("MockFactoryB")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N5")
+          .setType("MockFactoryA")
+          .addSource("N6"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N6")
+          .setType("MockFactoryA")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .build();
+    ctx = new TestContext(tsdb, query, context, 
+          graph, Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    nodes = graphToMap(ctx);
+    n1 = nodes.get("N1");
+    n2 = nodes.get("N2");
+    n3 = nodes.get("N3");
+    n4 = nodes.get("N4");
+    n5 = nodes.get("N5");
+    QueryNode n6 = nodes.get("N6");
+    s1 = nodes.get("S1");
+    
+    upstreams = ctx.upstreamOfType(s1, MockNodeB.class);
+    assertEquals(2, upstreams.size());
+    assertTrue(upstreams.contains(n4));
+    assertTrue(upstreams.contains(n2));
+    
+    upstreams = ctx.upstreamOfType(n4, MockNodeB.class);
+    assertEquals(1, upstreams.size());
+    assertTrue(upstreams.contains(n3));
+    
+    upstreams = ctx.upstreamOfType(n6, MockNodeB.class);
+    assertEquals(1, upstreams.size());
+    assertTrue(upstreams.contains(n2));
+    
+    // errors
+    try {
+      ctx.upstreamOfType(null, MockNodeA.class);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      ctx.upstreamOfType(s1, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      ctx.upstreamOfType(mock(QueryNode.class), MockNodeA.class);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void downstreamOfType() throws Exception {
+    TestContext ctx = new TestContext(tsdb, query, context, 
+        graph5(), Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    assertEquals(8, ctx.graph.vertexSet().size());
+    assertEquals(2, ctx.roots().size());
+    
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    QueryNode n1 = nodes.get("N1");
+    QueryNode n2 = nodes.get("N2");
+    QueryNode n3 = nodes.get("N3");
+    QueryNode n4 = nodes.get("N4");
+    QueryNode n5 = nodes.get("N5");
+    QueryNode s1 = nodes.get("S1");
+    QueryNode s2 = nodes.get("S2");
+    
+    Collection<QueryNode> downstreams = ctx.downstreamOfType(n1, MockNodeA.class);
+    assertEquals(2, downstreams.size());
+    assertTrue(downstreams.contains(n4));
+    assertTrue(downstreams.contains(n5));
+    
+    downstreams = ctx.downstreamOfType(n2, MockNodeA.class);
+    assertEquals(2, downstreams.size());
+    assertTrue(downstreams.contains(n4));
+    assertTrue(downstreams.contains(n5));
+    
+    downstreams = ctx.downstreamOfType(n3, MockNodeA.class);
+    assertEquals(2, downstreams.size());
+    assertTrue(downstreams.contains(n4));
+    assertTrue(downstreams.contains(n5));
+    
+    assertTrue(ctx.downstreamOfType(n4, MockNodeA.class).isEmpty());
+    assertTrue(ctx.downstreamOfType(n5, MockNodeA.class).isEmpty());
+    
+    downstreams = ctx.downstreamOfType(n1, MockNodeB.class);
+    assertEquals(1, downstreams.size());
+    assertTrue(downstreams.contains(n3));
+    
+    downstreams = ctx.downstreamOfType(n2, MockNodeB.class);
+    assertEquals(1, downstreams.size());
+    assertTrue(downstreams.contains(n3));
+    
+    assertTrue(ctx.downstreamOfType(n3, MockNodeB.class).isEmpty());
+    assertTrue(ctx.downstreamOfType(s1, MockNodeA.class).isEmpty());
+    assertTrue(ctx.downstreamOfType(s2, MockNodeA.class).isEmpty());
+    
+    // different points upstream
+    // n1 --> n3(b) --> n4(b) --> s1
+    // |                          
+    // -----> n2 -----> n5(b) --> s2
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Graph7")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MockFactoryA")
+          .addSource("N3")
+          .addSource("N2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N2")
+          .setType("MockFactoryA")
+          .addSource("N5"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N3")
+          .setType("MockFactoryB")
+          .addSource("N4"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N4")
+          .setType("MockFactoryB")
+          .addSource("S1"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N5")
+          .setType("MockFactoryB")
+          .addSource("S2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .addNode(ExecutionGraphNode.newBuilder()
+            .setId("S2")
+            .setType("MockSourceFactory"))
+        .build();
+    ctx = new TestContext(tsdb, query, context, 
+          graph, Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    
+    nodes = graphToMap(ctx);
+    n1 = nodes.get("N1");
+    n2 = nodes.get("N2");
+    n3 = nodes.get("N3");
+    n4 = nodes.get("N4");
+    n5 = nodes.get("N5");
+    s1 = nodes.get("S1");
+    s2 = nodes.get("S2");
+    
+    downstreams = ctx.downstreamOfType(n1, MockNodeB.class);
+    assertEquals(2, downstreams.size());
+    assertTrue(downstreams.contains(n3));
+    assertTrue(downstreams.contains(n5));
+    
+    downstreams = ctx.downstreamOfType(n3, MockNodeB.class);
+    assertEquals(1, downstreams.size());
+    assertTrue(downstreams.contains(n4));
+    
+    downstreams = ctx.downstreamOfType(n2, MockNodeB.class);
+    assertEquals(1, downstreams.size());
+    assertTrue(downstreams.contains(n5));
+    
+    assertTrue(ctx.downstreamOfType(n4, MockNodeB.class).isEmpty());
+    assertTrue(ctx.downstreamOfType(n5, MockNodeB.class).isEmpty());
+    
+    // errors
+    try {
+      ctx.downstreamOfType(null, MockNodeA.class);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      ctx.downstreamOfType(n1, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      ctx.downstreamOfType(mock(QueryNode.class), MockNodeA.class);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
   class TestContext extends AbstractQueryPipelineContext {
     public TestContext(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
         ExecutionGraph execution_graph, Collection<QuerySink> sinks) {
@@ -1064,7 +1308,7 @@ public class TestAbstractQueryPipelineContext {
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id,
         QueryNodeConfig config) {
-      return spy(new MockNodeA(this, context, id, config));
+      return new MockNodeA(this, context, id, config);
     }
 
     @Override
@@ -1124,7 +1368,7 @@ public class TestAbstractQueryPipelineContext {
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id,
         QueryNodeConfig config) {
-      return spy(new MockNodeB(this, context, id, config));
+      return new MockNodeB(this, context, id, config);
     }
 
     @Override
@@ -1184,7 +1428,7 @@ public class TestAbstractQueryPipelineContext {
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id,
         QueryNodeConfig config) {
-      return spy(new MockSource(this, context, id, config));
+      return new MockSource(this, context, id, config);
     }
 
     @Override
@@ -1202,6 +1446,8 @@ public class TestAbstractQueryPipelineContext {
   public static class MockSource extends AbstractQueryNode implements TimeSeriesDataSource {
     boolean closed;
     QueryNodeConfig config;
+    int fetched_next;
+    boolean throw_on_next;
     
     public MockSource(QueryNodeFactory factory, QueryPipelineContext context,
         String id, QueryNodeConfig config) {
@@ -1234,6 +1480,11 @@ public class TestAbstractQueryPipelineContext {
     }
 
     @Override
-    public void fetchNext(Span span) { }
+    public void fetchNext(Span span) { 
+      fetched_next++;
+      if (throw_on_next) {
+        throw new UnitTestException();
+      }
+    }
   }
 }

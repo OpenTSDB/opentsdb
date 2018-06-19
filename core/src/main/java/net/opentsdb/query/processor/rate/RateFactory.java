@@ -65,8 +65,7 @@ public class RateFactory extends BaseQueryNodeFactory {
 
   @Override
   public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    // TODO Auto-generated method stub
-    return null;
+    return RateOptions.class;
   }
   
   /**

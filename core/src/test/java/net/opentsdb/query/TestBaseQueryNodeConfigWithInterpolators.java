@@ -27,6 +27,7 @@ import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 
 public class TestBaseQueryNodeConfigWithInterpolators {
 

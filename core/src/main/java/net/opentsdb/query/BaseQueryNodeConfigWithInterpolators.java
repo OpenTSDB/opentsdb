@@ -17,9 +17,14 @@ package net.opentsdb.query;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 
 /**
  * Base node config class that handles interpolation configs.
@@ -32,6 +37,9 @@ public abstract class BaseQueryNodeConfigWithInterpolators
   /** The ID of this config. */
   protected final String id;
   
+  /** The optional map of overrides. */
+  protected final Map<String, String> overrides;
+  
   /** The map of types to configs. */
   protected final Map<TypeToken<?>, QueryInterpolatorConfig> interpolator_configs;
   
@@ -41,19 +49,20 @@ public abstract class BaseQueryNodeConfigWithInterpolators
    */
   protected BaseQueryNodeConfigWithInterpolators(final Builder builder) {
     this.id = builder.id;
-    if (builder.interpolator_configs != null && 
-        !builder.interpolator_configs.isEmpty()) {
+    this.overrides = builder.overrides;
+    if (builder.interpolatorConfigs != null && 
+        !builder.interpolatorConfigs.isEmpty()) {
       interpolator_configs = Maps.newHashMapWithExpectedSize(
-          builder.interpolator_configs.size());
-      for (final QueryInterpolatorConfig config : builder.interpolator_configs) {
+          builder.interpolatorConfigs.size());
+      for (final QueryInterpolatorConfig config : builder.interpolatorConfigs) {
         // TODO - may need to put this in the registry AND we want to 
         // figure out if the name is a full string or not.
         final Class<?> clazz;
         try {
-          clazz = Class.forName(config.type());
+          clazz = Class.forName(config.dataType());
         } catch (ClassNotFoundException e) {
           throw new IllegalArgumentException("No data type found for: " 
-              + config.type());
+              + config.dataType());
         }
         final TypeToken<?> type = TypeToken.of(clazz);
         if (interpolator_configs.containsKey(type)) {
@@ -77,6 +86,109 @@ public abstract class BaseQueryNodeConfigWithInterpolators
     return interpolator_configs;
   }
   
+  @Override
+  public Map<String, String> getOverrides() {
+    return overrides;
+  }
+  
+  @Override
+  public String getString(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getString(key);
+      }
+    }
+    return value;
+  }
+  
+  @Override
+  public int getInt(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Integer.parseInt(value);
+  }
+  
+  @Override
+  public long getLong(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Long.parseLong(value);
+  }
+  
+  @Override
+  public boolean getBoolean(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getBoolean(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    value = value.trim().toLowerCase();
+    return value.equals("true") || value.equals("1") || value.equals("yes");
+  }
+  
+  @Override
+  public double getDouble(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Double.parseDouble(value);
+  }
+  
+  @Override
+  public boolean hasKey(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    return overrides == null ? false : overrides.containsKey(key);
+  }
+  
   /**
    * Fetches the interpolator config for a type if present.
    * @param type A non-null type.
@@ -88,27 +200,70 @@ public abstract class BaseQueryNodeConfigWithInterpolators
   }
   
   public static abstract class Builder {
+    @JsonProperty
     protected String id;
-    protected List<QueryInterpolatorConfig> interpolator_configs;
+    @JsonProperty
+    protected Map<String, String> overrides;
+    @JsonProperty
+    protected List<QueryInterpolatorConfig> interpolatorConfigs;
     
+    /**
+     * @param id An ID for this builder.
+     * @return The builder.
+     */
     public Builder setId(final String id) {
       this.id = id;
       return this;
     }
     
-    public Builder setInterpolatorConfigs(final List<QueryInterpolatorConfig> interpolator_configs) {
-      this.interpolator_configs = interpolator_configs;
+    /**
+     * @param overrides An override map to replace the existing map.
+     * @return The builder.
+     */
+    public Builder setOverrides(final Map<String, String> overrides) {
+      this.overrides = overrides;
       return this;
     }
     
-    public Builder addInterpolatorConfig(final QueryInterpolatorConfig interpolator_config) {
-      if (interpolator_configs == null) {
-        interpolator_configs = Lists.newArrayList();
+    /**
+     * @param key An override key to store in the override map.
+     * @param value A value to store, overwriting existing values.
+     * @return The builder.
+     */
+    public Builder addOverride(final String key, final String value) {
+      if (overrides == null) {
+        overrides = Maps.newHashMap();
       }
-      interpolator_configs.add(interpolator_config);
+      overrides.put(key, value);
       return this;
     }
     
+    /**
+     * @param interpolator_configs A list of interpolator configs 
+     * replacing any existing list.
+     * @return The builder.
+     */
+    public Builder setInterpolatorConfigs(
+          final List<QueryInterpolatorConfig> interpolator_configs) {
+      this.interpolatorConfigs = interpolator_configs;
+      return this;
+    }
+    
+    /**
+     * @param interpolator_config A non-null interpolator config to 
+     * add to the list (does not replace).
+     * @return The builder.
+     */
+    public Builder addInterpolatorConfig(
+          final QueryInterpolatorConfig interpolator_config) {
+      if (interpolatorConfigs == null) {
+        interpolatorConfigs = Lists.newArrayList();
+      }
+      interpolatorConfigs.add(interpolator_config);
+      return this;
+    }
+    
+    /** @return A config object or an exception if the config failed. */
     public abstract QueryNodeConfig build();
   }
 }

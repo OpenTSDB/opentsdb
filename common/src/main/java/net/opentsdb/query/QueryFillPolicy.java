@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 
 /**
  * An interface used to fill missing or unaligned values when aggregating

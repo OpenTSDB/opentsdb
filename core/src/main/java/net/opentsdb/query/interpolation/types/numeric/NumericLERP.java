@@ -23,7 +23,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 
 /**
  * An interpolator for numeric data points that implements linear 

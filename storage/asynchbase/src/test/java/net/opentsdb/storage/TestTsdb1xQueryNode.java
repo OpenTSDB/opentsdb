@@ -52,6 +52,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
@@ -60,10 +61,14 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.downsample.Downsample;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -81,7 +86,6 @@ public class TestTsdb1xQueryNode extends UTBase {
   
   private QueryPipelineContext context;
   private QuerySourceConfig source_config;
-  private TimeSeriesQuery query;
   private DefaultRollupConfig rollup_config;
   private Tsdb1xQueryResult result;
   private Tsdb1xScanners scanners;
@@ -89,11 +93,12 @@ public class TestTsdb1xQueryNode extends UTBase {
   private Deferred<MetaDataStorageResult> meta_deferred;
   private QueryNode upstream_a;
   private QueryNode upstream_b;
+  private SemanticQuery query;
   
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
-    source_config = mock(QuerySourceConfig.class);
+    
     rollup_config = mock(DefaultRollupConfig.class);
     result = mock(Tsdb1xQueryResult.class);
     scanners = mock(Tsdb1xScanners.class);
@@ -102,18 +107,23 @@ public class TestTsdb1xQueryNode extends UTBase {
     upstream_a = mock(QueryNode.class);
     upstream_b = mock(QueryNode.class);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+    query = SemanticQuery.newBuilder()
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .setId("graph")
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource"))
+            .build())
         .build();
     
-    when(source_config.configuration()).thenReturn(tsdb.config);
-    when(source_config.query()).thenReturn(query);
-    when(meta_schema.runQuery(any(TimeSeriesQuery.class), any(Span.class)))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setId("m1")
+        .build();
+    
+    when(meta_schema.runQuery(any(QuerySourceConfig.class), any(Span.class)))
       .thenReturn(meta_deferred);
     
     PowerMockito.whenNew(Tsdb1xQueryResult.class).withAnyArguments()
@@ -123,6 +133,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream_a, upstream_b));
+    when(context.tsdb()).thenReturn(tsdb);
   }
   
   @Test
@@ -145,7 +156,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertSame(source_config, node.config());
     assertSame(schema, node.schema());
     assertNull(node.sequenceEnd());
-    assertNull(node.id());
+    assertEquals("m1", node.id());
     assertFalse(node.skipNSUI());
     assertTrue(node.fetchDataType((byte) 0));
     assertFalse(node.deleteData());
@@ -155,20 +166,18 @@ public class TestTsdb1xQueryNode extends UTBase {
   
   @Test
   public void ctorQueryOverrides() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.DELETE_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY, "ROLLUP_RAW")
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.DELETE_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY, "ROLLUP_RAW")
+        .setId("m1")
         .build();
-    when(source_config.query()).thenReturn(query);
     
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, "n1", source_config);
@@ -215,18 +224,20 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    when(source_config.query()).thenReturn(query);
+    final Downsample ds = mock(Downsample.class);
+    when(ds.config()).thenReturn(DownsampleConfig.newBuilder()
+        .setId("ds")
+        .setInterval("1h")
+        .setAggregator("avg")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setId("interp")
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build());
+    when(context.upstreamOfType(any(QueryNode.class), eq(Downsample.class)))
+      .thenReturn(Lists.newArrayList(ds));
     
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, "n1", source_config);
@@ -239,45 +250,16 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertFalse(node.skip_nsun_tagvs);
     assertFalse(node.skip_nsui);
     assertFalse(node.delete);
+    assertNull(node.rollup_intervals);
+    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollup_usage);
+    
+    // init sets the rollups
+    node.initialize(null);
     assertEquals(2, node.rollup_intervals.size());
     assertArrayEquals("tsdb-1h".getBytes(), 
         node.rollup_intervals.get(0).getTemporalTable());
     assertArrayEquals("tsdb-30m".getBytes(), 
         node.rollup_intervals.get(1).getTemporalTable());
-    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollup_usage);
-    
-    // metric overrides the base interval.
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("sum")
-                .setInterval("30m")))
-        .build();
-    when(source_config.query()).thenReturn(query);
-    
-    node = new Tsdb1xQueryNode(
-        data_store, context, "n1", source_config);
-    assertSame(source_config, node.config);
-    assertEquals(0, node.sequence_id.get());
-    assertFalse(node.initialized.get());
-    assertFalse(node.initializing.get());
-    assertNull(node.executor);
-    assertFalse(node.skip_nsun_tagks);
-    assertFalse(node.skip_nsun_tagvs);
-    assertFalse(node.skip_nsui);
-    assertFalse(node.delete);
-    assertEquals(1, node.rollup_intervals.size());
-    assertArrayEquals("tsdb-30m".getBytes(), 
-        node.rollup_intervals.get(0).getTemporalTable());
-    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollup_usage);
   }
 
   @Test
@@ -294,55 +276,6 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     try {
       new Tsdb1xQueryNode(data_store, context, "n1", null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // no query
-    when(source_config.query()).thenReturn(null);
-    try {
-      new Tsdb1xQueryNode(data_store, context, "n1", source_config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // no master config
-    when(source_config.query()).thenReturn(query);
-    when(source_config.configuration()).thenReturn(null);
-    try {
-      new Tsdb1xQueryNode(data_store, context, "n1", source_config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // no metrics
-    when(source_config.configuration()).thenReturn(tsdb.config);
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-//        .addMetric(Metric.newBuilder()
-//            .setMetric(METRIC_STRING))
-        .build();
-    when(source_config.query()).thenReturn(query);
-    try {
-      new Tsdb1xQueryNode(data_store, context, "n1", source_config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // too many metrics
-    when(source_config.configuration()).thenReturn(tsdb.config);
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_B_STRING))
-        .build();
-    when(source_config.query()).thenReturn(query);
-    try {
-      new Tsdb1xQueryNode(data_store, context, "n1", source_config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -406,7 +339,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertTrue(node.initializing.get());
     PowerMockito.verifyNew(Tsdb1xQueryResult.class, never())
       .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
-    verify(meta_schema, times(1)).runQuery(eq(query), any(Span.class));
+    verify(meta_schema, times(1)).runQuery(any(QuerySourceConfig.class), any(Span.class));
     
     try {
       node.fetchNext(null);
@@ -447,7 +380,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertFalse(node.initialized.get());
     PowerMockito.verifyNew(Tsdb1xQueryResult.class, never())
       .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
-    verify(meta_schema, times(1)).runQuery(eq(query), any(Span.class));
+    verify(meta_schema, times(1)).runQuery(any(QuerySourceConfig.class), any(Span.class));
   }
 
   @Test
@@ -735,16 +668,14 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void resolveMetaStringTagkNSUNAllowed() throws Exception {
     // Seems the PowerMockito won't mock down to the nested classes
     // so this will actually execute the query via multi-get.
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
+        .setId("m1")
         .build();
-    when(source_config.query()).thenReturn(query);
     
     List<TimeSeriesId> ids = Lists.newArrayList();
     ids.add(BaseTimeSeriesStringId.newBuilder()
@@ -805,16 +736,14 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void resolveMetaStringTagvNSUNAllowed() throws Exception {
     // Seems the PowerMockito won't mock down to the nested classes
     // so this will actually execute the query via multi-get.
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
+        .setId("m1")
         .build();
-    when(source_config.query()).thenReturn(query);
     
     List<TimeSeriesId> ids = Lists.newArrayList();
     ids.add(BaseTimeSeriesStringId.newBuilder()

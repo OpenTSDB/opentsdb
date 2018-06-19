@@ -67,7 +67,7 @@ public class TestNumericSummaryInterpolatorConfig {
     assertTrue(config.sync());
     assertSame(Aggregators.SUM, config.componentAggregator());
     assertEquals("myId", config.id());
-    assertEquals(NumericSummaryType.TYPE.toString(), config.type());
+    assertEquals(NumericSummaryType.TYPE.toString(), config.dataType());
     
     // adders where proper
     config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
@@ -93,7 +93,7 @@ public class TestNumericSummaryInterpolatorConfig {
     assertTrue(config.sync());
     assertSame(Aggregators.SUM, config.componentAggregator());
     assertNull(config.id());
-    assertEquals(NumericSummaryType.TYPE.toString(), config.type());
+    assertEquals(NumericSummaryType.TYPE.toString(), config.dataType());
     
     // just the bare minimums.
     config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()

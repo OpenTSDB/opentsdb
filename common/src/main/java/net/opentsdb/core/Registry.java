@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.storage.TimeSeriesDataStore;
 

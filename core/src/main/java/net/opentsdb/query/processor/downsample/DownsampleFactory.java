@@ -79,14 +79,14 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final QueryResult result,
                                                     final Collection<TimeSeries> sources) {
-      return new DownsampleNumericIterator(node, sources.iterator().next());
+      return new DownsampleNumericIterator(node, result, sources.iterator().next());
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final QueryResult result,
                                                     final Map<String, TimeSeries> sources) {
-      return new DownsampleNumericIterator(node, sources.values().iterator().next());
+      return new DownsampleNumericIterator(node, result, sources.values().iterator().next());
     }
 
     @Override

@@ -14,42 +14,35 @@ package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
-import net.opentsdb.configuration.Configuration;
-
 public class TestQuerySourceConfig {
 
   @Test
   public void builder() throws Exception {
-    final Configuration config = mock(Configuration.class);
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
     
-    QuerySourceConfig qsc = QuerySourceConfig.newBuilder()
-        .setConfiguration(config)
+    QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
+        .setStart("1h-ago")
+        .setMetric("system.cpu.user")
         .setId("UT")
         .build();
-    assertSame(config, qsc.configuration());
-    assertSame(query, qsc.query());
+    assertSame(query, qsc.getQuery());
+    assertEquals("1h-ago", qsc.getStart());
+    assertTrue(qsc.startTime().epoch() > 0);
+    assertEquals("system.cpu.user", qsc.getMetric());
     assertEquals("UT", qsc.getId());
     
     try {
       QuerySourceConfig.newBuilder()
-        //.setConfiguration(config)
-        .setQuery(query)
-        .setId("UT")
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      QuerySourceConfig.newBuilder()
-        .setConfiguration(config)
         //.setQuery(query)
+        .setStart("1h-ago")
+        .setMetric("system.cpu.user")
         .setId("UT")
         .build();
       fail("Expected IllegalArgumentException");
@@ -57,18 +50,20 @@ public class TestQuerySourceConfig {
     
     try {
       QuerySourceConfig.newBuilder()
-        .setConfiguration(config)
         .setQuery(query)
-        //.setId("UT")
+        //.setStart("1h-ago")
+        .setMetric("system.cpu.user")
+        .setId("UT")
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       QuerySourceConfig.newBuilder()
-        .setConfiguration(config)
         .setQuery(query)
-        .setId("")
+        .setStart("1h-ago")
+        //.setMetric("system.cpu.user")
+        .setId("UT")
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }

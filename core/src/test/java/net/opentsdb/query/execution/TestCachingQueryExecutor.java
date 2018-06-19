@@ -190,698 +190,698 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
 //    assertTrue(executor.keyGenerator() instanceof 
 //        DefaultTimeSeriesCacheKeyGenerator);
 //  }
-
-  @Test
-  public void executeCacheMiss() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-
-    // cache miss
-    cache_execution.callback(null);
-
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void executeCacheHit() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    
-    // cache hit
-    cache_execution.callback(new byte[] { 42 });
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, times(1)).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void executeSimultaneous() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setId("LocalCache")
-        .build();
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void executeBypass() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setBypass(true)
-        .setId("LocalCache")
-        .build();
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void executeCacheException() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    
-    // cache exception
-    cache_execution.callback(new IllegalStateException("Boo!"));
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void executeCacheExceptionSimultaneous() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setId("LocalCache")
-        .build();
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    
-    // cache exception
-    cache_execution.callback(new IllegalStateException("Boo!"));
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void executeExceptionThrown() throws Exception {
-    when(plugin.fetch(any(QueryContext.class), any(byte[].class), 
-        any(Span.class))).thenThrow(new UnitTestException());
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, times(1)).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-  }
-  
-  @Test
-  public void onNextFromDownstream() throws Exception {
-    final QueryResult next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    
-    execution.onNext(next);
-    
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, times(1)).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-  }
-
-  @Test
-  public void onNextSimultaneousCacheFirst() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setId("LocalCache")
-        .build();
-    QueryResult next = mock(QueryResult.class);
-    
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    when(next.source()).thenReturn(execution);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    execution.cache_execution = null;
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-    assertFalse(cache_execution.cancelled);
-    
-    // downstream
-    next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void onNextSimultaneousDownstreamFirst() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setId("LocalCache")
-        .build();
-    QueryResult next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, times(1)).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-    assertTrue(cache_execution.cancelled);
-    
-    // cache hit
-    next = mock(QueryResult.class);
-    when(next.source()).thenReturn(execution);
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, times(1)).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, times(1)).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-    assertTrue(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void onNextNullSource() throws Exception {
-    // Would happen if a plugin fails to set the source.
-    QueryResult next = mock(QueryResult.class);
-    
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    execution.cache_execution = null;
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void onNextConvertIDs() throws Exception {
-    QueryResult next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    when(next.idType()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return Const.TS_BYTE_ID;
-      }
-    });
-    PowerMockito.mockStatic(ConvertedQueryResult.class);
-    
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    execution.cache_execution = null;
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertFalse(execution.complete.get());
-    assertFalse(cache_execution.cancelled);
-    PowerMockito.verifyStatic(times(1));
-    ConvertedQueryResult.convert(next, execution, null);
-  }
-  
-  @Test
-  public void onNextSerdesThrowsException() throws Exception {
-    final QueryResult next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    when(serdes.serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class)))
-      .thenThrow(new UnitTestException());
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    
-    execution.onNext(next);
-    
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, times(1)).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-  }
-  
-  @Test
-  public void onNextSerdesReturnsException() throws Exception {
-    final QueryResult next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    when(serdes.serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class)))
-      .thenReturn(Deferred.fromError(new UnitTestException()));
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    
-    execution.onNext(next);
-    
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, times(1)).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-  }
-  
-  @Test
-  public void onNextZeroExpiration() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(0)
-        .setId("LocalCache")
-        .build();
-    QueryResult next = mock(QueryResult.class);
-    when(next.source()).thenReturn(downstream);
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    execution.onNext(next);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, times(1)).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-  }
-  
-  @Test
-  public void onErrorDownstreamExceptionNotComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    
-    execution.onError(new UnitTestException());
-    
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, times(1)).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-  }
-  
-  @Test
-  public void onErrorDownstreamExceptionComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.complete.set(true);
-    
-    execution.onError(new UnitTestException());
-    
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(execution.complete.get());
-  }
-  
-  @Test
-  public void onComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    
-    execution.onComplete(mock(QueryNode.class), 42, 42);
-    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
-  }
-  
-  @Test
-  public void closeNotComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    
-    execution.close();
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, times(1)).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void closeComplete() throws Exception {
-    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
-    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
-    execution.initialize(null);
-    execution.fetchNext(null);
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    
-    execution.complete.set(true);
-    execution.close();
-    
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class), any(Span.class));
-    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, never()).onError(any(Throwable.class));
-    verify(source, never()).fetchNext(any(Span.class));
-    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
-        any(InputStream.class), any(QueryNode.class), any(Span.class));
-    verify(serdes, never()).serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class));
-    assertTrue(cache_execution.cancelled);
-  }
-
-  @Test
-  public void builder() throws Exception {
-    String json = JSON.serializeToString(config);
-    assertTrue(json.contains("\"simultaneous\":false"));
-    assertTrue(json.contains("\"expiration\":60000"));
-    assertTrue(json.contains("\"id\":\"LocalCache\""));
-    assertTrue(json.contains("\"useTimestamps\":false"));
-    assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
-    
-    json = "{\"simultaneous\":false,"
-        + "\"expiration\":60000,\"bypass\":true,\"keyGeneratorId\":\"MyKeyGen\","
-        + "\"useTimestamps\":false,\"id\":\"LocalCache\"}";
-    config = JSON.parseToObject(json, Config.class);
-    assertEquals("LocalCache", config.getId());
-    assertFalse(config.getSimultaneous());
-    assertEquals(60000, config.getExpiration());
-    assertTrue(config.getBypass());
-    assertFalse(config.getUseTimestamps());
-    assertEquals("MyKeyGen", config.getKeyGeneratorId());
-  }
-  
+//
+//  @Test
+//  public void executeCacheMiss() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//
+//    // cache miss
+//    cache_execution.callback(null);
+//
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void executeCacheHit() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    
+//    // cache hit
+//    cache_execution.callback(new byte[] { 42 });
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, times(1)).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void executeSimultaneous() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setSimultaneous(true)
+//        .setId("LocalCache")
+//        .build();
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void executeBypass() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setBypass(true)
+//        .setId("LocalCache")
+//        .build();
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void executeCacheException() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    
+//    // cache exception
+//    cache_execution.callback(new IllegalStateException("Boo!"));
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void executeCacheExceptionSimultaneous() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setSimultaneous(true)
+//        .setId("LocalCache")
+//        .build();
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    
+//    // cache exception
+//    cache_execution.callback(new IllegalStateException("Boo!"));
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void executeExceptionThrown() throws Exception {
+//    when(plugin.fetch(any(QueryContext.class), any(byte[].class), 
+//        any(Span.class))).thenThrow(new UnitTestException());
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, times(1)).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//  }
+//  
+//  @Test
+//  public void onNextFromDownstream() throws Exception {
+//    final QueryResult next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    
+//    execution.onNext(next);
+//    
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//  }
+//
+//  @Test
+//  public void onNextSimultaneousCacheFirst() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setSimultaneous(true)
+//        .setId("LocalCache")
+//        .build();
+//    QueryResult next = mock(QueryResult.class);
+//    
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    when(next.source()).thenReturn(execution);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    execution.cache_execution = null;
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//    assertFalse(cache_execution.cancelled);
+//    
+//    // downstream
+//    next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void onNextSimultaneousDownstreamFirst() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setSimultaneous(true)
+//        .setId("LocalCache")
+//        .build();
+//    QueryResult next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//    assertTrue(cache_execution.cancelled);
+//    
+//    // cache hit
+//    next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(execution);
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, times(1)).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//    assertTrue(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void onNextNullSource() throws Exception {
+//    // Would happen if a plugin fails to set the source.
+//    QueryResult next = mock(QueryResult.class);
+//    
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    execution.cache_execution = null;
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void onNextConvertIDs() throws Exception {
+//    QueryResult next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    when(next.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+//      @Override
+//      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+//        return Const.TS_BYTE_ID;
+//      }
+//    });
+//    PowerMockito.mockStatic(ConvertedQueryResult.class);
+//    
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    execution.cache_execution = null;
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertFalse(execution.complete.get());
+//    assertFalse(cache_execution.cancelled);
+//    PowerMockito.verifyStatic(times(1));
+//    ConvertedQueryResult.convert(next, execution, null);
+//  }
+//  
+//  @Test
+//  public void onNextSerdesThrowsException() throws Exception {
+//    final QueryResult next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    when(serdes.serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class)))
+//      .thenThrow(new UnitTestException());
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    
+//    execution.onNext(next);
+//    
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//  }
+//  
+//  @Test
+//  public void onNextSerdesReturnsException() throws Exception {
+//    final QueryResult next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    when(serdes.serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class)))
+//      .thenReturn(Deferred.fromError(new UnitTestException()));
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    
+//    execution.onNext(next);
+//    
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//  }
+//  
+//  @Test
+//  public void onNextZeroExpiration() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(0)
+//        .setId("LocalCache")
+//        .build();
+//    QueryResult next = mock(QueryResult.class);
+//    when(next.source()).thenReturn(downstream);
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    execution.onNext(next);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, times(1)).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//  }
+//  
+//  @Test
+//  public void onErrorDownstreamExceptionNotComplete() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    
+//    execution.onError(new UnitTestException());
+//    
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, times(1)).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//  }
+//  
+//  @Test
+//  public void onErrorDownstreamExceptionComplete() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.complete.set(true);
+//    
+//    execution.onError(new UnitTestException());
+//    
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(execution.complete.get());
+//  }
+//  
+//  @Test
+//  public void onComplete() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    
+//    execution.onComplete(mock(QueryNode.class), 42, 42);
+//    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//  }
+//  
+//  @Test
+//  public void closeNotComplete() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    
+//    execution.close();
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, times(1)).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void closeComplete() throws Exception {
+//    final CachingQueryExecutor executor = new CachingQueryExecutor(tsdb);
+//    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, null, config);
+//    execution.initialize(null);
+//    execution.fetchNext(null);
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    
+//    execution.complete.set(true);
+//    execution.close();
+//    
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class), any(Span.class));
+//    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+//    verify(upstream, never()).onNext(any(QueryResult.class));
+//    verify(upstream, never()).onError(any(Throwable.class));
+//    verify(source, never()).fetchNext(any(Span.class));
+//    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+//        any(InputStream.class), any(QueryNode.class), any(Span.class));
+//    verify(serdes, never()).serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class));
+//    assertTrue(cache_execution.cancelled);
+//  }
+//
+//  @Test
+//  public void builder() throws Exception {
+//    String json = JSON.serializeToString(config);
+//    assertTrue(json.contains("\"simultaneous\":false"));
+//    assertTrue(json.contains("\"expiration\":60000"));
+//    assertTrue(json.contains("\"id\":\"LocalCache\""));
+//    assertTrue(json.contains("\"useTimestamps\":false"));
+//    assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
+//    
+//    json = "{\"simultaneous\":false,"
+//        + "\"expiration\":60000,\"bypass\":true,\"keyGeneratorId\":\"MyKeyGen\","
+//        + "\"useTimestamps\":false,\"id\":\"LocalCache\"}";
+//    config = JSON.parseToObject(json, Config.class);
+//    assertEquals("LocalCache", config.getId());
+//    assertFalse(config.getSimultaneous());
+//    assertEquals(60000, config.getExpiration());
+//    assertTrue(config.getBypass());
+//    assertFalse(config.getUseTimestamps());
+//    assertEquals("MyKeyGen", config.getKeyGeneratorId());
+//  }
+//  
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final Config c1 = (Config) Config.newBuilder()

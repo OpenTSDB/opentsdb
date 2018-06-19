@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
 import java.time.Duration;
@@ -26,8 +25,6 @@ import java.time.temporal.ChronoUnit;
 import org.junit.Before;
 import org.junit.Test;
 
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -78,7 +75,6 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();
@@ -87,11 +83,8 @@ public class TestDownsampleConfig {
     assertEquals(Duration.of(15, ChronoUnit.SECONDS), config.interval());
     assertEquals(15, config.intervalPart());
     assertFalse(config.fill());
-    assertSame(q, config.query());
     assertEquals(ZoneId.of("UTC"), config.timezone());
     assertEquals(ChronoUnit.SECONDS, config.units());
-    assertEquals(15000, config.start().msEpoch());
-    assertEquals(60000, config.end().msEpoch());
     assertFalse(config.infectiousNan());
     assertEquals(15, config.intervalPart());
     
@@ -100,7 +93,6 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         //.setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -110,7 +102,6 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("")
         .setInterval("15s")
-        .setQuery(q)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -120,7 +111,6 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("foo")
         //.setInterval("15s")
-        .setQuery(q)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -130,7 +120,6 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("")
-        .setQuery(q)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -140,7 +129,6 @@ public class TestDownsampleConfig {
         //.setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -150,7 +138,6 @@ public class TestDownsampleConfig {
         .setAggregator("")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -160,23 +147,12 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         //.setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    try {
-      DownsampleConfig.newBuilder()
-        .setAggregator("sum")
-        .setId("foo")
-        .setInterval("15s")
-        //.setQuery(q)
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // ru all
+    // run all
     q = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1970/01/01-00:00:01")
@@ -191,169 +167,18 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
-    assertEquals(1000, config.start().msEpoch());
-    assertEquals(60000, config.end().msEpoch());
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
-        .setId("foo")
         .setInterval("15s")
-        .setQuery(q)
-        .setTimeZone(ZoneId.of("America/Denver"))
+        .setTimeZone("America/Denver")
         .addInterpolatorConfig(numeric_config)
+        .setId("foo")
         .build();
-    assertEquals(15000, config.start().msEpoch());
-    assertEquals(60000, config.end().msEpoch());
     assertEquals(ZoneId.of("America/Denver"), config.timezone());
   }
 
-  @Test
-  public void ctorBadQuery() throws Exception {
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
-    try {
-      DownsampleConfig.newBuilder()
-          .setAggregator("sum")
-          .setId("foo")
-          .setInterval("15s")
-          .setQuery(q)
-          .addInterpolatorConfig(numeric_config)
-          .addInterpolatorConfig(summary_config)
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:00:01")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
-    try {
-      DownsampleConfig.newBuilder()
-          .setAggregator("sum")
-          .setId("foo")
-          .setInterval("15s")
-          .setQuery(q)
-          .addInterpolatorConfig(numeric_config)
-          .addInterpolatorConfig(summary_config)
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:00:29")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
-    try {
-      DownsampleConfig.newBuilder()
-          .setAggregator("sum")
-          .setId("foo")
-          .setInterval("15s")
-          .setQuery(q)
-          .addInterpolatorConfig(numeric_config)
-          .addInterpolatorConfig(summary_config)
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-
-  @Test
-  public void updateTimestamp() throws Exception {
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:01:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
-    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setAggregator("sum")
-        .setId("foo")
-        .setInterval("15s")
-        .setQuery(q)
-        .addInterpolatorConfig(numeric_config)
-        .addInterpolatorConfig(summary_config)
-        .build();
-    
-    TimeStamp ts = new MillisecondTimeStamp(80000L);
-    assertEquals(80000L, ts.msEpoch());
-    config.updateTimestamp(0, ts);
-    assertEquals(15000, ts.msEpoch());
-    
-    config.updateTimestamp(0, ts);
-    assertEquals(15000, ts.msEpoch());
-    
-    config.updateTimestamp(3, ts);
-    assertEquals(60000, ts.msEpoch());
-   
-    try {
-      config.updateTimestamp(-1, ts);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      config.updateTimestamp(0, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-
-  @Test
-  public void nextTimestamp() throws Exception {
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:01:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
-    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setAggregator("sum")
-        .setId("foo")
-        .setInterval("15s")
-        .setQuery(q)
-        .addInterpolatorConfig(numeric_config)
-        .addInterpolatorConfig(summary_config)
-        .build();
-    
-    TimeStamp ts = new MillisecondTimeStamp(0);
-    assertEquals(0, ts.msEpoch());
-    
-    config.nextTimestamp(ts);
-    assertEquals(15000, ts.msEpoch());
-
-    config.nextTimestamp(ts);
-    assertEquals(30000, ts.msEpoch());
-    
-    config.nextTimestamp(ts);
-    assertEquals(45000, ts.msEpoch());
-  }
 }

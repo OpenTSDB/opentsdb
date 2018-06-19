@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Period;
-import java.time.ZoneId;
 
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
@@ -33,6 +32,7 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
@@ -40,27 +40,28 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.Timespan;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 @SuppressWarnings("unchecked")
 public class TestDownsampleNumericIterator {
 
   private NumericInterpolatorConfig numeric_config;
   private TimeSeries source;
-  private TimeSeriesQuery query;
   private DownsampleConfig config;
   private QueryNode node;
   private QueryContext query_context;
@@ -68,11 +69,11 @@ public class TestDownsampleNumericIterator {
   
   private static final long BASE_TIME = 1356998400000L;
   //30 minute offset
-  final static ZoneId AF = ZoneId.of("Asia/Kabul");
+  final static String AF = "Asia/Kabul";
   // 12h offset w/o DST
-  final static ZoneId TV = ZoneId.of("Pacific/Funafuti");
+  final static String TV = "Pacific/Funafuti";
   // 12h offset w DST
-  final static ZoneId FJ = ZoneId.of("Pacific/Fiji");
+  final static String FJ = "Pacific/Fiji";
   // Tue, 15 Dec 2015 04:02:25.123 UTC
   final static long DST_TS = 1450137600000L;
   
@@ -95,41 +96,35 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000000, 50);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    final QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = new DownsampleNumericIterator(node, result, source);
     assertTrue(it.hasNext());
     
     when(node.config()).thenReturn(null);
     try {
-      new DownsampleNumericIterator(node, source);
+      new DownsampleNumericIterator(node, result, source);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new DownsampleNumericIterator(null, source);
+      new DownsampleNumericIterator(null, result, source);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new DownsampleNumericIterator(node, null);
+      new DownsampleNumericIterator(node, null, source);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new DownsampleNumericIterator(node, result, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -150,26 +145,15 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -202,13 +186,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -289,26 +272,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 5000L * 10))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
         
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -359,26 +332,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32); // falls outside of end interval
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 55000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -419,26 +382,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16.33);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32.6); // falls outside of end interval
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 55000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -479,26 +432,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32); // falls outside of end interval
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 55000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -539,26 +482,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32); // falls outside of end interval
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 55000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -599,26 +532,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32); // falls outside of end interval
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 55000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -662,26 +585,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(1356998410000L))
-            .setEnd(Long.toString(1356998440000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(1356998410000L, 1356998440000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -710,13 +623,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(1356998410000L, 1356998440000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -760,26 +672,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(1356998380000L))
-            .setEnd(Long.toString(1356998420000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(1356998380000L, 1356998420000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -803,13 +705,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(1356998380000L, 1356998420000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -858,26 +759,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(1356998440000L))
-            .setEnd(Long.toString(1356998460000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(1356998440000L, 1356998460000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -896,13 +787,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(1356998440000L, 1356998460000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -941,26 +831,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME - 30000L))
-            .setEnd(Long.toString(BASE_TIME - 10000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME - 30000L, BASE_TIME - 10000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
     
@@ -969,13 +849,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME - 30000L, BASE_TIME - 10000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -999,26 +878,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(1356998460000L))
-            .setEnd(Long.toString(1356998480000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(1356998460000L, 1356998480000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
     
@@ -1027,13 +896,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(1356998460000L, 1356998480000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -1052,27 +920,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 55000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1086,14 +944,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setFill(true)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1117,27 +974,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME + 15000L))
-            .setEnd(Long.toString(BASE_TIME + 45000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME + 15000L, BASE_TIME + 45000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1151,14 +998,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setFill(true)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME + 15000L, BASE_TIME + 45000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1182,27 +1028,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME + 65000L))
-            .setEnd(Long.toString(BASE_TIME + 75000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME + 65000L, BASE_TIME + 75000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
     
@@ -1211,14 +1047,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setFill(true)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME + 65000L, BASE_TIME + 75000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -1237,27 +1072,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME - 15000L))
-            .setEnd(Long.toString(BASE_TIME - 5000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME - 15000L, BASE_TIME - 5000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
     
@@ -1266,14 +1091,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("0all")
-        .setQuery(query)
         .setFill(true)
         .setRunAll(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME - 15000L, BASE_TIME - 5000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -1292,27 +1116,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16);
     ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2012/12/31-07:00:00")
-            .setEnd("2013/01/01-07:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
-        .setTimeZone(ZoneId.of("America/Denver"))
+        .setTimeZone("America/Denver")
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock("2012/12/31-07:00:00", "2013/01/01-07:00:00");
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1336,27 +1150,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5400000L, 5);
     ((NumericMillisecondShard) source).add(BASE_TIME + 7199000L, 6);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 8000000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1h")
-        .setQuery(query)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 8000000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1375,14 +1179,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1h")
-        .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 8000000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1406,13 +1209,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1h")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 8000000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1431,13 +1233,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1h")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 8000000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     // filters out the first value.
     assertTrue(it.hasNext());
@@ -1453,27 +1254,16 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
     
     // multi-hour downsample
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME - (3600000L * 4)))
-            .setEnd(Long.toString(BASE_TIME + (3600000L * 4)))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("4h")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME - (3600000L * 4), BASE_TIME + (3600000L * 4));
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1497,27 +1287,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 172800000L, 5);
     ((NumericMillisecondShard) source).add(BASE_TIME + 242999000L, 6);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 259200000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 259200000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1541,14 +1321,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 259200000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1577,13 +1356,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 259200000L);
+    it = new DownsampleNumericIterator(node, result, source);
 
     // first point skipped due to query time filter
     assertTrue(it.hasNext());
@@ -1608,13 +1386,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
         .setTimeZone(FJ)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 259200000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     // first point skipped due to query time filter
     assertTrue(it.hasNext());
@@ -1640,13 +1417,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 259200000L);
+    it = new DownsampleNumericIterator(node, result, source);
 
     // first point skipped due to query time filter
     assertTrue(it.hasNext());
@@ -1662,27 +1438,16 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
 
     // multiple days
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(1356982200000L))
-            .setEnd(Long.toString(1357257600000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("3d")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(1356982200000L, 1357257600000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1705,27 +1470,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(DST_TS + (86400000L * 21), 4);
     ((NumericMillisecondShard) source).add(1452367799000L, 5); // falls within 30m offset
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2015/12/13-00:00:00")
-            .setEnd("2016/01/10-00:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1w")
-        .setQuery(query)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock("2015/12/13-00:00:00", "2016/01/10-00:00:00");
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1749,14 +1504,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1w")
-        .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/13-00:00:00", "2016/01/10-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1790,13 +1544,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1w")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/13-00:00:00", "2016/01/10-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // first filtered by query times
     assertTrue(it.hasNext());
@@ -1821,13 +1574,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1w")
-        .setQuery(query)
         .setTimeZone(FJ)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/13-00:00:00", "2016/01/10-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // first filtered by query times
     assertTrue(it.hasNext());
@@ -1857,13 +1609,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1w")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/13-00:00:00", "2016/01/10-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // first filtered by query times
     assertTrue(it.hasNext());
@@ -1879,27 +1630,16 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
 
     // multiple weeks
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2015/12/05-00:00:00")
-            .setEnd("2016/01/10-00:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("2w")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/05-00:00:00", "2016/01/10-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -1933,27 +1673,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(1456704000000L, 5); // Feb 29th (leap year)
     ((NumericMillisecondShard) source).add(1483297200000L, 6); // falls within 30m offset AF
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2015/12/01-00:00:00")
-            .setEnd("2016/02/29-19:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1n")
-        .setQuery(query)
         //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock("2015/12/01-00:00:00", "2016/02/29-19:00:00");
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1977,13 +1707,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1n")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/01-00:00:00", "2016/02/29-19:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -2003,13 +1732,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1n")
-        .setQuery(query)
         .setTimeZone(FJ)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/01-00:00:00", "2016/02/29-19:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -2029,13 +1757,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1n")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/01-00:00:00", "2016/02/29-19:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // first bits cutoff due to filter
     assertTrue(it.hasNext());
@@ -2052,27 +1779,16 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
     
     // multiple months
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2015/12/01-00:00:00")
-            .setEnd("2016/04/29-19:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("3n")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2015/12/01-00:00:00", "2016/04/29-19:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // some filtered out on query time.
     assertTrue(it.hasNext());
@@ -2096,27 +1812,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(1451606400000L, 4); // Jan 1st 2016
     ((NumericMillisecondShard) source).add(1483228800000L, 5); // Jan 1st 2017
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2013/01/01-00:00:00")
-            .setEnd("2017/01/01-00:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1y")
-        .setQuery(query)
         //.setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock("2013/01/01-00:00:00", "2017/01/01-00:00:00");
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -2145,13 +1851,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1y")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2013/01/01-00:00:00", "2017/01/01-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // first filtered out
     assertTrue(it.hasNext());
@@ -2181,13 +1886,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1y")
-        .setQuery(query)
         .setTimeZone(FJ)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2013/01/01-00:00:00", "2017/01/01-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -2216,13 +1920,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1y")
-        .setQuery(query)
         .setTimeZone(AF)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2013/01/01-00:00:00", "2017/01/01-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
 
     // first bits cutoff due to filter
     assertTrue(it.hasNext());
@@ -2248,27 +1951,16 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
     
     // multiple years
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2013/01/01-00:00:00")
-            .setEnd("2018/01/01-00:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("3y")
-        .setQuery(query)
         .setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2013/01/01-00:00:00", "2018/01/01-00:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     // some filtered out on query time.
     assertTrue(it.hasNext());
@@ -2287,27 +1979,17 @@ public class TestDownsampleNumericIterator {
         new MillisecondTimeStamp(1448928000000L), 
         new MillisecondTimeStamp(1456772400000L));
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("2012/12/31-07:00:00")
-            .setEnd("2013/01/01-07:00:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
-        .setTimeZone(ZoneId.of("America/Denver"))
+        .setTimeZone("America/Denver")
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock("2012/12/31-07:00:00", "2013/01/01-07:00:00");
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
     
@@ -2316,13 +1998,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
-        .setTimeZone(ZoneId.of("America/Denver"))
+        .setTimeZone("America/Denver")
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock("2012/12/31-07:00:00", "2013/01/01-07:00:00");
+    it = new DownsampleNumericIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -2361,28 +2042,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(1406865600000L, 1);
     ((NumericMillisecondShard) source).add(1409544000000L, 1);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(1380585600000L))
-            .setEnd(Long.toString(1409544000000L))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
         .setFill(true)
-        .setQuery(query)
-        //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(1380585600000L, 1409544000000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     TimeStamp daily = new MillisecondTimeStamp(1380585600000L);
     TimeStamp monthly = new MillisecondTimeStamp(1380585600000L);
@@ -2407,13 +2077,11 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("1d")
-        .setQuery(query)
-        //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(1380585600000L, 1409544000000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     daily = new MillisecondTimeStamp(1380585600000L);
     monthly = new MillisecondTimeStamp(1380585600000L);
@@ -2443,28 +2111,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME + 3800000L))
-            .setEnd(Long.toString(BASE_TIME + 10000000L))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
-        //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME + 3800000L, BASE_TIME + 10000000L);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     // seek timestamp was BASE_TIME + 3800000L or 1,357,002,200,000 ms.
     // The interval that has the timestamp began at 1,357,002,000,000 ms. It
@@ -2515,14 +2172,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         //.setFill(true)
-        //.setTimeZone(TV)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME + 3800000L, BASE_TIME + 10000000L);
+    it = new DownsampleNumericIterator(node, result, source);
     
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1357005400000L, v.timestamp().msEpoch());
@@ -2571,26 +2226,17 @@ public class TestDownsampleNumericIterator {
         new MillisecondTimeStamp(BASE_TIME + 5000L * 9), 512));
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 10), 1024));
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 5000L * 10))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -2624,13 +2270,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    it = new DownsampleNumericIterator(node, result, source);
         
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -2700,26 +2345,17 @@ public class TestDownsampleNumericIterator {
         new MillisecondTimeStamp(BASE_TIME + 5000L * 9), 512));
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 10), 1024));
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 5000L * 10))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    final DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
         
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -2789,26 +2425,17 @@ public class TestDownsampleNumericIterator {
         new MillisecondTimeStamp(BASE_TIME + 5000L * 9), 512));
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 10), 1024));
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 5000L * 10))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
         
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -2842,13 +2469,12 @@ public class TestDownsampleNumericIterator {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("10s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    it = new DownsampleNumericIterator(node, source);
+    result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    it = new DownsampleNumericIterator(node, result, source);
         
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
@@ -2897,16 +2523,6 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
@@ -2917,13 +2533,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -3003,27 +2619,17 @@ public class TestDownsampleNumericIterator {
         .setType(NumericType.TYPE.toString())
         .build();
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -3103,27 +2709,17 @@ public class TestDownsampleNumericIterator {
         .setType(NumericType.TYPE.toString())
         .build();
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -3204,27 +2800,17 @@ public class TestDownsampleNumericIterator {
         .setType(NumericType.TYPE.toString())
         .build();
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -3304,27 +2890,17 @@ public class TestDownsampleNumericIterator {
         .setType(NumericType.TYPE.toString())
         .build();
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -3398,16 +2974,6 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
-    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(BASE_TIME))
-            .setEnd(Long.toString(BASE_TIME + 10000000))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("a"))
-        .build();
-    
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
@@ -3418,13 +2984,13 @@ public class TestDownsampleNumericIterator {
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
-        .setQuery(query)
         .setFill(true)
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    setupMock();
-    DownsampleNumericIterator it = new DownsampleNumericIterator(node, source);
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 10000000);
+    DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -3484,13 +3050,16 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
   }
   
-  private void setupMock() throws Exception {
+  private QueryResult setupMock(final long start, final long end) throws Exception {
+    return setupMock(Long.toString(start), Long.toString(end));
+  }
+  
+  private QueryResult setupMock(final String start, final String end) throws Exception {
     node = mock(QueryNode.class);
     when(node.config()).thenReturn(config);
     query_context = mock(QueryContext.class);
     pipeline_context = mock(QueryPipelineContext.class);
     when(pipeline_context.queryContext()).thenReturn(query_context);
-    when(query_context.query()).thenReturn(query);
     when(node.pipelineContext()).thenReturn(pipeline_context);
     final TSDB tsdb = mock(TSDB.class);
     when(pipeline_context.tsdb()).thenReturn(tsdb);
@@ -3499,5 +3068,23 @@ public class TestDownsampleNumericIterator {
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
     interp_factory.initialize(tsdb).join();
     when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
+    
+    TimeSeriesDataSource downstream = mock(TimeSeriesDataSource.class);
+    when(pipeline_context.downstreamSources(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(downstream));
+    
+    QuerySourceConfig source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setStart(start)
+        .setEnd(end)
+        .setMetric("sys.cpu.user")
+        .setQuery(mock(TimeSeriesQuery.class))
+        .setId("m1")
+        .build();
+    when(downstream.config()).thenReturn(source_config);
+    
+    Downsample ds = new Downsample(null, pipeline_context, null, config);
+    ds.initialize(null);
+    final QueryResult result = mock(Downsample.DownsampleResult.class);
+    return ds.new DownsampleResult(result);
   }
 }

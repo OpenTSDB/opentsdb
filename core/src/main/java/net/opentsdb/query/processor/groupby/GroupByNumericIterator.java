@@ -30,11 +30,11 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.QueryInterpolator;
-import net.opentsdb.query.QueryInterpolatorConfig;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.interpolation.QueryInterpolator;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 /**
@@ -124,6 +124,7 @@ public class GroupByNumericIterator implements QueryIterator,
     if (Strings.isNullOrEmpty(((GroupByConfig) node.config()).getAggregator())) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty."); 
     }
+    
     dp = new MutableNumericValue();
     next_ts.setMax();
     dp.resetNull(next_ts);
@@ -137,11 +138,12 @@ public class GroupByNumericIterator implements QueryIterator,
       throw new IllegalArgumentException("No interpolator config found for type");
     }
     
-    QueryInterpolatorFactory factory = node.pipelineContext().tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-        interpolator_config.id());
+    QueryInterpolatorFactory factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(QueryInterpolatorFactory.class, 
+            interpolator_config.id());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+          interpolator_config.id() == null ? "Default" : interpolator_config.id());
     }
     
     for (final TimeSeries source : sources) {

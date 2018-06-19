@@ -17,7 +17,7 @@ package net.opentsdb.data.types.numeric;
 import java.util.Collection;
 
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 

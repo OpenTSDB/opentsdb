@@ -33,8 +33,8 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryInterpolator;
-import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolator;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 
 /**
  * An interpolator class for summary values. It can advance through an
