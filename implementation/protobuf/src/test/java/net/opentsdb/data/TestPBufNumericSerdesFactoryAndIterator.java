@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.Iterator;
 
 import org.junit.Before;
@@ -52,6 +51,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
+        .setId("pbuf")
         .build();
     ctx = mock(QueryContext.class);
     result = mock(QueryResult.class);
@@ -364,6 +364,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525827600000L))
         .setEnd(new MillisecondTimeStamp(1525831200000L))
+        .setId("pbuf")
         .build();
     
     ts = new MockTimeSeries(
@@ -387,6 +388,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525831200000L))
         .setEnd(new MillisecondTimeStamp(1525834800000L))
+        .setId("pbuf")
         .build();
     
     ts = new MockTimeSeries(
@@ -451,6 +453,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525827600000L))
         .setEnd(new MillisecondTimeStamp(1525831200000L))
+        .setId("pbuf")
         .build();
     
     // no data!
@@ -463,6 +466,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525831200000L))
         .setEnd(new MillisecondTimeStamp(1525834800000L))
+        .setId("pbuf")
         .build();
     
     ts = new MockTimeSeries(
@@ -519,6 +523,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525827600000L))
         .setEnd(new MillisecondTimeStamp(1525831200000L))
+        .setId("pbuf")
         .build();
     
     // no data!
@@ -531,6 +536,7 @@ public class TestPBufNumericSerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525831200000L))
         .setEnd(new MillisecondTimeStamp(1525834800000L))
+        .setId("pbuf")
         .build();
     
     // no data!

@@ -40,7 +40,7 @@ import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,24 +15,21 @@
 package net.opentsdb.query;
 
 /**
- * A configuration class for an iterator interpolator.
+ * A factory used to generate sink instances.
  * 
  * @since 3.0
  */
-public interface QueryInterpolatorConfig {
+public interface QuerySinkFactory {
 
-  /** An optional string matching the name of an interpolator factory
-   * registered with the TSD. If this name is null or empty then the
-   * default factory is used.
-   * @return The ID of a factory to fetch an interpolator from.
-   */
+  /** @return The ID of this factory. */
   public String id();
   
   /**
-   * The type of {@link TimeSeriesDataType} the interpolator works on. 
-   * E.g. {@link NumericType}. For now this must be the full class name
-   * of a data type.
-   * @return A non-null data type name.
+   * Returns a new sink instance.
+   * @param context A non-null query context.
+   * @param config An optional sink configuration.
+   * @return A non-null sink instance.
    */
-  public String type();
+  public QuerySink newSink(final QueryContext context, 
+                           final QuerySinkConfig config);
 }

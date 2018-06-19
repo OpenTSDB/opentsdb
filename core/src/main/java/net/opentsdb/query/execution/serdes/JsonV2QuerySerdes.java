@@ -54,6 +54,7 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Exceptions;
+import net.opentsdb.utils.JSON;
 
 /**
  * Simple serializer that outputs the time series in the same format as
@@ -70,25 +71,11 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV2QuerySerdes.class);
   
-  /** The JSON generator used for writing. */
-  private final JsonGenerator json;
-  
-  /**
-   * Unused ctor for the plugin for now. TEMP!
-   */
-  public JsonV2QuerySerdes() {
-    json = null;
-  }
-  
   /**
    * Default ctor.
-   * @param generator A non-null JSON generator.
    */
-  public JsonV2QuerySerdes(final JsonGenerator generator) {
-    if (generator == null) {
-      throw new IllegalArgumentException("Generator can not be null.");
-    }
-    this.json = generator;
+  public JsonV2QuerySerdes() {
+
   }
   
   @SuppressWarnings("unchecked")
@@ -105,17 +92,28 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
       throw new IllegalArgumentException("Data may not be null.");
     }
     final JsonV2QuerySerdesOptions opts;
-    if (options != null) {
-      if (!(options instanceof JsonV2QuerySerdesOptions)) {
-        throw new IllegalArgumentException("Options were of the wrong type: " 
-            + options.getClass());
-      }
-      opts = (JsonV2QuerySerdesOptions) options;
-    } else {
-      opts = null;
+    if (options == null) {
+      throw new IllegalArgumentException("Options cannot be null.");
     }
-    final net.opentsdb.query.pojo.TimeSeriesQuery query = 
-        (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
+     if (!(options instanceof JsonV2QuerySerdesOptions)) {
+      throw new IllegalArgumentException("Options were of the wrong type: " 
+          + options.getClass());
+    }
+    opts = (JsonV2QuerySerdesOptions) options;
+    
+    final JsonGenerator json;
+    try {
+      json = JSON.getFactory().createGenerator(stream);
+    } catch (IOException e) {
+      throw new RuntimeException("WTF?", e);
+    }
+    
+    try {
+      json.writeStartArray();
+    } catch (IOException e) {
+      throw new RuntimeException("WTF?", e);
+    }
+    
     final List<TimeSeries> series;
     final List<Deferred<TimeSeriesStringId>> deferreds;
     if (result.idType() == Const.TS_BYTE_ID) {
@@ -165,7 +163,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
             TimeSeriesValue<? extends TimeSeriesDataType> value = 
                 (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
             while (value != null && value.timestamp().compare(
-                Op.LT, query.getTime().startTime())) {
+                Op.LT, opts.start)) {
               if (iterator.hasNext()) {
                 value = (TimeSeriesValue<NumericType>) iterator.next();
               } else {
@@ -176,10 +174,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
             if (value == null) {
               continue;
             }
-            if (value.timestamp().compare(Op.LT, 
-                      query.getTime().startTime()) ||
-                value.timestamp().compare(Op.GT, 
-                      query.getTime().endTime())) {
+            if (value.timestamp().compare(Op.LT, opts.start()) ||
+                value.timestamp().compare(Op.GT, opts.end)) {
               continue;
             }
             
@@ -207,8 +203,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
             
             long ts = 0;
             while(value != null) {
-              if (value.timestamp().compare(Op.GT, 
-                  query.getTime().endTime())) {
+              if (value.timestamp().compare(Op.GT, opts.end())) {
                 break;
               }
               ts = (opts != null && opts.msResolution()) 
@@ -259,6 +254,10 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
           }
           
           json.flush();
+          
+          json.writeEndArray();
+          json.close();
+          
         } catch (Exception e) {
           LOG.error("Unexpected exception", e);
           return Deferred.fromError(new QueryExecutionException(

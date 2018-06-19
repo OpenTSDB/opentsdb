@@ -35,13 +35,13 @@ import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryInterpolator;
-import net.opentsdb.query.QueryInterpolatorConfig;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.QueryInterpolator;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -165,7 +165,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
         interpolator_config.id());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
     }
     
     for (final TimeSeries source : sources) {

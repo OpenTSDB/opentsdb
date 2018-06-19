@@ -67,8 +67,7 @@ public class QueryDataSourceFactory implements QueryNodeFactory, TSDBPlugin {
 
   @Override
   public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    // TODO Auto-generated method stub
-    return null;
+    return QuerySourceConfig.class;
   }
 
   @Override

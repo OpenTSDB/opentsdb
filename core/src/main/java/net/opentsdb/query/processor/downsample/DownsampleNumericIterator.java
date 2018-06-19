@@ -27,10 +27,12 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.QueryInterpolator;
-import net.opentsdb.query.QueryInterpolatorConfig;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.interpolation.QueryInterpolator;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 
 /**
  * Iterator that downsamples data points using an {@link Aggregator} following
@@ -79,9 +81,13 @@ import net.opentsdb.query.QueryNode;
  * @since 3.0
  */
 public class DownsampleNumericIterator implements QueryIterator {
+
+  /** The result we belong to. */
+  private final DownsampleResult result;
+  
   /** The downsampler config. */
   private final DownsampleConfig config;
-    
+  
   /** The aggregator. */
   private final NumericAggregator aggregator;
   
@@ -107,13 +113,19 @@ public class DownsampleNumericIterator implements QueryIterator {
    * Default ctor. This will seek to the proper source timestamp.
    * 
    * @param node A non-null query node to pull the config from.
+   * @param result The result this source is a part of.
    * @param source A non-null source to pull numeric iterators from. 
    * @throws IllegalArgumentException if a required argument is missing.
    */
   @SuppressWarnings("unchecked")
-  public DownsampleNumericIterator(final QueryNode node, final TimeSeries source) {
+  public DownsampleNumericIterator(final QueryNode node, 
+                                   final QueryResult result,
+                                   final TimeSeries source) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
+    }
+    if (result == null) {
+      throw new IllegalArgumentException("Result cannot be null.");
     }
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
@@ -121,6 +133,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     if (node.config() == null) {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
+    this.result = (DownsampleResult) result;
     this.source = source;
     aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
     config = (DownsampleConfig) node.config();
@@ -134,7 +147,7 @@ public class DownsampleNumericIterator implements QueryIterator {
                                         interpolator_config.id());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
     }
     
     final QueryInterpolator<?> interp = factory.newInterpolator(
@@ -143,20 +156,20 @@ public class DownsampleNumericIterator implements QueryIterator {
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
-          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
     }
     interpolator = (QueryInterpolator<NumericType>) interp;
-    interval_ts = config.start().getCopy();
+    interval_ts = this.result.start().getCopy();
     
     if (config.fill() && !config.runAll()) {
       if (!interpolator.hasNext()) {
         has_next = false;
       } else {
         // make sure there is a value within our query interval
-        TimeStamp interval_before_last = config.end().getCopy();
-        config.nextTimestamp(interval_before_last);
+        TimeStamp interval_before_last = this.result.end().getCopy();
+        this.result.nextTimestamp(interval_before_last);
         if (interpolator.nextReal().compare(Op.GTE, interval_before_last) ||
-            interpolator.nextReal().compare(Op.LT, config.start())) {
+            interpolator.nextReal().compare(Op.LT, this.result.start())) {
           has_next = false;
         } else {
           value = interpolator.next(interval_ts);
@@ -169,8 +182,8 @@ public class DownsampleNumericIterator implements QueryIterator {
         while (value != null && (value.value() == null || 
             (!value.value().isInteger() && Double.isNaN(value.value().doubleValue())))) {
           if (interpolator.hasNext()) {
-            config.nextTimestamp(interval_ts);
-            if (interval_ts.compare(Op.GT, config.end())) {
+            this.result.nextTimestamp(interval_ts);
+            if (interval_ts.compare(Op.GT, this.result.end())) {
               value = null;
               break;
             }
@@ -198,11 +211,11 @@ public class DownsampleNumericIterator implements QueryIterator {
     has_next = false;
 
     response.reset(value);
-    config.nextTimestamp(interval_ts);
+    result.nextTimestamp(interval_ts);
     
     if (config.fill() && !config.runAll()) {
       value = interpolator.next(interval_ts);
-      if (interval_ts.compare(Op.LTE, config.end())) {
+      if (interval_ts.compare(Op.LTE, result.end())) {
         has_next = true;
       }
     } else if (interpolator.hasNext()) {
@@ -210,8 +223,8 @@ public class DownsampleNumericIterator implements QueryIterator {
       while (value != null && (value.value() == null || 
           (!value.value().isInteger() && Double.isNaN(value.value().doubleValue())))) {
         if (interpolator.hasNext()) {
-          config.nextTimestamp(interval_ts);
-          if (interval_ts.compare(Op.GT, config.end())) {
+          result.nextTimestamp(interval_ts);
+          if (interval_ts.compare(Op.GT, result.end())) {
             value = null;
             break;
           }
@@ -268,12 +281,12 @@ public class DownsampleNumericIterator implements QueryIterator {
      */
     @SuppressWarnings("unchecked")
     Downsampler() {
-      interval_start = config.start().getCopy();
+      interval_start = result.start().getCopy();
       if (config.runAll()) {
-        interval_end = config.end().getCopy();
+        interval_end = result.end().getCopy();
       } else {
-        interval_end = config.start().getCopy();
-        config.nextTimestamp(interval_end);
+        interval_end = result.start().getCopy();
+        result.nextTimestamp(interval_end);
       }
       
       final Optional<Iterator<TimeSeriesValue<?>>> optional = 
@@ -294,7 +307,7 @@ public class DownsampleNumericIterator implements QueryIterator {
       // blow out anything earlier than the first timestamp
       if (next_dp != null) {
         // out of bounds
-        if (next_dp.timestamp().compare(Op.GT, config.end())) {
+        if (next_dp.timestamp().compare(Op.GT, result.end())) {
           next_dp = null;
         }
         
@@ -409,9 +422,9 @@ public class DownsampleNumericIterator implements QueryIterator {
             next_dp = null;
           }
         } else if (value_idx == 0) {
-          config.nextTimestamp(interval_start);
-          config.nextTimestamp(interval_end);
-          if (interval_start.compare(Op.GT, config.end())) {
+          result.nextTimestamp(interval_start);
+          result.nextTimestamp(interval_end);
+          if (interval_start.compare(Op.GT, result.end())) {
             next_dp = null;
             break;
           }
@@ -431,9 +444,9 @@ public class DownsampleNumericIterator implements QueryIterator {
         aggregator.run(double_values, value_idx, false/* TODO -!! */, dp);
       }
       
-      config.nextTimestamp(interval_start);
-      config.nextTimestamp(interval_end);
-      if (interval_start.compare(Op.GT, config.end())) {
+      result.nextTimestamp(interval_start);
+      result.nextTimestamp(interval_end);
+      if (interval_start.compare(Op.GT, result.end())) {
         next_dp = null;
       }
       has_next = next_dp != null;

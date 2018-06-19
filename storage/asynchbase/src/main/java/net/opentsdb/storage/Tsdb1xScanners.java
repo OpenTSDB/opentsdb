@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -37,15 +38,17 @@ import com.stumbleupon.async.Callback;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.filter.TagVRegexFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter.TagVIWildcardFilter;
-import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -87,8 +90,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
   /** The upstream query node that owns this scanner set. */
   protected final Tsdb1xQueryNode node;
   
-  /** The single metric query from the node. */
-  protected final TimeSeriesQuery query;
+  /** The data source config. */
+  protected final QuerySourceConfig source_config;
   
   /** Search the query on pre-aggregated table directly instead of post fetch 
    * aggregation. */
@@ -116,7 +119,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
   /** The maximum cardinality to allow in determining if we can switch to
    * multi-gets. */
   protected final int max_multi_get_cardinality;
-    
+  
   /** Whether or not the scanners have been initialized. */
   protected volatile boolean initialized;
   
@@ -135,9 +138,6 @@ public class Tsdb1xScanners implements HBaseExecutor {
   /** The filter callback class instantiated when the query had filters
    * and used to pull out variables after initialization. */
   protected FilterCB filter_cb; 
-  
-  /** The rollup downsampling aggregation by name. */
-  protected final String rollup_aggregation;
   
   /** How many scanners have checked in with results post {@link #scanNext(Span)}
    * calls. <b>WARNING</b> Must be synchronized!. */
@@ -173,93 +173,77 @@ public class Tsdb1xScanners implements HBaseExecutor {
   /**
    * Default ctor.
    * @param node A non-null parent node.
-   * @param query A non-null query with a single metric and optional filter
+   * @param source_config A non-null query with a single metric and optional filter
    * matching the metric.
    * @throws IllegalArgumentException if the node or query were null.
    */
-  public Tsdb1xScanners(final Tsdb1xQueryNode node, final TimeSeriesQuery query) {
+  public Tsdb1xScanners(final Tsdb1xQueryNode node, 
+                        final QuerySourceConfig source_config) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
+    if (source_config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
     }
     this.node = node;
-    this.query = query;
+    this.source_config = source_config;
     
     final Configuration config = node.parent()
         .tsdb().getConfig();
-    if (query.hasKey(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY)) {
-      expansion_limit = query.getInt(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY)) {
+      expansion_limit = source_config.getInt(config, 
           Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
     } else {
       expansion_limit = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY)) {
-      rows_per_scan = query.getInt(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY)) {
+      rows_per_scan = source_config.getInt(config, 
           Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     } else {
       rows_per_scan = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
-      skip_nsun_tagks = query.getBoolean(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
+      skip_nsun_tagks = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     } else {
       skip_nsun_tagks = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
-      skip_nsun_tagvs = query.getBoolean(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
+      skip_nsun_tagvs = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     } else {
       skip_nsun_tagvs = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
-      pre_aggregate = query.getBoolean(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
+      pre_aggregate = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.PRE_AGG_KEY);
     } else {
       pre_aggregate = false;
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY)) {
-      enable_fuzzy_filter = query.getBoolean(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY)) {
+      enable_fuzzy_filter = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     } else {
       enable_fuzzy_filter = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     }
-    if (query.hasKey(Schema.QUERY_REVERSE_KEY)) {
-      reverse_scan = query.getBoolean(config, 
+    if (source_config.hasKey(Schema.QUERY_REVERSE_KEY)) {
+      reverse_scan = source_config.getBoolean(config, 
           Schema.QUERY_REVERSE_KEY);
     } else {
       reverse_scan = node.parent()
           .dynamicBoolean(Schema.QUERY_REVERSE_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY)) {
-      max_multi_get_cardinality = query.getInt(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY)) {
+      max_multi_get_cardinality = source_config.getInt(config, 
           Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
     } else {
       max_multi_get_cardinality = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
-    }
-    
-    if (node.schema().rollupConfig() != null && 
-        node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
-      Downsampler ds = query.getMetrics().get(0).getDownsampler();
-      if (ds == null) {
-        ds = query.getTime().getDownsampler();
-      }
-      
-      if (ds != null) {
-        rollup_aggregation = DefaultRollupConfig.queryToRollupAggregation(
-            ds.getAggregator());
-      } else {
-        rollup_aggregation = null;
-      }
-    } else {
-      rollup_aggregation = null;
     }
   }
   
@@ -433,10 +417,12 @@ public class Tsdb1xScanners implements HBaseExecutor {
   byte[] setStartKey(final byte[] metric, 
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
-    long start = query.getTime().startTime().epoch();
+    long start = source_config.startTime().epoch();
     
+    final Collection<QueryNode> rates = 
+        node.pipelineContext().upstreamOfType(node, Rate.class);
     if (rollup_interval != null) {
-      if (query.getTime().isRate()) {
+      if (!rates.isEmpty()) {
         start = RollupUtils.getRollupBasetime(start - 1, rollup_interval);
       } else {
         start = RollupUtils.getRollupBasetime(start, rollup_interval);
@@ -446,14 +432,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
       // interval in which it appears, if downsampling.
       
       // TODO - doesn't account for calendaring, etc.
-      if (query.getMetrics().get(0).getDownsampler() != null) {
-        long interval = DateTime.parseDuration(query.getMetrics().get(0).getDownsampler().getInterval());
-        if (interval > 0) {
-          final long interval_offset = (1000L * start) % interval;
-          start -= interval_offset / 1000L;
-        }
-      } else if (query.getTime().getDownsampler() != null) {
-        long interval = DateTime.parseDuration(query.getTime().getDownsampler().getInterval());
+      if (node.downsampleConfig() != null) {
+        final long interval = DateTime.parseDuration(
+            node.downsampleConfig().intervalAsString());
         if (interval > 0) {
           final long interval_offset = (1000L * start) % interval;
           start -= interval_offset / 1000L;
@@ -490,7 +471,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
-    long end = query.getTime().endTime().epoch();
+    long end = source_config.endTime().epoch();
     
     if (rollup_interval != null) {
       // TODO - need rollup end time here
@@ -499,10 +480,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
             rollup_interval);
     } else {
       long interval = 0;
-      if (query.getMetrics().get(0).getDownsampler() != null) {
-        interval = DateTime.parseDuration(query.getMetrics().get(0).getDownsampler().getInterval());
-      } else if (query.getTime().getDownsampler() != null) {
-        interval = DateTime.parseDuration(query.getTime().getDownsampler().getInterval());
+      if (node.downsampleConfig() != null) {
+        interval = DateTime.parseDuration(
+            node.downsampleConfig().intervalAsString());
       }
 
       if (interval > 0) {
@@ -563,7 +543,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
     final Span child;
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getName() + ".initialize")
-                  .withTag("query", query.toString())
+                  .withTag("query", source_config.toString())
                   .start();
     } else {
       child = span;
@@ -588,7 +568,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
       public Object call(final byte[] metric) throws Exception {
         if (metric == null) {
           final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.METRIC_TYPE, 
-              query.getMetrics().get(0).getMetric());
+              source_config.getMetric());
           if (child != null) {
             child.setErrorTags(ex)
                  .finish();
@@ -598,8 +578,23 @@ public class Tsdb1xScanners implements HBaseExecutor {
           return null;
         }
         
-        if (query.getFilters() != null && query.getFilters().size() > 0) {
-          node.schema().resolveUids(query.getFilters().get(0), child)
+        if (!Strings.isNullOrEmpty(source_config.getFilterId())) {
+          final Filter filter;
+          if (source_config.getQuery() instanceof SemanticQuery) {
+            filter = ((SemanticQuery) source_config.getQuery())
+                .getFilter(source_config.getFilterId());
+          } else if (source_config.getQuery() instanceof TimeSeriesQuery) {
+            filter = ((TimeSeriesQuery) source_config.getQuery())
+                .getFilter(source_config.getFilterId());
+          } else {
+            throw new UnsupportedOperationException("We don't support " 
+                + source_config.getQuery().getClass() + " yet");
+          }
+          if (filter == null) {
+            throw new IllegalStateException("No filter was found for: " + source_config.getFilterId());
+          }
+          
+          node.schema().resolveUids(filter, child)
             .addCallback(new FilterCB(metric, child))
             .addErrback(new ErrorCB());
         } else {
@@ -614,8 +609,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      node.schema().getId(UniqueIdType.METRIC, 
-          query.getMetrics().get(0).getMetric(), child)
+      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric(), 
+          child)
         .addCallback(new MetricCB())
         .addErrback(new ErrorCB());
     } catch (Exception e) {
@@ -643,9 +638,23 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      final boolean explicit_tags = query.getFilters() != null && 
-          !query.getFilters().isEmpty() ? 
-          query.getFilters().get(0).getExplicitTags() : false;
+      final Filter filter;
+      if (!Strings.isNullOrEmpty(source_config.getFilterId())) {
+        if (source_config.getQuery() instanceof SemanticQuery) {
+          filter = ((SemanticQuery) source_config.getQuery())
+              .getFilter(source_config.getFilterId());
+        } else if (source_config.getQuery() instanceof TimeSeriesQuery) {
+          filter = ((TimeSeriesQuery) source_config.getQuery())
+              .getFilter(source_config.getFilterId());
+        } else {
+          throw new UnsupportedOperationException("We don't support " 
+              + source_config.getQuery().getClass() + " yet");
+        }
+      } else {
+        filter = null;
+      }
+      final boolean explicit_tags = filter != null ? 
+          filter.getExplicitTags() : false;
       int size = node.rollupIntervals() == null ? 
           1 : node.rollupIntervals().size() + 1;
       scanners = Lists.newArrayListWithCapacity(size);
@@ -696,7 +705,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         // set qualifier filters
-        if (rollup_aggregation != null && rollup_aggregation.equals("avg")) {
+        if (node.rollupAggregation() != null && 
+            node.rollupAggregation().equals("avg")) {
           // old and new schemas with literal agg names or prefixes.
           final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
@@ -717,11 +727,12 @@ public class Tsdb1xScanners implements HBaseExecutor {
           // it's another aggregation
           final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(rollup_aggregation
+              new BinaryPrefixComparator(node.rollupAggregation()
                   .getBytes(Const.ASCII_CHARSET))));
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(new byte[] { 
-                  (byte) node.schema().rollupConfig().getIdForAggregator(rollup_aggregation)
+                  (byte) node.schema().rollupConfig()
+                    .getIdForAggregator(node.rollupAggregation())
               })));
           
           rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
@@ -824,13 +835,13 @@ public class Tsdb1xScanners implements HBaseExecutor {
           array[i] = new Tsdb1xScanner(this, scanner, i, null);
         }
       }
-      
       initialized = true;
     } catch (Exception e) {
       if (child != null) {
         child.setErrorTags(e)
              .finish();
       }
+      e.printStackTrace();
       throw e;
     }
     
@@ -937,7 +948,21 @@ public class Tsdb1xScanners implements HBaseExecutor {
     
     @Override
     public Object call(final List<ResolvedFilter> resolutions) throws Exception {
-      if (resolutions.size() != query.getFilters().get(0).getTags().size()) {
+      final Filter filter;
+      if (source_config.getQuery() instanceof SemanticQuery) {
+        filter = ((SemanticQuery) source_config.getQuery())
+            .getFilter(source_config.getFilterId());
+      } else if (source_config.getQuery() instanceof TimeSeriesQuery) {
+        filter = ((TimeSeriesQuery) source_config.getQuery())
+            .getFilter(source_config.getFilterId());
+      } else {
+        throw new UnsupportedOperationException("We don't support " 
+            + source_config.getQuery().getClass() + " yet");
+      }
+      if (filter == null) {
+        throw new IllegalStateException("No filter was found for: " + source_config.getFilterId());
+      }
+      if (resolutions.size() != filter.getTags().size()) {
         throw new IllegalStateException("Fewer resolutions than filters!");
       }
       final Span child;
@@ -954,14 +979,14 @@ public class Tsdb1xScanners implements HBaseExecutor {
         keepers = Lists.newArrayListWithCapacity(resolutions.size());
         row_key_literals = new ByteMap<List<byte[]>>();
         
-        for (int i = 0; i < query.getFilters().get(0).getTags().size(); i++) {
-          final TagVFilter filter = query.getFilters().get(0).getTags().get(i);
+        for (int i = 0; i < filter.getTags().size(); i++) {
+          final TagVFilter tag_vfilter = filter.getTags().get(i);
           final ResolvedFilter resolution = resolutions.get(i);
           
           if (Bytes.isNullOrEmpty(resolution.getTagKey())) {
-            if (!skip_nsun_tagks || query.getFilters().get(0).getExplicitTags()) {
+            if (!skip_nsun_tagks || filter.getExplicitTags()) {
               final NoSuchUniqueName ex = 
-                  new NoSuchUniqueName(Schema.TAGK_TYPE, filter.getTagk());
+                  new NoSuchUniqueName(Schema.TAGK_TYPE, tag_vfilter.getTagk());
               if (child != null) {
                 child.setErrorTags(ex)
                      .finish();
@@ -970,20 +995,20 @@ public class Tsdb1xScanners implements HBaseExecutor {
             }
             
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Skipping tag key without an ID: " + filter.getTagk());
+              LOG.debug("Skipping tag key without an ID: " + tag_vfilter.getTagk());
             }
             continue;
           }
           
           // handle the group-bys
-          if (filter.isGroupBy()) {
+          if (tag_vfilter.isGroupBy()) {
             if (group_bys == null) {
               group_bys = Lists.newArrayListWithCapacity(resolutions.size());
             }
             group_bys.add(resolution.getTagKey());
           }
           
-          if (filter instanceof TagVLiteralOrFilter) {
+          if (tag_vfilter instanceof TagVLiteralOrFilter) {
             // assumption: the literal filter had 1 or more values.
             if (resolution.getTagValues() == null || 
                 resolution.getTagValues().isEmpty()) {
@@ -991,7 +1016,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
               // allow all values through when the user wanted to filter
               // on one or more literals.
               final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                      ((TagVLiteralOrFilter) filter).literals().get(0));
+                      ((TagVLiteralOrFilter) tag_vfilter).literals().get(0));
               if (child != null) {
                 child.setErrorTags(ex)
                      .finish();
@@ -1007,7 +1032,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
               if (Bytes.isNullOrEmpty(tagv)) {
                 if (!skip_nsun_tagvs) {
                   final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                          ((TagVLiteralOrFilter) filter).literals().get(t));
+                          ((TagVLiteralOrFilter) tag_vfilter).literals().get(t));
                   if (child != null) {
                     child.setErrorTags(ex)
                          .finish();
@@ -1016,7 +1041,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
                 }
                 if (LOG.isDebugEnabled()) {
                   LOG.debug("Dropping tag value without an ID: " 
-                      + ((TagVLiteralOrFilter) filter).literals().get(t));
+                      + ((TagVLiteralOrFilter) tag_vfilter).literals().get(t));
                 }
               } else {
                 tag_values.add(tagv);
@@ -1027,7 +1052,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
             // a bad query.
             if (tag_values.isEmpty()) {
               final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                      ((TagVLiteralOrFilter) filter).literals().get(0));
+                      ((TagVLiteralOrFilter) tag_vfilter).literals().get(0));
               if (child != null) {
                 child.setErrorTags(ex)
                      .finish();
@@ -1039,7 +1064,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
                 expansion_limit) {
               // too big to store in the scanner filter so we go slow
               putFilter(resolution.getTagKey(), null);
-              keepers.add(filter);
+              keepers.add(tag_vfilter);
               could_multi_get = false;
               continue;
             }
@@ -1050,29 +1075,29 @@ public class Tsdb1xScanners implements HBaseExecutor {
             total_expansion += tag_values.size();
             cardinality *= tag_values.size();
             
-          } else if (filter instanceof TagVRegexFilter) {
+          } else if (tag_vfilter instanceof TagVRegexFilter) {
             putFilter(resolution.getTagKey(), null);
-            if (!((TagVRegexFilter) filter).matchesAll()) {
-              keepers.add(filter);
+            if (!((TagVRegexFilter) tag_vfilter).matchesAll()) {
+              keepers.add(tag_vfilter);
             }
             could_multi_get = false;
-          } else if (filter instanceof TagVWildcardFilter || 
-                     filter instanceof TagVIWildcardFilter) {
+          } else if (tag_vfilter instanceof TagVWildcardFilter || 
+              tag_vfilter instanceof TagVIWildcardFilter) {
             putFilter(resolution.getTagKey(), null);
-            if (!((TagVWildcardFilter) filter).matchesAll()) {
-              keepers.add(filter);
+            if (!((TagVWildcardFilter) tag_vfilter).matchesAll()) {
+              keepers.add(tag_vfilter);
             }
             could_multi_get = false;
           } else {
             // not a special case, have to handle it in the scanner.
             putFilter(resolution.getTagKey(), null);
-            keepers.add(filter);
+            keepers.add(tag_vfilter);
             could_multi_get = false;
           }
         }
         
         if (keepers != null && !keepers.isEmpty()) {
-          scanner_filter = Filter.newBuilder(query.getFilters().get(0))
+          scanner_filter = Filter.newBuilder(filter)
               .setTags(keepers)
               .build();
         }

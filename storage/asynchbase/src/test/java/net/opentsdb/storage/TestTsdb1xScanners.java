@@ -33,6 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.hbase.async.BinaryPrefixComparator;
@@ -63,14 +64,21 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.QuerySourceConfig.Builder;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -88,9 +96,11 @@ import net.opentsdb.utils.UnitTestException;
   Tsdb1xScanner.class })
 public class TestTsdb1xScanners extends UTBase {
 
-  public Tsdb1xQueryNode node;
-  public TimeSeriesQuery query;
-  public DefaultRollupConfig rollup_config;
+  private Tsdb1xQueryNode node;
+  private QuerySourceConfig source_config;
+  private DefaultRollupConfig rollup_config;
+  private QueryPipelineContext context;
+  private SemanticQuery query;
   
   @Before
   public void before() throws Exception {
@@ -109,13 +119,20 @@ public class TestTsdb1xScanners extends UTBase {
         }
       });
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+    query = SemanticQuery.newBuilder()
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .setId("graph")
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource"))
+            .build())
+        .build();
+    
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setId("m1")
         .build();
     
     when(data_store.dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)).thenReturn("Rollup_Fallback");
@@ -125,12 +142,17 @@ public class TestTsdb1xScanners extends UTBase {
     
     when(rollup_config.getIdForAggregator("sum")).thenReturn(1);
     when(rollup_config.getIdForAggregator("count")).thenReturn(2);
+    
+    context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    when(context.upstreamOfType(any(QueryNode.class), any()))
+      .thenReturn(Collections.emptyList());
   }
   
   @Test
   public void ctorDefaults() throws Exception {
     try {
-      new Tsdb1xScanners(null, query);
+      new Tsdb1xScanners(null, source_config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -139,9 +161,9 @@ public class TestTsdb1xScanners extends UTBase {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     assertSame(node, scanners.node);
-    assertSame(query, scanners.query);
+    assertSame(source_config, scanners.source_config);
     assertFalse(scanners.pre_aggregate);
     assertFalse(scanners.skip_nsun_tagks);
     assertFalse(scanners.skip_nsun_tagvs);
@@ -154,7 +176,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.scanners);
     assertEquals(0, scanners.scanner_index);
     assertNull(scanners.filter_cb);
-    assertNull(scanners.rollup_aggregation);
     assertEquals(0, scanners.scanners_done);
     assertNull(scanners.current_result);
     assertNull(scanners.scanner_filter);
@@ -164,27 +185,26 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void ctorQueryOverrides() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY, "128")
-        .addConfig(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY, "64")
-        .addConfig(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY, "ROLLUP_RAW")
-        .addConfig(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY, "true")
-        .addConfig(Schema.QUERY_REVERSE_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY, "36")
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .addOverride(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY, "128")
+        .addOverride(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY, "64")
+        .addOverride(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY, "ROLLUP_RAW")
+        .addOverride(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY, "true")
+        .addOverride(Schema.QUERY_REVERSE_KEY, "true")
+        .addOverride(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY, "36")
+        .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     assertSame(node, scanners.node);
-    assertSame(query, scanners.query);
+    assertSame(source_config, scanners.source_config);
     assertTrue(scanners.pre_aggregate);
     assertTrue(scanners.skip_nsun_tagks);
     assertTrue(scanners.skip_nsun_tagvs);
@@ -197,7 +217,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.scanners);
     assertEquals(0, scanners.scanner_index);
     assertNull(scanners.filter_cb);
-    assertNull(scanners.rollup_aggregation);
     assertEquals(0, scanners.scanners_done);
     assertNull(scanners.current_result);
     assertNull(scanners.scanner_filter);
@@ -221,35 +240,21 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1h")))
-        .build();
+    when(node.downsampleConfig()).thenReturn(
+        (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setId("ds")
+        .setInterval("1h")
+        .setAggregator("avg")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setId("interp")
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build());
+    when(node.rollupAggregation()).thenReturn("avg");
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
-    assertEquals("sum", scanners.rollup_aggregation);
-    assertEquals(State.CONTINUE, scanners.state());
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("30m")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    scanners = new Tsdb1xScanners(node, query);
-    assertEquals("max", scanners.rollup_aggregation);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     assertEquals(State.CONTINUE, scanners.state());
   }
 
@@ -262,7 +267,7 @@ public class TestTsdb1xScanners extends UTBase {
         .setRowSpan("1d")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     byte[] start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
@@ -276,82 +281,74 @@ public class TestTsdb1xScanners extends UTBase {
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
     // rollup further in
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(END_TS))
+        .setEnd(Integer.toString(END_TS + 3600))
+        .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
     // rollup with rate on edge
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS - 900))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg")
-            .setRate(true))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+    when(context.upstreamOfType(any(QueryNode.class), any()))
+      .thenReturn(Lists.newArrayList(mock(QueryNode.class)));
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(START_TS - 900))
+        .setEnd(Integer.toString(END_TS))
+        .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
     
     // downsample
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("1h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+    when(context.upstreamOfType(any(QueryNode.class), any()))
+      .thenReturn(Collections.emptyList());
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(END_TS))
+        .setEnd(Integer.toString(END_TS + 3600))
+        .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, query);
+    when(node.downsampleConfig()).thenReturn(
+        (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setId("ds")
+        .setInterval("1h")
+        .setAggregator("max")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setId("interp")
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build());
+    when(node.rollupAggregation()).thenReturn("max");
+    scanners = new Tsdb1xScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
     
     // downsample 2 hours
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("2h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    scanners = new Tsdb1xScanners(node, query);
+    when(node.downsampleConfig()).thenReturn(
+        (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setId("ds")
+        .setInterval("2h")
+        .setAggregator("max")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setId("interp")
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build());
+    scanners = new Tsdb1xScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
-    
-    // downsample prefer the metric
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("2h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("min")
-                .setInterval("1h")))
-        .build();
-    scanners = new Tsdb1xScanners(node, query);
-    start = scanners.setStartKey(METRIC_BYTES, null, null);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
   }
   
   @Test
@@ -363,7 +360,7 @@ public class TestTsdb1xScanners extends UTBase {
         .setRowSpan("1d")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     byte[] stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS + (3600 - 900), null), stop);
     
@@ -372,68 +369,53 @@ public class TestTsdb1xScanners extends UTBase {
     assertArrayEquals(makeRowKey(METRIC_BYTES, 1514851200, null), stop);
     
     // rollup further in
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setStart(Integer.toString(END_TS))
+        .setEnd(Integer.toString(END_TS + 3600))
+        .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, query);
+    
+    scanners = new Tsdb1xScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, interval);
     assertArrayEquals(makeRowKey(METRIC_BYTES, 1514851200, null), stop);
     
     // downsample
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("1h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    scanners = new Tsdb1xScanners(node, query);
+    when(node.downsampleConfig()).thenReturn(
+        (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setId("ds")
+        .setInterval("1h")
+        .setAggregator("avg")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setId("interp")
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build());
+    when(node.rollupAggregation()).thenReturn("avg");
+    scanners = new Tsdb1xScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 7200), null), stop);
     
     // downsample 2 hours
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("2h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    scanners = new Tsdb1xScanners(node, query);
+    when(node.downsampleConfig()).thenReturn(
+        (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setId("ds")
+        .setInterval("2h")
+        .setAggregator("avg")
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NONE)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setId("interp")
+            .setType(NumericType.TYPE.toString())
+            .build())
+        .build());
+    when(node.rollupAggregation()).thenReturn("avg");
+    scanners = new Tsdb1xScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 10800), null), stop);
-    
-    // downsample prefer the metric
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(END_TS))
-            .setEnd(Integer.toString(END_TS + 3600))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("max")
-                .setInterval("2h")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("min")
-                .setInterval("1h")))
-        .build();
-    scanners = new Tsdb1xScanners(node, query);
-    stop = scanners.setStopKey(METRIC_BYTES, null);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 7200), null), stop);
   }
 
   @Test
@@ -441,7 +423,7 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -462,7 +444,7 @@ public class TestTsdb1xScanners extends UTBase {
       .fetchNext(any(Tsdb1xQueryResult.class), any());
     
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".setupScanners");
   }
@@ -472,7 +454,7 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -498,30 +480,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersNoRollupRegexpFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
+    setConfig(true, null, false);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
-    
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
@@ -549,30 +510,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersNoRollupRegexpFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
+    setConfig(true, null, false);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
-    
-    Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), source_config);
     scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
@@ -603,31 +543,38 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersNoRollupFuzzyEnabledFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    setConfig(true, null, false);
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("*")
+                    .setType("wildcard")
+                    .setGroupBy(false))
+                .setExplicitTags(true)
+                .build())
+            .build())
+        .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
     scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
@@ -658,34 +605,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupNoFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
+    setConfig(false, "sum", false);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    
-    when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-          .setInterval("1h")
-          .setTable("tsdb-1h")
-          .setPreAggregationTable("tsdb-agg-1h")
-          .setRowSpan("1d")
-          .build(),
-        RollupInterval.builder()
-          .setInterval("30m")
-          .setTable("tsdb-30m")
-          .setPreAggregationTable("tsdb-agg-30m")
-          .setRowSpan("1d")
-          .build()));
-    
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(3, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -750,35 +672,10 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupNoFallbackNoFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    
-    when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-          .setInterval("1h")
-          .setTable("tsdb-1h")
-          .setPreAggregationTable("tsdb-agg-1h")
-          .setRowSpan("1d")
-          .build(),
-        RollupInterval.builder()
-          .setInterval("30m")
-          .setTable("tsdb-30m")
-          .setPreAggregationTable("tsdb-agg-30m")
-          .setRowSpan("1d")
-          .build()));
+    setConfig(false, "sum", false);
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -810,19 +707,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupPreAggNoFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
-        .build();
+    setConfig(false, "sum", true);
     
     when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
@@ -838,7 +723,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(3, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -903,18 +788,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupAvgNoFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("avg")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
+    setConfig(false, "avg", false);
     
     when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
@@ -924,7 +798,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(2, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -977,18 +851,7 @@ public class TestTsdb1xScanners extends UTBase {
     final List<byte[]> tables = Lists.newArrayList();
     final List<ScanFilter> filters = Lists.newArrayList();
     catchTables(node, tables, filters);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
+    setConfig(false, "sum", false);
     
     when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
@@ -998,7 +861,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(2, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -1061,18 +924,7 @@ public class TestTsdb1xScanners extends UTBase {
     final List<byte[]> tables = Lists.newArrayList();
     final List<ScanFilter> filters = Lists.newArrayList();
     catchTables(node, tables, filters);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("avg")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("avg")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
+    setConfig(false, "avg", false);
     
     when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
@@ -1082,7 +934,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(2, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -1139,47 +991,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupRegexpFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
+    setConfig(true, "sum", false);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
-    
-    when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-          .setInterval("1h")
-          .setTable("tsdb-1h")
-          .setPreAggregationTable("tsdb-agg-1h")
-          .setRowSpan("1d")
-          .build(),
-        RollupInterval.builder()
-          .setInterval("30m")
-          .setTable("tsdb-30m")
-          .setPreAggregationTable("tsdb-agg-30m")
-          .setRowSpan("1d")
-          .build()));
-    
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
@@ -1251,32 +1065,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupFuzzyDisabledFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
+    setConfig(true, "sum", false);
     
     when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
@@ -1286,7 +1075,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
@@ -1340,31 +1129,35 @@ public class TestTsdb1xScanners extends UTBase {
   public void setupScannersRollupFuzzyEnabledFilterNoSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    setConfig(true, "sum", false);
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("*")
+                    .setType("wildcard")
+                    .setGroupBy(false))
+                .setExplicitTags(true)
+                .build())
+            .build())
+        .setId("m1")
         .build();
     
     when(node.rollupIntervals())
@@ -1375,7 +1168,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
     scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
@@ -1430,27 +1223,33 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBNoKeepers() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("*")
+                    .setType("wildcard")
+                    .setGroupBy(false))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
@@ -1462,7 +1261,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_key = TAGK_B_BYTES;
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
@@ -1479,30 +1278,36 @@ public class TestTsdb1xScanners extends UTBase {
     assertFalse(scanners.could_multi_get);
     assertEquals(1, scanners.scanners.size());
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("^.*$")
-                .setType("regexp")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("^.*$")
+                    .setType("regexp")
+                    .setGroupBy(false))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
@@ -1521,27 +1326,33 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBKeepers() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*yahoo.com")
-                .setType("wildcard")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("*yahoo.com")
+                    .setType("wildcard")
+                    .setGroupBy(false))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
@@ -1553,7 +1364,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_key = TAGK_B_BYTES;
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
@@ -1571,30 +1382,36 @@ public class TestTsdb1xScanners extends UTBase {
     assertFalse(scanners.could_multi_get);
     assertEquals(1, scanners.scanners.size());
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("pre.*fix")
-                .setType("regexp")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("pre.*fix")
+                    .setType("regexp")
+                    .setGroupBy(false))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
@@ -1614,22 +1431,28 @@ public class TestTsdb1xScanners extends UTBase {
 
   @Test
   public void filterCBMultiGetable() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
@@ -1638,7 +1461,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
@@ -1655,7 +1478,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(1, scanners.scanners.size());
     
     // under the cardinality threshold.
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "max_multi_get_cardinality", 1);
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
@@ -1674,26 +1497,32 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBDupeTagKeys() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_B_STRING)
-                .setType("literal_or")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_B_STRING)
+                    .setType("literal_or"))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
@@ -1706,7 +1535,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_values = Lists.newArrayList(TAGV_B_BYTES);
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
@@ -1725,28 +1554,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBAllNullLiteralOrValues() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
+    setConfig(true, null, false);
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
     ResolvedFilterImplementation r = new ResolvedFilterImplementation();
@@ -1757,7 +1565,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_key = TAGK_B_BYTES;
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     try {
       scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
       fail("Expected NoSuchUniqueName");
@@ -1788,28 +1596,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBNullTagV() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
+    setConfig(true, null, false);
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
     ResolvedFilterImplementation r = new ResolvedFilterImplementation();
@@ -1820,7 +1607,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_key = TAGK_B_BYTES;
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     try {
@@ -1829,12 +1616,12 @@ public class TestTsdb1xScanners extends UTBase {
     } catch (NoSuchUniqueName e) { }
     
     // skipping works
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
-    assertEquals(1, scanners.group_bys.size());
+    assertEquals(2, scanners.group_bys.size());
     assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
@@ -1848,27 +1635,33 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBExpansionLimit() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("lots_of_strings")
-                .setType("literal_or")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("lots_of_strings")
+                    .setType("literal_or")
+                    .setGroupBy(false))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
@@ -1881,7 +1674,7 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "expansion_limit", 3);
@@ -1903,28 +1696,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBCurrentResultsNull() throws Exception {
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")
-                .setGroupBy(false)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
-        .build();
+    setConfig(true, null, false);
     
     List<ResolvedFilter> resolutions = Lists.newArrayList();
     ResolvedFilterImplementation r = new ResolvedFilterImplementation();
@@ -1935,13 +1707,13 @@ public class TestTsdb1xScanners extends UTBase {
     r.tag_key = TAGK_B_BYTES;
     resolutions.add(r);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     try {
       scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    assertEquals(1, scanners.group_bys.size());
+    assertEquals(2, scanners.group_bys.size());
     assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
@@ -1959,7 +1731,7 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
     assertNull(scanners.group_bys);
@@ -1975,7 +1747,7 @@ public class TestTsdb1xScanners extends UTBase {
       .fetchNext(any(Tsdb1xQueryResult.class), any());
     
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 3);
   }
@@ -1985,25 +1757,31 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true)))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                  .build())
+            .build())
+        .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
     assertEquals(1, scanners.group_bys.size());
@@ -2029,17 +1807,15 @@ public class TestTsdb1xScanners extends UTBase {
   public void initializeNSUNMetric() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setMetric(NSUN_METRIC))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(NSUN_METRIC)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
     assertNull(scanners.group_bys);
@@ -2053,7 +1829,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
         NoSuchUniqueName.class, 3);
@@ -2063,30 +1839,37 @@ public class TestTsdb1xScanners extends UTBase {
   public void initializeNSUNTagk() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(NSUN_TAGK)
-                .setFilter("*")
-                .setType("wildcard")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(NSUN_TAGK)
+                    .setFilter("*")
+                    .setType("wildcard")
+                    .setGroupBy(true))
+                .setExplicitTags(true)
+                .build())
+            .build())
+        .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
     assertEquals(1, scanners.group_bys.size());
@@ -2100,7 +1883,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     // can't ignore with explicit tags
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
     
@@ -2116,34 +1899,42 @@ public class TestTsdb1xScanners extends UTBase {
     
     // tracing
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
         NoSuchUniqueName.class, 9);
     
     // now we can ignore it
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(NSUN_TAGK)
-                .setFilter("*")
-                .setType("wildcard")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(NSUN_TAGK)
+                    .setFilter("*")
+                    .setType("wildcard")
+                    .setGroupBy(true))
+                //.setExplicitTags(true)
+                .build())
+            .build())
+        .setId("m1")
         .build();
-    
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
     
@@ -2163,29 +1954,36 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .setExplicitTags(true)
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_STRING)
-                .setFilter(TAGV_STRING + "|" + NSUN_TAGV)
-                .setType("literal_or")
-                .setGroupBy(true))
-            .addFilter(TagVFilter.newBuilder()
-                .setTagk(TAGK_B_STRING)
-                .setFilter("*")
-                .setType("wildcard")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING)
-            .setFilter("f1"))
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(METRIC_STRING)
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(Filter.newBuilder()
+                .setId("f1")
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + NSUN_TAGV)
+                    .setType("literal_or")
+                    .setGroupBy(true))
+                .addFilter(TagVFilter.newBuilder()
+                    .setTagk(TAGK_B_STRING)
+                    .setFilter("*")
+                    .setType("wildcard")
+                    .setGroupBy(true))
+                .build())
+            .build())
+        .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
     assertEquals(1, scanners.group_bys.size());
@@ -2200,7 +1998,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     // tracing
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, query);
+    scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
         NoSuchUniqueName.class, 9);
@@ -2210,7 +2008,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void fetchNext() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     
     Tsdb1xQueryResult results = null;
     try {
@@ -2266,7 +2064,7 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2291,7 +2089,7 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     
     Tsdb1xQueryNode node = saltedNode();
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2330,34 +2128,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void scannerDoneFallback() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
+    setConfig(false, "sum", false);
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setAggregator("sum")
-            .setDownsampler(Downsampler.newBuilder()
-                .setInterval("1h")
-                .setAggregator("sum")))
-        .addMetric(Metric.newBuilder()
-            .setMetric(METRIC_STRING))
-        .build();
-    
-    when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-          .setInterval("1h")
-          .setTable("tsdb-1h")
-          .setPreAggregationTable("tsdb-agg-1h")
-          .setRowSpan("1d")
-          .build(),
-        RollupInterval.builder()
-          .setInterval("30m")
-          .setTable("tsdb-30m")
-          .setPreAggregationTable("tsdb-agg-30m")
-          .setRowSpan("1d")
-          .build()));
-    
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2388,7 +2161,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     doThrow(new UnitTestException()).when(node).onNext(any(QueryResult.class));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2409,7 +2182,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scanNext() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xScanner scanner = mock(Tsdb1xScanner.class);
     when(scanner.state()).thenReturn(State.CONTINUE);
     scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(
@@ -2434,7 +2207,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scanNextSalted() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
     when(scanner1.state()).thenReturn(State.CONTINUE);
     Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
@@ -2462,7 +2235,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scanNextSaltedPartial() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
@@ -2492,7 +2265,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void exception() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     assertFalse(scanners.hasException());
     
     scanners.exception(new UnitTestException());
@@ -2507,7 +2280,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void close() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xScanner scanner = mock(Tsdb1xScanner.class);
     Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
     Tsdb1xScanner scanner3 = mock(Tsdb1xScanner.class);
@@ -2530,7 +2303,7 @@ public class TestTsdb1xScanners extends UTBase {
 
   @Test
   public void state() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xScanner[] array = new Tsdb1xScanner[] {
         mock(Tsdb1xScanner.class),
         mock(Tsdb1xScanner.class)
@@ -2589,6 +2362,10 @@ public class TestTsdb1xScanners extends UTBase {
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
     when(client.newScanner(any(byte[].class))).thenReturn(mock(Scanner.class));
+    context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    when(context.upstreamOfType(any(QueryNode.class), any()))
+      .thenReturn(Collections.emptyList());
     return node;
   }
   
@@ -2625,6 +2402,73 @@ public class TestTsdb1xScanners extends UTBase {
     });
   }
 
+  private void setConfig(final boolean with_filter, final String ds, final boolean pre_agg) {
+    SemanticQuery.Builder query_builder = SemanticQuery.newBuilder()
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource")
+                .build())
+            .build());
+    if (with_filter) {
+      query_builder.addFilter(Filter.newBuilder()
+        .setId("f1")
+        .addFilter(TagVFilter.newBuilder()
+            .setTagk(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .setType("literal_or")
+            .setGroupBy(true))
+        .addFilter(TagVFilter.newBuilder()
+            .setTagk(TAGK_B_STRING)
+            .setFilter("*")
+            .setType("wildcard")
+            .setGroupBy(true))
+          .build());
+    }
+    
+    QuerySourceConfig.Builder builder = (Builder) QuerySourceConfig.newBuilder()
+        .setMetric(METRIC_STRING)
+        .setFilterId(with_filter ? "f1" : null)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(query_builder.build())
+        .setId("m1");
+    if (pre_agg) {
+      builder.addOverride(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true");
+    }
+    
+    source_config = builder.build();
+    
+    if (ds != null) {
+      when(node.rollupIntervals())
+        .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+            .setInterval("1h")
+            .setTable("tsdb-1h")
+            .setPreAggregationTable("tsdb-agg-1h")
+            .setRowSpan("1d")
+            .build(),
+          RollupInterval.builder()
+            .setInterval("30m")
+            .setTable("tsdb-30m")
+            .setPreAggregationTable("tsdb-agg-30m")
+            .setRowSpan("1d")
+            .build()));
+      
+      when(node.downsampleConfig()).thenReturn(
+          (DownsampleConfig) DownsampleConfig.newBuilder()
+          .setId("ds")
+          .setInterval("1h")
+          .setAggregator(ds)
+          .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+              .setFillPolicy(FillPolicy.NONE)
+              .setRealFillPolicy(FillWithRealPolicy.NONE)
+              .setId("interp")
+              .setType(NumericType.TYPE.toString())
+              .build())
+          .build());
+      when(node.rollupAggregation()).thenReturn(ds);
+    }
+  }
+  
   public static class ResolvedFilterImplementation implements ResolvedFilter {
     protected byte[] tag_key;
     protected List<byte[]> tag_values;

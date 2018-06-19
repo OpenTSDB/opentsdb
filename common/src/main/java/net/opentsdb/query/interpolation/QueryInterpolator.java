@@ -12,11 +12,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query;
+package net.opentsdb.query.interpolation;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.QueryFillPolicy;
 
 /**
  * A synthetic time series that implements an interpolator on top of a real

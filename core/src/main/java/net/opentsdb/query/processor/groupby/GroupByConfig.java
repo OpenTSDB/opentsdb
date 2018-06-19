@@ -17,13 +17,17 @@ package net.opentsdb.query.processor.groupby;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.QueryInterpolationConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.JSON;
 
@@ -32,19 +36,21 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = GroupByConfig.Builder.class)
 public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   private final Set<String> tag_keys;
-  private final List<byte[]> encoded_tag_keys;
+  private List<byte[]> encoded_tag_keys;
   private final String aggregator;
   private final boolean infectious_nan;
   private final boolean group_all;
   
   private GroupByConfig(final Builder builder) {
     super(builder);
-    if (!builder.group_all && builder.tag_keys == null) {
+    if (!builder.group_all && builder.tagKeys == null) {
       throw new IllegalArgumentException("Tag keys cannot be null.");
     }
-    if (!builder.group_all && builder.tag_keys.isEmpty()) {
+    if (!builder.group_all && builder.tagKeys.isEmpty()) {
       throw new IllegalArgumentException("Tag keys cannot be empty.");
     }
     if (Strings.isNullOrEmpty(builder.aggregator)) {
@@ -54,10 +60,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       throw new IllegalArgumentException("Must include at least one"
           + " interpolator config.");
     }
-    tag_keys = builder.tag_keys;
+    tag_keys = builder.tagKeys;
     encoded_tag_keys = builder.encoded_tag_keys;
     aggregator = builder.aggregator;
-    infectious_nan = builder.infectious_nan;
+    infectious_nan = builder.infectiousNan;
     group_all = builder.group_all;
   }
   
@@ -75,6 +81,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
    * is not used in the pipeline. */
   public List<byte[]> getEncodedTagKeys() {
     return encoded_tag_keys;
+  }
+  
+  public void setEncodedTagKeys(final List<byte[]> encoded_tag_keys) {
+    this.encoded_tag_keys = encoded_tag_keys;
   }
   
   /** @return The non-null and non-empty aggregation function name. */
@@ -115,11 +125,16 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     return new Builder();
   }
   
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
-    private Set<String> tag_keys;
+    @JsonProperty
+    private Set<String> tagKeys;
     private List<byte[]> encoded_tag_keys;
+    @JsonProperty
     private String aggregator;
-    private boolean infectious_nan;
+    @JsonProperty
+    private boolean infectiousNan;
+    @JsonProperty
     private boolean group_all;
     
     /**
@@ -128,7 +143,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
      * @return The builder.
      */
     public Builder setTagKeys(final Set<String> tag_keys) {
-      this.tag_keys = tag_keys;
+      this.tagKeys = tag_keys;
       return this;
     }
     
@@ -148,10 +163,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
      * @return The builder.
      */
     public Builder addTagKey(final String tag_key) {
-      if (tag_keys == null) {
-        tag_keys = Sets.newHashSet();
+      if (tagKeys == null) {
+        tagKeys = Sets.newHashSet();
       }
-      tag_keys.add(tag_key);
+      tagKeys.add(tag_key);
       return this;
     }
     
@@ -183,7 +198,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
      * @return The builder.
      */
     public Builder setInfectiousNan(final boolean infectious_nan) {
-      this.infectious_nan = infectious_nan;
+      this.infectiousNan = infectious_nan;
       return this;
     }
     

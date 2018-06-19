@@ -18,14 +18,15 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.ZonedNanoTimeStamp;
-import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
@@ -45,8 +46,9 @@ import net.opentsdb.utils.DateTime;
  * calendar for hourly and greater intervals, please supply the timezone.
  * @since 3.0
  */
-public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators 
-                              implements TimeSpecification {
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = DownsampleConfig.Builder.class)
+public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   
   /** The raw interval string. */
   private final String interval;
@@ -66,9 +68,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
   /** Whether or not to fill empty timestamps. */
   private final boolean fill;
   
-  /** The query. */
-  private final TimeSeriesQuery query;
-  
   /** The numeric part of the parsed interval. */
   private final int interval_part;
   
@@ -77,12 +76,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
   
   /** The interval converted to a duration. */
   private final TemporalAmount duration;
-  
-  /** The snapped starting timestamp of the downsample span. */
-  private final TimeStamp start;
-  
-  /** The snapped final timestamp of the downsample span. */
-  private final TimeStamp end;
   
   /**
    * Default ctor.
@@ -96,21 +89,17 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
-    if (builder.query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
-    }
     if (interpolator_configs == null || 
         interpolator_configs.isEmpty()) {
       throw new IllegalArgumentException("At least one interpolator "
           + "config must be present.");
     }
     interval = builder.interval;
-    timezone = builder.timezone != null ? builder.timezone : Const.UTC;
+    timezone = builder.timezone != null ? ZoneId.of(builder.timezone) : Const.UTC;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
     run_all = builder.run_all;
     fill = builder.fill;
-    query = builder.query;
     
     if (!run_all) {
       interval_part = DateTime.getDurationInterval(interval);
@@ -120,39 +109,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
       interval_part = 0;
       units = null;
       duration = null;
-    }
-    
-    net.opentsdb.query.pojo.TimeSeriesQuery q = 
-        (net.opentsdb.query.pojo.TimeSeriesQuery) builder.query;
-    if (run_all) {
-      start = q.getTime().startTime();
-      end = q.getTime().endTime();
-    } else if (timezone != Const.UTC) {
-      start = new ZonedNanoTimeStamp(q.getTime().startTime().epoch(), 
-          q.getTime().startTime().nanos(), timezone);
-      start.snapToPreviousInterval(interval_part, units);
-      if (start.compare(Op.LT, q.getTime().startTime())) {
-        nextTimestamp(start);
-      }
-      end = new ZonedNanoTimeStamp(q.getTime().endTime().epoch(), 
-          q.getTime().endTime().nanos(), timezone);
-      end.snapToPreviousInterval(interval_part, units);
-      if (end.compare(Op.LTE, start)) {
-        throw new IllegalArgumentException("Snapped end time: " + end 
-            + " must be greater than the start time: " + start);
-      }
-    } else {
-      start = q.getTime().startTime().getCopy();
-      start.snapToPreviousInterval(interval_part, units);
-      if (start.compare(Op.LT, q.getTime().startTime())) {
-        nextTimestamp(start);
-      }
-      end = q.getTime().endTime().getCopy();
-      end.snapToPreviousInterval(interval_part, units);
-      if (end.compare(Op.LTE, start)) {
-        throw new IllegalArgumentException("Snapped end time: " + end 
-            + " must be greater than the start time: " + start);
-      }
     }
   }
   
@@ -187,11 +143,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
     return fill;
   }
   
-  /** @return The time series query. */
-  public TimeSeriesQuery query() {
-    return query;
-  }
-  
   /** @return The numeric part of the raw interval. */
   public int intervalPart() {
     return interval_part;
@@ -201,43 +152,39 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
   public ChronoUnit units() {
     return units;
   }
-    
-  @Override
-  public TimeStamp start() {
-    return start;
-  }
 
-  @Override
-  public TimeStamp end() {
-    return end;
-  }
-
-  @Override
-  public void updateTimestamp(final int offset, final TimeStamp timestamp) {
-    if (offset < 0) {
-      throw new IllegalArgumentException("Negative offsets are not allowed.");
-    }
-    if (timestamp == null) {
-      throw new IllegalArgumentException("Timestamp cannot be null.");
-    }
-    if (run_all) {
-      timestamp.update(start);
-    } else {
-      final TimeStamp increment = new ZonedNanoTimeStamp(
-          start.epoch(), start.msEpoch(), start.timezone());
-      for (int i = 0; i < offset; i++) {
-        increment.add(duration);
-      }
-      timestamp.update(increment);
-    }
+  public TemporalAmount duration() {
+    return duration;
   }
   
-  @Override
-  public void nextTimestamp(final TimeStamp timestamp) {
-    if (run_all) {
-      timestamp.update(start);
-    } else {
-      timestamp.add(duration);
+  /**
+   * Converts the units to a 2x style parseable string.
+   * @return
+   */
+  public String intervalAsString() {
+    switch (units) {
+    case NANOS:
+      return interval_part + "ns";
+    case MICROS:
+      return interval_part + "mu";
+    case MILLIS:
+      return interval_part + "ms";
+    case SECONDS:
+      return interval_part + "s";
+    case MINUTES:
+      return interval_part + "m";
+    case HOURS:
+      return interval_part + "h";
+    case DAYS:
+      return interval_part + "d";
+    case WEEKS:
+      return interval_part + "w";
+    case MONTHS:
+      return interval_part + "n";
+    case YEARS:
+      return interval_part + "y";
+    default:
+      throw new IllegalStateException("Unsupported units: " + units);
     }
   }
   
@@ -258,14 +205,20 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
     return new Builder();
   }
   
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+    @JsonProperty
     private String interval;
-    private ZoneId timezone;
+    @JsonProperty
+    private String timezone;
+    @JsonProperty
     private String aggregator;
+    @JsonProperty
     private boolean infectious_nan;
+    @JsonProperty
     private boolean run_all;
+    @JsonProperty
     private boolean fill;
-    private TimeSeriesQuery query;
     
     /**
      * @param id A non-null and on-empty Id for the group by function.
@@ -289,7 +242,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
      * @param timezone An optional timezone. If null, UTC is assumed.
      * @return The builder.
      */
-    public Builder setTimeZone(final ZoneId timezone) {
+    public Builder setTimeZone(final String timezone) {
       this.timezone = timezone;
       return this;
     }
@@ -328,15 +281,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators
      */
     public Builder setFill(final boolean fill) {
       this.fill = fill;
-      return this;
-    }
-    
-    /**
-     * @param query The non-null time series query.
-     * @return The builder.
-     */
-    public Builder setQuery(final TimeSeriesQuery query) {
-      this.query = query;
       return this;
     }
     

@@ -55,7 +55,6 @@ public class TestRate {
         .build();
   }
   
-  
   @Test
   public void ctorAndInitialize() throws Exception {
     Rate ds = new Rate(factory, context, null, config);

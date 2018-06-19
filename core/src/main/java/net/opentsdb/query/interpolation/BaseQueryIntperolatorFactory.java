@@ -29,9 +29,7 @@ import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.query.QueryInterpolator;
-import net.opentsdb.query.QueryInterpolatorConfig;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.Pair;
 
 /**

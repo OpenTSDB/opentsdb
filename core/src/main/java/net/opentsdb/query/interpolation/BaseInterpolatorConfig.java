@@ -14,9 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
-
-import net.opentsdb.query.QueryInterpolatorConfig;
 
 /**
  * Base class for interpolator configs. Validates that the type is set.
@@ -31,6 +30,8 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
   /** The non-null data type ID. */
   protected final String type;
   
+  protected final String config_type;
+  
   /**
    * Default ctor.
    * @param builder A non-null builder
@@ -42,6 +43,7 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
     }
     id = builder.id;
     type = builder.type;
+    config_type = builder.configType;
   }
   
   /** @return The ID. */
@@ -52,13 +54,22 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
   
   /** @return The data type for this config. */
   @Override
-  public String type() {
+  public String dataType() {
     return type;
   }
   
+  @Override
+  public String configType() {
+    return config_type;
+  }
+  
   public static abstract class Builder {
+    @JsonProperty
     protected String id;
+    @JsonProperty
     protected String type;
+    @JsonProperty
+    protected String configType;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -67,6 +78,11 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
     
     public Builder setType(final String type) {
       this.type = type;
+      return this;
+    }
+    
+    public Builder setConfigType(final String config_type) {
+      this.configType = config_type;
       return this;
     }
     

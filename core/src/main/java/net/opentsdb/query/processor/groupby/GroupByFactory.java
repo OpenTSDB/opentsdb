@@ -68,8 +68,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   
   @Override
   public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    // TODO Auto-generated method stub
-    return null;
+    return GroupByConfig.class;
   }
   
   /**

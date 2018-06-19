@@ -14,9 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.util.Iterator;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+
+import net.opentsdb.common.Const;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -24,6 +33,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.storage.TimeSeriesDataStore;
 
 /**
  * Performs the time series grouping aggregation by sorting time series according
@@ -81,14 +91,52 @@ public class GroupBy extends AbstractQueryNode {
 
   @Override
   public void onNext(final QueryResult next) {
-    final GroupByResult result = new GroupByResult(this, next);
-    for (final QueryNode us : upstream) {
-      try {
-        us.onNext(result);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onNext on Node: " + us, e);
-        result.close();
+    if (next.idType() == Const.TS_BYTE_ID && 
+        config.getEncodedTagKeys() == null &&
+        config.getTagKeys() != null && 
+        !config.getTagKeys().isEmpty()) {
+      
+      class ResolveCB implements Callback<Object, List<byte[]>> {
+        @Override
+        public Object call(List<byte[]> arg) throws Exception {
+          synchronized (GroupBy.this) {
+            config.setEncodedTagKeys(arg);
+          }
+          try {
+            final GroupByResult result = new GroupByResult(GroupBy.this, next);
+            sendUpstream(result);
+          } catch (Exception e) {
+            sendUpstream(e);
+          }
+          return null;
+        }
       }
+      
+      class ErrorCB implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception ex) throws Exception {
+          sendUpstream(ex);
+          return null;
+        }
+      }
+      
+      final Iterator<TimeSeries> iterator = next.timeSeries().iterator();
+      if (iterator.hasNext()) {
+        final TimeSeriesDataStore store = ((TimeSeriesByteId) 
+            iterator.next().id()).dataStore();
+        if (store == null) {
+          throw new RuntimeException("The data store was null for a byte series!");
+        }
+        store.encodeJoinKeys(Lists.newArrayList(config.getTagKeys()), null /* TODO */)
+          .addCallback(new ResolveCB())
+          .addErrback(new ErrorCB());
+      } else {
+        final GroupByResult result = new GroupByResult(this, next);
+        sendUpstream(result);
+      }
+    } else {
+      final GroupByResult result = new GroupByResult(this, next);
+      sendUpstream(result);
     }
   }
 

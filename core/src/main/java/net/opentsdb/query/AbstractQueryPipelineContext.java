@@ -239,6 +239,88 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
+  public Collection<QueryNode> upstreamOfType(final QueryNode node, 
+                                              final Class<? extends QueryNode> type) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null.");
+    }
+    if (!graph.containsVertex(node)) {
+      throw new IllegalArgumentException("The given node wasn't in this graph: " 
+          + node);
+    }
+    
+    final Set<DefaultEdge> upstream = graph.incomingEdgesOf(node);
+    if (upstream.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    List<QueryNode> upstreams = null;
+    for (final DefaultEdge e : upstream) {
+      final QueryNode source = graph.getEdgeSource(e);
+      if (source.getClass().equals(type)) {
+        if (upstreams == null) {
+          upstreams = Lists.newArrayList();
+        }
+        upstreams.add(source);
+      } else {
+        final Collection<QueryNode> upstream_of_source = 
+            upstreamOfType(source, type);
+        if (!upstream_of_source.isEmpty()) {
+          if (upstreams == null) {
+            upstreams = Lists.newArrayList();
+          }
+          upstreams.addAll(upstream_of_source);
+        }
+      }
+    }
+    return upstreams == null ? Collections.emptyList() : upstreams;
+  }
+  
+  @Override
+  public Collection<QueryNode> downstreamOfType(final QueryNode node, 
+                                                final Class<? extends QueryNode> type) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null.");
+    }
+    if (!graph.containsVertex(node)) {
+      throw new IllegalArgumentException("The given node wasn't in this graph: " 
+          + node);
+    }
+    
+    final Set<DefaultEdge> downstream = graph.outgoingEdgesOf(node);
+    if (downstream.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    List<QueryNode> downstreams = null;
+    for (final DefaultEdge e : downstream) {
+      final QueryNode target = graph.getEdgeTarget(e);
+      if (target.getClass().equals(type)) {
+        if (downstreams == null) {
+          downstreams = Lists.newArrayList();
+        }
+        downstreams.add(target);
+      } else {
+        final Collection<QueryNode> downstream_of_target = 
+            downstreamOfType(target, type);
+        if (!downstream_of_target.isEmpty()) {
+          if (downstreams == null) {
+            downstreams = Lists.newArrayList();
+          }
+          downstreams.addAll(downstream_of_target);
+        }
+      }
+    }
+    return downstreams == null ? Collections.emptyList() : downstreams;
+  }
+  
+  @Override
   public Collection<QuerySink> sinks() {
     return sinks;
   }
@@ -370,11 +452,13 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   protected void initializeGraph(final Span span) {
     final Span child;
     if (span != null) {
-      child = span.newChild(getClass() + ".initializeGraph").start();
+      child = span.newChild(getClass() + ".initializeGraph")
+                  .withTag("graphId", execution_graph.getId())
+                  .start();
     } else {
       child = null;
     }
-  
+    
     final Map<String, QueryNodeConfig> node_configs = 
         execution_graph.nodeConfigs();
     final Map<String, QueryNode> map = 

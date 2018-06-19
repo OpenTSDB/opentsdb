@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017 The OpenTSDB Authors.
+// Copyright (C) 2018 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.serdes;
 
-import net.opentsdb.data.TimeStamp;
+public interface SerdesFactory {
 
-/**
- * Interface used to encapsulate Serdes specific options at query time.
- * 
- * @since 3.0
- */
-public interface SerdesOptions {
+  public String id();
   
-  /** @return The ID of this serdes option. */
-  public String getId();
+  public TimeSeriesSerdes newInstance();
   
-  /** @return An optional class name for deserialization. */
-  public String getType();
-  
-  /** @return The inclusive start boundary of the serialization. */
-  public TimeStamp start();
-  
-  /** @return The inclusive end boundary of the serialization. */
-  public TimeStamp end();
 }

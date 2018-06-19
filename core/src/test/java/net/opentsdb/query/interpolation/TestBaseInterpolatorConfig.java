@@ -20,8 +20,6 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-import net.opentsdb.query.QueryInterpolatorConfig;
-
 public class TestBaseInterpolatorConfig {
 
   @Test
@@ -31,20 +29,20 @@ public class TestBaseInterpolatorConfig {
         .setType("numeric")
         .build();
     assertEquals("myid", config.id());
-    assertEquals("numeric", config.type());
+    assertEquals("numeric", config.dataType());
     
     config = TestInterpolatorConfig.newBuilder()
         .setType("numeric")
         .build();
     assertNull(config.id());
-    assertEquals("numeric", config.type());
+    assertEquals("numeric", config.dataType());
     
     config = TestInterpolatorConfig.newBuilder()
         .setId("")
         .setType("numeric")
         .build();
     assertEquals("", config.id());
-    assertEquals("numeric", config.type());
+    assertEquals("numeric", config.dataType());
     
     try {
       TestInterpolatorConfig.newBuilder()

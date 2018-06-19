@@ -51,6 +51,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
+        .setId("pbuf")
         .build();
     ctx = mock(QueryContext.class);
     result = mock(QueryResult.class);
@@ -474,6 +475,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525827600000L))
         .setEnd(new MillisecondTimeStamp(1525831200000L))
+        .setId("pbuf")
         .build();
     
     ts = new MockTimeSeries(
@@ -499,6 +501,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525831200000L))
         .setEnd(new MillisecondTimeStamp(1525834800000L))
+        .setId("pbuf")
         .build();
     
     ts = new MockTimeSeries(
@@ -569,6 +572,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525827600000L))
         .setEnd(new MillisecondTimeStamp(1525831200000L))
+        .setId("pbuf")
         .build();
     
     // no data!
@@ -581,6 +585,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525831200000L))
         .setEnd(new MillisecondTimeStamp(1525834800000L))
+        .setId("pbuf")
         .build();
     
     ts = new MockTimeSeries(
@@ -641,6 +646,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525827600000L))
         .setEnd(new MillisecondTimeStamp(1525831200000L))
+        .setId("pbuf")
         .build();
     
     // no data!
@@ -653,6 +659,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525831200000L))
         .setEnd(new MillisecondTimeStamp(1525834800000L))
+        .setId("pbuf")
         .build();
     
     // no data!

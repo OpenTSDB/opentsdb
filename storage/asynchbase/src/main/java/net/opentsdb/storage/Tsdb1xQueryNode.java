@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -50,8 +49,8 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.processor.downsample.Downsample;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -123,11 +122,17 @@ public class Tsdb1xQueryNode implements SourceNode {
   /** Whether or not to delete the data found by this query. */
   protected final boolean delete;
   
-  /** Rollup intervals matching the query downsampler if applicable. */
-  protected final List<RollupInterval> rollup_intervals;
-  
   /** Rollup fallback mode. */
   protected final RollupUsage rollup_usage;
+  
+  /** The rollup downsampling aggregation by name. */
+  protected String rollup_aggregation;
+  
+  /** Rollup intervals matching the query downsampler if applicable. */
+  protected List<RollupInterval> rollup_intervals;
+  
+  /** An optional downsample config from upstream. */
+  protected DownsampleConfig ds_config;
   
   /**
    * Default ctor.
@@ -149,85 +154,53 @@ public class Tsdb1xQueryNode implements SourceNode {
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null.");
     }
+    if (context.tsdb().getConfig() == null) {
+      throw new IllegalArgumentException("Can't execute a query without "
+          + "a configuration in the source config!");
+    }
     this.parent = parent;
     this.context = context;
     this.id = id;
     this.config = config;
-    if (config.query() == null) {
-      throw new IllegalArgumentException("Can't execute a query without "
-          + "a query!");
-    }
-    if (config.configuration() == null) {
-      throw new IllegalArgumentException("Can't execute a query without "
-          + "a configuration in the source config!");
-    }
-    if (((TimeSeriesQuery) config.query()).getMetrics() == null || 
-        ((TimeSeriesQuery) config.query()).getMetrics().isEmpty() ||
-        ((TimeSeriesQuery) config.query()).getMetrics().size() > 1) {
-      throw new IllegalArgumentException("The node can only handle one metric at a time.");
-    }
+    
     sequence_id = new AtomicLong();
     initialized = new AtomicBoolean();
     initializing = new AtomicBoolean();
     
-    final TimeSeriesQuery query = (TimeSeriesQuery) config.query();
-    if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
-      skip_nsun_tagks = query.getBoolean(config.configuration(), 
+    if (config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
+      skip_nsun_tagks = config.getBoolean(context.tsdb().getConfig(), 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     } else {
       skip_nsun_tagks = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
-      skip_nsun_tagvs = query.getBoolean(config.configuration(), 
+    if (config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
+      skip_nsun_tagvs = config.getBoolean(context.tsdb().getConfig(), 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     } else {
       skip_nsun_tagvs = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY)) {
-      skip_nsui = query.getBoolean(config.configuration(), 
+    if (config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY)) {
+      skip_nsui = config.getBoolean(context.tsdb().getConfig(), 
           Tsdb1xHBaseDataStore.SKIP_NSUI_KEY);
     } else {
       skip_nsui = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.DELETE_KEY)) {
-      delete = query.getBoolean(config.configuration(), 
+    if (config.hasKey(Tsdb1xHBaseDataStore.DELETE_KEY)) {
+      delete = config.getBoolean(context.tsdb().getConfig(), 
           Tsdb1xHBaseDataStore.DELETE_KEY);
     } else {
       delete = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.DELETE_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)) {
-      rollup_usage = RollupUsage.parse(query.getString(config.configuration(),
+    if (config.hasKey(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)) {
+      rollup_usage = RollupUsage.parse(config.getString(context.tsdb().getConfig(),
           Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     } else {
       rollup_usage = RollupUsage.parse(parent
           .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
-    }
-    
-    if (parent.schema().rollupConfig() != null && 
-        rollup_usage != RollupUsage.ROLLUP_RAW) {
-      Downsampler ds = query.getMetrics().get(0).getDownsampler();
-      if (ds != null) {
-        rollup_intervals = parent.schema()
-            .rollupConfig().getRollupIntervals(
-                DateTime.parseDuration(ds.getInterval()) / 1000, 
-                ds.getInterval(), 
-                true);
-      } else if (query.getTime().getDownsampler() != null) {
-        ds = query.getTime().getDownsampler();
-        rollup_intervals = parent.schema()
-            .rollupConfig().getRollupIntervals(
-                DateTime.parseDuration(ds.getInterval()) / 1000, 
-                ds.getInterval(), 
-                true);
-      } else {
-        rollup_intervals = null;
-      }
-    } else {
-      rollup_intervals = null;
     }
   }
 
@@ -309,6 +282,28 @@ public class Tsdb1xQueryNode implements SourceNode {
     } else {
       child = null;
     }
+
+    if (parent.schema().rollupConfig() != null && 
+        rollup_usage != RollupUsage.ROLLUP_RAW) {
+      Collection<QueryNode> downsamplers = context.upstreamOfType(this, Downsample.class);
+      if (!downsamplers.isEmpty()) {
+        // TODO - find the lowest-common resolution if possible.
+        ds_config = (DownsampleConfig) downsamplers.iterator().next().config();
+        rollup_intervals = parent.schema()
+            .rollupConfig().getRollupIntervals(
+                DateTime.parseDuration(ds_config.intervalAsString()) / 1000, 
+                ds_config.intervalAsString(), 
+                true);
+        rollup_aggregation = ds_config.aggregator();
+      } else {
+        rollup_intervals = null;
+        rollup_aggregation = null;
+      }
+    } else {
+      rollup_intervals = null;
+      rollup_aggregation = null;
+    }
+    
     upstream = context.upstream(this);
     downstream = context.downstream(this);
     downstream_sources = context.downstreamSources(this);
@@ -439,6 +434,16 @@ public class Tsdb1xQueryNode implements SourceNode {
     return rollup_usage;
   }
 
+  /** @return The optional rollup aggregation. May be null. */
+  String rollupAggregation() {
+    return rollup_aggregation;
+  }
+  
+  /** @return The optional downsample config. May be null. */
+  DownsampleConfig downsampleConfig() {
+    return ds_config;
+  }
+  
   /**
    * Initializes the query, either calling meta or setting up the scanner.
    * @param span An optional tracing span.
@@ -446,14 +451,12 @@ public class Tsdb1xQueryNode implements SourceNode {
   @VisibleForTesting
   void setup(final Span span) {
     if (parent.schema().metaSchema() != null) {
-      parent.schema().metaSchema()
-        .runQuery(config.query(), span)
+      parent.schema().metaSchema().runQuery(config, span)
           .addCallback(new MetaCB(span))
           .addErrback(new MetaErrorCB(span));
     } else {
       synchronized (this) {
-        executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, 
-            (TimeSeriesQuery) config.query());
+        executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
@@ -552,8 +555,7 @@ public class Tsdb1xQueryNode implements SourceNode {
       }
       
       synchronized (Tsdb1xQueryNode.this) {
-        executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, 
-            (TimeSeriesQuery) config.query());
+        executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
@@ -620,9 +622,7 @@ public class Tsdb1xQueryNode implements SourceNode {
       }
       
       synchronized (this) {
-        executor = new Tsdb1xMultiGet(Tsdb1xQueryNode.this, 
-            (TimeSeriesQuery) config.query(), 
-            tsuids);
+        executor = new Tsdb1xMultiGet(Tsdb1xQueryNode.this, config, tsuids);
         if (initialized.compareAndSet(false, true)) {
           if (child != null) {
             child.setSuccessTags()
@@ -820,7 +820,7 @@ public class Tsdb1xQueryNode implements SourceNode {
           synchronized (this) {
             executor = new Tsdb1xMultiGet(
                 Tsdb1xQueryNode.this, 
-                (TimeSeriesQuery) config.query(), 
+                config, 
                 tsuids);
             if (initialized.compareAndSet(false, true)) {
               if (child != null) {

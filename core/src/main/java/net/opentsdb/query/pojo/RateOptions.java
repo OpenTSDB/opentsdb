@@ -16,6 +16,7 @@ package net.opentsdb.query.pojo;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,10 +27,13 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.BaseQueryNodeConfig.Builder;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -82,9 +86,11 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   private Duration duration;
   private ChronoUnit units;
   
+  protected final Map<String, String> overrides;
+  
   /** Used for Jackson non-default serdes. */
   protected RateOptions() {
-    
+    overrides = null;
   }
   
   /**
@@ -97,6 +103,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     counter_max = builder.counterMax;
     reset_value = builder.resetValue;
     interval = builder.interval;
+    overrides = builder.overrides;
     
     final long interval_part = DateTime.getDurationInterval(interval);
     units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
@@ -168,6 +175,109 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
       throw new IllegalArgumentException("Interval cannot be null or empty.");
     }
     DateTime.parseDuration2(interval);
+  }
+  
+  @Override
+  public Map<String, String> getOverrides() {
+    return overrides;
+  }
+  
+  @Override
+  public String getString(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getString(key);
+      }
+    }
+    return value;
+  }
+  
+  @Override
+  public int getInt(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Integer.parseInt(value);
+  }
+  
+  @Override
+  public long getLong(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Long.parseLong(value);
+  }
+  
+  @Override
+  public boolean getBoolean(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getBoolean(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    value = value.trim().toLowerCase();
+    return value.equals("true") || value.equals("1") || value.equals("yes");
+  }
+  
+  @Override
+  public double getDouble(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = overrides == null ? null : overrides.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Double.parseDouble(value);
+  }
+  
+  @Override
+  public boolean hasKey(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    return overrides == null ? false : overrides.containsKey(key);
   }
   
   @Override
@@ -256,6 +366,8 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     private long resetValue = DEFAULT_RESET_VALUE;
     @JsonProperty
     private String interval = DEFAULT_INTERVAL;
+    @JsonProperty
+    protected Map<String, String> overrides;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -284,6 +396,19 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     
     public Builder setInterval(final String interval) {
       this.interval = interval;
+      return this;
+    }
+
+    public Builder setOverrides(final Map<String, String> overrides) {
+      this.overrides = overrides;
+      return this;
+    }
+    
+    public Builder addOverride(final String key, final String value) {
+      if (overrides == null) {
+        overrides = Maps.newHashMap();
+      }
+      overrides.put(key, value);
       return this;
     }
     

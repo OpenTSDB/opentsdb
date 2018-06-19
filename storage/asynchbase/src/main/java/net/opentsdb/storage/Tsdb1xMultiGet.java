@@ -17,6 +17,7 @@ package net.opentsdb.storage;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -42,9 +42,10 @@ import net.opentsdb.core.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -92,17 +93,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   /** The upstream query node that owns this scanner set. */
   protected final Tsdb1xQueryNode node;
   
-  /** The single metric query from the node. */
-  protected final TimeSeriesQuery query;
+  /** The query config from the node. */
+  protected final QuerySourceConfig source_config;
   
   /** The list of TSUIDs to work one. */
   protected final List<byte[]> tsuids;
-  
-  /** The rollup group by aggregation name. */
-  protected final String rollup_group_by;
-  
-  /** The rollup downsampling aggregation by name. */
-  protected final String rollup_aggregation;
   
   /** The number of get requests batches allowed to be outstanding at
    * any given time. */
@@ -164,24 +159,24 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
    * Default ctor that parses the query, sets up rollups and sorts (and
    * optionally salts) the TSUIDs.
    * @param node A non-null query node that owns this getter.
-   * @param query A non-null query to parse.
+   * @param source_config A non-null source config.
    * @param tsuids A non-null and non-empty list of TSUIDs.
    * @throws IllegalArgumentException if the params were null or empty.
    */
   public Tsdb1xMultiGet(final Tsdb1xQueryNode node, 
-                  final TimeSeriesQuery query, 
-                  final List<byte[]> tsuids) {
+                        final QuerySourceConfig source_config, 
+                        final List<byte[]> tsuids) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
+    if (source_config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
     }
     if (tsuids == null || tsuids.isEmpty()) {
       throw new IllegalArgumentException("TSUIDs cannot be empty.");
     }
     this.node = node;
-    this.query = query;
+    this.source_config = source_config;
     
     // prepare with salt if needed and sort
     if (node.schema().saltWidth() > 0) {
@@ -218,54 +213,32 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     final Configuration config = node.parent()
         .tsdb().getConfig();
     
-    if (query.hasKey(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY)) {
-      concurrency_multi_get = query.getInt(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY)) {
+      concurrency_multi_get = source_config.getInt(config, 
           Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY);
     } else {
       concurrency_multi_get = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY)) {
-      batch_size = query.getInt(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY)) {
+      batch_size = source_config.getInt(config, 
           Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY);
     } else {
       batch_size = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY);
     }
-    if (query.hasKey(Schema.QUERY_REVERSE_KEY)) {
-      reversed = query.getBoolean(config, 
+    if (source_config.hasKey(Schema.QUERY_REVERSE_KEY)) {
+      reversed = source_config.getBoolean(config, 
           Schema.QUERY_REVERSE_KEY);
     } else {
       reversed = node.parent()
           .dynamicBoolean(Schema.QUERY_REVERSE_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
-      pre_aggregate = query.getBoolean(config, 
+    if (source_config.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
+      pre_aggregate = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.PRE_AGG_KEY);
     } else {
       pre_aggregate = false;
-    }
-    
-    if (node.schema().rollupConfig() != null && 
-        node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
-      Downsampler ds = query.getMetrics().get(0).getDownsampler();
-      if (ds == null) {
-        ds = query.getTime().getDownsampler();
-      }
-      
-      if (ds != null) {
-        rollup_aggregation = ds.getAggregator();
-      } else {
-        rollup_aggregation = null;
-      }
-    } else {
-      rollup_aggregation = null;
-    }
-    
-    if (Strings.isNullOrEmpty(query.getMetrics().get(0).getAggregator()) ) {
-      rollup_group_by = query.getTime().getAggregator();
-    } else {
-      rollup_group_by = query.getMetrics().get(0).getAggregator();
     }
     
     if (node.rollupIntervals() != null && 
@@ -273,7 +246,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
       rollups_enabled = true;
       rollup_index = 0;
-      if (rollup_group_by != null && rollup_group_by.equals("avg")) {
+      if (node.rollupAggregation() != null && 
+          node.rollupAggregation().equals("avg")) {
         // old and new schemas with literal agg names or prefixes.
         final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
@@ -293,11 +267,12 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         // it's another aggregation
         final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(rollup_group_by
+            new BinaryPrefixComparator(node.rollupAggregation()
                 .getBytes(Const.ASCII_CHARSET))));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig().getIdForAggregator(rollup_group_by)
+                (byte) node.schema().rollupConfig()
+                .getIdForAggregator(node.rollupAggregation())
             })));
         filter = new FilterList(filters, Operator.MUST_PASS_ONE);
       }
@@ -390,8 +365,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     }
     if (ts != null && (reversed ? 
-        ts.compare(Op.LT, query.getTime().startTime()) : 
-        ts.compare(Op.GT, query.getTime().endTime()))) {
+        ts.compare(Op.LT, source_config.startTime()) : 
+        ts.compare(Op.GT, source_config.endTime()))) {
       // DONE with query!
       return true;
     }
@@ -413,8 +388,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         }
       }
       if (reversed ? 
-          ts.compare(Op.LT, query.getTime().startTime()) : 
-          ts.compare(Op.GT, query.getTime().endTime())) {
+          ts.compare(Op.LT, source_config.startTime()) : 
+          ts.compare(Op.GT, source_config.endTime())) {
         // DONE with query!
         return true;
       }
@@ -738,29 +713,24 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   TimeStamp getInitialTimestamp(final int rollup_index) {
     if (rollups_enabled && rollup_index >= 0 && 
         rollup_index < node.rollupIntervals().size()) {
+      final Collection<QueryNode> rates = node.pipelineContext()
+          .upstreamOfType(node, Rate.class);
       final RollupInterval interval = node.rollupIntervals().get(0);
-      if (query.getTime().isRate()) {
+      if (!rates.isEmpty()) {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? query.getTime().endTime().epoch() + 1 : 
-              query.getTime().startTime().epoch() - 1), interval) * 1000L);      
+            (reversed ? source_config.endTime().epoch() + 1 : 
+              source_config.startTime().epoch() - 1), interval) * 1000L);      
       } else {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? query.getTime().endTime().epoch() : 
-              query.getTime().startTime().epoch()), interval) * 1000L);
+            (reversed ? source_config.endTime().epoch() : 
+              source_config.startTime().epoch()), interval) * 1000L);
       }
     } else {
-      long ts = reversed ? query.getTime().endTime().epoch() : 
-        query.getTime().startTime().epoch();
-      if (query.getMetrics().get(0).getDownsampler() != null) {
-        long interval = DateTime.parseDuration(
-            query.getMetrics().get(0).getDownsampler().getInterval());
-        if (interval > 0) {
-          final long interval_offset = (1000L * ts) % interval;
-          ts -= interval_offset / 1000L;
-        }
-      } else if (query.getTime().getDownsampler() != null) {
-        long interval = DateTime.parseDuration(
-            query.getTime().getDownsampler().getInterval());
+      long ts = reversed ? source_config.endTime().epoch() : 
+        source_config.startTime().epoch();
+      if (node.downsampleConfig() != null) {
+        final long interval = DateTime.parseDuration(
+            node.downsampleConfig().intervalAsString());
         if (interval > 0) {
           final long interval_offset = (1000L * ts) % interval;
           ts -= interval_offset / 1000L;

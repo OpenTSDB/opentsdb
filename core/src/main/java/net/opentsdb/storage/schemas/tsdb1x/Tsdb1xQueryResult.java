@@ -29,7 +29,6 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.rollup.RollupConfig;
 
 /**
@@ -101,14 +100,11 @@ public class Tsdb1xQueryResult implements QueryResult {
     this.schema = schema;
     results = Maps.newConcurrentMap();
     
-    final Configuration config = 
-        ((QuerySourceConfig) node.config()).configuration();
-    final TimeSeriesQuery query = (TimeSeriesQuery) 
-        ((QuerySourceConfig) node.config()).query();
-    byte_limit = query.getInt(config, Schema.QUERY_BYTE_LIMIT_KEY);
-    dp_limit = query.getInt(config, Schema.QUERY_DP_LIMIT_KEY);
-    reversed = query.getBoolean(config, Schema.QUERY_REVERSE_KEY);
-    keep_earliest = query.getBoolean(config, Schema.QUERY_KEEP_FIRST_KEY);
+    final Configuration config = node.pipelineContext().tsdb().getConfig();
+    byte_limit = node.config().getInt(config, Schema.QUERY_BYTE_LIMIT_KEY);
+    dp_limit = node.config().getInt(config, Schema.QUERY_DP_LIMIT_KEY);
+    reversed = node.config().getBoolean(config, Schema.QUERY_REVERSE_KEY);
+    keep_earliest = node.config().getBoolean(config, Schema.QUERY_KEEP_FIRST_KEY);
     resolution = ChronoUnit.SECONDS; // default
   }
   

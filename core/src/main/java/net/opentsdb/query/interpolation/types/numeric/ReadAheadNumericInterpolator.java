@@ -26,7 +26,7 @@ import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.interpolation.QueryInterpolator;
 
 /**
  * A class for {@link NumericType}s that allows for read-ahead buffering

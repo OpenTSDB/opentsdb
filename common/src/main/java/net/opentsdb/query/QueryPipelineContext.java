@@ -82,6 +82,30 @@ public interface QueryPipelineContext extends QueryNode {
   public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node);
   
   /**
+   * Returns the a collection of the <b>first</b> instance of the given
+   * query node type per upstream branch from the given node, exclusive
+   * of the given node.
+   * @param node A non-null node to search from.
+   * @param type A non-null query node type.
+   * @return An empty collection if nothing was found or a list of the
+   * nodes upstream.
+   */
+  public Collection<QueryNode> upstreamOfType(final QueryNode node, 
+                                              final Class<? extends QueryNode> type);
+  
+  /**
+   * Returns the a collection of the <b>first</b> instance of the given
+   * query node type per downstream branch from the given node, exclusive
+   * of the given node.
+   * @param node A non-null node to search from.
+   * @param type A non-null query node type.
+   * @return An empty collection if nothing was found or a list of the
+   * nodes downstream.
+   */
+  public Collection<QueryNode> downstreamOfType(final QueryNode node, 
+                                                final Class<? extends QueryNode> type);
+  
+  /**
    * The collection of sinks given by the calling API that will receive final
    * results.
    * @return A non-null list of one or more sinks.

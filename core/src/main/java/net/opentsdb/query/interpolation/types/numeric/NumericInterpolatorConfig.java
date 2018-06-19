@@ -15,6 +15,12 @@
 package net.opentsdb.query.interpolation.types.numeric;
 
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
@@ -27,13 +33,15 @@ import net.opentsdb.query.pojo.FillPolicy;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = NumericInterpolatorConfig.Builder.class)
 public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
 
   /** The numeric fill policy. */
-  protected final FillPolicy fill_policy;
+  protected final FillPolicy fillPolicy;
   
   /** The real value fill policy. */
-  protected final FillWithRealPolicy real_fill;
+  protected final FillWithRealPolicy realFillPolicy;
   
   /**
    * Protected ctor for use with the builder.
@@ -42,24 +50,24 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
    */
   NumericInterpolatorConfig(final Builder builder) {
     super(builder);
-    if (builder.fill_policy == null) {
+    if (builder.fillPolicy == null) {
       throw new IllegalArgumentException("Fill policy cannot be null.");
     }
-    if (builder.real_fill == null) {
+    if (builder.realFillPolicy == null) {
       throw new IllegalArgumentException("Real fill policy cannot be null.");
     }
-    fill_policy = builder.fill_policy;
-    real_fill = builder.real_fill;
+    fillPolicy = builder.fillPolicy;
+    realFillPolicy = builder.realFillPolicy;
   }
   
   /** @return The numeric fill policy. */
   public FillPolicy fillPolicy() {
-    return fill_policy;
+    return fillPolicy;
   }
   
   /** @return The real fill policy. */
   public FillWithRealPolicy realFillPolicy() {
-    return real_fill;
+    return realFillPolicy;
   }
   
   /** @return The base numeric fill using the {@link #fillPolicy()}. */
@@ -71,9 +79,9 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   public String toString() {
     return new StringBuilder()
         .append("fill=")
-        .append(fill_policy)
+        .append(fillPolicy)
         .append(", realFill=")
-        .append(real_fill)
+        .append(realFillPolicy)
         .toString();
   }
   
@@ -86,15 +94,17 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
    * A builder class for the config.
    */
   public static class Builder extends BaseInterpolatorConfig.Builder {
-    private FillPolicy fill_policy;
-    private FillWithRealPolicy real_fill;
+    @JsonProperty
+    private FillPolicy fillPolicy;
+    @JsonProperty
+    private FillWithRealPolicy realFillPolicy;
     
     /**
      * @param fill_policy A non-null numeric fill policy.
      * @return The builder.
      */
     public Builder setFillPolicy(final FillPolicy fill_policy) {
-      this.fill_policy = fill_policy;
+      this.fillPolicy = fill_policy;
       return this;
     }
     
@@ -103,7 +113,7 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
      * @return The builder.
      */
     public Builder setRealFillPolicy(final FillWithRealPolicy real_fill) {
-      this.real_fill = real_fill;
+      this.realFillPolicy = real_fill;
       return this;
     }
     

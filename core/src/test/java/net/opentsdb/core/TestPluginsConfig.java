@@ -890,7 +890,7 @@ public class TestPluginsConfig {
   public void initializeDupeTypesWithDefault() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
     PluginConfig c = PluginConfig.newBuilder()
-        .setType("net.opentsdb.query.QueryInterpolatorFactory")
+        .setType("net.opentsdb.query.interpolation.QueryInterpolatorFactory")
         .build();
     configs.add(c);
     
