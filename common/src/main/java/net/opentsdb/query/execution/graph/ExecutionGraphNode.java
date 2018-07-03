@@ -30,7 +30,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
-import net.opentsdb.core.Const;
+import net.opentsdb.common.Const;
 import net.opentsdb.query.QueryNodeConfig;
 
 /**

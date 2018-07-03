@@ -25,10 +25,10 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
 import com.google.common.collect.Lists;
 
-import net.opentsdb.query.pojo.RateOptions;
-import net.opentsdb.utils.JSON;
+import net.opentsdb.query.execution.graph.TestExecutionGraph.MockConfigA;
 
 public class TestExecutionGraphNode {
 
@@ -38,8 +38,9 @@ public class TestExecutionGraphNode {
         .setId("TestNode")
         .setType("Rate")
         .setSources(Lists.newArrayList("node1", "node2"))
-        .setConfig(RateOptions.newBuilder()
-            .setResetValue(1)
+        .setConfig(MockConfigA.newBuilder()
+            .setFoo("foo")
+            .setId("TestNode")
             .build())
         .build();
     
@@ -48,12 +49,12 @@ public class TestExecutionGraphNode {
     assertEquals(2, node.getSources().size());
     assertEquals("node1", node.getSources().get(0));
     assertEquals("node2", node.getSources().get(1));
-    assertEquals(1, ((RateOptions) node.getConfig()).getResetValue());
+    assertEquals("foo", ((MockConfigA) node.getConfig()).foo);
     assertNotNull(node.toString());
     
     String json = "{\"sources\":[\"node1\",\"node2\"],\"id\":\"TestNode\","
         + "\"type\":\"Rate\"}";
-    node = JSON.parseToObject(json, ExecutionGraphNode.class);
+    node = TestExecutionGraph.MAPPER.readValue(json, ExecutionGraphNode.class);
     
     assertEquals("TestNode", node.getId());
     assertEquals("Rate", node.getType());
@@ -61,7 +62,7 @@ public class TestExecutionGraphNode {
     assertEquals("node1", node.getSources().get(0));
     assertEquals("node2", node.getSources().get(1));
     
-    json = JSON.serializeToString(node);
+    json = TestExecutionGraph.MAPPER.writeValueAsString(node);
     assertTrue(json.contains("\"id\":\"TestNode\""));
     assertTrue(json.contains("\"sources\":[\"node1\",\"node2\"]"));
     assertTrue(json.contains("\"type\":\"Rate\""));
@@ -75,13 +76,13 @@ public class TestExecutionGraphNode {
     assertNull(node.getSources());
     assertNotNull(node.toString());
     
-    json = JSON.serializeToString(node);
+    json = TestExecutionGraph.MAPPER.writeValueAsString(node);
     assertTrue(json.contains("\"id\":\"Rate\""));
     assertFalse(json.contains("\"sources\""));
     assertTrue(json.contains("\"type\":\"Rate\""));
     
     json = "{\"id\":\"Rate\"}";
-    node = JSON.parseToObject(json, ExecutionGraphNode.class);
+    node = TestExecutionGraph.MAPPER.readValue(json, ExecutionGraphNode.class);
     assertEquals("Rate", node.getId());
     assertEquals("Rate", node.getType());
     assertNull(node.getSources());
@@ -90,25 +91,31 @@ public class TestExecutionGraphNode {
     // missing args
     json = "{\"type\":\"Rate\"}";
     try {
-      JSON.parseToObject(json, ExecutionGraphNode.class);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      TestExecutionGraph.MAPPER.readValue(json, ExecutionGraphNode.class);
+      fail("Expected InvalidDefinitionException");
+    } catch (InvalidDefinitionException e) { 
+      assertTrue(e.getCause() instanceof IllegalArgumentException);
+    }
     
     json = "{\"id\":\"\"}";
     try {
-      JSON.parseToObject(json, ExecutionGraphNode.class);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      TestExecutionGraph.MAPPER.readValue(json, ExecutionGraphNode.class);
+      fail("Expected InvalidDefinitionException");
+    } catch (InvalidDefinitionException e) { 
+      assertTrue(e.getCause() instanceof IllegalArgumentException);
+    }
     
     json = "{}";
     try {
-      JSON.parseToObject(json, ExecutionGraphNode.class);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      TestExecutionGraph.MAPPER.readValue(json, ExecutionGraphNode.class);
+      fail("Expected InvalidDefinitionException");
+    } catch (InvalidDefinitionException e) { 
+      assertTrue(e.getCause() instanceof IllegalArgumentException);
+    }
     
     // uknowns are ok
     json = "{\"id\":\"Rate\",\"someJunk\":\"field\"}";
-    node = JSON.parseToObject(json, ExecutionGraphNode.class);
+    node = TestExecutionGraph.MAPPER.readValue(json, ExecutionGraphNode.class);
     assertEquals("Rate", node.getId());
     assertEquals("Rate", node.getType());
     assertNull(node.getSources());

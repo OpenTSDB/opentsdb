@@ -213,7 +213,8 @@ public class SemanticQuery implements TimeSeriesQuery {
     if (node == null) {
       throw new IllegalArgumentException("Need a graph!");
     }
-    builder.setExecutionGraph(ExecutionGraph.parse(tsdb, node).build());
+    builder.setExecutionGraph(ExecutionGraph.parse(
+        JSON.getMapper(), tsdb, node).build());
     
     node = root.get("filters");
     if (node != null) {
