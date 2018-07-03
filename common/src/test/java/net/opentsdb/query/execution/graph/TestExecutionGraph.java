@@ -35,22 +35,24 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.YAML;
 
 public class TestExecutionGraph {
 
+  protected static final ObjectMapper MAPPER = new ObjectMapper();
+  
   @Test
   public void builder() throws Exception {
     ExecutionGraph graph = ExecutionGraph.newBuilder()
@@ -84,7 +86,7 @@ public class TestExecutionGraph {
         + "\"type\":\"MockFactoryA\",\"sources\":[\"S1\",\"S2\"]},"
         + "{\"id\":\"S1\",\"type\":\"MockSourceFactory\"},"
         + "{\"id\":\"S2\",\"type\":\"MockSourceFactory\"}]}";
-    graph = JSON.parseToObject(json, ExecutionGraph.class);
+    graph = MAPPER.readValue(json, ExecutionGraph.class);
     
     assertEquals("Graph1", graph.getId());
     assertEquals(3, graph.getNodes().size());
@@ -98,7 +100,7 @@ public class TestExecutionGraph {
     assertEquals("S2", graph.getNodes().get(2).getId());
     assertEquals("MockSourceFactory", graph.getNodes().get(2).getType());
     
-    json = JSON.serializeToString(graph);
+    json = MAPPER.writeValueAsString(graph);
     assertTrue(json.contains("\"id\":\"Graph1\""));
     assertTrue(json.contains("\"nodes\":["));
     assertTrue(json.contains("\"id\":\"N1\""));
@@ -154,7 +156,7 @@ public class TestExecutionGraph {
     json = "{\"id\":\"Graph1\",\"unkownfield\":42,\"nodes\":"
         + "[{\"id\":\"Node1\",\"type\":\"TimedQueryExecutor\"},"
         + "{\"id\":\"Node2\",\"type\":\"TimedQueryExecutor\"}]}";
-    graph = JSON.parseToObject(json, ExecutionGraph.class);
+    graph = MAPPER.readValue(json, ExecutionGraph.class);
     assertEquals(2, graph.getNodes().size());
   }
   
@@ -330,8 +332,8 @@ public class TestExecutionGraph {
         + "{\"id\":\"S1\",\"type\":\"MockFactoryB\"},"
         + "{\"id\":\"S2\",\"type\":\"MockFactoryB\",\"config\":"
         + "{\"id\":\"S2\",\"mynum\":42,\"settings\":{\"a\":-2.76,\"b\":42.5}}}]}";
-    JsonNode root = JSON.getMapper().readTree(json);
-    ExecutionGraph graph = ExecutionGraph.parse(tsdb, root).build();
+    JsonNode root = MAPPER.readTree(json);
+    ExecutionGraph graph = ExecutionGraph.parse(MAPPER, tsdb, root).build();
     assertEquals("Graph1", graph.getId());
     assertEquals(3, graph.getNodes().size());
    
@@ -363,6 +365,7 @@ public class TestExecutionGraph {
     assertEquals(-2.76, ((MockConfigB) node.getConfig()).settings.get("a"), 0.001);
     assertEquals(42.5, ((MockConfigB) node.getConfig()).settings.get("b"), 0.001);
     
+    ObjectMapper yaml_mapper = new ObjectMapper(new YAMLFactory());
     // YAML!
     String yaml = "---\n" +
         "id: Graph1\n" +
@@ -390,8 +393,8 @@ public class TestExecutionGraph {
         "      settings:\n" +
         "        a: -2.76\n" +
         "        b: 42.5";
-    root = YAML.getMapper().readTree(yaml);
-    graph = ExecutionGraph.parse(tsdb, root).build();
+    root = yaml_mapper.readTree(yaml);
+    graph = ExecutionGraph.parse(yaml_mapper, tsdb, root).build();
     assertEquals("Graph1", graph.getId());
     assertEquals(3, graph.getNodes().size());
    
@@ -430,10 +433,10 @@ public class TestExecutionGraph {
         + "{\"id\":\"S1\",\"type\":\"MockFactoryB\"},"
         + "{\"id\":\"S2\",\"type\":\"MockFactoryC\",\"config\":"
         + "{\"id\":\"S2\",\"mynum\":42,\"settings\":{\"a\":-2.76,\"b\":42.5}}}]}";
-    root = JSON.getMapper().readTree(json);
+    root = MAPPER.readTree(json);
     
     try {
-      ExecutionGraph.parse(tsdb, root).build();
+      ExecutionGraph.parse(MAPPER, tsdb, root).build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -444,21 +447,22 @@ public class TestExecutionGraph {
         + "{\"id\":\"S1\",\"type\":\"MockFactoryC\"},"
         + "{\"id\":\"S2\",\"type\":\"MockFactoryB\",\"config\":"
         + "{\"id\":\"S2\",\"mynum\":42,\"settings\":{\"a\":-2.76,\"b\":42.5}}}]}";
-    root = JSON.getMapper().readTree(json);
-    graph = ExecutionGraph.parse(tsdb, root).build();
+    root = MAPPER.readTree(json);
+    graph = ExecutionGraph.parse(MAPPER, tsdb, root).build();
     assertEquals(3, graph.getNodes().size());
   }
   
   @JsonInclude(Include.NON_NULL)
   @JsonDeserialize(builder = MockConfigA.Builder.class)
-  static class MockConfigA extends BaseQueryNodeConfig {
+  static class MockConfigA implements QueryNodeConfig {
     public String foo;
     public List<String> bars;
+    public String id;
     
     protected MockConfigA(final Builder builder) {
-      super(builder);
       foo = builder.foo;
       bars = builder.bars;
+      id = builder.id;
     }
 
     @Override
@@ -473,12 +477,49 @@ public class TestExecutionGraph {
     @Override
     public int hashCode() { return 0; }
     
+    @Override
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public Map<String, String> getOverrides() { return null; }
+
+    @Override
+    public String getString(Configuration config, String key) { return null; }
+
+    @Override
+    public int getInt(Configuration config, String key) { return 0; }
+
+    @Override
+    public long getLong(Configuration config, String key) { return 0; }
+
+    @Override
+    public boolean getBoolean(Configuration config, String key) { return false; }
+
+    @Override
+    public double getDouble(Configuration config, String key) { return 0; }
+
+    @Override
+    public boolean hasKey(String key) { return false; }
+  
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
     @JsonIgnoreProperties(ignoreUnknown = true)
-    static class Builder extends BaseQueryNodeConfig.Builder {
+    static class Builder {
+      @JsonProperty
+      private String id;
       @JsonProperty
       private String foo;
       @JsonProperty
       private List<String> bars;
+      
+      public Builder setId(final String id) {
+        this.id = id;
+        return this;
+      }
       
       public Builder setFoo(final String foo) {
         this.foo = foo;
@@ -490,7 +531,6 @@ public class TestExecutionGraph {
         return this;
       }
       
-      @Override
       public QueryNodeConfig build() {
         return new MockConfigA(this);
       }
@@ -525,14 +565,15 @@ public class TestExecutionGraph {
   
   @JsonInclude(Include.NON_NULL)
   @JsonDeserialize(builder = MockConfigB.Builder.class)
-  static class MockConfigB extends BaseQueryNodeConfig {
+  static class MockConfigB implements QueryNodeConfig {
     public long mynum;
     public Map<String, Double> settings;
+    public String id;
     
     protected MockConfigB(final Builder builder) {
-      super(builder);
       mynum = builder.mynum;
       settings = builder.settings;
+      id = builder.id;
     }
 
     @Override
@@ -547,12 +588,45 @@ public class TestExecutionGraph {
     @Override
     public int hashCode() { return 0; }
     
+    @Override
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public Map<String, String> getOverrides() { return null; }
+
+    @Override
+    public String getString(Configuration config, String key) { return null; }
+
+    @Override
+    public int getInt(Configuration config, String key) { return 0; }
+
+    @Override
+    public long getLong(Configuration config, String key) { return 0; }
+
+    @Override
+    public boolean getBoolean(Configuration config, String key) { return false; }
+
+    @Override
+    public double getDouble(Configuration config, String key) { return 0; }
+
+    @Override
+    public boolean hasKey(String key) { return false; }
+    
     @JsonIgnoreProperties(ignoreUnknown = true)
-    static class Builder extends BaseQueryNodeConfig.Builder {
+    static class Builder {
+      @JsonProperty
+      private String id;
       @JsonProperty
       private long mynum;
       @JsonProperty
       private Map<String, Double> settings;
+      
+      public Builder setId(final String id) {
+        this.id = id;
+        return this;
+      }
       
       public Builder setMynum(final long mynum) {
         this.mynum = mynum;
@@ -564,12 +638,12 @@ public class TestExecutionGraph {
         return this;
       }
       
-      @Override
       public QueryNodeConfig build() {
         return new MockConfigB(this);
       }
       
     }
+
   }
   
   static class MockFactoryB implements QueryNodeFactory {

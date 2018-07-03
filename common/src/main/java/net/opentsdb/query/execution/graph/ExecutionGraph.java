@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
@@ -36,13 +37,11 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
-import net.opentsdb.core.Const;
-import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.JSONException;
 
 /**
  * An execution graph that defines a set of executors, default configs and the
@@ -285,7 +284,8 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   }
 
   @SuppressWarnings("unchecked")
-  public static ExecutionGraph.Builder parse(final TSDB tsdb, 
+  public static ExecutionGraph.Builder parse(final ObjectMapper mapper,
+                                             final TSDB tsdb, 
                                              final JsonNode graph_root) {
     if (graph_root == null) {
       throw new IllegalArgumentException("Graph root cannot be null.");
@@ -313,10 +313,11 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
       final JsonNode sources = node.get("sources");
       if (sources != null) {
         try {
-          node_builder.setSources(JSON.getMapper().treeToValue(
+          node_builder.setSources(mapper.treeToValue(
               node.get("sources"), List.class));
         } catch (JsonProcessingException e) {
-          throw new JSONException("Failed to parse sources: " + node, e);
+          throw new QueryExecutionException("Failed to parse sources: " 
+              + node, 0, e);
         }
       }
       
@@ -338,11 +339,12 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
         }
         try {
           final QueryNodeConfig node_config = 
-              JSON.getMapper().treeToValue(config, factory.nodeConfigClass());
+              mapper.treeToValue(config, factory.nodeConfigClass());
           node_builder.setConfig(node_config);
           
         } catch (JsonProcessingException e) {
-          throw new JSONException("Failed to parse config: " + node, e);
+          throw new QueryExecutionException("Failed to parse config: " 
+              + node, 0, e);
         }
       }
       
