@@ -71,7 +71,7 @@ public class TestTSDBV2QueryContextBuilder {
     STORE_FACTORY = new MockDataStoreFactory();
     TSDB.config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
     
-    QueryNodeFactory factory = mock(QueryNodeFactory.class);
+    SingleQueryNodeFactory factory = mock(SingleQueryNodeFactory.class);
     when(factory.newNode(any(QueryPipelineContext.class), anyString()))
       .thenAnswer(new Answer<QueryNode>() {
         @Override

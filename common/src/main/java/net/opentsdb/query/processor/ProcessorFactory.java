@@ -27,6 +27,7 @@ import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.SingleQueryNodeFactory;
 
 /**
  * A factory for generating {@link QueryNode}s that perform some kind of
@@ -35,7 +36,7 @@ import net.opentsdb.query.QueryResult;
  * 
  * @since 3.0
  */
-public interface ProcessorFactory extends QueryNodeFactory {
+public interface ProcessorFactory extends SingleQueryNodeFactory {
   
   /**
    * @return The types of data this factory can instantiate iterators for.
