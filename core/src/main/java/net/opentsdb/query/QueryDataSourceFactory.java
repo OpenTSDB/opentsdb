@@ -31,7 +31,7 @@ import net.opentsdb.storage.TimeSeriesDataStoreFactory;
  * 
  * @since 3.0
  */
-public class QueryDataSourceFactory implements QueryNodeFactory, TSDBPlugin {
+public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugin {
   
   /** The TSDB to pull the registry from. */
   private TSDB tsdb;

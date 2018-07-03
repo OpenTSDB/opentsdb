@@ -46,8 +46,8 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.SingleQueryNodeFactory;
 
 public class TestExecutionGraph {
 
@@ -538,7 +538,7 @@ public class TestExecutionGraph {
     }
   }
   
-  static class MockFactoryA implements QueryNodeFactory {
+  static class MockFactoryA implements SingleQueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -646,7 +646,7 @@ public class TestExecutionGraph {
 
   }
   
-  static class MockFactoryB implements QueryNodeFactory {
+  static class MockFactoryB implements SingleQueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {

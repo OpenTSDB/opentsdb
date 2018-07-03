@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Before;
@@ -74,14 +75,16 @@ public class TestAbstractQueryPipelineContext {
       .thenReturn(new MockFactoryB());
     when(tsdb.getRegistry().getQueryNodeFactory("MockSourceFactory".toLowerCase()))
       .thenReturn(new MockSourceFactory());
+    when(tsdb.getRegistry().getQueryNodeFactory("MultiMockFactory".toLowerCase()))
+      .thenReturn(new MultiMockFactory());
     
-    final QueryNodeFactory null_factory = mock(QueryNodeFactory.class);
+    final SingleQueryNodeFactory null_factory = mock(SingleQueryNodeFactory.class);
     when(tsdb.getRegistry().getQueryNodeFactory("MockFactoryY".toLowerCase()))
       .thenReturn(null_factory);
     when(null_factory.newNode(any(QueryPipelineContext.class), anyString()))
       .thenReturn(null);
     
-    final QueryNodeFactory ex_factory = mock(QueryNodeFactory.class);
+    final SingleQueryNodeFactory ex_factory = mock(SingleQueryNodeFactory.class);
     when(tsdb.getRegistry().getQueryNodeFactory("MockFactoryZ".toLowerCase()))
       .thenReturn(ex_factory);
     when(ex_factory.newNode(any(QueryPipelineContext.class), anyString()))
@@ -1139,6 +1142,57 @@ public class TestAbstractQueryPipelineContext {
     } catch (IllegalArgumentException e) { }
   }
   
+  @Test
+  public void multiSource() throws Exception {
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("Multi")
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("N1")
+          .setType("MultiMockFactory")
+          .setConfig(mock(QueryNodeConfig.class))
+          .addSource("S1")
+          .addSource("S2"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S1")
+          .setType("MockSourceFactory"))
+        .addNode(ExecutionGraphNode.newBuilder()
+          .setId("S2")
+          .setType("MockSourceFactory"))
+        .build();
+    
+    TestContext ctx = new TestContext(tsdb, query, context, graph,
+        Lists.newArrayList(sink1));
+    ctx.initialize(null);
+    Map<String, QueryNode> nodes = graphToMap(ctx);
+    assertEquals(5, nodes.size());
+    
+    assertNull(nodes.get("N1"));
+    QueryNode n1_a = nodes.get("N1_A");
+    QueryNode n1_b = nodes.get("N1_B");
+    QueryNode s1 = nodes.get("S1");
+    QueryNode s2 = nodes.get("S2");
+    QueryNode self = nodes.get("Multi");
+    
+    assertTrue(self instanceof AbstractQueryPipelineContext);
+    assertEquals("Multi", self.id());
+    assertSame(ctx, self.pipelineContext());
+    assertFalse(ctx.roots().contains(self));
+    
+    assertTrue(n1_a instanceof MockNodeA);
+    assertEquals("N1_A", n1_a.id());
+    assertSame(ctx, n1_a.pipelineContext());
+    assertTrue(ctx.roots().contains(n1_a));
+    assertTrue(((MockNodeA) n1_a).downstream().contains(s1));
+    assertTrue(((MockNodeA) n1_a).upstream().contains(ctx));
+    
+    assertTrue(n1_b instanceof MockNodeA);
+    assertEquals("N1_B", n1_b.id());
+    assertSame(ctx, n1_b.pipelineContext());
+    assertTrue(ctx.roots().contains(n1_b));
+    assertTrue(((MockNodeA) n1_b).downstream().contains(s2));
+    assertTrue(((MockNodeA) n1_b).upstream().contains(ctx));
+  }
+  
   class TestContext extends AbstractQueryPipelineContext {
     public TestContext(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
         ExecutionGraph execution_graph, Collection<QuerySink> sinks) {
@@ -1298,7 +1352,7 @@ public class TestAbstractQueryPipelineContext {
     return map;
   }
   
-  static class MockFactoryA implements QueryNodeFactory {
+  static class MockFactoryA implements SingleQueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -1358,7 +1412,7 @@ public class TestAbstractQueryPipelineContext {
     }
   }
   
-  static class MockFactoryB implements QueryNodeFactory {
+  static class MockFactoryB implements SingleQueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -1418,7 +1472,7 @@ public class TestAbstractQueryPipelineContext {
     }
   }
 
-  static class MockSourceFactory implements QueryNodeFactory {
+  static class MockSourceFactory implements SingleQueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -1486,5 +1540,39 @@ public class TestAbstractQueryPipelineContext {
         throw new UnitTestException();
       }
     }
+  }
+
+  static class MultiMockFactory implements MultiQueryNodeFactory {
+
+    @Override
+    public String id() {
+      return "MultiMockFactory";
+    }
+
+    @Override
+    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+      return null;
+    }
+
+    @Override
+    public Collection<QueryNode> newNodes(QueryPipelineContext context,
+                                          String id, 
+                                          QueryNodeConfig config, 
+                                          List<ExecutionGraphNode> nodes) {
+      nodes.add(ExecutionGraphNode.newBuilder()
+          .addSource("S1")
+          .setType("multi")
+          .setId(id + "_A")
+          .build());
+      nodes.add(ExecutionGraphNode.newBuilder()
+          .addSource("S2")
+          .setType("multi")
+          .setId(id + "_B")
+          .build());
+      return Lists.newArrayList(
+          new MockNodeA(this, context, id + "_A", config),
+          new MockNodeA(this, context, id + "_B", config));
+    }
+    
   }
 }

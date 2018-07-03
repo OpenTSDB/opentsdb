@@ -44,6 +44,7 @@ import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Pair;
 
 /**
  * A useful base class for {@link QueryPipelineContext}s that stores references
@@ -79,7 +80,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /** The upstream query context this pipeline context belongs to. */
   protected final QueryContext context;
   
+  /** The original user defined execution graph. */
   protected final ExecutionGraph execution_graph;
+  
+  /** A mutable copy of the nodes. */
+  protected final List<ExecutionGraphNode> nodes;
   
   /** The set of query sinks. */
   protected final Collection<QuerySink> sinks;
@@ -149,6 +154,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     graph.addVertex(this);
     roots = Sets.newHashSet();
     sources = Lists.newArrayList();
+    nodes = Lists.newArrayList(execution_graph.getNodes());
   }
   
   @Override
@@ -465,9 +471,10 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         Maps.newHashMapWithExpectedSize(execution_graph.getNodes().size());
     final Set<String> unique_ids = 
         Sets.newHashSetWithExpectedSize(execution_graph.getNodes().size());
+    List<Pair<MultiQueryNodeFactory, ExecutionGraphNode>> multis = null;
     
     // first pass to instantiate the nodes.
-    for (final ExecutionGraphNode node : execution_graph.getNodes()) {
+    for (final ExecutionGraphNode node : nodes) {
       if (unique_ids.contains(node.getId())) {
         throw new IllegalArgumentException("The node id \"" 
             + node.getId() + "\" appeared more than once in the "
@@ -486,6 +493,17 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
             + "configuration " + node);
       }
       
+      // we can only handle singles here, multis we run through in a second
+      // pass.
+      if (!(factory instanceof SingleQueryNodeFactory)) {
+        if (multis == null) {
+          multis = Lists.newArrayList();
+        }
+        multis.add(new Pair<MultiQueryNodeFactory, ExecutionGraphNode>(
+            (MultiQueryNodeFactory) factory, node));
+        continue;
+      }
+      
       final QueryNode query_node;
       QueryNodeConfig node_config = node.getConfig() != null ? 
           node.getConfig() : node_configs.get(node.getId());
@@ -493,9 +511,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         node_config = node_configs.get(node.getType());
       }
       if (node_config != null) {
-        query_node = factory.newNode(this, node.getId(), node_config);
+        query_node = ((SingleQueryNodeFactory) factory)
+            .newNode(this, node.getId(), node_config);
       } else {
-        query_node = factory.newNode(this, node.getId());
+        query_node = ((SingleQueryNodeFactory) factory)
+            .newNode(this, node.getId());
       }
       if (query_node == null) {
         throw new IllegalStateException("Factory returned a null "
@@ -507,8 +527,43 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       graph.addVertex(query_node);
     }
     
-    // second pass to build the graph.
-    for (final ExecutionGraphNode node : execution_graph.getNodes()) {
+    // if there are multis that change the DAG, let's set em up now
+    if (multis != null) {
+      for (final Pair<MultiQueryNodeFactory, ExecutionGraphNode> pair : multis) {
+        QueryNodeConfig node_config = pair.getValue().getConfig() != null ? 
+            pair.getValue().getConfig() : node_configs.get(pair.getValue().getId());
+        if (node_config == null) {
+          node_config = node_configs.get(pair.getValue().getType());
+        }
+        if (node_config == null) {
+          throw new IllegalArgumentException("No config supplied for "
+              + "node: " + pair.getValue().getId());
+        }
+        
+        final Collection<QueryNode> query_nodes = pair.getKey().newNodes(
+            this, pair.getValue().getId(), node_config, nodes);
+        if (query_nodes == null || query_nodes.isEmpty()) {
+          throw new IllegalStateException("Factory returned a null or "
+              + "empty list of nodes for " + pair.getValue().getId());
+        }
+        for (final QueryNode node : query_nodes) {
+          if (node == null) {
+            throw new IllegalStateException("Factory returned a null "
+                + "node for " + pair.getValue().getId());
+          }
+          
+          map.put(node.id(), node);
+          graph.addVertex(node);
+        }
+        
+        // Important! We have to remove the original node config for
+        // debugging so we know it was replaced.
+        nodes.remove(pair.getValue());
+      }
+    }
+    
+    // second (or third) pass to build the graph.
+    for (final ExecutionGraphNode node : nodes) {
       if (node != null && 
           node.getSources() != null && 
           !node.getSources().isEmpty()) {
@@ -516,6 +571,9 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         for (final String source : node.getSources()) {
           try {
             graph.addDagEdge(query_node, map.get(source));
+          } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Failed to add node: " 
+                + node, e);
           } catch (CycleFoundException e) {
             throw new IllegalArgumentException("A cycle was detected "
                 + "adding node: " + node, e);

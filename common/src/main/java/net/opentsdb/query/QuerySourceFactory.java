@@ -19,7 +19,7 @@ import net.opentsdb.data.TimeSeriesDataSource;
 /**
  * 
  */
-public interface QuerySourceFactory extends QueryNodeFactory {
+public interface QuerySourceFactory extends SingleQueryNodeFactory {
 
   /**
    * Returns a new node given the context and config.
