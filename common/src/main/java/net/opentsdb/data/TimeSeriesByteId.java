@@ -115,6 +115,11 @@ public interface TimeSeriesByteId extends TimeSeriesId,
    */
   public ByteSet uniqueIds();
   
+  /** @return A flag to tell the {@link #decode(boolean, Span)} method 
+   * whether or not the metric is encoded. This is due to metrics possibly
+   * being overwritten during joins in expressions. */
+  public boolean skipMetric();
+  
   /**
    * Returns the string version of the time series ID based on the schema
    * used to encode the byte IDs.

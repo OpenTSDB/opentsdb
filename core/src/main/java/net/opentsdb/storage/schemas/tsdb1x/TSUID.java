@@ -313,6 +313,11 @@ public class TSUID implements TimeSeriesByteId {
   }
 
   @Override
+  public boolean skipMetric() {
+    return false;
+  }
+  
+  @Override
   public TypeToken<? extends TimeSeriesId> type() {
     return Const.TS_BYTE_ID;
   }

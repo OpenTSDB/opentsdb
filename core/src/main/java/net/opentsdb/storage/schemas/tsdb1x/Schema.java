@@ -908,7 +908,8 @@ public class Schema implements TimeSeriesDataStore {
   }
 
   @Override
-  public Deferred<TimeSeriesStringId> resolveByteId(TimeSeriesByteId id, final Span span) {
+  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
+                                                    final Span span) {
     final Span child;
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getName() + ".decode")
@@ -929,6 +930,12 @@ public class Schema implements TimeSeriesDataStore {
     // resolve the tag keys
     final BaseTimeSeriesStringId.Builder builder = 
         BaseTimeSeriesStringId.newBuilder();
+    if (id.alias() != null) {
+      builder.setAlias(new String(id.alias(), Const.UTF8_CHARSET));
+    }
+    if (id.namespace() != null) {
+      builder.setNamespace(new String(id.namespace(), Const.UTF8_CHARSET));
+    }
     class FinalCB implements Callback<TimeSeriesStringId, ArrayList<Object>> {
       @Override
       public TimeSeriesStringId call(final ArrayList<Object> ignored) throws Exception {
@@ -1031,9 +1038,13 @@ public class Schema implements TimeSeriesDataStore {
         Lists.newArrayListWithCapacity(3);
     try {
       // resolve the metric
-      deferreds.add(getName(UniqueIdType.METRIC, id.metric(), 
-          child != null ? child : span)
-            .addCallback(new MetricCB()));
+      if (id.skipMetric()) {
+        builder.setMetric(new String(id.metric(), Const.UTF8_CHARSET));
+      } else {
+        deferreds.add(getName(UniqueIdType.METRIC, id.metric(), 
+            child != null ? child : span)
+              .addCallback(new MetricCB()));
+      }
       
       if (!id.tags().isEmpty()) {
         deferreds.add(this.getNames(UniqueIdType.TAGK, tagks, child)

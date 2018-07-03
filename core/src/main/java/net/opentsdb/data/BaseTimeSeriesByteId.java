@@ -71,6 +71,9 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   /** A cached hash code ID. May have some */
   protected volatile long cached_hash; 
   
+  /** Whether or not to skip the metric during decoding. */
+  protected boolean skip_metric;
+  
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
    * using UTF8.
@@ -125,6 +128,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
     } else {
       unique_ids = new ByteSet();
     }
+    skip_metric = builder.skip_metric;
   }
 
   @Override
@@ -172,6 +176,11 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
     return unique_ids;
   }
 
+  @Override
+  public boolean skipMetric() {
+    return skip_metric;
+  }
+  
   @Override
   public int compareTo(final TimeSeriesByteId o) {
     return ComparisonChain.start()
@@ -317,6 +326,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
     protected List<byte[]> aggregated_tags;
     protected List<byte[]> disjoint_tags;
     protected ByteSet unique_ids; 
+    protected boolean skip_metric;
     
     /**
      * Default private ctor.
@@ -408,6 +418,11 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
         unique_ids = new ByteSet();
       }
       unique_ids.add(id);
+      return this;
+    }
+    
+    public Builder setSkipMetric(final boolean skip_metric) {
+      this.skip_metric = skip_metric;
       return this;
     }
     
