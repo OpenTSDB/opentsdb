@@ -34,10 +34,14 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -940,5 +944,60 @@ public class TestSchema extends SchemaBase {
     assertEquals(4, key[2]);
     assertEquals(0, key[1]);
     assertEquals(0, key[0]);
+  }
+
+  @Test
+  public void resolveByteId() throws Exception {
+    Schema schema = schema();
+    TimeSeriesByteId id = BaseTimeSeriesByteId.newBuilder(schema)
+        .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
+        .setMetric(METRIC_BYTES)
+        .addTags(TAGK_BYTES, TAGV_BYTES)
+        .addAggregatedTag(TAGK_B_BYTES)
+        .setAlias("alias".getBytes(Const.UTF8_CHARSET))
+        .addDisjointTag(UIDS.get("B"))
+        .build();
+    
+    TimeSeriesStringId newid = schema.resolveByteId(id, null).join();
+    assertEquals("alias", newid.alias());
+    assertEquals("Ns", newid.namespace());
+    assertEquals(METRIC_STRING, newid.metric());
+    assertEquals(TAGV_STRING, newid.tags().get(TAGK_STRING));
+    assertEquals(TAGK_B_STRING, newid.aggregatedTags().get(0));
+    assertEquals("B", newid.disjointTags().get(0));
+    
+    // skip metric
+    id = BaseTimeSeriesByteId.newBuilder(schema)
+        .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
+        .setMetric("MyMetric".getBytes(Const.UTF8_CHARSET))
+        .addTags(TAGK_BYTES, TAGV_BYTES)
+        .addAggregatedTag(TAGK_B_BYTES)
+        .setAlias("alias".getBytes(Const.UTF8_CHARSET))
+        .addDisjointTag(UIDS.get("B"))
+        .setSkipMetric(true)
+        .build();
+    
+    newid = schema.resolveByteId(id, null).join();
+    assertEquals("alias", newid.alias());
+    assertEquals("Ns", newid.namespace());
+    assertEquals("MyMetric", newid.metric());
+    assertEquals(TAGV_STRING, newid.tags().get(TAGK_STRING));
+    assertEquals(TAGK_B_STRING, newid.aggregatedTags().get(0));
+    assertEquals("B", newid.disjointTags().get(0));
+    
+    // exception
+    id = BaseTimeSeriesByteId.newBuilder(schema)
+        .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
+        .setMetric(METRIC_BYTES_EX)
+        .addTags(TAGK_BYTES, TAGV_BYTES)
+        .addAggregatedTag(TAGK_B_BYTES)
+        .setAlias("alias".getBytes(Const.UTF8_CHARSET))
+        .addDisjointTag(UIDS.get("B"))
+        .build();
+    
+    try {
+      schema.resolveByteId(id, null).join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
   }
 }
