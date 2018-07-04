@@ -30,7 +30,7 @@ import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.processor.Joiner;
+import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfig;
 import net.opentsdb.utils.Deferreds;
