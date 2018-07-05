@@ -62,6 +62,13 @@
           <artifactId>zero-allocation-hashing</artifactId>
           <version>0.6</version>
         </dependency>
+        
+        <!-- used for fast primitive maps. May try others. -->
+        <dependency>
+          <groupId>net.sf.trove4j</groupId>
+          <artifactId>trove4j</artifactId>
+          <version>3.0.3</version>
+        </dependency>
 
       </dependencies>
     </dependencyManagement>
@@ -121,6 +128,11 @@
       <dependency>
         <groupId>net.openhft</groupId>
         <artifactId>zero-allocation-hashing</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>net.sf.trove4j</groupId>
+        <artifactId>trove4j</artifactId>
       </dependency>
       
       <!-- TESTING Deps. -->
