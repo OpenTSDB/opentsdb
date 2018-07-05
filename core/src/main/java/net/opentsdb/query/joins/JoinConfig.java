@@ -60,7 +60,9 @@ public class JoinConfig extends BaseQueryNodeConfig {
     /** Present in B not A. No cross product */
     RIGHT_DISJOINT,
     /** Full tag join in both. No cross product */
-    NATURAL;
+    NATURAL,
+    /** A full cross-join. */
+    CROSS,
   }
   
   /** The type of join to execute. */
@@ -69,6 +71,10 @@ public class JoinConfig extends BaseQueryNodeConfig {
   /** The possibly empty map of joins. If natural this can be empty, for 
    * all others it must be non-empty and non-null. */
   protected final Map<String, String> joins;
+  
+  /** Set to true if the series must contain values for all of the join
+   * tags and <b>only</b> those join tags. */
+  protected final boolean explicit_tags;
   
   /**
    * Default protected ctor.
@@ -81,7 +87,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
     }
     type = builder.type;
     if (builder.joins == null) {
-      if (type == JoinType.NATURAL) {
+      if (type == JoinType.NATURAL || type == JoinType.CROSS) {
         joins = Collections.emptyMap();
       } else {
         throw new IllegalArgumentException("One or more join tag pairs "
@@ -90,6 +96,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
     } else {
       joins = builder.joins;
     }
+    explicit_tags = builder.explicitTags;
   }
   
   /** @return The type of join to execute. */
@@ -102,11 +109,18 @@ public class JoinConfig extends BaseQueryNodeConfig {
     return joins;
   }
   
+  /** @return true if the series must contain values for all of the join
+   * tags and <b>only</b> those join tags. */
+  public boolean getExplicitTags() {
+    return explicit_tags;
+  }
+  
   @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
         .putString(id, Const.UTF8_CHARSET)
-        .putString(type.toString(), Const.ASCII_CHARSET);
+        .putString(type.toString(), Const.ASCII_CHARSET)
+        .putBoolean(explicit_tags);
     final Map<String, String> sorted = new TreeMap<String, String>(joins);
     for (final Entry<String, String> tags : sorted.entrySet()) {
       hasher.putString(tags.getKey(), Const.UTF8_CHARSET);
@@ -127,6 +141,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
     return ComparisonChain.start()
         .compare(id, ((JoinConfig) o).id)
         .compare(type.ordinal(), ((JoinConfig) o).type.ordinal())
+        .compare(explicit_tags, ((JoinConfig) o).explicit_tags)
         .compare(joins, ((JoinConfig) o).joins, JOIN_CMP)
         .result();
   }
@@ -143,6 +158,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
     final JoinConfig other = (JoinConfig) o;
     return Objects.equals(id, other.id) && 
            Objects.equals(type, other.type) &&
+           Objects.equals(explicit_tags, other.explicit_tags) &&
            Objects.equals(joins, other.joins);
   }
 
@@ -160,6 +176,8 @@ public class JoinConfig extends BaseQueryNodeConfig {
     private JoinType type;
     @JsonProperty
     private Map<String, String> joins;
+    @JsonProperty
+    private boolean explicitTags;
     
     public Builder setType(final JoinType type) {
       this.type = type;
@@ -171,16 +189,16 @@ public class JoinConfig extends BaseQueryNodeConfig {
       return this;
     }
     
-//    public Builder setJoins(final List<SimpleEntry<String, String>> joins) {
-//      this.joins = joins;
-//      return this;
-//    }
-    
     public Builder addJoins(final String left_tag, final String right_tag) {
       if (joins == null) {
         joins = Maps.newHashMap();
       }
       joins.put(left_tag, right_tag);
+      return this;
+    }
+    
+    public Builder setExplicitTags(final boolean explicit_tags) {
+      this.explicitTags = explicit_tags;
       return this;
     }
     
