@@ -64,6 +64,8 @@ public abstract class BaseHashedJoinSet implements
       return new LeftDisjointJoin(this);
     case RIGHT_DISJOINT:
       return new RightDisjointJoin(this);
+    case CROSS:
+      return new CrossJoin(this);
       default:
         throw new UnsupportedOperationException("Unsupported join type: " 
             + type);

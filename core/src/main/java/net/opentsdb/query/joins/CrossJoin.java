@@ -18,23 +18,19 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.utils.Pair;
 
 /**
- * Performs an inner join where both left and right must have one or more
- * entries in the list for the same hash. If either map is null or empty
- * then the join will always return false for {@link #hasNext()}.
- * <p>
- * For hashes where more than one series satisfied the algorithm, a 
- * Cartesian product is produced.
+ * Performs a full Cartesian product for all series. Be careful as this 
+ * can be huge! 
  * 
  * @since 3.0
  */
-public class InnerJoin extends BaseJoin {
+public class CrossJoin extends BaseJoin {
 
   /**
    * Default ctor.
    * @param join A non-null join set.
    * @throws IllegalArgumentException if the set was null.
    */
-  protected InnerJoin(final BaseHashedJoinSet join) {
+  protected CrossJoin(final BaseHashedJoinSet join) {
     super(join);
     left_iterator = join.left_map == null ? null : join.left_map.iterator();
     if (left_iterator != null && join.right_map != null) {
@@ -46,54 +42,59 @@ public class InnerJoin extends BaseJoin {
       next = null;
     }
   }
-  
+
   @Override
   protected void advance() {
     while (left_iterator.hasNext() || 
-          (left_series != null && left_idx < left_series.size())) {
+        (left_series != null && left_idx < left_series.size())) {
       
-      // see if there are leftovers in the right array to cross on.
+      // check the right side first
       if (left_series != null && 
           right_series != null && 
           right_idx + 1 < right_series.size()) {
         right_idx++;
         next.setKey(left_series.get(left_idx));
         next.setValue(right_series.get(right_idx));
+        
+        // move to the next right 
+        if (right_idx >= right_series.size()) {
+          nextRight();
+          if (right_series == null) {
+            // done with all the rights.
+            left_idx++;
+          }
+        }
         return;
       }
       
-      // advance if necessary.
-      if (left_series == null || left_idx + 1 >= left_series.size()) {
+      if (left_series == null || left_idx >= left_series.size()) {
         if (left_iterator.hasNext()) {
           left_iterator.advance();
           left_series = left_iterator.value();
           // check for nulls and empties. Shouldn't happen but can.
           if (left_series == null || left_series.isEmpty()) {
+            left_series = null;
             continue;
           }
-          right_series = null;
+          
+          // reset the iterator.
+          right_iterator = join.right_map.iterator();
+          nextRight();
         } else {
           left_series = null;
-          continue;
+          break;
         }
         left_idx = 0;
       }
       
-      if (right_series == null) {
-        right_series = join.right_map.get(left_iterator.key());
-        right_idx = -1;
-        if (right_series == null || right_series.isEmpty()) {
-          // no match from left to right, iterate to the next left
-          left_series = null;
-          continue;
+      if (right_series == null || right_idx + 1 >= right_series.size()) {
+        nextRight();
+        if (right_series == null && !right_iterator.hasNext()) {
+          // inc left_idx and start over
+          left_idx++;
+          right_iterator = join.right_map.iterator();
+          nextRight();
         }
-      }
-      
-      // matched a right series..
-      if (right_idx + 1 >= right_series.size()) {
-        // inc left_idx and start over
-        left_idx++;
-        right_idx = -1;
       }
       
       if (left_idx >= left_series.size()) {
@@ -102,20 +103,30 @@ public class InnerJoin extends BaseJoin {
         continue;
       }
       
-      // matched!
       right_idx++;
       next.setKey(left_series.get(left_idx));
       next.setValue(right_series.get(right_idx));
-      
-      if (left_idx + 1 >= left_series.size() && 
-          right_idx + 1 >= right_series.size()) {
-        right_series = null;
-        right_idx = -1;
-      }
       return;
     }
     
     // all done!
     next = null;
+  }
+  
+  /**
+   * Helper to iterate to the next non-null and non-empty right value.
+   */
+  private void nextRight() {
+    right_series = null;
+    while (right_iterator.hasNext()) {
+      right_iterator.advance();
+      right_series = right_iterator.value();
+      if (right_series == null || right_series.isEmpty()) {
+        right_series = null;
+        continue;
+      }
+      break;
+    }
+    right_idx = -1;
   }
 }
