@@ -15,6 +15,7 @@
 package net.opentsdb.query.joins;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -39,6 +40,7 @@ public class TestJoinConfig {
     assertEquals(2, config.getJoins().size());
     assertEquals("Hostname", config.getJoins().get("host"));
     assertEquals("owner", config.getJoins().get("owner"));
+    assertFalse(config.getExplicitTags());
     
     String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"join1\""));
@@ -46,20 +48,30 @@ public class TestJoinConfig {
     assertTrue(json.contains("\"joins\":{"));
     assertTrue(json.contains("\"host\":\"Hostname\""));
     assertTrue(json.contains("\"owner\":\"owner\""));
+    assertTrue(json.contains("\"explicitTags\":false"));
     
     config = JSON.parseToObject("{\"id\":\"join1\",\"type\":\"INNER\","
-        + "\"joins\":{\"host\":\"Hostname\",\"owner\":\"owner\"}}", 
+        + "\"joins\":{\"host\":\"Hostname\",\"owner\":\"owner\"},"
+        + "\"explicitTags\":true}", 
         JoinConfig.class);
     assertEquals(JoinType.INNER, config.getType());
     assertEquals(2, config.getJoins().size());
     assertEquals("Hostname", config.getJoins().get("host"));
     assertEquals("owner", config.getJoins().get("owner"));
+    assertTrue(config.getExplicitTags());
     
     config = (JoinConfig) JoinConfig.newBuilder()
         .setType(JoinType.NATURAL)
         .setId("join1")
         .build();
     assertEquals(JoinType.NATURAL, config.getType());
+    assertTrue(config.getJoins().isEmpty());
+    
+    config = (JoinConfig) JoinConfig.newBuilder()
+        .setType(JoinType.CROSS)
+        .setId("join1")
+        .build();
+    assertEquals(JoinType.CROSS, config.getType());
     assertTrue(config.getJoins().isEmpty());
     
     try {
@@ -89,6 +101,7 @@ public class TestJoinConfig {
         .setType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
+        .setExplicitTags(true)
         .setId("join1")
         .build();
     
@@ -96,6 +109,7 @@ public class TestJoinConfig {
         .setType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
+        .setExplicitTags(true)
         .setId("join1")
         .build();
     assertEquals(c1, c2);
@@ -106,6 +120,7 @@ public class TestJoinConfig {
         .setType(JoinType.OUTER) // <-- Diff
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
+        .setExplicitTags(true)
         .setId("join1")
         .build();
     assertNotEquals(c1, c2);
@@ -116,6 +131,7 @@ public class TestJoinConfig {
         .setType(JoinType.INNER)
         .addJoins("owner", "owner") // <-- Diff order OK!
         .addJoins("host", "Hostname")
+        .setExplicitTags(true)
         .setId("join1")
         .build();
     assertEquals(c1, c2);
@@ -126,6 +142,7 @@ public class TestJoinConfig {
         .setType(JoinType.INNER)
         .addJoins("host", "hostname") // <-- Diff
         .addJoins("owner", "owner")
+        .setExplicitTags(true)
         .setId("join1")
         .build();
     assertNotEquals(c1, c2);
@@ -136,20 +153,34 @@ public class TestJoinConfig {
         .setType(JoinType.NATURAL) // <-- Diff
         //.addJoins("host", "Hostname")
         //.addJoins("owner", "owner")
+        .setExplicitTags(true)
         .setId("join1")
         .build();
     assertNotEquals(c1, c2);
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertEquals(-1, c1.compareTo(c2));
+
+    c2 = (JoinConfig) JoinConfig.newBuilder()
+        .setType(JoinType.INNER)
+        .addJoins("host", "Hostname")
+        .addJoins("owner", "owner")
+        .setExplicitTags(false) // <-- Diff
+        .setId("join1")
+        .build();
+    assertNotEquals(c1, c2);
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertEquals(1, c1.compareTo(c2));
     
     c2 = (JoinConfig) JoinConfig.newBuilder()
         .setType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
-        .setId("jc")
+        .setExplicitTags(true)
+        .setId("jc") // <-- Diff
         .build();
     assertNotEquals(c1, c2);
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertEquals(1, c1.compareTo(c2));
+
   }
 }
