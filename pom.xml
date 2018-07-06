@@ -242,6 +242,11 @@
           <maxmem>256m</maxmem>
           <!-- aggregated reports for multi-module projects -->
           <aggregate>true</aggregate>
+          <instrumentation>
+            <excludes>
+              <exclude>net/opentsdb/expressions/parser/*</exclude>
+            </excludes>
+          </instrumentation>
         </configuration>
       </plugin>
 
