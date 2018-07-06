@@ -69,6 +69,12 @@
           <artifactId>trove4j</artifactId>
           <version>3.0.3</version>
         </dependency>
+        
+        <dependency>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4</artifactId>
+          <version>4.5</version>
+        </dependency>
 
       </dependencies>
     </dependencyManagement>
@@ -135,6 +141,11 @@
         <artifactId>trove4j</artifactId>
       </dependency>
       
+      <dependency>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4</artifactId>
+      </dependency>
+      
       <!-- TESTING Deps. -->
       
       <dependency>
@@ -197,6 +208,31 @@
             </execution>
           </executions>
         </plugin>
+        
+        <plugin>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4-maven-plugin</artifactId>
+          <version>4.5</version>
+          <configuration>
+            <arguments>
+              <argument>-package</argument>
+              <argument>net.opentsdb.expressions.parser</argument>
+              <argument>-no-listener</argument>
+              <argument>-visitor</argument>
+            </arguments>
+   
+            <outputDirectory>${project.build.directory}/generated-sources/antlr4/net/opentsdb/expressions/parser</outputDirectory>
+          </configuration>
+          <executions>
+            <execution>
+              <id>antlr</id>
+              <goals>
+                <goal>antlr4</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        
       </plugins>
     </build>
 </project>
