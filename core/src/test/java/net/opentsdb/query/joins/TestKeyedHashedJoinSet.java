@@ -25,8 +25,8 @@ import net.opentsdb.query.joins.JoinConfig.JoinType;
 
 public class TestKeyedHashedJoinSet extends BaseJoinTest {
 
-  private static final String LEFT = "left";
-  private static final String RIGHT = "right";
+  private static final byte[] LEFT = "left".getBytes();
+  private static final byte[] RIGHT = "right".getBytes();
   
   @Test
   public void ctor() throws Exception {
@@ -49,7 +49,7 @@ public class TestKeyedHashedJoinSet extends BaseJoinTest {
     } catch (IllegalArgumentException e) { }
     
     try {
-      new KeyedHashedJoinSet(JoinType.INNER, "", RIGHT);
+      new KeyedHashedJoinSet(JoinType.INNER, new byte[0], RIGHT);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -59,7 +59,7 @@ public class TestKeyedHashedJoinSet extends BaseJoinTest {
     } catch (IllegalArgumentException e) { }
     
     try {
-      new KeyedHashedJoinSet(JoinType.INNER, LEFT, "");
+      new KeyedHashedJoinSet(JoinType.INNER, LEFT, new byte[0]);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -148,7 +148,7 @@ public class TestKeyedHashedJoinSet extends BaseJoinTest {
     } catch (IllegalArgumentException e) { }
     
     try {
-      set.add("nosuchkey", 0, L_1);
+      set.add("nosuchkey".getBytes(), 0, L_1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

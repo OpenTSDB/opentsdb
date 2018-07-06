@@ -119,8 +119,8 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
           final TimeSeriesGroupId id = new SimpleStringGroupId(
               ((ExpressionProcessorConfig) config).getExpression().getId());
           
-          final Joiner joiner = new Joiner((ExpressionProcessorConfig) config);        
-          final Map<String, IteratorGroups> joins = joiner.join(iterators_to_join);
+          final Joiner joiner = null; //new Joiner((ExpressionProcessorConfig) config);        
+          final Map<String, IteratorGroups> joins = null;//joiner.join(iterators_to_join);
           
           final List<Deferred<Object>> deferreds = 
               Lists.newArrayListWithExpectedSize(joins.size());

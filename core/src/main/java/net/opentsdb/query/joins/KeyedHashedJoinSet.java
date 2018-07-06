@@ -16,12 +16,12 @@ package net.opentsdb.query.joins;
 
 import java.util.List;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.utils.Bytes;
 
 /**
  * A default implementation for the {@link BaseHashedJoinSet} that simply
@@ -36,10 +36,10 @@ import net.opentsdb.query.joins.JoinConfig.JoinType;
 public class KeyedHashedJoinSet extends BaseHashedJoinSet {
   
   /** The identifier that maps to the left map. */
-  protected final String left_key;
+  protected final byte[] left_key;
   
   /** The identifier that maps to the right map. */
-  protected final String right_key;
+  protected final byte[] right_key;
   
   /**
    * Default ctor.
@@ -51,16 +51,16 @@ public class KeyedHashedJoinSet extends BaseHashedJoinSet {
    * @throws IllegalArgumentException if any of the args were null or empty.
    */
   protected KeyedHashedJoinSet(final JoinType type, 
-                               final String left_key, 
-                               final String right_key) {
+                               final byte[] left_key, 
+                               final byte[] right_key) {
     super(type);
     if (type == null) {
       throw new IllegalArgumentException("Join type cannot be null.");
     }
-    if (Strings.isNullOrEmpty(left_key)) {
+    if (left_key == null || left_key.length < 1) {
       throw new IllegalArgumentException("Left key cannot be null.");
     }
-    if (Strings.isNullOrEmpty(right_key)) {
+    if (right_key == null || right_key.length < 1) {
       throw new IllegalArgumentException("Right key cannot be null.");
     }
     this.left_key = left_key;
@@ -74,11 +74,11 @@ public class KeyedHashedJoinSet extends BaseHashedJoinSet {
    * @param hash The hash for this time series.
    * @param ts A non-null time series.
    */
-  void add(final String key, final long hash, final TimeSeries ts) {
+  void add(final byte[] key, final long hash, final TimeSeries ts) {
     if (ts == null) {
       throw new IllegalArgumentException("Time series can't be null.");
     }
-    if (key.equals(left_key)) {
+    if (Bytes.memcmp(key, left_key) == 0) {
       if (left_map == null) {
         left_map = new TLongObjectHashMap<List<TimeSeries>>();
       }
@@ -88,7 +88,7 @@ public class KeyedHashedJoinSet extends BaseHashedJoinSet {
         left_map.put(hash, series);
       }
       series.add(ts);
-    } else if (key.equals(right_key)) {
+    } else if (Bytes.memcmp(key, right_key) == 0) {
       if (right_map == null) {
         right_map = new TLongObjectHashMap<List<TimeSeries>>();
       }
