@@ -16,15 +16,23 @@ package net.opentsdb.query.interpolation.types.numeric;
 
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
 /**
@@ -76,12 +84,73 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   @Override
+  public HashCode buildHashCode() {
+    final Hasher hasher = Const.HASH_FUNCTION().newHasher()
+        .putString(id != null ? id : "null", Const.UTF8_CHARSET)
+        .putString(type, Const.ASCII_CHARSET)
+        .putString(config_type != null ? config_type : "null", Const.ASCII_CHARSET)
+        .putInt(fillPolicy.ordinal())
+        .putInt(realFillPolicy.ordinal());
+    return hasher.hash();
+  }
+  
+  @Override
+  public int compareTo(final QueryInterpolatorConfig o) {
+    if (o == null) {
+      return 1;
+    }
+    if (o == this) {
+      return 0;
+    }
+    if (!(o instanceof NumericInterpolatorConfig)) {
+      return 1;
+    }
+    
+    return ComparisonChain.start()
+        .compare(id, ((NumericInterpolatorConfig) o).id,
+            Ordering.natural().nullsFirst())
+        .compare(type, ((NumericInterpolatorConfig) o).type)
+        .compare(config_type, ((NumericInterpolatorConfig) o).config_type,
+            Ordering.natural().nullsFirst())
+        .compare(fillPolicy, ((NumericInterpolatorConfig) o).fillPolicy)
+        .compare(realFillPolicy, ((NumericInterpolatorConfig) o).realFillPolicy)
+        .result();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof NumericInterpolatorConfig)) {
+      return false;
+    }
+    
+    final NumericInterpolatorConfig other = (NumericInterpolatorConfig) o;
+    return Objects.equals(id, other.id) &&
+           Objects.equals(type, other.type) &&
+           Objects.equals(config_type, other.config_type) && 
+           Objects.equals(fillPolicy, other.fillPolicy) &&
+           Objects.equals(realFillPolicy, other.realFillPolicy);
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+  
+  @Override
   public String toString() {
     return new StringBuilder()
-        .append("fill=")
-        .append(fillPolicy)
-        .append(", realFill=")
-        .append(realFillPolicy)
+        .append("{id=").append(id)
+        .append(", type=").append(type)
+        .append(", configType=").append(config_type)
+        .append(", fill=").append(fillPolicy)
+        .append(", realFill=").append(realFillPolicy)
+        .append("}")
         .toString();
   }
   

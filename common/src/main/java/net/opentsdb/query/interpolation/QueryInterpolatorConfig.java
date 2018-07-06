@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
+import com.google.common.hash.HashCode;
 
 /**
  * A configuration class for an iterator interpolator.
@@ -30,7 +31,8 @@ import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
   property = "configType",
   visible = true)
 @JsonTypeIdResolver(QueryInterpolatorConfigResolver.class)
-public interface QueryInterpolatorConfig {
+public interface QueryInterpolatorConfig extends 
+    Comparable<QueryInterpolatorConfig>{
 
   /** An optional string matching the name of an interpolator factory
    * registered with the TSD. If this name is null or empty then the
@@ -49,4 +51,8 @@ public interface QueryInterpolatorConfig {
   
   /** @return The non-null class of the configuration implementation. */
   public String configType();
+  
+  /** @return A non-null deterministic hash code for the object. */
+  public HashCode buildHashCode();
+  
 }
