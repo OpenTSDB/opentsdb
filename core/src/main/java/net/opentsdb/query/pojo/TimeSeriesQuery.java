@@ -252,20 +252,20 @@ public class TimeSeriesQuery extends Validatable implements Comparable<net.opent
     validateFilters();
     
     if (expressions != null) {
-      validateCollection(expressions, "expression");
-      for (final Expression exp : expressions) {
-        if (exp.getVariables() == null) {
-          throw new IllegalArgumentException("No variables found for an "
-              + "expression?! " + JSON.serializeToString(exp));
-        }
-        
-        for (final String var : exp.getVariables()) {
-          if (!variable_ids.contains(var)) {
-            throw new IllegalArgumentException("Expression [" + exp.getExpr() 
-              + "] was missing input " + var);
-          }
-        }
-      }
+//      validateCollection(expressions, "expression");
+//      for (final Expression exp : expressions) {
+//        if (exp.getVariables() == null) {
+//          throw new IllegalArgumentException("No variables found for an "
+//              + "expression?! " + JSON.serializeToString(exp));
+//        }
+//        
+//        for (final String var : exp.getVariables()) {
+//          if (!variable_ids.contains(var)) {
+//            throw new IllegalArgumentException("Expression [" + exp.getExpr() 
+//              + "] was missing input " + var);
+//          }
+//        }
+//      }
     }
   }
 

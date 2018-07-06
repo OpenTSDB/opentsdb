@@ -108,5 +108,17 @@ public class TestBaseQueryNodeConfigWithInterpolators {
       }
       
     }
+
+    @Override
+    public HashCode buildHashCode() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public int compareTo(QueryInterpolatorConfig o) {
+      // TODO Auto-generated method stub
+      return 0;
+    }
   }
 }

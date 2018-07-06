@@ -23,9 +23,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.apache.commons.jexl2.JexlEngine;
-import org.apache.commons.jexl2.Script;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -53,11 +50,6 @@ import net.opentsdb.query.pojo.Join.SetOperator;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = Expression.Builder.class)
 public class Expression extends Validatable implements Comparable<Expression> {
-  /** Docs don't say whether this is thread safe or not. SOME methods are marked
-   * as not thread safe, so I assume it's ok to instantiate one of these guys
-   * and keep creating scripts from it.
-   */
-  public final static JexlEngine JEXL_ENGINE = new JexlEngine();
   
   /** An id for this expression for use in output selection or nested expressions */
   private String id;
@@ -77,8 +69,6 @@ public class Expression extends Validatable implements Comparable<Expression> {
   /** Set of unique variables used by this expression. */
   private Set<String> variables;
   
-  /** The parsed expression via JEXL. */
-  private Script parsed_expression;
   
   /**
    * Default ctor 
@@ -165,26 +155,12 @@ public class Expression extends Validatable implements Comparable<Expression> {
     
     // parse it just to make sure we're happy and extract the variable names. 
     // Will throw JexlException
-    parsed_expression = JEXL_ENGINE.createScript(expr);
-    variables = new HashSet<String>();
-    for (final List<String> exp_list : 
-      JEXL_ENGINE.getVariables(parsed_expression)) {
-      for (final String variable : exp_list) {
-        variables.add(variable);
-      }
-    }
+    // TODO
     
     // others are optional
     if (join == null) {
       join = Join.newBuilder().setOperator(SetOperator.UNION).build();
     }
-  }
-
-  /** @return The parsed expression. May be null if {@link validate} has not 
-   * been called yet. */
-  @JsonIgnore
-  public Script getParsedExpression() {
-    return parsed_expression;
   }
   
   /** @return A set of unique variables for the expression. May be null if 

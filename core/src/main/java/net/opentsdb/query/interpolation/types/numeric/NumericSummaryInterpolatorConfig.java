@@ -14,12 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.TreeMap;
 
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.BaseNumericSummaryFillPolicy;
 import net.opentsdb.data.types.numeric.NumericAggregator;
@@ -27,8 +36,10 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.utils.Comparators.MapComparator;
 
 /**
  * A configuration for interpolating numeric summaries (e.g. rollups and
@@ -167,6 +178,101 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     return new BaseNumericSummaryFillPolicy(this);
   }
   
+  @Override
+  public HashCode buildHashCode() {
+    final Hasher hasher = Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .putString(type, Const.ASCII_CHARSET)
+        .putString(config_type, Const.ASCII_CHARSET)
+        .putInt(fill_policy.ordinal())
+        .putInt(real_fill.ordinal())
+        .putBoolean(sync);
+    if (summary_fill_policy_overrides != null && 
+        !summary_fill_policy_overrides.isEmpty()) {
+      final Map<Integer, FillPolicy> sorted_fills = 
+          new TreeMap<Integer, FillPolicy>(summary_fill_policy_overrides);
+      for (final Entry<Integer, FillPolicy> entry : sorted_fills.entrySet()) {
+        hasher.putInt(entry.getKey())
+              .putInt(entry.getValue().ordinal());
+      }
+    }
+    if (summary_real_fill_overrides != null && 
+        !summary_real_fill_overrides.isEmpty()) {
+      final Map<Integer, FillWithRealPolicy> sorted_fills = 
+          new TreeMap<Integer, FillWithRealPolicy>(summary_real_fill_overrides);
+      for (final Entry<Integer, FillWithRealPolicy> entry : sorted_fills.entrySet()) {
+        hasher.putInt(entry.getKey())
+              .putInt(entry.getValue().ordinal());
+      }
+    }
+    if (expected_summaries != null && !expected_summaries.isEmpty()) {
+      Collections.sort(expected_summaries);
+      for (final int expected : expected_summaries) {
+        hasher.putInt(expected);
+      }
+    }
+    return hasher.hash();
+  }
+  
+  @Override
+  public int compareTo(final QueryInterpolatorConfig o) {
+    if (o == null) {
+      return 1;
+    }
+    if (o == this) {
+      return 0;
+    }
+    if (!(o instanceof NumericSummaryInterpolatorConfig)) {
+      return 1;
+    }
+    
+    return ComparisonChain.start()
+        .compare(id, ((NumericSummaryInterpolatorConfig) o).id)
+        .compare(type, ((NumericSummaryInterpolatorConfig) o).type)
+        .compare(config_type, ((NumericSummaryInterpolatorConfig) o).config_type)
+        .compare(fill_policy, ((NumericSummaryInterpolatorConfig) o).fill_policy)
+        .compare(real_fill, ((NumericSummaryInterpolatorConfig) o).real_fill)
+        .compare(sync, ((NumericSummaryInterpolatorConfig) o).sync)
+        .compare(expected_summaries, ((NumericSummaryInterpolatorConfig) o).expected_summaries, 
+            Ordering.<Integer>natural().lexicographical().nullsFirst())
+        .compare(summary_fill_policy_overrides, 
+            ((NumericSummaryInterpolatorConfig) o).summary_fill_policy_overrides,
+            FILL_CMP)
+        .compare(summary_real_fill_overrides, 
+            ((NumericSummaryInterpolatorConfig) o).summary_real_fill_overrides, 
+            REAL_FILL_CMP)
+        .result();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof NumericSummaryInterpolatorConfig)) {
+      return false;
+    }
+    
+    final NumericSummaryInterpolatorConfig other = (NumericSummaryInterpolatorConfig) o;
+    return Objects.equals(id, other.id) &&
+           Objects.equals(type, other.type) &&
+           Objects.equals(config_type, other.config_type) && 
+           Objects.equals(fill_policy, other.fill_policy) &&
+           Objects.equals(real_fill, other.real_fill) && 
+           Objects.equals(sync, other.sync) && 
+           Objects.equals(expected_summaries, other.expected_summaries) &&
+           Objects.equals(summary_fill_policy_overrides, other.summary_fill_policy_overrides) &&
+           Objects.equals(summary_real_fill_overrides, other.summary_real_fill_overrides);
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+  
   /** @return A new builder. */
   public static Builder newBuilder() {
     return new Builder();
@@ -302,4 +408,9 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
       return new NumericSummaryInterpolatorConfig(this);
     }
   }
+  
+  private static final MapComparator<Integer, FillPolicy> FILL_CMP = 
+      new MapComparator<Integer, FillPolicy>();
+  private static final MapComparator<Integer, FillWithRealPolicy> REAL_FILL_CMP = 
+      new MapComparator<Integer, FillWithRealPolicy>();
 }

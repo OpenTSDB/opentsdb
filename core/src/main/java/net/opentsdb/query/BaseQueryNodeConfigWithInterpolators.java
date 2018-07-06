@@ -25,6 +25,7 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.utils.Comparators.MapComparator;
 
 /**
  * Base node config class that handles interpolation configs.
@@ -34,6 +35,10 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 public abstract class BaseQueryNodeConfigWithInterpolators 
     implements QueryNodeConfig {
 
+  /** A comparator for the interpolator map. */
+  protected static MapComparator<TypeToken<?>, QueryInterpolatorConfig> INTERPOLATOR_CMP
+     = new MapComparator<TypeToken<?>, QueryInterpolatorConfig>();
+  
   /** The ID of this config. */
   protected final String id;
   
@@ -266,4 +271,5 @@ public abstract class BaseQueryNodeConfigWithInterpolators
     /** @return A config object or an exception if the config failed. */
     public abstract QueryNodeConfig build();
   }
+  
 }

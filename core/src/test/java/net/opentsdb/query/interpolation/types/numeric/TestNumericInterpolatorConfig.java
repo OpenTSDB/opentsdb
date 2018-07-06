@@ -15,12 +15,14 @@
 package net.opentsdb.query.interpolation.types.numeric;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -119,5 +121,89 @@ public class TestNumericInterpolatorConfig {
         .build();
     fill = config.queryFill();
     assertEquals(0, fill.fill().longValue());
+  }
+
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final NumericInterpolatorConfig c1 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
+        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setId("ni")
+        .build();
+    
+    NumericInterpolatorConfig c2 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
+        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setId("ni")
+        .build();
+    assertEquals(c1.hashCode(), c2.hashCode());
+    assertEquals(c1, c2);
+    assertEquals(0, c1.compareTo(c2));
+    
+    c2 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.MAX) // <-- DIFF
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
+        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setId("ni")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS) // <-- DIFF
+        .setType(NumericType.TYPE.toString())
+        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setId("ni")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericSummaryType.TYPE.toString()) // <-- DIFF
+        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setId("ni")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
+        .setConfigType(NumericInterpolatorConfig.class.getSimpleName()) // <-- DIFF
+        .setId("ni")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
+        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setId("foo") // <-- DIFF
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
   }
 }

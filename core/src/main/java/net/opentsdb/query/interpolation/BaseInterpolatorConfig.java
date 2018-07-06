@@ -30,6 +30,7 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
   /** The non-null data type ID. */
   protected final String type;
   
+  /** The class name of the config for parsing. */
   protected final String config_type;
   
   /**
@@ -58,6 +59,7 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
     return type;
   }
   
+  /** @return The class name of the config for parsing. */
   @Override
   public String configType() {
     return config_type;
