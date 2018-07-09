@@ -93,7 +93,10 @@ public class Joiner {
    * Executes the configured join on the result set using the given keys
    * to match results on. The keys can be either the namespace + alias or
    * namespace + metric where the namespace can be null. Joins are 
-   * performed by hashing on the IDs and the join tags.
+   * performed by hashing on the IDs and the join tags. Note that if the 
+   * the "use_alias" flag is present but the alias fails to match either
+   * key, we will fall back to the metric name. This is for use with 
+   * sub-expressions.
    * @param results A non-null and non-empty list of results.
    * @param left_key A non-null and non-empty left join key.
    * @param right_key A non-null and non-empty right join key.
@@ -137,11 +140,25 @@ public class Joiner {
           final TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
           final byte[] key;
           if (use_alias) {
+            final byte[] local_key;
             if (id.namespace() == null || id.namespace().length < 1) {
-              key = id.alias();
+              local_key = id.alias();
             } else {
-              key = com.google.common.primitives.Bytes.concat(
+              local_key = com.google.common.primitives.Bytes.concat(
                   id.namespace(), id.alias());
+            }
+            
+            if (Bytes.memcmp(local_key, left_key) != 0 && 
+                Bytes.memcmp(local_key, right_key) != 0) {
+              // we didn't match on the alias so try the metric.
+              if (id.namespace() == null || id.namespace().length < 1) {
+                key = id.metric();
+              } else {
+                key = com.google.common.primitives.Bytes.concat(
+                    id.namespace(), id.metric());
+              }
+            } else {
+              key = local_key;
             }
           } else {
             if (id.namespace() == null || id.namespace().length < 1) {
@@ -151,6 +168,7 @@ public class Joiner {
                   id.namespace(), id.metric());
             }
           }
+          
           if (Bytes.memcmp(key, left_key) != 0 && 
               Bytes.memcmp(key, right_key) != 0) {
             // TODO - log ejection
@@ -162,9 +180,19 @@ public class Joiner {
           final TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
           final String key;
           if (use_alias) {
-            key = Strings.isNullOrEmpty(id.namespace()) ? 
+            final String local_key = Strings.isNullOrEmpty(id.namespace()) ? 
                 id.alias() :
                   id.namespace() + id.alias();
+            byte[] key_in_bytes = local_key.getBytes(Const.UTF8_CHARSET);
+            if (Bytes.memcmp(key_in_bytes, left_key) != 0 && 
+                Bytes.memcmp(key_in_bytes, right_key) != 0) {
+              // we didn't match on the alias so try the metric.
+              key = Strings.isNullOrEmpty(id.namespace()) ? 
+                  id.metric() :
+                    id.namespace() + id.metric();
+            } else {
+              key = local_key;
+            }
           } else {
             key = Strings.isNullOrEmpty(id.namespace()) ? 
                 id.metric() :
@@ -227,11 +255,24 @@ public class Joiner {
           final TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
           final byte[] key;
           if (use_alias) {
+            final byte[] local_key;
             if (id.namespace() == null || id.namespace().length < 1) {
-              key = id.alias();
+              local_key = id.alias();
             } else {
-              key = com.google.common.primitives.Bytes.concat(
+              local_key = com.google.common.primitives.Bytes.concat(
                   id.namespace(), id.alias());
+            }
+            
+            if (Bytes.memcmp(filter, local_key) != 0) {
+              // we didn't match on the alias so try the metric.
+              if (id.namespace() == null || id.namespace().length < 1) {
+                key = id.metric();
+              } else {
+                key = com.google.common.primitives.Bytes.concat(
+                    id.namespace(), id.metric());
+              }
+            } else {
+              key = local_key;
             }
           } else {
             if (id.namespace() == null || id.namespace().length < 1) {
@@ -270,9 +311,18 @@ public class Joiner {
           final TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
           final String key;
           if (use_alias) {
-            key = Strings.isNullOrEmpty(id.namespace()) ? 
+            final String local_key = Strings.isNullOrEmpty(id.namespace()) ? 
                 id.alias() :
                   id.namespace() + id.alias();
+            byte[] key_in_bytes = local_key.getBytes(Const.UTF8_CHARSET);
+            if (Bytes.memcmp(filter, key_in_bytes) != 0) {
+              // we didn't match on the alias so try the metric.
+              key = Strings.isNullOrEmpty(id.namespace()) ? 
+                  id.metric() :
+                    id.namespace() + id.metric();
+            } else {
+              key = local_key;
+            }
           } else {
             key = Strings.isNullOrEmpty(id.namespace()) ? 
                 id.metric() :
