@@ -1996,6 +1996,145 @@ public class TestJoiner extends BaseJoinTest {
   }
 
   @Test
+  public void joinStringAlias() throws Exception {
+    // See the various joins for details.
+    setStringIds();
+    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
+        .setType(JoinType.INNER)
+        .addJoins("host", "host")
+        .setId(ID)
+        .build();
+    
+    Joiner joiner = new Joiner(config);
+    Iterator<Pair<TimeSeries, TimeSeries>> iterator = 
+        joiner.join(singleResult(Const.TS_STRING_ID), 
+            (NAMESPACE + ALIAS_L).getBytes(Const.UTF8_CHARSET), 
+            (NAMESPACE + ALIAS_R).getBytes(Const.UTF8_CHARSET),
+            true).iterator();
+    int pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+    
+    // fallback left
+    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
+            (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
+            (NAMESPACE + ALIAS_R).getBytes(Const.UTF8_CHARSET),
+            true).iterator();
+    pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+    
+    // fallback right
+    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
+            (NAMESPACE + ALIAS_L).getBytes(Const.UTF8_CHARSET), 
+            (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
+            true).iterator();
+    pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+    
+    // fallback both
+    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
+            (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
+            (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
+            true).iterator();
+    pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+  }
+  
+  @Test
+  public void joinByteAlias() throws Exception {
+    // See the various joins for details.
+    setByteIds();
+    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
+        .setType(JoinType.INNER)
+        .addJoins("host", "host")
+        .setId(ID)
+        .build();
+    
+    Joiner joiner = new Joiner(config);
+    ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
+    encoded_joins.put(HOST, HOST);
+    joiner.setEncodedJoins(encoded_joins);
+    Iterator<Pair<TimeSeries, TimeSeries>> iterator = 
+        joiner.join(singleResult(Const.TS_BYTE_ID), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_L_BYTES), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_R_BYTES),
+            true).iterator();
+    int pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+    
+    // fallback left
+    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_L_BYTES), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_R_BYTES),
+            true).iterator();
+    pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+    
+    // fallback right
+    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_L_BYTES), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_R_BYTES),
+            true).iterator();
+    pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+    
+    // fallback left
+    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_L_BYTES), 
+            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_R_BYTES),
+            true).iterator();
+    pairs = 0;
+    while (iterator.hasNext()) {
+      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
+      assertNotNull(pair.getKey());
+      assertNotNull(pair.getValue());
+      pairs++;
+    }
+    assertEquals(9, pairs);
+  }
+  
+  @Test
   public void joinFilterString() throws Exception {
     // See the various joins for details.
     setStringIds();
