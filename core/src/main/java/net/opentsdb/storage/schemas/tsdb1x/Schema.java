@@ -282,8 +282,17 @@ public class Schema implements TimeSeriesDataStore {
   }
   
   @Override
-  public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, final Span span) {
+  public Deferred<List<byte[]>> encodeJoinKeys(
+      final List<String> join_keys, 
+      final Span span) {
     return getIds(UniqueIdType.TAGK, join_keys, span);
+  }
+  
+  @Override
+  public Deferred<List<byte[]>> encodeJoinMetrics(
+      final List<String> join_metrics,
+      final Span span) {
+    return getIds(UniqueIdType.METRIC, join_metrics, span);
   }
   
   /**

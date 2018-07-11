@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -37,7 +39,6 @@ import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
-import net.opentsdb.utils.Comparators.MapComparator;
 
 /**
  * Represents a single arithmetic and/or logical expression involving 
@@ -51,10 +52,6 @@ import net.opentsdb.utils.Comparators.MapComparator;
 @JsonDeserialize(builder = ExpressionConfig.class)
 public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   
-  /** A comparator for the variable map. */
-  private static MapComparator<String, QueryInterpolatorConfig> VARIABLE_INTERP_CMP
-    = new MapComparator<String, QueryInterpolatorConfig>();
-  
   /** The original expression string. */
   private final String expression;
   
@@ -62,7 +59,10 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   private final JoinConfig join_config;
   
   /** An optional map of variable to interpolators to override the defaults. */
-  private final Map<String, QueryInterpolatorConfig> variable_interpolators;
+  private final Map<String, List<QueryInterpolatorConfig>> variable_interpolators;
+  
+  /** Whether or not NaN is infectious. */
+  private final boolean infectious_nan;
   
   /**
    * Protected ctor.
@@ -82,6 +82,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     expression = builder.expression;
     join_config = builder.joinConfig;
     variable_interpolators = builder.variable_interpolators;
+    infectious_nan = builder.infectiousNan;
   }
   
   /** @return The raw expression string to be parsed. */
@@ -95,8 +96,42 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   /** @return A possibly null map of variable names to interpolators. */
-  public Map<String, QueryInterpolatorConfig> getVariableInterpolators() {
+  public Map<String, List<QueryInterpolatorConfig>> getVariableInterpolators() {
     return variable_interpolators;
+  }
+  
+  /** @return Whether or not nans are infectious. */
+  public boolean getInfectiousNan() {
+    return infectious_nan;
+  }
+  
+  /**
+   * Helper to pull out the proper config based on the optional variable 
+   * name.
+   * @param type The non-null data type.
+   * @param variable An optional variable name.
+   * @return An interpolator or null if none is configured for the given type.
+   */
+  public QueryInterpolatorConfig interpolatorConfig(final TypeToken<?> type, 
+                                                    final String variable) {
+    QueryInterpolatorConfig config = null;
+    if (!Strings.isNullOrEmpty(variable) && variable_interpolators != null) {
+      final List<QueryInterpolatorConfig> configs = variable_interpolators.get(variable);
+      if (configs != null) {
+        for (final QueryInterpolatorConfig cfg : configs) {
+          if (cfg.dataType().equals(type.toString())) {
+            config = cfg;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (config != null) {
+      return config;
+    }
+    
+    return interpolatorConfig(type);
   }
   
   @Override
@@ -104,13 +139,17 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     final List<HashCode> hashes = Lists.newArrayListWithExpectedSize(2);
     hashes.add(join_config.buildHashCode());
     hashes.add(Const.HASH_FUNCTION().newHasher()
+        .putBoolean(infectious_nan)
         .putString(id, Const.UTF8_CHARSET)
         .putString(expression, Const.UTF8_CHARSET).hash());
     if (variable_interpolators != null && !variable_interpolators.isEmpty()) {
-      final Map<String, QueryInterpolatorConfig> sorted = 
-          new TreeMap<String, QueryInterpolatorConfig>(variable_interpolators);
-      for (final Entry<String, QueryInterpolatorConfig> entry : sorted.entrySet()) {
-        hashes.add(entry.getValue().buildHashCode());
+      final Map<String, List<QueryInterpolatorConfig>> sorted = 
+          new TreeMap<String, List<QueryInterpolatorConfig>>(variable_interpolators);
+      for (final Entry<String, List<QueryInterpolatorConfig>> entry : sorted.entrySet()) {
+        Collections.sort(entry.getValue());
+        for (final QueryInterpolatorConfig cfg : entry.getValue()) {
+          hashes.add(cfg.buildHashCode());
+        }
       }
     }
     if (interpolator_configs != null && 
@@ -146,6 +185,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
         .compare(join_config, ((ExpressionConfig) o).join_config)
         .compare(variable_interpolators, ((ExpressionConfig) o).variable_interpolators, VARIABLE_INTERP_CMP)
         .compare(interpolator_configs, ((ExpressionConfig) o).interpolator_configs, INTERPOLATOR_CMP)
+        .compare(infectious_nan, ((ExpressionConfig) o).infectious_nan)
         .result();
   }
 
@@ -166,7 +206,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
            Objects.equals(expression, other.expression) &&
            Objects.equals(join_config, other.join_config) &&
            Objects.equals(variable_interpolators, other.variable_interpolators) &&
-           Objects.equals(interpolator_configs, other.interpolator_configs);
+           Objects.equals(interpolator_configs, other.interpolator_configs) &&
+           Objects.equals(infectious_nan, other.infectious_nan);
   }
 
   @Override
@@ -185,7 +226,9 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     @JsonProperty
     private JoinConfig joinConfig;
     @JsonProperty
-    private Map<String, QueryInterpolatorConfig> variable_interpolators;
+    private Map<String, List<QueryInterpolatorConfig>> variable_interpolators;
+    @JsonProperty
+    private boolean infectiousNan;
     
     public Builder setExpression(final String expression) {
       this.expression = expression;
@@ -198,7 +241,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
     public Builder setVariableInterpolators(
-        final Map<String, QueryInterpolatorConfig> variable_interpolators) {
+        final Map<String, List<QueryInterpolatorConfig>> variable_interpolators) {
       this.variable_interpolators = variable_interpolators;
       return this;
     }
@@ -208,7 +251,17 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
       if (variable_interpolators == null) {
         variable_interpolators = Maps.newHashMap();
       }
-      variable_interpolators.put(variable, interpolator);
+      List<QueryInterpolatorConfig> configs = variable_interpolators.get(variable);
+      if (configs == null) {
+        configs = Lists.newArrayList();
+        variable_interpolators.put(variable, configs);
+      }
+      configs.add(interpolator);
+      return this;
+    }
+    
+    public Builder setInfectiousNan(final boolean infectious_nan) {
+      this.infectiousNan = infectious_nan;
       return this;
     }
     
@@ -218,4 +271,46 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
   }
+
+  public static class InterpCmp 
+    implements Comparator<Map<String, List<QueryInterpolatorConfig>>> {
+  
+    @Override
+    public int compare(final Map<String, List<QueryInterpolatorConfig>> a, 
+        Map<String, List<QueryInterpolatorConfig>> b) {
+      if (a == b || a == null && b == null) {
+        return 0;
+      }
+      if (a == null && b != null) {
+        return -1;
+      }
+      if (b == null && a != null) {
+        return 1;
+      }
+      if (a.size() > b.size()) {
+        return -1;
+      }
+      if (b.size() > a.size()) {
+        return 1;
+      }
+      for (final Entry<String, List<QueryInterpolatorConfig>> entry : a.entrySet()) {
+        final List<QueryInterpolatorConfig> b_value = b.get(entry.getKey());
+        if (b_value == null && entry.getValue() != null) {
+          return 1;
+        }
+        if (entry.getValue().size() != b_value.size()) {
+          return entry.getValue().size() - b_value.size();
+        }
+        for (final QueryInterpolatorConfig cfg : entry.getValue()) {
+          if (!b_value.contains(cfg)) {
+            return -1;
+          }
+        }
+      }
+      return 0;
+    }
+  
+  }
+  
+  private static final InterpCmp VARIABLE_INTERP_CMP = new InterpCmp();
 }
