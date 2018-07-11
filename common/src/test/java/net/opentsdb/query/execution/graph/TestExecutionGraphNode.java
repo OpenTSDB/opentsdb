@@ -153,6 +153,56 @@ public class TestExecutionGraphNode {
   }
 
   @Test
+  public void overrideSource() throws Exception {
+    ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
+        .setId("TestNode")
+        .setType("Rate")
+        .setSources(Lists.newArrayList("node1", "node2"))
+        .setConfig(MockConfigA.newBuilder()
+            .setFoo("foo")
+            .setId("TestNode")
+            .build())
+        .build();
+    
+    assertEquals(2, node.getSources().size());
+    assertTrue(node.getSources().contains("node1"));
+    assertTrue(node.getSources().contains("node2"));
+    
+    node.overrideSource("node1", "node3");
+    assertEquals(2, node.getSources().size());
+    assertTrue(node.getSources().contains("node3"));
+    assertTrue(node.getSources().contains("node2"));
+    
+    node.overrideSource("node2", null);
+    assertEquals(1, node.getSources().size());
+    assertTrue(node.getSources().contains("node3"));
+    
+    node.overrideSource("node4", "node5");
+    assertEquals(2, node.getSources().size());
+    assertTrue(node.getSources().contains("node3"));
+    assertTrue(node.getSources().contains("node5"));
+    
+    try {
+      node.overrideSource(null, "node5");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      node.overrideSource("", "node5");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    node.overrideSource("node3", null);
+    node.overrideSource("node5", null);
+    
+    // now it's empty
+    try {
+      node.overrideSource("node5", "node6");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final ExecutionGraphNode n1 = ExecutionGraphNode.newBuilder()
         .setId("TestNode")

@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -163,6 +164,21 @@ public class ExpressionParser extends DefaultErrorStrategy
     
     public double doubleValue() {
       return Double.longBitsToDouble(number);
+    }
+  
+    @Override
+    public boolean equals(final Object o) {
+      if (o == null) {
+        return false;
+      }
+      if (o == this) {
+        return true;
+      }
+      if (!(o instanceof NumericLiteral)) {
+        return false;
+      }
+      return Objects.equals(is_integer, ((NumericLiteral) o).is_integer) &&
+             Objects.equals(number, ((NumericLiteral) o).number);
     }
   }
   

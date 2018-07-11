@@ -171,6 +171,28 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
         .toString();
   }
   
+  /**
+   * Overrides an extant source removing the old and optionally adding a
+   * new one. Note that if the old node did not exist, we just add the
+   * new node.
+   * @param old The non-null old source to remove.
+   * @param new_source A new source. If null or empty, nothing is added.
+   * @throws IllegalArgumentException if the old source was null or empty
+   * or the sources list is null or empty. 
+   */
+  public void overrideSource(final String old, final String new_source) {
+    if (Strings.isNullOrEmpty(old)) {
+      throw new IllegalArgumentException("Old source cannot be null.");
+    }
+    if (sources == null || sources.isEmpty()) {
+      throw new IllegalArgumentException("Source list was null or empty.");
+    }
+    sources.remove(old);
+    if (!Strings.isNullOrEmpty(new_source)) {
+      sources.add(new_source);
+    }
+  }
+  
   /** @return A new node builder. */
   public static Builder newBuilder() {
     return new Builder();
