@@ -104,13 +104,29 @@ public interface TimeSeriesDataStore {
                                                     final Span span);
 
   /**
-   * TODO - doc
-   * @param join_keys
-   * @param span
-   * @return
+   * Converts the tag keys to byte arrays for stores that perform UID
+   * encoding of strings.
+   * @param join_keys A non-null and non-empty list of tag keys.
+   * @param span An optional tracing span.
+   * @return A non-null deferred resolving to a non-null list of results
+   * of the same length and order as the given list. May resolve to an
+   * exception.
    */
   public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, 
                                                final Span span);
+  
+  /**
+   * Converts the given metric names to byte arrays for stores that perform
+   * UID encoding of strings.
+   * @param join_metrics A non-null and non-emtpy list of of metrics.
+   * @param spanAn optional tracing span.
+   * @return A non-null deferred resolving to a non-null list of results
+   * of the same length and order as the given list. May resolve to an
+   * exception.
+   */
+  public Deferred<List<byte[]>> encodeJoinMetrics(
+      final List<String> join_metrics, 
+      final Span span);
   
   /**
    * Releases resources held by the store. 

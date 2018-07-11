@@ -729,5 +729,12 @@ public class MockDataStore implements TimeSeriesDataStore {
     return Deferred.fromError(new UnsupportedOperationException());
   }
 
+  @Override
+  public Deferred<List<byte[]>> encodeJoinMetrics(List<String> join_metrics,
+      Span span) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
   
 }
