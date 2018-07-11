@@ -1,0 +1,103 @@
+//This file is part of OpenTSDB.
+//Copyright (C) 2018  The OpenTSDB Authors.
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//http://www.apache.org/licenses/LICENSE-2.0
+//
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+package net.opentsdb.query.processor.expressions;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
+
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.joins.Joiner;
+
+public class TestExpressionTimeSeries {
+
+  private BinaryExpressionNode node;
+  private QueryResult result;
+  private Joiner joiner;
+  private TimeSeries left;
+  private TimeSeries right;
+  private TimeSeriesId left_id;
+  private TimeSeriesId right_id;
+  private TimeSeriesId joined_id;
+  
+  @Before
+  public void before() throws Exception {
+    node = mock(BinaryExpressionNode.class);
+    result = mock(QueryResult.class);
+    joiner = mock(Joiner.class);
+    left = mock(TimeSeries.class);
+    right = mock(TimeSeries.class);
+    
+    when(node.id()).thenReturn("e1");
+    when(node.joiner()).thenReturn(joiner);
+    
+    left_id = BaseTimeSeriesStringId.newBuilder()
+        .setMetric("sys.cpu.user")
+        .addTags("host", "web01")
+        .build();
+    right_id = BaseTimeSeriesStringId.newBuilder()
+        .setMetric("sys.cpu.system")
+        .addTags("host", "web01")
+        .build();
+    joined_id = BaseTimeSeriesStringId.newBuilder()
+        .setMetric("e1")
+        .addTags("host", "web01")
+        .build();
+    when(left.id()).thenReturn(left_id);
+    when(right.id()).thenReturn(right_id);
+    when(joiner.joinIds(any(TimeSeries.class), any(TimeSeries.class), 
+        anyString())).thenReturn(joined_id);
+    
+    when(left.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
+    when(right.types()).thenReturn(Lists.newArrayList(
+        NumericType.TYPE, NumericSummaryType.TYPE));
+  }
+  
+  @Test
+  public void ctor() {
+    ExpressionTimeSeries series = new ExpressionTimeSeries(
+        node, result, left, right);
+    assertSame(joined_id, series.id());
+    assertEquals(2, series.types().size());
+    assertTrue(series.types().contains(NumericType.TYPE));
+    assertTrue(series.types().contains(NumericSummaryType.TYPE));
+    
+    series = new ExpressionTimeSeries(node, result, left, null);
+    assertSame(joined_id, series.id());
+    assertEquals(1, series.types().size());
+    assertTrue(series.types().contains(NumericType.TYPE));
+    
+    try {
+      new ExpressionTimeSeries(node, result, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+}
