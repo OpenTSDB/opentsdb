@@ -70,9 +70,6 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
    */
   protected QuerySourceConfig(final Builder builder) {
     super(builder);
-    if (builder.query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
-    }
     if (Strings.isNullOrEmpty(builder.start)) {
       throw new IllegalArgumentException("Start time cannot be null "
           + "or empty.");

@@ -123,7 +123,8 @@ public class Joiner {
     }
     
     if (results.get(0).idType() == Const.TS_BYTE_ID && 
-        encoded_joins == null) {
+        encoded_joins == null &&
+        config.getType() != JoinType.NATURAL) {
       throw new IllegalStateException("Received a result with encoded "
           + "IDs but the local encoded tags map was null.");
     }
@@ -240,7 +241,8 @@ public class Joiner {
     }
     
     if (results.get(0).idType() == Const.TS_BYTE_ID && 
-        encoded_joins == null) {
+        encoded_joins == null &&
+        config.getType() != JoinType.NATURAL) {
       throw new IllegalStateException("Received a result with encoded "
           + "IDs but the local encoded tags map was null.");
     }
@@ -285,18 +287,20 @@ public class Joiner {
           
           if (Bytes.memcmp(filter, key) == 0) {
             boolean satisfied_joins = true;
-            for (final Entry<byte[], byte[]> tags : encoded_joins) {
-              if (left) {
-                if (!id.tags().containsKey(tags.getKey())) {
-                  satisfied_joins = false;
-                  break;
-                  // TODO - log ejection
-                }
-              } else {
-                if (!id.tags().containsKey(tags.getValue())) {
-                  satisfied_joins = false;
-                  break;
-                  // TODO - log ejection
+            if (encoded_joins != null) {
+              for (final Entry<byte[], byte[]> tags : encoded_joins) {
+                if (left) {
+                  if (!id.tags().containsKey(tags.getKey())) {
+                    satisfied_joins = false;
+                    break;
+                    // TODO - log ejection
+                  }
+                } else {
+                  if (!id.tags().containsKey(tags.getValue())) {
+                    satisfied_joins = false;
+                    break;
+                    // TODO - log ejection
+                  }
                 }
               }
             }

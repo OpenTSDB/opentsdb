@@ -40,16 +40,6 @@ public class TestQuerySourceConfig {
     
     try {
       QuerySourceConfig.newBuilder()
-        //.setQuery(query)
-        .setStart("1h-ago")
-        .setMetric("system.cpu.user")
-        .setId("UT")
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      QuerySourceConfig.newBuilder()
         .setQuery(query)
         //.setStart("1h-ago")
         .setMetric("system.cpu.user")
