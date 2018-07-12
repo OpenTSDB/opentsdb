@@ -96,14 +96,17 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   /** ID shadow needed to allow for overrides. */
   private String id;
   
+  /** The output metric name. Defaults to the ID. */
+  private String as;
+  
   /** The left operand. */
-  private final Object left;
+  private Object left;
   
   /** The type of the left operand. */
   private final OperandType left_type;
   
   /** The right operand. */
-  private final Object right;
+  private Object right;
   
   /** The type of the right operand. */
   private final OperandType right_type;
@@ -131,6 +134,12 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     op = builder.op;
     negate = builder.negate;
     not = builder.not;
+    as = id;
+  }
+  
+  /** @return The name to use for the metric. Defaults to the ID. */
+  public String as() {
+    return as;
   }
   
   /** @return The left operand. */
@@ -176,6 +185,16 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   /** @return Whether or not to "not" the output. */
   public boolean not() {
     return not;
+  }
+  
+  /** @param id The new id to set. */
+  public void setLeft(final String id) {
+    left = id;
+  }
+  
+  /** @param id The new id to set. */
+  public void setRight(final String id) {
+    right = id;
   }
   
   @Override
@@ -235,6 +254,14 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
    */
   void overrideId(final String id) {
     this.id = id;
+  }
+  
+  /**
+   * Package private method to override the as string.
+   * @param as The non-null as string to set for the new metric.
+   */
+  void overrideAs(final String as) {
+    this.as = as;
   }
   
   static Builder newBuilder() {

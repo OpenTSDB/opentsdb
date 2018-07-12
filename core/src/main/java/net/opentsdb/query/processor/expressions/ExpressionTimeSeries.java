@@ -32,7 +32,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.BaseMultiQueryNodeFactory;
-import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
  * A container class for computing a binary operation on one or two 
@@ -92,7 +91,8 @@ public class ExpressionTimeSeries implements TimeSeries {
     if (right != null) {
       types.addAll(right.types());
     }
-    id = node.joiner().joinIds(left, right, node.id());
+    id = node.joiner().joinIds(left, right, 
+        ((ExpressionConfig) node.config()).getAs());
   }
   
   @Override

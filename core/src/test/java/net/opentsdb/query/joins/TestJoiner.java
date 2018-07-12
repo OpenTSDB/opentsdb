@@ -1304,7 +1304,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesStringId) joiner.joinIds(L_1, null, ALIAS2);
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
-    assertEquals(METRIC_L, id.metric());
+    assertEquals(ALIAS2, id.metric());
     assertEquals(1, id.tags().size());
     assertEquals("web01", id.tags().get("host"));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1314,7 +1314,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesStringId) joiner.joinIds(null, R_1, ALIAS2);
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
-    assertEquals(METRIC_R, id.metric());
+    assertEquals(ALIAS2, id.metric());
     assertEquals(1, id.tags().size());
     assertEquals("web01", id.tags().get("host"));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1348,7 +1348,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesStringId) joiner.joinIds(L_1, ts, ALIAS2);
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
-    assertEquals(METRIC_L, id.metric());
+    assertEquals(ALIAS2, id.metric());
     assertEquals(0, id.tags().size());
     assertEquals(1, id.aggregatedTags().size());
     assertTrue(id.aggregatedTags().contains("host"));
@@ -1397,7 +1397,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesStringId) joiner.joinIds(L_1, R_1, ALIAS2);
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
-    assertEquals(METRIC_L, id.metric());
+    assertEquals(ALIAS2, id.metric());
     assertEquals(1, id.tags().size());
     assertEquals("web01", id.tags().get("host"));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1414,7 +1414,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesStringId) joiner.joinIds(L_1, R_1, ALIAS2);
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
-    assertEquals(METRIC_R, id.metric());
+    assertEquals(ALIAS2, id.metric());
     assertEquals(1, id.tags().size());
     assertEquals("web01", id.tags().get("host"));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1446,7 +1446,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesByteId) joiner.joinIds(L_1, null, ALIAS2);
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
-    assertArrayEquals(METRIC_L_BYTES, id.metric());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
     assertEquals(1, id.tags().size());
     assertArrayEquals(WEB01, id.tags().get(HOST));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1456,7 +1456,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesByteId) joiner.joinIds(null, R_1, ALIAS2);
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
-    assertArrayEquals(METRIC_R_BYTES, id.metric());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
     assertEquals(1, id.tags().size());
     assertArrayEquals(WEB01, id.tags().get(HOST));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1490,7 +1490,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesByteId) joiner.joinIds(L_1, ts, ALIAS2);
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
-    assertArrayEquals(METRIC_L_BYTES, id.metric());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
     assertEquals(0, id.tags().size());
     assertEquals(1, id.aggregatedTags().size());
     assertTrue(id.aggregatedTags().contains(HOST));
@@ -1539,7 +1539,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesByteId) joiner.joinIds(L_1, R_1, ALIAS2);
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
-    assertArrayEquals(METRIC_L_BYTES, id.metric());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
     assertEquals(1, id.tags().size());
     assertArrayEquals(WEB01, id.tags().get(HOST));
     assertTrue(id.aggregatedTags().isEmpty());
@@ -1556,7 +1556,7 @@ public class TestJoiner extends BaseJoinTest {
     id = (TimeSeriesByteId) joiner.joinIds(L_1, R_1, ALIAS2);
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
-    assertArrayEquals(METRIC_R_BYTES, id.metric());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
     assertEquals(1, id.tags().size());
     assertArrayEquals(WEB01, id.tags().get(HOST));
     assertTrue(id.aggregatedTags().isEmpty());

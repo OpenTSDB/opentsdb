@@ -162,12 +162,13 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
   @Override
   public String toString() {
     return new StringBuilder()
-        .append("id=")
+        .append("{id=")
         .append(id)
         .append(", sources=")
         .append(sources)
         .append(", type=")
         .append(type)
+        .append("}")
         .toString();
   }
   

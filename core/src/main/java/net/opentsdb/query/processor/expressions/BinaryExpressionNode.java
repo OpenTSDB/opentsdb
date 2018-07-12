@@ -70,7 +70,16 @@ public class BinaryExpressionNode extends AbstractQueryNode {
   /** Used to filtering when we're working on encoded IDs. */
   protected byte[] left_metric;
   protected byte[] right_metric;
+  protected boolean resolved_metrics;
   
+  /**
+   * Default ctor.
+   * @param factory The factory we came from.
+   * @param context The non-null context.
+   * @param id The ID of this node.
+   * @param config The non-null overall expression config.
+   * @param expression_config The non-null sub-expression config.
+   */
   public BinaryExpressionNode(final QueryNodeFactory factory,
                               final QueryPipelineContext context, 
                               final String id, 
@@ -127,10 +136,12 @@ public class BinaryExpressionNode extends AbstractQueryNode {
       }
     }
     
+    // Try to resolve the variable names as metrics. This should return
+    // and empty
     if (next.idType() == Const.TS_BYTE_ID &&
         (expression_config.leftType() == OperandType.VARIABLE || 
          expression_config.rightType() == OperandType.VARIABLE) && 
-        (left_metric == null && right_metric == null)) {
+        !resolved_metrics) {
       final List<String> metrics = Lists.newArrayListWithExpectedSize(2);
       if (expression_config.leftType() == OperandType.VARIABLE) {
         metrics.add((String) expression_config.left());
@@ -155,6 +166,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
           if (expression_config.rightType() == OperandType.VARIABLE) {
             right_metric = uids.get(idx);
           }
+          resolved_metrics = true;
           // fall through to the next step
           onNext(next);
           return null;

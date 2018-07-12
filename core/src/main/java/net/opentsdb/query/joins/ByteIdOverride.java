@@ -30,7 +30,7 @@ import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * A simple wrapper for single-sided joins that wraps the source 
- * ID with the proper alias.
+ * ID with the proper alias for use as the alias and metric.
  * 
  * @since 3.0
  */
@@ -85,7 +85,7 @@ public class ByteIdOverride implements TimeSeriesByteId {
 
   @Override
   public byte[] metric() {
-    return id.metric();
+    return alias.getBytes(Const.UTF8_CHARSET);
   }
 
   @Override
@@ -115,7 +115,7 @@ public class ByteIdOverride implements TimeSeriesByteId {
 
   @Override
   public boolean skipMetric() {
-    return id.skipMetric();
+    return true;
   }
   
 }
