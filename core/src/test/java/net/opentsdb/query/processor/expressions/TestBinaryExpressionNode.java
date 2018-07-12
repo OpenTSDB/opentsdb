@@ -379,7 +379,7 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
     assertNull(node.left_metric);
-    assertNull(node.right_metric);
+    assertArrayEquals("sub".getBytes(Const.UTF8_CHARSET), node.right_metric);
     assertNull(node.joiner.encodedJoins());
     
     // callback.
@@ -543,15 +543,15 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
-    assertArrayEquals(new byte[] { 0, 0, 1 }, node.left_metric);
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), node.right_metric);
+    assertNull(node.left_metric);
+    assertArrayEquals(new byte[] { 0, 0, 1 }, node.right_metric);
     assertNull(node.joiner.encodedJoins());
     
     // callback tags now
     tags.callback(Lists.newArrayList(new byte[] { 0, 0, 3 }, new byte[] { 0, 0, 3 }));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
-    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
@@ -614,21 +614,21 @@ public class TestBinaryExpressionNode {
     assertNull(node.joiner.encodedJoins());
     
     // callback.
-    metrics.callback(Lists.newArrayList(null, new byte[] { 0, 0, 2 }));
+    metrics.callback(Lists.newArrayList(new byte[] { 0, 0, 2 }));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), node.left_metric);
-    assertArrayEquals(new byte[] { 0, 0, 2 }, node.right_metric);
+    assertArrayEquals(new byte[] { 0, 0, 2 }, node.left_metric);
+    assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
     
     // callback tags now
     tags.callback(Lists.newArrayList(new byte[] { 0, 0, 3 }, new byte[] { 0, 0, 3 }));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
-    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());

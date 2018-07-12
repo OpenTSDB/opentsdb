@@ -134,29 +134,26 @@ public class BinaryExpressionNode extends AbstractQueryNode {
       final List<String> metrics = Lists.newArrayListWithExpectedSize(2);
       if (expression_config.leftType() == OperandType.VARIABLE) {
         metrics.add((String) expression_config.left());
-      } else {
-        metrics.add(null);
+      } else if (expression_config.leftType() == OperandType.SUB_EXP){
+        left_metric = ((String) expression_config.left()).getBytes(Const.UTF8_CHARSET);
       }
+      
       if (expression_config.rightType() == OperandType.VARIABLE) {
         metrics.add((String) expression_config.right());
-      } else {
-        metrics.add(null);
+      } else if (expression_config.rightType() == OperandType.SUB_EXP) {
+        right_metric = ((String) expression_config.right()).getBytes(Const.UTF8_CHARSET);
       }
       
       class ResolveCB implements Callback<Object, List<byte[]>> {
         @Override
         public Object call(final List<byte[]> uids) throws Exception {
-          if (uids.get(0) == null) {
-            // COULD be an alias.
-            left_metric = ((String) expression_config.left()).getBytes(Const.UTF8_CHARSET);
-          } else {
-            left_metric = uids.get(0);
+          int idx = 0;
+          if (expression_config.leftType() == OperandType.VARIABLE) {
+            left_metric = uids.get(idx++);
           }
-          if (uids.get(1) == null) {
-            // COULD be an alias.
-            right_metric = ((String) expression_config.right()).getBytes(Const.UTF8_CHARSET);
-          } else {
-            right_metric = uids.get(1);
+          
+          if (expression_config.rightType() == OperandType.VARIABLE) {
+            right_metric = uids.get(idx);
           }
           // fall through to the next step
           onNext(next);
@@ -225,7 +222,6 @@ public class BinaryExpressionNode extends AbstractQueryNode {
       result.join();
       try {
         sendUpstream(result);
-        completeUpstream(0, 0); // TODO - fix me
       } catch (Exception e) {
         sendUpstream(e);
       }
@@ -235,7 +231,6 @@ public class BinaryExpressionNode extends AbstractQueryNode {
         result.join();
         try {
           sendUpstream(result);
-          completeUpstream(0, 0); // TODO - fix me
         } catch (Exception e) {
           sendUpstream(e);
         }

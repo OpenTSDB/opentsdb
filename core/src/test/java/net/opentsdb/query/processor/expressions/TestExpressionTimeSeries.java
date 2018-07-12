@@ -15,22 +15,30 @@
 package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Iterator;
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
 
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
@@ -46,6 +54,7 @@ public class TestExpressionTimeSeries {
   private TimeSeriesId left_id;
   private TimeSeriesId right_id;
   private TimeSeriesId joined_id;
+  private ExpressionFactory factory;
   
   @Before
   public void before() throws Exception {
@@ -54,9 +63,11 @@ public class TestExpressionTimeSeries {
     joiner = mock(Joiner.class);
     left = mock(TimeSeries.class);
     right = mock(TimeSeries.class);
+    factory = mock(ExpressionFactory.class);
     
     when(node.id()).thenReturn("e1");
     when(node.joiner()).thenReturn(joiner);
+    when(node.factory()).thenReturn(factory);
     
     left_id = BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
@@ -78,6 +89,14 @@ public class TestExpressionTimeSeries {
     when(left.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
     when(right.types()).thenReturn(Lists.newArrayList(
         NumericType.TYPE, NumericSummaryType.TYPE));
+    
+    when(factory.newIterator(eq(NumericType.TYPE), eq(node), eq(result), any(Map.class)))
+      .thenAnswer(new Answer<Iterator>() {
+        @Override
+        public Iterator answer(InvocationOnMock invocation) throws Throwable {
+          return mock(Iterator.class);
+        }
+      });
   }
   
   @Test
@@ -100,4 +119,32 @@ public class TestExpressionTimeSeries {
     } catch (IllegalArgumentException e) { }
   }
   
+  @Test
+  public void iterator() throws Exception {
+    ExpressionTimeSeries series = new ExpressionTimeSeries(
+        node, result, left, right);
+    assertTrue(series.iterator(NumericType.TYPE).isPresent());
+    assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
+    
+    series = new ExpressionTimeSeries(node, result, null, right);
+    assertTrue(series.iterator(NumericType.TYPE).isPresent());
+    assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
+    
+    series = new ExpressionTimeSeries(node, result, left, null);
+    assertTrue(series.iterator(NumericType.TYPE).isPresent());
+    assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
+  }
+  
+  @Test
+  public void iterators() throws Exception {
+    ExpressionTimeSeries series = new ExpressionTimeSeries(
+        node, result, left, right);
+    assertEquals(2, series.iterators().size());
+    
+    series = new ExpressionTimeSeries(node, result, null, right);
+    assertEquals(2, series.iterators().size());
+    
+    series = new ExpressionTimeSeries(node, result, left, null);
+    assertEquals(1, series.iterators().size());
+  }
 }

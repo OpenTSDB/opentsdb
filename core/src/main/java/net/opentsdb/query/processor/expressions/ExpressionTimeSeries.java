@@ -31,6 +31,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.BaseMultiQueryNodeFactory;
 import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
@@ -105,12 +106,18 @@ public class ExpressionTimeSeries implements TimeSeries {
     if (!types.contains(type)) {
       return Optional.empty();
     }
+    final ImmutableMap.Builder<String, TimeSeries> builder = 
+        ImmutableMap.<String, TimeSeries>builder();
+    if (left != null) {
+      builder.put(LEFT_KEY, left);
+    }
+    if (right != null) {
+      builder.put(RIGHT_KEY, right);
+    }
+    
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        ((ProcessorFactory) node.factory()).newIterator(type, node, result, 
-            (Map<String, TimeSeries>) ImmutableMap.<String, TimeSeries>builder()
-              .put(LEFT_KEY, left)
-              .put(RIGHT_KEY, right)
-              .build());
+        ((BaseMultiQueryNodeFactory) node.factory()).newIterator(type, node, result, 
+            (Map<String, TimeSeries>) builder.build());
     if (iterator == null) {
       return Optional.empty();  
     }
@@ -119,15 +126,19 @@ public class ExpressionTimeSeries implements TimeSeries {
 
   @Override
   public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final Map<String, TimeSeries> sources = 
-        (Map<String, TimeSeries>) ImmutableMap.<String, TimeSeries>builder()
-          .put(LEFT_KEY, left)
-          .put(RIGHT_KEY, right)
-          .build();
+    final ImmutableMap.Builder<String, TimeSeries> builder = 
+        ImmutableMap.<String, TimeSeries>builder();
+    if (left != null) {
+      builder.put(LEFT_KEY, left);
+    }
+    if (right != null) {
+      builder.put(RIGHT_KEY, right);
+    }
+    final Map<String, TimeSeries> sources = (Map<String, TimeSeries>) builder.build();
     final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
         Lists.newArrayListWithExpectedSize(types.size());
     for (final TypeToken<?> type : types) {
-      iterators.add(((ProcessorFactory) node.factory()).newIterator(
+      iterators.add(((BaseMultiQueryNodeFactory) node.factory()).newIterator(
           type, node, result, sources));
     }
     return iterators;
