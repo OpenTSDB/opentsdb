@@ -49,7 +49,7 @@ import net.opentsdb.query.joins.JoinConfig;
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
-@JsonDeserialize(builder = ExpressionConfig.class)
+@JsonDeserialize(builder = ExpressionConfig.Builder.class)
 public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   
   /** The original expression string. */
