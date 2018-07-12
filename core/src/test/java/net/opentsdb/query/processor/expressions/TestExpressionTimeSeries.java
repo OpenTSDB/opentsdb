@@ -42,11 +42,17 @@ import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.Joiner;
+import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestExpressionTimeSeries {
 
   private BinaryExpressionNode node;
+  private ExpressionConfig config;
   private QueryResult result;
   private Joiner joiner;
   private TimeSeries left;
@@ -97,6 +103,28 @@ public class TestExpressionTimeSeries {
           return mock(Iterator.class);
         }
       });
+    
+    JoinConfig jc = (JoinConfig) JoinConfig.newBuilder()
+        .setType(JoinType.INNER)
+        .addJoins("host", "host")
+        .setId("join")
+        .build();
+    
+    NumericInterpolatorConfig numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+      .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setRealFillPolicy(FillWithRealPolicy.NONE)
+      .setType(NumericType.TYPE.toString())
+      .build();
+    
+    config = (ExpressionConfig) ExpressionConfig.newBuilder()
+        .setExpression("metric.a + metric.b")
+        .setJoinConfig(jc)
+        .setAs("e1")
+        .addInterpolatorConfig(numeric_config)
+        .setId("e1")
+        .build();
+    when(node.config()).thenReturn(config);
   }
   
   @Test

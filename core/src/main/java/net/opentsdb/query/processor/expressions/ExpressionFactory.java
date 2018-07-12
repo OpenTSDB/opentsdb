@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
@@ -31,6 +32,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.processor.BaseMultiQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
@@ -64,29 +66,64 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
                                         final List<ExecutionGraphNode> nodes) {
     
     final ExpressionConfig c = (ExpressionConfig) config;
-    final ExpressionParser parser = 
-        new ExpressionParser(c.getExpression(), id);
+    final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
     final List<QueryNode> query_nodes = 
         Lists.newArrayListWithExpectedSize(configs.size());
     
+    // find me!
+    ExecutionGraphNode exp = null;
+    for (final ExecutionGraphNode graph_node : nodes) {
+      if (graph_node.getId().equals(config.getId())) {
+        exp = graph_node;
+        break;
+      }
+    }
+    if (exp == null) {
+      throw new RuntimeException("WTF? We weren't in the graph: " + config.getId());
+    }
+    
     for (final ExpressionParseNode parse_node : configs) {
       final BinaryExpressionNode node =
           new BinaryExpressionNode(this, context, parse_node.getId(), 
-          (ExpressionConfig) config, parse_node);
+              (ExpressionConfig) config, parse_node);
       query_nodes.add(node);
       
       final ExecutionGraphNode.Builder builder = ExecutionGraphNode
           .newBuilder()
             .setConfig(parse_node)
-            .setId(parse_node.getId());
-      if (parse_node.leftType() == OperandType.SUB_EXP || 
-          parse_node.leftType() == OperandType.VARIABLE) {
+            .setId(parse_node.getId())
+            .setType("Expression");
+      if (parse_node.leftType() == OperandType.SUB_EXP) {
         builder.addSource((String) parse_node.left());
       }
-      if (parse_node.rightType() == OperandType.SUB_EXP || 
-          parse_node.rightType() == OperandType.VARIABLE) {
+      if (parse_node.rightType() == OperandType.SUB_EXP) {
         builder.addSource((String) parse_node.right());
+      }
+      
+      // we may need to fix up variable names. Do so by searching 
+      // recursively.
+      String last_source = null;
+      if ((parse_node.leftType() == OperandType.VARIABLE)) {
+        String ds = validate2(parse_node, true, nodes, exp, 0);
+        if (ds != null) {
+          builder.addSource(ds);
+          last_source = ds;
+        } else {
+          throw new RuntimeException("WTF? No node for left?");
+        }
+      }
+      
+      if ((parse_node.rightType() == OperandType.VARIABLE)) {
+        String ds = validate2(parse_node, false, nodes, exp, 0);
+        if (ds != null) {
+          // dedupe
+          if (last_source == null || !last_source.equals(ds)) {
+            builder.addSource(ds);
+          }
+        } else {
+          throw new RuntimeException("WTF? No node for right?");
+        }
       }
       
       nodes.add(builder.build());
@@ -97,6 +134,63 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
   @Override
   public Class<? extends QueryNodeConfig> nodeConfigClass() {
     return ExpressionConfig.class;
+  }
+
+  static String validate2(ExpressionParseNode node, boolean left, final List<ExecutionGraphNode> nodes, ExecutionGraphNode downstream, int depth) {
+    final String key = left ? (String) node.left() : (String) node.right();
+    if (depth > 0 && 
+        !Strings.isNullOrEmpty(downstream.getType()) && 
+        downstream.getType().toLowerCase().equals("expression")) {
+      if (left && key.equals(downstream.getId())) {
+        if (downstream.getConfig() instanceof ExpressionConfig) {
+          node.setLeft(((ExpressionConfig) downstream.getConfig()).getAs());
+        } else {
+          node.setLeft(((ExpressionParseNode) downstream.getConfig()).as());
+        }
+        return downstream.getId();
+      } else if (key.equals(downstream.getId())) {
+        if (downstream.getConfig() instanceof ExpressionConfig) {
+          node.setRight(((ExpressionConfig) downstream.getConfig()).getAs());
+        } else {
+          node.setRight(((ExpressionParseNode) downstream.getConfig()).as());
+        }
+        return downstream.getId();
+      }
+    } else if ((!Strings.isNullOrEmpty(downstream.getType()) && 
+        downstream.getType().toLowerCase().equals("datasource"))) {
+      if (left && key.equals(downstream.getId())) {
+        node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric());
+        return downstream.getId();
+      } else if (left && 
+          key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric())) {
+        return downstream.getId();
+        // right
+      } else if (key.equals(downstream.getId())) {
+        node.setRight(((QuerySourceConfig) downstream.getConfig()).getMetric());
+        return downstream.getId();
+      } else if (key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric())) {
+        return downstream.getId();
+      }
+    }
+    
+    if (downstream.getSources() != null) {
+      // TODO - EWWWWW!!!!! We should have a graph or map to navigate!
+      for (final String source : downstream.getSources()) {
+        for (final ExecutionGraphNode graph_node : nodes) {
+          if (graph_node.getId().equals(source)) {
+            final String ds = validate2(node, left, nodes, graph_node, depth + 1);
+            if (ds != null) {
+              if (depth == 0) {
+                return ds;
+              }
+              return downstream.getId();
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
   }
   
   /**

@@ -50,10 +50,33 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("some.metric.name")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
     assertEquals("e1", config.getId());
+    assertEquals("some.metric.name", config.getAs());
+    assertEquals("a + b", config.getExpression());
+    assertEquals(JoinType.INNER, config.getJoinConfig().getType());
+    assertEquals("host", config.getJoinConfig().getJoins().get("host"));
+    assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
+    assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
+    
+    config = (ExpressionConfig) 
+        ExpressionConfig.newBuilder()
+          .setExpression("a + b")
+          .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+              .addJoins("host", "host")
+              .setType(JoinType.INNER)
+              .setId("jc")
+              .build())
+          //.setAs("some.metric.name") // defaults
+          .addVariableInterpolator("a", numeric_config)
+          .addInterpolatorConfig(numeric_config)
+          .setId("e1")
+          .build();
+    assertEquals("e1", config.getId());
+    assertEquals("e1", config.getAs());
     assertEquals("a + b", config.getExpression());
     assertEquals(JoinType.INNER, config.getJoinConfig().getType());
     assertEquals("host", config.getJoinConfig().getJoins().get("host"));
@@ -68,6 +91,7 @@ public class TestExpressionConfig {
               .setType(JoinType.INNER)
               .setId("jc")
               .build())
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -82,6 +106,7 @@ public class TestExpressionConfig {
               .setType(JoinType.INNER)
               .setId("jc")
               .build())
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -96,6 +121,7 @@ public class TestExpressionConfig {
           //    .setType(JoinType.INNER)
           //    .setId("jc")
           //    .build())
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -110,6 +136,7 @@ public class TestExpressionConfig {
               .setType(JoinType.INNER)
               .setId("jc")
               .build())
+          .setAs("e1")
           //.addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -142,6 +169,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -155,6 +183,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -171,6 +200,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -187,6 +217,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -203,6 +234,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config2) // <-- DIFF
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -219,6 +251,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           //.addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();
@@ -235,6 +268,24 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e2") // <-- DIFF
+          .addInterpolatorConfig(numeric_config)
+          .setId("e1")
+          .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (ExpressionConfig) 
+        ExpressionConfig.newBuilder()
+          .setExpression("a + b")
+          .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+              .addJoins("host", "host")
+              .setType(JoinType.INNER)
+              .setId("jc")
+              .build())
+          .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config2) // <-- DIFF
           .setId("e1")
           .build();
@@ -251,6 +302,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e2") // <-- DIFF
           .build();
@@ -267,6 +319,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
+          .setAs("e1")
           .setInfectiousNan(true) // <-- DIFF
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
@@ -301,6 +354,7 @@ public class TestExpressionConfig {
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config2)
+          .setAs("e1")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
           .build();

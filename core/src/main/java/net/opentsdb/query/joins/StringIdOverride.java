@@ -25,7 +25,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 
 /**
  * A simple wrapper for single-sided joins that wraps the source 
- * ID with the proper alias.
+ * ID with the proper alias for use as the alias and metric.
  * 
  * @since 3.0
  */
@@ -75,7 +75,7 @@ public class StringIdOverride implements TimeSeriesStringId {
 
   @Override
   public String metric() {
-    return id.metric();
+    return alias;
   }
 
   @Override

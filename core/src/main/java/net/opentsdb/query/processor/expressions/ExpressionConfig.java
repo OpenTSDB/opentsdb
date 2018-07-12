@@ -64,6 +64,9 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   /** Whether or not NaN is infectious. */
   private final boolean infectious_nan;
   
+  /** The resulting metric name. */
+  private final String as;
+  
   /**
    * Protected ctor.
    * @param builder The non-null builder.
@@ -83,6 +86,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     join_config = builder.joinConfig;
     variable_interpolators = builder.variable_interpolators;
     infectious_nan = builder.infectiousNan;
+    if (Strings.isNullOrEmpty(builder.as)) {
+      as = getId();
+    } else {
+      as = builder.as;
+    }
   }
   
   /** @return The raw expression string to be parsed. */
@@ -103,6 +111,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   /** @return Whether or not nans are infectious. */
   public boolean getInfectiousNan() {
     return infectious_nan;
+  }
+  
+  /** @return The new name for the metric. */
+  public String getAs() {
+    return as;
   }
   
   /**
@@ -141,7 +154,9 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     hashes.add(Const.HASH_FUNCTION().newHasher()
         .putBoolean(infectious_nan)
         .putString(id, Const.UTF8_CHARSET)
-        .putString(expression, Const.UTF8_CHARSET).hash());
+        .putString(expression, Const.UTF8_CHARSET)
+        .putString(as, Const.UTF8_CHARSET)
+        .hash());
     if (variable_interpolators != null && !variable_interpolators.isEmpty()) {
       final Map<String, List<QueryInterpolatorConfig>> sorted = 
           new TreeMap<String, List<QueryInterpolatorConfig>>(variable_interpolators);
@@ -186,6 +201,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
         .compare(variable_interpolators, ((ExpressionConfig) o).variable_interpolators, VARIABLE_INTERP_CMP)
         .compare(interpolator_configs, ((ExpressionConfig) o).interpolator_configs, INTERPOLATOR_CMP)
         .compare(infectious_nan, ((ExpressionConfig) o).infectious_nan)
+        .compare(as, ((ExpressionConfig) o).as)
         .result();
   }
 
@@ -207,7 +223,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
            Objects.equals(join_config, other.join_config) &&
            Objects.equals(variable_interpolators, other.variable_interpolators) &&
            Objects.equals(interpolator_configs, other.interpolator_configs) &&
-           Objects.equals(infectious_nan, other.infectious_nan);
+           Objects.equals(infectious_nan, other.infectious_nan) &&
+           Objects.equals(as, other.as);
   }
 
   @Override
@@ -229,6 +246,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     private Map<String, List<QueryInterpolatorConfig>> variable_interpolators;
     @JsonProperty
     private boolean infectiousNan;
+    @JsonProperty
+    private String as;
     
     public Builder setExpression(final String expression) {
       this.expression = expression;
@@ -262,6 +281,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     
     public Builder setInfectiousNan(final boolean infectious_nan) {
       this.infectiousNan = infectious_nan;
+      return this;
+    }
+    
+    public Builder setAs(final String as) {
+      this.as = as;
       return this;
     }
     

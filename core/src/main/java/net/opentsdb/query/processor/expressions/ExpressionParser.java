@@ -35,7 +35,6 @@ import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.expressions.parser.MetricExpressionLexer;
@@ -80,11 +79,8 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 public class ExpressionParser extends DefaultErrorStrategy 
     implements MetricExpressionVisitor<Object> {
 
-  /** The expression. */
-  private final String expression;
-  
-  /** An ID for the expression. */
-  private final String expression_id;
+  /** The expression config. */
+  private final ExpressionConfig config;
   
   /** A counter used to increment on nodes in the graph. */
   private int cntr = 0;
@@ -94,20 +90,14 @@ public class ExpressionParser extends DefaultErrorStrategy
   
   /**
    * Default ctor.
-   * @param expression A non-null and non-empty expression.
-   * @param expression_id A non-null and non-empty expression ID.
+   * @param config The non-null expression config to parse.
    */
-  public ExpressionParser(final String expression, 
-                          final String expression_id) {
-    if (Strings.isNullOrEmpty(expression)) {
-      throw new IllegalArgumentException("Expression cannot be null "
-          + "or empty.");
+  public ExpressionParser(final ExpressionConfig config) {
+    if (config == null) {
+      throw new IllegalArgumentException("Expression config cannot "
+          + "be null.");
     }
-    if (Strings.isNullOrEmpty(expression_id)) {
-      throw new IllegalArgumentException("Expression ID cannot be null.");
-    }
-    this.expression = expression;
-    this.expression_id = expression_id;
+    this.config = config;
   }
   
   /**
@@ -117,7 +107,7 @@ public class ExpressionParser extends DefaultErrorStrategy
    */
   public List<ExpressionParseNode> parse() {
     final MetricExpressionLexer lexer = new MetricExpressionLexer(
-        new ANTLRInputStream(expression));
+        new ANTLRInputStream(config.getExpression()));
     final CommonTokenStream tokens = new CommonTokenStream(lexer);
     final MetricExpressionParser parser = new MetricExpressionParser(tokens);
     parser.removeErrorListeners(); // suppress logging to stderr.
@@ -126,11 +116,12 @@ public class ExpressionParser extends DefaultErrorStrategy
     
     if (nodes.size() < 1) {
       throw new ParseCancellationException("Unable to extract an "
-          + "expression from '" + expression + "'");
+          + "expression from '" + config.getExpression() + "'");
     }
     
     // reset the ID on the last node as it's the root
-    nodes.get(nodes.size() - 1).overrideId(expression_id);
+    nodes.get(nodes.size() - 1).overrideId(config.getId());
+    nodes.get(nodes.size() - 1).overrideAs(config.getAs());
     return nodes;
   }
   
@@ -275,7 +266,7 @@ public class ExpressionParser extends DefaultErrorStrategy
         .setExpressionOp(op);
     setBranch(builder, left, true);
     setBranch(builder, right, false);
-    builder.setId(expression_id + "_SubExp#" + cntr++);
+    builder.setId(config.getId() + "_SubExp#" + cntr++);
     final ExpressionParseNode config = (ExpressionParseNode) builder.build();
     nodes.add(config);
     return config;
@@ -594,7 +585,7 @@ public class ExpressionParser extends DefaultErrorStrategy
           buf.append(tokens.getText(ex.getStartToken(), ex.getOffendingToken()));
         }
       } else {
-        buf.append(expression);
+        buf.append(config.getExpression());
       }
       buf.append("'");
     } else if (e instanceof InputMismatchException) {
