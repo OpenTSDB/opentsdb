@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.List;
+import java.util.Set;
 
 import org.antlr.v4.runtime.misc.ParseCancellationException;
 import org.junit.BeforeClass;
@@ -500,6 +501,37 @@ public class TestExpressionParser {
     } catch (ParseCancellationException e) { }
   }
 
+  @Test
+  public void parseVariables() throws Exception {
+    Set<String> variables = ExpressionParser.parseVariables("metric.a + metric.b");
+    assertEquals(2, variables.size());
+    assertTrue(variables.contains("metric.a"));
+    assertTrue(variables.contains("metric.b"));
+    
+    variables = ExpressionParser.parseVariables("metric.a + metric.b + foo.c");
+    assertEquals(3, variables.size());
+    assertTrue(variables.contains("metric.a"));
+    assertTrue(variables.contains("metric.b"));
+    assertTrue(variables.contains("foo.c"));
+    
+    variables = ExpressionParser.parseVariables("(a + b + c) / (a + b)");
+    assertEquals(3, variables.size());
+    assertTrue(variables.contains("a"));
+    assertTrue(variables.contains("b"));
+    assertTrue(variables.contains("c"));
+    
+    variables = ExpressionParser.parseVariables("(a + 1 + c) / (a * 42)");
+    assertEquals(2, variables.size());
+    assertTrue(variables.contains("a"));
+    assertTrue(variables.contains("c"));
+    
+    try {
+      ExpressionParser.parseVariables("a");
+      fail("Expected ParseCancellationException");
+    } catch (ParseCancellationException e) { }
+    
+  }
+  
   ExpressionConfig config(final String exp) {
     return (ExpressionConfig) ExpressionConfig.newBuilder()
       .setExpression(exp)

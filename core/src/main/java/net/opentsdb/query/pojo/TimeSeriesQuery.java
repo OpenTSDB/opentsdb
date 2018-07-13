@@ -27,6 +27,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -34,6 +35,21 @@ import com.google.common.hash.Hashing;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeSeriesGroupId;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.joins.JoinConfig;
+import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.expressions.ExpressionConfig;
+import net.opentsdb.query.processor.expressions.ExpressionParser;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.utils.JSON;
 
 import java.util.Collections;
@@ -560,6 +576,249 @@ public class TimeSeriesQuery extends Validatable implements Comparable<net.opent
       throw new IllegalArgumentException("Key cannot be null or empty.");
     }
     return config == null ? false : config.containsKey(key);
+  }
+  
+  /**
+   * Converts the query into a semantic query builder. 
+   * @return A non-null builder if successful.
+   */
+  public SemanticQuery.Builder convert() {
+    validate();
+    
+    final SemanticQuery.Builder builder = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE);
+    
+    if (filters != null) {
+      builder.setFilters(filters);
+    }
+    
+    Map<String, String> id_to_node_roots = Maps.newHashMap();
+    
+    final List<ExecutionGraphNode> nodes = Lists.newArrayList();
+    for (final Metric metric : metrics) {
+      ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
+          .setId(metric.getId())
+          .setType("DataSource")
+          .setConfig(QuerySourceConfig.newBuilder()
+              .setStart(time.getStart())
+              .setEnd(time.getEnd())
+              .setMetric(metric.getMetric())
+              .setFilterId(metric.getFilter())
+              .build())
+          .build();
+      nodes.add(node);
+      
+      final String interpolator;
+      String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
+          metric.getAggregator().toLowerCase() : 
+            time.getAggregator().toLowerCase();
+      if (agg.contains("zimsum") || 
+          agg.contains("mimmax") ||
+          agg.contains("mimmin")) {
+        interpolator = null;
+      } else {
+        interpolator = "LERP";
+      }
+      
+      // downsampler
+      final Downsampler downsampler = metric.getDownsampler() != null ? 
+          metric.getDownsampler() : time.getDownsampler();
+      if (downsampler != null) {
+        node = downsampler(metric, interpolator, downsampler);
+        nodes.add(node);
+      }
+      
+      if (metric.isRate()) {
+        node = rate(metric, metric.getRateOptions(), node);
+        nodes.add(node);
+      } else if (time.isRate()) {
+        node = rate(metric, time.getRateOptions(), node);
+        nodes.add(node);
+      }
+      
+      final Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null 
+          : getFilter(metric.getFilter());
+      ExecutionGraphNode gb = groupBy(metric, interpolator, downsampler, filter, node);
+      if (gb != null) {
+        nodes.add(gb);
+        node = gb;
+      }
+      
+      id_to_node_roots.put(metric.getId(), node.getId());
+    }
+    
+    if (expressions != null) {
+      for (final Expression expression : expressions) {
+        
+        final Set<String> variables = ExpressionParser.parseVariables(expression.getExpr());
+        final List<String> vars = Lists.newArrayListWithExpectedSize(variables.size());
+        for (final String var : variables) {
+          vars.add(id_to_node_roots.get(var));
+        }
+        
+        // TODO - figure out query tags to mimic 2.x
+        // TODO - get fills from metrics
+        ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
+            .setId(expression.getId())
+            .setType("Expression")
+            .setConfig(ExpressionConfig.newBuilder()
+                .setExpression(expression.getExpr())
+                //.setAs("") // TODO ??
+                .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                    .setType(JoinType.NATURAL)
+                    .build())
+                .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                    .setFillPolicy(FillPolicy.NONE) // TODO
+                    .setRealFillPolicy(FillWithRealPolicy.NONE)
+                    .setId("LERP")
+                    .setType(NumericType.TYPE.toString())
+                    .build())
+                .setId(expression.getId())
+                .build())
+            .setSources(vars)
+            .build();
+        nodes.add(node);
+      }
+    }
+    
+    builder.setExecutionGraph(ExecutionGraph.newBuilder()
+        .setNodes(nodes)
+        .setId(name)
+        .build());
+    return builder;
+  }
+  
+  /**
+   * Helper to build the downsampler node.
+   * @param metric A non-null metric.
+   * @param interpolator The name of the interpolator to use based on 
+   * the aggegation.
+   * @param downsampler The downsampler to pull config from.
+   * @return An execution graph node.
+   */
+  private ExecutionGraphNode downsampler(final Metric metric, 
+                                 final String interpolator, 
+                                 final Downsampler downsampler) {
+    
+    FillPolicy policy = downsampler.getFillPolicy().getPolicy();
+    
+    DownsampleConfig.Builder ds = (DownsampleConfig.Builder) DownsampleConfig.newBuilder()
+        .setAggregator(downsampler.getAggregator())
+        .setInterval(downsampler.getInterval())
+        .setFill(downsampler.getFillPolicy() != null ? true : false)
+        .setId("downsample_" + metric.getId())
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                  .setFillPolicy(policy)
+                  .setRealFillPolicy(FillWithRealPolicy.NONE)
+                  .setId(interpolator)
+                  .setType(NumericType.TYPE.toString())
+                  .build());
+    if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
+      ds.setTimeZone(downsampler.getTimezone());
+    }
+        
+    return ExecutionGraphNode.newBuilder()
+        .setId(metric.getId() + "_Downsampler")
+        .setType("Downsample")
+        .setConfig(ds.build())
+        .addSource(metric.getId())
+        .build();
+  }
+  
+  /**
+   * Generates a rate node.
+   * @param metric The non-null metric.
+   * @param options The rate options.
+   * @param parent The parent node.
+   * @return An execution graph node.
+   */
+  private ExecutionGraphNode rate(final Metric metric, 
+                          final RateOptions options, 
+                          final ExecutionGraphNode parent) {
+    return ExecutionGraphNode.newBuilder()
+      .setId(metric.getId() + "_Rate")
+      .setType("Rate")
+      .addSource(parent.getId())
+      .setConfig(RateOptions.newBuilder(metric.getRateOptions())
+        .setId(metric.getId() + "_Rate")
+        .build())
+      .build();
+  }
+  
+  /**
+   * Generates a group-by node.
+   * @param metric A non-null metric.
+   * @param interpolator The name of the interpolator to use based on 
+   * the aggegation.
+   * @param downsampler The downsampler to pull config from.
+   * @param filter An optional filter.
+   * @param parent The parent graph node.
+   * @return An execution graph node.
+   */
+  private ExecutionGraphNode groupBy(final Metric metric, 
+                                     final String interpolator, 
+                                     final Downsampler downsampler, 
+                                     final Filter filter, 
+                                     final ExecutionGraphNode parent) {
+    final String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
+        metric.getAggregator().toLowerCase() : 
+         time.getAggregator().toLowerCase();
+    if (filter != null) {
+      GroupByConfig.Builder gb_config = null;
+      final Set<String> join_keys = Sets.newHashSet();
+      for (TagVFilter v : filter.getTags()) {
+        if (v.isGroupBy()) {
+          if (gb_config == null) {
+            FillPolicy policy = downsampler == null ? 
+                FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
+            gb_config = (GroupByConfig.Builder) GroupByConfig.newBuilder()
+                .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                    .setFillPolicy(policy)
+                    .setRealFillPolicy(FillWithRealPolicy.NONE)
+                    .setId(interpolator)
+                    .setType(NumericType.TYPE.toString())
+                    .build())
+                .setId(metric.getId() + "_GroupBy");
+          }
+          join_keys.add(v.getTagk());
+        }
+      }
+      
+      if (gb_config != null) {
+        gb_config.setTagKeys(join_keys);
+        gb_config.setAggregator(agg);
+        return ExecutionGraphNode.newBuilder()
+            .setId(metric.getId() + "_GroupBy")
+            .setType("GroupBy")
+            .addSource(parent.getId())
+            .setConfig(gb_config.build())
+            .build();
+      }
+    } else if (!agg.toLowerCase().equals("none")) {
+      // we agg all 
+      FillPolicy policy = downsampler == null ? 
+          FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
+      GroupByConfig.Builder gb_config = (GroupByConfig.Builder) GroupByConfig.newBuilder()
+          .setGroupAll(true)
+          .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+              .setFillPolicy(policy)
+              .setRealFillPolicy(FillWithRealPolicy.NONE)
+              .setId(interpolator)
+              .setType(NumericType.TYPE.toString())
+              .build())
+          .setId(metric.getId() + "_GroupBy");
+          
+      gb_config.setAggregator(agg);
+      
+      return ExecutionGraphNode.newBuilder()
+          .setId(metric.getId() + "_GroupBy")
+          .setType("GroupBy")
+          .addSource(parent.getId())
+          .setConfig(gb_config.build())
+          .build();
+    }
+    
+    return null;
   }
   
   /**

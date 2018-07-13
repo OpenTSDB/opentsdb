@@ -16,8 +16,14 @@ package net.opentsdb.query.pojo;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Join.SetOperator;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.expressions.ExpressionConfig;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Before;
@@ -67,7 +73,7 @@ public class TestTimeSeriesQuery {
       + "          \"tagk\":\"host\","
       + "          \"filter\":\"*\","
       + "          \"type\":\"iwildcard\","
-      + "          \"groupBy\":false"
+      + "          \"groupBy\":true"
       + "        }"
       + "      ]"
       + "    }"
@@ -630,6 +636,52 @@ public class TestTimeSeriesQuery {
     
     assertTrue(query.hasKey("tsd.query.test6"));
     assertFalse(query.hasKey("tsd.query.test2"));
+  }
+  
+  @Test
+  public void convert() throws Exception {
+    SemanticQuery.Builder builder = 
+        JSON.parseToObject(json, TimeSeriesQuery.class).convert();
+    SemanticQuery query = builder.build();
+    System.out.println(query.getExecutionGraph());
+    assertEquals(4, query.getExecutionGraph().getNodes().size());
+    
+    ExecutionGraphNode node = query.getExecutionGraph().getNodes().get(0);
+    assertEquals("e1", node.getId());
+    assertEquals("Expression", node.getType());
+    assertEquals(1, node.getSources().size());
+    assertTrue(node.getSources().contains("m1_GroupBy"));
+    ExpressionConfig ex_config = (ExpressionConfig) node.getConfig();
+    assertEquals("m1 * 1024", ex_config.getExpression());
+    
+    node = query.getExecutionGraph().getNodes().get(1);
+    assertEquals("m1", node.getId());
+    assertEquals("DataSource", node.getType());
+    assertNull(node.getSources());
+    QuerySourceConfig ds = (QuerySourceConfig) node.getConfig();
+    assertEquals("YAMAS.cpu.idle", ds.getMetric());
+    assertEquals("f1", ds.getFilterId());
+    assertEquals("3h-ago", ds.getStart());
+    assertEquals("1h-ago", ds.getEnd());
+    
+    node = query.getExecutionGraph().getNodes().get(2);
+    assertEquals("m1_Downsampler", node.getId());
+    assertEquals("Downsample", node.getType());
+    assertEquals(1, node.getSources().size());
+    assertTrue(node.getSources().contains("m1"));
+    DownsampleConfig dsc = (DownsampleConfig) node.getConfig();
+    assertEquals("15m", dsc.intervalAsString());
+    assertEquals("avg", dsc.aggregator());
+    
+    node = query.getExecutionGraph().getNodes().get(3);
+    assertEquals("m1_GroupBy", node.getId());
+    assertEquals("GroupBy", node.getType());
+    assertEquals(1, node.getSources().size());
+    assertTrue(node.getSources().contains("m1_Downsampler"));
+    GroupByConfig gb = (GroupByConfig) node.getConfig();
+    assertEquals("sum", gb.getAggregator());
+    assertEquals(1, gb.getTagKeys().size());
+    assertTrue(gb.getTagKeys().contains("host"));
   }
   
   private TimeSeriesQuery.Builder getDefaultQueryBuilder() {
