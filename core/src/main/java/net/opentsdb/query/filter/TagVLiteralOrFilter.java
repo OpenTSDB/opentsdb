@@ -25,6 +25,7 @@ import net.opentsdb.utils.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
@@ -85,6 +86,9 @@ public class TagVLiteralOrFilter extends TagVFilter {
     final Set<String> dedupe = Sets.newHashSetWithExpectedSize(split.length);
     literals = Lists.newArrayListWithCapacity(split.length);
     for (final String value : split) {
+      if (Strings.isNullOrEmpty(value)) {
+        continue;
+      }
       if (!dedupe.contains(value)) {
         dedupe.add(value);
         literals.add(value);
