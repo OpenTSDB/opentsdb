@@ -83,7 +83,17 @@ public class MutableNumericSummaryValue implements NumericSummaryType,
       nulled = true;
     }
   }
-    
+  
+  /**
+   * Private ctor for the builder to use.
+   * @param builder A non-null builder.
+   */
+  private MutableNumericSummaryValue(final Builder builder) {
+    timestamp = builder.timestamp;
+    values = builder.values;
+    nulled = builder.nulled;
+  }
+  
   @Override
   public TimeStamp timestamp() {
     return timestamp;
@@ -308,5 +318,56 @@ public class MutableNumericSummaryValue implements NumericSummaryType,
   @Override
   public NumericSummaryType value() {
     return nulled ? null : this;
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+  
+  public static class Builder {
+    private TimeStamp timestamp;
+    private Map<Integer, MutableNumericType> values;
+    private boolean nulled;
+    
+    public Builder setTimeStamp(final TimeStamp timestamp) {
+      this.timestamp = timestamp.getCopy();
+      return this;
+    }
+    
+    public Builder setValues(final Map<Integer, MutableNumericType> values) {
+      this.values = Maps.newHashMapWithExpectedSize(values.size());
+      for (final Entry<Integer, MutableNumericType> entry : values.entrySet()) {
+        MutableNumericType clone = new MutableNumericType();
+        clone.set(entry.getValue());
+        values.put(entry.getKey(), clone);
+      }
+      return this;
+    }
+    
+    public Builder addValue(final int summary, final long value) {
+      if (values == null) {
+        values = Maps.newHashMap();
+      }
+      values.put(summary, new MutableNumericType(value));
+      return this;
+    }
+    
+    public Builder addValue(final int summary, final double value) {
+      if (values == null) {
+        values = Maps.newHashMap();
+      }
+      values.put(summary, new MutableNumericType(value));
+      return this;
+    }
+    
+    public Builder setNull() {
+      nulled = true;
+      values = null;
+      return this;
+    }
+    
+    public MutableNumericSummaryValue build() {
+      return new MutableNumericSummaryValue(this);
+    }
   }
 }
