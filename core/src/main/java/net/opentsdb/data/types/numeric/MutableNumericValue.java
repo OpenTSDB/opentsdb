@@ -98,18 +98,20 @@ public final class MutableNumericValue implements NumericType,
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
     }
-    if (value == null) {
-      throw new IllegalArgumentException("Value cannot be null.");
-    }
+
     this.timestamp = timestamp.getCopy();
-    if (value.isInteger()) {
-      is_integer = true;
-      this.value = value.longValue();
+    if (value == null) {
+      nulled = true;
     } else {
-      is_integer = false;
-      this.value = Double.doubleToRawLongBits(value.doubleValue());
+      if (value.isInteger()) {
+        is_integer = true;
+        this.value = value.longValue();
+      } else {
+        is_integer = false;
+        this.value = Double.doubleToRawLongBits(value.doubleValue());
+      }
+      nulled = false;
     }
-    nulled = false;
   }
   
   /**

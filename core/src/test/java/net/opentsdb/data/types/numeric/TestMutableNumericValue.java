@@ -112,6 +112,11 @@ public class TestMutableNumericValue {
     assertEquals(1, dp.timestamp().msEpoch());
     assertNull(dp.value());
     
+    dp = new MutableNumericValue(ts, (NumericType) null);
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertNull(dp.value());
+    
     try {
       new MutableNumericValue(null, 42);
       fail("Expected IllegalArgumentException");
@@ -129,11 +134,6 @@ public class TestMutableNumericValue {
     
     try {
       new MutableNumericValue(null, new IntDP());
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new MutableNumericValue(ts, (NumericType) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
