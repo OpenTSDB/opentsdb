@@ -20,7 +20,7 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.pbuf.TimeSeriesDataPB;
+import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
@@ -43,7 +43,7 @@ public interface PBufIteratorSerdes {
   /**
    * The method that serializes the data. A non-null time series builder
    * is given and the serialization method must create zero or more 
-   * segments to be stored in a {@link TimeSeriesData} proto that is
+   * segments to be stored in a {@link TimeSeriesDatumIterable} proto that is
    * added to the ts_builder. If there isn't any data for the iterator,
    * just populate the builder with an empty data object for the given
    * type.
@@ -75,5 +75,5 @@ public interface PBufIteratorSerdes {
    * @throws SerdesException If something goes wrong during deserialization.
    */
   public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> 
-    deserialize(final TimeSeriesDataPB.TimeSeriesData series);
+    deserialize(final TimeSeriesData series);
 }

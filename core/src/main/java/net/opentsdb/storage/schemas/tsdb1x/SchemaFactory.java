@@ -24,7 +24,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 /**
@@ -43,7 +43,7 @@ public class SchemaFactory extends BaseTSDBPlugin
   protected Map<String, Schema> schemas = Maps.newConcurrentMap();
   
   @Override
-  public TimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
+  public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
     // DCLP on the default.
     if (Strings.isNullOrEmpty(id)) {
       if (default_schema == null) {      

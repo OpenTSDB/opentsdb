@@ -32,7 +32,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteSet;
@@ -323,7 +323,7 @@ public class TSUID implements TimeSeriesByteId {
   }
 
   @Override
-  public TimeSeriesDataStore dataStore() {
+  public ReadableTimeSeriesDataStore dataStore() {
     return schema;
   }
 

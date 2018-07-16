@@ -16,7 +16,6 @@ package net.opentsdb.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,9 +32,11 @@ import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -70,7 +71,8 @@ public class TestMockDataStore {
   public void initialize() throws Exception {
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    for (final Entry<TimeSeriesStringId, MockSpan> series : mds.getDatabase().entrySet()) {
+    for (final Entry<TimeSeriesDatumStringId, MockSpan> series : 
+          mds.getDatabase().entrySet()) {
       assertEquals(24, series.getValue().rows().size());
       
       long ts = 1483228800000L;
@@ -94,7 +96,7 @@ public class TestMockDataStore {
   public void write() throws Exception {
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    TimeSeriesStringId id = BaseTimeSeriesStringId.newBuilder()
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric("unit.test")
         .addTags("dc", "lga")
         .addTags("host", "db01")
@@ -102,18 +104,54 @@ public class TestMockDataStore {
     MutableNumericValue dp = new MutableNumericValue();
     TimeStamp ts = new MillisecondTimeStamp(1483228800000L);
     dp.reset(ts, 42.5);
-    mds.write(id, dp, null);
+    mds.write(null, new TimeSeriesDatum() {
+      
+        @Override
+        public TimeSeriesDatumStringId id() {
+          return id;
+        }
+  
+        @Override
+        public TimeSeriesValue<? extends TimeSeriesDataType> value() {
+          return dp;
+        }
+        
+      }, null);
     assertEquals((4 * 4 * 4) + 1, mds.getDatabase().size());
     
     ts.updateMsEpoch(1483228800000L + 60000L);
     dp.reset(ts, 24.5);
-    mds.write(id, dp, null);
+    mds.write(null, new TimeSeriesDatum() {
+        
+        @Override
+        public TimeSeriesDatumStringId id() {
+          return id;
+        }
+  
+        @Override
+        public TimeSeriesValue<? extends TimeSeriesDataType> value() {
+          return dp;
+        }
+        
+      }, null);
     
     // no out-of-order timestamps per series for now. at least within a "row".
     ts.updateMsEpoch(1483228800000L + 30000L);
     dp.reset(ts, -1);
     try {
-      mds.write(id, dp, null);
+      mds.write(null, new TimeSeriesDatum() {
+          
+          @Override
+          public TimeSeriesDatumStringId id() {
+            return id;
+          }
+  
+          @Override
+          public TimeSeriesValue<? extends TimeSeriesDataType> value() {
+            return dp;
+          }
+          
+        }, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

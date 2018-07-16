@@ -21,7 +21,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 /**
  * A shared location for registering context, mergers, plugins, etc.
@@ -121,9 +121,9 @@ public interface Registry {
    */
   public QueryIteratorFactory getQueryIteratorFactory(final String id);
   
-  public TimeSeriesDataStore getDefaultStore();
+  public ReadableTimeSeriesDataStore getDefaultStore();
   
-  public TimeSeriesDataStore getStore(final String id);
+  public ReadableTimeSeriesDataStore getStore(final String id);
   
   /** @return Package private shutdown returning the deferred to wait on. */
   public Deferred<Object> shutdown();

@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.pbuf.TimeSeriesDataPB;
+import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.serdes.PBufIteratorSerdes;
@@ -48,7 +48,7 @@ public class PBufTimeSeries implements TimeSeries {
   private PBufTimeSeriesId id;
   
   /** A map of data types to parsed time series. */
-  private Map<TypeToken<?>, TimeSeriesDataPB.TimeSeriesData> data;
+  private Map<TypeToken<?>, TimeSeriesData> data;
   
   /**
    * Default ctor.
@@ -66,8 +66,7 @@ public class PBufTimeSeries implements TimeSeries {
     this.factory = factory;
     this.time_series = time_series;
     data = Maps.newHashMapWithExpectedSize(time_series.getDataCount());
-    for (final TimeSeriesDataPB.TimeSeriesData data : 
-          time_series.getDataList()) {
+    for (final TimeSeriesData data : time_series.getDataList()) {
       try {
         final Class<?> clazz = Class.forName(data.getType());
         final TypeToken<?> type = TypeToken.of(clazz);
@@ -90,7 +89,7 @@ public class PBufTimeSeries implements TimeSeries {
   @Override
   public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
       final TypeToken<?> type) {
-    TimeSeriesDataPB.TimeSeriesData series = data.get(type);
+    TimeSeriesData series = data.get(type);
     if (series == null) {
       return Optional.empty();
     }
@@ -108,7 +107,7 @@ public class PBufTimeSeries implements TimeSeries {
   public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
     List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
         Lists.newArrayListWithCapacity(data.size());
-    for (final Entry<TypeToken<?>, TimeSeriesDataPB.TimeSeriesData> entry : 
+    for (final Entry<TypeToken<?>, TimeSeriesData> entry : 
           data.entrySet()) {
       PBufIteratorSerdes serdes = factory.serdesForType(entry.getKey());
       if (serdes == null) {

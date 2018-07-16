@@ -20,10 +20,8 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 
@@ -42,9 +40,8 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface TimeSeriesDataStore {
+public interface ReadableTimeSeriesDataStore {
   
-
   /**
    * Instantiates a new node using the given context and the default
    * configuration for this node.
@@ -76,19 +73,6 @@ public interface TimeSeriesDataStore {
   /** @return A class to use for serdes for configuring nodes of this
    * type. */
   public Class<? extends QueryNodeConfig> nodeConfigClass();
-  
-  /**
-   * Writes the given value to the data store.
-   * @param id A non-null ID for the value.
-   * @param value A non-null value to write.
-   * @param trace An optional tracer.
-   * @param span An optional span for tracing.
-   * @return A deferred resolving to null on success or an exception if the 
-   * value was unable to be written.
-   */
-  public Deferred<Object> write(final TimeSeriesStringId id,
-                                         final TimeSeriesValue<?> value, 
-                                         final Span span);
   
   /**
    * For stores that are able to encode time series IDs, this method should
