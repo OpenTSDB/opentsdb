@@ -32,7 +32,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ SchemaFactory.class })
@@ -61,7 +61,7 @@ public class TestSchemaFactory extends SchemaBase {
     assertNull(factory.default_schema);
     assertTrue(factory.schemas.isEmpty());
     
-    TimeSeriesDataStore store = factory.newInstance(tsdb, null);
+    ReadableTimeSeriesDataStore store = factory.newInstance(tsdb, null);
     assertSame(store, factory.default_schema);
     assertTrue(factory.schemas.isEmpty());
     assertNull(store.id());
@@ -86,7 +86,7 @@ public class TestSchemaFactory extends SchemaBase {
     assertNull(factory.default_schema);
     assertTrue(factory.schemas.isEmpty());
     
-    TimeSeriesDataStore store = factory.newInstance(tsdb, "id1");
+    ReadableTimeSeriesDataStore store = factory.newInstance(tsdb, "id1");
     assertNull(factory.default_schema);
     assertEquals(1, factory.schemas.size());
     assertSame(store, factory.schemas.get("id1"));

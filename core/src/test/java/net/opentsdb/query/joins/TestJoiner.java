@@ -45,7 +45,7 @@ import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -679,7 +679,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags will hash to the same value
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -728,7 +728,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags will hash to the same value
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -766,7 +766,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags will hash to the same value
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -805,7 +805,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags will be kicked out.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -854,7 +854,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags will be kicked out.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -900,7 +900,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags will be kicked out.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -951,7 +951,7 @@ public class TestJoiner extends BaseJoinTest {
     assertSame(ts, set.left_map.get(hash).get(0));
     
     // missing some tags will fail.
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -995,7 +995,7 @@ public class TestJoiner extends BaseJoinTest {
     assertNull(set.right_map);
        
     // still nothing of course.
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -1029,7 +1029,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags now hash to something different.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -1078,7 +1078,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags now hash to something different.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -1123,7 +1123,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags now hash to something different.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -1163,7 +1163,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // extra tags now hash to something different.
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -1212,7 +1212,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // cross falls back to normal hashing
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)
@@ -1260,7 +1260,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // cross falls back to normal hashing
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
+    TimeSeriesId id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .addTags(OWNER, TYRION)

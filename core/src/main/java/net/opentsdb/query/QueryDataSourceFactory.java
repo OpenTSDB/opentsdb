@@ -19,7 +19,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 /**
@@ -52,7 +52,7 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
         throw new RuntimeException("No factory!");
       }
       
-      final TimeSeriesDataStore store = factory.newInstance(tsdb, null);
+      final ReadableTimeSeriesDataStore store = factory.newInstance(tsdb, null);
       if (store == null) {
         throw new QueryExecutionException("Unable to get a data store "
             + "instance from factory: " + factory.id(), 0);

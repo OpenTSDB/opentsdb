@@ -24,7 +24,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import net.opentsdb.data.pbuf.TimeSeriesDataPB;
 import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment;
 import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment.NumericSummary;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
@@ -49,7 +48,7 @@ public class PBufNumericSummaryIterator implements
   Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
 
   /** The encoded source. */
-  private final TimeSeriesDataPB.TimeSeriesData source;
+  private final TimeSeriesData source;
   
   /** The data point updated and returned during iteration. */
   private final MutableNumericSummaryValue dp;

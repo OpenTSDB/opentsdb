@@ -33,7 +33,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   private volatile MockDataStore mds;
   
   @Override
-  public TimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
+  public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
     // DCLP for the singleton.
     if (mds == null) {
       synchronized (this) {

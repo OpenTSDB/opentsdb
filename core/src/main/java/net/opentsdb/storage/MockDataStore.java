@@ -37,14 +37,19 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumStringId;
+import net.opentsdb.data.TimeSeriesDatumStringWrapperId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -64,7 +69,6 @@ import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -77,7 +81,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class MockDataStore implements TimeSeriesDataStore {
+public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeSeriesDataStore {
   private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
   
   public static final long ROW_WIDTH = 3600000;
@@ -93,7 +97,7 @@ public class MockDataStore implements TimeSeriesDataStore {
   private final String id;
   
   /** The super inefficient and thread unsafe in-memory db. */
-  private Map<TimeSeriesStringId, MockSpan> database;
+  private Map<TimeSeriesDatumStringId, MockSpan> database;
   
   /** Thread pool used by the executions. */
   private ExecutorService thread_pool;
@@ -142,18 +146,32 @@ public class MockDataStore implements TimeSeriesDataStore {
     return Deferred.fromResult(null);
   }
   
-  @Override
-  public Deferred<Object> write(final TimeSeriesStringId id,
-                                final TimeSeriesValue<?> value, 
-                                final Span span) {    
-    MockSpan data_span = database.get(id);
+  public Deferred<WriteState> write(final AuthState state, final TimeSeriesDatum datum, final Span span) {
+    MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
     if (data_span == null) {
-      data_span = new MockSpan(id);
-      database.put(id, data_span);
+      data_span = new MockSpan((TimeSeriesDatumStringId) datum.id());
+      database.put((TimeSeriesDatumStringId) datum.id(), data_span);
     }
-    
-    data_span.addValue(value);
-    return Deferred.fromResult(null);
+    data_span.addValue(datum.value());
+    return Deferred.fromResult(WriteState.OK);
+  }
+  
+  public Deferred<List<WriteState>> write(final AuthState state, final TimeSeriesDatumIterable data, final Span span) {
+    int i = 0;
+    for (final TimeSeriesDatum datum : data) {
+      MockSpan data_span = database.get(datum.id());
+      if (data_span == null) {
+        data_span = new MockSpan((TimeSeriesDatumStringId) datum.id());
+        database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+      }
+      data_span.addValue(datum.value());
+      i++;
+    }
+    final List<WriteState> states = Lists.newArrayListWithExpectedSize(i);
+    for (int x = 0; x < i; x++) {
+      states.add(WriteState.OK);
+    }
+    return Deferred.fromResult(states);
   }
   
   @Override
@@ -163,9 +181,9 @@ public class MockDataStore implements TimeSeriesDataStore {
   
   class MockSpan {
     private List<MockRow> rows = Lists.newArrayList();
-    private final TimeSeriesStringId id;
+    private final TimeSeriesDatumStringId id;
     
-    public MockSpan(final TimeSeriesStringId id) {
+    public MockSpan(final TimeSeriesDatumStringId id) {
       this.id = id;
     }
     
@@ -195,16 +213,16 @@ public class MockDataStore implements TimeSeriesDataStore {
     public long base_timestamp;
     public Map<TypeToken<?>, TimeSeries> sources;
     
-    public MockRow(final TimeSeriesStringId id, 
+    public MockRow(final TimeSeriesDatumStringId id, 
                    final TimeSeriesValue<?> value) {
-      this.id = id;
+      this.id = TimeSeriesDatumStringWrapperId.wrap((TimeSeriesDatumStringId) id);
       base_timestamp = value.timestamp().msEpoch() - 
           (value.timestamp().msEpoch() % ROW_WIDTH);
       sources = Maps.newHashMap();
       // TODO - other types
       if (value.type() == NumericType.TYPE) {
         sources.put(NumericType.TYPE, new NumericMillisecondShard(
-            id,
+            this.id,
             new MillisecondTimeStamp(base_timestamp), 
             new MillisecondTimeStamp(base_timestamp + ROW_WIDTH)));
         addValue(value);
@@ -299,7 +317,7 @@ public class MockDataStore implements TimeSeriesDataStore {
       for (final String metric : METRICS) {
         for (final String dc : DATACENTERS) {
           for (int h = 0; h < hosts; h++) {
-            TimeSeriesStringId id = BaseTimeSeriesStringId.newBuilder()
+            TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
                 .setMetric(metric)
                 .addTags("dc", dc)
                 .addTags("host", String.format("web%02d", h + 1))
@@ -309,7 +327,19 @@ public class MockDataStore implements TimeSeriesDataStore {
             for (long i = 0; i < (ROW_WIDTH / interval); i++) {
               ts.updateMsEpoch(start_timestamp + (i * interval) + (t * ROW_WIDTH));
               dp.reset(ts, t + h + i);
-              write(id, dp, null);
+              write(null, new TimeSeriesDatum() {
+                
+                @Override
+                public TimeSeriesDatumStringId id() {
+                  return id;
+                }
+
+                @Override
+                public TimeSeriesValue<? extends TimeSeriesDataType> value() {
+                  return dp;
+                }
+                
+              }, null);
             }
           }
         }
@@ -318,7 +348,7 @@ public class MockDataStore implements TimeSeriesDataStore {
     }
   }
 
-  Map<TimeSeriesStringId, MockSpan> getDatabase() {
+  Map<TimeSeriesDatumStringId, MockSpan> getDatabase() {
     return database;
   }
   
@@ -498,18 +528,22 @@ public class MockDataStore implements TimeSeriesDataStore {
         }
         
         final Filter filter;
-        if (config.getQuery() instanceof SemanticQuery) {
-          filter = ((SemanticQuery) config.getQuery())
-              .getFilter(config.getFilterId());
-        } else if (config.getQuery() instanceof TimeSeriesQuery) {
-          filter = ((TimeSeriesQuery) config.getQuery())
-              .getFilter(config.getFilterId());
+        if (!Strings.isNullOrEmpty(config.getFilterId())) {
+          if (config.getQuery() instanceof SemanticQuery) {
+            filter = ((SemanticQuery) config.getQuery())
+                .getFilter(config.getFilterId());
+          } else if (config.getQuery() instanceof TimeSeriesQuery) {
+            filter = ((TimeSeriesQuery) config.getQuery())
+                .getFilter(config.getFilterId());
+          } else {
+            throw new UnsupportedOperationException("We don't support " 
+                + config.getQuery().getClass() + " yet");
+          }
         } else {
-          throw new UnsupportedOperationException("We don't support " 
-              + config.getQuery().getClass() + " yet");
+          filter = null;
         }
         
-        for (final Entry<TimeSeriesStringId, MockSpan> entry : database.entrySet()) {
+        for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : database.entrySet()) {
           if (!config.getMetric().equals(entry.getKey().metric())) {
             continue;
           }

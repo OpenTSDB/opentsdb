@@ -22,7 +22,6 @@ import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import net.opentsdb.data.pbuf.NumericSegmentPB.NumericSegment;
-import net.opentsdb.data.pbuf.TimeSeriesDataPB;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
@@ -44,7 +43,7 @@ public class PBufNumericIterator implements
   Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
 
   /** The encoded source. */
-  private final TimeSeriesDataPB.TimeSeriesData source;
+  private final TimeSeriesData source;
   
   /** The data point updated and returned during iteration. */
   private final MutableNumericValue dp;

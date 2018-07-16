@@ -36,7 +36,7 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -57,11 +57,11 @@ public class TestBaseTimeSeriesByteId {
     SET.add(new byte[] { 's', '1' });
     SET.add(new byte[] { 's', '2' });
   }
-  private TimeSeriesDataStore data_store;
+  private ReadableTimeSeriesDataStore data_store;
   
   @Before
   public void before() throws Exception {
-    data_store = mock(TimeSeriesDataStore.class);
+    data_store = mock(ReadableTimeSeriesDataStore.class);
   }
   
   @Test
