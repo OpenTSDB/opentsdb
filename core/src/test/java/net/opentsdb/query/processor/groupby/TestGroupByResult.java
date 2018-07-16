@@ -39,7 +39,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 public class TestGroupByResult {
   
@@ -388,7 +388,7 @@ public class TestGroupByResult {
   }
   
   private void setupBytes() {
-    final TimeSeriesDataStore data_store = mock(TimeSeriesDataStore.class);
+    final ReadableTimeSeriesDataStore data_store = mock(ReadableTimeSeriesDataStore.class);
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")

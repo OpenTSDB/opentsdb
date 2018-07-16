@@ -24,7 +24,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -69,7 +69,7 @@ public class ByteIdOverride implements TimeSeriesByteId {
   }
 
   @Override
-  public TimeSeriesDataStore dataStore() {
+  public ReadableTimeSeriesDataStore dataStore() {
     return id.dataStore();
   }
 

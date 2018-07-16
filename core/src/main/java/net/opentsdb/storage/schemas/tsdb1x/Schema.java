@@ -54,7 +54,7 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
@@ -73,7 +73,7 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class Schema implements TimeSeriesDataStore {
+public class Schema implements ReadableTimeSeriesDataStore {
 
   public static final byte APPENDS_PREFIX = 5;
   
@@ -909,13 +909,6 @@ public class Schema implements TimeSeriesDataStore {
     return tag_values;
   }
   
-  @Override
-  public Deferred<Object> write(TimeSeriesStringId id, TimeSeriesValue<?> value,
-      Span span) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
   @Override
   public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
                                                     final Span span) {

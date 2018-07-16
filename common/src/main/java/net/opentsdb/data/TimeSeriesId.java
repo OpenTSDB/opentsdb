@@ -36,4 +36,5 @@ public interface TimeSeriesId {
    * @return A non-null type token.
    */
   public TypeToken<? extends TimeSeriesId> type();
+
 }

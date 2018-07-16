@@ -33,7 +33,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 /**
  * Performs the time series grouping aggregation by sorting time series according
@@ -122,7 +122,7 @@ public class GroupBy extends AbstractQueryNode {
       
       final Iterator<TimeSeries> iterator = next.timeSeries().iterator();
       if (iterator.hasNext()) {
-        final TimeSeriesDataStore store = ((TimeSeriesByteId) 
+        final ReadableTimeSeriesDataStore store = ((TimeSeriesByteId) 
             iterator.next().id()).dataStore();
         if (store == null) {
           throw new RuntimeException("The data store was null for a byte series!");

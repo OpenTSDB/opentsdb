@@ -61,7 +61,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)
@@ -173,7 +173,7 @@ public class TestGroupBy {
       }
     });
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesDataStore datastore = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore datastore = mock(ReadableTimeSeriesDataStore.class);
     TimeSeriesByteId id =  BaseTimeSeriesByteId.newBuilder(datastore)
         .setMetric(new byte[] { 0, 0, 1 })
         .addTags(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 })
@@ -214,7 +214,7 @@ public class TestGroupBy {
       }
     });
     TimeSeries ts = mock(TimeSeries.class);
-    TimeSeriesDataStore datastore = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore datastore = mock(ReadableTimeSeriesDataStore.class);
     TimeSeriesByteId id =  BaseTimeSeriesByteId.newBuilder(datastore)
         .setMetric(new byte[] { 0, 0, 1 })
         .addTags(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 })

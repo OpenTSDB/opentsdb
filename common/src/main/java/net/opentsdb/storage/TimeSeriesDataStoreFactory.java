@@ -35,7 +35,7 @@ public interface TimeSeriesDataStoreFactory extends TSDBPlugin {
    * @param id An optional ID.
    * @return An instantiated time series data store.
    */
-  public TimeSeriesDataStore newInstance(final TSDB tsdb, final String id);
+  public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, final String id);
   
   /**
    * The type of {@link TimeSeriesId}s returned from this store by default.

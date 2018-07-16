@@ -59,7 +59,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestBinaryExpressionNode {
@@ -263,7 +263,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -351,7 +351,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -439,7 +439,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -505,7 +505,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -582,7 +582,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -658,7 +658,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -723,7 +723,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -798,7 +798,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    TimeSeriesDataStore store = mock(TimeSeriesDataStore.class);
+    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
