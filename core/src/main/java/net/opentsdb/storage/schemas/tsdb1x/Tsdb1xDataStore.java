@@ -14,15 +14,10 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.stats.Span;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
 
 /**
  * An interface for data stores that implement the TSDB v1 schema of
@@ -32,7 +27,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface Tsdb1xDataStore {
+public interface Tsdb1xDataStore extends WritableTimeSeriesDataStore {
   
   /**
    * Instantiates a new node using the given context and config.
@@ -45,18 +40,6 @@ public interface Tsdb1xDataStore {
   public QueryNode newNode(final QueryPipelineContext context, 
                            final String id,
                            final QueryNodeConfig config);
-  
-  /**
-   * Write the given value to the data store.
-   * @param id The time series ID.
-   * @param value The time series value.
-   * @param span An optional tracing span.
-   * @return A deferred resolving to null on success or an exception on
-   * error.
-   */
-  public Deferred<Object> write(final TimeSeriesStringId id, 
-                                final TimeSeriesValue<?> value, 
-                                final Span span);
   
   /** @return The ID of this time series data store instance. */
   public String id();

@@ -105,6 +105,7 @@ public class PluginsConfig extends Validatable {
     DEFAULT_TYPES.add("net.opentsdb.query.QueryNodeFactory");
     DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
     DEFAULT_TYPES.add("net.opentsdb.query.interpolation.QueryInterpolatorFactory");
+    DEFAULT_TYPES.add("net.opentsdb.storage.DatumIdValidator");
     DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.serdes.SerdesFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.execution.QueryExecutorFactory");
@@ -128,6 +129,8 @@ public class PluginsConfig extends Validatable {
         "net.opentsdb.stats.BraveTracer");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.SerdesFactory", 
         "net.opentsdb.query.execution.serdes.JsonV2QuerySerdesFactory");
+    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.DatumIdValidator", 
+        "net.opentsdb.storage.DefaultDatumIdValidator");
   }
   
   /** The list of plugin configs. */

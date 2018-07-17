@@ -14,16 +14,19 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.List;
+
 import org.hbase.async.HBaseClient;
 
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
@@ -277,18 +280,26 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   }
   
   @Override
-  public Deferred<Object> write(final TimeSeriesStringId id, 
-                                final TimeSeriesValue<?> value, 
-                                final Span span) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
   public QueryNode newNode(final QueryPipelineContext context,
                            final String id,
                            final QueryNodeConfig config) {
     return new Tsdb1xQueryNode(this, context, id, (QuerySourceConfig) config);
+  }
+  
+  @Override
+  public Deferred<WriteStatus> write(final AuthState state, 
+                                     final TimeSeriesDatum datum,
+                                     final Span span) {
+    // no need to validate here.
+    return null;
+  }
+
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state,
+                                           final TimeSeriesDatumIterable data, 
+                                           final Span span) {
+    // TODO Auto-generated method stub
+    return null;
   }
   
   public Deferred<Object> shutdown() {
@@ -355,5 +366,5 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     return tsdb.getConfig().getBoolean(key);
   }
 
-  
+    
 }
