@@ -31,26 +31,7 @@ import net.opentsdb.stats.Span;
  */
 public interface WritableTimeSeriesDataStore {
 
-  /**
-   * An enum used by callers to determine whether or not the write was
-   * successful.
-   */
-  public static enum WriteState {
-    /** The write was successful and the original message can be dropped. */
-    OK,
-    
-    /** The write was not successful due to issues such as waiting for a
-     * UID assignment, throttling or temporary unavailability. The value
-     * should be retried at a later time. */
-    RETRY,
-    
-    /** The value was rejected due to permissions, invalid tags, the type
-     * of data or another issue. The value should be dropped. */
-    REJECTED,
-    
-    /** An error happened during storage. The value can be retried. */
-    ERROR
-  }
+  
   
   /**
    * Writes the given value to the data store.
@@ -60,7 +41,7 @@ public interface WritableTimeSeriesDataStore {
    * @param span An optional span for tracing.
    * @return A deferred resolving to a WriteState.
    */
-  public Deferred<WriteState> write(final AuthState state, 
+  public Deferred<WriteStatus> write(final AuthState state, 
                                     final TimeSeriesDatum datum, 
                                     final Span span);
   
@@ -73,7 +54,7 @@ public interface WritableTimeSeriesDataStore {
    * @return A deferred resolving to a list of WriteStates in the same
    * same order and number as the entries in the data iterator.
    */
-  public Deferred<List<WriteState>> write(final AuthState state, 
+  public Deferred<List<WriteStatus>> write(final AuthState state, 
                                           final TimeSeriesDatumIterable data, 
                                           final Span span);
   
