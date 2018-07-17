@@ -33,14 +33,16 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -54,6 +56,8 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -73,7 +77,8 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class Schema implements ReadableTimeSeriesDataStore {
+public class Schema implements ReadableTimeSeriesDataStore, 
+                               WritableTimeSeriesDataStore {
 
   public static final byte APPENDS_PREFIX = 5;
   
@@ -293,6 +298,20 @@ public class Schema implements ReadableTimeSeriesDataStore {
       final List<String> join_metrics,
       final Span span) {
     return getIds(UniqueIdType.METRIC, join_metrics, span);
+  }
+  
+  @Override
+  public Deferred<WriteStatus> write(final AuthState state, 
+                                    final TimeSeriesDatum datum, 
+                                    final Span span) {
+    return null;
+  }
+  
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state, 
+                                          final TimeSeriesDatumIterable data, 
+                                          final Span span) {
+    return null;
   }
   
   /**

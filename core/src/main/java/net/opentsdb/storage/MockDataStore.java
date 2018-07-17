@@ -146,17 +146,17 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     return Deferred.fromResult(null);
   }
   
-  public Deferred<WriteState> write(final AuthState state, final TimeSeriesDatum datum, final Span span) {
+  public Deferred<WriteStatus> write(final AuthState state, final TimeSeriesDatum datum, final Span span) {
     MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
     if (data_span == null) {
       data_span = new MockSpan((TimeSeriesDatumStringId) datum.id());
       database.put((TimeSeriesDatumStringId) datum.id(), data_span);
     }
     data_span.addValue(datum.value());
-    return Deferred.fromResult(WriteState.OK);
+    return Deferred.fromResult(WriteStatus.OK);
   }
   
-  public Deferred<List<WriteState>> write(final AuthState state, final TimeSeriesDatumIterable data, final Span span) {
+  public Deferred<List<WriteStatus>> write(final AuthState state, final TimeSeriesDatumIterable data, final Span span) {
     int i = 0;
     for (final TimeSeriesDatum datum : data) {
       MockSpan data_span = database.get(datum.id());
@@ -167,9 +167,9 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       data_span.addValue(datum.value());
       i++;
     }
-    final List<WriteState> states = Lists.newArrayListWithExpectedSize(i);
+    final List<WriteStatus> states = Lists.newArrayListWithExpectedSize(i);
     for (int x = 0; x < i; x++) {
-      states.add(WriteState.OK);
+      states.add(WriteStatus.OK);
     }
     return Deferred.fromResult(states);
   }
