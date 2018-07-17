@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -33,14 +34,16 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -54,6 +57,9 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.storage.WriteStatus;
+import net.opentsdb.storage.DatumIdValidator;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -73,7 +79,8 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class Schema implements ReadableTimeSeriesDataStore {
+public class Schema implements ReadableTimeSeriesDataStore, 
+                               WritableTimeSeriesDataStore {
 
   public static final byte APPENDS_PREFIX = 5;
   
@@ -117,6 +124,8 @@ public class Schema implements ReadableTimeSeriesDataStore {
   protected Map<TypeToken<?>, Codec> codecs;
   
   protected MetaDataStorageSchema meta_schema;
+  
+  protected DatumIdValidator id_validator;
   
   public Schema(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
@@ -260,6 +269,9 @@ public class Schema implements ReadableTimeSeriesDataStore {
     
     meta_schema = tsdb.getRegistry()
         .getDefaultPlugin(MetaDataStorageSchema.class);
+    
+    id_validator = tsdb.getRegistry().getDefaultPlugin(
+        DatumIdValidator.class);
   }
   
   @Override
@@ -293,6 +305,69 @@ public class Schema implements ReadableTimeSeriesDataStore {
       final List<String> join_metrics,
       final Span span) {
     return getIds(UniqueIdType.METRIC, join_metrics, span);
+  }
+  
+  @Override
+  public Deferred<WriteStatus> write(final AuthState state, 
+                                     final TimeSeriesDatum datum, 
+                                     final Span span) {
+    final String error = id_validator.validate(datum.id());
+    if (error != null) {
+      return Deferred.fromResult(WriteStatus.rejected(error));
+    }
+    return data_store.write(state, datum, span);
+  }
+  
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state, 
+                                           final TimeSeriesDatumIterable data, 
+                                           final Span span) {
+    final List<WriteStatus> status = Lists.newArrayList();
+    final List<TimeSeriesDatum> forwards = Lists.newArrayList();
+    String error = null;
+    int errors = 0;
+    for (final TimeSeriesDatum datum : data) {
+      error = id_validator.validate(datum.id());
+      if (error != null) {
+        status.add(WriteStatus.rejected(error));
+        errors++;
+      } else {
+        status.add(null);
+        forwards.add(datum);
+      }
+    }
+    
+    if (errors < 1) {
+      return data_store.write(state, data, span);
+    } else if (forwards.isEmpty()) {
+      // don't even bother calling downstream.
+      return Deferred.fromResult(status);
+    }
+    
+    class WriteCB implements Callback<List<WriteStatus>, List<WriteStatus>> {
+      @Override
+      public List<WriteStatus> call(final List<WriteStatus> results) 
+            throws Exception {
+        if (results.size() != forwards.size()) {
+          throw new StorageException("Expected " + forwards.size() 
+            + " but only received " + results.size() + " responses!");
+        }
+        final Iterator<WriteStatus> iterator = results.iterator();
+        for (int i = 0; i < status.size(); i++) {
+          if (status.get(i) != null) {
+            continue;
+          }
+          status.set(i, iterator.next());
+        }
+        return status;
+      }
+    }
+    
+    // aww, have to follow the complex path
+    return data_store.write(state, 
+        TimeSeriesDatumIterable.fromCollection(forwards), 
+        span)
+          .addCallback(new WriteCB());
   }
   
   /**
@@ -1074,8 +1149,7 @@ public class Schema implements ReadableTimeSeriesDataStore {
 
   @Override
   public Deferred<Object> shutdown() {
-    // TODO Auto-generated method stub
-    return null;
+    return Deferred.fromResult(null);
   }
   
 }

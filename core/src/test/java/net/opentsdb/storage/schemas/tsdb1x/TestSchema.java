@@ -24,6 +24,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -34,6 +36,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.MockTSDB;
@@ -41,12 +44,17 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumId;
+import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.WriteStatus;
+import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
@@ -999,5 +1007,110 @@ public class TestSchema extends SchemaBase {
       schema.resolveByteId(id, null).join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
+  }
+
+  @Test
+  public void writeDatum() throws Exception {
+    Schema schema = schema();
+    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+      .thenReturn(null);
+    when(store.write(any(AuthState.class), any(TimeSeriesDatum.class), 
+        any(net.opentsdb.stats.Span.class)))
+      .thenReturn(Deferred.fromResult(WriteStatus.OK));
+    assertEquals(WriteStatus.OK, schema.write(null, 
+        mock(TimeSeriesDatum.class), null).join());
+    verify(store, times(1)).write(any(AuthState.class), any(TimeSeriesDatum.class), 
+        any(net.opentsdb.stats.Span.class));
+    
+    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+      .thenReturn("Ooops");
+    
+    WriteStatus status = schema.write(null, 
+        mock(TimeSeriesDatum.class), null).join();
+    assertEquals(WriteState.REJECTED, status.state());
+    assertEquals("Ooops", status.message());
+    verify(store, times(1)).write(any(AuthState.class), any(TimeSeriesDatum.class), 
+        any(net.opentsdb.stats.Span.class));
+  }
+  
+  @Test
+  public void writeData() throws Exception {
+    Schema schema = schema();
+    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+      .thenReturn(null);
+    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          WriteStatus.OK, 
+          WriteStatus.OK)));
+    
+    List<TimeSeriesDatum> data = Lists.newArrayList(
+        mock(TimeSeriesDatum.class),
+        mock(TimeSeriesDatum.class));
+    
+    List<WriteStatus> status = schema.write(null, 
+        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+    assertEquals(2, status.size());
+    assertEquals(WriteStatus.OK, status.get(0));
+    assertEquals(WriteStatus.OK, status.get(1));
+    verify(store, times(1)).write(any(AuthState.class), 
+        any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class));
+    
+    // fail the first
+    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+      .thenReturn("Ooops!")
+      .thenReturn(null);
+    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          WriteStatus.OK)));
+    
+    status = schema.write(null, 
+        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+    assertEquals(2, status.size());
+    assertEquals(WriteState.REJECTED, status.get(0).state());
+    assertEquals(WriteStatus.OK, status.get(1));
+    verify(store, times(2)).write(any(AuthState.class), 
+        any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class));
+    
+    // fail the second
+    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+      .thenReturn(null)
+      .thenReturn("Ooops!");
+    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          WriteStatus.OK)));
+    
+    status = schema.write(null, 
+        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+    assertEquals(2, status.size());    
+    assertEquals(WriteStatus.OK, status.get(0));
+    assertEquals(WriteState.REJECTED, status.get(1).state());
+    verify(store, times(3)).write(any(AuthState.class), 
+        any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class));
+    
+    // fail all
+    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+      .thenReturn("Ooops!")
+      .thenReturn("Ooops!");
+    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          WriteStatus.OK)));
+    
+    status = schema.write(null, 
+        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+    assertEquals(2, status.size());    
+    assertEquals(WriteState.REJECTED, status.get(0).state());
+    assertEquals(WriteState.REJECTED, status.get(1).state());
+    
+    // not called here
+    verify(store, times(3)).write(any(AuthState.class), 
+        any(TimeSeriesDatumIterable.class), 
+        any(net.opentsdb.stats.Span.class));
   }
 }
