@@ -30,8 +30,6 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public interface WritableTimeSeriesDataStore {
-
-  
   
   /**
    * Writes the given value to the data store.
