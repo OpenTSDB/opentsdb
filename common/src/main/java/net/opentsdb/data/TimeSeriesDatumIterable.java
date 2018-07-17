@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import java.util.Collection;
+import java.util.Iterator;
+
 /**
  * An interface used when writing values that wraps multiple data in a
  * single batch. 
@@ -22,4 +25,23 @@ package net.opentsdb.data;
  */
 public interface TimeSeriesDatumIterable extends Iterable<TimeSeriesDatum> {
 
+  /**
+   * A wrapper around a collection to create an iterable.
+   * @param datum The non-null datum to read from.
+   * @return The iterable collection.
+   * @throws IllegalArgumentException if the datum was null.
+   */
+  public static TimeSeriesDatumIterable fromCollection(
+      final Collection<TimeSeriesDatum> datum) {
+    if (datum == null) {
+      throw new IllegalArgumentException("Datum collection cannot be null.");
+    }
+    
+    return new TimeSeriesDatumIterable() {
+      @Override
+      public Iterator<TimeSeriesDatum> iterator() {
+        return datum.iterator();
+      }
+    };
+  }
 }
