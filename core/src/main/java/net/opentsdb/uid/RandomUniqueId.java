@@ -1,20 +1,21 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.uid;
 
 import java.security.SecureRandom;
-import org.hbase.async.Bytes;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Bytes;
 
 /**
  * Generate Random UIDs to be used as unique ID.
@@ -22,6 +23,7 @@ import net.opentsdb.core.TSDB;
  * It is better to decide whether to use random or serial uid for one type when 
  * the hbase uid table is empty. If the logic to switch between random or serial
  * uid is changed in between writes it will cause frequent id collisions.
+ * 
  * @since 2.2
  */
 public class RandomUniqueId {
@@ -32,20 +34,6 @@ public class RandomUniqueId {
   /** Used to limit UIDs to unsigned longs */
   public static final int MAX_WIDTH = 7;
   
-  /**
-   * Get the next random metric UID, a positive integer greater than zero. 
-   * The default metric ID width is 3 bytes. If it is 3 then  it can return 
-   * only up to the max value a 3 byte integer can return, which is 2^31-1. 
-   * In that case, even though it is long, its range will be between 0 
-   * and 2^31-1.
-   * NOTE: The caller is responsible for assuring that the UID hasn't been
-   * assigned yet.
-   * @return a random UID up to {@link TSDB#metrics_width()} wide
-   */
-  public static long getRandomUID() {
-    return getRandomUID(TSDB.metrics_width());
-  }
-
   /**
    * Get the next random UID. It creates random bytes, then convert it to an
    * unsigned long.
