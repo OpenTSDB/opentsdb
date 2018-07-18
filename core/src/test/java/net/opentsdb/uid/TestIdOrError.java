@@ -17,9 +17,13 @@ package net.opentsdb.uid;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
+
+import net.opentsdb.storage.WriteStatus.WriteState;
+import net.opentsdb.utils.UnitTestException;
 
 public class TestIdOrError {
 
@@ -28,6 +32,8 @@ public class TestIdOrError {
     IdOrError ioe = IdOrError.wrapId(new byte[] { 0, 0, 1 });
     assertArrayEquals(new byte[] { 0, 0, 1 }, ioe.id());
     assertNull(ioe.error());
+    assertEquals(WriteState.OK, ioe.state());
+    assertNull(ioe.exception());
     
     try {
       IdOrError.wrapId(null);
@@ -41,18 +47,61 @@ public class TestIdOrError {
   }
   
   @Test
-  public void wrapError() throws Exception {
-    IdOrError ioe = IdOrError.wrapError("Ooops!");
+  public void wrapRetry() throws Exception {
+    IdOrError ioe = IdOrError.wrapRetry("Wait!");
     assertNull(ioe.id());
-    assertEquals("Ooops!", ioe.error());
+    assertEquals("Wait!", ioe.error());
+    assertEquals(WriteState.RETRY, ioe.state());
+    assertNull(ioe.exception());
+    
+    ioe = IdOrError.wrapRetry(null);
+    assertNull(ioe.id());
+    assertNull(ioe.error());
+    assertEquals(WriteState.RETRY, ioe.state());
+    assertNull(ioe.exception());
+    
+    ioe = IdOrError.wrapRetry("");
+    assertNull(ioe.id());
+    assertEquals("", ioe.error());
+    assertEquals(WriteState.RETRY, ioe.state());
+    assertNull(ioe.exception());
+  }
+  
+  @Test
+  public void wrapRejected() throws Exception {
+    IdOrError ioe = IdOrError.wrapRejected("Wait!");
+    assertNull(ioe.id());
+    assertEquals("Wait!", ioe.error());
+    assertEquals(WriteState.REJECTED, ioe.state());
+    assertNull(ioe.exception());
     
     try {
-      IdOrError.wrapError(null);
+      IdOrError.wrapRejected(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      IdOrError.wrapError("");
+      IdOrError.wrapRejected("");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void wrapError() throws Exception {
+    UnitTestException ex = new UnitTestException();
+    IdOrError ioe = IdOrError.wrapError("Ooops!", ex);
+    assertNull(ioe.id());
+    assertEquals("Ooops!", ioe.error());
+    assertEquals(WriteState.ERROR, ioe.state());
+    assertSame(ex, ioe.exception());
+    
+    try {
+      IdOrError.wrapError(null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      IdOrError.wrapError("", null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

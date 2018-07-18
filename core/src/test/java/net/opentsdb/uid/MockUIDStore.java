@@ -24,7 +24,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.utils.ByteSet;
@@ -131,15 +132,21 @@ public class MockUIDStore implements UniqueIdStore {
   }
   
   @Override
-  public Deferred<byte[]> getOrCreateId(UniqueIdType type, String name,
-      TimeSeriesId id, Span span) {
+  public Deferred<IdOrError> getOrCreateId(final AuthState auth,
+      final UniqueIdType type, 
+      final String name,
+      final TimeSeriesDatumId id,
+      final Span span) {
     // TODO Auto-generated method stub
     return null;
   }
   
   @Override
-  public Deferred<List<byte[]>> getOrCreateIds(UniqueIdType type,
-      List<String> names, TimeSeriesId id, Span span) {
+  public Deferred<List<IdOrError>> getOrCreateIds(final AuthState auth,
+      final UniqueIdType type, 
+      final List<String> names,
+      final TimeSeriesDatumId id,
+      final Span span) {
     // TODO Auto-generated method stub
     return null;
   }
@@ -166,7 +173,7 @@ public class MockUIDStore implements UniqueIdStore {
   }
   
   @Override
-  public Charset characterSet() {
+  public Charset characterSet(final UniqueIdType type) {
     return charset;
   }
   
