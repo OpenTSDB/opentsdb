@@ -137,8 +137,16 @@ public class MockUIDStore implements UniqueIdStore {
       final String name,
       final TimeSeriesDatumId id,
       final Span span) {
-    // TODO Auto-generated method stub
-    return null;
+    if (name_to_ex.get(type).contains(name)) {
+      return Deferred.fromError(new StorageException("Boo!"));
+    }
+    
+    final byte[] uid = name_to_id.get(type).get(name);
+    if (uid != null) {
+      return Deferred.fromResult(IdOrError.wrapId(uid));
+    }
+    
+    return Deferred.fromResult(IdOrError.wrapRejected("Mock can't assign: " + name));
   }
   
   @Override
@@ -147,8 +155,19 @@ public class MockUIDStore implements UniqueIdStore {
       final List<String> names,
       final TimeSeriesDatumId id,
       final Span span) {
-    // TODO Auto-generated method stub
-    return null;
+    final List<IdOrError> uids = Lists.newArrayListWithCapacity(names.size());
+    for (final String name : names) {
+      if (name_to_ex.get(type).contains(name)) {
+        return Deferred.fromError(new StorageException("Boo!"));
+      }
+      final byte[] uid = name_to_id.get(type).get(name);
+      if (uid != null) {
+        uids.add(IdOrError.wrapId(uid));
+      } else {
+        uids.add(IdOrError.wrapRejected("Mock can't assign: " + name));
+      }
+    }
+    return Deferred.fromResult(uids);
   }
   
   @Override

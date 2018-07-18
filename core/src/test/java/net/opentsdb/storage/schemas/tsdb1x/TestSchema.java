@@ -28,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,19 +43,24 @@ import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesByteId;
+import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.ZonedNanoTimeStamp;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
+import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
@@ -1113,4 +1119,155 @@ public class TestSchema extends SchemaBase {
         any(TimeSeriesDatumIterable.class), 
         any(net.opentsdb.stats.Span.class));
   }
+
+  @Test
+  public void createRowKeySuccess() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+    
+    MutableNumericValue value = 
+        new MutableNumericValue(new MillisecondTimeStamp(1262305800000L), 42);
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build();
+    
+    IdOrError ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.error());
+    byte[] expected = getRowKey(schema, METRIC_STRING, 1262304000, 
+        TAGK_STRING, TAGV_STRING);
+    assertArrayEquals(expected, ioe.id());
+    
+    // two tags assigned
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .addTags(TAGK_B_STRING, TAGV_B_STRING)
+        .build();
+    
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.error());
+    expected = getRowKey(schema, METRIC_STRING, 1262304000, 
+        TAGK_STRING, TAGV_STRING, TAGK_B_STRING, TAGV_B_STRING);
+    assertArrayEquals(expected, ioe.id());
+    
+    // ms resolution
+    value = 
+        new MutableNumericValue(new MillisecondTimeStamp(1262305800250L), 42);
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.error());
+    assertArrayEquals(expected, ioe.id());
+    
+    // nanosecond resolution
+    value = new MutableNumericValue(new ZonedNanoTimeStamp(1262305800, 
+        250000000, ZoneId.of("UTC")), 42);
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.error());
+    assertArrayEquals(expected, ioe.id());
+  }
+
+  @Test
+  public void createRowKeySuccessSalted() throws Exception {
+    resetConfig();
+    MockTSDB tsdb = new MockTSDB();
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
+      .thenReturn(store);    
+    when(tsdb.registry.getSharedObject("default_uidstore"))
+      .thenReturn(uid_store);
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
+      .thenReturn(uid_factory);
+    tsdb.config.register("tsd.storage.salt.buckets", 250, false, "UT"); // high to ensure salting
+    tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
+    
+    Schema schema = new Schema(tsdb, null);
+    
+    MutableNumericValue value = 
+        new MutableNumericValue(new MillisecondTimeStamp(1262305800000L), 42);
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build();
+    
+    IdOrError ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.error());
+    byte[] expected = getRowKey(schema, METRIC_STRING, 1262304000, 
+        TAGK_STRING, TAGV_STRING);
+    assertArrayEquals(expected, ioe.id());
+    assertTrue(ioe.id()[0] != 0);
+    assertEquals(14, ioe.id().length);
+    
+    // two tags assigned
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .addTags(TAGK_B_STRING, TAGV_B_STRING)
+        .build();
+    
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.error());
+    expected = getRowKey(schema, METRIC_STRING, 1262304000, 
+        TAGK_STRING, TAGV_STRING, TAGK_B_STRING, TAGV_B_STRING);
+    assertArrayEquals(expected, ioe.id());
+    assertTrue(ioe.id()[0] != 0);
+    assertEquals(20, ioe.id().length);
+  }
+  
+  @Test
+  public void createRowKeyErors() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+    
+    // negative timestamps are not allowed
+    MutableNumericValue value = 
+        new MutableNumericValue(new MillisecondTimeStamp(-1262305800000L), 42);
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build();
+    
+    IdOrError ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+    
+    // unassigned strings
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric("unassigned")
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build();
+    
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+    
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags("unassigned", TAGV_STRING)
+        .build();
+    
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+    
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, "unassigned")
+        .build();
+    
+    ioe = schema.createRowKey(null, 
+        TimeSeriesDatum.wrap(id, value), null, null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+  
 }
