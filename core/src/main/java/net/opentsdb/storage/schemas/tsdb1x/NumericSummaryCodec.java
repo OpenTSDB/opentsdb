@@ -17,7 +17,10 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.utils.Pair;
 
 /**
  * A codec for handling TSDB 2.x rollup data points.
@@ -43,4 +46,13 @@ public class NumericSummaryCodec implements Codec {
         + "sequences.");
   }
 
+  @Override
+  public Pair<byte[], byte[]> encode(
+      final TimeSeriesValue<? extends TimeSeriesDataType> value,
+      final boolean append_format,
+      final int base_time,
+      final RollupInterval rollup_interval) {
+    // TODO - implement
+    throw new UnsupportedOperationException("Not implemented yet.");
+  }
 }
