@@ -43,6 +43,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -55,18 +56,22 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WriteStatus;
+import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.storage.DatumIdValidator;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
+import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
 
@@ -858,6 +863,210 @@ public class Schema implements ReadableTimeSeriesDataStore,
 //      throw new IllegalArgumentException("No codec loaded for type: " + type);
 //    }
 //    return codec.newRowSeq(base_time);
+  }
+  
+  /**
+   * Generates the row key for a given datum, incorporating the optional
+   * salt, the timestamp, metric and tags as per the original OpenTSDB
+   * schema.
+   * <p>
+   * If the datum is null, an NPE is thrown. If the value for the datum
+   * is null, then we return an {@link IdOrError} with an 
+   * {@link WriteState#ERROR} status.
+   * <p>
+   * Note that this method can assign UIDs if allowed. If fetch or 
+   * assignment fails then an {@link IdOrError} with 
+   * {@link WriteState#REJECTED} is returned. 
+   * 
+   * @param auth A non-null auth object for authorization.
+   * @param datum A non-null datum object with a non null value.
+   * @param interval An optional rollup interval for summaries.
+   * @param span An optional tracing span.
+   * @return A deferred resolving to an IdOrError object or an exception
+   * if something went pear shaped.
+   */
+  public Deferred<IdOrError> createRowKey(final AuthState auth, 
+                                          final TimeSeriesDatum datum,
+                                          final RollupInterval interval,
+                                          final Span span) {
+    if (datum.value() == null) {
+      return Deferred.fromResult(IdOrError.wrapError("Null values are not allowed"));
+    }
+    
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".createRowKey")
+          .start();
+    } else {
+      child = null;
+    }
+    
+    final int tags_size = ((TimeSeriesDatumStringId) datum.id()).tags() != null ? 
+        ((TimeSeriesDatumStringId) datum.id()).tags().size() : 0;
+    
+    final byte[] row_key = new byte[salt_width + 
+                                    metric_width + 
+                                    TIMESTAMP_BYTES +
+                                    tags_size * (tagk_width + tagv_width)];
+    
+    // set the timestamp and kick out negatives.
+    if (interval != null && datum.value().type() == NumericSummaryType.TYPE) {
+      // TODO - handle summaries
+    } else {
+      long base_time = datum.value().timestamp().epoch();
+      if (base_time < 0) {
+        return Deferred.fromResult(IdOrError.wrapRejected("Unix epoch "
+            + "timestamp cannot have a negative value."));
+      }
+      base_time = base_time - (base_time % MAX_RAW_TIMESPAN);
+      System.arraycopy(Bytes.fromInt((int) base_time), 0, row_key, 
+          salt_width + metric_width, TIMESTAMP_BYTES);
+    }
+    
+    // TODO - If summary we may need to add tags to the ID.
+    
+    final List<String> tagk_strings = 
+        Lists.newArrayListWithExpectedSize(tags_size);
+    final List<String> tagv_strings = 
+        Lists.newArrayListWithExpectedSize(tags_size);
+    final List<IdOrError> tagk_results = 
+        Lists.newArrayListWithExpectedSize(tags_size);
+    final List<IdOrError> tagv_results = 
+        Lists.newArrayListWithExpectedSize(tags_size);
+    final List<Deferred<Object>> deferreds = 
+        Lists.newArrayListWithExpectedSize(2);
+    
+    class GroupCB implements Callback<IdOrError, ArrayList<Object>> {
+
+      @Override
+      public IdOrError call(final ArrayList<Object> ignored) throws Exception {
+        // needs to be sorted on the tag keys
+        final ByteMap<byte[]> map = new ByteMap<byte[]>();
+        
+        WriteState state = WriteState.OK;
+        String error = null;
+        for (int i = 0; i < tagk_results.size(); i++) {
+          final IdOrError tagk = tagk_results.get(i);
+          final IdOrError tagv = tagv_results.get(i);
+          
+          if (tagk.id() != null && tagv.id() != null) {
+            // good pair!
+            if (state == WriteState.OK) {
+              map.put(tagk.id(), tagv.id());
+            }
+          } else {
+            if (tagk.state().ordinal() >= state.ordinal()) {
+              state = tagk.state();
+              error = tagk.error();
+            }
+            if (tagv.state().ordinal() >= state.ordinal()) {
+              state = tagv.state();
+              error = tagv.error();
+            }
+          }
+        }
+        
+        if (state != WriteState.OK) {
+          if (child != null) {
+            child.setErrorTags()
+            .setTag("state", state.toString())
+            .setTag("message", error)
+            .finish();
+          }
+          switch (state) {
+          case RETRY:
+            return IdOrError.wrapRetry(error);
+          case REJECTED:
+            return IdOrError.wrapRejected(error);
+          default:
+            return IdOrError.wrapError(error);  
+          }
+        }
+        
+        // assume correct sizes
+        int idx = salt_width + metric_width + TIMESTAMP_BYTES;
+        for (final Entry<byte[], byte[]> entry : map.entrySet()) {
+          System.arraycopy(entry.getKey(), 0, row_key, idx, tagk_width);
+          idx += tagk_width;
+          System.arraycopy( entry.getValue(), 0, row_key, idx, tagv_width);
+          idx += tagv_width;
+        }
+        
+        prefixKeyWithSalt(row_key);
+        return IdOrError.wrapId(row_key);
+      }
+      
+    }
+    
+    class TagKCB implements Callback<Object, List<IdOrError>> {
+
+      @Override
+      public Object call(final List<IdOrError> results) throws Exception {
+        tagk_results.addAll(results);
+        return null;
+      }
+      
+    }
+    
+    class TagVCB implements Callback<Object, List<IdOrError>> {
+
+      @Override
+      public Object call(final List<IdOrError> results) throws Exception {
+        tagv_results.addAll(results);
+        return null;
+      }
+      
+    }
+    
+    class MetricCB implements Callback<Deferred<IdOrError>, IdOrError> {
+
+      @Override
+      public Deferred<IdOrError> call(final IdOrError result) throws Exception {
+        if (result.id() == null) {
+          if (child != null) {
+            child.setErrorTags()
+            .setTag("state", result.state().toString())
+            .setTag("message", result.error())
+            .finish();
+          }
+          return Deferred.fromResult(result);
+        }
+        
+        // good, copy. Assume it's the proper width.
+        System.arraycopy(result.id(), 0, row_key, salt_width, metric_width);
+        
+        // bail if we don't have any tags.
+        if (tags_size < 0) {
+          if (child != null) {
+            child.setSuccessTags()
+            .finish();
+          }
+         
+          prefixKeyWithSalt(row_key);
+          return Deferred.fromResult(IdOrError.wrapId(row_key));
+        }
+        
+        // populate the string lists
+        for (final Entry<String, String> entry :
+          ((TimeSeriesDatumStringId) datum.id()).tags().entrySet()) {
+          tagk_strings.add(entry.getKey());
+          tagv_strings.add(entry.getValue());
+        }
+        
+        deferreds.add(uid_store.getOrCreateIds(auth, UniqueIdType.TAGK, 
+            tagk_strings, datum.id(), child)
+              .addCallback(new TagKCB()));
+        deferreds.add(uid_store.getOrCreateIds(auth, UniqueIdType.TAGV, 
+            tagv_strings, datum.id(), child)
+              .addCallback(new TagVCB()));
+        return Deferred.group(deferreds).addBoth(new GroupCB());
+      }
+      
+    }
+    
+    return uid_store.getOrCreateId(auth, UniqueIdType.METRIC, 
+        ((TimeSeriesDatumStringId) datum.id()).metric(), datum.id(), child)
+          .addCallbackDeferring(new MetricCB());
   }
   
   /** @return The meta schema if implemented and assigned, null if not. */

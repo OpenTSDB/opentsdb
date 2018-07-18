@@ -287,23 +287,23 @@ public class SchemaBase {
     final int tk = schema.tagkWidth();
     final int tv = schema.tagvWidth();
     
-    final byte[] key = new byte[Const.SALT_WIDTH() + m + 4 
+    final byte[] key = new byte[schema.salt_width + m + 4 
        + (tags.length / 2) * tk + (tags.length / 2) * tv];
     byte[] uid = metrics.getId(metric, null).join();
     
     // metrics first
     if (uid != null) {
-      System.arraycopy(uid, 0, key, Const.SALT_WIDTH(), m);
+      System.arraycopy(uid, 0, key, schema.salt_width, m);
     } else {
       throw new IllegalArgumentException("No METRIC UID was mocked for: " + metric);
     }
     
     // timestamp
-    System.arraycopy(Bytes.fromInt(base_time), 0, key, Const.SALT_WIDTH() + m, 
+    System.arraycopy(Bytes.fromInt(base_time), 0, key, schema.salt_width + m, 
         Const.TIMESTAMP_BYTES);
     
     // shortcut for offsets
-    final int pl = Const.SALT_WIDTH() + m + Const.TIMESTAMP_BYTES;
+    final int pl = schema.salt_width + m + Const.TIMESTAMP_BYTES;
     int ctr = 0;
     int offset = 0;
     for (final String tag : tags) {
