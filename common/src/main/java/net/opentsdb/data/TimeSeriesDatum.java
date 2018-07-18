@@ -35,4 +35,38 @@ public interface TimeSeriesDatum {
    */
   public TimeSeriesValue<? extends TimeSeriesDataType> value();
   
+  /**
+   * A wrapper around an existing ID and value. This is useful for 
+   * testing and one-off uses but for high performance writes, the 
+   * interface should be implemented on existing data.
+   * 
+   * @param id The non-null ID to wrap.
+   * @param value The non-null value to wrap.
+   * @return A wrapped datum object.
+   * @throws IllegalArgumentException if the ID or value were null.
+   */
+  public static TimeSeriesDatum wrap(
+      final TimeSeriesDatumId id, 
+      final TimeSeriesValue<? extends TimeSeriesDataType> value) {
+    if (id == null) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null.");
+    }
+    
+    return new TimeSeriesDatum() {
+
+      @Override
+      public TimeSeriesDatumId id() {
+        return id;
+      }
+
+      @Override
+      public TimeSeriesValue<? extends TimeSeriesDataType> value() {
+        return value;
+      }
+      
+    };
+  }
 }
