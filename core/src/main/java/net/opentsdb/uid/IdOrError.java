@@ -16,6 +16,8 @@ package net.opentsdb.uid;
 
 import com.google.common.base.Strings;
 
+import net.opentsdb.storage.WriteStatus.WriteState;
+
 /**
  * A response from an assignment that contains either a non-null UID
  * with a null error, or a null UID with a null error. This replaces
@@ -32,6 +34,13 @@ public interface IdOrError {
   /** @return An error if assignment failed, null if assignment 
    * succeeded in which case {@link #id()} must not be null. */
   public String error();
+  
+  /** @return The write state used to determine how to handle datum 
+   * that do not return an ID. */
+  public WriteState state();
+  
+  /** @return An optional exception for errors. */
+  public Throwable exception();
   
   /**
    * Wraps the ID in the interface.
@@ -56,6 +65,85 @@ public interface IdOrError {
         return null;
       }
       
+      @Override
+      public WriteState state() {
+        return WriteState.OK;
+      }
+      
+      @Override
+      public Throwable exception() { 
+        return null; 
+      }
+      
+    };
+  }
+  
+  /**
+   * Wraps the retry in the interface.
+   * @param message An optional message string.
+   * @return The wrapped ID.
+   */
+  public static IdOrError wrapRetry(final String message) {
+    return new IdOrError() {
+
+      @Override
+      public byte[] id() {
+        return null;
+      }
+
+      @Override
+      public String error() {
+        return message;
+      }
+      
+      @Override
+      public WriteState state() {
+        return WriteState.RETRY;
+      }
+      
+      @Override
+      public Throwable exception() { 
+        return null; 
+      }
+      
+    };
+  }
+  
+  /**
+   * Wraps the rejection in the interface.
+   * @param message A non-null and non-empty error string.
+   * @param t An optional exception.
+   * @return The wrapped ID.
+   * @throws IllegalArgumentException if the string was null or empty.
+   */
+  public static IdOrError wrapRejected(final String message) {
+    if (Strings.isNullOrEmpty(message)) {
+      throw new IllegalArgumentException("Error string cannot be null "
+          + "or empty.");
+    }
+    
+    return new IdOrError() {
+
+      @Override
+      public byte[] id() {
+        return null;
+      }
+
+      @Override
+      public String error() {
+        return message;
+      }
+      
+      @Override
+      public WriteState state() {
+        return WriteState.REJECTED;
+      }
+      
+      @Override
+      public Throwable exception() { 
+        return null; 
+      }
+      
     };
   }
   
@@ -66,6 +154,17 @@ public interface IdOrError {
    * @throws IllegalArgumentException if the string was null or empty.
    */
   public static IdOrError wrapError(final String error) {
+    return wrapError(error, null);
+  }
+  
+  /**
+   * Wraps the error in the interface.
+   * @param error A non-null and non-empty error string.
+   * @param t An optional exception.
+   * @return The wrapped ID.
+   * @throws IllegalArgumentException if the string was null or empty.
+   */
+  public static IdOrError wrapError(final String error, final Throwable t) {
     if (Strings.isNullOrEmpty(error)) {
       throw new IllegalArgumentException("Error string cannot be null "
           + "or empty.");
@@ -81,6 +180,16 @@ public interface IdOrError {
       @Override
       public String error() {
         return error;
+      }
+      
+      @Override
+      public WriteState state() {
+        return WriteState.ERROR;
+      }
+      
+      @Override
+      public Throwable exception() { 
+        return t; 
       }
       
     };

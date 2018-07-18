@@ -17,41 +17,39 @@ package net.opentsdb.storage;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-import javax.xml.bind.DatatypeConverter;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
+
+import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.GetResultOrException;
+import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.query.filter.TagVLiteralOrFilter;
-import net.opentsdb.query.pojo.Filter;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.Span;
-import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
+import net.opentsdb.uid.IdOrError;
+import net.opentsdb.uid.RandomUniqueId;
+import net.opentsdb.uid.UniqueIdAssignmentAuthorizer;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
@@ -62,14 +60,36 @@ import net.opentsdb.utils.Bytes;
  * Don't attempt to use {@code equals()} or {@code hashCode()} on
  * this class.
  * 
+ * TODO - Use cache assignments in the UID cache.
+ * 
  * @since 1.0
  */
 public class Tsdb1xUniqueIdStore implements UniqueIdStore {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xUniqueIdStore.class);
   
+  /** A map of the various config UID types. */
+  protected static final Map<UniqueIdType, String> CONFIG_PREFIX = 
+      Maps.newHashMapWithExpectedSize(UniqueIdType.values().length);
+  static {
+    for (final UniqueIdType type : UniqueIdType.values()) {
+      CONFIG_PREFIX.put(type, "uid." + type.toString().toLowerCase() + ".");
+    }
+  }
+  
+  /** The error message returned when an ID is being assigned in the
+   * background and should be retried later. */
+  public static final String ASSIGN_AND_RETRY = 
+      "Assigning ID, queue and retry the data.";
+  
+  /** Various configuration keys. */
   public static final String CHARACTER_SET_KEY = "character_set";
   public static final String CHARACTER_SET_DEFAULT = "ISO-8859-1";
+  public static final String ASSIGN_AND_RETRY_KEY = "assign_and_retry";
+  public static final String RANDOM_ASSIGNMENT_KEY = "assign_random";
+  public static final String RANDOM_ATTEMPTS_KEY = "attempts.max_random";
+  public static final String ATTEMPTS_KEY = "attempts.max";
   
+  /** Static byte arrays for the various type qualifiers. */
   public static final byte[] METRICS_QUAL = 
       "metrics".getBytes(Const.ASCII_CHARSET);
   public static final byte[] TAG_NAME_QUAL = 
@@ -77,116 +97,97 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
   public static final byte[] TAG_VALUE_QUAL = 
       "tagv".getBytes(Const.ASCII_CHARSET);
 
-//  /** Charset used to convert Strings to byte arrays and back. */
-//  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** The single column family used by this class. */
   public static final byte[] ID_FAMILY = "id".getBytes(Const.ASCII_CHARSET);
   /** The single column family used by this class. */
   public static final byte[] NAME_FAMILY = "name".getBytes(Const.ASCII_CHARSET);
-//  /** Row key of the special row used to track the max ID already assigned. */
-//  private static final byte[] MAXID_ROW = { 0 };
-//  /** How many time do we try to assign an ID before giving up. */
-//  private static final short MAX_ATTEMPTS_ASSIGN_ID = 3;
+  /** Row key of the special row used to track the max ID already assigned. */
+  public static final byte[] MAXID_ROW = { 0 };
+  /** How many time do we try to assign an ID before giving up. */
+  public static final short DEFAULT_ATTEMPTS_ASSIGN_ID = 3;
 //  /** How many time do we try to apply an edit before giving up. */
-//  private static final short MAX_ATTEMPTS_PUT = 6;
-//  /** How many time do we try to assign a random ID before giving up. */
-//  private static final short MAX_ATTEMPTS_ASSIGN_RANDOM_ID = 10;
+//  public static final short MAX_ATTEMPTS_PUT = 6;
+  /** How many time do we try to assign a random ID before giving up. */
+  public static final short DEFAULT_ATTEMPTS_ASSIGN_RANDOM_ID = 10;
 //  /** Initial delay in ms for exponential backoff to retry failed RPCs. */
 //  private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
 //  /** Maximum number of results to return in suggest(). */
 //  private static final short MAX_SUGGESTIONS = 25;
   
-  private final Tsdb1xHBaseDataStore data_store; 
+  /** The data store we belong to. */
+  protected final Tsdb1xHBaseDataStore data_store; 
   
-  private final Charset character_set;
+  /** The authorizer pulled from the registry. */
+  protected final UniqueIdAssignmentAuthorizer authorizer;
   
-  private final Map<UniqueIdType, LongAdder> rejected_assignments;
+  /** Character sets for each type. */
+  protected final Charset metric_character_set;
+  protected final Charset tagk_character_set;
+  protected final Charset tagv_character_set;
   
-  private final Map<UniqueIdType, Map<String, Deferred<byte[]>>> pending_assignments;
+  /** A map of type to pending assignments. Protected for testing. */
+  protected final Map<UniqueIdType, Map<String, Deferred<IdOrError>>> pending_assignments;
+  
+  /** Whether or not to immediately return a RETRY state and run the 
+   * assignment process in the background. */
+  protected final boolean assign_and_retry;
+  
+  /** Max attempts. */
+  protected final short max_attempts_assign;
+  protected final short max_attempts_assign_random;
+  
+  /** Whethe ror not to randomize UID assignments for these types. */
+  protected final boolean randomize_metric_ids;
+  protected final boolean randomize_tagk_ids;
+  protected final boolean randomize_tagv_ids;
 
   public Tsdb1xUniqueIdStore(final Tsdb1xHBaseDataStore data_store) {
-    this.data_store = data_store;
-    if (!data_store.tsdb().getConfig().hasProperty(
-        data_store.getConfigKey(CHARACTER_SET_KEY))) {
-      data_store.tsdb().getConfig().register(
-          data_store.getConfigKey(CHARACTER_SET_KEY), 
-          CHARACTER_SET_DEFAULT, 
-          false, 
-          "The character set used for encoding/decoding all strings "
-              + "to UIDs.");
+    if (data_store == null) {
+      throw new IllegalArgumentException("Data store cannot be null.");
     }
-    character_set = Charset.forName(data_store.tsdb().getConfig()
-        .getString(data_store.getConfigKey(CHARACTER_SET_KEY)));
+    this.data_store = data_store;
+    registerConfigs(data_store.tsdb());
     
-    rejected_assignments = Maps.newHashMapWithExpectedSize(
-        UniqueIdType.values().length);
+    authorizer = data_store.tsdb().getRegistry()
+        .getDefaultPlugin(UniqueIdAssignmentAuthorizer.class);
+    
+    metric_character_set = Charset.forName(data_store.tsdb().getConfig()
+        .getString(data_store.getConfigKey(
+            CONFIG_PREFIX.get(UniqueIdType.METRIC) + CHARACTER_SET_KEY)));
+    tagk_character_set = Charset.forName(data_store.tsdb().getConfig()
+        .getString(data_store.getConfigKey(
+            CONFIG_PREFIX.get(UniqueIdType.TAGK) + CHARACTER_SET_KEY)));
+    tagv_character_set = Charset.forName(data_store.tsdb().getConfig()
+        .getString(data_store.getConfigKey(
+            CONFIG_PREFIX.get(UniqueIdType.TAGV) + CHARACTER_SET_KEY)));
+    
+    randomize_metric_ids = data_store.tsdb().getConfig()
+        .getBoolean(data_store.getConfigKey(
+            CONFIG_PREFIX.get(UniqueIdType.METRIC) + RANDOM_ASSIGNMENT_KEY));
+    randomize_tagk_ids = data_store.tsdb().getConfig()
+        .getBoolean(data_store.getConfigKey(
+            CONFIG_PREFIX.get(UniqueIdType.TAGK) + RANDOM_ASSIGNMENT_KEY));
+    randomize_tagv_ids = data_store.tsdb().getConfig()
+        .getBoolean(data_store.getConfigKey(
+            CONFIG_PREFIX.get(UniqueIdType.TAGV) + RANDOM_ASSIGNMENT_KEY));
+    
+    assign_and_retry = data_store.tsdb().getConfig()
+        .getBoolean(data_store.getConfigKey(ASSIGN_AND_RETRY_KEY));
+    max_attempts_assign = (short) data_store.tsdb().getConfig()
+        .getInt(data_store.getConfigKey(ATTEMPTS_KEY));
+    max_attempts_assign_random = (short) data_store.tsdb().getConfig()
+        .getInt(data_store.getConfigKey(RANDOM_ATTEMPTS_KEY));
+    
+    // It's important to create maps here.
     pending_assignments = Maps.newHashMapWithExpectedSize(
         UniqueIdType.values().length);
-    
     for (final UniqueIdType type : UniqueIdType.values()) {
-      rejected_assignments.put(type, new LongAdder());
       pending_assignments.put(type, Maps.newConcurrentMap());
     }
-//    this.client = client;
-//    this.table = table;
-//    if (kind.isEmpty()) {
-//      throw new IllegalArgumentException("Empty string as 'kind' argument!");
-//    }
-//    this.kind = toBytes(kind);
-//    type = stringToUniqueIdType(kind);
-//    if (width < 1 || width > 8) {
-//      throw new IllegalArgumentException("Invalid width: " + width);
-//    }
-//    this.id_width = (short) width;
-//    this.randomize_id = randomize_id;
     
-    LOG.info("Initalized UniqueId store with characterset: " 
-        + character_set);
+    LOG.info("Initalized UniqueId store.");
   }
-//  
-//  /**
-//   * Constructor.
-//   * @param tsdb The TSDB this UID object belongs to
-//   * @param table The name of the HBase table to use.
-//   * @param kind The kind of Unique ID this instance will deal with.
-//   * @param width The number of bytes on which Unique IDs should be encoded.
-//   * @param Whether or not to randomize new UIDs
-//   * @throws IllegalArgumentException if width is negative or too small/large
-//   * or if kind is an empty string.
-//   * @since 2.3
-//   */
-//  public UniqueId(final TSDB tsdb, final byte[] table, final String kind,
-//                  final int width, final boolean randomize_id) {
-//    this.client = tsdb.getClient();
-//    this.tsdb = tsdb;
-//    this.table = table;
-//    if (kind.isEmpty()) {
-//      throw new IllegalArgumentException("Empty string as 'kind' argument!");
-//    }
-//    this.kind = toBytes(kind);
-//    type = stringToUniqueIdType(kind);
-//    if (width < 1 || width > 8) {
-//      throw new IllegalArgumentException("Invalid width: " + width);
-//    }
-//    this.id_width = (short) width;
-//    this.randomize_id = randomize_id;
-//  }
-//
-//  /** The number of times we avoided reading from HBase thanks to the cache. */
-//  public int cacheHits() {
-//    return cache_hits;
-//  }
-//
-//  /** The number of times we had to read from HBase and populate the cache. */
-//  public int cacheMisses() {
-//    return cache_misses;
-//  }
-//
-//  /** Returns the number of elements stored in the internal cache. */
-//  public int cacheSize() {
-//    return name_cache.size() + id_cache.size();
-//  }
-//
+  
 //  /** Returns the number of random UID collisions */
 //  public int randomIdCollisions() {
 //    return random_id_collisions;
@@ -212,48 +213,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
 //  public long maxPossibleId() {
 //    return Internal.getMaxUnsignedValueOnBytes(id_width);
 //  }
-//  
-//  /**
-//   * Finds the name associated with a given ID.
-//   *
-//   * @param id The ID associated with that name.
-//   * @see #getId(String)
-//   * @see #getOrCreateIdAsync(String)
-//   * @throws NoSuchUniqueId if the given ID is not assigned.
-//   * @throws HBaseException if there is a problem communicating with HBase.
-//   * @throws IllegalArgumentException if the ID given in argument is encoded
-//   * on the wrong number of bytes.
-//   * @since 1.1
-//   */
-//  public Deferred<String> getNameAsync(final byte[] id) {
-//    if (id.length != id_width) {
-//      throw new IllegalArgumentException("Wrong id.length = " + id.length
-//                                         + " which is != " + id_width
-//                                         + " required for '" + kind() + '\'');
-//    }
-//    final String name = getNameFromCache(id);
-//    if (name != null) {
-//      cache_hits++;
-//      return Deferred.fromResult(name);
-//    }
-//    cache_misses++;
-//    class GetNameCB implements Callback<String, String> {
-//      public String call(final String name) {
-//        if (name == null) {
-//          throw new NoSuchUniqueId(kind(), id);
-//        }
-//        addNameToCache(id, name);
-//        addIdToCache(name, id);        
-//        return name;
-//      }
-//    }
-//    return getNameFromHBase(id).addCallback(new GetNameCB());
-//  }
-//
-//  private String getNameFromCache(final byte[] id) {
-//    return id_cache.get(fromBytes(id));
-//  }
-//
+  
   @Override
   public Deferred<String> getName(final UniqueIdType type, 
                                   final byte[] id,
@@ -295,7 +255,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           child.setSuccessTags()
             .finish();
         }
-        return name == null ? null : new String(name, character_set);
+        return name == null ? null : new String(name, characterSet(type));
       }
     }
     
@@ -403,7 +363,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
             names.add(null);
           } else {
             names.add(new String(results.get(i).getCells().get(0).value(), 
-                character_set));
+                characterSet(type)));
           }
         }
         
@@ -428,43 +388,6 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           "Unexpected exception from storage", e));
     }
   }
-//
-//  private void addNameToCache(final byte[] id, final String name) {
-//    final String key = fromBytes(id);
-//    String found = id_cache.get(key);
-//    if (found == null) {
-//      found = id_cache.putIfAbsent(key, name);
-//    }
-//    if (found != null && !found.equals(name)) {
-//      throw new IllegalStateException("id=" + Arrays.toString(id) + " => name="
-//          + name + ", already mapped to " + found);
-//    }
-//  }
-//  public Deferred<byte[]> getIdAsync(final String name) {
-//    final byte[] id = getIdFromCache(name);
-//    if (id != null) {
-//      cache_hits++;
-//      return Deferred.fromResult(id);
-//    }
-//    cache_misses++;
-//    class GetIdCB implements Callback<byte[], byte[]> {
-//      public byte[] call(final byte[] id) {
-//        if (id == null) {
-//          throw new NoSuchUniqueName(kind(), name);
-//        }
-//        if (id.length != id_width) {
-//          throw new IllegalStateException("Found id.length = " + id.length
-//                                          + " which is != " + id_width
-//                                          + " required for '" + kind() + '\'');
-//        }
-//        addIdToCache(name, id);
-//        addNameToCache(id, name);
-//        return id;
-//      }
-//    }
-//    Deferred<byte[]> d = getIdFromHBase(name).addCallback(new GetIdCB());
-//    return d;
-//  }
   
   @Override
   public Deferred<byte[]> getId(final UniqueIdType type, 
@@ -511,10 +434,10 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
 
     try {
       if (child != null) {
-        return hbaseGet(type, name.getBytes(character_set), ID_FAMILY)
+        return hbaseGet(type, name.getBytes(characterSet(type)), ID_FAMILY)
             .addCallbacks(new SpanCB(), new ErrorCB());
       }
-      return hbaseGet(type, name.getBytes(character_set), ID_FAMILY)
+      return hbaseGet(type, name.getBytes(characterSet(type)), ID_FAMILY)
           .addErrback(new ErrorCB());
     } catch (Exception e) {
       if (child != null) {
@@ -572,7 +495,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
             + "found in the list.");
       }
       requests.add(new GetRequest(data_store.uidTable(), 
-                                  name.getBytes(character_set), 
+                                  name.getBytes(characterSet(type)), 
                                   ID_FAMILY, 
                                   qualifier));
     }
@@ -642,471 +565,541 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     }
   }
   
-//
-//  private void addIdToCache(final String name, final byte[] id) {
-//    byte[] found = name_cache.get(name);
-//    if (found == null) {
-//      found = name_cache.putIfAbsent(name,
-//                                    // Must make a defensive copy to be immune
-//                                    // to any changes the caller may do on the
-//                                    // array later on.
-//                                    Arrays.copyOf(id, id.length));
-//    }
-//    if (found != null && !Arrays.equals(found, id)) {
-//      throw new IllegalStateException("name=" + name + " => id="
-//          + Arrays.toString(id) + ", already mapped to "
-//          + Arrays.toString(found));
-//    }
-//  }
-//
-//  /**
-//   * Implements the process to allocate a new UID.
-//   * This callback is re-used multiple times in a four step process:
-//   *   1. Allocate a new UID via atomic increment.
-//   *   2. Create the reverse mapping (ID to name).
-//   *   3. Create the forward mapping (name to ID).
-//   *   4. Return the new UID to the caller.
-//   */
-//  private final class UniqueIdAllocator implements Callback<Object, Object> {
-//    private final String name;  // What we're trying to allocate an ID for.
-//    private final Deferred<byte[]> assignment; // deferred to call back
-//    private short attempt = randomize_id ?     // Give up when zero.
-//        MAX_ATTEMPTS_ASSIGN_RANDOM_ID : MAX_ATTEMPTS_ASSIGN_ID;
-//
-//    private HBaseException hbe = null;  // Last exception caught.
-//    // TODO(manolama) - right now if we retry the assignment it will create a 
-//    // callback chain MAX_ATTEMPTS_* long and call the ErrBack that many times.
-//    // This can be cleaned up a fair amount but it may require changing the 
-//    // public behavior a bit. For now, the flag will prevent multiple attempts
-//    // to execute the callback.
-//    private boolean called = false; // whether we called the deferred or not
-//
-//    private long id = -1;  // The ID we'll grab with an atomic increment.
-//    private byte row[];    // The same ID, as a byte array.
-//
-//    private static final byte ALLOCATE_UID = 0;
-//    private static final byte CREATE_REVERSE_MAPPING = 1;
-//    private static final byte CREATE_FORWARD_MAPPING = 2;
-//    private static final byte DONE = 3;
-//    private byte state = ALLOCATE_UID;  // Current state of the process.
-//
-//    UniqueIdAllocator(final String name, final Deferred<byte[]> assignment) {
-//      this.name = name;
-//      this.assignment = assignment;
-//    }
-//
-//    Deferred<byte[]> tryAllocate() {
-//      attempt--;
-//      state = ALLOCATE_UID;
-//      call(null);
-//      return assignment;
-//    }
-//
-//    @SuppressWarnings("unchecked")
-//    public Object call(final Object arg) {
-//      if (attempt == 0) {
-//        if (hbe == null && !randomize_id) {
-//          throw new IllegalStateException("Should never happen!");
-//        }
-//        LOG.error("Failed to assign an ID for kind='" + kind()
-//                  + "' name='" + name + "'", hbe);
-//        if (hbe == null) {
-//          throw new FailedToAssignUniqueIdException(kind(), name, 
-//              MAX_ATTEMPTS_ASSIGN_RANDOM_ID);
-//        }
-//        throw hbe;
-//      }
-//
-//      if (arg instanceof Exception) {
-//        final String msg = ("Failed attempt #" + (randomize_id
-//                         ? (MAX_ATTEMPTS_ASSIGN_RANDOM_ID - attempt) 
-//                         : (MAX_ATTEMPTS_ASSIGN_ID - attempt))
-//                         + " to assign an UID for " + kind() + ':' + name
-//                         + " at step #" + state);
-//        if (arg instanceof HBaseException) {
-//          LOG.error(msg, (Exception) arg);
-//          hbe = (HBaseException) arg;
-//          attempt--;
-//          state = ALLOCATE_UID;;  // Retry from the beginning.
-//        } else {
-//          LOG.error("WTF?  Unexpected exception!  " + msg, (Exception) arg);
-//          return arg;  // Unexpected exception, let it bubble up.
-//        }
-//      }
-//
-//      class ErrBack implements Callback<Object, Exception> {
-//        public Object call(final Exception e) throws Exception {
-//          if (!called) {
-//            LOG.warn("Failed pending assignment for: " + name, e);
-//            assignment.callback(e);
-//            called = true;
-//          }
-//          return assignment;
-//        }
-//      }
-//      
-//      final Deferred d;
-//      switch (state) {
-//        case ALLOCATE_UID:
-//          d = allocateUid();
-//          break;
-//        case CREATE_REVERSE_MAPPING:
-//          d = createReverseMapping(arg);
-//          break;
-//        case CREATE_FORWARD_MAPPING:
-//          d = createForwardMapping(arg);
-//          break;
-//        case DONE:
-//          return done(arg);
-//        default:
-//          throw new AssertionError("Should never be here!");
-//      }
-//      return d.addBoth(this).addErrback(new ErrBack());
-//    }
-//
-//    /** Generates either a random or a serial ID. If random, we need to
-//     * make sure that there isn't a UID collision.
-//     */
-//    private Deferred<Long> allocateUid() {
-//      LOG.info("Creating " + (randomize_id ? "a random " : "an ") + 
-//          "ID for kind='" + kind() + "' name='" + name + '\'');
-//
-//      state = CREATE_REVERSE_MAPPING;
-//      if (randomize_id) {
-//        return Deferred.fromResult(RandomUniqueId.getRandomUID());
-//      } else {
-//        return client.atomicIncrement(new AtomicIncrementRequest(table, 
-//                                      MAXID_ROW, ID_FAMILY, kind));
-//      }
-//    }
-//
-//    /**
-//     * Create the reverse mapping.
-//     * We do this before the forward one so that if we die before creating
-//     * the forward mapping we don't run the risk of "publishing" a
-//     * partially assigned ID.  The reverse mapping on its own is harmless
-//     * but the forward mapping without reverse mapping is bad as it would
-//     * point to an ID that cannot be resolved.
-//     */
-//    private Deferred<Boolean> createReverseMapping(final Object arg) {
-//      if (!(arg instanceof Long)) {
-//        throw new IllegalStateException("Expected a Long but got " + arg);
-//      }
-//      id = (Long) arg;
-//      if (id <= 0) {
-//        throw new IllegalStateException("Got a negative ID from HBase: " + id);
-//      }
-//      LOG.info("Got ID=" + id
-//               + " for kind='" + kind() + "' name='" + name + "'");
-//      row = Bytes.fromLong(id);
-//      // row.length should actually be 8.
-//      if (row.length < id_width) {
-//        throw new IllegalStateException("OMG, row.length = " + row.length
-//                                        + " which is less than " + id_width
-//                                        + " for id=" + id
-//                                        + " row=" + Arrays.toString(row));
-//      }
-//      // Verify that we're going to drop bytes that are 0.
-//      for (int i = 0; i < row.length - id_width; i++) {
-//        if (row[i] != 0) {
-//          final String message = "All Unique IDs for " + kind()
-//            + " on " + id_width + " bytes are already assigned!";
-//          LOG.error("OMG " + message);
-//          throw new IllegalStateException(message);
-//        }
-//      }
-//      // Shrink the ID on the requested number of bytes.
-//      row = Arrays.copyOfRange(row, row.length - id_width, row.length);
-//
-//      state = CREATE_FORWARD_MAPPING;
-//      // We are CAS'ing the KV into existence -- the second argument is how
-//      // we tell HBase we want to atomically create the KV, so that if there
-//      // is already a KV in this cell, we'll fail.  Technically we could do
-//      // just a `put' here, as we have a freshly allocated UID, so there is
-//      // not reason why a KV should already exist for this UID, but just to
-//      // err on the safe side and catch really weird corruption cases, we do
-//      // a CAS instead to create the KV.
-//      return client.compareAndSet(reverseMapping(), HBaseClient.EMPTY_ARRAY);
-//    }
-//
-//    private PutRequest reverseMapping() {
-//      return new PutRequest(table, row, NAME_FAMILY, kind, toBytes(name));
-//    }
-//
-//    private Deferred<?> createForwardMapping(final Object arg) {
-//      if (!(arg instanceof Boolean)) {
-//        throw new IllegalStateException("Expected a Boolean but got " + arg);
-//      }
-//      if (!((Boolean) arg)) {  // Previous CAS failed. 
-//        if (randomize_id) {
-//          // This random Id is already used by another row
-//          LOG.warn("Detected random id collision and retrying kind='" + 
-//              kind() + "' name='" + name + "'");
-//          random_id_collisions++;
-//        } else {
-//          // something is really messed up then
-//          LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
-//              + " -- run an fsck against the UID table!");
-//        }
-//        attempt--;
-//        state = ALLOCATE_UID;
-//        return Deferred.fromResult(false);
-//      }
-//
-//      state = DONE;
-//      return client.compareAndSet(forwardMapping(), HBaseClient.EMPTY_ARRAY);
-//    }
-//
-//    private PutRequest forwardMapping() {
-//        return new PutRequest(table, toBytes(name), ID_FAMILY, kind, row);
-//    }
-//
-//    private Deferred<byte[]> done(final Object arg) {
-//      if (!(arg instanceof Boolean)) {
-//        throw new IllegalStateException("Expected a Boolean but got " + arg);
-//      }
-//      if (!((Boolean) arg)) {  // Previous CAS failed.  We lost a race.
-//        LOG.warn("Race condition: tried to assign ID " + id + " to "
-//                 + kind() + ":" + name + ", but CAS failed on "
-//                 + forwardMapping() + ", which indicates this UID must have"
-//                 + " been allocated concurrently by another TSD or thread. "
-//                 + "So ID " + id + " was leaked.");
-//        // If two TSDs attempted to allocate a UID for the same name at the
-//        // same time, they would both have allocated a UID, and created a
-//        // reverse mapping, and upon getting here, only one of them would
-//        // manage to CAS this KV into existence.  The one that loses the
-//        // race will retry and discover the UID assigned by the winner TSD,
-//        // and a UID will have been wasted in the process.  No big deal.
-//        if (randomize_id) {
-//          // This random Id is already used by another row
-//          LOG.warn("Detected random id collision between two tsdb "
-//              + "servers kind='" + kind() + "' name='" + name + "'");
-//          random_id_collisions++;
-//        }
-//        
-//        class GetIdCB implements Callback<Object, byte[]> {
-//          public Object call(final byte[] row) throws Exception {
-//            assignment.callback(row);
-//            return null;
-//          }
-//        }
-//        getIdAsync(name).addCallback(new GetIdCB());
-//        return assignment;
-//      }
-//
-//      cacheMapping(name, row);
-//      
+  /**
+   * Implements the process to allocate a new UID.
+   * This callback is re-used multiple times in a four step process:
+   *   1. Allocate a new UID via atomic increment.
+   *   2. Create the reverse mapping (ID to name).
+   *   3. Create the forward mapping (name to ID).
+   *   4. Return the new UID to the caller.
+   */
+  final class UniqueIdAllocator implements Callback<Object, Object>, TimerTask {
+    private final UniqueIdType type;
+    private final String name;  // What we're trying to allocate an ID for.
+    private final Deferred<IdOrError> assignment; // deferred to call back
+    private final boolean randomize_id; // Whether or not to randomize.
+    private final byte[] qualifier;
+    private final int id_width;
+    private final short attempts;
+    private short attempt;     // Give up when zero.
+    private boolean run_timer = false;
+    
+    private Exception ex = null;  // Last exception caught.
+    // TODO(manolama) - right now if we retry the assignment it will create a 
+    // callback chain MAX_ATTEMPTS_* long and call the ErrBack that many times.
+    // This can be cleaned up a fair amount but it may require changing the 
+    // public behavior a bit. For now, the flag will prevent multiple attempts
+    // to execute the callback.
+    private boolean called = false; // whether we called the deferred or not
+
+    private long id = -1;  // The ID we'll grab with an atomic increment.
+    private byte row[];    // The same ID, as a byte array.
+
+    private static final byte ALLOCATE_UID = 0;
+    private static final byte CREATE_REVERSE_MAPPING = 1;
+    private static final byte CREATE_FORWARD_MAPPING = 2;
+    private static final byte DONE = 3;
+    private byte state = ALLOCATE_UID;  // Current state of the process.
+
+    UniqueIdAllocator(final UniqueIdType type, 
+                      final String name, 
+                      final Deferred<IdOrError> assignment) {
+      this.type = type;
+      this.name = name;
+      this.assignment = assignment;
+      
+      switch (type) {
+      case METRIC:
+        randomize_id = randomize_metric_ids;
+        qualifier = METRICS_QUAL;
+        id_width = data_store.schema().metricWidth();
+        attempts = attempt = randomize_metric_ids ?
+            max_attempts_assign_random : max_attempts_assign;
+        break;
+      case TAGK:
+        randomize_id = randomize_tagk_ids;
+        qualifier = TAG_NAME_QUAL;
+        id_width = data_store.schema().tagkWidth();
+        attempts = attempt = randomize_tagk_ids ?
+            max_attempts_assign_random : max_attempts_assign;
+        break;
+      case TAGV:
+        randomize_id = randomize_tagv_ids;
+        qualifier = TAG_VALUE_QUAL;
+        id_width = data_store.schema().tagvWidth();
+        attempts = attempt = randomize_tagv_ids ?
+            max_attempts_assign_random : max_attempts_assign;
+        break;
+      default:
+        purgeWaiting();
+        throw new IllegalArgumentException("Unhandled type: " + type);
+      }
+    }
+
+    Deferred<IdOrError> tryAllocate() {
+      attempt--;
+      state = ALLOCATE_UID;
+      call(null);
+      return assignment;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Object call(final Object arg) {
+      if (attempt == 0) {
+        final String err;
+        switch (type) {
+        case METRIC:
+          err = "Failed to assign an ID for kind='" + type
+            + "' name='" + name + "' after " + attempts + " attempts.";
+          break;
+        case TAGK:
+          err = "Failed to assign an ID for kind='" + type
+          + "' name='" + name + "' after " + attempts + " attempts.";
+          break;
+        case TAGV:
+          err = "Failed to assign an ID for kind='" + type
+          + "' name='" + name + "' after " + attempts + " attempts.";
+          break;
+        default:
+          purgeWaiting();
+          throw new IllegalArgumentException("Unhandled type: " + type);
+        }
+        
+        if (ex != null) {
+          LOG.error(err, ex);
+        } else {
+          LOG.error(err);
+        }
+        purgeWaiting();
+        assignment.callback(IdOrError.wrapRetry(err));
+        return null;
+      }
+
+      if (arg instanceof Exception) {
+        final String msg = ("Failed attempt #" + (randomize_id
+                         ? (max_attempts_assign_random - attempt) 
+                         : (max_attempts_assign - attempt))
+                         + " to assign an UID for " + type + ':' + name
+                         + " at step #" + state);
+        if (arg instanceof StorageException) {
+          LOG.error(msg, (Exception) arg);
+          ex = (StorageException) arg;
+          attempt--;
+          state = ALLOCATE_UID;  // Retry from the beginning.
+        } else {
+          purgeWaiting();
+          LOG.error("WTF?  Unexpected exception!  " + msg, (Exception) arg);
+          return arg;  // Unexpected exception, let it bubble up.
+        }
+      }
+
+      if (state == ALLOCATE_UID && attempt < attempts - 1 && run_timer) {
+        retryWithBackoff();
+        return null;
+      } else {
+        run_timer = true;
+      }
+      
+      class ErrBack implements Callback<Object, Exception> {
+        public Object call(final Exception e) throws Exception {
+          if (!called) {
+            LOG.warn("Failed pending assignment for: " + name, e);
+            purgeWaiting();
+            assignment.callback(e);
+            called = true;
+          }
+          return assignment;
+        }
+      }
+      
+      @SuppressWarnings("rawtypes")
+      final Deferred d;
+      switch (state) {
+        case ALLOCATE_UID:
+          d = allocateUid();
+          break;
+        case CREATE_REVERSE_MAPPING:
+          d = createReverseMapping(arg);
+          break;
+        case CREATE_FORWARD_MAPPING:
+          d = createForwardMapping(arg);
+          break;
+        case DONE:
+          return done(arg);
+        default:
+          purgeWaiting();
+          throw new AssertionError("Should never be here!");
+      }
+      return d.addBoth(this).addErrback(new ErrBack());
+    }
+
+    /** Generates either a random or a serial ID. If random, we need to
+     * make sure that there isn't a UID collision.
+     */
+    private Deferred<Long> allocateUid() {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Creating " + (randomize_id ? "a random " : "an ") + 
+            "ID for kind='" + type + "' name='" + name + '\'');
+      }
+
+      state = CREATE_REVERSE_MAPPING;
+      if (randomize_id) {
+        return Deferred.fromResult(RandomUniqueId.getRandomUID(id_width));
+      } else {
+        // TODO - fix in AsyncHBase
+        try {
+        return data_store.client().atomicIncrement(
+            new AtomicIncrementRequest(data_store.uidTable(), 
+                MAXID_ROW, ID_FAMILY, qualifier));
+        } catch (ArrayIndexOutOfBoundsException e) {
+          purgeWaiting();
+          throw new StorageException("Atomic increment "
+              + "counter may be corrupt as it doesn't appear to be 8 "
+              + "bytes long", e);
+        }
+      }
+    }
+
+    /**
+     * Create the reverse mapping.
+     * We do this before the forward one so that if we die before creating
+     * the forward mapping we don't run the risk of "publishing" a
+     * partially assigned ID.  The reverse mapping on its own is harmless
+     * but the forward mapping without reverse mapping is bad as it would
+     * point to an ID that cannot be resolved.
+     */
+    private Deferred<Boolean> createReverseMapping(final Object arg) {
+      if (!(arg instanceof Long)) {
+        purgeWaiting();
+        throw new IllegalStateException("Expected a Long but got " + arg);
+      }
+      id = (Long) arg;
+      if (id <= 0) {
+        purgeWaiting();
+        throw new IllegalStateException("Got a negative ID from storage: " + id);
+      }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Got ID=" + id
+                 + " for kind='" + type + "' name='" + name + "'");
+      }
+      row = Bytes.fromLong(id);
+      // row.length should actually be 8.
+      if (row.length < id_width) {
+        purgeWaiting();
+        throw new IllegalStateException("OMG, row.length = " + row.length
+                                        + " which is less than " + id_width
+                                        + " for id=" + id
+                                        + " row=" + Arrays.toString(row));
+      }
+      // Verify that we're going to drop bytes that are 0.
+      for (int i = 0; i < row.length - id_width; i++) {
+        if (row[i] != 0) {
+          final String message = "All Unique IDs for " + type
+            + " on " + id_width + " bytes are already assigned!";
+          LOG.error("OMG " + message);
+          purgeWaiting();
+          throw new IllegalStateException(message);
+        }
+      }
+      // Shrink the ID on the requested number of bytes.
+      row = Arrays.copyOfRange(row, row.length - id_width, row.length);
+
+      state = CREATE_FORWARD_MAPPING;
+      // We are CAS'ing the KV into existence -- the second argument is how
+      // we tell HBase we want to atomically create the KV, so that if there
+      // is already a KV in this cell, we'll fail.  Technically we could do
+      // just a `put' here, as we have a freshly allocated UID, so there is
+      // not reason why a KV should already exist for this UID, but just to
+      // err on the safe side and catch really weird corruption cases, we do
+      // a CAS instead to create the KV.
+      return data_store.client().compareAndSet(reverseMapping(), 
+                                               HBaseClient.EMPTY_ARRAY);
+    }
+
+    private PutRequest reverseMapping() {
+      return new PutRequest(data_store.uidTable(), row, NAME_FAMILY, qualifier, 
+          name.getBytes(characterSet(type)));
+    }
+
+    private Deferred<?> createForwardMapping(final Object arg) {
+      if (!(arg instanceof Boolean)) {
+        purgeWaiting();
+        throw new IllegalStateException("Expected a Boolean but got " + arg);
+      }
+      if (!((Boolean) arg)) {  // Previous CAS failed. 
+        if (randomize_id) {
+          // This random Id is already used by another row
+          LOG.warn("Detected random id collision and retrying kind='" + 
+              type + "' name='" + name + "'");
+          //random_id_collisions++; // TODO
+        } else {
+          // something is really messed up then
+          LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
+              + " -- run an fsck against the UID table!");
+        }
+        attempt--;
+        state = ALLOCATE_UID;
+        //retryWithBackoff();
+        return Deferred.fromResult(false);
+      }
+
+      state = DONE;
+      return data_store.client().compareAndSet(forwardMapping(), 
+                                               HBaseClient.EMPTY_ARRAY);
+    }
+
+    private PutRequest forwardMapping() {
+        return new PutRequest(data_store.uidTable(), 
+            name.getBytes(characterSet(type)), ID_FAMILY, qualifier, row);
+    }
+
+    private Deferred<IdOrError> done(final Object arg) {
+      if (!(arg instanceof Boolean)) {
+        throw new IllegalStateException("Expected a Boolean but got " + arg);
+      }
+      if (!((Boolean) arg)) {  // Previous CAS failed.  We lost a race.
+        LOG.warn("Race condition: tried to assign ID " + id + " to "
+                 + type + ":" + name + ", but CAS failed on "
+                 + forwardMapping() + ", which indicates this UID must have"
+                 + " been allocated concurrently by another TSD or thread. "
+                 + "So ID " + id + " was leaked.");
+        // If two TSDs attempted to allocate a UID for the same name at the
+        // same time, they would both have allocated a UID, and created a
+        // reverse mapping, and upon getting here, only one of them would
+        // manage to CAS this KV into existence.  The one that loses the
+        // race will retry and discover the UID assigned by the winner TSD,
+        // and a UID will have been wasted in the process.  No big deal.
+        if (randomize_id) {
+          // This random Id is already used by another row
+          LOG.warn("Detected random id collision between two tsdb "
+              + "servers kind='" + type + "' name='" + name + "'");
+          //random_id_collisions++;
+        }
+        
+        class GetIdCB implements Callback<Object, byte[]> {
+          public Object call(final byte[] id) throws Exception {
+            purgeWaiting();
+            assignment.callback(IdOrError.wrapId(id));
+            return null;
+          }
+        }
+        getId(type, name, null /* TODO */).addCallback(new GetIdCB());
+        return assignment;
+      }
+      
+      // TODO - UID meta
 //      if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
 //        final UIDMeta meta = new UIDMeta(type, row, name);
 //        meta.storeNew(tsdb);
 //        LOG.info("Wrote UIDMeta for: " + name);
 //        tsdb.indexUIDMeta(meta);
 //      }
-//      
-//      synchronized(pending_assignments) {
-//        if (pending_assignments.remove(name) != null) {
-//          LOG.info("Completed pending assignment for: " + name);
-//        }
-//      }
-//      assignment.callback(row);
-//      return assignment;
-//    }
-//
-//  }
-//
-//  /** Adds the bidirectional mapping in the cache. */
-//  private void cacheMapping(final String name, final byte[] id) {
-//    addIdToCache(name, id);
-//    addNameToCache(id, name);
-//  } 
-//  
-//    try {
-//      return getIdAsync(name).joinUninterruptibly();
-//    } catch (NoSuchUniqueName e) {
-//      if (tsdb != null && tsdb.getUidFilter() != null && 
-//          tsdb.getUidFilter().fillterUIDAssignments()) {
-//        try {
-//          if (!tsdb.getUidFilter().allowUIDAssignment(type, name, null, null)
-//                .join()) {
-//            rejected_assignments++;
-//            throw new FailedToAssignUniqueIdException(new String(kind), name, 0, 
-//                "Blocked by UID filter.");
-//          }
-//        } catch (FailedToAssignUniqueIdException e1) {
-//          throw e1;
-//        } catch (InterruptedException e1) {
-//          LOG.error("Interrupted", e1);
-//          Thread.currentThread().interrupt();
-//        } catch (Exception e1) {
-//          throw new RuntimeException("Should never be here", e1);
-//        }
-//      }
-//      
-//      Deferred<byte[]> assignment = null;
-//      boolean pending = false;
-//      synchronized (pending_assignments) {
-//        assignment = pending_assignments.get(name);
-//        if (assignment == null) {
-//          // to prevent UID leaks that can be caused when multiple time
-//          // series for the same metric or tags arrive, we need to write a 
-//          // deferred to the pending map as quickly as possible. Then we can 
-//          // start the assignment process after we've stashed the deferred 
-//          // and released the lock
-//          assignment = new Deferred<byte[]>();
-//          pending_assignments.put(name, assignment);
-//        } else {
-//          pending = true;
-//        }
-//      }
-//      
-//      if (pending) {
-//        LOG.info("Already waiting for UID assignment: " + name);
-//        try {
-//          return assignment.joinUninterruptibly();
-//        } catch (Exception e1) {
-//          throw new RuntimeException("Should never be here", e1);
-//        }
-//      }
-//      
-//      // start the assignment dance after stashing the deferred
-//      byte[] uid = null;
-//      try {
-//        uid = new UniqueIdAllocator(name, assignment).tryAllocate().joinUninterruptibly();
-//      } catch (RuntimeException e1) {
-//        throw e1;
-//      } catch (Exception e1) {
-//        throw new RuntimeException("Should never be here", e);
-//      } finally {
-//        synchronized (pending_assignments) {
-//          if (pending_assignments.remove(name) != null) {
-//            LOG.info("Completed pending assignment for: " + name);
-//          }
-//        }
-//      }
-//      return uid;
-//    } catch (Exception e) {
-//      throw new RuntimeException("Should never be here", e);
-//    }
-//  }
-//  
-//  /**
-//   * Finds the ID associated with a given name or creates it.
-//   * <p>
-//   * The length of the byte array is fixed in advance by the implementation.
-//   *
-//   * @param name The name to lookup in the table or to assign an ID to.
-//   * @throws HBaseException if there is a problem communicating with HBase.
-//   * @throws IllegalStateException if all possible IDs are already assigned.
-//   * @throws IllegalStateException if the ID found in HBase is encoded on the
-//   * wrong number of bytes.
-//   * @since 1.2
-//   */
-//  public Deferred<byte[]> getOrCreateIdAsync(final String name) {
-//    return getOrCreateIdAsync(name, null, null);
-//  }
-//  
+      purgeWaiting();
+      assignment.callback(IdOrError.wrapId(row));
+      return assignment;
+    }
+
+    private void purgeWaiting() {
+      final Map<String, Deferred<IdOrError>> ids_pending = 
+          pending_assignments.get(type);
+      synchronized(ids_pending) {
+        if (ids_pending.remove(name) != null) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Completed pending assignment for: " + name);
+          }
+        }
+      }
+    }
+
+    private void retryWithBackoff() {
+      if (state != ALLOCATE_UID) {
+        throw new IllegalStateException("We can't retry with a backoff "
+            + "if the state isn't ALLOCATE_UID: " + state);
+      }
+      // backoff
+      final int diff = (attempts - attempt);
+      final int delay = diff < 4
+          ? 200 * (diff)     // 200, 400, 600, 800
+              : 1000 + (1 << diff);  // 1016, 1032, 1064, 1128, 1256, 1512, ..
+      run_timer = false;
+      data_store.tsdb().getMaintenanceTimer().newTimeout(this, 
+          delay, TimeUnit.MILLISECONDS);
+    }
+    
+    @Override
+    public void run(final Timeout ignored) throws Exception {
+      try {
+        call(null);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception caught in timmer handler", e);
+        purgeWaiting();
+        assignment.callback(e);
+      }
+    }
+  }
+  
   @Override
-  public Deferred<byte[]> getOrCreateId(final UniqueIdType type, 
-                                        final String name,
-                                        final TimeSeriesId id,
-                                        final Span span) {
-    // TODO - implement
-    return null;
-//    if (type == null) {
-//      throw new IllegalArgumentException("Type cannot be null.");
-//    }
-//    if (Strings.isNullOrEmpty(name)) {
-//      throw new IllegalArgumentException("Name cannot be null or empty.");
-//    }
-//    if (id == null) {
-//      throw new IllegalArgumentException("The ID cannot be null.");
-//    }
-//    
-//    final Span child;
-//    if (span != null && span.isDebug()) {
-//      child = span.newChild("Tsdb1x_getIds")
-//          .withTag("dataStore", data_store.id())
-//          .withTag("type", type.toString())
-//          .withTag("name", name)
-//          .withTag("id", id.toString())
-//          .start();
-//    } else {
-//      child = null;
-//    }
-//    
-//    /** Triggers the assignment if allowed through the filter */
-//    class AssignmentAllowedCB implements  Callback<Deferred<byte[]>, Boolean> {
-//      @Override
-//      public Deferred<byte[]> call(final Boolean allowed) throws Exception {
-//        if (!allowed) {
-//          rejected_assignments.get(type).increment();
-//          return Deferred.fromError(new FailedToAssignUniqueIdException(
-//              type, name, 0, "Blocked by UID filter."));
-//        }
-//        
-//        Deferred<byte[]> assignment = null;
-//        synchronized (pending_assignments) {
-//          assignment = pending_assignments.get(name);
-//          if (assignment == null) {
-//            // to prevent UID leaks that can be caused when multiple time
-//            // series for the same metric or tags arrive, we need to write a 
-//            // deferred to the pending map as quickly as possible. Then we can 
-//            // start the assignment process after we've stashed the deferred 
-//            // and released the lock
-//            assignment = new Deferred<byte[]>();
-//            pending_assignments.put(name, assignment);
-//          } else {
-//            LOG.info("Already waiting for UID assignment: " + name);
-//            return assignment;
-//          }
-//        }
-//        
-//        // start the assignment dance after stashing the deferred
-//        if (metric != null && LOG.isDebugEnabled()) {
-//          LOG.debug("Assigning UID for '" + name + "' of type '" + type + 
-//              "' for series '" + metric + ", " + tags + "'");
-//        }
-//        
-//        // start the assignment dance after stashing the deferred
-//        return new UniqueIdAllocator(name, assignment).tryAllocate();
-//      }
-//      @Override
-//      public String toString() {
-//        return "AssignmentAllowedCB";
-//      }
-//    }
-//    
-//    /** Triggers an assignment (possibly through the filter) if the exception 
-//     * returned was a NoSuchUniqueName. */
-//    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
-//      public Object call(final Exception e) {
-//        if (e instanceof NoSuchUniqueName) {
-//          if (tsdb != null && tsdb.getUidFilter() != null && 
-//              tsdb.getUidFilter().fillterUIDAssignments()) {
-//            return tsdb.getUidFilter()
-//                .allowUIDAssignment(type, name, metric, tags)
-//                .addCallbackDeferring(new AssignmentAllowedCB());
-//          } else {
-//            return Deferred.fromResult(true)
-//                .addCallbackDeferring(new AssignmentAllowedCB());
-//          }
-//        }
-//        return e;  // Other unexpected exception, let it bubble up.
-//      }
-//    }
-//
-//    // Kick off the HBase lookup, and if we don't find it there either, start
-//    // the process to allocate a UID.
-//    return getId(name).addErrback(new HandleNoSuchUniqueNameCB());
+  public Deferred<IdOrError> getOrCreateId(final AuthState auth,
+                                           final UniqueIdType type, 
+                                           final String name,
+                                           final TimeSeriesDatumId id,
+                                           final Span span) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(name)) {
+      throw new IllegalArgumentException("Name cannot be null or empty.");
+    }
+    if (id == null) {
+      throw new IllegalArgumentException("The ID cannot be null.");
+    }
+    
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getSimpleName() + ".getOrCreateId")
+          .withTag("dataStore", data_store.id())
+          .withTag("type", type.toString())
+          .withTag("name", name)
+          .withTag("id", id.toString())
+          .start();
+    } else {
+      child = null;
+    }
+    
+    /** Triggers the assignment if allowed through the filter */
+    class AssignmentAllowedCB implements  Callback<Deferred<IdOrError>, String> {
+      @Override
+      public Deferred<IdOrError> call(final String error) throws Exception {
+        if (!Strings.isNullOrEmpty(error)) {
+          return Deferred.fromResult(IdOrError.wrapRejected(error));
+        }
+        
+        Deferred<IdOrError> assignment = null;
+        final Map<String, Deferred<IdOrError>> typed_assignments = 
+            pending_assignments.get(type);
+        synchronized (typed_assignments) {
+          assignment = typed_assignments.get(name);
+          if (assignment == null) {
+            // to prevent UID leaks that can be caused when multiple time
+            // series for the same metric or tags arrive, we need to write a 
+            // deferred to the pending map as quickly as possible. Then we can 
+            // start the assignment process after we've stashed the deferred 
+            // and released the lock
+            assignment = new Deferred<IdOrError>();
+            typed_assignments.put(name, assignment);
+          } else {
+            if (LOG.isDebugEnabled()) {
+              LOG.info("Already waiting for UID assignment: '" + name + "'");
+            }
+            if (assign_and_retry) {
+              // aww, still pending.
+              return Deferred.fromResult(IdOrError.wrapRetry(ASSIGN_AND_RETRY));
+            } else {
+              return assignment;
+            }
+          }
+        }
+        
+        // start the assignment dance after stashing the deferred
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Assigning UID for '" + name + "' of type '" + type + 
+              "' for series '" + id + "'");
+        }
+        
+        // start the assignment dance after stashing the deferred
+        if (assign_and_retry) {
+          new UniqueIdAllocator(type, name, assignment).tryAllocate();
+          return Deferred.fromResult(IdOrError.wrapRetry(ASSIGN_AND_RETRY));
+        }
+        return new UniqueIdAllocator(type, name, assignment).tryAllocate();
+      }
+      @Override
+      public String toString() {
+        return "AssignmentAllowedCB";
+      }
+    }
+    
+    /** Triggers the assignment path if the response was null. */
+    class IdCB implements Callback<Deferred<IdOrError>, byte[]> {
+      public Deferred<IdOrError> call(final byte[] uid) {
+        if (uid != null) {
+          return Deferred.fromResult(IdOrError.wrapId(uid));
+        }
+
+        if (authorizer != null && authorizer.fillterUIDAssignments()) {
+          return authorizer.allowUIDAssignment(auth, type, name, id)
+              .addCallbackDeferring(new AssignmentAllowedCB());
+        } else {
+          return Deferred.fromResult((String) null)
+              .addCallbackDeferring(new AssignmentAllowedCB());
+        }
+      }
+    }
+
+    // Kick off the lookup, and if we don't find it there either, start
+    // the process to allocate a UID.
+    return getId(type, name, child).addCallbackDeferring(new IdCB());
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public Deferred<List<byte[]>> getOrCreateIds(final UniqueIdType type, 
-                                               final List<String> names,
-                                               final TimeSeriesId id,
-                                               final Span span) {
-    // TODO - implement
-    return null;
+  public Deferred<List<IdOrError>> getOrCreateIds(final AuthState auth,
+                                                  final UniqueIdType type, 
+                                                  final List<String> names,
+                                                  final TimeSeriesDatumId id,
+                                                  final Span span) {
+    final List<IdOrError> results = 
+        Lists.newArrayListWithExpectedSize(names.size());
+    for (int i = 0; i < names.size(); i++) {
+      results.add(null);
+    }
+    
+    final List<Deferred<Object>> deferreds =
+        Lists.newArrayListWithExpectedSize(names.size());
+    
+    class ResponseCB implements Callback<Object, Object> {
+      final int idx;
+      
+      ResponseCB(final int idx) {
+        this.idx = idx;
+      }
+      
+      @Override
+      public Object call(final Object response) throws Exception {
+        
+        if (response instanceof IdOrError) {
+          results.set(idx, (IdOrError) response);
+        } else {
+          if (response instanceof Exception) {
+            results.set(idx, IdOrError.wrapError(
+                ((Exception) response).getMessage(), (Exception) response));
+          } else {
+            results.set(idx, IdOrError.wrapError(
+                "Unknown response type: " + response));
+          }
+        }
+        return null;
+      }
+    }
+    
+    for (int i = 0; i < names.size(); i++) {
+      try {
+        @SuppressWarnings("rawtypes")
+        final Deferred d = getOrCreateId(auth, type, names.get(i), id, span);
+        deferreds.add(d.addBoth(new ResponseCB(i)));
+      } catch (Exception e) {
+        results.set(i, IdOrError.wrapError(e.getMessage()));
+      }
+    }
+    
+    class GroupCB implements Callback<List<IdOrError>, ArrayList<Object>> {
+      @Override
+      public List<IdOrError> call(ArrayList<Object> arg) throws Exception {
+        return results;
+      }
+    }
+    
+    return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
   }
   
 //  /**
@@ -1752,8 +1745,77 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
 //  }
 
   @Override
-  public Charset characterSet() {
-    return character_set;
+  public Charset characterSet(final UniqueIdType type) {
+    switch (type) {
+    case METRIC:
+      return metric_character_set;
+    case TAGK:
+      return tagk_character_set;
+    case TAGV:
+      return tagv_character_set;
+    default:
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
   }
-  
+
+  @VisibleForTesting
+  void registerConfigs(final TSDB tsdb) {
+    for (final Entry<UniqueIdType, String> entry : CONFIG_PREFIX.entrySet()) {
+      if (!data_store.tsdb().getConfig().hasProperty(
+          data_store.getConfigKey(entry.getValue() + CHARACTER_SET_KEY))) {
+        data_store.tsdb().getConfig().register(
+            data_store.getConfigKey(entry.getValue() + CHARACTER_SET_KEY), 
+            CHARACTER_SET_DEFAULT, 
+            false, 
+            "The character set used for encoding/decoding UID "
+            + "strings for " + entry.getKey().toString().toLowerCase() 
+            + " entries.");
+      }
+      
+      if (!data_store.tsdb().getConfig().hasProperty(
+          data_store.getConfigKey(entry.getValue() + RANDOM_ASSIGNMENT_KEY))) {
+        data_store.tsdb().getConfig().register(
+            data_store.getConfigKey(entry.getValue() + RANDOM_ASSIGNMENT_KEY), 
+            false, 
+            false, 
+            "Whether or not to randomly assign UIDs for " 
+            + entry.getKey().toString().toLowerCase() + " entries "
+                + "instead of incrementing a counter in storage.");
+      }
+    }
+    
+    if (!data_store.tsdb().getConfig().hasProperty(
+        data_store.getConfigKey(ASSIGN_AND_RETRY_KEY))) {
+      data_store.tsdb().getConfig().register(
+          data_store.getConfigKey(ASSIGN_AND_RETRY_KEY), 
+          false, 
+          false, 
+          "Whether or not to return with a RETRY write state immediately "
+          + "when a UID needs to be assigned and being the assignment "
+          + "process in the background. The next time the same string "
+          + "is looked up it should be assigned.");
+    }
+    
+    if (!data_store.tsdb().getConfig().hasProperty(
+        data_store.getConfigKey(RANDOM_ATTEMPTS_KEY))) {
+      data_store.tsdb().getConfig().register(
+          data_store.getConfigKey(RANDOM_ATTEMPTS_KEY), 
+          DEFAULT_ATTEMPTS_ASSIGN_RANDOM_ID, 
+          false, 
+          "The maximum number of attempts to make before giving up on "
+          + "a UID assignment and return a RETRY error when in the "
+          + "random ID mode. (This is usually higher than the normal "
+          + "mode as random IDs can collide more often.)");
+    }
+    
+    if (!data_store.tsdb().getConfig().hasProperty(
+        data_store.getConfigKey(ATTEMPTS_KEY))) {
+      data_store.tsdb().getConfig().register(
+          data_store.getConfigKey(ATTEMPTS_KEY), 
+          DEFAULT_ATTEMPTS_ASSIGN_ID, 
+          false, 
+          "The maximum number of attempts to make before giving up on "
+          + "a UID assignment and return a RETRY error.");
+    }
+  }
 }

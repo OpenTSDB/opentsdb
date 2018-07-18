@@ -19,7 +19,8 @@ import java.util.List;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.Span;
 
 /**
@@ -61,37 +62,45 @@ public interface UniqueIdStore {
   
   /**
    * Converts the given string to it's UID value based on the type. If 
-   * the string didn't have an assigned UID in storage, creates it.
+   * the string didn't have an assigned UID in storage, attempts to
+   * create it given that the user has permission.
    * 
+   * @param auth The non-null auth state to parse.
    * @param type A non-null UID type.
    * @param name A non-null and non-empty string.
    * @param id A non-null ID for logging and abuse prevention purposes.   
    * @param span An optional tracing span.
-   * @return A deferred resolving to the UID if successful or an exception.
+   * @return A deferred resolving to an IdOrError object reflecting if 
+   * the resolution/creation was successful or not.
    * @throws IllegalArgumentException if the type was null or the string
    * was null or empty.
    */
-  public Deferred<byte[]> getOrCreateId(final UniqueIdType type, 
-                                        final String name,
-                                        final TimeSeriesId id,
-                                        final Span span);
+  public Deferred<IdOrError> getOrCreateId(final AuthState auth,
+                                           final UniqueIdType type, 
+                                           final String name,
+                                           final TimeSeriesDatumId id,
+                                           final Span span);
   
   /**
    * Converts the given strings to their UID values based on the type. If 
-   * the strings didn't have assigned UIDs in storage, they're assigned.
+   * the strings didn't have assigned UIDs in storage, they're assigned
+   * if the user has permission.
    * 
+   * @param auth The non-null auth state to parse.
    * @param type A non-null UID type.
    * @param names A non-null and non-empty list of strings.
    * @param id A non-null ID for logging and abuse prevention purposes.   
    * @param span An optional tracing span.
-   * @return A deferred resolving to the UIDs if successful or an exception.
+   * @return A deferred resolving to IdOrError objectss reflecting if 
+   * the resolution/creation was successful or not.
    * @throws IllegalArgumentException if the type was null or the string
    * was null or empty.
    */
-  public Deferred<List<byte[]>> getOrCreateIds(final UniqueIdType type, 
-                                              final List<String> names,
-                                              final TimeSeriesId id,
-                                              final Span span);
+  public Deferred<List<IdOrError>> getOrCreateIds(final AuthState auth,
+                                                  final UniqueIdType type, 
+                                                  final List<String> names,
+                                                  final TimeSeriesDatumId id,
+                                                  final Span span);
   
   /**
    * Converts the UID to the equivalent string name.
@@ -126,6 +135,10 @@ public interface UniqueIdStore {
                                          final List<byte[]> ids,
                                          final Span span);
   
-  /** @return The non-null characterset used for en/decoding. */
-  public Charset characterSet();
+  /**
+   * Fetch the character set for the given type.
+   * @param type A non-null ID type.
+   * @return The non-null character set.
+   */
+  public Charset characterSet(final UniqueIdType type);
 }
