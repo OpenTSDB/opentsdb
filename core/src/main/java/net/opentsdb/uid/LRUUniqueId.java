@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -31,8 +32,10 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.utils.Bytes;
@@ -54,7 +57,11 @@ public class LRUUniqueId implements UniqueId, TimerTask {
   private final Cache<String, String> id_cache;
   
   private final TSDB tsdb;
+  
+  /** The underlying data store implementation to call on cache miss. */
   private final UniqueIdStore store;
+  
+  
   private final UniqueIdType type;
   private final CacheMode mode;
   private final String id;
@@ -526,16 +533,191 @@ public class LRUUniqueId implements UniqueId, TimerTask {
   }
   
   @Override
-  public Deferred<byte[]> getOrCreateId(final String name, final Span span) {
-    // TODO Auto-generated method stub
-    return null;
+  public Deferred<IdOrError> getOrCreateId(final AuthState auth,
+                                           final String name, 
+                                           final TimeSeriesDatumId id,
+                                           final Span span) {
+    if (Strings.isNullOrEmpty(name)) {
+      throw new IllegalArgumentException("Name cannot be null or empty.");
+    }
+    
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".getOrCreateId")
+          .withTag("type", type.toString())
+          .withTag("name", name)
+          .start();
+    } else {
+      child = null;
+    }
+    
+    final byte[] uid = name_cache.getIfPresent(name);
+    if (uid != null) {
+      if (child != null) {
+        child.setSuccessTags()
+             .setTag("fromCache", "true")
+             .finish();
+      }
+      return Deferred.fromResult(IdOrError.wrapId(uid));
+    }
+    
+    class ErrorCB implements Callback<byte[], Exception> {
+      @Override
+      public byte[] call(final Exception ex) throws Exception {
+        if (child != null) {
+          child.setErrorTags()
+            .log("Exception", ex)
+            .finish();
+        }
+        throw ex;
+      }
+    }
+    
+    class CacheCB implements Callback<IdOrError, IdOrError> {
+      @Override
+      public IdOrError call(final IdOrError response) throws Exception {
+        if (response == null) {
+          // WTF? 
+          return null;
+        }
+        if (response.id() != null) {
+          switch (mode) {
+          case WRITE_ONLY:
+            name_cache.put(name, response.id());
+            break;
+          case READ_ONLY:
+            break;
+          default:
+            id_cache.put(UniqueId.uidToString(response.id()), name);
+            name_cache.put(name, response.id());
+          }
+        }
+        if (child != null) {
+          child.setSuccessTags()
+               .setTag("fromCache", "false")
+               .finish();
+        }
+        return response;
+      }
+    }
+    
+    try {
+      return store.getOrCreateId(auth, type, name, id, child)
+          .addCallbacks(new CacheCB(), new ErrorCB());
+    } catch (Exception e) {
+      if (child != null) {
+        child.setErrorTags()
+          .log("Exception", e)
+          .finish();
+      }
+      return Deferred.fromError(new StorageException(
+          "Unexpected exception from UID storage", e));
+    }
   }
   
   @Override
-  public Deferred<List<byte[]>> getOrCreateIds(final List<String> names, 
-      final Span span) {
-    // TODO Auto-generated method stub
-    return null;
+  public Deferred<List<IdOrError>> getOrCreateIds(final AuthState auth,
+                                                  final List<String> names, 
+                                                  final TimeSeriesDatumId id,
+                                                  final Span span) {
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".getOrCreateIds")
+          .withTag("type", type.toString())
+          .withTag("names", names.size())
+          .start();
+    } else {
+      child = null;
+    }
+    
+    // need the clone so we can dump cached copies
+    final List<String> misses = Lists.newArrayListWithCapacity(names.size());
+    final List<IdOrError> uids = Lists.newArrayListWithCapacity(names.size());
+    int resolved = 0;
+    for (int i = 0; i < names.size(); i++) {
+      final byte[] uid = name_cache.getIfPresent(names.get(i));
+      if (uid != null) {
+        uids.add(IdOrError.wrapId(uid));
+        resolved++;
+      } else {
+        uids.add(null);
+        misses.add(names.get(i));
+      }
+    }
+    
+    // if it was a 100% cache hit, we're all done.
+    if (resolved == names.size()) {
+      if (child != null) {
+        child.setSuccessTags()
+          .setTag("fromCache", "true")
+          .setTag("cached", uids.size())
+          .finish();
+      }
+      return Deferred.fromResult(uids);
+    }
+    
+    class ErrorCB implements Callback<String, Exception> {
+      @Override
+      public String call(final Exception ex) throws Exception {
+        if (child != null) {
+          child.setErrorTags()
+            .log("Exception", ex)
+            .finish();
+        }
+        throw ex;
+      }
+    }
+    
+    class CacheCB implements Callback<List<IdOrError>, List<IdOrError>> {
+      @Override
+      public List<IdOrError> call(final List<IdOrError> response) throws Exception {
+        Iterator<IdOrError> iterator = response.iterator();
+        for (int i = 0; i < uids.size(); i++) {
+          if (uids.get(i) == null) {
+            final IdOrError id_or_error = iterator.next();
+            if (id_or_error.id() != null) {
+              switch (mode) {
+              case WRITE_ONLY:
+                name_cache.put(names.get(i), id_or_error.id());
+                break;
+              case READ_ONLY:
+                break;
+              default:
+                name_cache.put(names.get(i), id_or_error.id());
+                id_cache.put(UniqueId.uidToString(id_or_error.id()), names.get(i));
+              }
+            }
+            
+            // always advance the index. If the same tag value is used multiple
+            // times in one ID we don't want to be stuck writing to the same
+            // index over and over.
+            uids.set(i, id_or_error);
+          }
+        }
+        
+        if (child != null) {
+          child.setSuccessTags()
+            .setTag("fromCache", "false")
+            .setTag("cached", names.size() - misses.size())
+            .finish();
+        }
+        
+        return uids;
+      }
+    }
+    
+    try {
+    return store.getOrCreateIds(auth, type, misses, id, child)
+        .addCallbacks(new CacheCB(), new ErrorCB());
+    } catch (Exception e) {
+      if (child != null) {
+        child.setErrorTags()
+          .log("Exception", e)
+          .finish();
+      }
+      return Deferred.fromError(new StorageException(
+          "Unexpected exception from UID storage", e));
+    }
   }
 
   @Override

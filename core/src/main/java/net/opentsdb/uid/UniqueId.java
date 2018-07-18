@@ -22,6 +22,8 @@ import javax.xml.bind.DatatypeConverter;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Bytes;
@@ -167,29 +169,36 @@ public interface UniqueId {
    * <p>
    * The length of the byte array is fixed in advance by the implementation.
    *
+   * @param auth A non-null auth state to perform authorization with.
    * @param name The name to lookup in the table or to assign an ID to.
+   * @param id A non-null datum ID to use in debugging.
    * @param span An optional tracing span.
-   * @return a deferred resolving to a UID if found or created or an exception
-   * from storage if something went wrong.
+   * @return A deferred resolving to an IdOrError object reflecting if 
+   * the resolution/creation was successful or not.
    * @since 3.0
    */
-  public Deferred<byte[]> getOrCreateId(final String name, final Span span);
+  public Deferred<IdOrError> getOrCreateId(final AuthState auth,
+                                           final String name, 
+                                           final TimeSeriesDatumId id,
+                                           final Span span);
   
   /**
    * Finds the IDs associated with an array of names or creates them.
    * <p>
    * The length of the byte array is fixed in advance by the implementation.
    *
+   * @param auth A non-null auth state to perform authorization with.
    * @param names The names to lookup in the table or to assign IDs to.
+   * @param id A non-null datum ID to use in debugging.
    * @param span An optional tracing span.
-   * @return a deferred resolving to an array of UIDs if found or created or an 
-   * exception from storage if something went wrong with any of the UID lookups
-   * or assignments. Also note that the array returned will have the same size
-   * and order of the list of names.
+   * @return A deferred resolving to IdOrError objects reflecting if 
+   * the resolution/creation was successful or not.
    * @since 3.0
    */
-  public Deferred<List<byte[]>> getOrCreateIds(final List<String> names, 
-                                               final Span span);
+  public Deferred<List<IdOrError>> getOrCreateIds(final AuthState auth,
+                                                  final List<String> names, 
+                                                  final TimeSeriesDatumId id,
+                                                  final Span span);
   
   /**
    * Attempts to find suggestions of names given a search term.
