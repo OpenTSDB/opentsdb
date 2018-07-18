@@ -35,11 +35,16 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.data.BaseTimeSeriesDatumStringId;
+import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.WriteStatus.WriteState;
+import net.opentsdb.utils.UnitTestException;
 
 public class TestLRUUniqueId {
   private static final String DEFAULT_ID = "default";
@@ -53,6 +58,8 @@ public class TestLRUUniqueId {
   private static final String STRING3 = "web01";
   private static final String STRING4 = "web02";
   
+  private static TimeSeriesDatumId ID;
+  
   private static MockTSDB tsdb;
   private MockTrace trace;
   private UniqueIdStore store;
@@ -60,6 +67,10 @@ public class TestLRUUniqueId {
   @BeforeClass
   public static void beforeClass() throws Exception {
     tsdb = new MockTSDB();
+    ID = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(STRING1)
+        .addTags(STRING2, STRING3)
+        .build();
   }
   
   @Before
@@ -874,6 +885,446 @@ public class TestLRUUniqueId {
       fail("Expected StorageException");
     } catch (StorageException e) { }
     verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    assertEquals(1, trace.spans.size());
+    assertEquals("Error", trace.spans.get(0).tags.get("status"));
+  }
+  
+  @Test
+  public void getOrCreateId() throws Exception {
+    when(store.getOrCreateId(any(AuthState.class), 
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(IdOrError.wrapId(UID1)));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        null).join().id());
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+    
+    trace = new MockTrace();
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        trace.newSpan("UT").start()).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        trace.newSpan("UT").start()).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        trace.newSpan("UT").start()).join().id());
+    assertEquals(0, trace.spans.size());
+    
+    trace = new MockTrace(true);
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        trace.newSpan("UT").start()).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        trace.newSpan("UT").start()).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+        trace.newSpan("UT").start()).join().id());
+    assertEquals(3, trace.spans.size());
+    assertEquals(LRUUniqueId.class.getName() + ".getOrCreateId", 
+        trace.spans.get(0).id);
+    assertEquals("OK", trace.spans.get(0).tags.get("status"));
+    assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
+    assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
+    assertEquals("true", trace.spans.get(2).tags.get("fromCache"));
+  }
+  
+  @Test
+  public void getOrCreateIdRetry() throws Exception {
+    when(store.getOrCreateId(any(AuthState.class), 
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(IdOrError.wrapRetry("Next!")));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    IdOrError result = lru.getOrCreateId(null, STRING1, ID, null).join();
+    assertEquals(WriteState.RETRY, result.state());
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+  }
+  
+  @Test
+  public void getOrCreateModes() throws Exception {
+    // read-write
+    when(store.getOrCreateId(any(AuthState.class), 
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(IdOrError.wrapId(UID1)));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+    
+    // write only
+    tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(2)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+    
+    // read only
+    tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(5)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+  }
+  
+  @Test
+  public void getOrCreateIdExceptionReturned() throws Exception {
+    when(store.getOrCreateId(any(AuthState.class), 
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromError(new UnitTestException()));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    try {
+      lru.getOrCreateId(null, STRING1, ID, null).join();
+      fail("Expected UnitTestException");
+    } catch (UnitTestException e) { }
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+  }
+  
+  @Test
+  public void getOrCreateIdExceptionThrown() throws Exception {
+    when(store.getOrCreateId(any(AuthState.class), 
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenThrow(new UnitTestException());
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    Deferred<IdOrError> deferred = lru.getOrCreateId(null, STRING1, ID, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+        STRING1, ID, null);
+  }
+  
+  @Test
+  public void getOrCreateIdArgumentException() throws Exception {
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    try {
+      lru.getOrCreateId(null, null, ID, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    try {
+      lru.getOrCreateId(null, "", ID, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void getOrCreateIds() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID2))));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<IdOrError> ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(2, lru.nameCache().size());
+    assertEquals(2, lru.idCache().size());
+    
+    trace = new MockTrace();
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
+    ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2), ID, 
+        trace.newSpan("UT").start()).join();
+    assertEquals(0, trace.spans.size());
+    
+    trace = new MockTrace(true);
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
+    ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2), ID, 
+        trace.newSpan("UT").start()).join();
+    ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2), ID, 
+        trace.newSpan("UT").start()).join();
+    assertEquals(2, trace.spans.size());
+    assertEquals(LRUUniqueId.class.getName() + ".getOrCreateIds", 
+        trace.spans.get(0).id);
+    assertEquals("OK", trace.spans.get(0).tags.get("status"));
+    assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
+    assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
+  }
+  
+  @Test
+  public void getOrCreateIdsSameNames() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID1),
+          IdOrError.wrapId(UID1))));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<IdOrError> ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING1, STRING1), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID1, ids.get(1).id());
+    assertArrayEquals(UID1, ids.get(2).id());
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+  }
+  
+  @Test
+  public void getOrCreateIdsPartialCacheIt() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID2))));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    lru.nameCache().put(STRING1, UID1);
+    
+    List<IdOrError> ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(2, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+    
+    // fully satisfied from cache
+    ids = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2), 
+        ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(2, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+    
+    // staggered
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID1),
+          IdOrError.wrapId(UID3))));
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    lru.nameCache().put(STRING2, UID2);
+    lru.nameCache().put(STRING4, UID4);
+    
+    ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2, STRING3, STRING4), ID, null).join();
+    assertEquals(4, ids.size());
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    assertArrayEquals(UID3, ids.get(2).id());
+    assertArrayEquals(UID4, ids.get(3).id());
+    verify(store, times(2)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(4, lru.nameCache().size());
+    assertEquals(2, lru.idCache().size());
+    
+    // diff order
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID3),
+          IdOrError.wrapId(UID1))));
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    lru.nameCache().put(STRING2, UID2);
+    lru.nameCache().put(STRING4, UID4);
+    
+    ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING2, STRING4, STRING3, STRING1), ID, null).join();
+    assertEquals(4, ids.size());
+    assertArrayEquals(UID2, ids.get(0).id());
+    assertArrayEquals(UID4, ids.get(1).id());
+    assertArrayEquals(UID3, ids.get(2).id());
+    assertArrayEquals(UID1, ids.get(3).id());
+    verify(store, times(3)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(4, lru.nameCache().size());
+    assertEquals(2, lru.idCache().size());
+  }
+  
+  @Test
+  public void getOrCreateIdsWithRetries() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID1), 
+          IdOrError.wrapRetry("Next!"))));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<IdOrError> ids = lru.getOrCreateIds(null, 
+        Lists.newArrayList(STRING1, STRING2), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertEquals(WriteState.RETRY, ids.get(1).state());
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+  }
+  
+  @Test
+  public void getOrCreateIdsModes() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID2))));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<IdOrError> ids = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(2, lru.nameCache().size());
+    assertEquals(2, lru.idCache().size());
+    
+    // write only
+    tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    ids = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    verify(store, times(2)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(2, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    
+    // read only
+    tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    ids = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID, null).join();
+    assertArrayEquals(UID1, ids.get(0).id());
+    assertArrayEquals(UID2, ids.get(1).id());
+    verify(store, times(3)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+  }
+  
+  @Test
+  public void getOrCreateIdsExceptionReturned() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromError(new StorageException("Boo!")));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    Deferred<List<IdOrError>> deferred = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    
+    trace = new MockTrace(true);
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
+    deferred = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2), 
+        ID, trace.newSpan("UT").start());
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    verify(store, times(2)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    assertEquals(1, trace.spans.size());
+    assertEquals("Error", trace.spans.get(0).tags.get("status"));
+  }
+  
+  @Test
+  public void getOrCreateIdsExceptionThrown() throws Exception {
+    when(store.getOrCreateIds(any(AuthState.class), 
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
+        any(Span.class)))
+      .thenThrow(new StorageException("Boo!"));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    Deferred<List<IdOrError>> deferred = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    verify(store, times(1)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    
+    trace = new MockTrace(true);
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
+    deferred = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2), 
+        ID, trace.newSpan("UT").start());
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    verify(store, times(2)).getOrCreateIds(eq(null), 
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
