@@ -17,6 +17,9 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.utils.Pair;
 
 /**
  * A class that will return a storage object that can be populated
@@ -47,4 +50,20 @@ public interface Codec {
    * @return A new row sequence.
    */
   public RowSeq newRowSeq(final long base_time);
+
+  /**
+   * Encodes the given value into a qualifier and value to send to the
+   * key/value column store.  
+   * @param value A non-null value to encode.
+   * @param append_format Whether or not to generate the append format.
+   * @param base_time The base time in Unix epoch seconds.
+   * @param rollup_interval An optional rollup interval.
+   * @return A non-null pair where the key is the qualifier and the value
+   * is the column value.
+   */
+  public Pair<byte[], byte[]> encode(
+      final TimeSeriesValue<? extends TimeSeriesDataType> value,
+      final boolean append_format,
+      final int base_time,
+      final RollupInterval rollup_interval);
 }

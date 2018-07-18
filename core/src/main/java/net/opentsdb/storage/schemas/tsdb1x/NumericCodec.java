@@ -17,15 +17,19 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.util.Arrays;
 
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.Pair;
 
 /**
  * TODO - doc me and finish me
@@ -131,6 +135,9 @@ public class NumericCodec implements Codec {
   /** Flag to determine if a compacted column is a mix of seconds and ms */
   public static final byte MS_MIXED_COMPACT = 1;
   
+  /** The append qualifier. */
+  public static final byte[] APPEND_QUALIFIER = new byte[] { 0, 0, 5 };
+  
   /** The resolution of an offset for encoding/decoding purposes. */
   public static enum OffsetResolution {
     NANOS,
@@ -152,6 +159,65 @@ public class NumericCodec implements Codec {
   @Override
   public RowSeq newRowSeq(final long base_time) {
     return new NumericRowSeq(base_time);
+  }
+  
+  @SuppressWarnings("unchecked")
+  @Override
+  public Pair<byte[], byte[]> encode(
+      final TimeSeriesValue<? extends TimeSeriesDataType> value,
+      final boolean append_format,
+      final int base_time,
+      final RollupInterval rollup_interval) {
+    
+    final byte[] v;
+    final boolean is_float;
+    if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
+        v = vleEncodeLong(((TimeSeriesValue<NumericType>) value).value().longValue());
+        is_float = false;
+    } else {
+      final double d = ((TimeSeriesValue<NumericType>) value).value().doubleValue();
+      if ((float) d == d) {
+        v = Bytes.fromInt(Float.floatToIntBits((float) d));
+      } else {
+        v = Bytes.fromLong(Double.doubleToRawLongBits(d));
+      }
+      is_float = true;
+    }
+
+    // TODO - someday, allow flexible offsets. Right now it's just on
+    // the hour.
+    final long offset;
+    final OffsetResolution resolution;
+    switch (value.timestamp().units()) {
+    case SECONDS:
+      offset = value.timestamp().epoch() - (long) base_time;
+      resolution = OffsetResolution.SECONDS;
+      break;
+    case MILLIS:
+      offset = value.timestamp().msEpoch() - (long) (base_time * 1000L);
+      resolution = OffsetResolution.MILLIS;
+      break;
+    default:
+      // TODO - nanos.
+      throw new IllegalStateException("Unsupported resolution: " 
+          + value.timestamp().units());
+    }
+    if (append_format) {
+      return new Pair<byte[], byte[]>(APPEND_QUALIFIER, 
+          encodeAppendValue(resolution, offset, v, is_float));
+    } else {
+      short flag = (short) ((is_float ? FLAG_FLOAT : (short) 0) | (short) (v.length - 1));
+      switch (resolution) {
+      case SECONDS:
+        return new Pair<byte[], byte[]>(buildSecondQualifier(offset, flag), v);
+      case MILLIS:
+        return new Pair<byte[], byte[]>(buildMsQualifier(offset, flag), v);
+      default:
+        // TODO - nanos.
+        throw new IllegalStateException("Unsupported resolution: " 
+            + value.timestamp().units());
+      }
+    }
   }
   
   /**
@@ -648,4 +714,6 @@ public class NumericCodec implements Codec {
     }
     return new LocalValue();
   }
+
+
 }
