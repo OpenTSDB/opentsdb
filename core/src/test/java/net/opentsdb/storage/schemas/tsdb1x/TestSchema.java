@@ -35,6 +35,7 @@ import java.util.List;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
@@ -45,14 +46,17 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -66,6 +70,7 @@ import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestSchema extends SchemaBase {
@@ -1270,4 +1275,28 @@ public class TestSchema extends SchemaBase {
     assertEquals(WriteState.REJECTED, ioe.state());
   }
   
+  @Test
+  public void encode() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+    
+    MutableNumericValue value = 
+        new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
+    Pair<byte[], byte[]> qv = schema.encode(value, false, 1262304000, null);
+    assertArrayEquals(new byte[] { 0, 0 }, qv.getKey());
+    assertArrayEquals(new byte[] { 42 }, qv.getValue());
+    
+    qv = schema.encode(value, true, 1262304000, null);
+    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, qv.getKey());
+    assertArrayEquals(new byte[] { 0, 0, 42 }, qv.getValue());
+    
+    TimeSeriesValue no_codec = mock(TimeSeriesValue.class);
+    when(no_codec.type()).thenReturn(TypeToken.of(String.class));
+    assertNull(schema.encode(no_codec, true, 1262304000, null));
+    
+    try {
+      schema.encode(null, false, 1262304000, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
 }
