@@ -14,11 +14,18 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.Arrays;
 import java.util.List;
 
+import org.hbase.async.AppendRequest;
+import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.HBaseClient;
+import org.hbase.async.PleaseThrottleException;
+import org.hbase.async.PutRequest;
+import org.hbase.async.RecoverableException;
 
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
@@ -27,6 +34,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
@@ -34,7 +42,9 @@ import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
+import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.UniqueIdStore;
+import net.opentsdb.utils.Pair;
 
 /**
  * TODO - complete.
@@ -74,6 +84,8 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   public static final String FUZZY_FILTER_KEY = "tsd.query.enable_fuzzy_filter";
   public static final String ROWS_PER_SCAN_KEY = "tsd.query.rows_per_scan";
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
+  public static final String ENABLE_APPENDS_KEY = "tsd.storage.enable_appends";
+  public static final String ENABLE_COPROC_APPENDS_KEY = "tsd.storage.enable_appends_coproc";
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
@@ -100,6 +112,9 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   /** Name of the table where meta data is stored. */
   private final byte[] meta_table;
   
+  private final boolean enable_appends;
+  private final boolean enable_appends_coproc;
+  
   public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
                               final String id,
                               final Schema schema) {
@@ -115,7 +130,6 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     final Configuration config = tsdb.getConfig();
     synchronized(config) {
       if (!config.hasProperty(getConfigKey(DATA_TABLE_KEY))) {
-        System.out.println("REGISTERED: " + getConfigKey(DATA_TABLE_KEY));
         config.register(getConfigKey(DATA_TABLE_KEY), "tsdb", false, 
             "The name of the raw data table for OpenTSDB.");
       }
@@ -230,6 +244,14 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
         config.register(MAX_MG_CARDINALITY_KEY, "128", true,
             "TODO");
       }
+      if (!config.hasProperty(ENABLE_APPENDS_KEY)) {
+        config.register(ENABLE_APPENDS_KEY, false, false,
+            "TODO");
+      }
+      if (!config.hasProperty(ENABLE_COPROC_APPENDS_KEY)) {
+        config.register(ENABLE_COPROC_APPENDS_KEY, false, false,
+            "TODO");
+      }
     }
     
     async_config.overrideConfig("hbase.zookeeper.quorum", 
@@ -248,6 +270,9 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
         config.getString(getConfigKey(SASL_CLIENT_KEY)));
     async_config.overrideConfig("hbase.meta.split", 
         config.getString(getConfigKey(META_SPLIT_KEY)));
+    
+    enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
+    enable_appends_coproc = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
     
 //    Map<String, ConfigurationEntryWrapper> cfg = tsdb.getConfig().getView().getEntries();
 //    for (final Entry<String, ConfigurationEntryWrapper> entry : cfg.entrySet()) {
@@ -290,8 +315,110 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   public Deferred<WriteStatus> write(final AuthState state, 
                                      final TimeSeriesDatum datum,
                                      final Span span) {
-    // no need to validate here.
-    return null;
+    // TODO - other types
+    if (datum.value().type() != NumericType.TYPE) {
+      return Deferred.fromResult(WriteStatus.rejected(
+          "Not handling this type yet: " + datum.value().type()));
+    }
+    
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".write")
+          .start();
+    } else {
+      child = null;
+    }
+    // no need to validate here, schema does it.
+    
+    class SuccessCB implements Callback<WriteStatus, Object> {
+      @Override
+      public WriteStatus call(final Object ignored) throws Exception {
+        if (child != null) {
+          child.setSuccessTags().finish();
+        }
+        return WriteStatus.OK;
+      }
+    }
+    
+    class WriteErrorCB implements Callback<WriteStatus, Exception> {
+      @Override
+      public WriteStatus call(final Exception ex) throws Exception {
+        // TODO log?
+        if (ex instanceof PleaseThrottleException ||
+            ex instanceof RecoverableException) {
+          if (child != null) {
+            child.setErrorTags(ex)
+                 .finish();
+          }
+          return WriteStatus.retry("Please retry at a later time.");
+        }
+        if (child != null) {
+          child.setErrorTags(ex)
+               .finish();
+        }
+        return WriteStatus.error(ex.getMessage(), ex);
+      }
+    }
+    
+    class RowKeyCB implements Callback<Deferred<WriteStatus>, IdOrError> {
+
+      @Override
+      public Deferred<WriteStatus> call(final IdOrError ioe) throws Exception {
+        if (ioe.id() == null) {
+          if (child != null) {
+            child.setErrorTags(ioe.exception())
+                 .setTag("state", ioe.state().toString())
+                 .setTag("message", ioe.error())
+                 .finish();
+          }
+          switch (ioe.state()) {
+          case RETRY:
+            return Deferred.fromResult(WriteStatus.retry(ioe.error()));
+          case REJECTED:
+            return Deferred.fromResult(WriteStatus.rejected(ioe.error()));
+          case ERROR:
+            return Deferred.fromResult(WriteStatus.error(ioe.error(), ioe.exception()));
+          default:
+            throw new StorageException("Unexpected resolution state: " 
+                + ioe.state());
+          }
+        }
+        // TODO - handle different types
+        long base_time = datum.value().timestamp().epoch();
+        base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
+        Pair<byte[], byte[]> pair = schema.encode(datum.value(), 
+            enable_appends || enable_appends_coproc, (int) base_time, null);
+        
+        if (enable_appends) {
+          return client.append(new AppendRequest(data_table,ioe.id(), 
+              DATA_FAMILY, pair.getKey(), pair.getValue()))
+              .addCallbacks(new SuccessCB(), new WriteErrorCB());
+        } else {
+          // same for co-proc and puts. The encode method figures out
+          // the qualifier and values.
+          return client.put(new PutRequest(data_table, ioe.id(), 
+              DATA_FAMILY, pair.getKey(), pair.getValue()))
+              .addCallbacks(new SuccessCB(), new WriteErrorCB());
+        }
+      }
+      
+    }
+    
+    class ErrorCB implements Callback<WriteStatus, Exception> {
+      @Override
+      public WriteStatus call(final Exception ex) throws Exception {
+        return WriteStatus.error(ex.getMessage(), ex);
+      }
+    }
+    
+    try {
+      return schema.createRowKey(state, datum, null, child)
+          .addCallbackDeferring(new RowKeyCB())
+          .addErrback(new ErrorCB());
+    } catch (Exception e) {
+      // TODO - log
+      return Deferred.fromResult(WriteStatus.error(e.getMessage(), e));
+    }
   }
 
   @Override

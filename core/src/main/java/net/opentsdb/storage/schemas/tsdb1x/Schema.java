@@ -45,6 +45,7 @@ import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumIterable;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -74,6 +75,7 @@ import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 
 /**
  * The interface for an OpenTSDB version 1 and version 2 schema where 
@@ -1067,6 +1069,34 @@ public class Schema implements ReadableTimeSeriesDataStore,
     return uid_store.getOrCreateId(auth, UniqueIdType.METRIC, 
         ((TimeSeriesDatumStringId) datum.id()).metric(), datum.id(), child)
           .addCallbackDeferring(new MetricCB());
+  }
+  
+  /**
+   * Encodes the given value into a qualifier and value to send to the
+   * key/value column store using the type of the value and the codecs
+   * configured for this schema.  
+   * 
+   * @param value A non-null value to encode.
+   * @param append_format Whether or not to generate the append format.
+   * @param base_time The base time in Unix epoch seconds.
+   * @param rollup_interval An optional rollup interval.
+   * @return A pair where the key is the qualifier and the value is the 
+   * column value if a codec was found, null if no codec was found.
+   */
+  public Pair<byte[], byte[]> encode(
+      final TimeSeriesValue<? extends TimeSeriesDataType> value,
+      final boolean append_format,
+      final int base_time,
+      final RollupInterval rollup_interval) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null.");
+    }
+    
+    final Codec codec = codecs.get(value.type());
+    if (codec == null) {
+      return null;
+    }
+    return codec.encode(value, append_format, base_time, rollup_interval);
   }
   
   /** @return The meta schema if implemented and assigned, null if not. */

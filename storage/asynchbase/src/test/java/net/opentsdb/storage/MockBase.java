@@ -855,25 +855,30 @@ public final class MockBase {
    * all byte arrays hex encoded
    */
   public void dumpToSystemOut() {
-    dumpToSystemOut(false);
+    dumpToSystemOut(null, false);
   }
 
   /**
    * Dumps the entire storage hash to stdout in a sort of tree style format
+   * @param table An optional table, if null, print them all.
    * @param ascii Whether or not the values should be converted to ascii
    */
-  public void dumpToSystemOut(final boolean ascii) {
+  public void dumpToSystemOut(final byte[] table, final boolean ascii) {
     if (storage.isEmpty()) {
       System.out.println("Storage is Empty");
       return;
     }
 
-    for (Entry<byte[], ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>> table :
+    for (Entry<byte[], ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>> db_table :
       storage.entrySet()) {
-      System.out.println("[Table] " + new String(table.getKey(), Const.ASCII_CHARSET));
+      if (table != null && Bytes.memcmp(table, db_table.getKey()) != 0) {
+        continue;
+      }
+      
+      System.out.println("[Table] " + new String(db_table.getKey(), Const.ASCII_CHARSET));
 
       for (Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> cf :
-        table.getValue().entrySet()) {
+        db_table.getValue().entrySet()) {
         System.out.println("  [CF] " + new String(cf.getKey(), Const.ASCII_CHARSET));
 
         for (Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> row :
