@@ -33,7 +33,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -423,7 +423,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
 
   @Override
   public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesDatumIterable data, 
+                                           final TimeSeriesSharedTagsAndTimeData data, 
                                            final Span span) {
     // TODO Auto-generated method stub
     return null;

@@ -173,7 +173,7 @@ public class SecondTimeStamp implements TimeStamp {
         .append("timestamp=")
         .append(timestamp)
         .append(", utc=")
-        .append(Instant.ofEpochMilli(timestamp))
+        .append(Instant.ofEpochSecond(timestamp))
         .append(", epoch=")
         .append(epoch())
         .append(", nanos=")
