@@ -19,7 +19,7 @@ import java.util.List;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
-import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.stats.Span;
 
@@ -53,7 +53,7 @@ public interface WritableTimeSeriesDataStore {
    * same order and number as the entries in the data iterator.
    */
   public Deferred<List<WriteStatus>> write(final AuthState state, 
-                                          final TimeSeriesDatumIterable data, 
+                                          final TimeSeriesSharedTagsAndTimeData data, 
                                           final Span span);
   
 }

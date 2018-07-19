@@ -42,7 +42,7 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -327,7 +327,7 @@ public class Schema implements ReadableTimeSeriesDataStore,
   
   @Override
   public Deferred<List<WriteStatus>> write(final AuthState state, 
-                                           final TimeSeriesDatumIterable data, 
+                                           final TimeSeriesSharedTagsAndTimeData data, 
                                            final Span span) {
     final List<WriteStatus> status = Lists.newArrayList();
     final List<TimeSeriesDatum> forwards = Lists.newArrayList();
@@ -372,7 +372,7 @@ public class Schema implements ReadableTimeSeriesDataStore,
     
     // aww, have to follow the complex path
     return data_store.write(state, 
-        TimeSeriesDatumIterable.fromCollection(forwards), 
+        TimeSeriesSharedTagsAndTimeData.fromCollection(forwards), 
         span)
           .addCallback(new WriteCB());
   }

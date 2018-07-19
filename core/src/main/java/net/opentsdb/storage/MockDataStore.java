@@ -43,7 +43,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -156,7 +156,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     return Deferred.fromResult(WriteStatus.OK);
   }
   
-  public Deferred<List<WriteStatus>> write(final AuthState state, final TimeSeriesDatumIterable data, final Span span) {
+  public Deferred<List<WriteStatus>> write(final AuthState state, final TimeSeriesSharedTagsAndTimeData data, final Span span) {
     int i = 0;
     for (final TimeSeriesDatum datum : data) {
       MockSpan data_span = database.get(datum.id());

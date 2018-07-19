@@ -50,13 +50,12 @@ import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumId;
-import net.opentsdb.data.TimeSeriesDatumIterable;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -1049,79 +1048,91 @@ public class TestSchema extends SchemaBase {
     Schema schema = schema();
     when(id_validator.validate(any(TimeSeriesDatumId.class)))
       .thenReturn(null);
-    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           WriteStatus.OK, 
           WriteStatus.OK)));
     
+    TimeSeriesDatumStringId id_a = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build();
+    TimeSeriesDatumStringId id_b = BaseTimeSeriesDatumStringId.newBuilder()
+        .setMetric(METRIC_B_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build();
+    TimeStamp ts = new SecondTimeStamp(1262304000);
+    MutableNumericValue value_a = new MutableNumericValue(ts, 42);
+    MutableNumericValue value_b = new MutableNumericValue(ts, 24);
+    
     List<TimeSeriesDatum> data = Lists.newArrayList(
-        mock(TimeSeriesDatum.class),
-        mock(TimeSeriesDatum.class));
+        TimeSeriesDatum.wrap(id_a, value_a),
+        TimeSeriesDatum.wrap(id_b, value_b));
     
     List<WriteStatus> status = schema.write(null, 
-        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
     assertEquals(2, status.size());
     assertEquals(WriteStatus.OK, status.get(0));
     assertEquals(WriteStatus.OK, status.get(1));
     verify(store, times(1)).write(any(AuthState.class), 
-        any(TimeSeriesDatumIterable.class), 
+        any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class));
     
     // fail the first
     when(id_validator.validate(any(TimeSeriesDatumId.class)))
       .thenReturn("Ooops!")
       .thenReturn(null);
-    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           WriteStatus.OK)));
     
     status = schema.write(null, 
-        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
     assertEquals(2, status.size());
     assertEquals(WriteState.REJECTED, status.get(0).state());
     assertEquals(WriteStatus.OK, status.get(1));
     verify(store, times(2)).write(any(AuthState.class), 
-        any(TimeSeriesDatumIterable.class), 
+        any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class));
     
     // fail the second
     when(id_validator.validate(any(TimeSeriesDatumId.class)))
       .thenReturn(null)
       .thenReturn("Ooops!");
-    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           WriteStatus.OK)));
     
     status = schema.write(null, 
-        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
     assertEquals(2, status.size());    
     assertEquals(WriteStatus.OK, status.get(0));
     assertEquals(WriteState.REJECTED, status.get(1).state());
     verify(store, times(3)).write(any(AuthState.class), 
-        any(TimeSeriesDatumIterable.class), 
+        any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class));
     
     // fail all
     when(id_validator.validate(any(TimeSeriesDatumId.class)))
       .thenReturn("Ooops!")
       .thenReturn("Ooops!");
-    when(store.write(any(AuthState.class), any(TimeSeriesDatumIterable.class), 
+    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           WriteStatus.OK)));
     
     status = schema.write(null, 
-        TimeSeriesDatumIterable.fromCollection(data), null).join(); 
+        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
     assertEquals(2, status.size());    
     assertEquals(WriteState.REJECTED, status.get(0).state());
     assertEquals(WriteState.REJECTED, status.get(1).state());
     
     // not called here
     verify(store, times(3)).write(any(AuthState.class), 
-        any(TimeSeriesDatumIterable.class), 
+        any(TimeSeriesSharedTagsAndTimeData.class), 
         any(net.opentsdb.stats.Span.class));
   }
 
