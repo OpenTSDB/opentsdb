@@ -47,8 +47,8 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.PBufNumericSerdesFactory;
-import net.opentsdb.data.PBufNumericSummarySerdesFactory;
+import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
+import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.PBufQueryResult;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -74,9 +74,9 @@ public class TestPBufSerdes {
     PBufSerdes serdes = new PBufSerdes();
     
     assertTrue(serdes.factory.serdesForType(NumericType.TYPE) 
-        instanceof PBufNumericSerdesFactory);
+        instanceof PBufNumericTimeSeriesSerdes);
     assertTrue(serdes.factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummarySerdesFactory);
+        instanceof PBufNumericSummaryTimeSeriesSerdes);
     assertNull(serdes.factory.serdesForType(TypeToken.of(String.class)));
     assertEquals("PBufSerdes", serdes.id());
     assertNull(serdes.initialize(mock(TSDB.class)).join());
@@ -98,9 +98,9 @@ public class TestPBufSerdes {
     
     serdes.registerSerdes(string_serdes);
     assertTrue(serdes.factory.serdesForType(NumericType.TYPE) 
-        instanceof PBufNumericSerdesFactory);
+        instanceof PBufNumericTimeSeriesSerdes);
     assertTrue(serdes.factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummarySerdesFactory);
+        instanceof PBufNumericSummaryTimeSeriesSerdes);
     assertSame(string_serdes, serdes.factory.serdesForType(string_type));
   }
 

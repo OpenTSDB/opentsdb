@@ -22,9 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
-import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.PBNumericDatumSerdes;
 import net.opentsdb.data.types.numeric.NumericType;
 
 /**
@@ -32,20 +30,19 @@ import net.opentsdb.data.types.numeric.NumericType;
  * 
  * @since 3.0
  */
-public class PBufIteratorSerdesFactory {
+public class PBufDataSerdesFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
-      PBufIteratorSerdesFactory.class);
+      PBufDataSerdesFactory.class);
   
   /** The map of types. */
-  private final Map<TypeToken<?>, PBufIteratorSerdes> types;
+  private final Map<TypeToken<?>, PBufDatumSerdes> types;
   
   /**
    * Default ctor.
    */
-  public PBufIteratorSerdesFactory() {
+  public PBufDataSerdesFactory() {
     types = Maps.newConcurrentMap();
-    types.put(NumericType.TYPE, new PBufNumericTimeSeriesSerdes());
-    types.put(NumericSummaryType.TYPE, new PBufNumericSummaryTimeSeriesSerdes());
+    types.put(NumericType.TYPE, new PBNumericDatumSerdes());
   }
   
   /**
@@ -55,7 +52,7 @@ public class PBufIteratorSerdesFactory {
    * @throws IllegalArgumentException if the serdes was null or it's type
    * was null.
    */
-  public void register(final PBufIteratorSerdes serdes) {
+  public void register(final PBufDatumSerdes serdes) {
     if (serdes == null) {
       throw new IllegalArgumentException("Serdes cannot be null.");
     }
@@ -63,7 +60,7 @@ public class PBufIteratorSerdesFactory {
       throw new IllegalArgumentException("Serdes type cannot be null.");
     }
     
-    final PBufIteratorSerdes existing = types.put(serdes.type(), serdes);
+    final PBufDatumSerdes existing = types.put(serdes.type(), serdes);
     if (existing != null) {
       LOG.warn("Replacing existing serdes module [" + existing 
           + "] for type [" + serdes.type() + "] with module [" 
@@ -79,7 +76,7 @@ public class PBufIteratorSerdesFactory {
    * @param type A non-null type of time series data.
    * @return Null if the type is not handled or a serdes module if found.
    */
-  public PBufIteratorSerdes serdesForType(final TypeToken<?> type) {
+  public PBufDatumSerdes serdesForType(final TypeToken<?> type) {
     return types.get(type);
   }
 }

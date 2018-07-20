@@ -18,17 +18,22 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 
-import net.opentsdb.data.pbuf.TimeStampPB;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.pbuf.NumericSegmentPB.NumericSegment;
+import net.opentsdb.data.pbuf.TimeStampPB;
+import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment;
+import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment.NumericSummary;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesDataSequencePB.TimeSeriesDataSegment;
 import net.opentsdb.data.pbuf.TimeSeriesPB.TimeSeries.Builder;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
@@ -39,9 +44,9 @@ import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.utils.Bytes;
 
 /**
- * A serdes factory for {@link NumericType} data. This class will encode
- * numeric values preserving longs and doubles as well as {@link Double#NaN}
- * and null values.
+ * A serdes implementation for {@link NumericSummaryType} data. This 
+ * class will encode numeric values preserving longs and doubles as well 
+ * as {@link Double#NaN} and null values.
  * <p>
  * Note that the base time of the segment is the start time of the 
  * {@link SerdesOptions} without any normalization.
@@ -52,11 +57,11 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class PBufNumericSerdesFactory implements PBufIteratorSerdes {
+public class PBufNumericSummaryTimeSeriesSerdes implements PBufIteratorSerdes {
 
   @Override
   public TypeToken<? extends TimeSeriesDataType> type() {
-    return NumericType.TYPE;
+    return NumericSummaryType.TYPE;
   }
   
   @Override
@@ -71,7 +76,7 @@ public class PBufNumericSerdesFactory implements PBufIteratorSerdes {
   @Override
   public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> deserialize(
       final TimeSeriesData series) {
-    return new PBufNumericIterator(series);
+    return new PBufNumericSummaryIterator(series);
   }
 
   /**
@@ -102,13 +107,14 @@ public class PBufNumericSerdesFactory implements PBufIteratorSerdes {
     }
     byte encode_on = NumericCodec.encodeOn(span, NumericCodec.LENGTH_MASK);
     
-    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    long previous_offset = -1;
+    final Map<Integer, ByteArrayOutputStream> summary_streams = 
+        Maps.newHashMap();
     try {
+      long previous_offset = -1;
       while (iterator.hasNext()) {
         @SuppressWarnings("unchecked")
-        final TimeSeriesValue<NumericType> value = 
-            (TimeSeriesValue<NumericType>) iterator.next();
+        final TimeSeriesValue<NumericSummaryType> value = 
+            (TimeSeriesValue<NumericSummaryType>) iterator.next();
         if (value.timestamp().compare(Op.LT, options.start())) {
           continue;
         }
@@ -125,30 +131,54 @@ public class PBufNumericSerdesFactory implements PBufIteratorSerdes {
               + current_offset);
         }
         previous_offset = current_offset;
+        
         if (value.value() == null) {
-          // length of 0 + float flag == null value, so nothing following
-          final byte flags = NumericCodec.FLAG_FLOAT;
-          baos.write(Bytes.fromLong(
-              (current_offset << NumericCodec.FLAG_BITS) | flags),
+          // so, if we have already populated our summaries with nulls we
+          // can fill with nulls. But at the start of the iteration we
+          // don't know what to fill with.
+          for (final Entry<Integer, ByteArrayOutputStream> entry : 
+            summary_streams.entrySet()) {
+            ByteArrayOutputStream baos = entry.getValue();
+            final byte flags = NumericCodec.FLAG_FLOAT;
+            baos.write(Bytes.fromLong(
+                (current_offset << NumericCodec.FLAG_BITS) | flags),
+                  8 - encode_on, encode_on);
+          }
+          continue;
+        }
+        
+        for (final int summary : value.value().summariesAvailable()) {
+          ByteArrayOutputStream baos = summary_streams.get(summary);
+          if (baos == null) {
+            baos = new ByteArrayOutputStream();
+            summary_streams.put(summary, baos);
+          }
+          
+          NumericType val = value.value().value(summary);
+          if (val == null) {
+            // length of 0 + float flag == null value, so nothing following
+            final byte flags = NumericCodec.FLAG_FLOAT;
+            baos.write(Bytes.fromLong(
+                (current_offset << NumericCodec.FLAG_BITS) | flags),
+                  8 - encode_on, encode_on);
+          } else if (val.isInteger()) {
+            final byte[] vle = NumericCodec.vleEncodeLong(val.longValue());
+            final byte flags = (byte) (vle.length - 1);
+            baos.write(Bytes.fromLong(
+                (current_offset << NumericCodec.FLAG_BITS) | flags),
                 8 - encode_on, encode_on);
-        } else if (value.value().isInteger()) {
-          final byte[] vle = NumericCodec.vleEncodeLong(
-              value.value().longValue());
-          final byte flags = (byte) (vle.length - 1);
-          baos.write(Bytes.fromLong(
-              (current_offset << NumericCodec.FLAG_BITS) | flags),
-              8 - encode_on, encode_on);
-          baos.write(vle);
-        } else {
-          final double v = value.value().doubleValue();
-          final byte[] vle = NumericType.fitsInFloat(v) ? 
-              Bytes.fromInt(Float.floatToIntBits((float) v)) :
-                Bytes.fromLong(Double.doubleToLongBits(v));
-          final byte flags = (byte) ((vle.length - 1) | NumericCodec.FLAG_FLOAT);
-          baos.write(Bytes.fromLong(
-              (current_offset << NumericCodec.FLAG_BITS) | flags),
-              8 - encode_on, encode_on);
-          baos.write(vle);
+            baos.write(vle);
+          } else {
+            final double v = val.doubleValue();
+            final byte[] vle = NumericType.fitsInFloat(v) ? 
+                Bytes.fromInt(Float.floatToIntBits((float) v)) :
+                  Bytes.fromLong(Double.doubleToLongBits(v));
+            final byte flags = (byte) ((vle.length - 1) | NumericCodec.FLAG_FLOAT);
+            baos.write(Bytes.fromLong(
+                (current_offset << NumericCodec.FLAG_BITS) | flags),
+                8 - encode_on, encode_on);
+            baos.write(vle);
+          }
         }
       }
     } catch (IOException e) {
@@ -156,12 +186,17 @@ public class PBufNumericSerdesFactory implements PBufIteratorSerdes {
           + "iterator: " + iterator, e);
     }
   
-    final NumericSegment ns = NumericSegment.newBuilder()
-        .setEncodedOn(encode_on)
-        .setResolution(result.resolution().ordinal())
-        // TODO - can I wrap???
-        .setData(ByteString.copyFrom(baos.toByteArray()))
-        .build();
+    final NumericSummarySegment.Builder segment_builder = 
+        NumericSummarySegment.newBuilder()
+          .setEncodedOn(encode_on)
+          .setResolution(result.resolution().ordinal());
+    for (final Entry<Integer, ByteArrayOutputStream> entry : 
+        summary_streams.entrySet()) {
+      segment_builder.addData(NumericSummary.newBuilder()
+          .setSummaryId(entry.getKey())
+          // TODO - can I wrap???
+          .setData(ByteString.copyFrom(entry.getValue().toByteArray())));
+    }
     
     final TimeStampPB.TimeStamp.Builder start = TimeStampPB.TimeStamp.newBuilder()
         .setEpoch(options.start().epoch())
@@ -178,11 +213,11 @@ public class PBufNumericSerdesFactory implements PBufIteratorSerdes {
     }
     
     return TimeSeriesData.newBuilder()
-      .setType(NumericType.TYPE.getRawType().getName())
+      .setType(NumericSummaryType.TYPE.getRawType().getName())
       .addSegments(TimeSeriesDataSegment.newBuilder()
           .setStart(start)
           .setEnd(end)
-          .setData(Any.pack(ns)))
+          .setData(Any.pack(segment_builder.build())))
       .build();
   }
   
