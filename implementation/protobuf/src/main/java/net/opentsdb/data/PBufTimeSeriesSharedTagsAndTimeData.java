@@ -112,6 +112,11 @@ public class PBufTimeSeriesSharedTagsAndTimeData implements
     return data;
   }
 
+  @Override
+  public int size() {
+    return data.size();
+  }
+  
   class DataIterator implements Iterator<TimeSeriesDatum>, 
     TimeSeriesDatum, TimeSeriesDatumStringId {
     

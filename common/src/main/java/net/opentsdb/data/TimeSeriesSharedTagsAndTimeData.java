@@ -44,6 +44,9 @@ public interface TimeSeriesSharedTagsAndTimeData extends Iterable<TimeSeriesDatu
    * data types associated with it in the same set. */
   public Multimap<String, TimeSeriesDataType> data();
   
+  /** @return The number of messages in the set. */
+  public int size();
+  
   /**
    * A wrapper around a collection to create an iterable.
    * <b>NOTES:</b> All datum in the data must share the same timestamp 
@@ -114,6 +117,11 @@ public interface TimeSeriesSharedTagsAndTimeData extends Iterable<TimeSeriesDatu
       @Override
       public Iterator<TimeSeriesDatum> iterator() {
         return data.iterator();
+      }
+    
+      @Override
+      public int size() {
+        return data.size();
       }
     };
   }
