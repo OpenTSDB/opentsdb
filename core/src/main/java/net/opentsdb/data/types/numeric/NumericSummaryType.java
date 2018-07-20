@@ -37,6 +37,11 @@ public interface NumericSummaryType extends TimeSeriesDataType {
   public static final TypeToken<NumericSummaryType> TYPE = 
       TypeToken.of(NumericSummaryType.class);
   
+  @Override
+  default TypeToken<? extends TimeSeriesDataType> type() {
+    return TYPE;
+  }
+  
   /**
    * The summaries available for this data point. If no values are 
    * available, the result is an empty, non-null collection.

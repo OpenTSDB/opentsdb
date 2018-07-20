@@ -29,4 +29,9 @@ public class AnnotationType implements TimeSeriesDataType {
   /** The data type reference to pass around. */
   public static final TypeToken<AnnotationType> TYPE = 
       TypeToken.of(AnnotationType.class);
+
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> type() {
+    return TYPE;
+  }
 }

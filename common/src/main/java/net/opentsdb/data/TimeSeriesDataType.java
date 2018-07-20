@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import com.google.common.reflect.TypeToken;
+
 /**
  * Describes a type of data for use in storing and querying with OpenTSDB.
  * 
@@ -21,4 +23,7 @@ package net.opentsdb.data;
  */
 public interface TimeSeriesDataType {
 
+  /** @return The non-null type of data this value represents. */
+  public TypeToken<? extends TimeSeriesDataType> type();
+  
 }
