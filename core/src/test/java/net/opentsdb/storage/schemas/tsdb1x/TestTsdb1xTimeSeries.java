@@ -262,7 +262,13 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
   
   @Test
   public void addSequenceNoCodec() throws Exception {
-    class DummyType implements TimeSeriesDataType { }
+    class DummyType implements TimeSeriesDataType {
+      @Override
+      public TypeToken<? extends TimeSeriesDataType> type() {
+        return TypeToken.of(DummyType.class);
+      } 
+    }
+    
     TypeToken<? extends TimeSeriesDataType> type = 
         TypeToken.of(DummyType.class);
     RowSeq seq = mock(RowSeq.class);

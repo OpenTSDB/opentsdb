@@ -28,6 +28,11 @@ public interface NumericType extends TimeSeriesDataType {
   /** The data type reference to pass around. */
   public static final TypeToken<NumericType> TYPE = TypeToken.of(NumericType.class);
   
+  @Override
+  default TypeToken<? extends TimeSeriesDataType> type() {
+    return TYPE;
+  }
+  
   /**
    * Tells whether or not the this data point is a value of integer type.
    * @return {@code true} if the value is of integer type (call {@link #longValue()}), 
