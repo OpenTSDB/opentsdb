@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+      <groupId>net.opentsdb</groupId>
+      <artifactId>opentsdb</artifactId>
+      <version>3.0.85-SNAPSHOT</version>
+      <relativePath>../../pom.xml</relativePath>
+    </parent>
+    
+    <artifactId>opentsdb-google-pubsub</artifactId>
+    <name>opentsdb-google-pubsub</name>
+    
+    <description>A means to write data to the Google PubSub system in GCP</description>
+    
+    <packaging>jar</packaging>
+    
+    <properties>
+
+    </properties>
+    
+    <dependencyManagement>
+      <dependencies>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-common</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-core</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-common</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-core</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+        </dependency>
+        
+         <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>23.0</version>
+        </dependency>
+        <dependency>
+          <groupId>com.google.cloud</groupId>
+          <artifactId>google-cloud-pubsub</artifactId>
+          <version>1.36.0</version>
+        </dependency>
+                
+      </dependencies>
+    </dependencyManagement>
+    
+    <dependencies>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-common</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-core</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>com.google.guava</groupId>
+         <artifactId>guava</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-pubsub</artifactId>
+      </dependency>
+        
+      <!-- TESTING Deps. -->
+      
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-common</artifactId>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-core</artifactId>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+        
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <scope>test</scope>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.objenesis</groupId>
+        <artifactId>objenesis</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.powermock</groupId>
+        <artifactId>powermock-api-mockito</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.powermock</groupId>
+        <artifactId>powermock-module-junit4</artifactId>
+        <scope>test</scope>
+      </dependency>
+      
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <scope>test</scope>
+      </dependency>
+
+    </dependencies>
+    
+    <build>
+      <plugins>       
+          <plugin> 
+                <groupId>org.apache.maven.plugins</groupId>  
+                <artifactId>maven-shade-plugin</artifactId>  
+                <version>2.3</version> 
+                <configuration>  
+                    <artifactSet>  
+                        <excludes> 
+                            <exclude>net.opentsdb:opentsdb-common</exclude>  
+                            <exclude>net.opentsdb:opentsdb-core</exclude>  
+                            <exclude>ch.qos.logback:logback*</exclude>
+                            <exclude>com.fasterxml*:*</exclude>
+                            <exclude>javax*:*</exclude>
+                        </excludes>  
+                    </artifactSet> 
+                    <relocations>
+                  <relocation>
+                     <pattern>com.google.protobuf</pattern>
+                     <shadedPattern>net.opentsdb.com.google.protobuf</shadedPattern>
+                  </relocation>
+<!--                  <relocation>
+                     <pattern>com.google.api</pattern>
+                     <shadedPattern>net.opentsdb.com.google.api</shadedPattern>
+                  </relocation>
+                  <relocation>
+                     <pattern>com.google.cloud</pattern>
+                     <shadedPattern>net.opentsdb.com.google.cloud</shadedPattern>
+                  </relocation>-->
+               </relocations>
+                    <filters>  
+                      <filter> 
+                        <artifact>*:*</artifact> 
+                        <excludes> 
+                          <exclude>META-INF/*.SF</exclude> 
+                          <exclude>META-INF/*.DSA</exclude>  
+                          <exclude>META-INF/*.RSA</exclude>  
+                          <exclude>org.slf4j:*</exclude>  
+                          <exclude>net.opentsdb:*</exclude>  
+                        </excludes>  
+                      </filter>  
+                    </filters> 
+                </configuration> 
+                <executions> 
+                    <execution>  
+                        <phase>package</phase> 
+                        <goals>  
+                            <goal>shade</goal> 
+                        </goals> 
+                    </execution> 
+                </executions>  
+ 
+          </plugin>  
+      </plugins>
+    </build>
+</project>

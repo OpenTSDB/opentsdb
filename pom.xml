@@ -89,13 +89,14 @@
     <module>common</module>
     <module>core</module>
     <module>executors/http</module>
-	<module>implementation/elasticsearch</module>
-	<module>implementation/protobuf</module>
+    <module>implementation/elasticsearch</module>
+    <module>implementation/protobuf</module>
     <module>implementation/tracer-brave</module>
     <module>implementation/redis</module>
     <module>implementation/servlet</module>
     <module>implementation/server-undertow</module>
     <module>storage/asynchbase</module>
+    <module>storage/googlepubsub</module>
     <module>distribution</module>
   </modules>
 
