@@ -60,7 +60,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   
   @Test
   public void serializeSeconds() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -129,7 +129,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   
   @Test
   public void serializeMilliSeconds() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     
     MockTimeSeries ts = new MockTimeSeries(
@@ -198,7 +198,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   
   @Test
   public void serializeNanoSeconds() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     when(result.resolution()).thenReturn(ChronoUnit.NANOS);
     final ZoneId tz = ZoneId.of("America/Denver");
     
@@ -272,7 +272,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
 
   @Test
   public void serializeAllNulls() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -315,7 +315,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
 
   @Test
   public void serializeResolutionScrewUp() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     
     MockTimeSeries ts = new MockTimeSeries(
@@ -355,7 +355,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
 
   @Test
   public void serializeStaggered() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -443,7 +443,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   
   @Test
   public void iteratorMultipleSegments() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -540,7 +540,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   
   @Test
   public void iteratorMultipleSegmentsEmptyMiddle() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -630,7 +630,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   
   @Test
   public void iteratorMultipleSegmentsAllEmpty() throws Exception {
-    PBufNumericSummarySerdesFactory factory = new PBufNumericSummarySerdesFactory();
+    PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
         
     TimeSeriesData data = factory.serialize(ctx, options, result, 
         (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));

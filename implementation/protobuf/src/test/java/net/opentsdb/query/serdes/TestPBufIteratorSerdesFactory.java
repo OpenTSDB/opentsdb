@@ -27,8 +27,8 @@ import org.mockito.stubbing.Answer;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.PBufNumericSerdesFactory;
-import net.opentsdb.data.PBufNumericSummarySerdesFactory;
+import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
+import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 
@@ -38,9 +38,9 @@ public class TestPBufIteratorSerdesFactory {
   public void ctor() throws Exception {
     PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
     assertTrue(factory.serdesForType(NumericType.TYPE) 
-        instanceof PBufNumericSerdesFactory);
+        instanceof PBufNumericTimeSeriesSerdes);
     assertTrue(factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummarySerdesFactory);
+        instanceof PBufNumericSummaryTimeSeriesSerdes);
     assertNull(factory.serdesForType(TypeToken.of(String.class)));
   }
   
@@ -58,9 +58,9 @@ public class TestPBufIteratorSerdesFactory {
     
     factory.register(string_serdes);
     assertTrue(factory.serdesForType(NumericType.TYPE) 
-        instanceof PBufNumericSerdesFactory);
+        instanceof PBufNumericTimeSeriesSerdes);
     assertTrue(factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummarySerdesFactory);
+        instanceof PBufNumericSummaryTimeSeriesSerdes);
     assertSame(string_serdes, factory.serdesForType(string_type));
     
     // replace
@@ -74,7 +74,7 @@ public class TestPBufIteratorSerdesFactory {
     factory.register(new_numeric);
     assertSame(new_numeric, factory.serdesForType(NumericType.TYPE));
     assertTrue(factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummarySerdesFactory);
+        instanceof PBufNumericSummaryTimeSeriesSerdes);
     assertSame(string_serdes, factory.serdesForType(string_type));
     
     try {
