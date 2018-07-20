@@ -74,6 +74,7 @@ public class TestTimeSeriesSharedTagsAndTimeData {
     Iterator<TimeSeriesDatum> iterator = shared.iterator();
     assertTrue(iterator.hasNext());
     assertSame(data.get(0), iterator.next());
+    assertEquals(2, data.size());
     
     assertTrue(iterator.hasNext());
     assertSame(data.get(1), iterator.next());
