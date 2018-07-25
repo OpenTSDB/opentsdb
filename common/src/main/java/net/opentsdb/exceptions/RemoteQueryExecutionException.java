@@ -51,54 +51,55 @@ public class RemoteQueryExecutionException extends QueryExecutionException {
                                        final String remote_endpoint, 
                                        final int status_code,
                                        final int order) {
-    this(msg, remote_endpoint, status_code, order, (List<Exception>) null);
+    super(msg, status_code, order);
+    this.remote_endpoint = remote_endpoint;
   }
   
   /**
    * Ctor that takes a descriptive message, order, status_code and optional list
-   * of exceptions that triggered this.
+   * of throwables that triggered this.
    * @param msg A non-null message to be given.
    * @param remote_endpoint A description of the remote that threw this exception.
    * @param status_code An optional status code reflecting the error state.
-   * @param exceptions An optional list of exceptions. May be null or empty.
+   * @param throwables An optional list of throwables. May be null or empty.
    */
   public RemoteQueryExecutionException(final String msg, 
                                        final String remote_endpoint,
                                        final int status_code, 
-                                       final List<Exception> exceptions) {
-    this(msg, remote_endpoint, status_code, -1, exceptions);
+                                       final List<Throwable> throwables) {
+    this(msg, remote_endpoint, status_code, -1, throwables);
   }
   
   /**
    * Ctor that takes a descriptive message, order, status_code and optional list
-   * of exceptions that triggered this.
+   * of throwables that triggered this.
    * @param msg A non-null message to be given.
    * @param remote_endpoint A description of the remote that threw this exception.
    * @param status_code An optional status code reflecting the error state.
-   * @param e The original exception that caused this to be thrown.
+   * @param t The original exception that caused this to be thrown.
    */
   public RemoteQueryExecutionException(final String msg, 
                                        final String remote_endpoint,
                                        final int status_code, 
-                                       final Exception e) {
-    this(msg, remote_endpoint, status_code, -1, e);
+                                       final Throwable t) {
+    this(msg, remote_endpoint, status_code, -1, t);
   }
   
   /**
    * Ctor that takes a descriptive message, order, status_code and optional list
-   * of exceptions that triggered this.
+   * of throwables that triggered this.
    * @param msg A non-null message to be given.
    * @param remote_endpoint A description of the remote that threw this exception.
    * @param status_code An optional status code reflecting the error state.
    * @param order An optional order for the result in a set of slices.
-   * @param exceptions An optional list of exceptions. May be null or empty.
+   * @param throwables An optional list of throwables. May be null or empty.
    */
   public RemoteQueryExecutionException(final String msg, 
                                        final String remote_endpoint,
                                        final int status_code, 
                                        final int order,
-                                       final List<Exception> exceptions) {
-    super(msg, status_code, order, exceptions);
+                                       final List<Throwable> throwables) {
+    super(msg, status_code, order, throwables);
     this.remote_endpoint = remote_endpoint;
   }
   
@@ -108,14 +109,14 @@ public class RemoteQueryExecutionException extends QueryExecutionException {
    * @param remote_endpoint A description of the remote that threw this exception.
    * @param status_code An optional status code reflecting the error state.
    * @param order An optional order for the result in a set of slices.
-   * @param e The original exception that caused this to be thrown.
+   * @param t The original exception that caused this to be thrown.
    */
   public RemoteQueryExecutionException(final String msg, 
                                        final String remote_endpoint, 
                                        final int status_code,
                                        final int order,
-                                       final Exception e) {
-    super(msg, status_code, order, e);
+                                       final Throwable t) {
+    super(msg, status_code, order, t);
     this.remote_endpoint = remote_endpoint;
   }
   
