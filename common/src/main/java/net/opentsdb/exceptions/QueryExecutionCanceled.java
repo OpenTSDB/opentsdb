@@ -37,12 +37,12 @@ public class QueryExecutionCanceled extends QueryExecutionException {
    * Ctor that sets a descriptive message, order and status code.
    * @param msg A non-null message to be given.
    * @param status_code An optional status code reflecting the error state.
-   * @param e The original exception that caused this to be thrown.
+   * @param t The original exception that caused this to be thrown.
    */
   public QueryExecutionCanceled(final String msg, 
                                 final int status_code, 
-                                final Exception e) {
-    super(msg, status_code, e);
+                                final Throwable t) {
+    super(msg, status_code, t);
   }
 
   /**
@@ -50,28 +50,28 @@ public class QueryExecutionCanceled extends QueryExecutionException {
    * @param msg A non-null message to be given.
    * @param status_code An optional status code reflecting the error state.
    * @param order An optional order for the result in a set of slices.
-   * @param e The original exception that caused this to be thrown.
+   * @param t The original exception that caused this to be thrown.
    */
   public QueryExecutionCanceled(final String msg, 
                                 final int status_code, 
                                 final int order,
-                                final Exception e) {
-    super(msg, status_code, order, e);
+                                final Throwable t) {
+    super(msg, status_code, order, t);
   }
 
   /**
    * Ctor that takes a descriptive message, order, status_code and optional list
-   * of exceptions that triggered this.
+   * of throwables that triggered this.
    * @param msg A non-null message to be given.
    * @param status_code An optional status code reflecting the error state.
    * @param order An optional order for the result in a set of slices.
-   * @param exceptions An optional list of exceptions. May be null or empty.
+   * @param throwables An optional list of throwables. May be null or empty.
    */
   public QueryExecutionCanceled(final String msg, 
                                 final int status_code, 
                                 final int order,
-                                final List<Exception> exceptions) {
-    super(msg, status_code, order, exceptions);
+                                final List<Throwable> throwables) {
+    super(msg, status_code, order, throwables);
   }
 
   /**
@@ -90,12 +90,12 @@ public class QueryExecutionCanceled extends QueryExecutionException {
    * Ctor that sets a descriptive message, order and status code.
    * @param msg A non-null message to be given.
    * @param status_code An optional status code reflecting the error state.
-   * @param exceptions An optional list of exceptions. May be null or empty.
+   * @param throwables An optional list of throwables. May be null or empty.
    */
   public QueryExecutionCanceled(final String msg, 
                                 final int status_code,
-                                final List<Exception> exceptions) {
-    super(msg, status_code, exceptions);
+                                final List<Throwable> throwables) {
+    super(msg, status_code, throwables);
   }
 
 }

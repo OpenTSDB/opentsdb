@@ -35,7 +35,7 @@ public class TestRemoteQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new RemoteQueryExecutionException("Boo!", "", 404);
     assertEquals("Boo!", e.getMessage());
@@ -43,7 +43,7 @@ public class TestRemoteQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new RemoteQueryExecutionException("Boo!", null, 404);
     assertEquals("Boo!", e.getMessage());
@@ -51,7 +51,7 @@ public class TestRemoteQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new RemoteQueryExecutionException("Boo!", endpoint, 0);
     assertEquals("Boo!", e.getMessage());
@@ -59,7 +59,7 @@ public class TestRemoteQueryExecutionException {
     assertEquals(0, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new RemoteQueryExecutionException("Boo!", endpoint, 404, 42);
     assertEquals("Boo!", e.getMessage());
@@ -67,18 +67,18 @@ public class TestRemoteQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(42, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     final IllegalStateException cause = new IllegalStateException("Boo!");
     e = new RemoteQueryExecutionException("Boo!", endpoint, 404, 
-        Lists.<Exception>newArrayList(cause));
+        Lists.newArrayList(cause));
     assertEquals("Boo!", e.getMessage());
     assertEquals(endpoint, e.remoteEndpoint());
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertEquals(1, e.getExceptions().size());
-    assertSame(cause, e.getExceptions().get(0));
+    assertEquals(1, e.getThrowables().size());
+    assertSame(cause, e.getThrowables().get(0));
     
     e = new RemoteQueryExecutionException("Boo!", endpoint, 404, cause);
     assertEquals("Boo!", e.getMessage());
@@ -86,17 +86,17 @@ public class TestRemoteQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertSame(cause, e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new RemoteQueryExecutionException("Boo!", endpoint, 404, 42,
-        Lists.<Exception>newArrayList(cause));
+        Lists.newArrayList(cause));
     assertEquals("Boo!", e.getMessage());
     assertEquals(endpoint, e.remoteEndpoint());
     assertEquals(404, e.getStatusCode());
     assertEquals(42, e.getOrder());
     assertNull(e.getCause());
-    assertEquals(1, e.getExceptions().size());
-    assertSame(cause, e.getExceptions().get(0));
+    assertEquals(1, e.getThrowables().size());
+    assertSame(cause, e.getThrowables().get(0));
     
     e = new RemoteQueryExecutionException("Boo!", endpoint, 404, 42, cause);
     assertEquals("Boo!", e.getMessage());
@@ -104,6 +104,6 @@ public class TestRemoteQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(42, e.getOrder());
     assertSame(cause, e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
   }
 }

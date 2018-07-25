@@ -32,53 +32,53 @@ public class TestQueryExecutionException {
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new QueryExecutionException("Boo!", 0);
     assertEquals("Boo!", e.getMessage());
     assertEquals(0, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new QueryExecutionException("Boo!", 404, 42);
     assertEquals("Boo!", e.getMessage());
     assertEquals(404, e.getStatusCode());
     assertEquals(42, e.getOrder());
     assertNull(e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     final IllegalStateException cause = new IllegalStateException("Boo!");
     e = new QueryExecutionException("Boo!", 404, 
-        Lists.<Exception>newArrayList(cause));
+        Lists.newArrayList(cause));
     assertEquals("Boo!", e.getMessage());
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertNull(e.getCause());
-    assertEquals(1, e.getExceptions().size());
-    assertSame(cause, e.getExceptions().get(0));
+    assertEquals(1, e.getThrowables().size());
+    assertSame(cause, e.getThrowables().get(0));
     
     e = new QueryExecutionException("Boo!", 404, cause);
     assertEquals("Boo!", e.getMessage());
     assertEquals(404, e.getStatusCode());
     assertEquals(-1, e.getOrder());
     assertSame(cause, e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
     
     e = new QueryExecutionException("Boo!", 404, 42,
-        Lists.<Exception>newArrayList(cause));
+        Lists.newArrayList(cause));
     assertEquals("Boo!", e.getMessage());
     assertEquals(404, e.getStatusCode());
     assertEquals(42, e.getOrder());
     assertNull(e.getCause());
-    assertEquals(1, e.getExceptions().size());
-    assertSame(cause, e.getExceptions().get(0));
+    assertEquals(1, e.getThrowables().size());
+    assertSame(cause, e.getThrowables().get(0));
     
     e = new QueryExecutionException("Boo!", 404, 42, cause);
     assertEquals("Boo!", e.getMessage());
     assertEquals(404, e.getStatusCode());
     assertEquals(42, e.getOrder());
     assertSame(cause, e.getCause());
-    assertTrue(e.getExceptions().isEmpty());
+    assertTrue(e.getThrowables().isEmpty());
   }
 }
