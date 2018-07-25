@@ -89,21 +89,21 @@ public class QueryExecutionExceptionMapper implements
       final String formatted_trace = ThrowableProxyUtil.asString(tp);
       response.put("trace", formatted_trace);  
     }
-    if (!e.getExceptions().isEmpty()) {
+    if (!e.getThrowables().isEmpty()) {
       final List<Map<String, Object>> sub_exceptions = 
-          Lists.newArrayListWithExpectedSize(e.getExceptions().size());
+          Lists.newArrayListWithExpectedSize(e.getThrowables().size());
       response.put("subExceptions", sub_exceptions);
-      for (final Exception ex : e.getExceptions()) {
-        if (ex instanceof QueryExecutionException && depth < max_depth) {
+      for (final Throwable t : e.getThrowables()) {
+        if (t instanceof QueryExecutionException && depth < max_depth) {
           sub_exceptions.add(recursiveExceptions(max_depth + 1, 
-              (QueryExecutionException) ex));
+              (QueryExecutionException) t));
         } else {
           final Map<String, Object> sub_exception = Maps.newTreeMap();
-          sub_exception.put("code", ex instanceof QueryExecutionException ? 
-              ((QueryExecutionException) ex).getStatusCode() : 0);
-          sub_exception.put("message", ex.getMessage());
+          sub_exception.put("code", t instanceof QueryExecutionException ?
+              ((QueryExecutionException) t).getStatusCode() : 0);
+          sub_exception.put("message", t.getMessage());
           if (show_trace) {
-            final ThrowableProxy tp = new ThrowableProxy(ex);
+            final ThrowableProxy tp = new ThrowableProxy(t);
             tp.calculatePackagingData();
             final String formatted_trace = ThrowableProxyUtil.asString(tp);
             sub_exception.put("trace", formatted_trace);  
