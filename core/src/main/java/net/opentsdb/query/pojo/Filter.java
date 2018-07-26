@@ -30,7 +30,6 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.query.filter.TagVFilter;
 
 import java.util.Collections;
 import java.util.List;

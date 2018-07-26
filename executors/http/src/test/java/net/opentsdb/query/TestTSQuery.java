@@ -23,8 +23,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.RateOptions;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTSQuery {

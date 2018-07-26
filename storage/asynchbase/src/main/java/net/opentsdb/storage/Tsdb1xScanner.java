@@ -41,7 +41,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
