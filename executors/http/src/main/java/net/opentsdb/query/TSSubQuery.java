@@ -24,8 +24,8 @@ import java.util.NoSuchElementException;
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.NumericAggregator;
-import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.RateOptions;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.utils.ByteSet;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;

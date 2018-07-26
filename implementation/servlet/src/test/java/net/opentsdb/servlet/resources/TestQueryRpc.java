@@ -38,9 +38,9 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.TSQuery;
-import net.opentsdb.query.filter.TagVLiteralOrFilter;
-import net.opentsdb.query.filter.TagVRegexFilter;
-import net.opentsdb.query.filter.TagVWildcardFilter;
+import net.opentsdb.query.pojo.TagVLiteralOrFilter;
+import net.opentsdb.query.pojo.TagVRegexFilter;
+import net.opentsdb.query.pojo.TagVWildcardFilter;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 

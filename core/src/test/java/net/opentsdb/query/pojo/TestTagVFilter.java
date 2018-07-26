@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.filter;
+package net.opentsdb.query.pojo;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -37,6 +37,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.DeferredGroupException;
+
+import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.pojo.TagVLiteralOrFilter;
+import net.opentsdb.query.pojo.TagVRegexFilter;
+import net.opentsdb.query.pojo.TagVWildcardFilter;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",

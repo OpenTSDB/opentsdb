@@ -22,12 +22,12 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;
 
-import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.DownsamplingSpecification;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.NumericFillPolicy;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.DateTime;
