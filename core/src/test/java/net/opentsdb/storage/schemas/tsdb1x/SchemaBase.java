@@ -815,7 +815,6 @@ public class SchemaBase {
     assertEquals(size, trace.spans.size());
     assertEquals(name, trace.spans.get(size - 1).id);
     assertEquals("Error", trace.spans.get(size - 1).tags.get("status"));
-    System.out.println(trace.spans.get(size - 1).exceptions.get("Exception"));
     assertTrue(ex.isInstance(trace.spans.get(size - 1).exceptions.get("Exception")));
   }
 

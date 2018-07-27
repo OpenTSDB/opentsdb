@@ -45,7 +45,8 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
@@ -66,11 +67,16 @@ public class TestJsonV2QuerySerdes {
     context = mock(QueryContext.class);
     result = mock(QueryResult.class);
     store = mock(ReadableTimeSeriesDataStore.class);
-    query = TimeSeriesQuery.newBuilder()
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
-            .setStart("1486045800000")
-            .setEnd("1486046000000"))
-        .build();
+            .setStart("1486045800")
+            .setEnd("1486046000")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build()
+        .convert().build();
     when(context.query()).thenReturn(query);
     
     ts1 = new NumericMillisecondShard(

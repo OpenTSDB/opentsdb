@@ -41,22 +41,26 @@ import net.opentsdb.core.Const;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.pojo.TagVLiteralOrFilter;
-import net.opentsdb.query.pojo.TagVRegexFilter;
-import net.opentsdb.query.pojo.TagVWildcardFilter;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.TagVWildcardFilter.TagVIWildcardFilter;
+import net.opentsdb.query.filter.ExplicitTagsFilter;
+import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
+import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
+import net.opentsdb.storage.schemas.tsdb1x.ResolvedChainFilter;
+import net.opentsdb.storage.schemas.tsdb1x.ResolvedPassThroughFilter;
+import net.opentsdb.storage.schemas.tsdb1x.ResolvedQueryFilter;
+import net.opentsdb.storage.schemas.tsdb1x.ResolvedTagValueFilter;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 
@@ -145,23 +149,6 @@ public class Tsdb1xScanners implements HBaseExecutor {
   
   /** The current result set by {@link #fetchNext(Tsdb1xQueryResult, Span)}. */
   protected Tsdb1xQueryResult current_result;
-  
-  /** A query filter if one or more source query filters could not be 
-   * resolved in the HBase scanner filter requiring the TSD data fetcher
-   * to process the filters post scan.
-   */
-  protected Filter scanner_filter;
-  
-  /** Whether or not the scanner can switch to multi-gets. 
-   * TODO - implement */
-  protected boolean could_multi_get;
-
-  /**
-   * Tags by which we must group the results.
-   * Each element is a tag ID.
-   * Invariant: an element cannot be both in this array and in {@code tags}.
-   */
-  protected List<byte[]> group_bys; 
   
   /** Tag key and values to use in the row key filter, all pre-sorted */
   protected ByteMap<List<byte[]>> row_key_literals;
@@ -344,10 +331,14 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
   }
   
-  /** @return A filter for child scanners to evaulate data against or
-   * null if not needed. */
-  public Filter scannerFilter() {
-    return scanner_filter;
+  /** @return Whether or not to filter during scans. */
+  public boolean filterDuringScan() {
+    return filter_cb == null ? false : filter_cb.filter_during_scans;
+  }
+  
+  /** @return Whether or not we could use multi-gets instead. */
+  public boolean couldMultiGet() {
+    return filter_cb == null ? false : filter_cb.could_multi_get;
   }
   
   /**
@@ -579,12 +570,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
         }
         
         if (!Strings.isNullOrEmpty(source_config.getFilterId())) {
-          final Filter filter;
+          final QueryFilter filter;
           if (source_config.getQuery() instanceof SemanticQuery) {
             filter = ((SemanticQuery) source_config.getQuery())
-                .getFilter(source_config.getFilterId());
-          } else if (source_config.getQuery() instanceof TimeSeriesQuery) {
-            filter = ((TimeSeriesQuery) source_config.getQuery())
                 .getFilter(source_config.getFilterId());
           } else {
             throw new UnsupportedOperationException("We don't support " 
@@ -595,8 +583,14 @@ public class Tsdb1xScanners implements HBaseExecutor {
                 + source_config.getFilterId());
           }
           
+          filter_cb = new FilterCB(metric, child);
           node.schema().resolveUids(filter, child)
-            .addCallback(new FilterCB(metric, child))
+            .addCallback(filter_cb)
+            .addErrback(new ErrorCB());
+        } else if (source_config.getFilter() != null) {
+          filter_cb = new FilterCB(metric, child);
+          node.schema().resolveUids(source_config.getFilter(), child)
+            .addCallback(filter_cb)
             .addErrback(new ErrorCB());
         } else {
           setupScanners(metric, child);
@@ -639,32 +633,14 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      final Filter filter;
-      if (!Strings.isNullOrEmpty(source_config.getFilterId())) {
-        if (source_config.getQuery() instanceof SemanticQuery) {
-          filter = ((SemanticQuery) source_config.getQuery())
-              .getFilter(source_config.getFilterId());
-        } else if (source_config.getQuery() instanceof TimeSeriesQuery) {
-          filter = ((TimeSeriesQuery) source_config.getQuery())
-              .getFilter(source_config.getFilterId());
-        } else {
-          throw new UnsupportedOperationException("We don't support " 
-              + source_config.getQuery().getClass() + " yet");
-        }
-      } else {
-        filter = null;
-      }
-      final boolean explicit_tags = filter != null ? 
-          filter.getExplicitTags() : false;
       int size = node.rollupIntervals() == null ? 
           1 : node.rollupIntervals().size() + 1;
       scanners = Lists.newArrayListWithCapacity(size);
-      
       final byte[] fuzzy_key;
       final byte[] fuzzy_mask;
       final String regex;
       if (row_key_literals != null) {
-        if (explicit_tags && enable_fuzzy_filter) {
+        if (filter_cb != null && filter_cb.explicit_tags && enable_fuzzy_filter) {
           fuzzy_key = new byte[node.schema().saltWidth() 
                                + node.schema().metricWidth() 
                                + Schema.TIMESTAMP_BYTES 
@@ -681,10 +657,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
         }
         
         regex = QueryUtil.getRowKeyUIDRegex(
-            node.schema(), 
-            group_bys, 
+            node.schema(),
             row_key_literals, 
-            explicit_tags, 
+            filter_cb != null ? filter_cb.explicit_tags : false, 
             fuzzy_key, 
             fuzzy_mask);
         if (Strings.isNullOrEmpty(regex)) {
@@ -935,37 +910,153 @@ public class Tsdb1xScanners implements HBaseExecutor {
   }
   
   /** A callback class to parse the query filter UID resolution callback. */
-  class FilterCB implements Callback<Object, List<ResolvedFilter>> {
+  class FilterCB implements Callback<Object, ResolvedQueryFilter> {
     final byte[] metric;
     final Span span;
     
-    List<TagVFilter> keepers;
+    boolean filter_during_scans = false;
     boolean could_multi_get = true;
+    boolean explicit_tags = false;
+    ResolvedQueryFilter resolved;
+    int total_expansion = 0;
+    int cardinality = 1;
     
     FilterCB(final byte[] metric, final Span span) {
       this.metric = metric;
       this.span = span;
     }
     
+    /**
+     * Recursive function for walking the filter tree and building the
+     * tag key UIDs to add to the HBase filter.
+     * @param resolved The current non-null resolved query filter.
+     */
+    void processFilter(final ResolvedQueryFilter resolved) {
+      if (resolved instanceof ResolvedTagValueFilter) {
+        final ResolvedTagValueFilter filter = (ResolvedTagValueFilter) resolved;
+        if (Bytes.isNullOrEmpty(filter.getTagKey())) {
+          if (!skip_nsun_tagks || explicit_tags) {
+            final NoSuchUniqueName ex = 
+                new NoSuchUniqueName(Schema.TAGK_TYPE, 
+                    ((TagValueFilter) filter.filter()).tagKey());
+            throw ex;
+          }
+          
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Skipping tag key without an ID: " + 
+                ((TagValueFilter) filter.filter()).tagKey());
+          }
+          return;
+        }
+        
+        // Literal or filter
+        if (resolved.filter() instanceof TagValueLiteralOrFilter) {
+          final List<byte[]> tag_values = Lists.newArrayListWithCapacity(
+            filter.getTagValues().size());
+          for (int i = 0; i < filter.getTagValues().size(); i++) {
+            final byte[] tagv = filter.getTagValues().get(i);
+            if (Bytes.isNullOrEmpty(tagv)) {
+              if (!skip_nsun_tagvs) {
+                final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
+                        ((TagValueLiteralOrFilter) filter.filter()).literals().get(i));
+                throw ex;
+              }
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Dropping tag value without an ID: " 
+                    + ((TagValueLiteralOrFilter) filter.filter()).literals().get(i));
+              }
+            } else {
+              tag_values.add(tagv);
+            }
+          }
+          
+          // similar to the above, if all of the values were null we have
+          // a bad query.
+          if (tag_values.isEmpty()) {
+            final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
+                    ((TagValueLiteralOrFilter) filter.filter()).literals().get(0));
+            throw ex;
+          }
+          
+          if (total_expansion + tag_values.size() > expansion_limit) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Too many literals in the row filter. Switching "
+                  + "to post filtering.");
+            }
+            // too big to store in the scanner filter so we go slow
+            putFilter(filter.getTagKey(), null);
+            filter_during_scans = true;
+            could_multi_get = false;
+            return;
+          }
+          
+          Collections.sort(tag_values, Bytes.MEMCMP);
+          putFilter(filter.getTagKey(), tag_values);
+          // discard this filter since we put it all in the strings
+          total_expansion += tag_values.size();
+          cardinality *= tag_values.size();
+        } else {
+          putFilter(filter.getTagKey(), null);
+          // for match-alls, we don't need to filter
+          if ((resolved.filter() instanceof TagValueWildcardFilter &&
+              ((TagValueWildcardFilter) resolved.filter()).matchesAll()) ||
+              (resolved.filter() instanceof TagValueRegexFilter && 
+              ((TagValueRegexFilter) resolved.filter()).matchesAll())) {
+            // don't filter during scans!!
+          } else {
+            filter_during_scans = true;
+          }
+          could_multi_get = false;
+        }
+      } else if (resolved instanceof ResolvedPassThroughFilter) {
+        if (resolved.filter() instanceof NotFilter) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Skipping filters behind the NotFilter");
+          }
+          if (hasTagFilter(((ResolvedPassThroughFilter) resolved).resolved())) {
+            filter_during_scans = true;
+            could_multi_get = false;
+          }
+          return;
+        } else if (resolved.filter() instanceof ExplicitTagsFilter) {
+          // TODO - if we don't enforce explicit tags as the top-level 
+          // filter then we'll run into some odd behavior.
+          explicit_tags = true;
+        }
+        processFilter(((ResolvedPassThroughFilter) resolved).resolved());
+      } else if (resolved instanceof ResolvedChainFilter) {
+        for (final ResolvedQueryFilter filter : 
+          ((ResolvedChainFilter) resolved).resolved()) {
+          processFilter(filter);
+        }
+      }
+    }
+    
+    /**
+     * Helper that is used to determine if we have a tag filter behind
+     * a NOT filter and need to run the filter at scan time.
+     * @param resolved The non-null 
+     * @return
+     */
+    boolean hasTagFilter(final ResolvedQueryFilter resolved) {
+      if (resolved instanceof ResolvedTagValueFilter) {
+        return true;
+      } else if (resolved instanceof ResolvedPassThroughFilter) {
+        return hasTagFilter(((ResolvedPassThroughFilter) resolved).resolved());
+      } else if (resolved instanceof ResolvedChainFilter) {
+        for (final ResolvedQueryFilter filter : 
+          ((ResolvedChainFilter) resolved).resolved()) {
+          if (hasTagFilter(filter)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    
     @Override
-    public Object call(final List<ResolvedFilter> resolutions) throws Exception {
-      final Filter filter;
-      if (source_config.getQuery() instanceof SemanticQuery) {
-        filter = ((SemanticQuery) source_config.getQuery())
-            .getFilter(source_config.getFilterId());
-      } else if (source_config.getQuery() instanceof TimeSeriesQuery) {
-        filter = ((TimeSeriesQuery) source_config.getQuery())
-            .getFilter(source_config.getFilterId());
-      } else {
-        throw new UnsupportedOperationException("We don't support " 
-            + source_config.getQuery().getClass() + " yet");
-      }
-      if (filter == null) {
-        throw new IllegalStateException("No filter was found for: " + source_config.getFilterId());
-      }
-      if (resolutions.size() != filter.getTags().size()) {
-        throw new IllegalStateException("Fewer resolutions than filters!");
-      }
+    public Object call(final ResolvedQueryFilter resolved) throws Exception {
+      this.resolved = resolved;
       final Span child;
       if (span != null && span.isDebug()) {
         child = span.newChild(getClass().getName() + ".call")
@@ -975,136 +1066,11 @@ public class Tsdb1xScanners implements HBaseExecutor {
       }
       
       try {
-        int total_expansion = 0;
-        int cardinality = 1;
-        keepers = Lists.newArrayListWithCapacity(resolutions.size());
         row_key_literals = new ByteMap<List<byte[]>>();
+        processFilter(resolved);
         
-        for (int i = 0; i < filter.getTags().size(); i++) {
-          final TagVFilter tag_vfilter = filter.getTags().get(i);
-          final ResolvedFilter resolution = resolutions.get(i);
-          
-          if (Bytes.isNullOrEmpty(resolution.getTagKey())) {
-            if (!skip_nsun_tagks || filter.getExplicitTags()) {
-              final NoSuchUniqueName ex = 
-                  new NoSuchUniqueName(Schema.TAGK_TYPE, tag_vfilter.getTagk());
-              if (child != null) {
-                child.setErrorTags(ex)
-                     .finish();
-              }
-              throw ex;
-            }
-            
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Skipping tag key without an ID: " + tag_vfilter.getTagk());
-            }
-            continue;
-          }
-          
-          // handle the group-bys
-          if (tag_vfilter.isGroupBy()) {
-            if (group_bys == null) {
-              group_bys = Lists.newArrayListWithCapacity(resolutions.size());
-            }
-            group_bys.add(resolution.getTagKey());
-          }
-          
-          if (tag_vfilter instanceof TagVLiteralOrFilter) {
-            // assumption: the literal filter had 1 or more values.
-            if (resolution.getTagValues() == null || 
-                resolution.getTagValues().isEmpty()) {
-              // we can't skip here as we'd have a bad query that would 
-              // allow all values through when the user wanted to filter
-              // on one or more literals.
-              final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                      ((TagVLiteralOrFilter) tag_vfilter).literals().get(0));
-              if (child != null) {
-                child.setErrorTags(ex)
-                     .finish();
-              }
-              throw ex;
-            }
-            
-            final List<byte[]> tag_values = Lists.newArrayListWithCapacity(
-                resolution.getTagValues().size());
-            for (int t = 0; t < resolution.getTagValues().size(); t++) {
-              final byte[] tagv = resolution.getTagValues().get(t);
-              
-              if (Bytes.isNullOrEmpty(tagv)) {
-                if (!skip_nsun_tagvs) {
-                  final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                          ((TagVLiteralOrFilter) tag_vfilter).literals().get(t));
-                  if (child != null) {
-                    child.setErrorTags(ex)
-                         .finish();
-                  }
-                  throw ex;
-                }
-                if (LOG.isDebugEnabled()) {
-                  LOG.debug("Dropping tag value without an ID: " 
-                      + ((TagVLiteralOrFilter) tag_vfilter).literals().get(t));
-                }
-              } else {
-                tag_values.add(tagv);
-              }
-            }
-            
-            // similar to the above, if all of the values were null we have
-            // a bad query.
-            if (tag_values.isEmpty()) {
-              final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                      ((TagVLiteralOrFilter) tag_vfilter).literals().get(0));
-              if (child != null) {
-                child.setErrorTags(ex)
-                     .finish();
-              }
-              throw ex;
-            }
-            
-            if (total_expansion + resolution.getTagValues().size() > 
-                expansion_limit) {
-              // too big to store in the scanner filter so we go slow
-              putFilter(resolution.getTagKey(), null);
-              keepers.add(tag_vfilter);
-              could_multi_get = false;
-              continue;
-            }
-            
-            Collections.sort(tag_values, Bytes.MEMCMP);
-            putFilter(resolution.getTagKey(), tag_values);
-            // discard this filter since we put it all in the strings
-            total_expansion += tag_values.size();
-            cardinality *= tag_values.size();
-            
-          } else if (tag_vfilter instanceof TagVRegexFilter) {
-            putFilter(resolution.getTagKey(), null);
-            if (!((TagVRegexFilter) tag_vfilter).matchesAll()) {
-              keepers.add(tag_vfilter);
-            }
-            could_multi_get = false;
-          } else if (tag_vfilter instanceof TagVWildcardFilter || 
-              tag_vfilter instanceof TagVIWildcardFilter) {
-            putFilter(resolution.getTagKey(), null);
-            if (!((TagVWildcardFilter) tag_vfilter).matchesAll()) {
-              keepers.add(tag_vfilter);
-            }
-            could_multi_get = false;
-          } else {
-            // not a special case, have to handle it in the scanner.
-            putFilter(resolution.getTagKey(), null);
-            keepers.add(tag_vfilter);
-            could_multi_get = false;
-          }
-        }
-        
-        if (keepers != null && !keepers.isEmpty()) {
-          scanner_filter = Filter.newBuilder(filter)
-              .setTags(keepers)
-              .build();
-        }
-        
-        if (cardinality <= max_multi_get_cardinality) {
-          Tsdb1xScanners.this.could_multi_get = could_multi_get;
+        if (cardinality > max_multi_get_cardinality) {
+          could_multi_get = false;
         }
         
         // now that we have our filters sorted out, create the scanner(s).
@@ -1137,11 +1103,31 @@ public class Tsdb1xScanners implements HBaseExecutor {
         if (literals != null && extant != null) {
           // merge
           extant.addAll(literals);
+          if (extant.size() > 0) {
+            final ByteSet dedupe = new ByteSet();
+            dedupe.addAll(extant);
+            extant.clear();
+            extant.addAll(dedupe);
+          }
           Collections.sort(extant, Bytes.MEMCMP);
         } else if (literals != null && extant == null) {
+          if (literals.size() > 0) {
+            final ByteSet dedupe = new ByteSet();
+            dedupe.addAll(literals);
+            literals.clear();
+            literals.addAll(dedupe);
+          }
+          Collections.sort(literals, Bytes.MEMCMP);
           row_key_literals.put(tagk, literals);
         }
       } else {
+        if (literals != null && literals.size() > 0) {
+          final ByteSet dedupe = new ByteSet();
+          dedupe.addAll(literals);
+          literals.clear();
+          literals.addAll(dedupe);
+          Collections.sort(literals, Bytes.MEMCMP);
+        }
         row_key_literals.put(tagk, literals);
       }
     }

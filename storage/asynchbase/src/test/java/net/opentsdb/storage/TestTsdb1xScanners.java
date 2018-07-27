@@ -65,6 +65,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -74,11 +75,17 @@ import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.ChainFilter;
+import net.opentsdb.query.filter.DefaultNamedFilter;
+import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
+import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -86,7 +93,7 @@ import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.MockBase.MockScanner;
-import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
+import net.opentsdb.storage.Tsdb1xScanners.FilterCB;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
@@ -121,6 +128,7 @@ public class TestTsdb1xScanners extends UTBase {
       });
     
     query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .setId("graph")
             .addNode(ExecutionGraphNode.newBuilder()
@@ -181,7 +189,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.filter_cb);
     assertEquals(0, scanners.scanners_done);
     assertNull(scanners.current_result);
-    assertNull(scanners.scanner_filter);
+    assertFalse(scanners.filterDuringScan());
     assertFalse(scanners.has_failed);
     assertEquals(State.CONTINUE, scanners.state());
   }
@@ -224,7 +232,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.filter_cb);
     assertEquals(0, scanners.scanners_done);
     assertNull(scanners.current_result);
-    assertNull(scanners.scanner_filter);
+    assertFalse(scanners.filterDuringScan());
     assertFalse(scanners.has_failed);
     assertEquals(State.CONTINUE, scanners.state());
   }
@@ -496,7 +504,6 @@ public class TestTsdb1xScanners extends UTBase {
     setConfig(true, null, false);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
-    scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -526,7 +533,6 @@ public class TestTsdb1xScanners extends UTBase {
     setConfig(true, null, false);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), source_config);
-    scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -566,24 +572,26 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("*")
-                    .setType("wildcard")
-                    .setGroupBy(false))
-                .setExplicitTags(true)
+                .setFilter(ExplicitTagsFilter.newBuilder()
+                    .setFilter(ChainFilter.newBuilder()
+                      .addFilter(TagValueLiteralOrFilter.newBuilder()
+                        .setTagKey(TAGK_STRING)
+                        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                        .build())
+                      .addFilter(TagValueWildcardFilter.newBuilder()
+                          .setTagKey(TAGK_B_STRING)
+                          .setFilter("*")
+                         .build())
+                      .build())
+                    .build())
                 .build())
             .build())
         .setId("m1")
@@ -591,7 +599,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
-    scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
+    FilterCB filter_cb = mock(FilterCB.class);
+    Whitebox.setInternalState(filter_cb, "explicit_tags", true);
+    Whitebox.setInternalState(scanners, "filter_cb", filter_cb);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1009,7 +1019,6 @@ public class TestTsdb1xScanners extends UTBase {
     setConfig(true, "sum", false);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
-    scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1091,7 +1100,6 @@ public class TestTsdb1xScanners extends UTBase {
           .build()));
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
-    scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1154,24 +1162,26 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("*")
-                    .setType("wildcard")
-                    .setGroupBy(false))
-                .setExplicitTags(true)
+                .setFilter(ExplicitTagsFilter.newBuilder()
+                    .setFilter(ChainFilter.newBuilder()
+                      .addFilter(TagValueLiteralOrFilter.newBuilder()
+                        .setTagKey(TAGK_STRING)
+                        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                        .build())
+                      .addFilter(TagValueWildcardFilter.newBuilder()
+                          .setTagKey(TAGK_B_STRING)
+                          .setFilter("*")
+                         .build())
+                      .build())
+                    .build())
                 .build())
             .build())
         .setId("m1")
@@ -1187,7 +1197,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
-    scanners.group_bys = Lists.newArrayList(TAGK_BYTES, TAGK_B_BYTES);
+    FilterCB filter_cb = mock(FilterCB.class);
+    Whitebox.setInternalState(filter_cb, "explicit_tags", true);
+    Whitebox.setInternalState(scanners, "filter_cb", filter_cb);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1240,6 +1252,17 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBNoKeepers() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .build())
+          .addFilter(TagValueWildcardFilter.newBuilder()
+              .setTagKey(TAGK_B_STRING)
+              .setFilter("*")
+             .build())
+          .build();
+        
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -1249,53 +1272,48 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("*")
-                    .setType("wildcard")
-                    .setGroupBy(false))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    resolutions.add(r);
-    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
+    
+    // regex tags now
+    filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .build())
+          .addFilter(TagValueRegexFilter.newBuilder()
+              .setTagKey(TAGK_B_STRING)
+              .setFilter("^.*$")
+             .build())
+          .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -1306,47 +1324,50 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("^.*$")
-                    .setType("regexp")
-                    .setGroupBy(false))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
     scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
   
   @Test
   public void filterCBKeepers() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .build())
+          .addFilter(TagValueWildcardFilter.newBuilder()
+              .setTagKey(TAGK_B_STRING)
+              .setFilter("*yahoo.com")
+             .build())
+          .build();
+    
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -1356,54 +1377,48 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("*yahoo.com")
-                    .setType("wildcard")
-                    .setGroupBy(false))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    resolutions.add(r);
-    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertEquals(1, scanners.scanner_filter.getTags().size());
-    assertEquals(TAGK_B_STRING, scanners.scannerFilter().getTags().get(0).getTagk());
-    assertFalse(scanners.could_multi_get);
+    assertTrue(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
+    
+    // regexp
+    filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .build())
+          .addFilter(TagValueRegexFilter.newBuilder()
+              .setTagKey(TAGK_B_STRING)
+              .setFilter("pre.*fix")
+             .build())
+          .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -1414,48 +1429,44 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("pre.*fix")
-                    .setType("regexp")
-                    .setGroupBy(false))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
     scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertEquals(1, scanners.scanner_filter.getTags().size());
-    assertEquals(TAGK_B_STRING, scanners.scannerFilter().getTags().get(0).getTagk());
-    assertFalse(scanners.could_multi_get);
+    assertTrue(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
 
   @Test
   public void filterCBMultiGetable() throws Exception {
+    QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
+        .setTagKey(TAGK_STRING)
+        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+        .build();
+    
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -1465,65 +1476,67 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(1, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
-    assertNull(scanners.scanner_filter);
-    assertTrue(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     
     // under the cardinality threshold.
     scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "max_multi_get_cardinality", 1);
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(1, scanners.row_key_literals.size());
     uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
   
   @Test
   public void filterCBDupeTagKeys() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING)
+            .build())
+          .addFilter(TagValueLiteralOrFilter.newBuilder()
+              .setTagKey(TAGK_STRING)
+              .setFilter(TAGV_B_STRING)
+             .build())
+          .build();
+    
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -1533,114 +1546,110 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_B_STRING)
-                    .setType("literal_or"))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_B_BYTES);
-    resolutions.add(r);
-    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(1, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
-    assertNull(scanners.scanner_filter);
-    assertTrue(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
   
   @Test
   public void filterCBAllNullLiteralOrValues() throws Exception {
-    setConfig(true, null, false);
-    
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    //r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    resolutions.add(r);
+    QueryFilter filter = ChainFilter.newBuilder()
+      .addFilter(TagValueLiteralOrFilter.newBuilder()
+        .setTagKey(NSUN_TAGK)
+        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+        .build())
+      .addFilter(TagValueWildcardFilter.newBuilder()
+          .setTagKey(TAGK_B_STRING)
+          .setFilter("*")
+         .build())
+      .build();
+    setConfig(filter, null, false);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
-      scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+      cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
     } catch (NoSuchUniqueName e) { }
     
     // skipping won't solve this
     Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
+    cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
-      scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+      cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
     } catch (NoSuchUniqueName e) { }
     
-    // and ditto if all uids were null. 
-    resolutions = Lists.newArrayList();
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(null, null);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    resolutions.add(r);
-    
+    // and ditto if all uids were null.
+    filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+          .setTagKey(TAGK_STRING)
+          .setFilter(NSUN_TAGV + "|" + "none")
+          .build())
+        .addFilter(TagValueWildcardFilter.newBuilder()
+            .setTagKey(TAGK_B_STRING)
+            .setFilter("*")
+           .build())
+        .build();
+    setConfig(filter, null, false);
+      
+    cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
-      scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+      cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
     } catch (NoSuchUniqueName e) { }
   }
   
   @Test
   public void filterCBNullTagV() throws Exception {
-    setConfig(true, null, false);
-    
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(null, TAGV_B_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    resolutions.add(r);
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+          .setTagKey(TAGK_STRING)
+          .setFilter(NSUN_TAGV + "|" + TAGV_B_STRING)
+          .build())
+        .addFilter(TagValueWildcardFilter.newBuilder()
+            .setTagKey(TAGK_B_STRING)
+            .setFilter("*")
+           .build())
+        .build();
+    setConfig(filter, null, false);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
-      scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+      cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
     } catch (NoSuchUniqueName e) { }
     
@@ -1648,22 +1657,89 @@ public class TestTsdb1xScanners extends UTBase {
     scanners = new Tsdb1xScanners(node, source_config);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(2, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(2, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(1, uids.size());
     assertArrayEquals(TAGV_B_BYTES, uids.get(0));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
   
   @Test
   public void filterCBExpansionLimit() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+          .setTagKey(TAGK_STRING)
+          .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+          .build())
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_B_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+           .build())
+        .build();
+    setConfig(filter, null, false);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
+    Whitebox.setInternalState(scanners, "expansion_limit", 3);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
+    
+    assertEquals(2, scanners.row_key_literals.size());
+    List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
+    assertEquals(2, uids.size());
+    assertArrayEquals(TAGV_BYTES, uids.get(0));
+    assertArrayEquals(TAGV_B_BYTES, uids.get(1));
+    assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
+    assertTrue(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
+    assertEquals(1, scanners.scanners.size());
+  }
+  
+  @Test
+  public void filterCBCurrentResultsNull() throws Exception {
+    QueryFilter filter = setConfig(true, null, false);
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    try {
+      cb.call(schema.resolveUids(filter, null).join());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    assertEquals(2, scanners.row_key_literals.size());
+    List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
+    assertEquals(2, uids.size());
+    assertArrayEquals(TAGV_BYTES, uids.get(0));
+    assertArrayEquals(TAGV_B_BYTES, uids.get(1));
+    assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
+    assertEquals(1, scanners.scanners.size());
+  }
+  
+  @Test
+  public void filterNotNoTags() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .build())
+          .addFilter(NotFilter.newBuilder()
+              .setFilter(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+             .build())
+          .build();
+    
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -1673,87 +1749,91 @@ public class TestTsdb1xScanners extends UTBase {
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
             .setExecutionGraph(ExecutionGraph.newBuilder()
                 .addNode(ExecutionGraphNode.newBuilder()
                     .setId("datasource")
                     .build())
                 .build())
-            .addFilter(Filter.newBuilder()
+            .addFilter(DefaultNamedFilter.newBuilder()
                 .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("lots_of_strings")
-                    .setType("literal_or")
-                    .setGroupBy(false))
-                  .build())
+                .setFilter(filter)
+                .build())
             .build())
         .setId("m1")
         .build();
     
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
-    Whitebox.setInternalState(scanners, "expansion_limit", 3);
-    scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
-    assertEquals(2, scanners.row_key_literals.size());
+    assertEquals(1, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertEquals(1, scanners.scanner_filter.getTags().size());
-    assertEquals(TAGK_B_STRING, scanners.scanner_filter.getTags().get(0).getTagk());
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
   
   @Test
-  public void filterCBCurrentResultsNull() throws Exception {
-    setConfig(true, null, false);
+  public void filterNotWithTags() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .build())
+          .addFilter(NotFilter.newBuilder()
+              .setFilter(TagValueLiteralOrFilter.newBuilder()
+                  .setTagKey(TAGK_B_STRING)
+                  .setFilter(TAGV_STRING)
+                  .build())
+             .build())
+          .build();
     
-    List<ResolvedFilter> resolutions = Lists.newArrayList();
-    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_BYTES;
-    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
-    resolutions.add(r);
-    r = new ResolvedFilterImplementation();
-    r.tag_key = TAGK_B_BYTES;
-    resolutions.add(r);
+    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
+        .setFilterId("f1")
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setQuery(SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setExecutionGraph(ExecutionGraph.newBuilder()
+                .addNode(ExecutionGraphNode.newBuilder()
+                    .setId("datasource")
+                    .build())
+                .build())
+            .addFilter(DefaultNamedFilter.newBuilder()
+                .setId("f1")
+                .setFilter(filter)
+                .build())
+            .build())
+        .setId("m1")
+        .build();
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
-    try {
-      scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
+    FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
+    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    cb.call(schema.resolveUids(filter, null).join());
     
-    assertEquals(2, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
-    assertEquals(2, scanners.row_key_literals.size());
+    assertEquals(1, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertTrue(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
   }
   
@@ -1765,10 +1845,9 @@ public class TestTsdb1xScanners extends UTBase {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
-    assertNull(scanners.group_bys);
     assertNull(scanners.row_key_literals);
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
     verify(node, never()).onError(any(Throwable.class));
@@ -1788,45 +1867,22 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setQuery(SemanticQuery.newBuilder()
-            .setExecutionGraph(ExecutionGraph.newBuilder()
-                .addNode(ExecutionGraphNode.newBuilder()
-                    .setId("datasource")
-                    .build())
-                .build())
-            .addFilter(Filter.newBuilder()
-                .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                  .build())
-            .build())
-        .setId("m1")
-        .build();
-    
+    QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
+          .setTagKey(TAGK_STRING)
+          .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+          .build();
+    setConfig(filter, null, false);
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
-    assertEquals(1, scanners.group_bys.size());
-    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
     assertEquals(1, scanners.row_key_literals.size());
     List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
     assertEquals(2, uids.size());
     assertArrayEquals(TAGV_BYTES, uids.get(0));
     assertArrayEquals(TAGV_B_BYTES, uids.get(1));
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
-    assertNull(scanners.scanner_filter);
-    assertTrue(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
     verify(node, never()).onError(any(Throwable.class));
@@ -1853,10 +1909,9 @@ public class TestTsdb1xScanners extends UTBase {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
-    assertNull(scanners.group_bys);
     assertNull(scanners.row_key_literals);
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
     verify(node, times(1)).onError(any(NoSuchUniqueName.class));
@@ -1874,45 +1929,25 @@ public class TestTsdb1xScanners extends UTBase {
   public void initializeNSUNTagk() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
+    QueryFilter filter = ExplicitTagsFilter.newBuilder()
+        .setFilter(ChainFilter.newBuilder()
+          .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
-        .setFilterId("f1")
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setQuery(SemanticQuery.newBuilder()
-            .setExecutionGraph(ExecutionGraph.newBuilder()
-                .addNode(ExecutionGraphNode.newBuilder()
-                    .setId("datasource")
-                    .build())
-                .build())
-            .addFilter(Filter.newBuilder()
-                .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(NSUN_TAGK)
-                    .setFilter("*")
-                    .setType("wildcard")
-                    .setGroupBy(true))
-                .setExplicitTags(true)
-                .build())
-            .build())
-        .setId("m1")
+          .addFilter(TagValueWildcardFilter.newBuilder()
+              .setTagKey(NSUN_TAGK)
+              .setFilter("*")
+             .build())
+          .build())
         .build();
-    
+    setConfig(filter, null, false);
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
-    assertEquals(1, scanners.group_bys.size());
     assertEquals(1, scanners.row_key_literals.size());
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
     verify(node, times(1)).onError(any(NoSuchUniqueName.class));
@@ -1924,10 +1959,9 @@ public class TestTsdb1xScanners extends UTBase {
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
     
-    assertEquals(1, scanners.group_bys.size());
     assertEquals(1, scanners.row_key_literals.size());
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
     verify(node, times(2)).onError(any(NoSuchUniqueName.class));
@@ -1939,48 +1973,27 @@ public class TestTsdb1xScanners extends UTBase {
     scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
-        NoSuchUniqueName.class, 9);
+        NoSuchUniqueName.class, 10);
     
     // now we can ignore it
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
+    filter = ChainFilter.newBuilder()
+          .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey(TAGK_STRING)
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
-        .setFilterId("f1")
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setQuery(SemanticQuery.newBuilder()
-            .setExecutionGraph(ExecutionGraph.newBuilder()
-                .addNode(ExecutionGraphNode.newBuilder()
-                    .setId("datasource")
-                    .build())
-                .build())
-            .addFilter(Filter.newBuilder()
-                .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(NSUN_TAGK)
-                    .setFilter("*")
-                    .setType("wildcard")
-                    .setGroupBy(true))
-                //.setExplicitTags(true)
-                .build())
-            .build())
-        .setId("m1")
-        .build();
+          .addFilter(TagValueWildcardFilter.newBuilder()
+              .setTagKey(NSUN_TAGK)
+              .setFilter("*")
+             .build())
+          .build();
+    setConfig(filter, null, false);
     scanners = new Tsdb1xScanners(node, source_config);
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
     
-    assertEquals(1, scanners.group_bys.size());
     assertEquals(1, scanners.row_key_literals.size());
-    assertNull(scanners.scanner_filter);
-    assertTrue(scanners.could_multi_get);
+    assertTrue(scanners.couldMultiGet());
+    assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
     verify(node, times(3)).onError(any(NoSuchUniqueName.class));
@@ -1992,45 +2005,23 @@ public class TestTsdb1xScanners extends UTBase {
   public void initializeNSUNTagv() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setQuery(SemanticQuery.newBuilder()
-            .setExecutionGraph(ExecutionGraph.newBuilder()
-                .addNode(ExecutionGraphNode.newBuilder()
-                    .setId("datasource")
-                    .build())
-                .build())
-            .addFilter(Filter.newBuilder()
-                .setId("f1")
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_STRING)
-                    .setFilter(TAGV_STRING + "|" + NSUN_TAGV)
-                    .setType("literal_or")
-                    .setGroupBy(true))
-                .addFilter(TagVFilter.newBuilder()
-                    .setTagk(TAGK_B_STRING)
-                    .setFilter("*")
-                    .setType("wildcard")
-                    .setGroupBy(true))
-                .build())
-            .build())
-        .setId("m1")
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+          .setTagKey(TAGK_STRING)
+          .setFilter(TAGV_STRING + "|" + NSUN_TAGV)
+          .build())
+        .addFilter(TagValueWildcardFilter.newBuilder()
+            .setTagKey(TAGK_B_STRING)
+            .setFilter("*")
+           .build())
         .build();
-    
+    setConfig(filter, null, false);
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(null);
     
-    assertEquals(1, scanners.group_bys.size());
     assertEquals(0, scanners.row_key_literals.size());
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertTrue(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
     verify(node, times(1)).onError(any(NoSuchUniqueName.class));
@@ -2061,10 +2052,9 @@ public class TestTsdb1xScanners extends UTBase {
     scanners.fetchNext(results, null);
     
     assertSame(results, scanners.current_result);
-    assertNull(scanners.group_bys);
     assertNull(scanners.row_key_literals);
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
     verify(node, never()).onError(any(Throwable.class));
@@ -2086,10 +2076,9 @@ public class TestTsdb1xScanners extends UTBase {
     scanners.fetchNext(results, null);
      
     assertSame(results, scanners.current_result);
-    assertNull(scanners.group_bys);
     assertNull(scanners.row_key_literals);
-    assertNull(scanners.scanner_filter);
-    assertFalse(scanners.could_multi_get);
+    assertFalse(scanners.filterDuringScan());
+    assertFalse(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
     verify(node, never()).onError(any(Throwable.class));
@@ -2443,26 +2432,32 @@ public class TestTsdb1xScanners extends UTBase {
     });
   }
 
-  private void setConfig(final boolean with_filter, final String ds, final boolean pre_agg) {
+  private QueryFilter setConfig(final boolean with_filter, final String ds, final boolean pre_agg) {
+    QueryFilter filter = ChainFilter.newBuilder()
+      .addFilter(TagValueLiteralOrFilter.newBuilder()
+        .setTagKey(TAGK_STRING)
+        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+        .build())
+      .addFilter(TagValueWildcardFilter.newBuilder()
+          .setTagKey(TAGK_B_STRING)
+          .setFilter("*")
+         .build())
+      .build();
+    return setConfig(with_filter ? filter : null, ds, pre_agg);
+  }
+  
+  private QueryFilter setConfig(final QueryFilter filter, final String ds, final boolean pre_agg) {
     SemanticQuery.Builder query_builder = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .addNode(ExecutionGraphNode.newBuilder()
                 .setId("datasource")
                 .build())
             .build());
-    if (with_filter) {
-      query_builder.addFilter(Filter.newBuilder()
-        .setId("f1")
-        .addFilter(TagVFilter.newBuilder()
-            .setTagk(TAGK_STRING)
-            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-            .setType("literal_or")
-            .setGroupBy(true))
-        .addFilter(TagVFilter.newBuilder()
-            .setTagk(TAGK_B_STRING)
-            .setFilter("*")
-            .setType("wildcard")
-            .setGroupBy(true))
+    if (filter != null) {
+      query_builder.addFilter(DefaultNamedFilter.newBuilder()
+          .setId("f1")
+          .setFilter(filter)
           .build());
     }
     
@@ -2470,7 +2465,7 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setFilterId(with_filter ? "f1" : null)
+        .setFilterId(filter != null ? "f1" : null)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(query_builder.build())
@@ -2510,20 +2505,6 @@ public class TestTsdb1xScanners extends UTBase {
           .build());
       when(node.rollupAggregation()).thenReturn(ds);
     }
-  }
-  
-  public static class ResolvedFilterImplementation implements ResolvedFilter {
-    protected byte[] tag_key;
-    protected List<byte[]> tag_values;
-    
-    @Override
-    public byte[] getTagKey() {
-      return tag_key;
-    }
-
-    @Override
-    public List<byte[]> getTagValues() {
-      return tag_values;
-    }
+    return filter;
   }
 }

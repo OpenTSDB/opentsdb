@@ -43,11 +43,19 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.DefaultNamedFilter;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.MockStats;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.QueryStats;
@@ -84,7 +92,8 @@ public class TestTSDBV2QueryContextBuilder {
       .thenAnswer(new Answer<QueryNode>() {
         @Override
         public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          return new PassThrough(factory, null, 
+          return new PassThrough(factory, 
+              (QueryPipelineContext) invocation.getArguments()[0], 
               (String) invocation.getArguments()[1]);
         }
       });
@@ -114,7 +123,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000L;
     
-    query = TimeSeriesQuery.newBuilder()
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -128,10 +137,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
   }
   
   @Test
@@ -211,25 +218,6 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(start_ts))
-            .setEnd(Long.toString(end_ts))
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setMetric("sys.cpu.user")
-            .setFilter("f1")
-            .setId("m1"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setFilter("web01")
-                .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
-    
     class TestListener implements QuerySink {
       int on_next = 0;
       int on_error = 0;
@@ -273,10 +261,48 @@ public class TestTSDBV2QueryContextBuilder {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("DataSource")
+                .setConfig(QuerySourceConfig.newBuilder()
+                    .setStart(Long.toString(start_ts))
+                    .setEnd(Long.toString(end_ts))
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                        .setMetric("sys.cpu.user")
+                        .build())
+                    .setFilterId("f1")
+                    .build())
+                .build())
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("GroupBy")
+                .addSource("DataSource")
+                .setConfig(GroupByConfig.newBuilder()
+                    .setAggregator("sum")
+                    .addTagKey("host")
+                    .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                      .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+                      .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+                      .setType(NumericType.TYPE.toString())
+                      .build())
+                    .build()))
+            .build())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+                .setTagKey("host")
+                .setFilter("web01")
+                .build())
+            .build())
+        .addSink(listener)
+        .build();
+    
+    QueryContext ctx = SemanticQueryContext.newBuilder()
+        .setTSDB(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
-        .addQuerySink(listener)
         .build();
     ctx.fetchNext(null);
     
@@ -293,7 +319,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -307,10 +333,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -362,7 +386,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -380,10 +404,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -456,7 +478,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -474,10 +496,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -529,7 +549,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -547,10 +567,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -626,7 +644,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -644,10 +662,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -702,7 +718,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -720,10 +736,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -802,7 +816,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -820,10 +834,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -898,7 +910,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -916,10 +928,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -997,7 +1007,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -1015,10 +1025,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;
@@ -1093,7 +1101,7 @@ public class TestTSDBV2QueryContextBuilder {
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(start_ts))
             .setEnd(Long.toString(end_ts))
@@ -1111,10 +1119,8 @@ public class TestTSDBV2QueryContextBuilder {
             .addFilter(TagVFilter.newBuilder()
                 .setFilter("web01")
                 .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
+                .setTagk("host")))
+        .build().convert().build();
     
     class TestListener implements QuerySink {
       int on_next = 0;

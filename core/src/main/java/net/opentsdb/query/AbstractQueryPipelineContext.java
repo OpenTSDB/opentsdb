@@ -459,7 +459,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + ".initializeGraph")
-                  .withTag("graphId", execution_graph.getId())
+                  .withTag("graphId", execution_graph.getId() == null ? "null" : execution_graph.getId())
                   .start();
     } else {
       child = null;

@@ -66,6 +66,7 @@ import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
+import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdes;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.pojo.RateOptions;
@@ -366,8 +367,10 @@ final public class QueryRpc {
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
+    // TODO - oh this is so ugly it isn't even funny.
+    final SemanticQuery semantic = query.convert().build();
     final QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(tsdb)
-        .setQuery(query)
+        .setQuery(semantic)
         .setMode(QueryMode.SINGLE)
         .addQuerySink(new LocalSink(async))
         .setStats(DefaultQueryStats.newBuilder()

@@ -14,21 +14,29 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.util.List;
+import net.opentsdb.query.filter.QueryFilter;
 
 /**
- * A container returned at UID resolution type when converting from a
- * query filter to UIDs for building a storage query or comparing keys.
+ * A filter that doesn't resolve to a type and doesn't have a nested
+ * filter.
  * 
  * @since 3.0
  */
-public interface ResolvedFilter {
+public class UnResolvedFilter implements ResolvedQueryFilter {
 
-  /** @return A non-null tag key UID. */
-  public byte[] getTagKey();
+  /** The original filter. */
+  private final QueryFilter filter;
   
-  /** @return A possible list of tag values if the filter contained
-   * literals. Returns null if the filter did not have literals. */
-  public List<byte[]> getTagValues();
+  /**
+   * Default ctor.
+   * @param filter The non-null original filter.
+   */
+  public UnResolvedFilter(final QueryFilter filter) {
+    this.filter = filter;
+  }
   
+  @Override
+  public QueryFilter filter() {
+    return filter;
+  }
 }

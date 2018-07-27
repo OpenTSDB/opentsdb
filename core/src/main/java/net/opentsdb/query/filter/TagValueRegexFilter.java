@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,73 +14,65 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import net.opentsdb.utils.StringUtils;
 
 /**
- * Filters on a set of one or more case sensitive tag value strings.
+ * Regular expression filter for tag values given a literal tag key.
  * 
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
-@JsonDeserialize(builder = TagValueLiteralOrFilter.Builder.class)
-public class TagValueLiteralOrFilter extends BaseTagValueFilter 
-   implements TagValueFilter {
+@JsonDeserialize(builder = TagValueRegexFilter.Builder.class)
+public class TagValueRegexFilter extends BaseTagValueFilter {
+
+  /** The compiled pattern */
+  final Pattern pattern;
   
-  /** A list of strings to match on */
-  protected final List<String> literals;
+  /** Whether or not the regex would match-all. */
+  final boolean matches_all;
   
   /**
-   * Protected builder ctor
+   * Protected ctor.
    * @param builder The non-null builder.
-   * @throws IllegalArgumentException if the tagk or filter were empty or null
    */
-  protected TagValueLiteralOrFilter(final Builder builder) {
+  protected TagValueRegexFilter(final Builder builder) {
     super(builder.tagKey, builder.filter);
-    if (filter.length() == 1 && filter.charAt(0) == '|') {
-      throw new IllegalArgumentException("Filter must contain more than just a pipe");
-    }
-    final String[] split = StringUtils.splitString(filter, '|');
+    pattern = Pattern.compile(filter.trim());
     
-    // dedupe
-    final Set<String> dedupe = Sets.newHashSetWithExpectedSize(split.length);
-    literals = Lists.newArrayListWithCapacity(split.length);
-    for (String value : split) {
-      value = value.trim();
-      if (Strings.isNullOrEmpty(value)) {
-        continue;
-      }
-      if (!dedupe.contains(value)) {
-        dedupe.add(value);
-        literals.add(value);
-      }
+    if (filter.equals(".*") || 
+        filter.equals("^.*") || 
+        filter.equals(".*$") || 
+        filter.equals("^.*$")) {
+      // yeah there are many more permutations but these are the most likely
+      // to be encountered in the wild.
+      matches_all = true;
+    } else {
+      matches_all = false;
     }
   }
-  
+
   @Override
   public boolean matches(final Map<String, String> tags) {
     final String tagv = tags.get(tag_key);
     if (tagv == null) {
       return false;
     }
-    return literals.contains(tagv);
+    if (matches_all) {
+      return true;
+    }
+    return pattern.matcher(tagv).find();
   }
-  
-  /** @return The collection of literal strings for resolution. */
-  public List<String> literals() {
-    return literals;
+
+  /** Whether or not the regex would match all strings. */
+  public boolean matchesAll() {
+    return matches_all;
   }
   
   @Override
@@ -92,6 +84,8 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
         .append(tag_key)
         .append(", filter=")
         .append(filter)
+        .append(", matchesAll=")
+        .append(matches_all)
         .append("}")
         .toString();
   }
@@ -117,8 +111,9 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
       return this;
     }
     
-    public TagValueLiteralOrFilter build() {
-      return new TagValueLiteralOrFilter(this);
+    public TagValueRegexFilter build() {
+      return new TagValueRegexFilter(this);
     }
   }
+  
 }

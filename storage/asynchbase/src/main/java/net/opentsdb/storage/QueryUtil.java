@@ -48,25 +48,20 @@ public class QueryUtil {
    * time series that the user doesn't want. At least one of the parameters 
    * must be set and have values.
    * NOTE: This method will sort the group bys.
-   * @param group_bys An optional list of tag keys that we want to group on. May
-   * be null.
    * @param row_key_literals An optional list of key value pairs to filter on.
    * May be null.
    * @return A regular expression string to pass to the storage layer.
    */
   public static String getRowKeyUIDRegex(
       final Schema schema,
-      final List<byte[]> group_bys, 
       final ByteMap<List<byte[]>> row_key_literals) {
-    return getRowKeyUIDRegex(schema, group_bys, row_key_literals, false, null, null);
+    return getRowKeyUIDRegex(schema, row_key_literals, false, null, null);
   }
   
   /**
    * Crafts a regular expression for scanning over data table rows and filtering
    * time series that the user doesn't want. Also fills in an optional fuzzy
    * mask and key as it builds the regex if configured to do so.
-   * @param group_bys An optional list of tag keys that we want to group on. May
-   * be null.
    * @param row_key_literals An optional list of key value pairs to filter on.
    * May be null.
    * @param explicit_tags Whether or not explicit tags are enabled so that the
@@ -78,14 +73,10 @@ public class QueryUtil {
    */
   public static String getRowKeyUIDRegex(
       final Schema schema,
-      final List<byte[]> group_bys, 
       final ByteMap<List<byte[]>> row_key_literals, 
       final boolean explicit_tags,
       final byte[] fuzzy_key, 
       final byte[] fuzzy_mask) {
-    if (group_bys != null) {
-      Collections.sort(group_bys, Bytes.MEMCMP);
-    }
     final int prefix_width = schema.saltWidth() + schema.metricWidth() + 
         Const.TIMESTAMP_BYTES;
     final int name_width = schema.tagkWidth();
@@ -97,8 +88,7 @@ public class QueryUtil {
     final StringBuilder buf = new StringBuilder(
         15  // "^.{N}" + "(?:.{M})*" + "$"
         + ((13 + tagsize) // "(?:.{M})*\\Q" + tagsize bytes + "\\E"
-           * ((row_key_literals == null ? 0 : row_key_literals.size()) + 
-               (group_bys == null ? 0 : group_bys.size() * 3))));
+           * ((row_key_literals == null ? 0 : row_key_literals.size()))));
     // In order to avoid re-allocations, reserve a bit more w/ groups ^^^
 
     // Alright, let's build this regexp.  From the beginning...
@@ -182,8 +172,6 @@ public class QueryUtil {
    * Sets a filter or filter list on the scanner based on whether or not the
    * query had tags it needed to match.
    * @param scanner The scanner to modify.
-   * @param group_bys An optional list of tag keys that we want to group on. May
-   * be null.
    * @param row_key_literals An optional list of key value pairs to filter on.
    * May be null.
    * @param explicit_tags Whether or not explicit tags are enabled so that the
@@ -197,15 +185,13 @@ public class QueryUtil {
   public static void setDataTableScanFilter(
       final Schema schema,
       final Scanner scanner, 
-      final List<byte[]> group_bys, 
       final ByteMap<List<byte[]>> row_key_literals,
       final boolean explicit_tags,
       final boolean enable_fuzzy_filter,
       final int end_time) {
     
     // no-op
-    if ((group_bys == null || group_bys.isEmpty()) 
-        && (row_key_literals == null || row_key_literals.isEmpty())) {
+    if ((row_key_literals == null || row_key_literals.isEmpty())) {
       return;
     }
     
@@ -226,7 +212,7 @@ public class QueryUtil {
       fuzzy_key = fuzzy_mask = null;
     }
     
-    final String regex = getRowKeyUIDRegex(schema, group_bys, row_key_literals, 
+    final String regex = getRowKeyUIDRegex(schema, row_key_literals, 
         explicit_tags, fuzzy_key, fuzzy_mask);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);

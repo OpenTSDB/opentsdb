@@ -396,8 +396,8 @@ public class ExpressionRpc {
 //        .setShowQuery(ts_query.getShowQuery())
 //        .setShowStats(ts_query.getShowStats())
 //        .setShowSummary(ts_query.getShowSummary())
-        .setStart(((net.opentsdb.query.pojo.TimeSeriesQuery) ts_query).getTime().startTime())
-        .setEnd(((net.opentsdb.query.pojo.TimeSeriesQuery) ts_query).getTime().endTime())
+//        .setStart(((net.opentsdb.query.pojo.TimeSeriesQuery) ts_query).getTime().startTime())
+//        .setEnd(((net.opentsdb.query.pojo.TimeSeriesQuery) ts_query).getTime().endTime())
         .setId("Json")
         .build();
     
