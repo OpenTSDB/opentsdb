@@ -34,6 +34,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.TypedIterator;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
@@ -299,7 +300,7 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
     }
 
     @Override
-    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
       return source.iterators();
     }
 

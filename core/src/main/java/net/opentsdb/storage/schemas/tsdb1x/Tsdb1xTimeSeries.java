@@ -24,10 +24,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import java.util.stream.Collectors;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 
 public class Tsdb1xTimeSeries implements TimeSeries {
@@ -67,12 +70,18 @@ public class Tsdb1xTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<Iterator<
-      TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<Iterator<TimeSeriesValue<?>>> iterators = 
+  public Collection<TypedIterator<
+        TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+
+//    List<TypedIterator<TimeSeriesValue<?>>> collect = data.entrySet().stream()
+//        .map(e -> new TypedIterator(e.getValue().iterator(), e.getKey())).collect(
+//            Collectors.toList());
+
+    final List<TypedIterator<TimeSeriesValue<?>>> iterators =
         Lists.newArrayListWithExpectedSize(data.size());
-    for (final Span<?> sequences : data.values()) {
-      iterators.add(sequences.iterator());
+
+    for (Map.Entry<TypeToken<?>, Span<?>> entry: data.entrySet() ) {
+      iterators.add(new TypedIterator(entry.getValue().iterator(), entry.getKey()));
     }
     return iterators;
   }

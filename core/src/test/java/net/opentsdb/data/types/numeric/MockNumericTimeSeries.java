@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Ignore;
 
 import com.google.common.collect.Lists;
@@ -57,7 +58,7 @@ public class MockNumericTimeSeries implements TimeSeries {
   public final TimeSeriesId id;
   public RuntimeException ex;
   public boolean throw_ex;
-  public List<NumericType> data = Lists.newArrayList();
+  public List<TimeSeriesValue<? extends TimeSeriesDataType>> data = Lists.newArrayList();
   
   public MockNumericTimeSeries(final TimeSeriesId id) {
     this.id = id;
@@ -72,7 +73,7 @@ public class MockNumericTimeSeries implements TimeSeries {
    * WARN: Doesn't check time order. Make sure you do.
    * @param value A non-null value. The value of the value can be null.
    */
-  public void add(final NumericType value) {
+  public void add(final TimeSeriesValue<NumericType> value) {
     if (value == null) {
       throw new IllegalArgumentException("Value can't be null!");
     }
@@ -85,14 +86,14 @@ public class MockNumericTimeSeries implements TimeSeries {
     if (type != NumericType.TYPE) {
       return Optional.empty();
     }
-    return Optional.of(new LocalIterator());
+    return Optional.of(new LocalIterator(data.iterator()));
   }
 
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         Lists.newArrayListWithCapacity(1);
-    iterators.add(new LocalIterator());
+    iterators.add(new LocalIterator(data.iterator()));
     return iterators;
   }
 
@@ -104,9 +105,12 @@ public class MockNumericTimeSeries implements TimeSeries {
   @Override
   public void close() { }
   
-  class LocalIterator implements Iterator<TimeSeriesValue<?>> {
-    final Iterator<NumericType> iterator = data.iterator();
-    
+  class LocalIterator extends TypedIterator<TimeSeriesValue<?>> {
+
+    public LocalIterator(Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator) {
+      super(iterator, NumericType.TYPE);
+    }
+
     @Override
     public boolean hasNext() {
       return iterator.hasNext();
@@ -117,7 +121,7 @@ public class MockNumericTimeSeries implements TimeSeries {
       if (ex != null && throw_ex) {
         throw ex;
       }
-      return (TimeSeriesValue<?>) iterator.next();
+      return iterator.next();
     }
     
   }

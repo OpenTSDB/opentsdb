@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
+import net.opentsdb.data.TypedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -335,7 +336,7 @@ public class Downsample extends AbstractQueryNode {
           return Optional.empty();
         }
         final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-            ((ProcessorFactory) Downsample.this.factory()).newIterator(
+            ((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
                 type, 
                 Downsample.this, 
                 DownsampleResult.this,
@@ -347,12 +348,12 @@ public class Downsample extends AbstractQueryNode {
       }
       
       @Override
-      public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+      public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
         final Collection<TypeToken<?>> types = source.types();
-        final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+        final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
             Lists.newArrayListWithCapacity(types.size());
         for (final TypeToken<?> type : types) {
-          iterators.add(((ProcessorFactory) Downsample.this.factory()).newIterator(
+          iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
               type, 
               Downsample.this, 
               DownsampleResult.this,

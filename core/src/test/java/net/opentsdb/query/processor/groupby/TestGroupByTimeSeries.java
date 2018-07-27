@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -201,11 +202,11 @@ public class TestGroupByTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    final Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> 
+    final Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>>
       iterators = ts.iterators();
     assertEquals(1, iterators.size());
     
-    final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+    final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
         iterators.iterator().next();
     assertFalse(iterator.hasNext());
   }

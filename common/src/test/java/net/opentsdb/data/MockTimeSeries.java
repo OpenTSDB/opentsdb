@@ -94,8 +94,8 @@ public class MockTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators
       = Lists.newArrayListWithCapacity(data.size());
     for (final List<TimeSeriesValue<?>> types : data.values()) {
       iterators.add(new MockTimeSeriesIterator(types.iterator()));
@@ -120,10 +120,11 @@ public class MockTimeSeries implements TimeSeries {
   /**
    * Iterator over the list of values.
    */
-  class MockTimeSeriesIterator implements Iterator<TimeSeriesValue<?>> {
+  class MockTimeSeriesIterator extends TypedIterator<TimeSeriesValue<?>> {
     private final Iterator<TimeSeriesValue<?>> iterator;
     
     MockTimeSeriesIterator(final Iterator<TimeSeriesValue<?>> iterator) {
+      super(iterator, new MockTimeSeriesDataType().type());
       this.iterator = iterator;
     }
     
@@ -137,6 +138,16 @@ public class MockTimeSeries implements TimeSeries {
       return iterator.next();
     }
     
+  }
+
+  class MockTimeSeriesDataType implements TimeSeriesDataType {
+
+    TypeToken<MockTimeSeriesDataType> TYPE = TypeToken.of(MockTimeSeriesDataType.class);
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> type() {
+      return TYPE;
+    }
   }
   
 }

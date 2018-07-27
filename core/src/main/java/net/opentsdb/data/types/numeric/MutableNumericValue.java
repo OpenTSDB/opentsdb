@@ -19,6 +19,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
 
 /**
  * A simple mutable data point for holding primitive signed numbers including 
@@ -349,4 +350,24 @@ public final class MutableNumericValue implements NumericType,
     return buf.toString();
         
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof MutableNumericValue)) {
+      return false;
+    }
+
+    MutableNumericValue that = (MutableNumericValue) obj;
+
+    if (this.nulled) {
+      return false;
+    } else {
+      return this.timestamp.compare(Op.EQ, that.timestamp) && this.value == that.value
+          && this.is_integer == that.is_integer && this.nulled == that.nulled;
+    }
+  }
+
 }

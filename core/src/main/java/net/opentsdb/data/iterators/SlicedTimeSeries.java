@@ -28,6 +28,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedIterator;
 
 /**
  * A logical view on top of one or more time series iterators. For example, if
@@ -96,8 +97,8 @@ public class SlicedTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         Lists.newArrayListWithCapacity(types.size());
     for (final TypeToken<?> type : types) {
       iterators.add(new LocalIterator(type));
@@ -122,14 +123,12 @@ public class SlicedTimeSeries implements TimeSeries {
    *
    * @param <T> The type of data this iterator works over.
    */
-  class LocalIterator<T extends TimeSeriesDataType> implements 
-    Iterator<TimeSeriesValue<T>> {
+  class LocalIterator<T extends TimeSeriesDataType> extends TypedIterator<TimeSeriesValue<T>> {
     
-    private final TypeToken<?> type;
     private int source_idx;
-    private Iterator<TimeSeriesValue<?>> iterator;
-    
-    LocalIterator(final TypeToken<?> type) {
+
+    LocalIterator(final TypeToken<? extends TimeSeriesDataType> type) {
+      super(null, type);
       this.type = type;
       for (source_idx = 0; source_idx < sources.size(); source_idx++) {
         final Optional<Iterator<TimeSeriesValue<?>>> it = 

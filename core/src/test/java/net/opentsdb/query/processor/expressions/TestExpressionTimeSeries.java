@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import java.util.Iterator;
 import java.util.Map;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -96,14 +97,9 @@ public class TestExpressionTimeSeries {
     when(right.types()).thenReturn(Lists.newArrayList(
         NumericType.TYPE, NumericSummaryType.TYPE));
     
-    when(factory.newIterator(eq(NumericType.TYPE), eq(node), eq(result), any(Map.class)))
-      .thenAnswer(new Answer<Iterator>() {
-        @Override
-        public Iterator answer(InvocationOnMock invocation) throws Throwable {
-          return mock(Iterator.class);
-        }
-      });
-    
+    when(factory.newTypedIterator(eq(NumericType.TYPE), eq(node), eq(result), any(Map.class)))
+        .thenReturn(mock(TypedIterator.class));
+
     JoinConfig jc = (JoinConfig) JoinConfig.newBuilder()
         .setType(JoinType.INNER)
         .addJoins("host", "host")
