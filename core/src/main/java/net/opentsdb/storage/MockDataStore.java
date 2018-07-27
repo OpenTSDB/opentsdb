@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -270,11 +271,11 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
 
     @Override
-    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
       // TODO - other types
-      final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> its = 
+      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> its =
           Lists.newArrayListWithCapacity(1);
-      its.add(((NumericMillisecondShard) sources.get(NumericType.TYPE)).iterator());
+      its.add(new TypedIterator(((NumericMillisecondShard) sources.get(NumericType.TYPE)).iterator(), NumericType.TYPE));
       return its;
     }
 

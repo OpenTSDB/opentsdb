@@ -163,7 +163,7 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static abstract class Builder {
-    
+
     @JsonProperty
     protected String id;
     

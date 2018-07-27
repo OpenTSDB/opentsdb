@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import net.opentsdb.data.TypedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +97,7 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
   }
 
   @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,
@@ -115,11 +116,11 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
     if (factory == null) {
       return null;
     }
-    return factory.newIterator(node, result, sources);
+    return new TypedIterator(factory.newIterator(node, result, sources), type);
   }
 
   @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,

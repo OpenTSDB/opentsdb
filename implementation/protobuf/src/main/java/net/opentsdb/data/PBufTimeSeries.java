@@ -104,8 +104,8 @@ public class PBufTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         Lists.newArrayListWithCapacity(data.size());
     for (final Entry<TypeToken<?>, TimeSeriesData> entry : 
           data.entrySet()) {
@@ -114,7 +114,7 @@ public class PBufTimeSeries implements TimeSeries {
         throw new SerdesException("Had data but unable to find a "
             + "deserializer for the type: " + entry.getKey());
       }
-      iterators.add(serdes.deserialize(entry.getValue()));
+      iterators.add(new TypedIterator(serdes.deserialize(entry.getValue()), entry.getKey()));
     }
     return iterators;
   }
