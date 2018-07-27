@@ -568,7 +568,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
       public Object call(final byte[] metric) throws Exception {
         if (metric == null) {
           final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.METRIC_TYPE, 
-              source_config.getMetric());
+              source_config.getMetric().metric());
           if (child != null) {
             child.setErrorTags(ex)
                  .finish();
@@ -591,7 +591,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
                 + source_config.getQuery().getClass() + " yet");
           }
           if (filter == null) {
-            throw new IllegalStateException("No filter was found for: " + source_config.getFilterId());
+            throw new IllegalStateException("No filter was found for: " 
+                + source_config.getFilterId());
           }
           
           node.schema().resolveUids(filter, child)
@@ -609,7 +610,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric(), 
+      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric().metric(), 
           child)
         .addCallback(new MetricCB())
         .addErrback(new ErrorCB());

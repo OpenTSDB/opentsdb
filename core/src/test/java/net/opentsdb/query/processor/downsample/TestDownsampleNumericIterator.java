@@ -46,6 +46,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -3076,7 +3077,9 @@ public class TestDownsampleNumericIterator {
     QuerySourceConfig source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setStart(start)
         .setEnd(end)
-        .setMetric("sys.cpu.user")
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
         .setQuery(mock(TimeSeriesQuery.class))
         .setId("m1")
         .build();

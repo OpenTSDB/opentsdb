@@ -29,6 +29,8 @@ import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.filter.MetricFilter;
+import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -58,11 +60,14 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
   
-  /** A non-null and non-empty metric to fetch. */
-  private final String metric;
+  /** A non-null metric filter used to determine the metric(s) to fetch. */
+  private final MetricFilter metric;
   
   /** An optional filter ID found in the query. */
   private final String filter_id;
+  
+  /** An optional filter. If filter_id is set, this is ignored. */
+  private final QueryFilter filter;
   
   /**
    * Private ctor for the builder.
@@ -74,8 +79,8 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
       throw new IllegalArgumentException("Start time cannot be null "
           + "or empty.");
     }
-    if (Strings.isNullOrEmpty(builder.metric)) {
-      throw new IllegalArgumentException("Metric cannot be null or empty.");
+    if (builder.metric == null) {
+      throw new IllegalArgumentException("Metric filter cannot be null.");
     }
     query = builder.query;
     start = builder.start;
@@ -84,6 +89,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     types = builder.types;
     metric = builder.metric;
     filter_id = builder.filterId;
+    filter = builder.filter;
     start_ts = new MillisecondTimeStamp(
         DateTime.parseDateTimeString(start, timezone));
     if (Strings.isNullOrEmpty(end)) {
@@ -137,14 +143,23 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     return types;
   }
   
-  /** @return The non-null and non-empty metric to fetch. */
-  public String getMetric() {
+  /** @return The non-null metric filter. */
+  public MetricFilter getMetric() {
     return metric;
   }
   
   /** @return An optional filter ID to fetch. */
   public String getFilterId() {
     return filter_id;
+  }
+  
+  /** @return The optional filter. If {@link #getFilterId()} is not null or
+   * empty, this will always return null. */
+  public QueryFilter getFilter() {
+    if (Strings.isNullOrEmpty(filter_id)) {
+      return filter;
+    } 
+    return null;
   }
   
   @Override
@@ -198,9 +213,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     @JsonProperty
     private List<String> types;
     @JsonProperty
-    private String metric;
+    private MetricFilter metric;
     @JsonProperty
     private String filterId;
+    @JsonProperty
+    private QueryFilter filter;
     
     /** 
      * @param query The non-null query to execute.
@@ -239,13 +256,18 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
       return this;
     }
     
-    public Builder setMetric(final String metric) {
+    public Builder setMetric(final MetricFilter metric) {
       this.metric = metric;
       return this;
     }
     
     public Builder setFilterId(final String filter_id) {
       this.filterId = filter_id;
+      return this;
+    }
+    
+    public Builder setQueryFilter(final QueryFilter filter) {
+      this.filter = filter;
       return this;
     }
     

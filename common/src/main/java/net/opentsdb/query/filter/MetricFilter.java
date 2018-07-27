@@ -22,12 +22,13 @@ package net.opentsdb.query.filter;
 public interface MetricFilter extends QueryFilter {
 
   /** @return The non-null and non-empty filter string. */
-  public String filter();
+  public String metric();
   
   /**
    * Whether or not the filter is satisfied with the metric.
    * @param metric The non-null and non-empty metric string.
    * @return True if satisfied, false if not.
    */
-  public boolean match(final String metric);
+  public boolean matches(final String metric);
+  
 }

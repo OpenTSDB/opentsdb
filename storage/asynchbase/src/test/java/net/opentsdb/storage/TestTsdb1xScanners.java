@@ -74,6 +74,7 @@ import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
@@ -129,7 +130,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setId("m1")
@@ -187,7 +190,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void ctorQueryOverrides() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY, "128")
@@ -283,7 +288,9 @@ public class TestTsdb1xScanners extends UTBase {
     // rollup further in
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(END_TS))
         .setEnd(Integer.toString(END_TS + 3600))
         .setId("m1")
@@ -297,7 +304,9 @@ public class TestTsdb1xScanners extends UTBase {
       .thenReturn(Lists.newArrayList(mock(QueryNode.class)));
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS - 900))
         .setEnd(Integer.toString(END_TS))
         .setId("m1")
@@ -311,7 +320,9 @@ public class TestTsdb1xScanners extends UTBase {
       .thenReturn(Collections.emptyList());
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(END_TS))
         .setEnd(Integer.toString(END_TS + 3600))
         .setId("m1")
@@ -371,7 +382,9 @@ public class TestTsdb1xScanners extends UTBase {
     // rollup further in
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(END_TS))
         .setEnd(Integer.toString(END_TS + 3600))
         .setId("m1")
@@ -546,7 +559,9 @@ public class TestTsdb1xScanners extends UTBase {
     setConfig(true, null, false);
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1132,7 +1147,9 @@ public class TestTsdb1xScanners extends UTBase {
     setConfig(true, "sum", false);
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1225,7 +1242,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBNoKeepers() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1280,7 +1299,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1328,7 +1349,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBKeepers() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1384,7 +1407,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1433,7 +1458,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBMultiGetable() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1499,7 +1526,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBDupeTagKeys() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1637,7 +1666,9 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBExpansionLimit() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1759,7 +1790,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1809,7 +1842,9 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(NSUN_METRIC)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(NSUN_METRIC)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setId("m1")
@@ -1841,7 +1876,9 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1907,7 +1944,9 @@ public class TestTsdb1xScanners extends UTBase {
     // now we can ignore it
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -1956,7 +1995,9 @@ public class TestTsdb1xScanners extends UTBase {
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId("f1")
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
@@ -2426,7 +2467,9 @@ public class TestTsdb1xScanners extends UTBase {
     }
     
     QuerySourceConfig.Builder builder = (Builder) QuerySourceConfig.newBuilder()
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setFilterId(with_filter ? "f1" : null)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))

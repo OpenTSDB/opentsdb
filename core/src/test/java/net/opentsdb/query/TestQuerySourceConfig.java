@@ -20,6 +20,8 @@ import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
+import net.opentsdb.query.filter.MetricLiteralFilter;
+
 public class TestQuerySourceConfig {
 
   @Test
@@ -29,20 +31,24 @@ public class TestQuerySourceConfig {
     QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setStart("1h-ago")
-        .setMetric("system.cpu.user")
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
         .setId("UT")
         .build();
     assertSame(query, qsc.getQuery());
     assertEquals("1h-ago", qsc.getStart());
     assertTrue(qsc.startTime().epoch() > 0);
-    assertEquals("system.cpu.user", qsc.getMetric());
+    assertEquals("system.cpu.user", qsc.getMetric().metric());
     assertEquals("UT", qsc.getId());
     
     try {
       QuerySourceConfig.newBuilder()
         .setQuery(query)
         //.setStart("1h-ago")
-        .setMetric("system.cpu.user")
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
         .setId("UT")
         .build();
       fail("Expected IllegalArgumentException");

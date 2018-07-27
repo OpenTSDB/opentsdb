@@ -65,6 +65,7 @@ import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample;
@@ -117,7 +118,9 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setId("m1")
@@ -168,7 +171,9 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void ctorQueryOverrides() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
@@ -670,7 +675,9 @@ public class TestTsdb1xQueryNode extends UTBase {
     // so this will actually execute the query via multi-get.
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
@@ -738,7 +745,9 @@ public class TestTsdb1xQueryNode extends UTBase {
     // so this will actually execute the query via multi-get.
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
