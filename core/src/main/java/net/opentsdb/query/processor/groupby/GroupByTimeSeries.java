@@ -30,6 +30,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedIterator;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.ProcessorFactory;
 
@@ -124,7 +125,7 @@ public class GroupByTimeSeries implements TimeSeries {
       return Optional.empty();
     }
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        ((ProcessorFactory) node.factory()).newIterator(type, node, result, sources);
+        ((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources);
     if (iterator == null) {
       return Optional.empty();  
     }
@@ -132,13 +133,13 @@ public class GroupByTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
     iterators_returned = true;
     final Collection<TypeToken<?>> types = types(); // calc the union
-    final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         Lists.newArrayListWithCapacity(types.size());
     for (final TypeToken<?> type : types) {
-      iterators.add(((ProcessorFactory) node.factory()).newIterator(type, node, result, sources));
+      iterators.add(((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources));
     }
     return iterators;
   }

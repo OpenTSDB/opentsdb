@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -107,34 +108,34 @@ public class TestBaseQueryNodeFactory {
     QueryNode node = mock(QueryNode.class);
     MockNodeFactory factory = new MockNodeFactory("Mock!");
     
-    assertNull(factory.newIterator(NumericType.TYPE, node, null,
+    assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,
         Lists.newArrayList(mock(TimeSeries.class))));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory = 
-        factory.newIterator(NumericType.TYPE, node, null,
+    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory =
+        factory.newTypedIterator(NumericType.TYPE, node, null,
             Lists.<TimeSeries>newArrayList(mock(TimeSeries.class)));
-    assertSame(iterator, from_factory);
+    assertSame(iterator, from_factory.getIterator());
     
     try {
-      factory.newIterator(null, node, null,
+      factory.newTypedIterator(null, node, null,
           Lists.newArrayList(mock(TimeSeries.class)));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, null, null,
+      factory.newTypedIterator(NumericType.TYPE, null, null,
           Lists.newArrayList(mock(TimeSeries.class)));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,(Collection) null);
+      factory.newTypedIterator(NumericType.TYPE, node, null,(Collection) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,Lists.newArrayList());
+      factory.newTypedIterator(NumericType.TYPE, node, null,Lists.newArrayList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -152,30 +153,30 @@ public class TestBaseQueryNodeFactory {
     QueryNode node = mock(QueryNode.class);
     MockNodeFactory factory = new MockNodeFactory("Mock!");
     
-    assertNull(factory.newIterator(NumericType.TYPE, node, null,sources));
+    assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,sources));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
     Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory = 
-        factory.newIterator(NumericType.TYPE, node, null,sources);
+        factory.newTypedIterator(NumericType.TYPE, node, null,sources);
     assertSame(iterator, from_factory);
     
     try {
-      factory.newIterator(null, node, null,sources);
+      factory.newTypedIterator(null, node, null,sources);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, null, null,sources);
+      factory.newTypedIterator(NumericType.TYPE, null, null,sources);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,(Map) null);
+      factory.newTypedIterator(NumericType.TYPE, node, null,(Map) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,Maps.newHashMap());
+      factory.newTypedIterator(NumericType.TYPE, node, null,Maps.newHashMap());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

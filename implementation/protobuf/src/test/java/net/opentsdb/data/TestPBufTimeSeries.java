@@ -129,7 +129,7 @@ public class TestPBufTimeSeries {
   @Test
   public void iterators() throws Exception {
     PBufTimeSeries time_series = new PBufTimeSeries(factory, getSeries(true, true));
-    Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+    Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         time_series.iterators();
     assertEquals(2, iterators.size());
     for (final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it : iterators) {

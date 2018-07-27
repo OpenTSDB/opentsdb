@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.util.Collection;
 import java.util.Iterator;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -99,7 +100,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(4, value);
     
-    Collection<Iterator<TimeSeriesValue<?>>> iterators = series.iterators();
+    Collection<TypedIterator<TimeSeriesValue<?>>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 0;
@@ -144,7 +145,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(-1, value);
     
-    Collection<Iterator<TimeSeriesValue<?>>> iterators = series.iterators();
+    Collection<TypedIterator<TimeSeriesValue<?>>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 3;
@@ -196,7 +197,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(8, value);
     
-    Collection<Iterator<TimeSeriesValue<?>>> iterators = series.iterators();
+    Collection<TypedIterator<TimeSeriesValue<?>>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 0;
@@ -246,7 +247,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(-1, value);
     
-    Collection<Iterator<TimeSeriesValue<?>>> iterators = series.iterators();
+    Collection<TypedIterator<TimeSeriesValue<?>>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 7;

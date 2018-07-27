@@ -23,9 +23,9 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedIterator;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SingleQueryNodeFactory;
 
@@ -60,7 +60,7 @@ public interface ProcessorFactory extends SingleQueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,
@@ -75,7 +75,7 @@ public interface ProcessorFactory extends SingleQueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,

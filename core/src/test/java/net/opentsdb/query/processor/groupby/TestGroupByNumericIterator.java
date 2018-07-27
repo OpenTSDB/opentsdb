@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -1150,7 +1151,7 @@ public class TestGroupByNumericIterator {
     }
 
     @Override
-    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
       return Collections.emptyList();
     }
 

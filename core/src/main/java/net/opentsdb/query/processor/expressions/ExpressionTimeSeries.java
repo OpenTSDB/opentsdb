@@ -30,6 +30,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedIterator;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.BaseMultiQueryNodeFactory;
 
@@ -116,7 +117,7 @@ public class ExpressionTimeSeries implements TimeSeries {
     }
     
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        ((BaseMultiQueryNodeFactory) node.factory()).newIterator(type, node, result, 
+        ((BaseMultiQueryNodeFactory) node.factory()).newTypedIterator(type, node, result,
             (Map<String, TimeSeries>) builder.build());
     if (iterator == null) {
       return Optional.empty();  
@@ -125,7 +126,7 @@ public class ExpressionTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
     final ImmutableMap.Builder<String, TimeSeries> builder = 
         ImmutableMap.<String, TimeSeries>builder();
     if (left != null) {
@@ -135,10 +136,10 @@ public class ExpressionTimeSeries implements TimeSeries {
       builder.put(RIGHT_KEY, right);
     }
     final Map<String, TimeSeries> sources = (Map<String, TimeSeries>) builder.build();
-    final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         Lists.newArrayListWithExpectedSize(types.size());
     for (final TypeToken<?> type : types) {
-      iterators.add(((BaseMultiQueryNodeFactory) node.factory()).newIterator(
+      iterators.add(((BaseMultiQueryNodeFactory) node.factory()).newTypedIterator(
           type, node, result, sources));
     }
     return iterators;
