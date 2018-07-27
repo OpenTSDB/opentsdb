@@ -67,6 +67,8 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.filter.FilterUtils;
+import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -527,18 +529,17 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
           LOG.debug("Running the filter: " + config);
         }
         
-        final Filter filter;
+        final QueryFilter filter;
         if (!Strings.isNullOrEmpty(config.getFilterId())) {
           if (config.getQuery() instanceof SemanticQuery) {
             filter = ((SemanticQuery) config.getQuery())
-                .getFilter(config.getFilterId());
-          } else if (config.getQuery() instanceof TimeSeriesQuery) {
-            filter = ((TimeSeriesQuery) config.getQuery())
                 .getFilter(config.getFilterId());
           } else {
             throw new UnsupportedOperationException("We don't support " 
                 + config.getQuery().getClass() + " yet");
           }
+        } else if (config.getFilter() != null) {
+          filter = config.getFilter();
         } else {
           filter = null;
         }
@@ -550,25 +551,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
           }
           
           if (filter != null) {
-            boolean matched = true;
-            for (final TagVFilter tf : filter.getTags()) {
-              String tagv = entry.getKey().tags().get(tf.getTagk());
-              if (tagv == null) {
-                matched = false;
-                break;
-              }
-              
-              try {
-                if (!tf.match(ImmutableMap.of(tf.getTagk(), tagv)).join()) {
-                  matched = false;
-                  break;
-                }
-              } catch (Exception e) {
-                throw new RuntimeException("WTF?", e);
-              }
-            }
-            
-            if (!matched) {
+            if (!FilterUtils.matchesTags(filter, entry.getKey().tags())) {
               continue;
             }
           }

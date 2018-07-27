@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +52,7 @@ import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.pojo.TagVLiteralOrFilter;
+import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
@@ -448,140 +445,21 @@ public class Schema implements ReadableTimeSeriesDataStore,
   }
   
   /**
-   * Resolves the given V2 filter, parsing the tag keys and optional tag
-   * value literals. The resulting list is populated in the same order as
-   * the TagVFilters in the given filter set.
+   * Resolves metric, tag keys and tag values in the filter tree wherever
+   * they're found.
    * @param filter A non-null filter to resolve.
    * @param span An optional tracing span.
-   * @return A deferred resolving to a non-null list of resolved filters
-   * if successful or an exception if something went wrong. The list may
-   * be empty if the filter didn't have any TagVFilters. (In which case
-   * this shouldn't be called.)
-   * @throws IllegalArgumentException if the filter was null.
+   * @return A deferred resolving to the resolved filterr if successful 
+   * or an exception if something went pear shaped.
    */
-  public Deferred<List<ResolvedFilter>> resolveUids(final Filter filter, 
-                                                    final Span span) {
+  public Deferred<ResolvedQueryFilter> resolveUids(final QueryFilter filter, 
+                                                   final Span span) {
     if (filter == null) {
       throw new IllegalArgumentException("Filter cannot be null.");
     }
-    
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".resolveUids")
-          .withTag("dataStore", data_store.id())
-          .withTag("filter", filter.toString())
-          .start();
-    } else {
-      child = null;
-    }
-    
-    if (filter.getTags() == null || filter.getTags().isEmpty()) {
-      if (child != null) {
-        child.setSuccessTags()
-          .finish();
-      }
-      return Deferred.fromResult(Collections.emptyList());
-    }
-    
-    final List<ResolvedFilter> resolutions = 
-        Lists.newArrayListWithCapacity(filter.getTags().size());
-    for (int i = 0; i < filter.getTags().size(); i++) {
-      resolutions.add(null);
-    }
-    
-    class TagVCB implements Callback<Object, List<byte[]>> {
-      final int idx;
-      
-      TagVCB(final int idx) {
-        this.idx = idx;
-      }
-
-      @Override
-      public Object call(final List<byte[]> uids) throws Exception {
-        // since  we're working on an array list and only one index per
-        // callback, we can avoid synchronizing on it.
-        ((ResolvedFilterImplementation) resolutions.get(idx))
-          .tag_values = uids;
-        return null;
-      }
-      
-    }
-    
-    class TagKCB implements Callback<Deferred<Object>, byte[]> {
-      final int idx;
-      final TagVFilter f;
-      
-      TagKCB(final int idx, final TagVFilter f) {
-        this.idx = idx;
-        this.f = f;
-      }
-
-      @Override
-      public Deferred<Object> call(final byte[] uid) throws Exception {
-        final ResolvedFilterImplementation resolved = 
-            new ResolvedFilterImplementation();
-        resolved.tag_key = uid;
-        
-        // since  we're working on an array list and only one index per
-        // callback, we can avoid synchronizing on it.
-        resolutions.set(idx, resolved);
-        
-        if (f instanceof TagVLiteralOrFilter) {
-          final List<String> tags = Lists.newArrayList(
-              ((TagVLiteralOrFilter) f).literals());
-          return tag_values.getIds(tags, 
-              child != null ? child : span)
-              .addCallback(new TagVCB(idx));
-        } else {
-          return Deferred.fromResult(null);
-        }
-      }
-    }
-    
-    // Start the resolution chain here.
-    final List<Deferred<Object>> deferreds = 
-        Lists.newArrayListWithCapacity(filter.getTags().size());
-    for (int i = 0; i < filter.getTags().size(); i++) {
-      final TagVFilter f = filter.getTags().get(i);
-      deferreds.add(tag_names.getId(f.getTagk(), 
-          child != null ? child : span)
-          .addCallbackDeferring(new TagKCB(i, f)));
-    }
-    
-    /** Error callback to cast the exception to a StorageException */
-    class ErrorCB implements Callback<List<ResolvedFilter>, Exception> {
-      @Override
-      public List<ResolvedFilter> call(final Exception ex) throws Exception {
-        Throwable t = ex;
-        if (t instanceof DeferredGroupException) {
-          t = Exceptions.getCause((DeferredGroupException) ex);
-        }
-        if (child != null) {
-          child.setErrorTags()
-            .log("Exception", t)
-            .finish();
-        }
-        throw new StorageException("Failed to resolve IDs: " 
-            + t.getMessage(), t);
-      }
-    }
-    
-    class FinalCB implements Callback<List<ResolvedFilter>, ArrayList<Object>> {
-      @Override
-      public List<ResolvedFilter> call(final ArrayList<Object> ignored)
-          throws Exception {
-        if (child != null) {
-          child.setSuccessTags()
-            .finish();
-        }
-        return resolutions;
-      }
-    }
-    
-    return Deferred.group(deferreds)
-        .addCallbacks(new FinalCB(), new ErrorCB());
+    return new FilterUidResolver(this, filter).resolve(span);
   }
-  
+ 
   /**
    * Converts the given string to it's UID value based on the type.
    * @param type A non-null UID type.
@@ -1103,22 +981,7 @@ public class Schema implements ReadableTimeSeriesDataStore,
   public MetaDataStorageSchema metaSchema() {
     return meta_schema;
   }
-  
-  static class ResolvedFilterImplementation implements ResolvedFilter {
-    protected byte[] tag_key;
-    protected List<byte[]> tag_values;
-    
-    @Override
-    public byte[] getTagKey() {
-      return tag_key;
-    }
 
-    @Override
-    public List<byte[]> getTagValues() {
-      return tag_values;
-    }
-  }
-  
   String configKey(final String suffix) {
     return "tsd.storage." + (Strings.isNullOrEmpty(id) ? "" : id + ".")
       + suffix;

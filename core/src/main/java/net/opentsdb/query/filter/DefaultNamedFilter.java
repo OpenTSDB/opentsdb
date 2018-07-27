@@ -14,46 +14,68 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.base.Strings;
+
 /**
- * Inverts the match on a filter.
+ * A default implementation of the NamedFilter.
  * 
  * @since 3.0
  */
-public class NotFilter implements QueryFilter {
+public class DefaultNamedFilter implements NamedFilter {
 
-  /** The filter to invert. */
-  private final QueryFilter filter;
+  /** The non-null ID. */
+  protected final String id;
+  
+  /** The non-null filter. */
+  protected final QueryFilter filter;
   
   /**
    * Protected ctor.
-   * @param builder The non-null filter.
+   * @param builder A non-null builder.
+   * @throws IllegalArgumentException if the id was null, empty or the 
+   * filter was null.
    */
-  protected NotFilter(final Builder builder) {
+  protected DefaultNamedFilter(final Builder builder) {
+    if (Strings.isNullOrEmpty(builder.id)) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
     if (builder.filter == null) {
       throw new IllegalArgumentException("Filter cannot be null.");
     }
+    id = builder.id;
     filter = builder.filter;
   }
   
-  /** @return The filter. */
-  public QueryFilter getFilter() {
+  @Override
+  public String id() {
+    return id;
+  }
+
+  @Override
+  public QueryFilter filter() {
     return filter;
   }
-  
+
   public static Builder newBuilder() {
     return new Builder();
   }
   
   public static class Builder {
+    private String id;
     private QueryFilter filter;
+    
+    public Builder setId(final String id) {
+      this.id = id;
+      return this;
+    }
     
     public Builder setFilter(final QueryFilter filter) {
       this.filter = filter;
       return this;
     }
     
-    public NotFilter build() {
-      return new NotFilter(this);
+    public DefaultNamedFilter build() {
+      return new DefaultNamedFilter(this);
     }
   }
 }

@@ -158,8 +158,9 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   public QueryFilter getFilter() {
     if (Strings.isNullOrEmpty(filter_id)) {
       return filter;
-    } 
-    return null;
+    }
+    // TODO - no no no!!!
+    return ((SemanticQuery) query).getFilter(filter_id);
   }
   
   @Override

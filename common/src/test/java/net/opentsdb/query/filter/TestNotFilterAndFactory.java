@@ -22,45 +22,46 @@ import static org.mockito.Mockito.when;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.utils.JSON;
+import net.opentsdb.query.filter.UTFilterFactory.UTQueryFilter;
 
 public class TestNotFilterAndFactory {
+  private static final ObjectMapper MAPPER = new ObjectMapper();
   
   @Test
   public void parse() throws Exception {
     String json = "{\"type\":\"Not\",\"filter\":"
-        + "{\"type\":\"TagValueLiteralOr\",\"tagKey\":\"host\",\"filter\":\"web01|web02\"}}";
+        + "{\"type\":\"TagValueLiteralOr\",\"tag\":\"host\",\"filter\":\"web01|web02\"}}";
     
     MockTSDB tsdb = new MockTSDB();
-    TagValueLiteralOrFactory tv_factory = new TagValueLiteralOrFactory();
+    UTFilterFactory tv_factory = new UTFilterFactory();
     NotFilterFactory not_factory = new NotFilterFactory();
     when(tsdb.registry.getPlugin(QueryFilterFactory.class, "TagValueLiteralOr"))
       .thenReturn(tv_factory);
     when(tsdb.registry.getPlugin(QueryFilterFactory.class, "Not"))
       .thenReturn(not_factory);
     
-    JsonNode node = JSON.getMapper().readTree(json);
-    NotFilter filter = (NotFilter) not_factory.parse(tsdb, JSON.getMapper(), node);
-    assertTrue(filter.getFilter() instanceof TagValueLiteralOrFilter);
-    assertEquals("web01|web02", ((TagValueLiteralOrFilter) 
-        filter.getFilter()).filter());
+    JsonNode node = MAPPER.readTree(json);
+    NotFilter filter = (NotFilter) not_factory.parse(tsdb, MAPPER, node);
+    assertTrue(filter.getFilter() instanceof UTQueryFilter);
+    assertEquals("web01|web02", ((UTQueryFilter) filter.getFilter()).filter);
     
     // no type
     json = "{\"type\":\"Not\",\"filter\":"
-        + "{\"tagKey\":\"host\",\"filter\":\"web01|web02\"}}";
-    node = JSON.getMapper().readTree(json);
+        + "{\"tag\":\"host\",\"filter\":\"web01|web02\"}}";
+    node = MAPPER.readTree(json);
     try {
-      not_factory.parse(tsdb, JSON.getMapper(), node);
+      not_factory.parse(tsdb, MAPPER, node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // no filter
     json = "{\"type\":\"Not\",\"filter\":null}";
-    node = JSON.getMapper().readTree(json);
+    node = MAPPER.readTree(json);
     try {
-      not_factory.parse(tsdb, JSON.getMapper(), node);
+      not_factory.parse(tsdb, MAPPER, node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -68,13 +69,10 @@ public class TestNotFilterAndFactory {
   @Test
   public void builder() throws Exception {
     NotFilter filter = NotFilter.newBuilder()
-        .setFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
-            .setFilter("web01|web02")
-            .build())
+        .setFilter(new UTQueryFilter("host", "web01|web02"))
         .build();
-    assertEquals("web01|web02", ((TagValueLiteralOrFilter) 
-        filter.getFilter()).filter());
+    assertEquals("web01|web02", ((UTQueryFilter) 
+        filter.getFilter()).filter);
     
     try {
       NotFilter.newBuilder().build();

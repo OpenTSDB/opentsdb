@@ -50,7 +50,6 @@ public class TestQueryUtil extends UTBase {
     QueryUtil.setDataTableScanFilter(
         schema,
         scanner,
-        Lists.<byte[]>newArrayList(), 
         new ByteMap<List<byte[]>>(),
         false,
         false,
@@ -62,30 +61,12 @@ public class TestQueryUtil extends UTBase {
   }
   
   @Test
-  public void setDataTableScanFilterGroupBy() throws Exception {
-    QueryUtil.setDataTableScanFilter(
-        schema,
-        scanner,
-        Lists.<byte[]>newArrayList(new byte[] { 0, 0, 1 }), 
-        new ByteMap<List<byte[]>>(),
-        false,
-        false,
-        0);
-    verify(scanner, never()).getCurrentKey();
-    // TODO - validate the regex
-    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
-    verify(scanner, never()).setStartKey(any(byte[].class));
-    verify(scanner, never()).setStopKey(any(byte[].class));
-  }
-  
-  @Test
   public void setDataTableScanFilterTags() throws Exception {
     final ByteMap<List<byte[]>> tags = new ByteMap<List<byte[]>>();
     tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
     QueryUtil.setDataTableScanFilter(
         schema,
         scanner,
-        Lists.<byte[]>newArrayList(), 
         tags,
         false,
         false,
@@ -104,7 +85,6 @@ public class TestQueryUtil extends UTBase {
     QueryUtil.setDataTableScanFilter(
         schema,
         scanner,
-        Lists.<byte[]>newArrayList(), 
         tags,
         false,
         true,
@@ -122,8 +102,7 @@ public class TestQueryUtil extends UTBase {
     tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
     QueryUtil.setDataTableScanFilter(
         schema,
-        scanner,
-        Lists.<byte[]>newArrayList(), 
+        scanner, 
         tags,
         true,
         false,
@@ -143,7 +122,6 @@ public class TestQueryUtil extends UTBase {
     QueryUtil.setDataTableScanFilter(
         schema,
         scanner,
-        Lists.<byte[]>newArrayList(), 
         tags,
         true,
         true,

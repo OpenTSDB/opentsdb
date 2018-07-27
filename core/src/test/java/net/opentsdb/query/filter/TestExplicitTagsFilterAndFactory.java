@@ -182,7 +182,7 @@ public class TestExplicitTagsFilterAndFactory {
               .setFilter("web01")
               .setTagKey("host")
               .build())
-            .addFilter(NotFilter.newBuilder()
+            .addFilter((QueryFilter) NotFilter.newBuilder()
                 .setFilter(ChainFilter.newBuilder()
                   .addFilter(TagValueLiteralOrFilter.newBuilder()
                     .setFilter("tyrion")

@@ -62,8 +62,9 @@ import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.UnitTestException;
 
@@ -112,12 +113,16 @@ public class TestPBufSerdes {
         .setId("pbuf")
         .build();
     
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery q = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1525824000")
             .setEnd("1525827600")
+            .setAggregator("sum")
             .build())
-        .build();
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build().convert().build();
     
     QueryContext ctx = mock(QueryContext.class);
     when(ctx.query()).thenReturn(q);
@@ -291,12 +296,16 @@ public class TestPBufSerdes {
         .setId("pbuf")
         .build();
     
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery q = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1525824000")
             .setEnd("1525827600")
+            .setAggregator("sum")
             .build())
-        .build();
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build().convert().build();
     
     QueryContext ctx = mock(QueryContext.class);
     when(ctx.query()).thenReturn(q);
@@ -338,12 +347,16 @@ public class TestPBufSerdes {
         .setId("pbuf")
         .build();
     
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
+    TimeSeriesQuery q = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1525824000")
             .setEnd("1525827600")
+            .setAggregator("sum")
             .build())
-        .build();
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build().convert().build();
     
     QueryContext ctx = mock(QueryContext.class);
     when(ctx.query()).thenReturn(q);

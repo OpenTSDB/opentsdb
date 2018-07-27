@@ -41,7 +41,8 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
@@ -132,7 +133,7 @@ public class Tsdb1xScanner {
     state = State.CONTINUE;
     base_ts = new MillisecondTimeStamp(0);
     
-    if (owner.scannerFilter() != null) {
+    if (owner.filterDuringScan()) {
       keys_to_ids = new TLongObjectHashMap<ResolvingId>();
       skips = new TLongHashSet();
       keepers = new TLongHashSet();
@@ -174,7 +175,7 @@ public class Tsdb1xScanner {
     }
     
     if (row_buffer != null) {
-      if (owner.scannerFilter() != null) {
+      if (owner.filterDuringScan()) {
         processBufferWithFilter(result, span);
       } else {
         processBuffer(result, span);
@@ -425,7 +426,7 @@ public class Tsdb1xScanner {
       
       try {
         rows_scanned += rows.size();
-        if (owner.scannerFilter() != null) {
+        if (owner.filterDuringScan()) {
           final List<Deferred<Object>> deferreds = 
               Lists.newArrayListWithCapacity(rows.size());
           boolean keep_going = true;
@@ -838,14 +839,43 @@ public class Tsdb1xScanner {
       } else {
         grand_child = child;
       }
-      final List<Deferred<Boolean>> deferreds = 
-          Lists.newArrayListWithCapacity(owner.scannerFilter().getTags().size());
-      for (final TagVFilter filter : owner.scannerFilter().getTags()) {
-        deferreds.add(filter.match(id.tags()));
+
+      if (FilterUtils.matchesTags(
+          ((QuerySourceConfig) owner.node().config()).getFilter(), id.tags())) {
+        synchronized (keepers) {
+          keepers.add(hash);
+        }
+        if (grand_child != null) {
+          grand_child.setSuccessTags()
+                     .setTag("resolved", "true")
+                     .setTag("matched", "true")
+                     .finish();
+        }
+        if (child != null) {
+          child.setSuccessTags()
+               .setTag("resolved", "true")
+               .setTag("matched", "true")
+               .finish();
+        }
+        deferred.callback(true);
+      } else {
+        synchronized (skips) {
+          skips.add(hash);
+        }
+        if (grand_child != null) {
+          grand_child.setSuccessTags()
+                     .setTag("resolved", "true")
+                     .setTag("matched", "false")
+                     .finish();
+        }
+        if (child != null) {
+          child.setSuccessTags()
+               .setTag("resolved", "true")
+               .setTag("matched", "false")
+               .finish();
+        }
+        deferred.callback(false);
       }
-      Deferred.group(deferreds)
-        .addCallback(new FinalCB(grand_child))
-        .addErrback(new ErrorCB(grand_child));
       return null;
     }
     
@@ -890,56 +920,6 @@ public class Tsdb1xScanner {
                .finish();
         }
         deferred.callback(ex);
-        return null;
-      }
-    }
-    
-    class FinalCB implements Callback<Void, ArrayList<Boolean>> {
-      final Span grand_child;
-      
-      FinalCB(final Span grand_child) {
-        this.grand_child = grand_child;
-      }
-      
-      @Override
-      public Void call(final ArrayList<Boolean> results) throws Exception {
-        for (final boolean matched : results) {
-          if (!matched) {
-            synchronized (skips) {
-              skips.add(hash);
-            }
-            if (grand_child != null) {
-              grand_child.setSuccessTags()
-                         .setTag("resolved", "true")
-                         .setTag("matched", "false")
-                         .finish();
-            }
-            if (child != null) {
-              child.setSuccessTags()
-                   .setTag("resolved", "true")
-                   .setTag("matched", "false")
-                   .finish();
-            }
-            deferred.callback(false);
-            return null;
-          }
-        }
-        synchronized (keepers) {
-          keepers.add(hash);
-        }
-        if (grand_child != null) {
-          grand_child.setSuccessTags()
-                     .setTag("resolved", "true")
-                     .setTag("matched", "true")
-                     .finish();
-        }
-        if (child != null) {
-          child.setSuccessTags()
-               .setTag("resolved", "true")
-               .setTag("matched", "true")
-               .finish();
-        }
-        deferred.callback(true);
         return null;
       }
     }

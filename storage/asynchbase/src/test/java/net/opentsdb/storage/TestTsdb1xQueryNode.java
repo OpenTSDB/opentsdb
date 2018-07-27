@@ -57,6 +57,7 @@ import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -109,6 +110,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     upstream_b = mock(QueryNode.class);
     
     query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .setId("graph")
             .addNode(ExecutionGraphNode.newBuilder()

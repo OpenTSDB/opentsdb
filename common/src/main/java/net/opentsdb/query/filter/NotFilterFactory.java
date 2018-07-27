@@ -60,7 +60,7 @@ public class NotFilterFactory implements QueryFilterFactory {
           + "for type: " + type);
     }
     
-    return NotFilter.newBuilder()
+    return (QueryFilter) NotFilter.newBuilder()
         .setFilter(factory.parse(tsdb, mapper, filter))
         .build();
   }

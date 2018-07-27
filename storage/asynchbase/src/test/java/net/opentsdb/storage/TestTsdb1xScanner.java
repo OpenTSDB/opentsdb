@@ -47,8 +47,9 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.Span;
@@ -65,6 +66,7 @@ public class TestTsdb1xScanner extends UTBase {
   private Tsdb1xQueryResult results;
   private Schema schema; 
   private QueryContext context;
+  private QuerySourceConfig config;
   
   @Before
   public void before() throws Exception {
@@ -72,7 +74,9 @@ public class TestTsdb1xScanner extends UTBase {
     node = mock(Tsdb1xQueryNode.class);
     owner = mock(Tsdb1xScanners.class);
     schema = spy(new Schema(tsdb, null));
+    config = mock(QuerySourceConfig.class);
     when(owner.node()).thenReturn(node);
+    when(node.config()).thenReturn(config);
     when(node.fetchDataType(any(byte.class))).thenReturn(true);
     when(node.schema()).thenReturn(schema);
     
@@ -101,13 +105,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFilters() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -137,13 +140,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersReverse() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
@@ -174,13 +176,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersNSUI() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter("web.*")
-            .setTagk("host")
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -203,13 +204,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersNSUISkip() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter("web.*")
-            .setTagk("host")
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -232,13 +232,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersStorageException() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter("web.*")
-            .setTagk("host")
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.MULTI_SERIES_EX, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -261,13 +260,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersMultiScans() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -291,13 +289,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersThrownException() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -334,13 +331,12 @@ public class TestTsdb1xScanner extends UTBase {
   @Test
   public void scanFiltersFullNotSingleMode() throws Exception {
     when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -378,13 +374,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersFullSingleMode() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -421,13 +416,12 @@ public class TestTsdb1xScanner extends UTBase {
   @Test
   public void scanFiltersFullRowBoundaryNotSingleMode() throws Exception {
     when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -460,13 +454,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersFullRowBoundarySingleMode() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -499,13 +492,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersOwnerException() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -541,13 +533,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersSequenceEnd() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -578,13 +569,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersSequenceEndReverse() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
@@ -617,13 +607,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersSequenceEndMidRow() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
-            .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
+          .setFilter(TAGV_B_STRING + ".*")
+          .setTagKey(TAGK_STRING)
+          .build();
+  when(owner.filterDuringScan()).thenReturn(true);
+  when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(4);
@@ -654,13 +643,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void scanFiltersSequenceEndMidRowReverse() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
@@ -1017,13 +1005,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void fetchNextFiltersBuffer() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -1087,13 +1074,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void fetchNextFiltersBufferSequenceEndInBuffer() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
@@ -1160,13 +1146,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void fetchNextFiltersBufferNSUISkip() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter("web.*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
@@ -1232,13 +1217,12 @@ public class TestTsdb1xScanner extends UTBase {
   
   @Test
   public void fetchNextFiltersBufferNSUI() throws Exception {
-    final Filter filter = Filter.newBuilder()
-        .addFilter(TagVFilter.newBuilder()
+    final QueryFilter filter = TagValueRegexFilter.newBuilder()
             .setFilter("web.*")
-            .setTagk(TAGK_STRING)
-            .setType("regexp"))
-        .build();
-    when(owner.scannerFilter()).thenReturn(filter);
+            .setTagKey(TAGK_STRING)
+            .build();
+    when(owner.filterDuringScan()).thenReturn(true);
+    when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);

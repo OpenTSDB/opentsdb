@@ -43,6 +43,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
@@ -77,6 +78,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     schema = spy(new Schema(tsdb, null));
 
     query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .setId("graph")
             .addNode(ExecutionGraphNode.newBuilder()

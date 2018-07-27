@@ -35,10 +35,10 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.StatsCollector;
 
 public class BaseExecutorTest {

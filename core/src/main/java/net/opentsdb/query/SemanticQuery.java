@@ -17,6 +17,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
@@ -25,6 +26,10 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.DefaultNamedFilter;
+import net.opentsdb.query.filter.NamedFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.JSON;
@@ -49,7 +54,7 @@ public class SemanticQuery implements TimeSeriesQuery {
   private List<QuerySink> sinks;
   
   /** An optional map of filter IDs to the filters. */
-  private Map<String, Filter> filters;
+  private Map<String, NamedFilter> filters;
   
   /** The execution mode of the query. */
   private QueryMode mode;
@@ -58,13 +63,17 @@ public class SemanticQuery implements TimeSeriesQuery {
   private List<SerdesOptions> serdes_options;
   
   SemanticQuery(final Builder builder) {
+    // TODO need checks here
+    if (builder.mode == null) {
+      throw new IllegalArgumentException("Mode cannot be null.");
+    }
     execution_graph = builder.execution_graph;
     sink_configs = builder.sink_configs;
     sinks = builder.sinks;
     if (builder.filters != null) {
       filters = Maps.newHashMap();
-      for (final Filter filter : builder.filters) {
-        filters.put(filter.getId(), filter);
+      for (final NamedFilter filter : builder.filters) {
+        filters.put(filter.id(), filter);
       }
     } else {
       filters = null;
@@ -101,7 +110,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     return sinks;
   }
   
-  public List<Filter> getFilters() {
+  public List<NamedFilter> getFilters() {
     return Lists.newArrayList(filters.values());
   }
   
@@ -113,8 +122,8 @@ public class SemanticQuery implements TimeSeriesQuery {
     return serdes_options;
   }
   
-  public Filter getFilter(final String filter_id) {
-    return filters == null ? null : filters.get(filter_id);
+  public QueryFilter getFilter(final String filter_id) {
+    return filters == null ? null : filters.get(filter_id).filter();
   }
   
   @Override
@@ -140,7 +149,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     private ExecutionGraph execution_graph;
     private List<QuerySinkConfig> sink_configs;
     private List<QuerySink> sinks;
-    private List<Filter> filters;
+    private List<NamedFilter> filters;
     private QueryMode mode;
     private List<SerdesOptions> serdes_options;
     
@@ -175,12 +184,12 @@ public class SemanticQuery implements TimeSeriesQuery {
       return this;
     }
     
-    public Builder setFilters(final List<Filter> filters) {
+    public Builder setFilters(final List<NamedFilter> filters) {
       this.filters = filters;
       return this;
     }
     
-    public Builder addFilter(final Filter filter) {
+    public Builder addFilter(final NamedFilter filter) {
       if (filters == null) {
         filters = Lists.newArrayList();
       }
@@ -219,11 +228,39 @@ public class SemanticQuery implements TimeSeriesQuery {
     node = root.get("filters");
     if (node != null) {
       for (final JsonNode filter : node) {
-        try {
-          builder.addFilter(JSON.getMapper().treeToValue(filter, Filter.class));
-        } catch (JsonProcessingException e) {
-          throw new IllegalStateException("Failed to parse query", e);
+        final JsonNode id_node = filter.get("id");
+        if (id_node == null) {
+          throw new IllegalArgumentException("Filter node was missing the ID.");
         }
+        final String id = id_node.asText();
+        if (Strings.isNullOrEmpty(id)) {
+          throw new IllegalArgumentException("Filter ID cannot be null or empty.");
+        }
+        
+        final JsonNode child = filter.get("filter");
+        if (child == null) {
+          throw new IllegalArgumentException("Filter child cannot be null or empty.");
+        }
+        final JsonNode type_node = child.get("type");
+        if (type_node == null) {
+          throw new IllegalArgumentException("Filter must include a type.");
+        }
+        final String type = type_node.asText();
+        if (Strings.isNullOrEmpty(type)) {
+          throw new IllegalArgumentException("Filter type cannot be null "
+              + "or empty.");
+        }
+        final QueryFilterFactory factory = tsdb.getRegistry()
+            .getPlugin(QueryFilterFactory.class, type);
+        if (factory == null) {
+          throw new IllegalArgumentException("No filter factory found "
+              + "for type: " + type);
+        }
+        
+        builder.addFilter(DefaultNamedFilter.newBuilder()
+            .setId(id)
+            .setFilter(factory.parse(tsdb, JSON.getMapper(), child))
+            .build());
       }
     }
     

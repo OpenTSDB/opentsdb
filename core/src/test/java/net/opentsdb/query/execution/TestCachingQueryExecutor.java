@@ -121,12 +121,15 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
       .thenReturn(serdes);
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
-            .setStart("1h-ago"))
+            .setStart("1h-ago")
+            .setAggregator("sum"))
         .addMetric(Metric.newBuilder()
+            .setId("m1")
             .setMetric("system.cpu.user"))
-        .build();
+        .build()
+        .convert().build();
     when(pcontext.query()).thenReturn(query);
-    cache_execution = new MockDownstream<IteratorGroups>(query);
+   // cache_execution = new MockDownstream<IteratorGroups>(query);
     when(plugin.fetch(any(QueryContext.class), any(byte[].class), any(Span.class)))
       .thenAnswer(new Answer<QueryExecution<IteratorGroups>>() {
         @Override

@@ -59,6 +59,7 @@ import com.google.common.primitives.Bytes;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
@@ -121,6 +122,7 @@ public class TestTsdb1xMultiGet extends UTBase {
       });
     
     query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .setId("graph")
             .addNode(ExecutionGraphNode.newBuilder()

@@ -29,7 +29,7 @@ import com.google.common.collect.Sets;
  * 
  * @since 3.0
  */
-public class ExplicitTagsFilter implements TagKeyFilter {
+public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
 
   /** The filter to invert. */
   private final QueryFilter filter;
@@ -48,6 +48,11 @@ public class ExplicitTagsFilter implements TagKeyFilter {
     filter = builder.filter;
     tag_keys = Sets.newHashSet();
     processFilter(filter);
+  }
+  
+  @Override
+  public QueryFilter getFilter() {
+    return filter;
   }
   
   @Override

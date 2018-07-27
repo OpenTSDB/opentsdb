@@ -70,7 +70,7 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.WriteStatus.WriteState;
-import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
+import net.opentsdb.storage.schemas.tsdb1x.ResolvedQueryFilter;
 import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.RandomUniqueId;
 import net.opentsdb.uid.UniqueIdAssignmentAuthorizer;
