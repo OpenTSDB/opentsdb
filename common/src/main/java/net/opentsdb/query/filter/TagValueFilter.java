@@ -26,6 +26,9 @@ public interface TagValueFilter extends QueryFilter {
   /** @return The non-null and non-empty filter string. */
   public String filter();
   
+  /** @return The tag key for this filter. */
+  public String tagKey();
+  
   /**
    * Whether or not the filter is satisfied with the tag values.
    * @param tags A non-null (but possibly empty) map of tags.
