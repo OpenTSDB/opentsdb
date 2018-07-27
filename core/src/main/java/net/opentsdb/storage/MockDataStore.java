@@ -544,7 +544,8 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         }
         
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : database.entrySet()) {
-          if (!config.getMetric().equals(entry.getKey().metric())) {
+          // TODO - handle filter types
+          if (!config.getMetric().matches(entry.getKey().metric())) {
             continue;
           }
           

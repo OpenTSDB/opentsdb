@@ -50,6 +50,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -158,7 +159,9 @@ public class TestDownsampleFactory {
     QuerySourceConfig source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setStart("1970/01/01-00:00:01")
         .setEnd("1970/01/01-00:01:00")
-        .setMetric("sys.cpu.user")
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
         .setQuery(mock(TimeSeriesQuery.class))
         .setId("m1")
         .build();

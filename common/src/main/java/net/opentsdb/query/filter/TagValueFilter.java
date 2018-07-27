@@ -31,6 +31,6 @@ public interface TagValueFilter extends QueryFilter {
    * @param tags A non-null (but possibly empty) map of tags.
    * @return True if satisfied, false if not.
    */
-  public boolean match(final Map<String, String> tags);
+  public boolean matches(final Map<String, String> tags);
   
 }

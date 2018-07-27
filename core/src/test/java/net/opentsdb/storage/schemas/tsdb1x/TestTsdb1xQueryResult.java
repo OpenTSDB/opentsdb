@@ -43,6 +43,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
@@ -77,7 +78,9 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     schema = schema();
     node = mock(QueryNode.class);
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(TimeSeriesQuery.newBuilder()
@@ -122,7 +125,9 @@ public class TestTsdb1xQueryResult extends SchemaBase {
   @Test
   public void ctorOverrides() throws Exception {
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(TimeSeriesQuery.newBuilder()
@@ -379,7 +384,9 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertTrue(result.resultIsFullErrorMessage().contains("data points"));
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setMetric(METRIC_STRING)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
         .setQuery(TimeSeriesQuery.newBuilder()
