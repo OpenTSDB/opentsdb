@@ -136,7 +136,11 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
     return ExpressionConfig.class;
   }
 
-  static String validate2(ExpressionParseNode node, boolean left, final List<ExecutionGraphNode> nodes, ExecutionGraphNode downstream, int depth) {
+  static String validate2(final ExpressionParseNode node, 
+                          final boolean left, 
+                          final List<ExecutionGraphNode> nodes, 
+                          final ExecutionGraphNode downstream, 
+                          final int depth) {
     final String key = left ? (String) node.left() : (String) node.right();
     if (depth > 0 && 
         !Strings.isNullOrEmpty(downstream.getType()) && 
@@ -159,16 +163,17 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
     } else if ((!Strings.isNullOrEmpty(downstream.getType()) && 
         downstream.getType().toLowerCase().equals("datasource"))) {
       if (left && key.equals(downstream.getId())) {
-        node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric());
+        // TODO - cleanup the filter checks as it may be a regex or something else!!!
+        node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric().metric());
         return downstream.getId();
       } else if (left && 
-          key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric())) {
+          key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().metric())) {
         return downstream.getId();
         // right
       } else if (key.equals(downstream.getId())) {
-        node.setRight(((QuerySourceConfig) downstream.getConfig()).getMetric());
+        node.setRight(((QuerySourceConfig) downstream.getConfig()).getMetric().metric());
         return downstream.getId();
-      } else if (key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric())) {
+      } else if (key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().metric())) {
         return downstream.getId();
       }
     }

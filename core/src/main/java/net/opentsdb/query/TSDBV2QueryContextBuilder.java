@@ -27,13 +27,14 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.RateOptions;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.QueryStats;
@@ -234,7 +235,9 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
             .setEnd(q.getTime().getEnd())
             .setTimezone(q.getTime().getTimezone())
             .setFilterId(metric.getFilter())
-            .setMetric(metric.getMetric())
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(metric.getMetric())
+                .build())
             .setId(metric.getId())
             // TODO types
             .build();

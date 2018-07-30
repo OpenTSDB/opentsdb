@@ -19,7 +19,6 @@ import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
@@ -659,7 +658,7 @@ public class TestTimeSeriesQuery {
     assertEquals("DataSource", node.getType());
     assertNull(node.getSources());
     QuerySourceConfig ds = (QuerySourceConfig) node.getConfig();
-    assertEquals("YAMAS.cpu.idle", ds.getMetric());
+    assertEquals("YAMAS.cpu.idle", ds.getMetric().metric());
     assertEquals("f1", ds.getFilterId());
     assertEquals("3h-ago", ds.getStart());
     assertEquals("1h-ago", ds.getEnd());

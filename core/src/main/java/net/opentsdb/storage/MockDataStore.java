@@ -67,8 +67,8 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -544,7 +544,8 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         }
         
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : database.entrySet()) {
-          if (!config.getMetric().equals(entry.getKey().metric())) {
+          // TODO - handle filter types
+          if (!config.getMetric().matches(entry.getKey().metric())) {
             continue;
           }
           

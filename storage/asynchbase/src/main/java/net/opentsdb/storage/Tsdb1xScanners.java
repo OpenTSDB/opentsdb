@@ -41,13 +41,13 @@ import net.opentsdb.core.Const;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.query.filter.TagVLiteralOrFilter;
-import net.opentsdb.query.filter.TagVRegexFilter;
-import net.opentsdb.query.filter.TagVWildcardFilter;
-import net.opentsdb.query.filter.TagVWildcardFilter.TagVIWildcardFilter;
 import net.opentsdb.query.pojo.Filter;
+import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.pojo.TagVLiteralOrFilter;
+import net.opentsdb.query.pojo.TagVRegexFilter;
+import net.opentsdb.query.pojo.TagVWildcardFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.pojo.TagVWildcardFilter.TagVIWildcardFilter;
 import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
@@ -568,7 +568,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
       public Object call(final byte[] metric) throws Exception {
         if (metric == null) {
           final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.METRIC_TYPE, 
-              source_config.getMetric());
+              source_config.getMetric().metric());
           if (child != null) {
             child.setErrorTags(ex)
                  .finish();
@@ -591,7 +591,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
                 + source_config.getQuery().getClass() + " yet");
           }
           if (filter == null) {
-            throw new IllegalStateException("No filter was found for: " + source_config.getFilterId());
+            throw new IllegalStateException("No filter was found for: " 
+                + source_config.getFilterId());
           }
           
           node.schema().resolveUids(filter, child)
@@ -609,7 +610,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric(), 
+      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric().metric(), 
           child)
         .addCallback(new MetricCB())
         .addErrback(new ErrorCB());

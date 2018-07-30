@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Test;

@@ -17,7 +17,7 @@ package net.opentsdb.core;
 import java.util.HashMap;
 import java.util.List;
 
-import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.StringUtils;
 

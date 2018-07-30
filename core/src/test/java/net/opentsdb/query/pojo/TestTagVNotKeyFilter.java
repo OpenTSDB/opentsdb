@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.filter;
+package net.opentsdb.query.pojo;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -23,6 +23,9 @@ import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.pojo.TagVNotKeyFilter;
 
 public class TestTagVNotKeyFilter {
   private static final String TAGK = "host";
