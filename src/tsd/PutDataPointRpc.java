@@ -574,11 +574,11 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         writes_timedout.addAndGet(timeouts);
         final int failures = dps.size() - queued;
         if (!show_summary && !show_details) {
-          throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-              "The put call has timedout with " + good_writes 
-                + " successful writes, " + failed_writes + " failed writes and "
-                + timeouts + " timed out writes.", 
-              "Please see the TSD logs or append \"details\" to the put request");
+          query.sendReply(HttpResponseStatus.BAD_REQUEST, query.serializer().formatErrorV1(
+              new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+                  "The put call has timedout with " + good_writes + " successful writes, "
+                      + failed_writes + " failed writes and " + timeouts + " timed out writes.",
+                  "Please see the TSD logs or append \"details\" to the put request")));
         } else {
           final HashMap<String, Object> summary = new HashMap<String, Object>();
           summary.put("success", good_writes);
