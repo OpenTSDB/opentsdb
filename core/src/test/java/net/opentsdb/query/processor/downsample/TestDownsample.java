@@ -210,6 +210,9 @@ public class TestDownsample {
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.SECONDS, dr.resolution());
+    assertEquals(3600, dr.start().epoch());
+    assertEquals(43200, dr.end().epoch());
+    assertEquals(ChronoUnit.HOURS, dr.units());
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
@@ -222,6 +225,9 @@ public class TestDownsample {
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.MILLIS, dr.resolution());
+    assertEquals(1, dr.start().epoch());
+    assertEquals(43200, dr.end().epoch());
+    assertEquals(ChronoUnit.MILLIS, dr.units());
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
@@ -234,6 +240,9 @@ public class TestDownsample {
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
+    assertEquals(1, dr.start().epoch());
+    assertEquals(43200, dr.end().epoch());
+    assertEquals(ChronoUnit.MICROS, dr.units());
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
@@ -246,6 +255,9 @@ public class TestDownsample {
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
+    assertEquals(1, dr.start().epoch());
+    assertEquals(43200, dr.end().epoch());
+    assertEquals(ChronoUnit.NANOS, dr.units());
   }
   
   @Test

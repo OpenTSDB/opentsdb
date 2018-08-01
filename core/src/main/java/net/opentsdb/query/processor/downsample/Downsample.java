@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -128,7 +130,7 @@ public class Downsample extends AbstractQueryNode {
    * A downsample result that's a member class of the main node so that we share
    * the references to the config and node.
    */
-  class DownsampleResult implements QueryResult {
+  class DownsampleResult implements QueryResult, TimeSpecification {
     /** Countdown latch for closing the result set based on the upstreams. */
     private final CountDownLatch latch;
     
@@ -216,7 +218,7 @@ public class Downsample extends AbstractQueryNode {
     
     @Override
     public TimeSpecification timeSpecification() {
-      return results.timeSpecification(); // TODO - return the config;
+      return this;
     }
 
     @Override
@@ -285,12 +287,29 @@ public class Downsample extends AbstractQueryNode {
       }
     }
     
-    TimeStamp start() {
+    @Override
+    public TimeStamp start() {
       return start;
     }
     
-    TimeStamp end() {
+    @Override
+    public TimeStamp end() {
       return end;
+    }
+    
+    @Override
+    public TemporalAmount interval() {
+      return config.interval();
+    }
+
+    @Override
+    public ChronoUnit units() {
+      return config.units();
+    }
+
+    @Override
+    public ZoneId timezone() {
+      return config.timezone();
     }
     
     /**
@@ -362,6 +381,8 @@ public class Downsample extends AbstractQueryNode {
       }
       
     }
+
+    
   }
   
 }
