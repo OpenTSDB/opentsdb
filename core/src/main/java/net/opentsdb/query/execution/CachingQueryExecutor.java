@@ -26,6 +26,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
@@ -117,10 +119,10 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     throw new UnsupportedOperationException("Not implemented yet");
   }
   
-  @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return Config.class;
-  }
+//  @Override
+//  public Class<? extends QueryNodeConfig> nodeConfigClass() {
+//    return Config.class;
+//  }
   
   @Override
   public TimeSeriesDataSource newNode(final QueryPipelineContext context,
@@ -773,6 +775,13 @@ public class CachingQueryExecutor implements QuerySourceFactory {
   @VisibleForTesting
   TimeSeriesCacheKeyGenerator keyGenerator() {
     return key_generator;
+  }
+
+  @Override
+  public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+      JsonNode node) {
+    // TODO Auto-generated method stub
+    return null;
   }
 
   

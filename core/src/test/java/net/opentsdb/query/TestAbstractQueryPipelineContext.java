@@ -39,6 +39,8 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -1371,7 +1373,8 @@ public class TestAbstractQueryPipelineContext {
     }
 
     @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
       return null;
     }
     
@@ -1431,7 +1434,8 @@ public class TestAbstractQueryPipelineContext {
     }
 
     @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
       return null;
     }
     
@@ -1491,7 +1495,8 @@ public class TestAbstractQueryPipelineContext {
     }
 
     @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
       return null;
     }
     
@@ -1550,7 +1555,8 @@ public class TestAbstractQueryPipelineContext {
     }
 
     @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
       return null;
     }
 

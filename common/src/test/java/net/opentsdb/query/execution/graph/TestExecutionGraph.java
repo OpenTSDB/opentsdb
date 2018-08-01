@@ -34,6 +34,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -557,10 +558,14 @@ public class TestExecutionGraph {
     }
 
     @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
-      return MockConfigA.class;
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
+      try {
+        return (QueryNodeConfig) mapper.treeToValue(node, MockConfigA.class);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse TagValueLiteralOr", e);
+      }
     }
-    
   }
   
   @JsonInclude(Include.NON_NULL)
@@ -663,12 +668,16 @@ public class TestExecutionGraph {
     public String id() {
       return "MockFactoryB";
     }
-
-    @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
-      return MockConfigB.class;
-    }
     
+    @Override
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
+      try {
+        return (QueryNodeConfig) mapper.treeToValue(node, MockConfigB.class);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse TagValueLiteralOr", e);
+      }
+    }
   }
   
 }

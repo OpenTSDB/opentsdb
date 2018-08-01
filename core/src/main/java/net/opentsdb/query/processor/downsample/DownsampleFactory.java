@@ -18,9 +18,13 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -64,10 +68,16 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     // TODO Auto-generated method stub
     return null;
   }
-
+  
   @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return DownsampleConfig.class;
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper,
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    try {
+      return mapper.treeToValue(node, DownsampleConfig.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse config", e);
+    }
   }
   
   /**

@@ -14,6 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import net.opentsdb.core.TSDB;
+
 /**
  * The factory used to generate a {@link QueryNode} for a new query execution.
  * Implementations can be single or multi-node.
@@ -27,8 +32,15 @@ public interface QueryNodeFactory {
    * @return A non-null unique ID of the factory.
    */
   public String id();
- 
-  /** @return A class to use for serdes for configuring nodes of this
-   * type. */
-  public Class<? extends QueryNodeConfig> nodeConfigClass();
+  
+  /**
+   * Parse the given JSON or YAML into the proper node config.
+   * @param mapper A non-null mapper to use for parsing.
+   * @param tsdb The non-null TSD to pull factories from.
+   * @param node The non-null node to parse.
+   * @return An instantiated node config if successful.
+   */
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper,
+                                     final TSDB tsdb, 
+                                     final JsonNode node);
 }

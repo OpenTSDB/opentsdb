@@ -18,13 +18,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDBPlugin;
 
 /**
  * A factory used to generate {@link QueryFilter}s.
  * 
  * @since 3.0
  */
-public interface QueryFilterFactory {
+public interface QueryFilterFactory extends TSDBPlugin {
   
   /**
    * The descriptive and unique ID of the factory used during registration.

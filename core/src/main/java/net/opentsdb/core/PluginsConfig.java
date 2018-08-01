@@ -103,6 +103,7 @@ public class PluginsConfig extends Validatable {
   public static final List<String> DEFAULT_TYPES = Lists.newArrayList();
   static {
     DEFAULT_TYPES.add("net.opentsdb.query.QueryNodeFactory");
+    DEFAULT_TYPES.add("net.opentsdb.query.filter.QueryFilterFactory");
     DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
     DEFAULT_TYPES.add("net.opentsdb.query.interpolation.QueryInterpolatorFactory");
     DEFAULT_TYPES.add("net.opentsdb.storage.DatumIdValidator");

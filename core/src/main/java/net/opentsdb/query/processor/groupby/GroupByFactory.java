@@ -18,9 +18,13 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -67,8 +71,14 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return GroupByConfig.class;
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    try {
+      return mapper.treeToValue(node, GroupByConfig.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse config", e);
+    }
   }
   
   /**

@@ -14,6 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
@@ -62,10 +67,16 @@ public class TopNFactory extends BaseQueryNodeFactory {
                            final QueryNodeConfig config) {
     return new TopN(this, context, id, (TopNConfig) config);
   }
-
+  
   @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return TopNConfig.class;
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    try {
+      return mapper.treeToValue(node, TopNConfig.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse config", e);
+    }
   }
   
 }

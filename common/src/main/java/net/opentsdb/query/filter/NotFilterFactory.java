@@ -17,6 +17,7 @@ package net.opentsdb.query.filter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 
@@ -63,6 +64,26 @@ public class NotFilterFactory implements QueryFilterFactory {
     return (QueryFilter) NotFilter.newBuilder()
         .setFilter(factory.parse(tsdb, mapper, filter))
         .build();
+  }
+
+  @Override
+  public String id() {
+    return "Not";
+  }
+
+  @Override
+  public Deferred<Object> initialize(TSDB tsdb) {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
   }
 
 }

@@ -14,11 +14,17 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.filter.MetricFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
@@ -64,12 +70,7 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
   public String id() {
     return "datasource";
   }
-
-  @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return QuerySourceConfig.class;
-  }
-
+  
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -84,6 +85,84 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
   @Override
   public String version() {
     return "3.0.0";
+  }
+
+  
+  @Override
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    QuerySourceConfig.Builder builder = QuerySourceConfig.newBuilder();
+    JsonNode n = node.get("start");
+    if (n == null) {
+      throw new IllegalArgumentException("Start field is required.");
+    }
+    builder.setStart(n.asText());
+    
+    n = node.get("end");
+    if (n != null) {
+      builder.setEnd(n.asText());
+    }
+    
+    n = node.get("timezone");
+    if (n != null) {
+      builder.setTimezone(n.asText());
+    }
+    
+    // TODO - types
+    
+    n = node.get("metric");
+    if (n == null) {
+      throw new IllegalArgumentException("Missing the metric field.");
+    }
+    JsonNode type_node = n.get("type");
+    if (type_node == null) {
+      throw new IllegalArgumentException("Missing the metric type field.");
+    }
+    String type = type_node.asText();
+    if (Strings.isNullOrEmpty(type)) {
+      throw new IllegalArgumentException("Metric type field cannot be null or empty.");
+    }
+    QueryFilterFactory factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
+    if (factory == null) {
+      throw new IllegalArgumentException("No query filter factory found for: " + type);
+    }
+    QueryFilter filter = factory.parse(tsdb, mapper, n);
+    if (filter == null || !(filter instanceof MetricFilter)) {
+      throw new IllegalArgumentException("Metric query filter was not "
+          + "an instanceof MetricFilter: " + filter.getClass());
+    }
+    builder.setMetric((MetricFilter) filter);
+    
+    n = node.get("filterId");
+    if (n != null && !Strings.isNullOrEmpty(n.asText())) {
+      builder.setFilterId(n.asText());
+    } else {
+      n = node.get("filter");
+      if (n != null) {
+        type_node = n.get("type");
+        if (type_node == null) {
+          throw new IllegalArgumentException("Missing the filter type field.");
+        }
+        
+        type = type_node.asText();
+        if (Strings.isNullOrEmpty(type)) {
+          throw new IllegalArgumentException("Filter type field cannot be null or empty.");
+        }
+        
+        factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
+        if (factory == null) {
+          throw new IllegalArgumentException("No query filter factory found for: " + type);
+        }
+        filter = factory.parse(tsdb, mapper, n);
+        if (filter == null) {
+          throw new IllegalArgumentException("Unable to parse filter config.");
+        }
+        builder.setQueryFilter(filter);
+      }
+    }
+    
+    return builder.build();
   }
 
 }

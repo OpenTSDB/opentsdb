@@ -56,7 +56,7 @@ public class ChainFilter implements QueryFilter {
     }
   }
   
-  /** @return The operator to use for logical comparisson. */
+  /** @return The operator to use for logical comparison. */
   public FilterOp getOp() {
     return op;
   }
