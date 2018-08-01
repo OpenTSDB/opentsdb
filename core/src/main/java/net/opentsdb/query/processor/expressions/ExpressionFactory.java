@@ -19,10 +19,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -130,12 +134,18 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
     }
     return query_nodes;
   }
-
+  
   @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return ExpressionConfig.class;
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    try {
+      return mapper.treeToValue(node, ExpressionConfig.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse config", e);
+    }
   }
-
+  
   static String validate2(final ExpressionParseNode node, 
                           final boolean left, 
                           final List<ExecutionGraphNode> nodes, 

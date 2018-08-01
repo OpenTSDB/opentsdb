@@ -17,6 +17,7 @@ package net.opentsdb.query.filter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 
@@ -50,6 +51,26 @@ public class UTFilterFactory implements QueryFilterFactory {
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Failed to parse UTQueryFilter", e);
     }
+  }
+
+  @Override
+  public String id() {
+    return "UTFilter";
+  }
+
+  @Override
+  public Deferred<Object> initialize(TSDB tsdb) {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
   }
   
   

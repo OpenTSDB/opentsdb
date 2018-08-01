@@ -17,6 +17,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -30,7 +31,6 @@ import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
-import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.JSON;
 

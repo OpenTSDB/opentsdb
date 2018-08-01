@@ -337,15 +337,8 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
                 + "for node type: " + id);
           }
         }
-        try {
-          final QueryNodeConfig node_config = 
-              mapper.treeToValue(config, factory.nodeConfigClass());
-          node_builder.setConfig(node_config);
-          
-        } catch (JsonProcessingException e) {
-          throw new QueryExecutionException("Failed to parse config: " 
-              + node, 0, e);
-        }
+        final QueryNodeConfig node_config = factory.parseConfig(mapper, tsdb, config);
+        node_builder.setConfig(node_config);
       }
       
       builder.addNode(node_builder.build());

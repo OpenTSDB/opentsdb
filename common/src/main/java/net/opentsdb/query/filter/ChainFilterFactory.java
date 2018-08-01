@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -80,6 +81,26 @@ public class ChainFilterFactory implements QueryFilterFactory {
       builder.addFilter(factory.parse(tsdb, mapper, filter));
     }
     return builder.build();
+  }
+
+  @Override
+  public String id() {
+    return "Chain";
+  }
+
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb) {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
   }
 
 }

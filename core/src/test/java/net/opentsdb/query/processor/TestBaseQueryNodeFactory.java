@@ -30,9 +30,12 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -201,8 +204,8 @@ public class TestBaseQueryNodeFactory {
     }
 
     @Override
-    public Class<? extends QueryNodeConfig> nodeConfigClass() {
-      // TODO Auto-generated method stub
+    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
       return null;
     }
     
