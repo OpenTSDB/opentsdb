@@ -76,4 +76,20 @@ public interface AuthState {
    * be null.
    */
   public byte[] getToken();
+  
+  /**
+   * Whether or not the subject has the rights to take on the requested
+   * role for Role Based Access Control.
+   * @param role The non-null and non-empty role string.
+   * @return True if the subject has the rights, false if not.
+   */
+  public boolean hasRole(final String role);
+  
+  /**
+   * Whether or not the subject has permission to perform the given
+   * action for Role Based Access Control.
+   * @param action The non-null and non-empty action string.
+   * @return True if the subject has permission, false if not.
+   */
+  public boolean hasPermission(final String action);
 }
