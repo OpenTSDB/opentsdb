@@ -86,32 +86,15 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
   public String version() {
     return "3.0.0";
   }
-
   
   @Override
   public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
                                      final TSDB tsdb,
                                      final JsonNode node) {
     QuerySourceConfig.Builder builder = QuerySourceConfig.newBuilder();
-    JsonNode n = node.get("start");
-    if (n == null) {
-      throw new IllegalArgumentException("Start field is required.");
-    }
-    builder.setStart(n.asText());
-    
-    n = node.get("end");
-    if (n != null) {
-      builder.setEnd(n.asText());
-    }
-    
-    n = node.get("timezone");
-    if (n != null) {
-      builder.setTimezone(n.asText());
-    }
-    
     // TODO - types
     
-    n = node.get("metric");
+    JsonNode n = node.get("metric");
     if (n == null) {
       throw new IllegalArgumentException("Missing the metric field.");
     }

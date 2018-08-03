@@ -40,13 +40,13 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -3074,16 +3074,13 @@ public class TestDownsampleNumericIterator {
     when(pipeline_context.downstreamSources(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(downstream));
     
-    QuerySourceConfig source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
         .setStart(start)
         .setEnd(end)
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("system.cpu.user")
-            .build())
-        .setQuery(mock(TimeSeriesQuery.class))
-        .setId("m1")
+        .setExecutionGraph(mock(ExecutionGraph.class))
         .build();
-    when(downstream.config()).thenReturn(source_config);
+    when(pipeline_context.query()).thenReturn(query);
     
     Downsample ds = new Downsample(null, pipeline_context, null, config);
     ds.initialize(null);

@@ -316,8 +316,8 @@ public class RawQueryRpc {
 //        .setShowQuery(ts_query.getShowQuery())
 //        .setShowStats(ts_query.getShowStats())
 //        .setShowSummary(ts_query.getShowSummary())
-        .setStart(source_config.startTime())
-        .setEnd(source_config.endTime())
+        .setStart(query.startTime())
+        .setEnd(query.endTime())
         .setId("serdes")
         .build();
     

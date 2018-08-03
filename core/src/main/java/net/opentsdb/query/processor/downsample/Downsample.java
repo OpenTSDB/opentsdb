@@ -31,7 +31,6 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -45,7 +44,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.processor.ProcessorFactory;
 import net.opentsdb.rollup.RollupConfig;
 
@@ -176,38 +175,31 @@ public class Downsample extends AbstractQueryNode {
         }
       }
       
-      final Collection<TimeSeriesDataSource> sources = 
-          Downsample.this.pipelineContext().downstreamSources(Downsample.this);
-      // TODO this is really bad/ugly. There may be multiple sources
-      // encompassed in this result. So move stuff around when we fix it.
-      // MAYBE put the query filter times in the sink configs?
-      
-      final QuerySourceConfig source_config = 
-          (QuerySourceConfig) sources.iterator().next().config();
+      final SemanticQuery query = (SemanticQuery) context.query();
       if (config.runAll()) {
-        start = source_config.startTime();
-        end = source_config.endTime();
+        start = query.startTime();
+        end = query.endTime();
       } else if (config.timezone() != Const.UTC) {
-        start = new ZonedNanoTimeStamp(source_config.startTime().epoch(), 
-            source_config.startTime().nanos(), config.timezone());
+        start = new ZonedNanoTimeStamp(query.startTime().epoch(), 
+            query.startTime().nanos(), config.timezone());
         start.snapToPreviousInterval(config.intervalPart(), config.units());
-        if (start.compare(Op.LT, source_config.startTime())) {
+        if (start.compare(Op.LT, query.startTime())) {
           nextTimestamp(start);
         }
-        end = new ZonedNanoTimeStamp(source_config.endTime().epoch(), 
-            source_config.endTime().nanos(), config.timezone());
+        end = new ZonedNanoTimeStamp(query.endTime().epoch(), 
+            query.endTime().nanos(), config.timezone());
         end.snapToPreviousInterval(config.intervalPart(), config.units());
         if (end.compare(Op.LTE, start)) {
           throw new IllegalArgumentException("Snapped end time: " + end 
               + " must be greater than the start time: " + start);
         }
       } else {
-        start = source_config.startTime().getCopy();
+        start = query.startTime().getCopy();
         start.snapToPreviousInterval(config.intervalPart(), config.units());
-        if (start.compare(Op.LT, source_config.startTime())) {
+        if (start.compare(Op.LT, query.startTime())) {
           nextTimestamp(start);
         }
-        end = source_config.endTime().getCopy();
+        end = query.endTime().getCopy();
         end.snapToPreviousInterval(config.intervalPart(), config.units());
         if (end.compare(Op.LTE, start)) {
           throw new IllegalArgumentException("Snapped end time: " + end 

@@ -458,6 +458,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
   
   class LocalResult implements QueryResult, Runnable {
     final QuerySourceConfig config;
+    final SemanticQuery query;
     final QueryPipelineContext context;
     final LocalNode pipeline;
     final long sequence_id;
@@ -483,6 +484,8 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       } else {
         this.trace_span = null;
       }
+      query = (SemanticQuery) context.query();
+      System.out.println("ISETUP result from mock");
     }
     
     @Override
@@ -519,12 +522,12 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         }
         
         long start_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
-            config.startTime().msEpoch() : 
-              config.endTime().msEpoch() - ((sequence_id + 1) * ROW_WIDTH);
+            query.startTime().msEpoch() : 
+              query.endTime().msEpoch() - ((sequence_id + 1) * ROW_WIDTH);
         long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
-            config.endTime().msEpoch() : 
-              config.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
-  
+            query.endTime().msEpoch() : 
+              query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
+  System.out.println("START: " + start_ts + " END: " + end_ts);
         if (LOG.isDebugEnabled()) {
           LOG.debug("Running the filter: " + config);
         }
@@ -685,10 +688,10 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
 
     boolean hasNext(final long seqid) {
       long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
-          config.endTime().msEpoch() : 
-            config.endTime().msEpoch() - (seqid * ROW_WIDTH);
+          query.endTime().msEpoch() : 
+            query.endTime().msEpoch() - (seqid * ROW_WIDTH);
       
-      if (end_ts <= config.startTime().msEpoch()) {
+      if (end_ts <= query.startTime().msEpoch()) {
         return false;
       }
       return true;

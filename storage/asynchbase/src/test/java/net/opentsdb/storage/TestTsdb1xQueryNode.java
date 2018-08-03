@@ -111,6 +111,8 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .setId("graph")
             .addNode(ExecutionGraphNode.newBuilder()
@@ -123,8 +125,6 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
         .setId("m1")
         .build();
     
@@ -171,13 +171,22 @@ public class TestTsdb1xQueryNode extends UTBase {
   
   @Test
   public void ctorQueryOverrides() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .setId("graph")
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource"))
+            .build())
+        .build();
+    
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY, "true")
@@ -675,13 +684,21 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void resolveMetaStringTagkNSUNAllowed() throws Exception {
     // Seems the PowerMockito won't mock down to the nested classes
     // so this will actually execute the query via multi-get.
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .setId("graph")
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource"))
+            .build())
+        .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
         .setId("m1")
         .build();
@@ -745,13 +762,21 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void resolveMetaStringTagvNSUNAllowed() throws Exception {
     // Seems the PowerMockito won't mock down to the nested classes
     // so this will actually execute the query via multi-get.
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(ExecutionGraph.newBuilder()
+            .setId("graph")
+            .addNode(ExecutionGraphNode.newBuilder()
+                .setId("datasource"))
+            .build())
+        .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
         .setId("m1")
         .build();
