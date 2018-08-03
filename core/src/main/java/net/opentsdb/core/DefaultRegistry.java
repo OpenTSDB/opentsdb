@@ -32,13 +32,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
@@ -51,8 +55,6 @@ import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.execution.cache.GuavaLRUCache;
-import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -81,6 +83,10 @@ public class DefaultRegistry implements Registry {
   
   /** The TSDB to which this registry belongs. Used for reading the config. */
   private final TSDB tsdb;
+  
+  private final Map<String, TypeToken<? extends TimeSeriesDataType>> type_map;
+  
+  private final Map<TypeToken<? extends TimeSeriesDataType>, String> default_type_name_map;
   
   /** The map of data mergers. */
   private final Map<String, DataMerger<?>> data_mergers;
@@ -134,6 +140,8 @@ public class DefaultRegistry implements Registry {
     tsdb.getConfig().register(DEFAULT_GRAPHS_KEY, null, false, "TODO");
     
     this.tsdb = tsdb;
+    type_map = Maps.newHashMap();
+    default_type_name_map = Maps.newHashMap();
     data_mergers = 
         Maps.<String, DataMerger<?>>newHashMapWithExpectedSize(1);
     executor_graphs = 
@@ -146,6 +154,19 @@ public class DefaultRegistry implements Registry {
     data_stores = Maps.newHashMap();
     shared_objects = Maps.newConcurrentMap();
     cleanup_pool = Executors.newFixedThreadPool(1);
+    
+    // TODO - better registration
+    type_map.put("numeric", NumericType.TYPE);
+    type_map.put("numerictype", NumericType.TYPE);
+    type_map.put(NumericType.TYPE.toString().toLowerCase(), 
+        NumericType.TYPE);
+    type_map.put("numericsummary", NumericSummaryType.TYPE);
+    type_map.put("numericsummarytype", NumericSummaryType.TYPE);
+    type_map.put(NumericSummaryType.TYPE.toString().toLowerCase(), 
+        NumericSummaryType.TYPE);
+    
+    default_type_name_map.put(NumericType.TYPE, "Numeric");
+    default_type_name_map.put(NumericSummaryType.TYPE, "NumericSummary");
   }
   
   /**
@@ -450,6 +471,46 @@ public class DefaultRegistry implements Registry {
   
   public TimeSeriesSerdes getSerdes(final String id) {
     return serdes.get(id);
+  }
+  
+  @Override
+  public void registerType(final TypeToken<? extends TimeSeriesDataType> type, 
+                           final String name,
+                           final boolean is_default_name) {
+    if (type == null) {
+      throw new IllegalArgumentException("The type cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(name)) {
+      throw new IllegalArgumentException("The name cannot be null or "
+          + "empty.");
+    }
+    
+    if (is_default_name) {
+      final String default_name = default_type_name_map.putIfAbsent(type, name);
+      if (default_name != null && !default_name.equals(name)) {
+        throw new IllegalArgumentException("Type is already registered "
+            + "with a default name: " + default_name);
+      }
+    }
+    
+    final TypeToken<?> extant = type_map.putIfAbsent(
+        name.trim().toLowerCase(), type);
+    if (extant != null && extant != type) {
+      throw new IllegalArgumentException("The following type: " + extant 
+          + " is already registered under the name " + name);
+    }
+    
+    type_map.putIfAbsent(type.toString().toLowerCase(), type);
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType(final String name) {
+    return type_map.get(name.trim().toLowerCase());
+  }
+  
+  @Override
+  public String getDefaultTypeName(final TypeToken<? extends TimeSeriesDataType> type) {
+    return default_type_name_map.get(type);
   }
   
   /**

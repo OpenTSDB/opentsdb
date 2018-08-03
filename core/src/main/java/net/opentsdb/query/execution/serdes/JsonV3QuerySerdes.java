@@ -147,7 +147,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
             json.writeNumberField("start", result.timeSpecification().start().epoch());
             json.writeNumberField("end", result.timeSpecification().end().epoch());
             json.writeStringField("intervalISO", result.timeSpecification().interval().toString());
-            json.writeNumberField("intervalNumeric", result.timeSpecification().interval().get(result.timeSpecification().units()));
+            //json.writeNumberField("intervalNumeric", result.timeSpecification().interval().get(result.timeSpecification().units()));
             if (result.timeSpecification().timezone() != null) {
               json.writeStringField("timeZone", result.timeSpecification().timezone().toString());
             }
@@ -253,7 +253,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
                 }
                 
                 if (value.value() == null) {
-                  json.writeNull();;
+                  json.writeNull();
                 } else if (type == NumericType.TYPE) {
                   if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
                     json.writeNumber( 
@@ -278,6 +278,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
           }
           // end of the data array
           json.writeEndArray();
+          
+          // TODO - flag
+          //json.writeObjectField("executionGraph", context.query());
           
           // final end of the object.
           json.writeEndObject();

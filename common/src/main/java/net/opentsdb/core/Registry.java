@@ -16,8 +16,10 @@ package net.opentsdb.core;
 
 import java.util.concurrent.ExecutorService;
 
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
@@ -120,6 +122,35 @@ public interface Registry {
    * @return The factory if found, null if such an iterator does not exist.
    */
   public QueryIteratorFactory getQueryIteratorFactory(final String id);
+  
+  /**
+   * Registers the data type with the given name. Uses the provided name
+   * and if successful, will also register under the class name returned
+   * by {@code type.toString().toLowerCase()}.
+   * @param type A non-null type not registered yet.
+   * @param name A non-null and non-empty name to register under.
+   * @param is_default_name Whether or not this is the default name.
+   * @throws IllegalArgumentException if the name was already mapped to
+   * a different type.
+   */
+  public void registerType(final TypeToken<? extends TimeSeriesDataType> type, 
+                           final String name,
+                           final boolean is_default_name);
+  
+  /**
+   * Returns the data type associated with the given name.
+   * @param name A non-null and non-empty name.
+   * @return The type if found, null if not.
+   */
+  public TypeToken<? extends TimeSeriesDataType> getType(final String name);
+  
+  /**
+   * Returns the default name associated with the given type.
+   * @param type The non-null type.
+   * @return A non-null and non-empty string if the type is registered, 
+   * null if the type is not.
+   */
+  public String getDefaultTypeName(final TypeToken<? extends TimeSeriesDataType> type);
   
   public ReadableTimeSeriesDataStore getDefaultStore();
   
