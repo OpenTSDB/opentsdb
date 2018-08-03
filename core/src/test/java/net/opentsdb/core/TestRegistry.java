@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -33,10 +34,14 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TestPluginsConfig.MockPluginBase;
+import net.opentsdb.data.types.annotation.AnnotationType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
@@ -242,5 +247,56 @@ public class TestRegistry {
     
     assertTrue(registry.getPlugin(MockPluginBase.class, "MockTest") 
         instanceof MockPluginBase);
+  }
+
+  @Test
+  public void types() throws Exception {
+    DefaultRegistry registry = new DefaultRegistry(tsdb);
+    assertEquals(NumericType.TYPE, registry.getType("numeric"));
+    assertEquals(NumericType.TYPE, registry.getType("Numeric"));
+    assertEquals(NumericType.TYPE, registry.getType("NumericType"));
+    assertEquals(NumericType.TYPE, registry.getType(
+        NumericType.TYPE.toString()));
+    assertEquals("Numeric", registry.getDefaultTypeName(NumericType.TYPE));
+    
+    assertEquals(NumericSummaryType.TYPE, registry.getType("numericsummary"));
+    assertEquals(NumericSummaryType.TYPE, registry.getType("NumericSummary"));
+    assertEquals(NumericSummaryType.TYPE, registry.getType("NumericSummaryType"));
+    assertEquals(NumericSummaryType.TYPE, registry.getType(
+        NumericSummaryType.TYPE.toString()));
+    assertEquals("NumericSummary", registry.getDefaultTypeName(
+        NumericSummaryType.TYPE));
+    
+    registry.registerType(AnnotationType.TYPE, "String", true);
+    assertEquals(AnnotationType.TYPE, registry.getType("string"));
+    assertEquals(AnnotationType.TYPE, 
+        registry.getType(AnnotationType.TYPE.toString()));
+    
+    // same ok
+    registry.registerType(AnnotationType.TYPE, "String", true);
+    
+    // already registered the default
+    try {
+      registry.registerType(AnnotationType.TYPE, "Different", true);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // different non-default is ok.
+    registry.registerType(AnnotationType.TYPE, "Different", false);
+    
+    try {
+      registry.registerType(null, "ut", false);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.registerType(AnnotationType.TYPE, null, false);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.registerType(AnnotationType.TYPE, "", false);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
 }
