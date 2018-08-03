@@ -594,6 +594,9 @@ public class TimeSeriesQuery extends Validatable
     validate();
     
     final SemanticQuery.Builder builder = SemanticQuery.newBuilder()
+        .setStart(time.getStart())
+        .setEnd(time.getEnd())
+        .setTimeZone(time.getTimezone())
         .setMode(QueryMode.SINGLE);
     
     if (filters != null) {
@@ -653,8 +656,6 @@ public class TimeSeriesQuery extends Validatable
           .setId(metric.getId())
           .setType("DataSource")
           .setConfig(QuerySourceConfig.newBuilder()
-              .setStart(time.getStart())
-              .setEnd(time.getEnd())
               .setMetric(MetricLiteralFilter.newBuilder()
                   .setMetric(metric.getMetric())
                   .build())

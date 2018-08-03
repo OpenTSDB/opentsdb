@@ -79,6 +79,8 @@ public class TestTsdb1xQueryResult extends UTBase {
 
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(ExecutionGraph.newBuilder()
             .setId("graph")
             .addNode(ExecutionGraphNode.newBuilder()
@@ -91,8 +93,6 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
         .setId("m1")
         .build();
     final QueryPipelineContext context = mock(QueryPipelineContext.class);

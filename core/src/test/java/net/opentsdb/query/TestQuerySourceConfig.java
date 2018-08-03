@@ -14,7 +14,6 @@ package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -30,34 +29,18 @@ public class TestQuerySourceConfig {
     
     QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
-        .setStart("1h-ago")
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
         .setId("UT")
         .build();
     assertSame(query, qsc.getQuery());
-    assertEquals("1h-ago", qsc.getStart());
-    assertTrue(qsc.startTime().epoch() > 0);
     assertEquals("system.cpu.user", qsc.getMetric().metric());
     assertEquals("UT", qsc.getId());
     
     try {
       QuerySourceConfig.newBuilder()
         .setQuery(query)
-        //.setStart("1h-ago")
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("system.cpu.user")
-            .build())
-        .setId("UT")
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      QuerySourceConfig.newBuilder()
-        .setQuery(query)
-        .setStart("1h-ago")
         //.setMetric("system.cpu.user")
         .setId("UT")
         .build();

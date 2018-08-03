@@ -660,8 +660,6 @@ public class TestTimeSeriesQuery {
     QuerySourceConfig ds = (QuerySourceConfig) node.getConfig();
     assertEquals("YAMAS.cpu.idle", ds.getMetric().metric());
     assertEquals("f1", ds.getFilterId());
-    assertEquals("3h-ago", ds.getStart());
-    assertEquals("1h-ago", ds.getEnd());
     
     node = query.getExecutionGraph().getNodes().get(2);
     assertEquals("m1_Downsampler", node.getId());

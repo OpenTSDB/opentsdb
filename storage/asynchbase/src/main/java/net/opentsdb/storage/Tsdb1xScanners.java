@@ -408,7 +408,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
   byte[] setStartKey(final byte[] metric, 
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
-    long start = source_config.startTime().epoch();
+    long start = ((SemanticQuery) source_config.getQuery()).startTime().epoch();
     
     final Collection<QueryNode> rates = 
         node.pipelineContext().upstreamOfType(node, Rate.class);
@@ -462,7 +462,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
-    long end = source_config.endTime().epoch();
+    long end = ((SemanticQuery) source_config.getQuery()).endTime().epoch();
     
     if (rollup_interval != null) {
       // TODO - need rollup end time here

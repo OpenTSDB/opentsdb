@@ -49,16 +49,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** The original and complete time series query. */
   private TimeSeriesQuery query;
   
-  /** The starting timestamp of the query. */
-  private final String start;
-  private final TimeStamp start_ts;
-  
-  /** The end timestamp of the query. If null or empt, assume "now". */
-  private final String end;
-  private final TimeStamp end_ts;
-  
-  /** User's timezone used for converting absolute human readable dates */
-  private String timezone;
+  // TODO - time offsets for period over period
   
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
@@ -78,29 +69,14 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
    */
   protected QuerySourceConfig(final Builder builder) {
     super(builder);
-    if (Strings.isNullOrEmpty(builder.start)) {
-      throw new IllegalArgumentException("Start time cannot be null "
-          + "or empty.");
-    }
     if (builder.metric == null) {
       throw new IllegalArgumentException("Metric filter cannot be null.");
     }
     query = builder.query;
-    start = builder.start;
-    end = builder.end;
-    timezone = builder.timezone;
     types = builder.types;
     metric = builder.metric;
     filter_id = builder.filterId;
     filter = builder.filter;
-    start_ts = new MillisecondTimeStamp(
-        DateTime.parseDateTimeString(start, timezone));
-    if (Strings.isNullOrEmpty(end)) {
-      end_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
-    } else {
-      end_ts = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(end, timezone));
-    }
   }
   
   /** @return The non-null query object. */
@@ -111,33 +87,6 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** @param query A non-null query to replace the existing query. */
   public void setTimeSeriesQuery(final TimeSeriesQuery query) {
     this.query = query;
-  }
-  
-  /** @return user given start date/time, could be relative or absolute */
-  public String getStart() {
-    return start;
-  }
-
-  /** @return user given end date/time, could be relative, absolute or empty */
-  public String getEnd() {
-    return end;
-  }
-
-  /** @return user's timezone used for converting absolute human readable dates */
-  public String getTimezone() {
-    return timezone;
-  }
-  
-  /** @return Returns the parsed start time. 
-   * @see DateTime#parseDateTimeString(String, String) */
-  public TimeStamp startTime() {
-    return start_ts;
-  }
-  
-  /** @return Returns the parsed end time. 
-   * @see DateTime#parseDateTimeString(String, String) */
-  public TimeStamp endTime() {
-    return end_ts;
   }
   
   /** @return A list of data types to filter on. If null or empty, fetch
@@ -209,12 +158,6 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     @JsonProperty
     private TimeSeriesQuery query;
     @JsonProperty
-    private String start;
-    @JsonProperty
-    private String end;
-    @JsonProperty
-    private String timezone;
-    @JsonProperty
     private List<String> types;
     @JsonProperty
     private MetricFilter metric;
@@ -229,21 +172,6 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
      */
     public Builder setQuery(final TimeSeriesQuery query) {
       this.query = query;
-      return this;
-    }
-    
-    public Builder setStart(final String start) {
-      this.start = start;
-      return this;
-    }
-    
-    public Builder setEnd(final String end) {
-      this.end = end;
-      return this;
-    }
-    
-    public Builder setTimezone(final String timezone) {
-      this.timezone = timezone;
       return this;
     }
     
