@@ -15,9 +15,9 @@
 package net.opentsdb.query.processor;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 
+import net.opentsdb.data.TypedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +110,7 @@ public abstract class BaseMultiQueryNodeFactory
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,
@@ -124,12 +124,12 @@ public abstract class BaseMultiQueryNodeFactory
     if (sources == null || sources.isEmpty()) {
       throw new IllegalArgumentException("Sources cannot be null or empty.");
     }
-    
+
     final QueryIteratorFactory factory = iterator_factories.get(type);
     if (factory == null) {
       return null;
     }
-    return factory.newIterator(node, result, sources);
+    return new TypedIterator(factory.newIterator(node, result, sources), type);
   }
 
   /**
@@ -141,7 +141,7 @@ public abstract class BaseMultiQueryNodeFactory
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,
@@ -160,7 +160,7 @@ public abstract class BaseMultiQueryNodeFactory
     if (factory == null) {
       return null;
     }
-    return factory.newIterator(node, result, sources);
+    return new TypedIterator(factory.newIterator(node, result, sources), type);
   }
 
   @Override

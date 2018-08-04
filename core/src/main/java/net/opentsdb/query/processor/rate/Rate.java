@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
+import net.opentsdb.data.TypedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,7 +216,7 @@ public class Rate extends AbstractQueryNode {
         throw new IllegalArgumentException("Type cannot be null.");
       }
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-          ((ProcessorFactory) Rate.this.factory()).newIterator(
+          ((ProcessorFactory) Rate.this.factory()).newTypedIterator(
               type, 
               Rate.this, 
               null,
@@ -227,12 +228,12 @@ public class Rate extends AbstractQueryNode {
     }
     
     @Override
-    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
       final Collection<TypeToken<?>> types = source.types();
-      final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
           Lists.newArrayListWithCapacity(types.size());
       for (final TypeToken<?> type : types) {
-        iterators.add(((ProcessorFactory) Rate.this.factory()).newIterator(
+        iterators.add(((ProcessorFactory) Rate.this.factory()).newTypedIterator(
             type, 
             Rate.this, 
             null,
