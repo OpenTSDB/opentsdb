@@ -762,7 +762,7 @@ public class TimeSeriesQuery extends Validatable
     DownsampleConfig.Builder ds = (DownsampleConfig.Builder) DownsampleConfig.newBuilder()
         .setAggregator(downsampler.getAggregator())
         .setInterval(downsampler.getInterval())
-        .setFill(downsampler.getFillPolicy() != null ? true : false)
+        .setFill(policy != null && policy != FillPolicy.NONE ? true : false)
         .setId("downsample_" + metric.getId())
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
                   .setFillPolicy(policy)
