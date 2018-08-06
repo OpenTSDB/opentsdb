@@ -104,6 +104,11 @@ public final class TestQueryRpc {
 //      .thenReturn(Deferred.fromResult(new DataPoints[0]));
   }
   
+  @Test
+  public void stubTest() {
+    assertTrue(true);
+  }
+  
 //  @Test
 //  public void parseQueryMType() throws Exception {
 //    HttpQuery query = NettyMocks.getQuery(tsdb, 
