@@ -435,6 +435,69 @@ public final class Bytes {
     return buf.toString();
   }
 
+  /**
+   * Pretty-prints a byte array into a human-readable string, optionally
+   * in hex.
+   * @param array The (possibly {@code null}) array to pretty-print.
+   * @param force_hex Whether or not to encode in hex.
+   * @return The array in a pretty-printed string.
+   */
+  public static String pretty(final byte[] array, final boolean force_hex) {
+    if (array == null) {
+      return "null";
+    }
+    final StringBuilder buf = new StringBuilder(1 + array.length + 1);
+    pretty(buf, array, force_hex);
+    return buf.toString();
+  }
+  
+  /**
+   * Encodes the data in the buffer as escaped hex.
+   * @param buf The non-null buffer to populate.
+   * @param array The array to print.
+   * @param force_hex Whether or not to force to hex.
+   */
+  public static void pretty(final StringBuilder buf, 
+                            final byte[] array, 
+                            final boolean force_hex) {
+    if (array == null) {
+      buf.append("null");
+      return;
+    }
+    int ascii = 0;
+    final int start_length = buf.length();
+    final int n = array.length;
+    buf.ensureCapacity(start_length + 1 + n + 1);
+    buf.append('"');
+    for (int i = 0; i < n; i++) {
+      final byte b = array[i];
+      if (force_hex) {
+        buf.append("\\x")
+              .append((char) HEX[(b >>> 4) & 0x0F])
+              .append((char) HEX[b & 0x0F]);
+      } else {
+        if (' ' <= b && b <= '~') {
+          ascii++;
+          buf.append((char) b);
+        } else if (b == '\n') {
+          buf.append('\\').append('n');
+        } else if (b == '\t') {
+          buf.append('\\').append('t');
+        } else {
+          buf.append("\\x")
+            .append((char) HEX[(b >>> 4) & 0x0F])
+            .append((char) HEX[b & 0x0F]);
+        }
+      }
+    }
+    if (!force_hex && ascii < n / 2) {
+      buf.setLength(start_length);
+      buf.append(Arrays.toString(array));
+    } else {
+      buf.append('"');
+    }
+  }
+  
   // This doesn't really belong here but it doesn't belong anywhere else
   // either, so let's put it close to the other pretty-printing functions.
   /**
