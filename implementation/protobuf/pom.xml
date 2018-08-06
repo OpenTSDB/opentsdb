@@ -16,7 +16,7 @@
    
    <properties>
       <grpc.version>1.12.0</grpc.version>
-      <protobuf.version>3.5.1</protobuf.version>
+      <protobuf.version>3.6.0</protobuf.version>
    </properties>
    
    <dependencyManagement>
@@ -63,14 +63,6 @@
       <dependency>
          <groupId>com.google.protobuf</groupId>
          <artifactId>protobuf-java</artifactId>
-      </dependency>
-      <dependency>
-         <groupId>ch.qos.logback</groupId>
-         <artifactId>logback-core</artifactId>
-      </dependency>
-      <dependency>
-         <groupId>ch.qos.logback</groupId>
-         <artifactId>logback-classic</artifactId>
       </dependency>
       
       <!-- TESTING Deps. -->
@@ -231,13 +223,6 @@
                      <exclude>javax*:*</exclude>
                   </excludes>
                </artifactSet>
-               <relocations>
-                  <relocation>
-                     <!-- GRR since asynchbase still uses 2.5 we have to shade it. -->
-                     <pattern>com.google.protobuf</pattern>
-                     <shadedPattern>net.opentsdb.com.google.protobuf</shadedPattern>
-                  </relocation>
-               </relocations>
                <filters>
                   <filter>
                      <artifact>*:*</artifact>
