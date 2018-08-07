@@ -67,15 +67,6 @@ public class TestChainFilterAndFactory {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    // only one filter.
-    json = "{\"type\":\"chain\",\"filters\":["
-        + "{\"type\":\"UTQueryFilter\",\"tag\":\"host\",\"filter\":\"web01|web02\"}]}";
-    node = MAPPER.readTree(json);
-    try {
-      chain_factory.parse(tsdb, MAPPER, node);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
     // no type
     json = "{\"type\":\"chain\",\"filters\":["
         + "{\"type\":\"TagValueLiteralOr\",\"tagKey\":\"host\",\"filter\":\"web01|web02\"},"
@@ -112,14 +103,6 @@ public class TestChainFilterAndFactory {
         filter.getFilters().get(0)).filter);
     assertEquals("tyrion", ((UTQueryFilter) 
         filter.getFilters().get(1)).filter);
-    
-    try {
-      ChainFilter.newBuilder()
-          .setOp(FilterOp.OR)
-          .addFilter(new UTQueryFilter("host", "web01|web02"))
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
     
     try {
       ChainFilter.newBuilder()

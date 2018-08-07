@@ -44,9 +44,9 @@ public class ChainFilter implements QueryFilter {
    * @param builder The non-null builder.
    */
   protected ChainFilter(final Builder builder) {
-    if (builder.filters == null || builder.filters.size() < 2) {
+    if (builder.filters == null || builder.filters.size() < 1) {
       throw new IllegalArgumentException("Filters list cannot be null "
-          + "or have fewer than 2 filters.");
+          + "or have fewer than 1 filter.");
     }
     filters = builder.filters;
     if (builder.op == null) {
