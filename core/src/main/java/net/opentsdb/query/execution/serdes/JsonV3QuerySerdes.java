@@ -147,6 +147,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
             json.writeNumberField("start", result.timeSpecification().start().epoch());
             json.writeNumberField("end", result.timeSpecification().end().epoch());
             json.writeStringField("intervalISO", result.timeSpecification().interval().toString());
+            json.writeStringField("interval", result.timeSpecification().stringInterval());
             //json.writeNumberField("intervalNumeric", result.timeSpecification().interval().get(result.timeSpecification().units()));
             if (result.timeSpecification().timezone() != null) {
               json.writeStringField("timeZone", result.timeSpecification().timezone().toString());
