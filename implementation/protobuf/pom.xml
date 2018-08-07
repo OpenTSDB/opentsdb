@@ -223,6 +223,13 @@
                      <exclude>javax*:*</exclude>
                   </excludes>
                </artifactSet>
+               <relocations>
+                 <relocation>
+                   <!-- GRR since asynchbase still uses 2.5 we have to shade it. -->
+                   <pattern>com.google.protobuf</pattern>
+                   <shadedPattern>net.opentsdb.com.google.protobuf</shadedPattern>
+                 </relocation>
+               </relocations>
                <filters>
                   <filter>
                      <artifact>*:*</artifact>
