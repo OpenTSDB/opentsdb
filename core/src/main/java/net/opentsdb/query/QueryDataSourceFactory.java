@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -52,18 +53,17 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
   public QueryNode newNode(final QueryPipelineContext context, 
                            final String id,
                            final QueryNodeConfig config) {
-    final TimeSeriesDataStoreFactory factory = tsdb.getRegistry()
-        .getDefaultPlugin(TimeSeriesDataStoreFactory.class);
-      if (factory == null) {
-        throw new RuntimeException("No factory!");
-      }
+//    final TimeSeriesDataStoreFactory factory = tsdb.getRegistry()
+//        .getDefaultPlugin(TimeSeriesDataStoreFactory.class);
+//      if (factory == null) {
+//        throw new RuntimeException("No factory!");
+//      }
       
-      final ReadableTimeSeriesDataStore store = factory.newInstance(tsdb, null);
-      if (store == null) {
-        throw new QueryExecutionException("Unable to get a data store "
-            + "instance from factory: " + factory.id(), 0);
-      }
-      return store.newNode(context, id, config);
+    final ReadableTimeSeriesDataStore store = ((DefaultRegistry) tsdb.getRegistry()).getDefaultStore();
+    if (store == null) {
+      throw new QueryExecutionException("Unable to get a data store!", 0);
+    }
+    return store.newNode(context, id, config);
   }
 
   @Override

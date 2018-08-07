@@ -82,13 +82,13 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
   public static final String META_TABLE_KEY = "meta_table";
   
   /** Bigtable config keys. */
-  public static final String PROJECT_ID_KEY = "google.bigtable.project.id";
-  public static final String INSTANCE_ID_KEY = "google.bigtable.instance.id";
-  public static final String ZONE_ID_KEY = "google.bigtable.zone.id";
+  public static final String PROJECT_ID_KEY = "project.id";
+  public static final String INSTANCE_ID_KEY = "instance.id";
+  public static final String ZONE_ID_KEY = "zone.id";
   public static final String SERVICE_ACCOUNT_ENABLE_KEY = 
       "google.bigtable.auth.service.account.enable";
-  public static final String JSON_KEYFILE_KEY = "google.bigtable.auth.json.keyfile";
-  public static final String CHANNEL_COUNT_KEY = "google.bigtable.grpc.channel.count";
+  public static final String JSON_KEYFILE_KEY = "auth.json.keyfile";
+  public static final String CHANNEL_COUNT_KEY = "grpc.channel.count";
   
   // TODO  - move to common location
   public static final String MULTI_GET_CONCURRENT_KEY = "tsd.query.multiget.concurrent";
@@ -160,7 +160,7 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
     this.tsdb = factory.tsdb();
     this.id = id;
     this.schema = schema;
-    pool = Executors.newCachedThreadPool();
+    pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
     registerConfigs(id, tsdb);
     
     final Configuration config = tsdb.getConfig();
@@ -324,7 +324,6 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
                  .setTag("message", ioe.error())
                  .finish();
           }
-          System.out.println("IOE WRITE STATE: " + ioe.state());
           switch (ioe.state()) {
           case RETRY:
             return Deferred.fromResult(WriteStatus.retry(ioe.error()));
@@ -340,12 +339,10 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
         // TODO - handle different types
         long base_time = datum.value().timestamp().epoch();
         base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
-        System.out.println("TIMESTAMP : "+ base_time);
         Pair<byte[], byte[]> pair = schema.encode(datum.value(), 
             enable_appends, (int) base_time, null);
         
         if (enable_appends) {
-          System.out.println("   APPENDING");
           final ReadModifyWriteRowRequest append_request = 
               ReadModifyWriteRowRequest.newBuilder()
                 .setTableNameBytes(ByteStringer.wrap(data_table))

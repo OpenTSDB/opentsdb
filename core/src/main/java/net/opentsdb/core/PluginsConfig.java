@@ -39,6 +39,10 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.pojo.Validatable;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
+import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
@@ -460,13 +464,49 @@ public class PluginsConfig extends Validatable {
               LOG.info("Loaded plugin " + plugin.id() + " version: " 
                   + plugin.version());
               
+              class DataStoreCB implements Callback<Object, Object> {
+                @Override
+                public Object call(final Object ignored) throws Exception {
+                  final String id = plugin_config.getIsDefault() ? null : plugin_config.getId();
+                  if (plugin_config.instantiated_plugin instanceof WritableTimeSeriesDataStoreFactory &&
+                      ((DefaultRegistry) tsdb.getRegistry()).getWriteStore(id) == null) {
+                    WritableTimeSeriesDataStore store = ((WritableTimeSeriesDataStoreFactory) 
+                        plugin_config.instantiated_plugin).newStoreInstance(tsdb, id);
+                    ((DefaultRegistry) tsdb.getRegistry()).registerWriteStore(store, id);
+                  }
+
+                  if (plugin_config.instantiated_plugin instanceof TimeSeriesDataStoreFactory &&
+                      ((DefaultRegistry) tsdb.getRegistry()).getStore(id) == null) {
+                    ReadableTimeSeriesDataStore store = ((TimeSeriesDataStoreFactory)
+                        plugin_config.instantiated_plugin).newInstance(tsdb, id);
+                    ((DefaultRegistry) tsdb.getRegistry()).registerReadStore(store, id);
+                  }
+                  return null;
+                }
+              }
+              
               if (downstream != null) {
-                plugin.initialize(tsdb)
-                  .addCallback(downstream)
-                  .addErrback(new ErrorCB(index, downstream));
+                if (plugin_config.instantiated_plugin instanceof WritableTimeSeriesDataStoreFactory ||
+                    plugin_config.instantiated_plugin instanceof TimeSeriesDataStoreFactory) {
+                  plugin.initialize(tsdb)
+                    .addCallback(new DataStoreCB())
+                    .addCallback(downstream)
+                    .addErrback(new ErrorCB(index, downstream));
+                } else {
+                  plugin.initialize(tsdb)
+                    .addCallback(downstream)
+                    .addErrback(new ErrorCB(index, downstream));
+                }
               } else {
-                plugin.initialize(tsdb)
+                if (plugin_config.instantiated_plugin instanceof WritableTimeSeriesDataStoreFactory ||
+                    plugin_config.instantiated_plugin instanceof TimeSeriesDataStoreFactory) {
+                  plugin.initialize(tsdb)
+                    .addCallback(new DataStoreCB())
+                    .addErrback(new ErrorCB(-1, null));
+                } else {
+                  plugin.initialize(tsdb)
                   .addErrback(new ErrorCB(-1, null));
+                }
               }
             } else {
               // load all plugins of a type.
@@ -782,41 +822,49 @@ public class PluginsConfig extends Validatable {
   
   /** Loads the the {@link #DEFAULT_TYPES} */
   void loadDefaultTypes() {
-    if (configs == null) {
-      configs = Lists.newArrayList();
-    }
+    final List<PluginConfig> config_clones = 
+        Lists.newArrayListWithExpectedSize(configs == null ? DEFAULT_TYPES.size() :
+          configs.size() + DEFAULT_TYPES.size());
     for (final String type : DEFAULT_TYPES) {
       final PluginConfig config = PluginConfig.newBuilder()
           .setType(type)
           .build();
-      if (!configs.contains(config)) {
+      if (configs == null || !configs.contains(config)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Will try to load default plugin type: " + type);
         }
-        configs.add(config);
+        config_clones.add(config);
       }
     }
+    if (configs != null) {
+      config_clones.addAll(configs);
+    }
+    configs = config_clones;
   }
   
   /** Loads the {@link #DEFAULT_IMPLEMENTATIONS} */
   void loadDefaultInstances() {
-    if (configs == null) {
-      configs = Lists.newArrayList();
-    }
+    final List<PluginConfig> config_clones = 
+        Lists.newArrayListWithExpectedSize(configs == null ? DEFAULT_IMPLEMENTATIONS.size() :
+          configs.size() + DEFAULT_IMPLEMENTATIONS.size());
     for (final Entry<String, String> type : DEFAULT_IMPLEMENTATIONS.entrySet()) {
       final PluginConfig config = PluginConfig.newBuilder()
           .setType(type.getKey())
           .setPlugin(type.getValue())
           .setIsDefault(true)
           .build();
-      if (!configs.contains(config)) {
+      if (configs == null || !configs.contains(config)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Will try to load default plugin implementation: " 
               + type.getValue());
         }
-        configs.add(config);
+        config_clones.add(config);
       }
     }
+    if (configs != null) {
+      config_clones.addAll(configs);
+    }
+    configs = config_clones;
   }
   
   /**

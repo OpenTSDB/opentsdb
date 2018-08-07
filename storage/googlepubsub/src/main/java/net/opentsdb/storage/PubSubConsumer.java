@@ -37,6 +37,7 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
@@ -120,8 +121,7 @@ public class PubSubConsumer implements TimeSeriesDataConsumer, MessageReceiver {
           "Serdes can't be null."));
     }
     
-    data_store = tsdb.getRegistry().getDefaultPlugin(
-        WritableTimeSeriesDataStore.class);
+    data_store = ((DefaultRegistry) tsdb.getRegistry()).getDefaultWriteStore();
     if (data_store == null) {
       return Deferred.fromError(new IllegalArgumentException(
           "No default data store found."));
