@@ -211,7 +211,7 @@ public class Downsample extends AbstractQueryNode {
     
     @Override
     public TimeSpecification timeSpecification() {
-      return this;
+      return config.fill() ? this : results.timeSpecification();
     }
 
     @Override
@@ -295,6 +295,11 @@ public class Downsample extends AbstractQueryNode {
       return config.interval();
     }
 
+    @Override
+    public String stringInterval() {
+      return config.intervalAsString();
+    }
+    
     @Override
     public ChronoUnit units() {
       return config.units();
