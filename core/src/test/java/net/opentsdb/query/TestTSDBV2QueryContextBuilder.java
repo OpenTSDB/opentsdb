@@ -38,6 +38,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -76,6 +77,7 @@ public class TestTSDBV2QueryContextBuilder {
   @BeforeClass
   public static void beforeClass() throws Exception {
     TSDB = new MockTSDB();
+    TSDB.registry = mock(DefaultRegistry.class);
     STORE_FACTORY = new MockDataStoreFactory();
     TSDB.config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
     
@@ -110,8 +112,8 @@ public class TestTSDBV2QueryContextBuilder {
           return factory;
         }
       });
-    when(TSDB.registry.getDefaultPlugin(TimeSeriesDataStoreFactory.class))
-      .thenReturn(STORE_FACTORY);
+    when(((DefaultRegistry) TSDB.registry).getDefaultStore())
+      .thenReturn(new MockDataStore(TSDB, null));
     SOURCE_FACTORY = new QueryDataSourceFactory();
     SOURCE_FACTORY.initialize(TSDB).join();
   }

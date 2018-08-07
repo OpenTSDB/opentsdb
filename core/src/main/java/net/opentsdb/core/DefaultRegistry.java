@@ -65,6 +65,7 @@ import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.JSON;
 
@@ -110,6 +111,8 @@ public class DefaultRegistry implements Registry {
   
   private final Map<String, ReadableTimeSeriesDataStore> data_stores;
   
+  private final Map<String, WritableTimeSeriesDataStore> write_stores;
+  
   /** A concurrent map of shared objects used by various plugins such as 
    * connection pools, etc. */
   private final Map<String, Object> shared_objects;
@@ -152,6 +155,7 @@ public class DefaultRegistry implements Registry {
     query_plans = Maps.newHashMapWithExpectedSize(1);
     node_factories = Maps.newHashMap();
     data_stores = Maps.newHashMap();
+    write_stores = Maps.newHashMap();
     shared_objects = Maps.newConcurrentMap();
     cleanup_pool = Executors.newFixedThreadPool(1);
     
@@ -279,6 +283,13 @@ public class DefaultRegistry implements Registry {
     return factory;
   }
   
+  public void registerReadStore(final ReadableTimeSeriesDataStore store, 
+      final String id) {
+    if (data_stores.putIfAbsent(id, store) != null) {
+      throw new IllegalArgumentException("A store with the ID already exists.");
+    }
+  }
+  
   public ReadableTimeSeriesDataStore getDefaultStore() {
     return data_stores.get(null);
   }
@@ -286,6 +297,22 @@ public class DefaultRegistry implements Registry {
   public ReadableTimeSeriesDataStore getStore(final String id) {
     return data_stores.get(id);
   }
+  
+  public void registerWriteStore(final WritableTimeSeriesDataStore store, 
+      final String id) {
+    if (write_stores.putIfAbsent(id, store) != null) {
+      throw new IllegalArgumentException("A store with the ID, " + id 
+          + ", already exists for: " + store.getClass());
+    }
+  }
+  
+  public WritableTimeSeriesDataStore getDefaultWriteStore() {
+    return write_stores.get(null);
+  }
+  
+  public WritableTimeSeriesDataStore getWriteStore(final String id) {
+    return write_stores.get(id);
+  } 
   
   /**
    * Adds the given factory to the registry.

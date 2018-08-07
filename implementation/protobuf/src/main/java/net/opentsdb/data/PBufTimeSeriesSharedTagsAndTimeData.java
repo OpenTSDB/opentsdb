@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.reflect.TypeToken;
@@ -64,13 +65,24 @@ public class PBufTimeSeriesSharedTagsAndTimeData implements
         .TimeSeriesSharedTagsAndTimeData source) {
     this.source = source;
     
-    // TODO - see if we could use an MS timestamp
-    if (source.getTimestamp().getNanos() > 0 || 
-        source.getTimestamp().getZoneId() != null) {
-      timestamp = new ZonedNanoTimeStamp(
-          source.getTimestamp().getEpoch(), 
-          source.getTimestamp().getNanos(), 
-          ZoneId.of(source.getTimestamp().getZoneId()));
+    if (source.getTimestamp().getNanos() > 0 ||
+        (!Strings.isNullOrEmpty(source.getTimestamp().getZoneId()) &&
+            !source.getTimestamp().getZoneId().equals(Const.UTC.toString()))) {
+      final long nano_remainder = source.getTimestamp().getNanos() - 
+          ((source.getTimestamp().getNanos() / 1000000) * 1000000);
+      if (nano_remainder > 0 ||
+          (!Strings.isNullOrEmpty(source.getTimestamp().getZoneId()) &&
+           !source.getTimestamp().getZoneId().equals(Const.UTC.toString()))) {
+        timestamp = new ZonedNanoTimeStamp(
+            source.getTimestamp().getEpoch(), 
+            source.getTimestamp().getNanos(), 
+            Strings.isNullOrEmpty(source.getTimestamp().getZoneId()) ? 
+                Const.UTC : ZoneId.of(source.getTimestamp().getZoneId()));
+      } else {
+        timestamp = new MillisecondTimeStamp(
+            source.getTimestamp().getEpoch() * 1000L + 
+              (source.getTimestamp().getNanos() / 1000000));
+      }
     } else {
       timestamp = new SecondTimeStamp(source.getTimestamp().getEpoch());
     }

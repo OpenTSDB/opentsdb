@@ -22,10 +22,13 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 
 /**
  * Simple singleton factory that implements a default and named schemas
@@ -34,7 +37,8 @@ import net.opentsdb.storage.TimeSeriesDataStoreFactory;
  * @since 3.0
  */
 public class SchemaFactory extends BaseTSDBPlugin 
-                           implements TimeSeriesDataStoreFactory {
+                           implements TimeSeriesDataStoreFactory,
+                                      WritableTimeSeriesDataStoreFactory {
 
   /** The default schema. */
   protected volatile Schema default_schema;
@@ -44,6 +48,39 @@ public class SchemaFactory extends BaseTSDBPlugin
   
   @Override
   public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
+    // DCLP on the default.
+    if (Strings.isNullOrEmpty(id)) {
+      if (default_schema == null) {      
+        synchronized (this) {
+          if (default_schema == null) {
+            default_schema = new Schema(tsdb, null);
+            try {
+              ((DefaultRegistry) tsdb.getRegistry()).registerReadStore(default_schema, null);
+              ((DefaultRegistry) tsdb.getRegistry()).registerWriteStore(default_schema, null);
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          }
+        }
+      }
+      
+      return default_schema;
+    }
+    
+    Schema schema = schemas.get(id);
+    if (schema == null) {
+      synchronized (this) {
+        schema = schemas.get(id);
+        if (schema == null) {
+          schema = new Schema(tsdb, id);
+          schemas.put(id, schema);
+        }
+      }
+    }
+    return schema;
+  }
+
+  public WritableTimeSeriesDataStore newStoreInstance(final TSDB tsdb, final String id) {
     // DCLP on the default.
     if (Strings.isNullOrEmpty(id)) {
       if (default_schema == null) {      
@@ -69,7 +106,7 @@ public class SchemaFactory extends BaseTSDBPlugin
     }
     return schema;
   }
-
+  
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_BYTE_ID;
