@@ -1,0 +1,992 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.servlet.resources;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+import javax.servlet.ServletConfig;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.TimeoutException;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.auth.Permissions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumId;
+import net.opentsdb.data.TimeSeriesDatumStringId;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.IncomingDataPoint;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.storage.ReadableTimeSeriesDataStore;
+import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.utils.JSON;
+
+/**
+ * TODO
+ */
+@Path("api/put")
+public class PutDataPointRpc {
+  private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
+      new TypeReference<ArrayList<IncomingDataPoint>>() {};
+      
+  protected static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
+  protected static final ArrayList<Boolean> EMPTY_DEFERREDS = 
+      new ArrayList<Boolean>(0);
+  protected static final AtomicLong telnet_requests = new AtomicLong();
+  protected static final AtomicLong telnet_requests_unauthorized = new AtomicLong();
+  protected static final AtomicLong telnet_requests_forbidden = new AtomicLong();
+  protected static final AtomicLong http_requests = new AtomicLong();
+  protected static final AtomicLong http_requests_unauthorized = new AtomicLong();
+  protected static final AtomicLong http_requests_forbidden = new AtomicLong();
+  protected static final AtomicLong raw_dps = new AtomicLong();
+  protected static final AtomicLong raw_histograms = new AtomicLong();
+  protected static final AtomicLong rollup_dps = new AtomicLong();
+  protected static final AtomicLong raw_stored = new AtomicLong();
+  protected static final AtomicLong raw_histograms_stored = new AtomicLong();
+  protected static final AtomicLong rollup_stored = new AtomicLong();
+  protected static final AtomicLong hbase_errors = new AtomicLong();
+  protected static final AtomicLong unknown_errors = new AtomicLong();
+  protected static final AtomicLong invalid_values = new AtomicLong();
+  protected static final AtomicLong illegal_arguments = new AtomicLong();
+  protected static final AtomicLong unknown_metrics = new AtomicLong();
+  protected static final AtomicLong inflight_exceeded = new AtomicLong();
+  protected static final AtomicLong writes_blocked = new AtomicLong();
+  protected static final AtomicLong writes_timedout = new AtomicLong();
+  protected static final AtomicLong requests_timedout = new AtomicLong();
+  
+  /** Whether or not to send error messages back over telnet */
+  //private final boolean send_telnet_errors;
+  
+  /** The type of data point we're writing.
+   * @since 2.4 */
+  public enum DataPointType {
+    PUT("put"),
+    ROLLUP("rollup"),
+    HISTOGRAM("histogram");
+    
+    private final String name;
+    DataPointType(final String name) {
+      this.name = name;
+    }
+    
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
+  
+  /**
+   * Default Ctor
+   * @param config The TSDB config to pull from
+   */
+//  public PutDataPointRpc(final Config config) {
+//    send_telnet_errors = config.getBoolean("tsd.rpc.telnet.return_errors");
+//  }
+  
+//  @Override
+//  public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+//                                  final String[] cmd) {
+//    telnet_requests.incrementAndGet();
+//    final DataPointType type;
+//    final String command = cmd[0].toLowerCase();
+//
+//    if (command.equals("put")) {
+//      type = DataPointType.PUT;
+//      raw_dps.incrementAndGet();
+//    } else if (command.equals("rollup")) {
+//      type = DataPointType.ROLLUP;
+//      rollup_dps.incrementAndGet();
+//    } else if (command.equals("histogram")) {
+//      type = DataPointType.HISTOGRAM;
+//      raw_histograms.incrementAndGet();
+//    } else {
+//      throw new IllegalArgumentException("Unrecognized command: " + cmd[0]);
+//    }
+//
+//    String errmsg = null;
+//    try {
+//
+//      checkAuthorization(tsdb, chan, command);
+//
+//      /**
+//       * Error callback that handles passing a data point to the storage 
+//       * exception handler as well as responding to the client when HBase
+//       * is unable to write the data.
+//       */
+//      final class PutErrback implements Callback<Object, Exception> {
+//        @Override
+//        public Object call(final Exception arg) {
+//          String errmsg = null;
+//          if (arg instanceof PleaseThrottleException) {
+//            if (send_telnet_errors) {
+//              errmsg = type + ": Please throttle writes: " + arg.getMessage() + '\n';
+//            }
+//            inflight_exceeded.incrementAndGet();
+//          } else {
+//            if (send_telnet_errors) {
+//              errmsg = type + ": HBase error: " + arg.getMessage()+ '\n';
+//            }
+//            if (arg instanceof HBaseException) {
+//              hbase_errors.incrementAndGet();
+//            } else if (arg instanceof IllegalArgumentException) {
+//              illegal_arguments.incrementAndGet();
+//            } else {
+//              unknown_errors.incrementAndGet();
+//            }
+//          }
+//          
+//          // we handle the storage exceptions here so as to avoid creating yet
+//          // another callback object on every data point.
+//          handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), arg);
+//          
+//          if (send_telnet_errors) {
+//            if (chan.isConnected()) {
+//              if (chan.isWritable()) {
+//                chan.write(errmsg);
+//              } else {
+//                writes_blocked.incrementAndGet();
+//              }
+//            }
+//          }
+//          
+//          return null;
+//        }
+//        public String toString() {
+//          return "report error to channel";
+//        }
+//      }
+//      
+//      /**
+//       * Simply called to increment the success counter and log hearbeats
+//       */
+//      final class SuccessCB implements Callback<Object, Object> {
+//        @Override
+//        public Object call(final Object obj) {
+//          if (type == DataPointType.PUT) {
+//            raw_stored.incrementAndGet();
+//          } else if (type == DataPointType.ROLLUP) {
+//            rollup_stored.incrementAndGet();
+//          } else if (type == DataPointType.HISTOGRAM) {
+//            raw_histograms_stored.incrementAndGet();
+//          }
+//          return true;
+//        }
+//      }
+//      
+//      // Rollups and histos override this method in their implementation so 
+//      // that it will route properly.
+//      return importDataPoint(tsdb, cmd)
+//          .addCallback(new SuccessCB())
+//          .addErrback(new PutErrback());
+//    } catch (NumberFormatException x) {
+//      x.printStackTrace();
+//      errmsg = type + ": invalid value: " + x.getMessage() + '\n';
+//      invalid_values.incrementAndGet();
+//    } catch (NoSuchRollupForIntervalException x) {
+//      errmsg = type + ": No such rollup: " + x.getMessage() + '\n';
+//      illegal_arguments.incrementAndGet();
+//    } catch (IllegalArgumentException x) {
+//      errmsg = type + ": illegal argument: " + x.getMessage() + '\n';
+//      x.printStackTrace();
+//      illegal_arguments.incrementAndGet();
+//    } catch (NoSuchUniqueName x) {
+//      errmsg = type + ": unknown metric: " + x.getMessage() + '\n';
+//      unknown_metrics.incrementAndGet();
+//    /*} catch (NoSuchUniqueNameInCache x) {
+//      errmsg = "put: waiting for cache: " + x.getMessage() + '\n';
+//      handleStorageException(tsdb, getDataPointFromString(cmd), x); */
+//    } catch (PleaseThrottleException x) {
+//      errmsg = type + ": Throttling exception: " + x.getMessage() + '\n';
+//      inflight_exceeded.incrementAndGet();
+//      handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), x);
+//    } catch (TimeoutException tex) {
+//      errmsg = type + ": Request timed out: " + tex.getMessage() + '\n';
+//      handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), tex);
+//    } catch (RuntimeException rex) {
+//      errmsg = type + ": Unexpected runtime exception: " + rex.getMessage() + '\n';
+//      throw rex;
+//    }
+//    
+//    if (errmsg != null && chan.isConnected()) {
+//      if (chan.isWritable()) {
+//        chan.write(errmsg);
+//      } else {
+//        writes_blocked.incrementAndGet();
+//      }
+//    }
+//    return Deferred.fromResult(null);
+//  }
+//
+//  /**
+//   * Handles HTTP RPC put requests
+//   * @param tsdb The TSDB to which we belong
+//   * @param query The HTTP query from the user
+//   * @throws IOException if there is an error parsing the query or formatting 
+//   * the output
+//   * @throws BadRequestException if the user supplied bad data
+//   * @since 2.0
+//   */
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Response post(final @Context ServletConfig servlet_config, 
+                       final @Context HttpServletRequest request) throws Exception {
+    Object obj = servlet_config.getServletContext()
+        .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
+    if (obj == null) {
+      throw new WebApplicationException("Unable to pull TSDB instance from "
+          + "servlet context.",
+          Response.Status.INTERNAL_SERVER_ERROR);
+    } else if (!(obj instanceof TSDB)) {
+      throw new WebApplicationException("Object stored for as the TSDB was "
+          + "of the wrong type: " + obj.getClass(),
+          Response.Status.INTERNAL_SERVER_ERROR);
+    }
+    final TSDB tsdb = (TSDB) obj;
+    
+    List<IncomingDataPoint> dps = JSON.parseToObject(request.getInputStream(), TR_INCOMING);
+    
+    class IDWrapper implements TimeSeriesDatumStringId {
+      final IncomingDataPoint dp;
+      IDWrapper(final IncomingDataPoint dp) {
+        this.dp = dp;
+      }
+      
+      @Override
+      public TypeToken<? extends TimeSeriesId> type() {
+        return Const.TS_STRING_ID;
+      }
+
+      @Override
+      public String namespace() {
+        // TODO Auto-generated method stub
+        return null;
+      }
+
+      @Override
+      public String metric() {
+        return dp.getMetric();
+      }
+
+      @Override
+      public Map<String, String> tags() {
+        return dp.getTags();
+      }
+
+      @Override
+      public long buildHashCode() {
+        // TODO Auto-generated method stub
+        return 0;
+      }
+
+      @Override
+      public int compareTo(TimeSeriesDatumId o) {
+        // TODO Auto-generated method stub
+        return 0;
+      }
+
+    }
+
+    class ValueWrapper implements TimeSeriesValue<NumericType>, NumericType {
+      final long value;
+      final boolean is_integer;
+      final TimeStamp ts;
+      
+      ValueWrapper(final IncomingDataPoint dp) {
+        if (NumericType.looksLikeInteger(dp.getValue())) {
+          value = NumericType.parseLong(dp.getValue());
+          is_integer = true;
+        } else {
+          value = Double.doubleToLongBits(Double.parseDouble(dp.getValue()));
+          is_integer = false;
+        }
+        // TODO - proper seconds or millis
+        ts = new SecondTimeStamp(dp.getTimestamp());
+      }
+      
+      @Override
+      public boolean isInteger() {
+        return is_integer;
+      }
+
+      @Override
+      public long longValue() {
+        // TODO Auto-generated method stub
+        return value;
+      }
+
+      @Override
+      public double doubleValue() {
+        // TODO Auto-generated method stub
+        return Double.longBitsToDouble(value);
+      }
+
+      @Override
+      public double toDouble() {
+        if (is_integer) {
+          return (longValue());
+        }
+        return doubleValue();
+      }
+
+      @Override
+      public TimeStamp timestamp() {
+        return ts;
+      }
+
+      @Override
+      public NumericType value() {
+        return this;
+      }
+
+      @Override
+      public TypeToken<NumericType> type() {
+        return NumericType.TYPE;
+      }
+      
+    }
+    
+    TimeSeriesDataStoreFactory f = tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataStoreFactory.class);
+    ReadableTimeSeriesDataStore fs = f.newInstance(tsdb, null);
+    
+    WritableTimeSeriesDataStore store = (WritableTimeSeriesDataStore) fs;
+    
+    for (final IncomingDataPoint dp : dps) {
+      store.write(null, TimeSeriesDatum.wrap(new IDWrapper(dp), new ValueWrapper(dp)), null);
+    }
+    return Response.status(204).build();
+//    throws IOException {
+//    http_requests.incrementAndGet();
+//    
+//    // only accept POST
+//    if (query.method() != HttpMethod.POST) {
+//      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+//          "Method not allowed", "The HTTP method [" + query.method().getName() +
+//          "] is not permitted for this endpoint");
+//    }
+//
+//    final List<IncomingDataPoint> dps;
+//    //noinspection TryWithIdenticalCatches
+//    try {
+//      checkAuthorization(tsdb, query);
+//      dps = query.serializer()
+//              .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
+//    } catch (BadRequestException e) {
+//      illegal_arguments.incrementAndGet();
+//      throw e;
+//    } catch (IllegalArgumentException e) {
+//      illegal_arguments.incrementAndGet();
+//      throw e;
+//    }
+//    processDataPoint(tsdb, query, dps);
+  }
+//  
+//  /**
+//   * Handles one or more incoming data point types for the HTTP endpoint
+//   * to put raw, rolled up or aggregated data points
+//   * @param <T> An {@link IncomingDataPoint} class.
+//   * @param tsdb The TSDB to which we belong
+//   * @param query The query to respond to
+//   * @param dps The de-serialized data points
+//   * @throws BadRequestException if the data is invalid in some way
+//   * @since 2.4
+//   */
+//  public <T extends IncomingDataPoint> void processDataPoint(final TSDB tsdb, 
+//      final HttpQuery query, final List<T> dps) {
+//    if (dps.size() < 1) {
+//      throw new BadRequestException("No datapoints found in content");
+//    }
+//
+//    final boolean show_details = query.hasQueryStringParam("details");
+//    final boolean show_summary = query.hasQueryStringParam("summary");
+//    final boolean synchronous = query.hasQueryStringParam("sync");
+//    final int sync_timeout = query.hasQueryStringParam("sync_timeout") ? 
+//        Integer.parseInt(query.getQueryStringParam("sync_timeout")) : 0;
+//    // this is used to coordinate timeouts
+//    final AtomicBoolean sending_response = new AtomicBoolean();
+//    sending_response.set(false);
+//    
+//    final List<Map<String, Object>> details = show_details
+//        ? new ArrayList<Map<String, Object>>() : null;
+//    int queued = 0;
+//    final List<Deferred<Boolean>> deferreds = synchronous ? 
+//        new ArrayList<Deferred<Boolean>>(dps.size()) : null;
+//    
+//    for (final IncomingDataPoint dp : dps) {
+//      final DataPointType type;
+//      if (dp instanceof RollUpDataPoint) {
+//        type = DataPointType.ROLLUP;
+//        rollup_dps.incrementAndGet();
+//      } else if (dp instanceof HistogramPojo) {
+//        type = DataPointType.HISTOGRAM;
+//        raw_histograms.incrementAndGet();
+//      } else {
+//        type = DataPointType.PUT;
+//        raw_dps.incrementAndGet();
+//      }
+//
+//      /*
+//        Error back callback to handle storage failures
+//       */
+//      final class PutErrback implements Callback<Boolean, Exception> {
+//        public Boolean call(final Exception arg) {
+//          if (arg instanceof PleaseThrottleException) {
+//            inflight_exceeded.incrementAndGet();
+//          } else {
+//            hbase_errors.incrementAndGet();
+//          }
+//          
+//          if (show_details) {
+//            details.add(getHttpDetails("Storage exception: " 
+//                + arg.getMessage(), dp));
+//          }
+//          
+//          // we handle the storage exceptions here so as to avoid creating yet
+//          // another callback object on every data point.
+//          handleStorageException(tsdb, dp, arg);
+//          return false;
+//        }
+//        public String toString() {
+//          return "HTTP Put exception";
+//        }
+//      }
+//
+//      final class SuccessCB implements Callback<Boolean, Object> {
+//        @Override
+//        public Boolean call(final Object obj) {
+//          switch (type) {
+//          case PUT:
+//            raw_stored.incrementAndGet();
+//            break;
+//          case ROLLUP:
+//            rollup_stored.incrementAndGet();
+//            break;
+//          case HISTOGRAM:
+//            raw_histograms_stored.incrementAndGet();
+//            break;
+//          default:
+//            // don't care
+//          }
+//          return true;
+//        }
+//      }
+//      
+//      try {
+//        if (!dp.validate(details)) {
+//          illegal_arguments.incrementAndGet();
+//          continue;
+//        }
+//        // TODO - refactor the add calls someday or move some of this into the 
+//        // actual data point class.
+//        final Deferred<Boolean> deferred;
+//        if (type == DataPointType.HISTOGRAM) {
+//          final HistogramPojo pojo = (HistogramPojo) dp;
+//          // validation and/or conversion before storage of histograms by 
+//          // decoding then re-encoding.
+//          final Histogram hdp;
+//          if (Strings.isNullOrEmpty(dp.getValue())) {
+//            hdp = pojo.toSimpleHistogram(tsdb);
+//          } else {
+//            hdp = tsdb.histogramManager().decode(
+//                pojo.getId(), pojo.getBytes(), false);
+//          }
+//          deferred = tsdb.addHistogramPoint(
+//              pojo.getMetric(), 
+//              pojo.getTimestamp(), 
+//              tsdb.histogramManager().encode(hdp.getId(), hdp, true), 
+//              pojo.getTags())
+//                .addCallback(new SuccessCB())
+//                .addErrback(new PutErrback());
+//        } else {
+//          if (Tags.looksLikeInteger(dp.getValue())) {
+//            switch (type) {
+//            case ROLLUP:
+//            {
+//              final RollUpDataPoint rdp = (RollUpDataPoint)dp;
+//              deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
+//                  rdp.getTimestamp(), 
+//                  Tags.parseLong(rdp.getValue()), 
+//                  dp.getTags(), 
+//                  rdp.getGroupByAggregator() != null, 
+//                  rdp.getInterval(), 
+//                  rdp.getAggregator(),
+//                  rdp.getGroupByAggregator())
+//                    .addCallback(new SuccessCB())
+//                    .addErrback(new PutErrback());
+//              break;
+//            }
+//            default:
+//              deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+//                  Tags.parseLong(dp.getValue()), dp.getTags())
+//                  .addCallback(new SuccessCB())
+//                  .addErrback(new PutErrback());
+//            }
+//          } else {
+//            switch (type) {
+//            case ROLLUP:
+//            {
+//              final RollUpDataPoint rdp = (RollUpDataPoint)dp;
+//              deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
+//                  rdp.getTimestamp(), 
+//                  (Tags.fitsInFloat(dp.getValue()) ? 
+//                      Float.parseFloat(dp.getValue()) :
+//                        Double.parseDouble(dp.getValue())), 
+//                    dp.getTags(), 
+//                  rdp.getGroupByAggregator() != null, 
+//                  rdp.getInterval(), 
+//                  rdp.getAggregator(),
+//                  rdp.getGroupByAggregator())
+//                    .addCallback(new SuccessCB())
+//                    .addErrback(new PutErrback());
+//              break;
+//            }
+//            default:
+//              deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+//                  (Tags.fitsInFloat(dp.getValue()) ? 
+//                      Float.parseFloat(dp.getValue()) :
+//                        Double.parseDouble(dp.getValue())), 
+//                    dp.getTags())
+//                  .addCallback(new SuccessCB())
+//                  .addErrback(new PutErrback());
+//            }
+//          }
+//        }
+//        ++queued;
+//        if (synchronous) {
+//          deferreds.add(deferred);
+//        }
+//        
+//      } catch (NumberFormatException x) {
+//        if (show_details) {
+//          details.add(getHttpDetails("Unable to parse value to a number",
+//              dp));
+//        }
+//        LOG.warn("Unable to parse value to a number: " + dp);
+//        invalid_values.incrementAndGet();
+//      } catch (IllegalArgumentException iae) {
+//        if (show_details) {
+//          details.add(getHttpDetails(iae.getMessage(), dp));
+//        }
+//        LOG.warn(iae.getMessage() + ": " + dp);
+//        illegal_arguments.incrementAndGet();
+//      } catch (NoSuchUniqueName nsu) {
+//        if (show_details) {
+//          details.add(getHttpDetails("Unknown metric", dp));
+//        }
+//        LOG.warn("Unknown metric: " + dp);
+//        unknown_metrics.incrementAndGet();
+//      } catch (PleaseThrottleException x) {
+//        handleStorageException(tsdb, dp, x);
+//        if (show_details) {
+//          details.add(getHttpDetails("Please throttle", dp));
+//        }
+//        inflight_exceeded.incrementAndGet();
+//      } catch (TimeoutException tex) {
+//        handleStorageException(tsdb, dp, tex);
+//        if (show_details) {
+//          details.add(getHttpDetails("Timeout exception", dp));
+//        }
+//        requests_timedout.incrementAndGet();
+//      /*} catch (NoSuchUniqueNameInCache x) {
+//        handleStorageException(tsdb, dp, x);
+//        if (show_details) {
+//          details.add(getHttpDetails("Not cached yet", dp));
+//        } */
+//      } catch (RuntimeException e) {
+//        if (show_details) {
+//          details.add(getHttpDetails("Unexpected exception", dp));
+//        }
+//        LOG.warn("Unexpected exception: " + dp);
+//        unknown_errors.incrementAndGet();
+//      }
+//    }
+//
+//    /** A timer task that will respond to the user with the number of timeouts
+//     * for synchronous writes. */
+//    class PutTimeout implements TimerTask {
+//      final int queued;
+//      public PutTimeout(final int queued) {
+//        this.queued = queued;
+//      }
+//      @Override
+//      public void run(final Timeout timeout) throws Exception {
+//        if (sending_response.get()) {
+//          if (LOG.isDebugEnabled()) {
+//            LOG.debug("Put data point call " + query + 
+//                " already responded successfully");
+//          }
+//          return;
+//        } else {
+//          sending_response.set(true);
+//        }
+//        
+//        // figure out how many writes are outstanding
+//        int good_writes = 0;
+//        int failed_writes = 0;
+//        int timeouts = 0;
+//        for (int i = 0; i < deferreds.size(); i++) {
+//          try {
+//            if (deferreds.get(i).join(1)) {
+//              ++good_writes;
+//            } else {
+//              ++failed_writes;
+//            }
+//          } catch (TimeoutException te) {
+//            if (show_details) {
+//              details.add(getHttpDetails("Write timedout", dps.get(i)));
+//            }
+//            ++timeouts;
+//          }
+//        }
+//        writes_timedout.addAndGet(timeouts);
+//        final int failures = dps.size() - queued;
+//        if (!show_summary && !show_details) {
+//          throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//              "The put call has timedout with " + good_writes 
+//                + " successful writes, " + failed_writes + " failed writes and "
+//                + timeouts + " timed out writes.", 
+//              "Please see the TSD logs or append \"details\" to the put request");
+//        } else {
+//          final HashMap<String, Object> summary = new HashMap<String, Object>();
+//          summary.put("success", good_writes);
+//          summary.put("failed", failures + failed_writes);
+//          summary.put("timeouts", timeouts);
+//          if (show_details) {
+//            summary.put("errors", details);
+//          }
+//          
+//          query.sendReply(HttpResponseStatus.BAD_REQUEST, 
+//              query.serializer().formatPutV1(summary));
+//        }
+//      }
+//    }
+//    
+//    // now after everything has been sent we can schedule a timeout if so
+//    // the caller asked for a synchronous write.
+//    final Timeout timeout = sync_timeout > 0 ? 
+//        tsdb.getTimer().newTimeout(new PutTimeout(queued), sync_timeout, 
+//            TimeUnit.MILLISECONDS) : null;
+//    
+//    /** Serializes the response to the client */
+//    class GroupCB implements Callback<Object, ArrayList<Boolean>> {
+//      final int queued;
+//      public GroupCB(final int queued) {
+//        this.queued = queued;
+//      }
+//      
+//      @Override
+//      public Object call(final ArrayList<Boolean> results) {
+//        if (sending_response.get()) {
+//          if (LOG.isDebugEnabled()) {
+//            LOG.debug("Put data point call " + query + " was marked as timedout");
+//          }
+//          return null;
+//        } else {
+//          sending_response.set(true);
+//          if (timeout != null) {
+//            timeout.cancel();
+//          }
+//        }
+//        int good_writes = 0;
+//        int failed_writes = 0;
+//        for (final boolean result : results) {
+//          if (result) {
+//            ++good_writes;
+//          } else {
+//            ++failed_writes;
+//          }
+//        }
+//        
+//        final int failures = dps.size() - queued;
+//        if (!show_summary && !show_details) {
+//          if (failures + failed_writes > 0) {
+//            query.sendReply(HttpResponseStatus.BAD_REQUEST, 
+//                query.serializer().formatErrorV1(
+//                    new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//                "One or more data points had errors", 
+//                "Please see the TSD logs or append \"details\" to the put request")));
+//          } else {
+//            query.sendReply(HttpResponseStatus.NO_CONTENT, "".getBytes());
+//          }
+//        } else {
+//          final HashMap<String, Object> summary = new HashMap<String, Object>();
+//          if (sync_timeout > 0) {
+//            summary.put("timeouts", 0);
+//          }
+//          summary.put("success", results.isEmpty() ? queued : good_writes);
+//          summary.put("failed", failures + failed_writes);
+//          if (show_details) {
+//            summary.put("errors", details);
+//          }
+//          
+//          if (failures > 0) {
+//            query.sendReply(HttpResponseStatus.BAD_REQUEST, 
+//                query.serializer().formatPutV1(summary));
+//          } else {
+//            query.sendReply(query.serializer().formatPutV1(summary));
+//          }
+//        }
+//        
+//        return null;
+//      }
+//      @Override
+//      public String toString() {
+//        return "put data point serialization callback";
+//      }
+//    }
+//    
+//    /** Catches any unexpected exceptions thrown in the callback chain */
+//    class ErrCB implements Callback<Object, Exception> {
+//      @Override
+//      public Object call(final Exception e) throws Exception {
+//        if (sending_response.get()) {
+//          if (LOG.isDebugEnabled()) {
+//            LOG.debug("ERROR point call " + query + " was marked as timedout", e);
+//          }
+//          return null;
+//        } else {
+//          sending_response.set(true);
+//          if (timeout != null) {
+//            timeout.cancel();
+//          }
+//        }
+//        LOG.error("Unexpected exception", e);
+//        throw new RuntimeException("Unexpected exception", e);
+//      }
+//      @Override
+//      public String toString() {
+//        return "put data point error callback";
+//      }
+//    }
+//    
+//    if (synchronous) {
+//      Deferred.groupInOrder(deferreds)
+//        .addCallback(new GroupCB(queued))
+//        .addErrback(new ErrCB());
+//    } else {
+//      new GroupCB(queued).call(EMPTY_DEFERREDS);
+//    }
+//  }
+//  
+//  /**
+//   * Collects the stats and metrics tracked by this instance.
+//   * @param collector The collector to use.
+//   */
+//  public static void collectStats(final StatsCollector collector) {
+//    collector.record("rpc.forbidden", telnet_requests_forbidden, "type=telnet");
+//    collector.record("rpc.unauthorized", telnet_requests_unauthorized, "type=telnet");
+//    collector.record("rpc.forbidden", http_requests_forbidden, "type=http");
+//    collector.record("rpc.unauthorized", http_requests_unauthorized, "type=http");
+//    collector.record("rpc.received", http_requests, "type=put");
+//    collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
+//    collector.record("rpc.errors", invalid_values, "type=invalid_values");
+//    collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
+//    collector.record("rpc.errors", unknown_metrics, "type=unknown_metrics");
+//    collector.record("rpc.errors", writes_blocked, "type=socket_writes_blocked");
+//  }
+//
+//  /**
+//   * Imports a single data point.
+//   * @param tsdb The TSDB to import the data point into.
+//   * @param words The words describing the data point to import, in
+//   * the following format: {@code [metric, timestamp, value, ..tags..]}
+//   * @return A deferred object that indicates the completion of the request.
+//   * @throws NumberFormatException if the timestamp or value is invalid.
+//   * @throws IllegalArgumentException if any other argument is invalid.
+//   * @throws NoSuchUniqueName if the metric isn't registered.
+//   */
+//  protected Deferred<Object> importDataPoint(final TSDB tsdb, 
+//                                             final String[] words) {
+//    words[0] = null; // Ditch the "put".
+//    if (words.length < 5) {  // Need at least: metric timestamp value tag
+//      //               ^ 5 and not 4 because words[0] is "put".
+//      throw new IllegalArgumentException("not enough arguments"
+//                                         + " (need least 4, got " 
+//                                         + (words.length - 1) + ')');
+//    }
+//    final String metric = words[1];
+//    if (metric.length() <= 0) {
+//      throw new IllegalArgumentException("empty metric name");
+//    }
+//    final long timestamp;
+//    if (words[2].contains(".")) {
+//      timestamp = Tags.parseLong(words[2].replace(".", "")); 
+//    } else {
+//      timestamp = Tags.parseLong(words[2]);
+//    }
+//    if (timestamp <= 0) {
+//      throw new IllegalArgumentException("invalid timestamp: " + timestamp);
+//    }
+//    final String value = words[3];
+//    if (value.length() <= 0) {
+//      throw new IllegalArgumentException("empty value");
+//    }
+//    final HashMap<String, String> tags = new HashMap<String, String>();
+//    for (int i = 4; i < words.length; i++) {
+//      if (!words[i].isEmpty()) {
+//        Tags.parse(tags, words[i]);
+//      }
+//    }
+//    if (Tags.looksLikeInteger(value)) {
+//      return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
+//    } else if (Tags.fitsInFloat(value)) {  // floating point value
+//      return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
+//    } else {
+//      return tsdb.addPoint(metric, timestamp, Double.parseDouble(value), tags);
+//    }
+//  }
+//  
+//  /**
+//   * Converts the string array to an IncomingDataPoint. WARNING: This method
+//   * does not perform validation. It should only be used by the Telnet style
+//   * {@code execute} above within the error callback. At that point it means
+//   * the array parsed correctly as per {@code importDataPoint}.
+//   * @param tsdb The TSDB for encoding/decoding.
+//   * @param words The array of strings representing a data point
+//   * @return An incoming data point object.
+//   */
+//  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb, 
+//                                                     final String[] words) {
+//    final IncomingDataPoint dp = new IncomingDataPoint();
+//    dp.setMetric(words[1]);
+//    
+//    if (words[2].contains(".")) {
+//      dp.setTimestamp(Tags.parseLong(words[2].replace(".", ""))); 
+//    } else {
+//      dp.setTimestamp(Tags.parseLong(words[2]));
+//    }
+//    
+//    dp.setValue(words[3]);
+//    
+//    final HashMap<String, String> tags = new HashMap<String, String>();
+//    for (int i = 4; i < words.length; i++) {
+//      if (!words[i].isEmpty()) {
+//        Tags.parse(tags, words[i]);
+//      }
+//    }
+//    dp.setTags(tags);
+//    return dp;
+//  }
+//  
+//  /**
+//   * Simple helper to format an error trying to save a data point
+//   * @param message The message to return to the user
+//   * @param dp The datapoint that caused the error
+//   * @return A hashmap with information
+//   * @since 2.0
+//   */
+//  final private HashMap<String, Object> getHttpDetails(final String message, 
+//      final IncomingDataPoint dp) {
+//    final HashMap<String, Object> map = new HashMap<String, Object>();
+//    map.put("error", message);
+//    map.put("datapoint", dp);
+//    return map;
+//  }
+//  
+//  /**
+//   * Passes a data point off to the storage handler plugin if it has been
+//   * configured. 
+//   * @param tsdb The TSDB from which to grab the SEH plugin
+//   * @param dp The data point to process
+//   * @param e The exception that caused this
+//   */
+//  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
+//      final Exception e) {
+//    final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
+//    if (handler != null) {
+//      handler.handleError(dp, e);
+//    }
+//  }
+//
+//  private void checkAuthorization(final TSDB tsdb, final HttpQuery query) {
+//    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+//      Authentication authentication = tsdb.getAuth();
+//      try {
+//        if (authentication.isReady(tsdb, query.channel())) {
+//          AuthState authState = (AuthState) query.channel().getAttachment();
+//          Authorization authorization = authentication.authorization();
+//          if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+//            http_requests_forbidden.incrementAndGet();
+//            throw new BadRequestException(HttpResponseStatus.FORBIDDEN, "Forbidden for " + query.getQueryPath());
+//          }
+//        } else {
+//          http_requests_unauthorized.incrementAndGet();
+//          throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, "Unauthorized for " + query.getQueryPath());
+//        }
+//      } catch (BadRequestException e) {
+//        http_requests_unauthorized.incrementAndGet();
+//        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, "Unable to check Authentication for" + query.getQueryPath());
+//      }
+//    }
+//    // No exceptions thrown, everything is fine.
+//  }
+//
+//  private void checkAuthorization(final TSDB tsdb, final Channel chan, final String command) {
+//    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+//      Authentication authentication = tsdb.getAuth();
+//      try {
+//        if (authentication == null) {
+//          throw new IllegalStateException("Authentication is enabled but the Authentication class is NULL");
+//        } else if (authentication.isReady(tsdb, chan)) {
+//          AuthState authState = (AuthState) chan.getAttachment();
+//          Authorization authorization = authentication.authorization();
+//          if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+//            telnet_requests_forbidden.incrementAndGet();
+//            throw new IllegalArgumentException("Unauthorized command: " + command);
+//          }
+//        } else {
+//          telnet_requests_unauthorized.incrementAndGet();
+//          throw new IllegalArgumentException("Unauthenticated command: " + command);
+//        }
+//      } catch (BadRequestException e) {
+//        telnet_requests_unauthorized.incrementAndGet();
+//        throw new IllegalArgumentException("Unable to check Authentication for command: " + command);
+//      }
+//    }
+//    // No exceptions thrown, everything is fine.
+//  }
+}

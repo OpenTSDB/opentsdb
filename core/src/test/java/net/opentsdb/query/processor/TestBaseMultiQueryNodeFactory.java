@@ -24,11 +24,13 @@ import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.data.TypedIterator;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -104,42 +106,42 @@ public class TestBaseMultiQueryNodeFactory {
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Test
   public void newIteratorList() throws Exception {
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        mock(Iterator.class);
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
+        mock(TypedIterator.class);
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
     when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), anyCollection()))
-      .thenReturn((Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) iterator);
+      .thenReturn(iterator);
     QueryNode node = mock(QueryNode.class);
     MockNodeFactory factory = new MockNodeFactory("Mock!");
     
-    assertNull(factory.newIterator(NumericType.TYPE, node, null,
+    assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,
         Lists.newArrayList(mock(TimeSeries.class))));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory = 
-        factory.newIterator(NumericType.TYPE, node, null,
-            Lists.<TimeSeries>newArrayList(mock(TimeSeries.class)));
-    assertSame(iterator, from_factory);
+    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory =
+        factory.newTypedIterator(NumericType.TYPE, node, null,
+            Lists.newArrayList(mock(TimeSeries.class)));
+    assertSame(iterator, from_factory.getIterator());
     
     try {
-      factory.newIterator(null, node, null,
+      factory.newTypedIterator(null, node, null,
           Lists.newArrayList(mock(TimeSeries.class)));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, null, null,
+      factory.newTypedIterator(NumericType.TYPE, null, null,
           Lists.newArrayList(mock(TimeSeries.class)));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,(Collection) null);
+      factory.newTypedIterator(NumericType.TYPE, node, null,(Collection) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,Lists.newArrayList());
+      factory.newTypedIterator(NumericType.TYPE, node, null,Lists.newArrayList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -147,40 +149,40 @@ public class TestBaseMultiQueryNodeFactory {
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Test
   public void newIteratorMap() throws Exception {
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        mock(Iterator.class);
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
+        mock(TypedIterator.class);
     Map<String, TimeSeries> sources = Maps.newHashMap();
     sources.put("a", mock(TimeSeries.class));
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
     when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), anyMap()))
-      .thenReturn((Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) iterator);
+      .thenReturn(iterator);
     QueryNode node = mock(QueryNode.class);
     MockNodeFactory factory = new MockNodeFactory("Mock!");
     
-    assertNull(factory.newIterator(NumericType.TYPE, node, null,sources));
+    assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,sources));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory = 
-        factory.newIterator(NumericType.TYPE, node, null,sources);
-    assertSame(iterator, from_factory);
+    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory =
+        factory.newTypedIterator(NumericType.TYPE, node, null,sources);
+    assertSame(iterator, from_factory.getIterator());
     
     try {
-      factory.newIterator(null, node, null,sources);
+      factory.newTypedIterator(null, node, null,sources);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, null, null,sources);
+      factory.newTypedIterator(NumericType.TYPE, null, null,sources);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,(Map) null);
+      factory.newTypedIterator(NumericType.TYPE, node, null,(Map) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, null,Maps.newHashMap());
+      factory.newTypedIterator(NumericType.TYPE, node, null,Maps.newHashMap());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

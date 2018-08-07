@@ -32,7 +32,7 @@ import net.opentsdb.common.Const;
  * <p>
  * @since 3.0
  */
-public class SecondTimeStamp implements TimeStamp {
+public class SecondTimeStamp implements TimeStamp, Comparable<SecondTimeStamp> {
   /** The timestamp. */
   private long timestamp;
   
@@ -222,5 +222,13 @@ public class SecondTimeStamp implements TimeStamp {
     snapper.snapToPreviousInterval(interval, units, day_of_week);
     timestamp = snapper.epoch();
   }
-  
+
+  @Override
+  public int compareTo(SecondTimeStamp o) {
+    if (timestamp == o.timestamp) {
+      return 0;
+    }
+    return timestamp > o.timestamp ? 1 : -1;
+  }
+
 }

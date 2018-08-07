@@ -28,6 +28,7 @@ import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.servlet.resources.ExpressionRpc;
 import net.opentsdb.servlet.resources.JMXResource;
+import net.opentsdb.servlet.resources.PutDataPointRpc;
 import net.opentsdb.servlet.resources.QueryRpc;
 import net.opentsdb.servlet.resources.RawQueryRpc;
 
@@ -70,6 +71,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       register(QueryRpc.class);
       register(ExpressionRpc.class);
       register(RawQueryRpc.class);
+      register(PutDataPointRpc.class);
       register(JMXResource.class);
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));

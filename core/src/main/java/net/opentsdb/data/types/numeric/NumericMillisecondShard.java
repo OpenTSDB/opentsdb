@@ -33,6 +33,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TypedIterator;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.utils.Bytes;
 
@@ -255,8 +256,7 @@ public class NumericMillisecondShard implements TimeSeries,
     return new LocalIterator();
   }
   
-  protected class LocalIterator implements Iterator<TimeSeriesValue<?>>,
-                                           TimeSeriesValue<NumericType> {
+  protected class LocalIterator extends TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> implements TimeSeriesValue<NumericType> {
     private int read_offset_idx;
     private int read_value_idx;
     private int write_idx;
@@ -264,6 +264,7 @@ public class NumericMillisecondShard implements TimeSeries,
     private TimeStamp timestamp;
     
     protected LocalIterator() {
+      super(null, NumericType.TYPE);
       dp = new MutableNumericValue();
       timestamp = new MillisecondTimeStamp(0);
       write_idx = write_offset_idx;
@@ -341,9 +342,10 @@ public class NumericMillisecondShard implements TimeSeries,
 
   @SuppressWarnings("unchecked")
   @Override
-  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+
     return Lists.
-        <Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>newArrayList(
+        <TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>>newArrayList(
             new LocalIterator());
   }
 
