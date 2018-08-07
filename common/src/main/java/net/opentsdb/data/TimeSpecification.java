@@ -49,6 +49,9 @@ public interface TimeSpecification {
    */
   public TemporalAmount interval();
   
+  /** @return The non-null string interval representing {@link #interval()}. */
+  public String stringInterval();
+  
   /**
    * The units of time the interval represents.
    * @return A non-null unit.
