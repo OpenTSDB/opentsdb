@@ -74,11 +74,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
                                      final TSDB tsdb,
                                      final JsonNode node) {
-    try {
-      return mapper.treeToValue(node, GroupByConfig.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to parse config", e);
-    }
+    return GroupByConfig.parse(mapper, tsdb, node);
   }
   
   /**

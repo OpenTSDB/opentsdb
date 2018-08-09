@@ -37,7 +37,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     assertEquals(FillPolicy.NOT_A_NUMBER, config.fillPolicy());
     assertEquals(FillWithRealPolicy.PREFER_NEXT, config.realFillPolicy());
@@ -46,7 +46,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(null)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -55,7 +55,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         //.setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -64,7 +64,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(null)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -73,7 +73,7 @@ public class TestNumericInterpolatorConfig {
       NumericInterpolatorConfig.newBuilder()
         //.setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -93,7 +93,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     QueryFillPolicy<NumericType> fill = config.queryFill();
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
@@ -101,7 +101,7 @@ public class TestNumericInterpolatorConfig {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill = config.queryFill();
     assertNull(fill.fill());
@@ -109,7 +109,7 @@ public class TestNumericInterpolatorConfig {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill = config.queryFill();
     assertNull(fill.fill());
@@ -117,7 +117,7 @@ public class TestNumericInterpolatorConfig {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.ZERO)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill = config.queryFill();
     assertEquals(0, fill.fill().longValue());
@@ -129,8 +129,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
-        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setDataType(NumericType.TYPE.toString())
         .setId("ni")
         .build();
     
@@ -138,8 +137,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
-        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setDataType(NumericType.TYPE.toString())
         .setId("ni")
         .build();
     assertEquals(c1.hashCode(), c2.hashCode());
@@ -150,8 +148,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.MAX) // <-- DIFF
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
-        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setDataType(NumericType.TYPE.toString())
         .setId("ni")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -162,8 +159,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS) // <-- DIFF
-        .setType(NumericType.TYPE.toString())
-        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setDataType(NumericType.TYPE.toString())
         .setId("ni")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -174,8 +170,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericSummaryType.TYPE.toString()) // <-- DIFF
-        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setDataType(NumericSummaryType.TYPE.toString()) // <-- DIFF
         .setId("ni")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -186,20 +181,7 @@ public class TestNumericInterpolatorConfig {
         NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
-        .setConfigType(NumericInterpolatorConfig.class.getSimpleName()) // <-- DIFF
-        .setId("ni")
-        .build();
-    assertNotEquals(c1.hashCode(), c2.hashCode());
-    assertNotEquals(c1, c2);
-    assertEquals(1, c1.compareTo(c2));
-    
-    c2 = (NumericInterpolatorConfig) 
-        NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
-        .setConfigType(NumericInterpolatorConfig.class.getCanonicalName())
+        .setDataType(NumericType.TYPE.toString())
         .setId("foo") // <-- DIFF
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());

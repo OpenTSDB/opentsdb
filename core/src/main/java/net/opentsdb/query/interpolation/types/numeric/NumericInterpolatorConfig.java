@@ -26,8 +26,10 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
@@ -84,11 +86,17 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   @Override
+  public TypeToken<? extends TimeSeriesDataType> type() {
+    return NumericType.TYPE;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
         .putString(id != null ? id : "null", Const.UTF8_CHARSET)
-        .putString(type, Const.ASCII_CHARSET)
-        .putString(config_type != null ? config_type : "null", Const.ASCII_CHARSET)
+        .putString(interpolator_type != null ? interpolator_type : "null", 
+            Const.ASCII_CHARSET)
+        .putString(data_type != null ? data_type : "null", Const.ASCII_CHARSET)
         .putInt(fillPolicy.ordinal())
         .putInt(realFillPolicy.ordinal());
     return hasher.hash();
@@ -109,8 +117,10 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
     return ComparisonChain.start()
         .compare(id, ((NumericInterpolatorConfig) o).id,
             Ordering.natural().nullsFirst())
-        .compare(type, ((NumericInterpolatorConfig) o).type)
-        .compare(config_type, ((NumericInterpolatorConfig) o).config_type,
+        .compare(interpolator_type, 
+            ((NumericInterpolatorConfig) o).interpolator_type,
+            Ordering.natural().nullsFirst())
+        .compare(data_type, ((NumericInterpolatorConfig) o).data_type,
             Ordering.natural().nullsFirst())
         .compare(fillPolicy, ((NumericInterpolatorConfig) o).fillPolicy)
         .compare(realFillPolicy, ((NumericInterpolatorConfig) o).realFillPolicy)
@@ -131,8 +141,8 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
     
     final NumericInterpolatorConfig other = (NumericInterpolatorConfig) o;
     return Objects.equals(id, other.id) &&
-           Objects.equals(type, other.type) &&
-           Objects.equals(config_type, other.config_type) && 
+           Objects.equals(interpolator_type, other.interpolator_type) &&
+           Objects.equals(data_type, other.data_type) && 
            Objects.equals(fillPolicy, other.fillPolicy) &&
            Objects.equals(realFillPolicy, other.realFillPolicy);
   }
@@ -146,8 +156,8 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   public String toString() {
     return new StringBuilder()
         .append("{id=").append(id)
-        .append(", type=").append(type)
-        .append(", configType=").append(config_type)
+        .append(", type=").append(interpolator_type)
+        .append(", dataType=").append(data_type)
         .append(", fill=").append(fillPolicy)
         .append(", realFill=").append(realFillPolicy)
         .append("}")

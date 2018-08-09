@@ -27,8 +27,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.BaseNumericSummaryFillPolicy;
 import net.opentsdb.data.types.numeric.NumericAggregator;
@@ -89,7 +91,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     if (builder.real_fill == null) {
       throw new IllegalArgumentException("Default real fill policy cannot be null.");
     }
-    if (!type.equals(NumericSummaryType.TYPE.toString())) {
+    if (!data_type.equals(NumericSummaryType.TYPE.toString())) {
       throw new IllegalArgumentException("Type must be " + NumericSummaryType.TYPE);
     }
     fill_policy = builder.fill_policy;
@@ -150,10 +152,11 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
    * @return
    */
   public QueryFillPolicy<NumericType> queryFill(final int summary) {
-    final NumericInterpolatorConfig config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+    final NumericInterpolatorConfig config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(fillPolicy(summary))
         .setRealFillPolicy(realFillPolicy(summary))
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     return new BaseNumericFillPolicy(config);
   }
@@ -179,11 +182,17 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   @Override
+  public TypeToken<? extends TimeSeriesDataType> type() {
+    return NumericSummaryType.TYPE;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
         .putString(id, Const.UTF8_CHARSET)
-        .putString(type, Const.ASCII_CHARSET)
-        .putString(config_type, Const.ASCII_CHARSET)
+        .putString(interpolator_type == null ? "" : interpolator_type, 
+            Const.ASCII_CHARSET)
+        .putString(data_type, Const.ASCII_CHARSET)
         .putInt(fill_policy.ordinal())
         .putInt(real_fill.ordinal())
         .putBoolean(sync);
@@ -228,8 +237,10 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     
     return ComparisonChain.start()
         .compare(id, ((NumericSummaryInterpolatorConfig) o).id)
-        .compare(type, ((NumericSummaryInterpolatorConfig) o).type)
-        .compare(config_type, ((NumericSummaryInterpolatorConfig) o).config_type)
+        .compare(interpolator_type, 
+            ((NumericSummaryInterpolatorConfig) o).interpolator_type,
+            Ordering.<String>natural().nullsFirst())
+        .compare(data_type, ((NumericSummaryInterpolatorConfig) o).data_type)
         .compare(fill_policy, ((NumericSummaryInterpolatorConfig) o).fill_policy)
         .compare(real_fill, ((NumericSummaryInterpolatorConfig) o).real_fill)
         .compare(sync, ((NumericSummaryInterpolatorConfig) o).sync)
@@ -258,8 +269,8 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     
     final NumericSummaryInterpolatorConfig other = (NumericSummaryInterpolatorConfig) o;
     return Objects.equals(id, other.id) &&
-           Objects.equals(type, other.type) &&
-           Objects.equals(config_type, other.config_type) && 
+           Objects.equals(interpolator_type, other.interpolator_type) &&
+           Objects.equals(data_type, other.data_type) && 
            Objects.equals(fill_policy, other.fill_policy) &&
            Objects.equals(real_fill, other.real_fill) && 
            Objects.equals(sync, other.sync) && 

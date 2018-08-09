@@ -54,7 +54,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
   }
   
@@ -323,7 +323,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREVIOUS_ONLY)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -371,7 +371,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -419,7 +419,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -467,7 +467,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -515,7 +515,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -563,7 +563,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -611,7 +611,7 @@ public class TestNumericLERP {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.ZERO)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -659,7 +659,7 @@ public class TestNumericLERP {
         .setValue(42)
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()

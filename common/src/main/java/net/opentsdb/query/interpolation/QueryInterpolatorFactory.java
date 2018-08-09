@@ -16,15 +16,18 @@ package net.opentsdb.query.interpolation;
 
 import java.util.Iterator;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 
 /**
- * A factory interface for generating interator interpolators.
+ * A factory interface for generating iterator interpolators.
  * 
  * @since 3.0
  */
@@ -65,7 +68,20 @@ public interface QueryInterpolatorFactory extends TSDBPlugin {
    * @param clazz A non-null class with a constructor accepting the 
    * following parameters: "TimeSeries, QueryInterpolatorConfig" or 
    * "Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>, QueryInterpolatorConfig".
+   * @param parser A config parser.
    */
   public void register(final TypeToken<? extends TimeSeriesDataType> type,
-                       final Class<? extends QueryInterpolator<?>> clazz); 
+                       final Class<? extends QueryInterpolator<?>> clazz,
+                       final QueryInterpolatorConfigParser parser); 
+
+  /**
+   * Parse the given JSON or YAML into the proper node config.
+   * @param mapper A non-null mapper to use for parsing.
+   * @param tsdb The non-null TSD to pull factories from.
+   * @param node The non-null node to parse.
+   * @return An instantiated node config if successful.
+   */
+  public QueryInterpolatorConfig parseConfig(final ObjectMapper mapper,
+                                             final TSDB tsdb, 
+                                             final JsonNode node);
 }

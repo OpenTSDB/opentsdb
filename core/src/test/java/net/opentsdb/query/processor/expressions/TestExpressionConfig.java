@@ -38,7 +38,7 @@ public class TestExpressionConfig {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     ExpressionConfig config = (ExpressionConfig) 
@@ -150,14 +150,14 @@ public class TestExpressionConfig {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     NumericInterpolatorConfig numeric_config2 = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY) // <-- DIFF
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     final ExpressionConfig c1 = (ExpressionConfig) 
@@ -335,14 +335,14 @@ public class TestExpressionConfig {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     NumericInterpolatorConfig numeric_config2 = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.ZERO)
       .setRealFillPolicy(FillWithRealPolicy.NONE)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     ExpressionConfig config = (ExpressionConfig) 

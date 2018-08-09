@@ -99,7 +99,7 @@ public class TestDownsampleFactory {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
     .setFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-    .setType(NumericType.TYPE.toString())
+    .setDataType(NumericType.TYPE.toString())
     .build();
     
     NumericSummaryInterpolatorConfig summary_config = 
@@ -107,7 +107,7 @@ public class TestDownsampleFactory {
     .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
     .addExpectedSummary(0)
-    .setType(NumericSummaryType.TYPE.toString())
+    .setDataType(NumericSummaryType.TYPE.toString())
     .build();
     
     DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()

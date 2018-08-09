@@ -132,7 +132,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
       final List<QueryInterpolatorConfig> configs = variable_interpolators.get(variable);
       if (configs != null) {
         for (final QueryInterpolatorConfig cfg : configs) {
-          if (cfg.dataType().equals(type.toString())) {
+          if (cfg.type() == type) {
             config = cfg;
             break;
           }

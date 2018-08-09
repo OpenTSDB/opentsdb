@@ -642,7 +642,6 @@ public class TestTimeSeriesQuery {
     SemanticQuery.Builder builder = 
         JSON.parseToObject(json, TimeSeriesQuery.class).convert();
     SemanticQuery query = builder.build();
-    System.out.println(query.getExecutionGraph());
     assertEquals(4, query.getExecutionGraph().getNodes().size());
     
     ExecutionGraphNode node = query.getExecutionGraph().getNodes().get(0);

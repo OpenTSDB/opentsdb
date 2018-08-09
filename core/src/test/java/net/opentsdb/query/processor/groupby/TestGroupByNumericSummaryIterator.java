@@ -41,8 +41,8 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -88,7 +88,7 @@ public class TestGroupByNumericSummaryIterator {
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -329,7 +329,7 @@ public class TestGroupByNumericSummaryIterator {
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -376,7 +376,7 @@ public class TestGroupByNumericSummaryIterator {
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -423,7 +423,7 @@ public class TestGroupByNumericSummaryIterator {
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -496,7 +496,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -534,7 +534,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -563,7 +563,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -601,7 +601,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -639,7 +639,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -683,7 +683,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -724,7 +724,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -765,7 +765,7 @@ public class TestGroupByNumericSummaryIterator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setComponentAggregator(Aggregators.SUM)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("avg")
@@ -807,7 +807,7 @@ public class TestGroupByNumericSummaryIterator {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build();
     
@@ -840,7 +840,7 @@ public class TestGroupByNumericSummaryIterator {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build();
     

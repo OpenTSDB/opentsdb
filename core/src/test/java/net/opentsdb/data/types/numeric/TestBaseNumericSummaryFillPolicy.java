@@ -36,7 +36,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     final NumericSummaryType value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -61,7 +61,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     NumericSummaryType value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -75,7 +75,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -89,7 +89,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     assertNull(fill.fill());
     
@@ -98,7 +98,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     assertNull(fill.fill());
     
@@ -107,7 +107,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     try {
       fill.fill();
@@ -119,7 +119,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
@@ -133,7 +133,7 @@ public class TestBaseNumericSummaryFillPolicy {
             .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
             .addExpectedSummary(0)
             .addExpectedSummary(2)
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .build());
     value = fill.fill();
     assertEquals(2, value.summariesAvailable().size());
