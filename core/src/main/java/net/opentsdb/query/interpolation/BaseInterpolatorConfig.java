@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 
 /**
- * Base class for interpolator configs. Validates that the type is set.
+ * Base class for interpolator configs. If the type is null, we assume a default.
  * 
  * @since 3.0
  */
@@ -28,23 +28,23 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
   protected final String id;
   
   /** The non-null data type ID. */
-  protected final String type;
+  protected final String interpolator_type;
   
   /** The class name of the config for parsing. */
-  protected final String config_type;
+  protected final String data_type;
   
   /**
    * Default ctor.
    * @param builder A non-null builder
-   * @throws IllegalArgumentException if the type was null or empty.
    */
   protected BaseInterpolatorConfig(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.type)) {
-      throw new IllegalArgumentException("Type cannot be null.");
+    if (Strings.isNullOrEmpty(builder.dataType)) {
+      throw new IllegalArgumentException("Data type cannot be null "
+          + "or empty.");
     }
     id = builder.id;
-    type = builder.type;
-    config_type = builder.configType;
+    interpolator_type = builder.type;
+    data_type = builder.dataType;
   }
   
   /** @return The ID. */
@@ -55,23 +55,17 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
   
   /** @return The data type for this config. */
   @Override
-  public String dataType() {
-    return type;
+  public String interpolatorType() {
+    return interpolator_type;
   }
-  
-  /** @return The class name of the config for parsing. */
-  @Override
-  public String configType() {
-    return config_type;
-  }
-  
+    
   public static abstract class Builder {
     @JsonProperty
     protected String id;
     @JsonProperty
     protected String type;
     @JsonProperty
-    protected String configType;
+    protected String dataType;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -83,8 +77,8 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
       return this;
     }
     
-    public Builder setConfigType(final String config_type) {
-      this.configType = config_type;
+    public Builder setDataType(final String data_type) {
+      this.dataType = data_type;
       return this;
     }
     

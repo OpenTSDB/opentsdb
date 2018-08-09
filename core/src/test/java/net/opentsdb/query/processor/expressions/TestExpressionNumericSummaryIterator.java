@@ -374,7 +374,7 @@ public class TestExpressionNumericSummaryIterator
       .setDefaultFillPolicy(FillPolicy.NONE)
       .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
       .setExpectedSummaries(Lists.newArrayList(0, 2))
-      .setType(NumericSummaryType.TYPE.toString())
+      .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     
     ExpressionConfig exp_config = (ExpressionConfig) ExpressionConfig.newBuilder()

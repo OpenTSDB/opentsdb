@@ -45,6 +45,8 @@ public class TestDefaultInterpolatorFactory {
     assertNull(factory.initialize(mock(TSDB.class)).join());
     assertEquals(2, factory.types.size());
     
+    assertEquals(2, factory.parsers.size());
+    
     TimeSeries time_series = mock(TimeSeries.class);
     when(time_series.iterator(NumericType.TYPE)).thenReturn(Optional.empty());
     when(time_series.iterator(NumericSummaryType.TYPE)).thenReturn(Optional.empty());

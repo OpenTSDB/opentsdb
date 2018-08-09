@@ -60,21 +60,11 @@ public abstract class BaseQueryNodeConfigWithInterpolators
       interpolator_configs = Maps.newHashMapWithExpectedSize(
           builder.interpolatorConfigs.size());
       for (final QueryInterpolatorConfig config : builder.interpolatorConfigs) {
-        // TODO - may need to put this in the registry AND we want to 
-        // figure out if the name is a full string or not.
-        final Class<?> clazz;
-        try {
-          clazz = Class.forName(config.dataType());
-        } catch (ClassNotFoundException e) {
-          throw new IllegalArgumentException("No data type found for: " 
-              + config.dataType());
-        }
-        final TypeToken<?> type = TypeToken.of(clazz);
-        if (interpolator_configs.containsKey(type)) {
+        if (interpolator_configs.containsKey(config.type())) {
           throw new IllegalArgumentException("Already have an "
-              + "interpolator configuration for: " + type);
+              + "interpolator configuration for: " + config.type());
         }
-        interpolator_configs.put(type, config);
+        interpolator_configs.put(config.type(), config);
       }
     } else {
       interpolator_configs = null;

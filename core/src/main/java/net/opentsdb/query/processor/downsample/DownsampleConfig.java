@@ -22,14 +22,19 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -292,4 +297,66 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     }
   }
   
+  public static DownsampleConfig parse(final ObjectMapper mapper,
+                                       final TSDB tsdb, 
+                                       final JsonNode node) {
+    Builder builder = new Builder();
+    JsonNode n = node.get("interval");
+    if (n != null) {
+      builder.setInterval(n.asText());
+    }
+    
+    n = node.get("id");
+    if (n != null) {
+      builder.setId(n.asText());
+    }
+    
+    n = node.get("timezone");
+    if (n != null) {
+      builder.setTimeZone(n.asText());
+    }
+    
+    n = node.get("timezone");
+    if (n != null) {
+      builder.setTimeZone(n.asText());
+    }
+    
+    n = node.get("aggregator");
+    if (n != null) {
+      builder.setAggregator(n.asText());
+    }
+    
+    n = node.get("infectiousNan");
+    if (n != null) {
+      builder.setInfectiousNan(n.asBoolean());
+    }
+    
+    n = node.get("runAll");
+    if (n != null) {
+      builder.setRunAll(n.asBoolean());
+    }
+    
+    n = node.get("fill");
+    if (n != null) {
+      builder.setFill(n.asBoolean());
+    }
+    
+    n = node.get("interpolatorConfigs");
+    for (final JsonNode config : n) {
+      JsonNode type_json = config.get("type");
+      final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, 
+          type_json == null ? null : type_json.asText());
+      if (factory == null) {
+        throw new IllegalArgumentException("Unable to find an "
+            + "interpolator factory for: " + type_json.asText());
+      }
+      
+      final QueryInterpolatorConfig interpolator_config = 
+          factory.parseConfig(mapper, tsdb, config);
+      builder.addInterpolatorConfig(interpolator_config);
+    }
+    
+    return (DownsampleConfig) builder.build();
+  }
 }

@@ -112,7 +112,7 @@ public class ExpressionNumericSummaryIterator extends
           nsic.addExpectedSummary(summary);
         }
         interpolator_config = nsic
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .setId(null)
             .build();
       }
@@ -176,7 +176,7 @@ public class ExpressionNumericSummaryIterator extends
           nsic.addExpectedSummary(summary);
         }
         interpolator_config = nsic
-            .setType(NumericSummaryType.TYPE.toString())
+            .setDataType(NumericSummaryType.TYPE.toString())
             .setId(null)
             .build();
       }

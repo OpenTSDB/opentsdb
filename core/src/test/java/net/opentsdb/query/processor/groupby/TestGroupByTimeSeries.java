@@ -47,8 +47,8 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -70,7 +70,7 @@ public class TestGroupByTimeSeries {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
     .setFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-    .setType(NumericType.TYPE.toString())
+    .setDataType(NumericType.TYPE.toString())
     .build();
     
     NumericSummaryInterpolatorConfig summary_config = 
@@ -78,7 +78,7 @@ public class TestGroupByTimeSeries {
     .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
     .addExpectedSummary(0)
-    .setType(NumericSummaryType.TYPE.toString())
+    .setDataType(NumericSummaryType.TYPE.toString())
     .build();
     
     factory = new GroupByFactory();

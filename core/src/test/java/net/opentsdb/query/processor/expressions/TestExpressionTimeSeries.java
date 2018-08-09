@@ -110,7 +110,7 @@ public class TestExpressionTimeSeries {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.NONE)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     config = (ExpressionConfig) ExpressionConfig.newBuilder()

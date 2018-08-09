@@ -287,7 +287,7 @@ public class TestTSDBV2QueryContextBuilder {
                     .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
                       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
                       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-                      .setType(NumericType.TYPE.toString())
+                      .setDataType(NumericType.TYPE.toString())
                       .build())
                     .build()))
             .build())

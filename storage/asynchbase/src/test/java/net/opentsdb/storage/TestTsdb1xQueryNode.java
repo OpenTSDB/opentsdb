@@ -249,7 +249,7 @@ public class TestTsdb1xQueryNode extends UTBase {
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setId("interp")
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
     when(context.upstreamOfType(any(QueryNode.class), eq(Downsample.class)))

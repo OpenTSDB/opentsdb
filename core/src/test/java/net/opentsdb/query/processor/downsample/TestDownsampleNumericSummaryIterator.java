@@ -43,8 +43,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -3370,7 +3370,7 @@ public class TestDownsampleNumericSummaryIterator {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
                 .setFillPolicy(FillPolicy.NOT_A_NUMBER)
                 .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-                .setType(NumericType.TYPE.toString())
+                .setDataType(NumericType.TYPE.toString())
                 .build())
         .build();
     when(node.config()).thenReturn(config);
@@ -3430,7 +3430,7 @@ public class TestDownsampleNumericSummaryIterator {
                 .setDefaultRealFillPolicy(real)
                 .addExpectedSummary(0)
                 .addExpectedSummary(2)
-                .setType(NumericSummaryType.TYPE.toString())
+                .setDataType(NumericSummaryType.TYPE.toString())
                 .build())
         .build();
     when(node.config()).thenReturn(config);

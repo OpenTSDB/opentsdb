@@ -53,7 +53,7 @@ public class TestNumericSummaryInterpolator {
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     
     source = new MockTimeSeries(
@@ -193,7 +193,7 @@ public class TestNumericSummaryInterpolator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setSync(true)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     
     NumericSummaryInterpolator interpolator = 
@@ -594,7 +594,7 @@ public class TestNumericSummaryInterpolator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setSync(true)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     
     NumericSummaryInterpolator interpolator = 
@@ -712,7 +712,7 @@ public class TestNumericSummaryInterpolator {
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setSync(true)
-        .setType(NumericSummaryType.TYPE.toString())
+        .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     
     source.clear();

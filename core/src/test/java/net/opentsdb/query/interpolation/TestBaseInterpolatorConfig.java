@@ -21,6 +21,9 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 
 import com.google.common.hash.HashCode;
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.TimeSeriesDataType;
 
 public class TestBaseInterpolatorConfig {
 
@@ -28,30 +31,27 @@ public class TestBaseInterpolatorConfig {
   public void builder() throws Exception {
     QueryInterpolatorConfig config = TestInterpolatorConfig.newBuilder()
         .setId("myid")
-        .setType("numeric")
+        .setDataType("numeric")
         .build();
     assertEquals("myid", config.id());
-    assertEquals("numeric", config.dataType());
+    assertNull(config.interpolatorType());
+    assertNull(config.type());
     
     config = TestInterpolatorConfig.newBuilder()
-        .setType("numeric")
+        .setType("LERP")
+        .setDataType("numeric")
         .build();
     assertNull(config.id());
-    assertEquals("numeric", config.dataType());
+    assertEquals("LERP", config.interpolatorType());
+    assertNull(config.type());
     
     config = TestInterpolatorConfig.newBuilder()
         .setId("")
-        .setType("numeric")
+        .setDataType("numeric")
         .build();
     assertEquals("", config.id());
-    assertEquals("numeric", config.dataType());
-    
-    try {
-      TestInterpolatorConfig.newBuilder()
-        .setId("myid")
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertNull(config.interpolatorType());
+    assertNull(config.type());
     
     try {
       TestInterpolatorConfig.newBuilder()
@@ -91,6 +91,12 @@ public class TestBaseInterpolatorConfig {
     public int compareTo(QueryInterpolatorConfig o) {
       // TODO Auto-generated method stub
       return 0;
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> type() {
+      // TODO Auto-generated method stub
+      return null;
     }
   }
 }

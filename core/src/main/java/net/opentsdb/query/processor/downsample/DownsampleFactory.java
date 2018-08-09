@@ -73,11 +73,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   public QueryNodeConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
-    try {
-      return mapper.treeToValue(node, DownsampleConfig.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to parse config", e);
-    }
+    return DownsampleConfig.parse(mapper, tsdb, node);
   }
   
   /**

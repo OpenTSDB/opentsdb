@@ -20,7 +20,9 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolator;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorParser;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolator;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorParser;
 
 /**
  * The default interpolation factory stored as the default plugin with
@@ -40,8 +42,10 @@ public class DefaultInterpolatorFactory extends BaseQueryIntperolatorFactory {
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
     // Add defaults for the built-in types
-    register(NumericType.TYPE, NumericInterpolator.class);
-    register(NumericSummaryType.TYPE, NumericSummaryInterpolator.class);
+    register(NumericType.TYPE, NumericInterpolator.class, 
+        new NumericInterpolatorParser());
+    register(NumericSummaryType.TYPE, NumericSummaryInterpolator.class, 
+        new NumericSummaryInterpolatorParser());
     return Deferred.fromResult(null);
   }
 
@@ -54,5 +58,5 @@ public class DefaultInterpolatorFactory extends BaseQueryIntperolatorFactory {
   public String version() {
     return "3.0.0";
   }
-
+  
 }

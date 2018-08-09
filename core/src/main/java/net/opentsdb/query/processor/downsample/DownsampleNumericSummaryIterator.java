@@ -124,7 +124,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
             DefaultRollupConfig.queryToRollupAggregation(config.aggregator())));
       }
       interpolator_config = nsic
-          .setType(NumericSummaryType.TYPE.toString())
+          .setDataType(NumericSummaryType.TYPE.toString())
           .build();
     }
     this.interpolator_config = (NumericSummaryInterpolatorConfig) interpolator_config;
@@ -133,7 +133,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         interpolator_config.id());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
+          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
     }
     
     QueryInterpolator<?> interp = factory.newInterpolator(
@@ -142,7 +142,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
-          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
+          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
     }
     interpolator = (QueryInterpolator<NumericSummaryType>) interp;
     interval_ts = this.result.start().getCopy();

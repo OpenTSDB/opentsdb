@@ -22,7 +22,9 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 
 import com.google.common.hash.HashCode;
+import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -36,10 +38,10 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     TestConfig node = (TestConfig) new TestConfig.Builder()
         .setId("foo")
         .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
-            .setType(AnnotationType.TYPE.toString())
+            .setDataType(AnnotationType.TYPE.toString())
             .build())
         .build();
     assertEquals("foo", node.getId());
@@ -62,10 +64,10 @@ public class TestBaseQueryNodeConfigWithInterpolators {
       new TestConfig.Builder()
       .setId("foo")
       .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
-          .setType(NumericType.TYPE.toString())
+          .setDataType(NumericType.TYPE.toString())
           .build())
       .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
-          .setType("nosuchtype")
+          .setDataType("nosuchtype")
           .build())
       .build();
       fail("Expected IllegalArgumentException");
@@ -119,6 +121,19 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     public int compareTo(QueryInterpolatorConfig o) {
       // TODO Auto-generated method stub
       return 0;
+    }
+
+   
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> type() {
+      if (data_type.endsWith("NumericType")) {
+        return NumericType.TYPE;
+      } else if (data_type.endsWith("NumericSummaryType")) {
+        return NumericSummaryType.TYPE;
+      } else if (data_type.endsWith("AnnotationType")) {
+        return AnnotationType.TYPE;
+      }
+      throw new IllegalArgumentException("No type!");
     }
   }
 }

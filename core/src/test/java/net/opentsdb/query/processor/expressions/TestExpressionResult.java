@@ -64,7 +64,7 @@ public class TestExpressionResult {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     join_config = (JoinConfig) JoinConfig.newBuilder()

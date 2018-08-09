@@ -36,7 +36,7 @@ public class TestScalarNumericInterpolatorConfig {
         .setValue(42)
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     assertTrue(((ScalarNumericInterpolatorConfig) config).isInteger());
     assertEquals(42, ((ScalarNumericInterpolatorConfig) config).longValue());
@@ -46,7 +46,7 @@ public class TestScalarNumericInterpolatorConfig {
         .setValue(42.5D)
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     assertFalse(((ScalarNumericInterpolatorConfig) config).isInteger());
     assertEquals(42.5, ((ScalarNumericInterpolatorConfig) config).doubleValue(), 0.01);
@@ -56,7 +56,7 @@ public class TestScalarNumericInterpolatorConfig {
         //.setValue(42) <== defaults to 0
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     assertTrue(((ScalarNumericInterpolatorConfig) config).isInteger());
     assertEquals(0, ((ScalarNumericInterpolatorConfig) config).longValue());
@@ -67,7 +67,7 @@ public class TestScalarNumericInterpolatorConfig {
         .setValue(42)
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(null)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -77,7 +77,7 @@ public class TestScalarNumericInterpolatorConfig {
         .setValue(42)
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         //.setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -87,7 +87,7 @@ public class TestScalarNumericInterpolatorConfig {
         .setValue(42)
         .setFillPolicy(null)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -97,7 +97,7 @@ public class TestScalarNumericInterpolatorConfig {
         .setValue(42)
         //.setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
