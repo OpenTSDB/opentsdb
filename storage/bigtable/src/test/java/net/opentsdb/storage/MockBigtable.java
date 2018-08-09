@@ -69,11 +69,11 @@ import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UnsafeByteOperations;
 
 /**
  * Mock HBase implementation useful in testing calls to and from storage with
@@ -1060,10 +1060,10 @@ public final class MockBigtable {
             // TODO - if we want to support multiple values, iterate over the
             // tree map. Otherwise Get returns just the latest value.
             family_builder.addColumns(Column.newBuilder()
-                .setQualifier(ByteStringer.wrap(column.getKey()))
+                .setQualifier(UnsafeByteOperations.unsafeWrap(column.getKey()))
                 .addCells(Cell.newBuilder()
                     .setTimestampMicros(column.getValue().firstKey())
-                    .setValue(ByteStringer.wrap(
+                    .setValue(UnsafeByteOperations.unsafeWrap(
                         column.getValue().firstEntry().getValue()))));
             cells++;
           }
@@ -1364,7 +1364,7 @@ public final class MockBigtable {
               .setQualifier(rule.getColumnQualifier())
               .addCells(Cell.newBuilder()
                   .setTimestampMicros(column_timestamp)
-                  .setValue(ByteStringer.wrap(Bytes.fromLong(extant)))));
+                  .setValue(UnsafeByteOperations.unsafeWrap(Bytes.fromLong(extant)))));
         } else {
           final int current_len = values != null ? values.length : 0;
           final byte[] append_value = new byte[current_len + 
@@ -1389,7 +1389,7 @@ public final class MockBigtable {
               .setQualifier(rule.getColumnQualifier())
               .addCells(Cell.newBuilder()
                   .setTimestampMicros(column_timestamp)
-                  .setValue(ByteStringer.wrap(append_value))));
+                  .setValue(UnsafeByteOperations.unsafeWrap(append_value))));
         }
       }
       
@@ -1993,7 +1993,7 @@ public final class MockBigtable {
           }
 
           FlatRow.Builder row_builder = FlatRow.newBuilder()
-              .withRowKey(ByteStringer.wrap(row.getValue().getKey()));
+              .withRowKey(UnsafeByteOperations.unsafeWrap(row.getValue().getKey()));
           int cells = 0;
           for (final Entry<byte[], TreeMap<Long, byte[]>> column :
             row.getValue().getValue().entrySet()) {
@@ -2011,9 +2011,9 @@ public final class MockBigtable {
             }
             
             row_builder.addCell(new String(row.getKey()), 
-                ByteStringer.wrap(column.getKey()),
+                UnsafeByteOperations.unsafeWrap(column.getKey()),
                 column.getValue().firstKey(),
-                ByteStringer.wrap(column.getValue().firstEntry().getValue()));
+                UnsafeByteOperations.unsafeWrap(column.getValue().firstEntry().getValue()));
             cells++;
           }
           

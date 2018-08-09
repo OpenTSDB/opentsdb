@@ -29,11 +29,11 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowSet;
 import com.google.bigtable.v2.RowFilter.Interleave;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
@@ -251,27 +251,27 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
         // old and new schemas with literal agg names or prefixes.
         rollup_filter = RowFilter.Interleave.newBuilder()
             .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(ByteStringer.wrap(
+                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                     "sum".getBytes(Const.ASCII_US_CHARSET))))
             .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(ByteStringer.wrap(
+                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                     "count".getBytes(Const.ASCII_US_CHARSET))))
             .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(ByteStringer.wrap(new byte[] { 
+                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
                     (byte) node.schema().rollupConfig().getIdForAggregator("sum")
                 })))
             .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(ByteStringer.wrap(new byte[] { 
+                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
                     (byte) node.schema().rollupConfig().getIdForAggregator("count")
                 })));
       } else {
         // it's another aggregation
         rollup_filter = RowFilter.Interleave.newBuilder()
             .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(ByteStringer.wrap(
+                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                     node.rollupAggregation().getBytes(Const.ASCII_US_CHARSET))))
             .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(ByteStringer.wrap(new byte[] { 
+                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
                     (byte) node.schema().rollupConfig()
                       .getIdForAggregator(node.rollupAggregation())
                 })));
@@ -280,7 +280,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
           .setChain(RowFilter.Chain.newBuilder()
               .addFilters(RowFilter.newBuilder()
                   .setFamilyNameRegexFilterBytes(
-                      ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY)))
+                      UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY)))
               .addFilters(RowFilter.newBuilder()
                   .setInterleave(rollup_filter)))
           .build();
@@ -289,7 +289,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       rollups_enabled = false;
       filter = RowFilter.newBuilder()
           .setFamilyNameRegexFilterBytes(
-              ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY))
+              UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY))
           .build();
     }
     
@@ -623,12 +623,12 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
             tsuid.length - node.schema().metricWidth());
         node.schema().prefixKeyWithSalt(key);
       }
-      rows.addRowKeys(ByteStringer.wrap(key));
+      rows.addRowKeys(UnsafeByteOperations.unsafeWrap(key));
     }
     
     try {
       ReadRowsRequest request = ReadRowsRequest.newBuilder()
-          .setTableNameBytes(ByteStringer.wrap(table))
+          .setTableNameBytes(UnsafeByteOperations.unsafeWrap(table))
           .setRows(rows)
           .setFilter(filter)
           .build();

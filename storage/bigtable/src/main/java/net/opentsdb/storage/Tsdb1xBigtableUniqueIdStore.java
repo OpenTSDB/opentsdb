@@ -34,13 +34,13 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowFilter.Chain;
 import com.google.bigtable.v2.RowSet;
 import com.google.bigtable.v2.Mutation.SetCell;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.protobuf.UnsafeByteOperations;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -232,15 +232,15 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
     
     final Deferred<String> deferred = new Deferred<String>();
     ReadRowsRequest request = ReadRowsRequest.newBuilder()
-        .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
+        .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
         .setRows(RowSet.newBuilder()
-            .addRowKeys(ByteStringer.wrap(id)))
+            .addRowKeys(UnsafeByteOperations.unsafeWrap(id)))
         .setFilter(RowFilter.newBuilder()
             .setChain(RowFilter.Chain.newBuilder()
                 .addFilters(RowFilter.newBuilder()
-                    .setFamilyNameRegexFilterBytes(ByteStringer.wrap(NAME_FAMILY)))
+                    .setFamilyNameRegexFilterBytes(UnsafeByteOperations.unsafeWrap(NAME_FAMILY)))
                 .addFilters(RowFilter.newBuilder()
-                    .setColumnQualifierRegexFilter(ByteStringer.wrap(qualifier)))))
+                    .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(qualifier)))))
         .build();
     
     class ResultCB implements FutureCallback<List<Row>> {
@@ -331,19 +331,19 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
         throw new IllegalArgumentException("A null or empty ID was "
             + "found in the list.");
       }
-      rows.addRowKeys(ByteStringer.wrap(id));
+      rows.addRowKeys(UnsafeByteOperations.unsafeWrap(id));
     }
     
     final Deferred<List<String>> deferred = new Deferred<List<String>>();
     ReadRowsRequest request = ReadRowsRequest.newBuilder()
-        .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
+        .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
         .setRows(rows.build())
         .setFilter(RowFilter.newBuilder()
             .setChain(RowFilter.Chain.newBuilder()
                 .addFilters(RowFilter.newBuilder()
-                    .setFamilyNameRegexFilterBytes(ByteStringer.wrap(NAME_FAMILY)))
+                    .setFamilyNameRegexFilterBytes(UnsafeByteOperations.unsafeWrap(NAME_FAMILY)))
                 .addFilters(RowFilter.newBuilder()
-                    .setColumnQualifierRegexFilter(ByteStringer.wrap(qualifier)))))
+                    .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(qualifier)))))
         .build();
     
     class ResultCB implements FutureCallback<List<Row>> {
@@ -454,15 +454,15 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
     
     final Deferred<byte[]> deferred = new Deferred<byte[]>();
     ReadRowsRequest request = ReadRowsRequest.newBuilder()
-        .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
+        .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
         .setRows(RowSet.newBuilder()
-            .addRowKeys(ByteStringer.wrap(name.getBytes(characterSet(type)))))
+            .addRowKeys(UnsafeByteOperations.unsafeWrap(name.getBytes(characterSet(type)))))
         .setFilter(RowFilter.newBuilder()
             .setChain(RowFilter.Chain.newBuilder()
                 .addFilters(RowFilter.newBuilder()
-                    .setFamilyNameRegexFilterBytes(ByteStringer.wrap(ID_FAMILY)))
+                    .setFamilyNameRegexFilterBytes(UnsafeByteOperations.unsafeWrap(ID_FAMILY)))
                 .addFilters(RowFilter.newBuilder()
-                    .setColumnQualifierRegexFilter(ByteStringer.wrap(qualifier)))))
+                    .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(qualifier)))))
         .build();
     
    class ResultCB implements FutureCallback<List<Row>> {
@@ -553,19 +553,19 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
         throw new IllegalArgumentException("A null or empty name was "
             + "found in the list.");
       }
-      rows.addRowKeys(ByteStringer.wrap(name.getBytes(characterSet(type))));
+      rows.addRowKeys(UnsafeByteOperations.unsafeWrap(name.getBytes(characterSet(type))));
     }
     
     final Deferred<List<byte[]>> deferred = new Deferred<List<byte[]>>();
     ReadRowsRequest request = ReadRowsRequest.newBuilder()
-        .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
+        .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
         .setRows(rows.build())
         .setFilter(RowFilter.newBuilder()
             .setChain(RowFilter.Chain.newBuilder()
                 .addFilters(RowFilter.newBuilder()
-                    .setFamilyNameRegexFilterBytes(ByteStringer.wrap(ID_FAMILY)))
+                    .setFamilyNameRegexFilterBytes(UnsafeByteOperations.unsafeWrap(ID_FAMILY)))
                 .addFilters(RowFilter.newBuilder()
-                    .setColumnQualifierRegexFilter(ByteStringer.wrap(qualifier)))))
+                    .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(qualifier)))))
         .build();
     
     class ResultCB implements FutureCallback<List<Row>> {
@@ -814,12 +814,12 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
         try {
           final ReadModifyWriteRowRequest request = 
               ReadModifyWriteRowRequest.newBuilder()
-              .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
-              .setRowKey(ByteStringer.wrap(MAXID_ROW))
+              .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
+              .setRowKey(UnsafeByteOperations.unsafeWrap(MAXID_ROW))
               .addRules(ReadModifyWriteRule.newBuilder()
                   .setIncrementAmount(1)
-                  .setFamilyNameBytes(ByteStringer.wrap(ID_FAMILY))
-                  .setColumnQualifier(ByteStringer.wrap(qualifier)))
+                  .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(ID_FAMILY))
+                  .setColumnQualifier(UnsafeByteOperations.unsafeWrap(qualifier)))
               .build();
           final Deferred<Long> deferred = new Deferred<Long>();
           class IncrementCB implements FutureCallback<ReadModifyWriteRowResponse> {
@@ -909,24 +909,24 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
       // a CAS instead to create the KV.
       final CheckAndMutateRowRequest request = 
           CheckAndMutateRowRequest.newBuilder()
-          .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
-          .setRowKey(ByteStringer.wrap(row))
+          .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
+          .setRowKey(UnsafeByteOperations.unsafeWrap(row))
           .setPredicateFilter(RowFilter.Chain.newBuilder()
               .addFiltersBuilder()
                 .setChain(Chain.newBuilder()
                     .addFilters(RowFilter.newBuilder()
-                        .setFamilyNameRegexFilterBytes(ByteStringer.wrap(NAME_FAMILY)))
+                        .setFamilyNameRegexFilterBytes(UnsafeByteOperations.unsafeWrap(NAME_FAMILY)))
                     .addFilters(RowFilter.newBuilder()
-                        .setColumnQualifierRegexFilter(ByteStringer.wrap(qualifier)))
+                        .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(qualifier)))
                     .addFilters(RowFilter.newBuilder()
                         .setCellsPerColumnLimitFilter(1))
                 )
           )
           .addFalseMutations(Mutation.newBuilder()
               .setSetCell(SetCell.newBuilder()
-                  .setFamilyNameBytes(ByteStringer.wrap(NAME_FAMILY))
-                  .setColumnQualifier(ByteStringer.wrap(qualifier))
-                  .setValue(ByteStringer.wrap(name.getBytes(characterSet(type))))
+                  .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(NAME_FAMILY))
+                  .setColumnQualifier(UnsafeByteOperations.unsafeWrap(qualifier))
+                  .setValue(UnsafeByteOperations.unsafeWrap(name.getBytes(characterSet(type))))
                   .setTimestampMicros(-1))
               )
           .build();
@@ -983,24 +983,24 @@ public class Tsdb1xBigtableUniqueIdStore implements UniqueIdStore {
       state = DONE;
       final CheckAndMutateRowRequest request = 
           CheckAndMutateRowRequest.newBuilder()
-          .setTableNameBytes(ByteStringer.wrap(data_store.uidTable()))
-          .setRowKey(ByteStringer.wrap(name.getBytes(characterSet(type))))
+          .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_store.uidTable()))
+          .setRowKey(UnsafeByteOperations.unsafeWrap(name.getBytes(characterSet(type))))
           .setPredicateFilter(RowFilter.Chain.newBuilder()
               .addFiltersBuilder()
                 .setChain(Chain.newBuilder()
                     .addFilters(RowFilter.newBuilder()
-                        .setFamilyNameRegexFilterBytes(ByteStringer.wrap(ID_FAMILY)))
+                        .setFamilyNameRegexFilterBytes(UnsafeByteOperations.unsafeWrap(ID_FAMILY)))
                     .addFilters(RowFilter.newBuilder()
-                        .setColumnQualifierRegexFilter(ByteStringer.wrap(qualifier)))
+                        .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(qualifier)))
                     .addFilters(RowFilter.newBuilder()
                         .setCellsPerColumnLimitFilter(1))
                 )
           )
           .addFalseMutations(Mutation.newBuilder()
               .setSetCell(SetCell.newBuilder()
-                  .setFamilyNameBytes(ByteStringer.wrap(ID_FAMILY))
-                  .setColumnQualifier(ByteStringer.wrap(qualifier))
-                  .setValue(ByteStringer.wrap(row))
+                  .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(ID_FAMILY))
+                  .setColumnQualifier(UnsafeByteOperations.unsafeWrap(qualifier))
+                  .setValue(UnsafeByteOperations.unsafeWrap(row))
                   .setTimestampMicros(-1))
               )
           .build();

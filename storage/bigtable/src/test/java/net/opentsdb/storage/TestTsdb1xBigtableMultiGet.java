@@ -56,9 +56,9 @@ import com.google.bigtable.v2.RowFilter.Interleave;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
+import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
@@ -994,23 +994,23 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     
     List<Row> results = Lists.newArrayList();
     Row row = Row.newBuilder()
-        .setKey(ByteStringer.wrap(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES)))
+        .setKey(UnsafeByteOperations.unsafeWrap(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES)))
         .addFamilies(Family.newBuilder()
-            .setNameBytes(ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY))
+            .setNameBytes(UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY))
             .addColumns(Column.newBuilder()
-                .setQualifier(ByteStringer.wrap(new byte[] { 0, 0 }))
+                .setQualifier(UnsafeByteOperations.unsafeWrap(new byte[] { 0, 0 }))
                 .addCells(Cell.newBuilder()
-                    .setValue(ByteStringer.wrap(new byte[] { 1 })))))
+                    .setValue(UnsafeByteOperations.unsafeWrap(new byte[] { 1 })))))
         .build();
     results.add(row);
     Row.newBuilder()
-        .setKey(ByteStringer.wrap(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES)))
+        .setKey(UnsafeByteOperations.unsafeWrap(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES)))
         .addFamilies(Family.newBuilder()
-            .setNameBytes(ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY))
+            .setNameBytes(UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY))
             .addColumns(Column.newBuilder()
-                .setQualifier(ByteStringer.wrap(new byte[] { 0, 0 }))
+                .setQualifier(UnsafeByteOperations.unsafeWrap(new byte[] { 0, 0 }))
                 .addCells(Cell.newBuilder()
-                    .setValue(ByteStringer.wrap(new byte[] { 1 })))))
+                    .setValue(UnsafeByteOperations.unsafeWrap(new byte[] { 1 })))))
         .build();
     results.add(row);
     

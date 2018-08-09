@@ -66,12 +66,12 @@ import com.google.cloud.bigtable.grpc.BigtableDataClient;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.UnsafeByteOperations;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
@@ -2509,7 +2509,7 @@ public class TestTsdb1xBigtableUniqueIdStore extends UTBase {
           .addFamilies(Family.newBuilder()
               .addColumns(Column.newBuilder()
                   .addCells(Cell.newBuilder()
-                      .setValue(ByteStringer.wrap(response)))))
+                      .setValue(UnsafeByteOperations.unsafeWrap(response)))))
           .build());
     }
     
@@ -2569,7 +2569,7 @@ public class TestTsdb1xBigtableUniqueIdStore extends UTBase {
             .addFamilies(Family.newBuilder()
                 .addColumns(Column.newBuilder()
                     .addCells(Cell.newBuilder()
-                        .setValue(ByteStringer.wrap(Bytes.fromLong(new_value)))))))
+                        .setValue(UnsafeByteOperations.unsafeWrap(Bytes.fromLong(new_value)))))))
         .build();
     return new ListenableFuture<ReadModifyWriteRowResponse>() {
 

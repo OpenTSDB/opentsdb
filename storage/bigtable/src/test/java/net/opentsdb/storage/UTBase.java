@@ -47,7 +47,7 @@ import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.bigtable.util.ByteStringer;
+import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
@@ -506,27 +506,27 @@ public class UTBase {
 
   static FlatRow buildFlatRow(final byte[] key, final byte[] cf, final byte[] qualifier, final byte[] value) {
     return FlatRow.newBuilder()
-        .withRowKey(ByteStringer.wrap(key))
-        .addCell(new String(cf), ByteStringer.wrap(qualifier), 1L, ByteStringer.wrap(value))
+        .withRowKey(UnsafeByteOperations.unsafeWrap(key))
+        .addCell(new String(cf), UnsafeByteOperations.unsafeWrap(qualifier), 1L, UnsafeByteOperations.unsafeWrap(value))
         .build();
   }
   
   static void addCell(final FlatRow.Builder builder, final byte[] cf, 
       final byte[] qualifier, final byte[] value) {
-    builder.addCell(new String(cf), ByteStringer.wrap(qualifier), 1L, 
-        ByteStringer.wrap(value));
+    builder.addCell(new String(cf), UnsafeByteOperations.unsafeWrap(qualifier), 1L, 
+        UnsafeByteOperations.unsafeWrap(value));
   }
   
   static Row buildRow(final byte[] key, final byte[] cf, final byte[] qualifier, final byte[] value) {
     return Row.newBuilder()
-        .setKey(ByteStringer.wrap(key))
+        .setKey(UnsafeByteOperations.unsafeWrap(key))
         .addFamilies(Family.newBuilder()
-            .setNameBytes(ByteStringer.wrap(cf))
+            .setNameBytes(UnsafeByteOperations.unsafeWrap(cf))
             .addColumns(Column.newBuilder()
-                .setQualifier(ByteStringer.wrap(qualifier))
+                .setQualifier(UnsafeByteOperations.unsafeWrap(qualifier))
                 .addCells(com.google.bigtable.v2.Cell.newBuilder()
                     .setTimestampMicros(1L)
-                    .setValue(ByteStringer.wrap(value)))))
+                    .setValue(UnsafeByteOperations.unsafeWrap(value)))))
         .build();
   }
 }

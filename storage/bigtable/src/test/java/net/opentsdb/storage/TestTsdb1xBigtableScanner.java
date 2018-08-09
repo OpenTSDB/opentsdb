@@ -48,7 +48,7 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.bigtable.util.ByteStringer;
+import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
@@ -1500,49 +1500,49 @@ public class TestTsdb1xBigtableScanner extends UTBase {
   ResultScanner<FlatRow> metricStartStopScanner(final Series series, 
                                                 final byte[] metric) {
     ReadRowsRequest.Builder read_builder = ReadRowsRequest.newBuilder()
-        .setTableNameBytes(ByteStringer.wrap(MockBigtable.DATA_TABLE));
+        .setTableNameBytes(UnsafeByteOperations.unsafeWrap(MockBigtable.DATA_TABLE));
     switch (series) {
     case SINGLE_SERIES:
       read_builder.setRows(RowSet.newBuilder()
           .addRowRanges(RowRange.newBuilder()
-              .setStartKeyClosed(ByteStringer.wrap(makeRowKey(
+              .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(makeRowKey(
                     metric, 
                     TS_SINGLE_SERIES, 
                     (byte[][]) null)))
-              .setEndKeyOpen(ByteStringer.wrap(makeRowKey(METRIC_BYTES, 
+              .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(makeRowKey(METRIC_BYTES, 
                     TS_SINGLE_SERIES + (TS_SINGLE_SERIES_COUNT * TS_SINGLE_SERIES_INTERVAL), 
                     (byte[][]) null)))));
       break;
     case DOUBLE_SERIES:
       read_builder.setRows(RowSet.newBuilder()
           .addRowRanges(RowRange.newBuilder()
-              .setStartKeyClosed(ByteStringer.wrap(makeRowKey(
+              .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(makeRowKey(
                   metric, 
                   TS_DOUBLE_SERIES, 
                   (byte[][]) null)))
-              .setEndKeyOpen(ByteStringer.wrap(makeRowKey(METRIC_BYTES, 
+              .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(makeRowKey(METRIC_BYTES, 
                   TS_DOUBLE_SERIES + (TS_DOUBLE_SERIES_COUNT * TS_DOUBLE_SERIES_INTERVAL), 
                   (byte[][]) null)))));
       break;
     case MULTI_SERIES_EX:
       read_builder.setRows(RowSet.newBuilder()
           .addRowRanges(RowRange.newBuilder()
-              .setStartKeyClosed(ByteStringer.wrap(makeRowKey(
+              .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(makeRowKey(
                   metric,
                   TS_MULTI_SERIES_EX, 
                   (byte[][]) null)))
-              .setEndKeyOpen(ByteStringer.wrap(makeRowKey(METRIC_BYTES, 
+              .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(makeRowKey(METRIC_BYTES, 
                   TS_MULTI_SERIES_EX + (TS_MULTI_SERIES_EX_COUNT * TS_MULTI_SERIES_INTERVAL), 
                   (byte[][]) null)))));
       break;
     case NSUI_SERIES:
       read_builder.setRows(RowSet.newBuilder()
           .addRowRanges(RowRange.newBuilder()
-              .setStartKeyClosed(ByteStringer.wrap(makeRowKey(
+              .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(makeRowKey(
                   metric, 
                   TS_NSUI_SERIES, 
                   (byte[][]) null)))
-              .setEndKeyOpen(ByteStringer.wrap(makeRowKey(METRIC_BYTES, 
+              .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(makeRowKey(METRIC_BYTES, 
                   TS_NSUI_SERIES + (TS_NSUI_SERIES_COUNT * TS_NSUI_SERIES_INTERVAL), 
                   (byte[][]) null)))));
       break;
