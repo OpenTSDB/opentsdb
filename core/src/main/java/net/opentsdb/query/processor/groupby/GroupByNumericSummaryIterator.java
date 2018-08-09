@@ -156,7 +156,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
                 ((GroupByConfig) node.config()).getAggregator())));
       }
       interpolator_config = nsic
-          .setType(NumericSummaryType.TYPE.toString())
+          .setDataType(NumericSummaryType.TYPE.toString())
           .setId(null).build();
     }
     config = (NumericSummaryInterpolatorConfig) interpolator_config;
@@ -165,7 +165,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
         interpolator_config.id());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
+          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
     }
     
     for (final TimeSeries source : sources) {

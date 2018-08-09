@@ -54,8 +54,8 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -79,7 +79,7 @@ public class TestGroupByNumericIterator {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -302,7 +302,7 @@ public class TestGroupByNumericIterator {
         .setValue(42)
         .setFillPolicy(FillPolicy.SCALAR)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -589,7 +589,7 @@ public class TestGroupByNumericIterator {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -649,7 +649,7 @@ public class TestGroupByNumericIterator {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -709,7 +709,7 @@ public class TestGroupByNumericIterator {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -769,7 +769,7 @@ public class TestGroupByNumericIterator {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -836,7 +836,7 @@ public class TestGroupByNumericIterator {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     
     config = (GroupByConfig) GroupByConfig.newBuilder()

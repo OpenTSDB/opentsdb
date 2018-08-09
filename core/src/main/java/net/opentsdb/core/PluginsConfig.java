@@ -119,13 +119,13 @@ public class PluginsConfig extends Validatable {
   }
   
   public static final Map<String, String> DEFAULT_IMPLEMENTATIONS = 
-      Maps.newHashMap();
+      Maps.newLinkedHashMap();
   static {
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
-        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
     DEFAULT_IMPLEMENTATIONS.put(
         "net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory", 
         "net.opentsdb.storage.Tsdb1xHBaseFactory");
+    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
+        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.TimeSeriesSerdes", 
         "net.opentsdb.query.serdes.PBufSerdes");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
@@ -844,9 +844,9 @@ public class PluginsConfig extends Validatable {
   
   /** Loads the {@link #DEFAULT_IMPLEMENTATIONS} */
   void loadDefaultInstances() {
-    final List<PluginConfig> config_clones = 
-        Lists.newArrayListWithExpectedSize(configs == null ? DEFAULT_IMPLEMENTATIONS.size() :
-          configs.size() + DEFAULT_IMPLEMENTATIONS.size());
+    if (configs == null) {
+      configs = Lists.newArrayListWithExpectedSize(DEFAULT_IMPLEMENTATIONS.size());
+    }
     for (final Entry<String, String> type : DEFAULT_IMPLEMENTATIONS.entrySet()) {
       final PluginConfig config = PluginConfig.newBuilder()
           .setType(type.getKey())
@@ -858,13 +858,9 @@ public class PluginsConfig extends Validatable {
           LOG.debug("Will try to load default plugin implementation: " 
               + type.getValue());
         }
-        config_clones.add(config);
+        configs.add(config);
       }
     }
-    if (configs != null) {
-      config_clones.addAll(configs);
-    }
-    configs = config_clones;
   }
   
   /**

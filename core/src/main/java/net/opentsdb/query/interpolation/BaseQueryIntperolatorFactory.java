@@ -22,9 +22,13 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -47,7 +51,10 @@ public abstract class BaseQueryIntperolatorFactory implements
   
   /** The map of types to <TimeSeries, Iterator> constructors. */
   protected Map<TypeToken<?>, Pair<Constructor<?>, Constructor<?>>> types
-   = Maps.newHashMap();
+     = Maps.newHashMap();
+  
+  protected Map<TypeToken<?>, QueryInterpolatorConfigParser> parsers = 
+      Maps.newHashMap();
   
   @SuppressWarnings("unchecked")
   @Override
@@ -115,12 +122,16 @@ public abstract class BaseQueryIntperolatorFactory implements
   
   @Override
   public void register(final TypeToken<? extends TimeSeriesDataType> type,
-                       final Class<? extends QueryInterpolator<?>> clazz) {
+                       final Class<? extends QueryInterpolator<?>> clazz,
+                       final QueryInterpolatorConfigParser parser) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
     if (clazz == null) {
       throw new IllegalArgumentException("Class cannot be null.");
+    }
+    if (parser == null) {
+      throw new IllegalArgumentException("Parser cannot be null.");
     }
     final Pair<Constructor<?>, Constructor<?>> ctors = types.get(type);
     if (ctors != null) {
@@ -145,5 +156,37 @@ public abstract class BaseQueryIntperolatorFactory implements
        throw new RuntimeException("Unable to extract constructors for "
            + "class " + clazz + " and data type: " + type, e); 
     }
+    
+    // if we made it this far, register the parser Replacement is ok.
+    parsers.put(type, parser);
   }
+
+  @Override
+  public QueryInterpolatorConfig parseConfig(final ObjectMapper mapper, 
+                                             final TSDB tsdb,
+                                             final JsonNode node) {
+    final JsonNode data_type_node = node.get("dataType");
+    if (data_type_node == null) {
+      throw new IllegalArgumentException("Missing dataType");
+    }
+    final String data_type = data_type_node.asText();
+    if (Strings.isNullOrEmpty(data_type)) {
+      throw new IllegalArgumentException("DataType cannot be null or empty.");
+    }
+    
+    final TypeToken<?> type = tsdb.getRegistry().getType(data_type);
+    if (type == null) {
+      throw new IllegalArgumentException("No data type registered for " 
+          + data_type);
+    }
+    
+    final QueryInterpolatorConfigParser parser = parsers.get(type);
+    if (parser == null) {
+      throw new IllegalArgumentException("No interpolation parser registered for " 
+          + data_type);
+    }
+    
+    return parser.parse(mapper, tsdb, node);
+  }
+
 }

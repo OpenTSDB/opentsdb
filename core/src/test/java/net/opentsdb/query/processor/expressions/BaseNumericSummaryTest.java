@@ -36,8 +36,8 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
@@ -76,7 +76,7 @@ public class BaseNumericSummaryTest {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.ZERO)
       .setRealFillPolicy(FillWithRealPolicy.NONE)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     NUMERIC_SUMMARY_CONFIG = 
@@ -84,7 +84,7 @@ public class BaseNumericSummaryTest {
       .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
       .setExpectedSummaries(Lists.newArrayList(0, 2))
-      .setType(NumericSummaryType.TYPE.toString())
+      .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()

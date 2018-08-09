@@ -337,7 +337,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NONE)
       .setRealFillPolicy(FillWithRealPolicy.NONE)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     ExpressionConfig exp_config = (ExpressionConfig) ExpressionConfig.newBuilder()

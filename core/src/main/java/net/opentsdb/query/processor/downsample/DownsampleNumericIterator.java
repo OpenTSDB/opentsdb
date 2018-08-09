@@ -147,7 +147,7 @@ public class DownsampleNumericIterator implements QueryIterator {
                                         interpolator_config.id());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
+          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
     }
     
     final QueryInterpolator<?> interp = factory.newInterpolator(
@@ -156,7 +156,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
-          interpolator_config.dataType() == null ? "Default" : interpolator_config.dataType());
+          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
     }
     interpolator = (QueryInterpolator<NumericType>) interp;
     interval_ts = this.result.start().getCopy();

@@ -21,14 +21,19 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -219,4 +224,53 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     }
   }
   
+  public static GroupByConfig parse(final ObjectMapper mapper,
+      final TSDB tsdb, 
+      final JsonNode node) {
+    Builder builder = new Builder();
+    JsonNode n = node.get("tagKeys");
+    if (n != null) {
+      for (final JsonNode key : n) {
+        builder.addTagKey(key.asText());
+      }
+    }
+    
+    n = node.get("id");
+    if (n != null) {
+      builder.setId(n.asText());
+    }
+    
+    n = node.get("aggregator");
+    if (n != null) {
+      builder.setAggregator(n.asText());
+    }
+    
+    n = node.get("infectiousNan");
+    if (n != null) {
+      builder.setInfectiousNan(n.asBoolean());
+    }
+    
+    n = node.get("groupAll");
+    if (n != null) {
+      builder.setGroupAll(n.asBoolean());
+    }
+    
+    n = node.get("interpolatorConfigs");
+    for (final JsonNode config : n) {
+      JsonNode type_json = config.get("type");
+      final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, 
+          type_json == null ? null : type_json.asText());
+      if (factory == null) {
+        throw new IllegalArgumentException("Unable to find an "
+            + "interpolator factory for: " + type_json.asText());
+      }
+      
+      final QueryInterpolatorConfig interpolator_config = 
+          factory.parseConfig(mapper, tsdb, config);
+      builder.addInterpolatorConfig(interpolator_config);
+    }
+    
+    return (GroupByConfig) builder.build();
+  }
 }

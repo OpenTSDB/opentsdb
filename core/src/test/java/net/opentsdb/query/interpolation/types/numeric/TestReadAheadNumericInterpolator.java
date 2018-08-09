@@ -47,7 +47,7 @@ public class TestReadAheadNumericInterpolator {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
   }
@@ -201,7 +201,7 @@ public class TestReadAheadNumericInterpolator {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -256,7 +256,7 @@ public class TestReadAheadNumericInterpolator {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREVIOUS_ONLY)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -311,7 +311,7 @@ public class TestReadAheadNumericInterpolator {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -366,7 +366,7 @@ public class TestReadAheadNumericInterpolator {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -421,7 +421,7 @@ public class TestReadAheadNumericInterpolator {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .setType(NumericType.TYPE.toString())
+        .setDataType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     

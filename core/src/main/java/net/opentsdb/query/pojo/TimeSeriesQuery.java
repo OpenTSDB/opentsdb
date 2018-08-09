@@ -727,7 +727,7 @@ public class TimeSeriesQuery extends Validatable
                     .setFillPolicy(FillPolicy.NONE) // TODO
                     .setRealFillPolicy(FillWithRealPolicy.NONE)
                     .setId("LERP")
-                    .setType(NumericType.TYPE.toString())
+                    .setDataType(NumericType.TYPE.toString())
                     .build())
                 .setId(expression.getId())
                 .build())
@@ -768,7 +768,7 @@ public class TimeSeriesQuery extends Validatable
                   .setFillPolicy(policy)
                   .setRealFillPolicy(FillWithRealPolicy.NONE)
                   .setId(interpolator)
-                  .setType(NumericType.TYPE.toString())
+                  .setDataType(NumericType.TYPE.toString())
                   .build());
     if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
       ds.setTimeZone(downsampler.getTimezone());
@@ -833,7 +833,7 @@ public class TimeSeriesQuery extends Validatable
                     .setFillPolicy(policy)
                     .setRealFillPolicy(FillWithRealPolicy.NONE)
                     .setId(interpolator)
-                    .setType(NumericType.TYPE.toString())
+                    .setDataType(NumericType.TYPE.toString())
                     .build())
                 .setId(metric.getId() + "_GroupBy");
           }
@@ -861,7 +861,7 @@ public class TimeSeriesQuery extends Validatable
               .setFillPolicy(policy)
               .setRealFillPolicy(FillWithRealPolicy.NONE)
               .setId(interpolator)
-              .setType(NumericType.TYPE.toString())
+              .setDataType(NumericType.TYPE.toString())
               .build())
           .setId(metric.getId() + "_GroupBy");
           

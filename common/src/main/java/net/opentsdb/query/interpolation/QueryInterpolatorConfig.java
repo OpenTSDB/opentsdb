@@ -15,10 +15,10 @@
 package net.opentsdb.query.interpolation;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
-import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.google.common.hash.HashCode;
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.TimeSeriesDataType;
 
 /**
  * A configuration class for an iterator interpolator.
@@ -26,11 +26,6 @@ import com.google.common.hash.HashCode;
  * @since 3.0
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonTypeInfo(use = Id.NAME,
-  include = JsonTypeInfo.As.PROPERTY,
-  property = "configType",
-  visible = true)
-@JsonTypeIdResolver(QueryInterpolatorConfigResolver.class)
 public interface QueryInterpolatorConfig extends 
     Comparable<QueryInterpolatorConfig>{
 
@@ -47,12 +42,11 @@ public interface QueryInterpolatorConfig extends
    * of a data type.
    * @return A non-null data type name.
    */
-  public String dataType();
-  
-  /** @return The non-null class of the configuration implementation. */
-  public String configType();
+  public String interpolatorType();
   
   /** @return A non-null deterministic hash code for the object. */
   public HashCode buildHashCode();
   
+  /** @return The data type for this config. */
+  public TypeToken<? extends TimeSeriesDataType> type();
 }

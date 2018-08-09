@@ -46,7 +46,7 @@ public class TestExpressionParser {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.NONE)
-      .setType(NumericType.TYPE.toString())
+      .setDataType(NumericType.TYPE.toString())
       .build();
     
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()

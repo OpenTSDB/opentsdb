@@ -40,7 +40,8 @@ public class LERPFactory extends BaseQueryIntperolatorFactory {
 
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
-    register(NumericType.TYPE, NumericLERP.class);
+    register(NumericType.TYPE, NumericLERP.class, 
+        new NumericInterpolatorParser());
     return Deferred.fromResult(null);
   }
 
@@ -58,4 +59,5 @@ public class LERPFactory extends BaseQueryIntperolatorFactory {
   Map<TypeToken<?>, Pair<Constructor<?>, Constructor<?>>> types() {
     return types;
   }
+  
 }

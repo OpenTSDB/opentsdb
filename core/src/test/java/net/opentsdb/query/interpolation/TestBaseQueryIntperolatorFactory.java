@@ -25,6 +25,8 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -43,7 +45,8 @@ public class TestBaseQueryIntperolatorFactory {
     TestFactory factory = new TestFactory();
     assertTrue(factory.types.isEmpty());
     
-    factory.register(NumericType.TYPE, MockInterpolator.class);
+    factory.register(NumericType.TYPE, MockInterpolator.class, 
+        new MockParser());
     assertEquals(1, factory.types.size());
     
     TimeSeries time_series = mock(TimeSeries.class);
@@ -66,7 +69,8 @@ public class TestBaseQueryIntperolatorFactory {
         iterator, config));
     
     // replace
-    factory.register(NumericType.TYPE, MockInterpolator2.class);
+    factory.register(NumericType.TYPE, MockInterpolator2.class, 
+        new MockParser());
     assertEquals(1, factory.types.size());
     
     MockInterpolator2 interpolator2 = (MockInterpolator2) 
@@ -80,22 +84,30 @@ public class TestBaseQueryIntperolatorFactory {
     assertSame(config, interpolator2.config);
     
     try {
-      factory.register(NumericType.TYPE, MockInterpolatorMissTimeSeries.class);
+      factory.register(NumericType.TYPE, 
+          MockInterpolatorMissTimeSeries.class, new MockParser());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.register(NumericType.TYPE, MockInterpolatorMissIterator.class);
+      factory.register(NumericType.TYPE, 
+          MockInterpolatorMissIterator.class, new MockParser());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.register(null, MockInterpolator2.class);
+      factory.register(null, MockInterpolator2.class, new MockParser());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.register(NumericType.TYPE, null);
+      factory.register(NumericType.TYPE, null, new MockParser());
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      factory = new TestFactory();
+      factory.register(NumericType.TYPE, MockInterpolator.class, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -119,7 +131,22 @@ public class TestBaseQueryIntperolatorFactory {
     public String version() {
       return "3.0.0";
     }
+
+    @Override
+    public QueryInterpolatorConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
+  }
+  
+  static class MockParser implements QueryInterpolatorConfigParser {
+    @Override
+    public QueryInterpolatorConfig parse(ObjectMapper mapper, TSDB tsdb,
+        JsonNode node) {
+      return mock(QueryInterpolatorConfig.class);
+    }
   }
 
   static class MockInterpolator implements QueryInterpolator<NumericType> {

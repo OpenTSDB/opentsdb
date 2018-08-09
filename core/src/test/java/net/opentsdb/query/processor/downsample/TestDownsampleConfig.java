@@ -46,7 +46,7 @@ public class TestDownsampleConfig {
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
     .setFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-    .setType(NumericType.TYPE.toString())
+    .setDataType(NumericType.TYPE.toString())
     .build();
     
     summary_config = 
@@ -55,7 +55,7 @@ public class TestDownsampleConfig {
       .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
       .addExpectedSummary(0)
-      .setType(NumericSummaryType.TYPE.toString())
+      .setDataType(NumericSummaryType.TYPE.toString())
       .build();
   }
   

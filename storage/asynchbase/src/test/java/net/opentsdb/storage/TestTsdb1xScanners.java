@@ -270,7 +270,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setId("interp")
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
     when(node.rollupAggregation()).thenReturn("avg");
@@ -376,7 +376,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setId("interp")
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
     when(node.rollupAggregation()).thenReturn("max");
@@ -394,7 +394,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setId("interp")
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
     scanners = new Tsdb1xScanners(node, source_config);
@@ -452,7 +452,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setId("interp")
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
     when(node.rollupAggregation()).thenReturn("avg");
@@ -470,7 +470,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setId("interp")
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
     when(node.rollupAggregation()).thenReturn("avg");
@@ -2538,7 +2538,7 @@ public class TestTsdb1xScanners extends UTBase {
               .setFillPolicy(FillPolicy.NONE)
               .setRealFillPolicy(FillWithRealPolicy.NONE)
               .setId("interp")
-              .setType(NumericType.TYPE.toString())
+              .setDataType(NumericType.TYPE.toString())
               .build())
           .build());
       when(node.rollupAggregation()).thenReturn(ds);
