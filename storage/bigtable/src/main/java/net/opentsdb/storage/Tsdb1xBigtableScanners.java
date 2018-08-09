@@ -30,9 +30,9 @@ import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.protobuf.UnsafeByteOperations;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.common.Const;
@@ -700,27 +700,27 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
             node.rollupAggregation().equals("avg")) {
           rollup_filter = RowFilter.Interleave.newBuilder()
               .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(ByteStringer.wrap(
+                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                       "sum".getBytes(Const.ASCII_US_CHARSET))))
               .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(ByteStringer.wrap(
+                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                       "count".getBytes(Const.ASCII_US_CHARSET))))
               .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(ByteStringer.wrap(new byte[] { 
+                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
                       (byte) node.schema().rollupConfig().getIdForAggregator("sum")
                   })))
               .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(ByteStringer.wrap(new byte[] { 
+                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
                       (byte) node.schema().rollupConfig().getIdForAggregator("count")
                   })));
         } else {
           // it's another aggregation
           rollup_filter = RowFilter.Interleave.newBuilder()
               .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(ByteStringer.wrap(
+                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                       node.rollupAggregation().getBytes(Const.ASCII_US_CHARSET))))
               .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(ByteStringer.wrap(new byte[] { 
+                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
                       (byte) node.schema().rollupConfig()
                         .getIdForAggregator(node.rollupAggregation())
                   })));
@@ -746,10 +746,10 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
           for (int x = 0; x < array.length; x++) {
             ReadRowsRequest.Builder read_builder = ReadRowsRequest.newBuilder()
                 .setTableNameBytes(pre_aggregate ? 
-                    ByteStringer.wrap(node.parent().tableNamer().toTableNameStr(
+                    UnsafeByteOperations.unsafeWrap(node.parent().tableNamer().toTableNameStr(
                         new String(interval.getGroupbyTable()))
                           .getBytes(Const.ASCII_US_CHARSET))
-                    : ByteStringer.wrap(node.parent().tableNamer().toTableNameStr(
+                    : UnsafeByteOperations.unsafeWrap(node.parent().tableNamer().toTableNameStr(
                         new String(interval.getTemporalTable()))
                           .getBytes(Const.ASCII_US_CHARSET)));
             
@@ -764,24 +764,24 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
               
               read_builder.setRows(RowSet.newBuilder()
                   .addRowRanges(RowRange.newBuilder()
-                      .setStartKeyClosed(ByteStringer.wrap(start_clone))
-                      .setEndKeyOpen(ByteStringer.wrap(stop_clone))));
+                      .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(start_clone))
+                      .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(stop_clone))));
             } else {
               // no copying needed, just dump em in
               read_builder.setRows(RowSet.newBuilder()
                   .addRowRanges(RowRange.newBuilder()
-                      .setStartKeyClosed(ByteStringer.wrap(start_key))
-                      .setEndKeyOpen(ByteStringer.wrap(stop_key))));
+                      .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(start_key))
+                      .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(stop_key))));
             }
             
             if (!Strings.isNullOrEmpty(regex)) {
               bldr.addFilters(RowFilter.newBuilder()
-                  .setRowKeyRegexFilter(ByteStringer.wrap(
+                  .setRowKeyRegexFilter(UnsafeByteOperations.unsafeWrap(
                       regex.getBytes(Const.ISO_8859_CHARSET))));
             }
             bldr.addFilters(RowFilter.newBuilder()
                 .setFamilyNameRegexFilterBytes(
-                    ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY)));
+                    UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY)));
             if (rollup_filter != null) {
               bldr.addFilters(
                   RowFilter.newBuilder().setInterleave(rollup_filter.build()));
@@ -825,7 +825,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
         
         for (int i = 0; i < array.length; i++) {
           ReadRowsRequest.Builder read_builder = ReadRowsRequest.newBuilder()
-              .setTableNameBytes(ByteStringer.wrap(node.parent().dataTable()));
+              .setTableNameBytes(UnsafeByteOperations.unsafeWrap(node.parent().dataTable()));
           // TODO - reverse?
           
           if (node.schema().saltWidth() > 0) {
@@ -836,14 +836,14 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
             
             read_builder.setRows(RowSet.newBuilder()
                 .addRowRanges(RowRange.newBuilder()
-                    .setStartKeyClosed(ByteStringer.wrap(start_clone))
-                    .setEndKeyOpen(ByteStringer.wrap(stop_clone))));
+                    .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(start_clone))
+                    .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(stop_clone))));
           } else {
             // no copying needed, just dump em in
             read_builder.setRows(RowSet.newBuilder()
                 .addRowRanges(RowRange.newBuilder()
-                    .setStartKeyClosed(ByteStringer.wrap(start_key))
-                    .setEndKeyOpen(ByteStringer.wrap(stop_key))));
+                    .setStartKeyClosed(UnsafeByteOperations.unsafeWrap(start_key))
+                    .setEndKeyOpen(UnsafeByteOperations.unsafeWrap(stop_key))));
           }
           
           if (!Strings.isNullOrEmpty(regex)) {
@@ -851,15 +851,15 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
                 RowFilter.Chain.newBuilder()
                 .addFilters(RowFilter.newBuilder()
                     .setRowKeyRegexFilter(
-                        ByteStringer.wrap(regex.getBytes(Const.ISO_8859_CHARSET))))
+                        UnsafeByteOperations.unsafeWrap(regex.getBytes(Const.ISO_8859_CHARSET))))
                 .addFilters(RowFilter.newBuilder()
                     .setFamilyNameRegexFilterBytes(
-                        ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY)))
+                        UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY)))
                 ));
           } else {
             read_builder.setFilter(RowFilter.newBuilder()
                 .setFamilyNameRegexFilterBytes(
-                    ByteStringer.wrap(Tsdb1xBigtableDataStore.DATA_FAMILY)));
+                    UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY)));
           }
           if (LOG.isDebugEnabled()) {
             LOG.debug("Instantiating raw table scanner: " + read_builder);

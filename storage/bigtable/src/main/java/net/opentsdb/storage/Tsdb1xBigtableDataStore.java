@@ -38,13 +38,13 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.protobuf.UnsafeByteOperations;
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.Deferred; 
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
@@ -345,12 +345,12 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
         if (enable_appends) {
           final ReadModifyWriteRowRequest append_request = 
               ReadModifyWriteRowRequest.newBuilder()
-                .setTableNameBytes(ByteStringer.wrap(data_table))
-                .setRowKey(ByteStringer.wrap(ioe.id()))
+                .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
+                .setRowKey(UnsafeByteOperations.unsafeWrap(ioe.id()))
                 .addRules(ReadModifyWriteRule.newBuilder()
-                    .setFamilyNameBytes(ByteStringer.wrap(DATA_FAMILY))
-                    .setColumnQualifier(ByteStringer.wrap(pair.getKey()))
-                    .setAppendValue(ByteStringer.wrap(pair.getValue())))
+                    .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
+                    .setColumnQualifier(UnsafeByteOperations.unsafeWrap(pair.getKey()))
+                    .setAppendValue(UnsafeByteOperations.unsafeWrap(pair.getValue())))
                 .build();
           
           final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
@@ -394,13 +394,13 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
         } else {
           final MutateRowRequest mutate_row_request = 
               MutateRowRequest.newBuilder()
-                .setTableNameBytes(ByteStringer.wrap(data_table))
-                .setRowKey(ByteStringer.wrap(ioe.id()))
+                .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
+                .setRowKey(UnsafeByteOperations.unsafeWrap(ioe.id()))
                 .addMutations(Mutation.newBuilder()
                     .setSetCell(SetCell.newBuilder()
-                        .setFamilyNameBytes(ByteStringer.wrap(DATA_FAMILY))
-                        .setColumnQualifier(ByteStringer.wrap(pair.getKey()))
-                        .setValue(ByteStringer.wrap(pair.getValue()))
+                        .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
+                        .setColumnQualifier(UnsafeByteOperations.unsafeWrap(pair.getKey()))
+                        .setValue(UnsafeByteOperations.unsafeWrap(pair.getValue()))
                         .setTimestampMicros(-1)))
                 .build();
           

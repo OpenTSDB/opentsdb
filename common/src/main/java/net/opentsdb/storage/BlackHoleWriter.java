@@ -31,7 +31,9 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class BlackHoleWriter implements WritableTimeSeriesDataStore, TSDBPlugin {
+public class BlackHoleWriter implements WritableTimeSeriesDataStore,
+                                        WritableTimeSeriesDataStoreFactory, 
+                                        TSDBPlugin {
 
   /**
    * Default ctor.
@@ -76,6 +78,12 @@ public class BlackHoleWriter implements WritableTimeSeriesDataStore, TSDBPlugin 
       list.add(WriteStatus.OK);
     }
     return Deferred.fromResult(list);
+  }
+
+  
+  @Override
+  public WritableTimeSeriesDataStore newStoreInstance(TSDB tsdb, String id) {
+    return this;
   }
 
 }

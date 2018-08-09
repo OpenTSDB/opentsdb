@@ -55,17 +55,7 @@
         <dependency>
           <groupId>com.google.cloud.bigtable</groupId>
           <artifactId>bigtable-client-core</artifactId>
-          <version>1.4.0</version>
-        </dependency>
-        <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-          <version>3.6.0</version>
-        </dependency>
-        <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java-util</artifactId>
-          <version>3.6.0</version>
+          <version>1.5.0</version>
         </dependency>
         
         <!-- used for fast primitive maps. May try others. -->
@@ -96,15 +86,7 @@
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-client-core</artifactId>
       </dependency>
-       <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java-util</artifactId>
-        </dependency>
-      
+        
       <dependency>
         <groupId>net.sf.trove4j</groupId>
         <artifactId>trove4j</artifactId>

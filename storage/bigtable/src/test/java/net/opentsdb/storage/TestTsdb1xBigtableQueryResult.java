@@ -37,9 +37,9 @@ import com.google.bigtable.v2.Row;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
-import com.google.cloud.bigtable.util.ByteStringer;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Bytes;
+import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
@@ -167,7 +167,7 @@ public class TestTsdb1xBigtableQueryResult extends UTBase {
     
     final byte[] row_key = makeRowKey(METRIC_BYTES, TS_SINGLE_SERIES, TAGK_BYTES, TAGV_BYTES);
     FlatRow.Builder builder = FlatRow.newBuilder()
-        .withRowKey(ByteStringer.wrap(row_key));
+        .withRowKey(UnsafeByteOperations.unsafeWrap(row_key));
     addCell(builder, Tsdb1xBigtableDataStore.DATA_FAMILY,
         NumericCodec.buildSecondQualifier(0, (short) 0) ,
         NumericCodec.vleEncodeLong(1));
@@ -205,7 +205,7 @@ public class TestTsdb1xBigtableQueryResult extends UTBase {
     
     final byte[] row_key = makeRowKey(METRIC_BYTES, TS_SINGLE_SERIES, TAGK_BYTES, TAGV_BYTES);
     FlatRow.Builder builder = FlatRow.newBuilder()
-        .withRowKey(ByteStringer.wrap(row_key));
+        .withRowKey(UnsafeByteOperations.unsafeWrap(row_key));
     addCell(builder, Tsdb1xBigtableDataStore.DATA_FAMILY,
         NumericCodec.buildSecondQualifier(0, (short) 0) ,
         NumericCodec.vleEncodeLong(1));
@@ -281,7 +281,7 @@ public class TestTsdb1xBigtableQueryResult extends UTBase {
     
     final byte[] row_key = makeRowKey(METRIC_BYTES, TS_SINGLE_SERIES, TAGK_BYTES, TAGV_BYTES);
     FlatRow.Builder builder = FlatRow.newBuilder()
-         .withRowKey(ByteStringer.wrap(row_key));
+         .withRowKey(UnsafeByteOperations.unsafeWrap(row_key));
     addCell(builder, Tsdb1xBigtableDataStore.DATA_FAMILY,
          NumericCodec.buildSecondQualifier(0, (short) 0) ,
          NumericCodec.vleEncodeLong(1));
@@ -325,7 +325,7 @@ public class TestTsdb1xBigtableQueryResult extends UTBase {
     
     final byte[] row_key = makeRowKey(METRIC_BYTES, TS_SINGLE_SERIES, TAGK_BYTES, TAGV_BYTES);
     FlatRow.Builder builder = FlatRow.newBuilder()
-        .withRowKey(ByteStringer.wrap(row_key));
+        .withRowKey(UnsafeByteOperations.unsafeWrap(row_key));
     addCell(builder, Tsdb1xBigtableDataStore.DATA_FAMILY,
         NumericCodec.buildSecondQualifier(0, (short) 0) ,
         NumericCodec.vleEncodeLong(1));
@@ -419,7 +419,7 @@ public class TestTsdb1xBigtableQueryResult extends UTBase {
     
     final byte[] row_key = makeRowKey(METRIC_BYTES, TS_SINGLE_SERIES, TAGK_BYTES, TAGV_BYTES);
     FlatRow.Builder builder = FlatRow.newBuilder()
-        .withRowKey(ByteStringer.wrap(row_key));
+        .withRowKey(UnsafeByteOperations.unsafeWrap(row_key));
     addCell(builder, Tsdb1xBigtableDataStore.DATA_FAMILY,
         NumericCodec.buildSecondQualifier(0, (short) 0) ,
         NumericCodec.vleEncodeLong(1));
