@@ -16,6 +16,7 @@ package net.opentsdb.storage;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.iterators.SlicedTimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
@@ -528,7 +530,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
             query.endTime().msEpoch() : 
               query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
-  System.out.println("START: " + start_ts + " END: " + end_ts);
         if (LOG.isDebugEnabled()) {
           LOG.debug("Running the filter: " + config);
         }
@@ -562,14 +563,20 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
           
           // matched the filters
           TimeSeries iterator = context.queryContext().mode() == 
-              QueryMode.SINGLE ? new SlicedTimeSeries() : null;
+              QueryMode.SINGLE ? 
+                  config.getFetchLast() ? new LastTimeSeries(query) : new SlicedTimeSeries() 
+                      : null;
           int rows = 0;
           for (final MockRow row : entry.getValue().rows) {
             if (row.base_timestamp >= start_ts && 
                 row.base_timestamp < end_ts) {
               ++rows;
               if (context.queryContext().mode() == QueryMode.SINGLE) {
-                ((SlicedTimeSeries) iterator).addSource(row);
+                if (config.getFetchLast()) {
+                  ((LastTimeSeries) iterator).row = row;
+                } else {
+                  ((SlicedTimeSeries) iterator).addSource(row);
+                }
               } else {
                 iterator = row;
                 break;
@@ -758,5 +765,91 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     return null;
   }
 
-  
+  class LastTimeSeries implements TimeSeries {
+    SemanticQuery query;
+    MockRow row;
+    
+    LastTimeSeries(final SemanticQuery query) {
+      this.query = query;
+    }
+    
+    @Override
+    public TimeSeriesId id() {
+      return row.id();
+    }
+
+    @Override
+    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
+        TypeToken<?> type) {
+      if (row != null && row.types().contains(type)) {
+        return Optional.of(new LocalIterator(type));
+      }
+      return Optional.empty();
+    }
+
+    @Override
+    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+          Lists.newArrayListWithCapacity(row == null ? 0 : row.types().size());
+      if (row != null) {
+        for (final TypeToken<?> type : row.types()) {
+          iterators.add(new LocalIterator(type));
+        }
+      }
+      return iterators;
+    }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return row != null ? row.types() : Collections.emptyList();
+    }
+
+    @Override
+    public void close() {
+    }
+    
+    class LocalIterator<T extends TimeSeriesDataType> extends TypedIterator<TimeSeriesValue<T>> {
+      boolean has_next = false;
+      TimeSeriesValue<?> value;
+      
+      LocalIterator(final TypeToken<? extends TimeSeriesDataType> type) {
+        super(null, type);
+        final Optional<Iterator<TimeSeriesValue<?>>> opt = row.iterator(type);
+        if (opt.isPresent()) {
+          
+          // this is super ugly but it's one way to get the last value
+          // before the end time without having to clone values.
+          int inc = 0;
+          Iterator<TimeSeriesValue<?>> it = opt.get();
+          while (it.hasNext()) {
+            value = it.next();
+            if (value.timestamp().compare(Op.LTE, query.startTime())) {
+              inc++;
+            } else {
+              break;
+            }
+          }
+          if (value != null) {
+            has_next = true;
+            it = row.iterator(type).get();
+            for (int i = 0; i < inc; i++) {
+              value = it.next();
+            }
+          }
+        }
+      }
+      
+      @Override
+      public boolean hasNext() {
+        return has_next;
+      }
+
+      @Override
+      public TimeSeriesValue<?> next() {
+        has_next = false;
+        return value;
+      }
+      
+    }
+  }
 }
