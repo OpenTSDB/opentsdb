@@ -18,8 +18,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
@@ -29,12 +27,8 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.utils.DateTime;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
@@ -63,6 +57,9 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** An optional filter. If filter_id is set, this is ignored. */
   private final QueryFilter filter;
   
+  /** Whethe or not to fetch only the last value. */
+  private final boolean fetch_last;
+  
   /**
    * Private ctor for the builder.
    * @param builder The non-null builder.
@@ -77,6 +74,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     metric = builder.metric;
     filter_id = builder.filterId;
     filter = builder.filter;
+    fetch_last = builder.fetchLast;
   }
   
   /** @return The non-null query object. */
@@ -113,6 +111,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     }
     // TODO - no no no!!!
     return ((SemanticQuery) query).getFilter(filter_id);
+  }
+  
+  /** @return Whether or not to fetch just the last (latest) value. */
+  public boolean getFetchLast() {
+    return fetch_last;
   }
   
   @Override
@@ -165,6 +168,8 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     private String filterId;
     @JsonProperty
     private QueryFilter filter;
+    @JsonProperty
+    private boolean fetchLast;
     
     /** 
      * @param query The non-null query to execute.
@@ -200,6 +205,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     
     public Builder setQueryFilter(final QueryFilter filter) {
       this.filter = filter;
+      return this;
+    }
+    
+    public Builder setFetchLast(final boolean fetch_last) {
+      this.fetchLast = fetch_last;
       return this;
     }
     

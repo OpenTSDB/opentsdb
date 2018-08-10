@@ -117,6 +117,11 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
     }
     builder.setMetric((MetricFilter) filter);
     
+    n = node.get("fetchLast");
+    if (n != null) {
+      builder.setFetchLast(n.asBoolean());
+    }
+    
     n = node.get("filterId");
     if (n != null && !Strings.isNullOrEmpty(n.asText())) {
       builder.setFilterId(n.asText());
