@@ -336,6 +336,26 @@ public class TestZonedNanoTimeStamp {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
+  
+  @Test
+  public void subtract() throws Exception {
+    ZonedNanoTimeStamp znt = new ZonedNanoTimeStamp(1483272000, 500, AF);
+    assertEquals(1483272000, znt.epoch());
+    assertEquals(1483272000000L, znt.msEpoch());
+    assertEquals(500, znt.nanos());
+    assertEquals(AF, znt.timezone());
+    
+    znt.subtract(Duration.of(2, ChronoUnit.HOURS));
+    assertEquals(1483264800, znt.epoch());
+    assertEquals(1483264800000L, znt.msEpoch());
+    assertEquals(500, znt.nanos());
+    assertEquals(AF, znt.timezone());
+    
+    try {
+      znt.add(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
 
   @Test
   public void snapToPreviousIntervalNanos() throws Exception {

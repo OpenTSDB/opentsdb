@@ -208,6 +208,22 @@ public class SecondTimeStamp implements TimeStamp, Comparable<SecondTimeStamp> {
       timestamp = Instant.from(zdt.plus(amount)).getEpochSecond();
     }
   }
+  
+  @Override
+  public void subtract(final TemporalAmount amount) {
+    if (amount == null) {
+      throw new IllegalArgumentException("Amount cannot be null.");
+    }
+    if (amount instanceof Duration) {
+      timestamp -= ((Duration) amount).getSeconds();
+    } else {
+      // can't shortcut easily here since we don't *know* the number of days in 
+      // a month. So snap to a calendar
+      final ZonedDateTime zdt = ZonedDateTime.ofInstant(
+          Instant.ofEpochSecond(timestamp), Const.UTC);
+      timestamp = Instant.from(zdt.minus(amount)).getEpochSecond();
+    }
+  }
 
   @Override
   public void snapToPreviousInterval(final long interval, final ChronoUnit units) {

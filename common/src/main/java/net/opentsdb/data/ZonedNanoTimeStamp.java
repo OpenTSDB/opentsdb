@@ -247,6 +247,14 @@ public class ZonedNanoTimeStamp implements TimeStamp {
   }
   
   @Override
+  public void subtract(final TemporalAmount amount) {
+    if (amount == null) {
+      throw new IllegalArgumentException("Amount cannot be null.");
+    }
+    timestamp = timestamp.minus(amount);
+  }
+  
+  @Override
   public void snapToPreviousInterval(final long interval, final ChronoUnit units) {
     snapToPreviousInterval(interval, units, DayOfWeek.SUNDAY);
   }

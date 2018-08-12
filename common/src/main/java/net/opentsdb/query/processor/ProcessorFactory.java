@@ -75,7 +75,7 @@ public interface ProcessorFactory extends SingleQueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
+  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
       final TypeToken<?> type,
       final QueryNode node,
       final QueryResult result,

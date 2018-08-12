@@ -438,10 +438,10 @@ public class DownsampleNumericIterator implements QueryIterator {
         dp.reset(interpolator.next(interval_ts));
       } else if (longs) {
         dp.resetTimestamp(interval_start);
-        aggregator.run(long_values, value_idx, dp);
+        aggregator.run(long_values, 0, value_idx, dp);
       } else {
         dp.resetTimestamp(interval_start);
-        aggregator.run(double_values, value_idx, false/* TODO -!! */, dp);
+        aggregator.run(double_values, 0, value_idx, false/* TODO -!! */, dp);
       }
       
       result.nextTimestamp(interval_start);
