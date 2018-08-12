@@ -217,14 +217,15 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       // TODO - overflow check
       long sum = 0;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         sum += values[i];
       }
       dp.resetValue(sum);
@@ -232,22 +233,23 @@ public final class Aggregators {
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       double sum = 0;
       int nans = 0;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && !infectious_nans) {
           nans++;
           continue;
         }
         sum += values[i];
       }
-      if (nans == limit || (nans > 0 && infectious_nans)) {
+      if (nans == (end_offset - start_offset) || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         dp.resetValue(sum);
@@ -265,13 +267,14 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      long min = values[0];
-      for (int i = 1; i < limit; i++) {
+      long min = values[start_offset];
+      for (int i = start_offset + 1; i < end_offset; i++) {
         if (values[i] < min) {
           min = values[i];
         }
@@ -281,15 +284,16 @@ public final class Aggregators {
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      double min = values[0];
+      double min = values[start_offset];
       int nans = 0;
-      for (int i = 1; i < limit; i++) {
+      for (int i = start_offset + 1; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && infectious_nans) {
           nans++;
           continue;
@@ -298,7 +302,7 @@ public final class Aggregators {
           min = values[i];
         }
       }
-      if (nans == limit || (nans > 0 && infectious_nans)) {
+      if (nans == (end_offset - start_offset) || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         dp.resetValue(min);
@@ -317,13 +321,14 @@ public final class Aggregators {
     
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      long max = values[0];
-      for (int i = 1; i < limit; i++) {
+      long max = values[start_offset];
+      for (int i = start_offset + 1; i < end_offset; i++) {
         if (values[i] > max) {
           max = values[i];
         }
@@ -333,15 +338,16 @@ public final class Aggregators {
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      double max = values[0];
+      double max = values[start_offset];
       int nans = 0;
-      for (int i = 1; i < limit; i++) {
+      for (int i = start_offset + 1; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && infectious_nans) {
           nans++;
           continue;
@@ -350,7 +356,7 @@ public final class Aggregators {
           max = values[i];
         }
       }
-      if (nans == limit || (nans > 0 && infectious_nans)) {
+      if (nans == (end_offset - start_offset) || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         dp.resetValue(max);
@@ -371,24 +377,25 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
       // short circuit
-      if (limit == 1) {
-        dp.resetValue(values[0]);
+      if (end_offset - start_offset == 1) {
+        dp.resetValue(values[start_offset]);
         return;
-      } else if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      } else if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       // TODO - overflow check
       long sum = 0;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         sum += values[i];
       }
-      double avg = (double) sum / (double) limit;
+      double avg = (double) sum / (double) (end_offset - start_offset);
       if (avg % 1 == 0) {
-        dp.resetValue(sum / limit);
+        dp.resetValue(sum / end_offset - start_offset);
       } else {
         dp.resetValue(avg);
       }
@@ -396,30 +403,31 @@ public final class Aggregators {
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
       // short circuit
-      if (limit == 1) {
-        dp.resetValue(values[0]);
+      if (end_offset - start_offset == 1) {
+        dp.resetValue(values[start_offset]);
         return;
-      } else if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      } else if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       double sum = 0;
       int nans = 0;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && !infectious_nans) {
           nans++;
           continue;
         }
         sum += values[i];
       }
-      if (nans == limit|| (nans > 0 && infectious_nans)) {
+      if (nans == end_offset - start_offset || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
-        dp.resetValue(sum / (double) (limit - nans));
+        dp.resetValue(sum / (double) (end_offset - start_offset - nans));
       }
     }
   }
@@ -435,20 +443,21 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit == 1) {
-        dp.resetValue(values[0]);
+      if (end_offset - start_offset == 1) {
+        dp.resetValue(values[start_offset]);
         return;
-      } else if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      } else if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       // ugg, we can't violate the sorting of the source and we can't
       // sort anyway since the limit may be less than the length with
       // garbage in a previously used array. so we have to copy.
-      final long[] copy = limit == values.length ? values : 
-          Arrays.copyOf(values, limit);
+      final long[] copy = end_offset - start_offset == values.length ? values : 
+          Arrays.copyOfRange(values, start_offset, end_offset);
       Arrays.sort(copy);
       
       dp.resetValue(copy[copy.length / 2]);
@@ -456,18 +465,19 @@ public final class Aggregators {
 
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit == 1) {
+      if (end_offset - start_offset == 1) {
         dp.resetValue(values[0]);
         return;
-      } else if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      } else if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
-      final double[] copy = limit == values.length ? values : 
-        Arrays.copyOf(values, limit);
+      final double[] copy = end_offset - start_offset == values.length ? values : 
+        Arrays.copyOfRange(values, start_offset, end_offset);
       Arrays.sort(copy);
       if (Double.isNaN(copy[copy.length - 1]) && infectious_nans) {
         dp.resetValue(Double.NaN);
@@ -501,14 +511,16 @@ public final class Aggregators {
     
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
       throw new UnsupportedOperationException("None cannot actually be called.");
     }
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
       throw new UnsupportedOperationException("None cannot actually be called.");
@@ -527,15 +539,16 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       // TODO - overflow
       long product = 1;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         product *= values[i];
       }
       dp.resetValue(product);
@@ -543,23 +556,24 @@ public final class Aggregators {
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       double product = 1;
       int nans = 0;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && !infectious_nans) {
           nans++;
           continue;
         }
         product *= values[i];
       }
-      if (nans == limit|| (nans > 0 && infectious_nans)) {
+      if (nans == end_offset - start_offset || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         dp.resetValue(product);
@@ -584,20 +598,21 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit == 1) {
+      if (end_offset - start_offset == 1) {
         dp.resetValue(0L);
         return;
-      } else if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      } else if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
-      double old_mean = values[0];
+      double old_mean = values[start_offset];
       long n = 2;
       double new_mean = 0.;
       double M2 = 0.;
-      for (int i = 1; i < limit; i++) {
+      for (int i = start_offset + 1; i < end_offset; i++) {
         final double x = values[i];
         new_mean = old_mean + (x - old_mean) / n;
         M2 += (x - old_mean) * (x - new_mean);
@@ -615,22 +630,23 @@ public final class Aggregators {
 
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit == 1) {
+      if (end_offset - start_offset == 1) {
         dp.resetValue(0.0);
         return;
-      } else if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      } else if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       int nans = Double.isNaN(values[0]) ? 1 : 0;
-      double old_mean = values[0];
+      double old_mean = values[start_offset];
       long n = 2;
       double new_mean = 0.;
       double M2 = 0.;
-      for (int i = 1; i < limit; i++) {
+      for (int i = start_offset + 1; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && !infectious_nans) {
           nans++;
           continue;
@@ -642,7 +658,7 @@ public final class Aggregators {
         n++;
       }
       
-      if (nans == limit || (nans > 0 && infectious_nans)) {
+      if (nans == end_offset - start_offset || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         dp.resetValue(Math.sqrt(M2 / (n - 1)));
@@ -662,17 +678,19 @@ public final class Aggregators {
     
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      dp.resetValue(limit);
+      dp.resetValue(end_offset - start_offset);
     }
     
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      dp.resetValue(limit);
+      dp.resetValue(end_offset - start_offset);
     }
     
   }
@@ -704,10 +722,11 @@ public final class Aggregators {
 
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       final Percentile percentile =
@@ -715,7 +734,7 @@ public final class Aggregators {
             ? new Percentile(this.percentile)
             : new Percentile(this.percentile).withEstimationType(estimation);
       final ResizableDoubleArray local_values = new ResizableDoubleArray();
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         local_values.addElement(values[i]);
       }
       percentile.setData(local_values.getElements());
@@ -729,24 +748,25 @@ public final class Aggregators {
 
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
       
       final Percentile percentile = new Percentile(this.percentile);
       final ResizableDoubleArray local_values = new ResizableDoubleArray();
       int nans = 0;
-      for (int i = 0; i < limit; i++) {
+      for (int i = start_offset; i < end_offset; i++) {
         if (Double.isNaN(values[i]) && !infectious_nans) {
           nans++;
           continue;
         }
         local_values.addElement(values[i]);
       }
-      if (nans == limit || (nans > 0 && infectious_nans)) {
+      if (nans == end_offset - start_offset || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         percentile.setData(local_values.getElements());
@@ -755,106 +775,6 @@ public final class Aggregators {
     }
 
   }
-//  public static final class MovingAverage extends Aggregator {
-//    private LinkedList<SumPoint> list = new LinkedList<SumPoint>();
-//    private final long numPoints;
-//    private final boolean isTimeUnit;
-//
-//    public MovingAverage(final Interpolation method, final String name, long numPoints, boolean isTimeUnit) {
-//      super(method, name);
-//      this.numPoints = numPoints;
-//      this.isTimeUnit = isTimeUnit;
-//    }
-//
-//    public long runLong(final Longs values) {
-//      long sum = values.nextLongValue();
-//      while (values.hasNextValue()) {
-//        sum += values.nextLongValue();
-//      }
-//
-//      if (values instanceof DataPoint) {
-//        long ts = ((DataPoint) values).timestamp();
-//        list.addFirst(new SumPoint(ts, sum));
-//      }
-//
-//      long result = 0;
-//      int count = 0;
-//
-//      Iterator<SumPoint> iter = list.iterator();
-//      SumPoint first = iter.next();
-//      boolean conditionMet = false;
-//
-//      // now sum up the preceeding points
-//      while (iter.hasNext()) {
-//        SumPoint next = iter.next();
-//        result += (Long) next.val;
-//        count++;
-//        if (!isTimeUnit && count >= numPoints) {
-//          conditionMet = true;
-//          break;
-//        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-//          conditionMet = true;
-//          break;
-//        }
-//      }
-//
-//      if (!conditionMet || count == 0) {
-//        return 0;
-//      }
-//
-//      return result / count;
-//    }
-//
-//    @Override
-//    public double runDouble(Doubles values) {
-//      double sum = values.nextDoubleValue();
-//      while (values.hasNextValue()) {
-//        sum += values.nextDoubleValue();
-//      }
-//
-//      if (values instanceof DataPoint) {
-//        long ts = ((DataPoint) values).timestamp();
-//        list.addFirst(new SumPoint(ts, sum));
-//      }
-//
-//      double result = 0;
-//      int count = 0;
-//
-//      Iterator<SumPoint> iter = list.iterator();
-//      SumPoint first = iter.next();
-//      boolean conditionMet = false;
-//
-//      // now sum up the preceeding points
-//      while (iter.hasNext()) {
-//        SumPoint next = iter.next();
-//        result += (Double) next.val;
-//        count++;
-//        if (!isTimeUnit && count >= numPoints) {
-//          conditionMet = true;
-//          break;
-//        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-//          conditionMet = true;
-//          break;
-//        }
-//      }
-//
-//      if (!conditionMet || count == 0) {
-//        return 0;
-//      }
-//
-//      return result / count;
-//    }
-//  
-//    class SumPoint {
-//      long ts;
-//      Object val;
-//
-//      public SumPoint(long ts, Object val) {
-//        this.ts = ts;
-//        this.val = val;
-//      }
-//    }
-//  }
   
   /**
    * Returns the first value in the array.
@@ -866,31 +786,33 @@ public final class Aggregators {
     
     @Override
     public void run(final long[] values, 
-                    final int limit,
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      dp.resetValue(values[0]);
+      dp.resetValue(values[start_offset]);
     }
 
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      dp.resetValue(values[0]);
       if (infectious_nans) {
-        for (int i = 0; i < limit; i++) {
+        for (int i = start_offset; i < end_offset; i++) {
           if (Double.isNaN(values[i])) {
             dp.resetValue(Double.NaN);
             return;
           }
         }
       }
+      dp.resetValue(values[start_offset]);
     }
     
   }
@@ -905,31 +827,33 @@ public final class Aggregators {
     
     @Override
     public void run(final long[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      dp.resetValue(values[limit - 1]);
+      dp.resetValue(values[end_offset - 1]);
     }
 
     @Override
     public void run(final double[] values, 
-                    final int limit, 
+                    final int start_offset,
+                    final int end_offset, 
                     final boolean infectious_nans,
                     final MutableNumericValue dp) {
-      if (limit < 1) {
-        throw new IllegalDataException("Limit must be greater than 0");
+      if (end_offset < 1) {
+        throw new IllegalDataException("End offset must be greater than 0");
       }
-      dp.resetValue(values[limit - 1]);
       if (infectious_nans) {
-        for (int i = 0; i < limit; i++) {
+        for (int i = start_offset; i < end_offset; i++) {
           if (Double.isNaN(values[i])) {
             dp.resetValue(Double.NaN);
             return;
           }
         }
       }
+      dp.resetValue(values[end_offset - 1]);
     }
     
   }

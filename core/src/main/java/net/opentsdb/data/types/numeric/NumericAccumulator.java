@@ -115,9 +115,9 @@ public class NumericAccumulator {
   public void run(final NumericAggregator aggregator, 
                   final boolean infectious_nan) {
     if (longs) {
-      aggregator.run(long_values, value_idx, dp);
+      aggregator.run(long_values, 0, value_idx, dp);
     } else {
-      aggregator.run(double_values, value_idx, infectious_nan, dp);
+      aggregator.run(double_values, 0, value_idx, infectious_nan, dp);
     }
   }
   

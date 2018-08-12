@@ -113,9 +113,9 @@ public class TopNNumericAggregator {
     
     final MutableNumericValue dp = new MutableNumericValue();
     if (long_values != null) {
-      aggregator.run(long_values, idx, dp);
+      aggregator.run(long_values, 0, idx, dp);
     } else {
-      aggregator.run(double_values, idx, ((TopNConfig) node.config()).getInfectiousNan(), dp);
+      aggregator.run(double_values, 0, idx, ((TopNConfig) node.config()).getInfectiousNan(), dp);
     }
     return dp.value();
   }

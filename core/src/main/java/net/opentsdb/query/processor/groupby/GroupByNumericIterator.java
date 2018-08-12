@@ -237,10 +237,10 @@ public class GroupByNumericIterator implements QueryIterator,
     } else {
       if (longs) {
         dp.resetTimestamp(next_ts);
-        aggregator.run(long_values, value_idx, dp);
+        aggregator.run(long_values, 0, value_idx, dp);
       } else {
         dp.resetTimestamp(next_ts);
-        aggregator.run(double_values, value_idx, infectious_nan, dp);
+        aggregator.run(double_values, 0, value_idx, infectious_nan, dp);
       }
     }
 

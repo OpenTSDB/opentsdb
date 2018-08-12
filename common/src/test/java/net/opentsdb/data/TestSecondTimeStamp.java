@@ -213,6 +213,64 @@ public class TestSecondTimeStamp {
     assertEquals(1, ts.epoch());
     assertEquals(0, ts.nanos());
   }
+  
+  @Test
+  public void subtract() throws Exception {
+    TimeStamp ts = new SecondTimeStamp(1);
+    ts.subtract(Period.ofYears(1));
+    assertEquals(-31535999000L, ts.msEpoch());
+    assertEquals(-31535999L, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Period.ofMonths(1));
+    assertEquals(-2678399000L, ts.msEpoch());
+    assertEquals(-2678399, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Period.ofWeeks(1));
+    assertEquals(-604799000, ts.msEpoch());
+    assertEquals(-604799, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Duration.of(1, ChronoUnit.DAYS));
+    assertEquals(-86399000, ts.msEpoch());
+    assertEquals(-86399, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Duration.of(2, ChronoUnit.HOURS));
+    assertEquals(-7199000, ts.msEpoch());
+    assertEquals(-7199, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Duration.of(14, ChronoUnit.SECONDS));
+    assertEquals(-13000, ts.msEpoch());
+    assertEquals(-13, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    // no-ops
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Duration.of(25, ChronoUnit.MILLIS));
+    assertEquals(1000, ts.msEpoch());
+    assertEquals(1, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Duration.of(100, ChronoUnit.MICROS));
+    assertEquals(1000, ts.msEpoch());
+    assertEquals(1, ts.epoch());
+    assertEquals(0, ts.nanos());
+    
+    ts = new SecondTimeStamp(1);
+    ts.subtract(Duration.of(100, ChronoUnit.NANOS));
+    assertEquals(1000, ts.msEpoch());
+    assertEquals(1, ts.epoch());
+    assertEquals(0, ts.nanos());
+  }
 
   @Test
   public void snapToPreviousIntervalNanos() throws Exception {
