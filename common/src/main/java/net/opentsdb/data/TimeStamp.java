@@ -137,6 +137,12 @@ public interface TimeStamp {
   public void add(final TemporalAmount amount);
   
   /**
+   * @param amount A non-null duration to subtract from the current timestamp, 
+   * accounting for time zone, DST, leap years and leap seconds when applicable.
+   */
+  public void subtract(final TemporalAmount amount);
+  
+  /**
    * Moves to the timestamp to a well defined time at the start of an interval
    * given a unit of time and number of those units. For example, an interval
    * of 60 {@link ChronoUnit#SECONDS} would snap to the top of the minute, 

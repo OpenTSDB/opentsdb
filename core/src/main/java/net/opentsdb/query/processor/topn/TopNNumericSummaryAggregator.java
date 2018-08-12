@@ -184,18 +184,19 @@ public class TopNNumericSummaryAggregator {
     final MutableNumericValue dp = new MutableNumericValue();
     if (count_idx > 0) {
       final MutableNumericValue sums = new MutableNumericValue();
-      Aggregators.SUM.run(double_values, idx, 
+      Aggregators.SUM.run(double_values, 0, idx, 
           ((TopNConfig) node.config()).getInfectiousNan(), sums);
       final MutableNumericValue count_sum = new MutableNumericValue();
-      Aggregators.SUM.run(counts, count_idx, 
+      Aggregators.SUM.run(counts, 0, count_idx, 
           ((TopNConfig) node.config()).getInfectiousNan(), count_sum);
       dp.resetValue(sums.toDouble() / count_sum.toDouble());
       System.out.println("AVG: " + sums.toDouble() + "  "  + count_sum.toDouble());
     } else {
       if (long_values != null) {
-        aggregator.run(long_values, idx, dp);
+        aggregator.run(long_values, 0, idx, dp);
       } else {
-        aggregator.run(double_values, idx, ((TopNConfig) node.config()).getInfectiousNan(), dp);
+        aggregator.run(double_values, 0, idx, 
+            ((TopNConfig) node.config()).getInfectiousNan(), dp);
       }
     }
     return dp.value();

@@ -159,9 +159,9 @@ public class TestBaseQueryNodeFactory {
     assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,sources));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory = 
+    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory = 
         factory.newTypedIterator(NumericType.TYPE, node, null,sources);
-    assertSame(iterator, from_factory);
+    assertSame(iterator, from_factory.getIterator());
     
     try {
       factory.newTypedIterator(null, node, null,sources);

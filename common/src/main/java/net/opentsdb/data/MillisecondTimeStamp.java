@@ -210,6 +210,24 @@ public class MillisecondTimeStamp implements TimeStamp {
       timestamp = Instant.from(zdt.plus(amount)).toEpochMilli();
     }
   }
+  
+  @Override
+  public void subtract(final TemporalAmount amount) {
+    if (amount == null) {
+      throw new IllegalArgumentException("Amount cannot be null.");
+    }
+    if (amount instanceof Duration) {
+      long increment = ((Duration) amount).getSeconds() * 1000;
+      increment += (((Duration) amount).getNano() / 1000000);
+      timestamp -= increment;
+    } else {
+      // can't shortcut easily here since we don't *know* the number of days in 
+      // a month. So snap to a calendar
+      final ZonedDateTime zdt = ZonedDateTime.ofInstant(
+          Instant.ofEpochMilli(timestamp), Const.UTC);
+      timestamp = Instant.from(zdt.minus(amount)).toEpochMilli();
+    }
+  }
 
   @Override
   public void snapToPreviousInterval(final long interval, final ChronoUnit units) {
