@@ -589,7 +589,7 @@ public class TestTSDBV2QueryContextBuilder {
         assertEquals(4, next.timeSeries().size());
         int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
+          long timestamp = start_ts;
           int values = 0;
           // order is indeterminate
           if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
@@ -758,7 +758,7 @@ public class TestTSDBV2QueryContextBuilder {
         assertEquals(4, next.timeSeries().size());
         int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
+          long timestamp = start_ts;
           int values = 0;
           // order is indeterminate
           if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
@@ -856,7 +856,7 @@ public class TestTSDBV2QueryContextBuilder {
         assertEquals(4, next.timeSeries().size());
         int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
+          long timestamp = start_ts;
           int values = 0;
           // order is indeterminate
           if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
@@ -950,7 +950,7 @@ public class TestTSDBV2QueryContextBuilder {
         assertEquals(4, next.timeSeries().size());
         int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
+          long timestamp = start_ts;
           int values = 0;
           // order is indeterminate
           if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
@@ -1047,7 +1047,7 @@ public class TestTSDBV2QueryContextBuilder {
         assertEquals(4, next.timeSeries().size());
         int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
+          long timestamp = start_ts;
           int values = 0;
           // order is indeterminate
           if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
@@ -1141,7 +1141,7 @@ public class TestTSDBV2QueryContextBuilder {
         assertEquals(4, next.timeSeries().size());
         int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
+          long timestamp = start_ts;
           int values = 0;
           // order is indeterminate
           if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {

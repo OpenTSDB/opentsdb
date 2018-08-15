@@ -226,10 +226,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       sources = Maps.newHashMap();
       // TODO - other types
       if (value.type() == NumericType.TYPE) {
-        sources.put(NumericType.TYPE, new NumericMillisecondShard(
-            this.id,
-            new MillisecondTimeStamp(base_timestamp), 
-            new MillisecondTimeStamp(base_timestamp + ROW_WIDTH)));
         addValue(value);
       }
     }
@@ -348,7 +344,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
             }
           }
         }
-
       }
     }
   }
@@ -531,19 +526,11 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
             query.endTime().msEpoch() : 
               query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Running the filter: " + config);
+          LOG.debug("Running the filter: " + config.getFilter());
         }
         
         final QueryFilter filter;
-        if (!Strings.isNullOrEmpty(config.getFilterId())) {
-          if (config.getQuery() instanceof SemanticQuery) {
-            filter = ((SemanticQuery) config.getQuery())
-                .getFilter(config.getFilterId());
-          } else {
-            throw new UnsupportedOperationException("We don't support " 
-                + config.getQuery().getClass() + " yet");
-          }
-        } else if (config.getFilter() != null) {
+        if (config.getFilter() != null) {
           filter = config.getFilter();
         } else {
           filter = null;
@@ -568,8 +555,9 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
                       : null;
           int rows = 0;
           for (final MockRow row : entry.getValue().rows) {
-            if (row.base_timestamp >= start_ts && 
-                row.base_timestamp < end_ts) {
+            if ((row.base_timestamp >= start_ts || 
+                row.base_timestamp + ROW_WIDTH >= start_ts) && 
+                  row.base_timestamp < end_ts) {
               ++rows;
               if (context.queryContext().mode() == QueryMode.SINGLE) {
                 if (config.getFetchLast()) {
