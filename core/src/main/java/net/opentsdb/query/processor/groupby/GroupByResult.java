@@ -211,4 +211,9 @@ public class GroupByResult implements QueryResult {
     }
   }
   
+  /** @return The downstream result. */
+  QueryResult downstreamResult() {
+    return next;
+  }
+  
 }
