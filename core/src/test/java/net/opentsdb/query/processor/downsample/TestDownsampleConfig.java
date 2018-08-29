@@ -31,9 +31,6 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
 
 public class TestDownsampleConfig {
   
@@ -61,20 +58,12 @@ public class TestDownsampleConfig {
   
   @Test
   public void ctor() throws Exception {
-    TimeSeriesQuery q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:01:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
     DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
+        .setStart("1514843302")
+        .setEnd("1514846902")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();
@@ -87,6 +76,8 @@ public class TestDownsampleConfig {
     assertEquals(ChronoUnit.SECONDS, config.units());
     assertFalse(config.infectiousNan());
     assertEquals(15, config.intervalPart());
+    assertEquals(1514843295, config.startTime().epoch());
+    assertEquals(1514846895, config.endTime().epoch());
     
     try {
       DownsampleConfig.newBuilder()
@@ -153,23 +144,17 @@ public class TestDownsampleConfig {
     } catch (IllegalArgumentException e) { }
     
     // run all
-    q = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1970/01/01-00:00:01")
-            .setEnd("1970/01/01-00:01:00")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build();
-    
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
         .setRunAll(true)
+        .setStart("1514843302")
+        .setEnd("1514846902")
         .addInterpolatorConfig(numeric_config)
         .build();
+    assertEquals(1514843302, config.startTime().epoch());
+    assertEquals(1514846902, config.endTime().epoch());
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
@@ -181,4 +166,17 @@ public class TestDownsampleConfig {
     assertEquals(ZoneId.of("America/Denver"), config.timezone());
   }
 
+  @Test
+  public void intervals() throws Exception {
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("15s")
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    assertEquals(240, config.intervals());
+  }
 }

@@ -266,7 +266,7 @@ public class Downsample extends AbstractQueryNode {
         final TimeStamp increment = new ZonedNanoTimeStamp(
             start.epoch(), start.msEpoch(), start.timezone());
         for (int i = 0; i < offset; i++) {
-          increment.add(config.duration());
+          increment.add(config.interval());
         }
         timestamp.update(increment);
       }
@@ -276,7 +276,7 @@ public class Downsample extends AbstractQueryNode {
       if (config.runAll()) {
         timestamp.update(start);
       } else {
-        timestamp.add(config.duration());
+        timestamp.add(config.interval());
       }
     }
     
@@ -308,6 +308,11 @@ public class Downsample extends AbstractQueryNode {
     @Override
     public ZoneId timezone() {
       return config.timezone();
+    }
+    
+    /** @return The downstream results. */
+    QueryResult downstreamResult() {
+      return results;
     }
     
     /**
