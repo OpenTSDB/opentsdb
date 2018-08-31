@@ -41,6 +41,8 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -66,7 +68,7 @@ public class TestDownsampleFactory {
   @Test
   public void ctor() throws Exception {
     final DownsampleFactory factory = new DownsampleFactory();
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertTrue(factory.types().contains(NumericSummaryType.TYPE));
     assertEquals("downsample", factory.id());
@@ -75,11 +77,11 @@ public class TestDownsampleFactory {
   @Test
   public void registerIteratorFactory() throws Exception {
     final DownsampleFactory factory = new DownsampleFactory();
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     
     QueryIteratorFactory mock = mock(QueryIteratorFactory.class);
     factory.registerIteratorFactory(NumericType.TYPE, mock);
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     
     try {
       factory.registerIteratorFactory(null, mock);
@@ -187,6 +189,31 @@ public class TestDownsampleFactory {
     iterator = factory.newTypedIterator(
         NumericSummaryType.TYPE, node, dr, ImmutableMap.<String, TimeSeries>builder()
         .put("a", mockts)
+        .build());
+    assertTrue(iterator.hasNext());
+    
+    // array
+    NumericArrayTimeSeries array_source = new NumericArrayTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build(), new MillisecondTimeStamp(1000));
+    ((NumericArrayTimeSeries) array_source).add(1);
+    ((NumericArrayTimeSeries) array_source).add(5);
+    ((NumericArrayTimeSeries) array_source).add(2);
+    ((NumericArrayTimeSeries) array_source).add(1);
+    
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("1m")
+        .setStart("1514764800")
+        .setEnd("1514765040")
+        .addInterpolatorConfig(numeric_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    iterator = factory.newTypedIterator(
+        NumericArrayType.TYPE, node, dr, ImmutableMap.<String, TimeSeries>builder()
+        .put("a", array_source)
         .build());
     assertTrue(iterator.hasNext());
     
