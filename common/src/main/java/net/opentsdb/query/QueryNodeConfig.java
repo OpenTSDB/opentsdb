@@ -36,6 +36,10 @@ public interface QueryNodeConfig extends Comparable<QueryNodeConfig> {
   /** @return A hash code for this configuration. */
   public HashCode buildHashCode();
   
+  /** @return Whether or not the node config can be pushed down to 
+   * the query source. */
+  public boolean pushDown();
+  
   /** @return An optional map of query parameter overrides. May be null. */
   public Map<String, String> getOverrides();
   
