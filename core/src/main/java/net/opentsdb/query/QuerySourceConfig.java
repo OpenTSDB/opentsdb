@@ -27,6 +27,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 
@@ -57,8 +58,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** An optional filter. If filter_id is set, this is ignored. */
   private final QueryFilter filter;
   
-  /** Whethe or not to fetch only the last value. */
+  /** Whether or not to fetch only the last value. */
   private final boolean fetch_last;
+  
+  /** An optional list of nodes to push down to the driver. */
+  private final List<ExecutionGraphNode> push_down_nodes;
   
   /**
    * Private ctor for the builder.
@@ -75,6 +79,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     filter_id = builder.filterId;
     filter = builder.filter;
     fetch_last = builder.fetchLast;
+    push_down_nodes = builder.push_down_nodes;
   }
   
   /** @return The non-null query object. */
@@ -116,6 +121,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** @return Whether or not to fetch just the last (latest) value. */
   public boolean getFetchLast() {
     return fetch_last;
+  }
+  
+  /** @return An optional list of push down nodes. May be null. */
+  public List<ExecutionGraphNode> pushDownNodes() {
+    return push_down_nodes;
   }
   
   @Override
@@ -160,6 +170,20 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   public static Builder newBuilder() {
     return new Builder();
   }
+  
+  /** @return A new builder. */
+  public static Builder newBuilder(final QuerySourceConfig config) {
+    return (Builder) new Builder()
+        .setQuery(config.query)
+        .setTypes(config.types != null ? Lists.newArrayList(config.types) : null)
+        .setMetric(config.metric)
+        .setFilterId(config.filter_id)
+        .setQueryFilter(config.filter)
+        .setFetchLast(config.fetch_last)
+        // TODO - overrides if we keep em.
+        .setId(config.id);
+    // Skipp push down nodes.
+  }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfig.Builder {
@@ -175,6 +199,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     private QueryFilter filter;
     @JsonProperty
     private boolean fetchLast;
+    private List<ExecutionGraphNode> push_down_nodes;
     
     /** 
      * @param query The non-null query to execute.
@@ -215,6 +240,20 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     
     public Builder setFetchLast(final boolean fetch_last) {
       this.fetchLast = fetch_last;
+      return this;
+    }
+    
+    public Builder setPushDownNodes(
+        final List<ExecutionGraphNode> push_down_nodes) {
+      this.push_down_nodes = push_down_nodes;
+      return this;
+    }
+    
+    public Builder addPushDownNode(final ExecutionGraphNode node) {
+      if (push_down_nodes == null) {
+        push_down_nodes = Lists.newArrayList();
+      }
+      push_down_nodes.add(node);
       return this;
     }
     

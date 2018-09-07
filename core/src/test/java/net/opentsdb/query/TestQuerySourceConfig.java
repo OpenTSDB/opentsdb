@@ -13,12 +13,19 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
+import com.google.common.collect.Lists;
+
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 
 public class TestQuerySourceConfig {
@@ -32,11 +39,14 @@ public class TestQuerySourceConfig {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
+        .addPushDownNode(mock(ExecutionGraphNode.class))
         .setId("UT")
         .build();
     assertSame(query, qsc.getQuery());
     assertEquals("system.cpu.user", qsc.getMetric().metric());
     assertEquals("UT", qsc.getId());
+    assertEquals(1, qsc.pushDownNodes().size());
+    assertFalse(qsc.pushDown());
     
     try {
       QuerySourceConfig.newBuilder()
@@ -46,5 +56,30 @@ public class TestQuerySourceConfig {
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void builderClone() throws Exception {
+    final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
+    QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setTypes(Lists.newArrayList("Numeric", "Annotation"))
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
+        .addPushDownNode(mock(ExecutionGraphNode.class))
+        .setId("UT")
+        .build();
+    
+    QuerySourceConfig clone = QuerySourceConfig.newBuilder(qsc).build();
+    assertNotSame(qsc, clone);
+    assertSame(query, clone.getQuery());
+    assertNotSame(qsc.getTypes(), clone.getTypes());
+    assertEquals(2, clone.getTypes().size());
+    assertTrue(clone.getTypes().contains("Numeric"));
+    assertTrue(clone.getTypes().contains("Annotation"));
+    assertSame(qsc.getMetric(), clone.getMetric());
+    assertEquals("UT", clone.getId());
+    assertNull(clone.pushDownNodes());
   }
 }
