@@ -28,6 +28,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.graph.DefaultEdge;
 import org.junit.Test;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -49,6 +51,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SingleQueryNodeFactory;
+import net.opentsdb.query.TimeSeriesQuery;
 
 public class TestExecutionGraph {
 
@@ -572,6 +575,14 @@ public class TestExecutionGraph {
         throw new IllegalArgumentException("Failed to parse TagValueLiteralOr", e);
       }
     }
+  
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
+    }
   }
   
   @JsonInclude(Include.NON_NULL)
@@ -689,6 +700,14 @@ public class TestExecutionGraph {
       } catch (JsonProcessingException e) {
         throw new IllegalArgumentException("Failed to parse TagValueLiteralOr", e);
       }
+    }
+  
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
     }
   }
   
