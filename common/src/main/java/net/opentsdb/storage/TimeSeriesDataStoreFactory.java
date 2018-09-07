@@ -19,6 +19,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.query.QueryNodeConfig;
 
 /**
  * A factory responsible for instantiating and returning references to
@@ -43,5 +44,14 @@ public interface TimeSeriesDataStoreFactory extends TSDBPlugin {
    * @return A non-null type token.
    */
   public TypeToken<? extends TimeSeriesId> idType();
+  
+  /**
+   * Whether or not the store supports pushing down the operation into
+   * it's driver.
+   * @param operation The operation we want to push down.
+   * @return True if pushdown is supported, false if not.
+   */
+  public boolean supportsPushdown(
+      final Class<? extends QueryNodeConfig> operation);
   
 }
