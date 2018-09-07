@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
@@ -123,7 +124,9 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return null;
+    return Const.HASH_FUNCTION().newHasher()
+        .putInt(System.identityHashCode(this)) // TEMP!
+        .hash();
   }
   
   @Override

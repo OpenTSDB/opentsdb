@@ -16,9 +16,11 @@ package net.opentsdb.query.processor.downsample;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
 import org.jgrapht.graph.DefaultEdge;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -89,7 +91,63 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
       final TimeSeriesQuery query, 
       final ExecutionGraphNode config, 
       final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
-    // TODO Auto-generated method stub
+    
+    // For downsampling we need to set the config start and end times
+    // to the query start and end times. The config will then align them.
+    List<ExecutionGraphNode> upstream = Lists.newArrayList();
+    for (final DefaultEdge up : graph.incomingEdgesOf(config)) {
+      final ExecutionGraphNode n = graph.getEdgeSource(up);
+      upstream.add(n);
+    }
+    for (final ExecutionGraphNode n : upstream) {
+      graph.removeEdge(n, config);
+    }
+    
+    List<ExecutionGraphNode> downstream = Lists.newArrayList();
+    for (final DefaultEdge down : graph.outgoingEdgesOf(config)) {
+      final ExecutionGraphNode n = graph.getEdgeTarget(down);
+      downstream.add(n);
+    }
+    for (final ExecutionGraphNode n : downstream) {
+      graph.removeEdge(config, n);
+    }
+    
+    DownsampleConfig.Builder builder = null;
+    if (config.getConfig() == null) {
+      DownsampleConfig dscfg = (DownsampleConfig) 
+          query.getExecutionGraph().nodeConfigs().get(config.getId());
+      builder = DownsampleConfig.newBuilder(dscfg);
+    } else {
+      builder = DownsampleConfig.newBuilder((DownsampleConfig) config.getConfig());
+    }
+    builder.setStart(query.getStart())
+           .setEnd(query.getEnd())
+           .setId(config.getId());
+    
+    ExecutionGraphNode node = ExecutionGraphNode.newBuilder(config)
+        .setConfig(builder.build())
+        .build();
+    
+    graph.removeVertex(config);
+    graph.addVertex(node);
+    
+    for (final ExecutionGraphNode up : upstream) {
+      try {
+        graph.addDagEdge(up, node);
+      } catch (CycleFoundException e) {
+        throw new IllegalArgumentException("The factory created a cycle "
+            + "setting up the graph from config: " + config, e);
+      }
+    }
+    
+    for (final ExecutionGraphNode down : downstream) {
+      try {
+        graph.addDagEdge(node, down);
+      } catch (CycleFoundException e) {
+        throw new IllegalArgumentException("The factory created a cycle "
+            + "setting up the graph from config: " + config, e);
+      }
+    }
   }
   
   /**
