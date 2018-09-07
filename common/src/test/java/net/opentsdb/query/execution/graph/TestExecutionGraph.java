@@ -15,6 +15,7 @@
 package net.opentsdb.query.execution.graph;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
@@ -454,6 +455,96 @@ public class TestExecutionGraph {
     root = MAPPER.readTree(json);
     graph = ExecutionGraph.parse(MAPPER, tsdb, root).build();
     assertEquals(3, graph.getNodes().size());
+  }
+  
+  @Test
+  public void replace() throws Exception {
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph = 
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    
+    ExecutionGraphNode a = mock(ExecutionGraphNode.class);
+    ExecutionGraphNode b = mock(ExecutionGraphNode.class);
+    ExecutionGraphNode c = mock(ExecutionGraphNode.class);
+    ExecutionGraphNode r = mock(ExecutionGraphNode.class);
+    
+    // replace middle
+    graph.addVertex(a);
+    graph.addVertex(b);
+    graph.addVertex(c);
+    
+    graph.addDagEdge(c, b);
+    graph.addDagEdge(b, a);
+    
+    ExecutionGraph.replace(b, r, graph);
+    
+    assertTrue(graph.containsVertex(a));
+    assertFalse(graph.containsVertex(b));
+    assertTrue(graph.containsVertex(c));
+    assertTrue(graph.containsVertex(r));
+    assertTrue(graph.containsEdge(c, r));
+    assertTrue(graph.containsEdge(r, a));
+    
+    // replace sink
+    graph = 
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    graph.addVertex(a);
+    graph.addVertex(b);
+    graph.addVertex(c);
+    
+    graph.addDagEdge(c, b);
+    graph.addDagEdge(b, a);
+    
+    ExecutionGraph.replace(c, r, graph);
+    
+    assertTrue(graph.containsVertex(a));
+    assertTrue(graph.containsVertex(b));
+    assertFalse(graph.containsVertex(c));
+    assertTrue(graph.containsVertex(r));
+    assertTrue(graph.containsEdge(r, b));
+    assertTrue(graph.containsEdge(b, a));
+    
+    // replace root
+    graph = 
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    graph.addVertex(a);
+    graph.addVertex(b);
+    graph.addVertex(c);
+    
+    graph.addDagEdge(c, b);
+    graph.addDagEdge(b, a);
+    
+    ExecutionGraph.replace(a, r, graph);
+    
+    assertFalse(graph.containsVertex(a));
+    assertTrue(graph.containsVertex(b));
+    assertTrue(graph.containsVertex(c));
+    assertTrue(graph.containsVertex(r));
+    assertTrue(graph.containsEdge(c, b));
+    assertTrue(graph.containsEdge(b, r));
+    
+    // self
+    ExecutionGraph.replace(r, r, graph);
+    
+    assertFalse(graph.containsVertex(a));
+    assertTrue(graph.containsVertex(b));
+    assertTrue(graph.containsVertex(c));
+    assertTrue(graph.containsVertex(r));
+    assertTrue(graph.containsEdge(c, b));
+    assertTrue(graph.containsEdge(b, r));
+    
+    // I'm a loner, Dottie
+    graph = 
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    graph.addVertex(a);
+    ExecutionGraph.replace(a, r, graph);
+    assertFalse(graph.containsVertex(a));
+    assertTrue(graph.containsVertex(r));
+    
+    // fails
+    try {
+      ExecutionGraph.replace(a, r, graph);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
   
   @JsonInclude(Include.NON_NULL)

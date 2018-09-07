@@ -19,6 +19,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
+import org.jgrapht.graph.DefaultEdge;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -347,4 +351,53 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
     return builder;
   }
   
+  /**
+   * Helper to replace a node with a new one, moving edges.
+   * @param old_config The non-null old node that is present in the graph.
+   * @param new_config The non-null new node that is not present in the graph.
+   * @param graph The non-null graph to mutate.
+   */
+  public static void replace(
+      final ExecutionGraphNode old_config,
+      final ExecutionGraphNode new_config,
+      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+    final List<ExecutionGraphNode> upstream = Lists.newArrayList();
+    for (final DefaultEdge up : graph.incomingEdgesOf(old_config)) {
+      final ExecutionGraphNode n = graph.getEdgeSource(up);
+      upstream.add(n);
+    }
+    for (final ExecutionGraphNode n : upstream) {
+      graph.removeEdge(n, old_config);
+    }
+    
+    final List<ExecutionGraphNode> downstream = Lists.newArrayList();
+    for (final DefaultEdge down : graph.outgoingEdgesOf(old_config)) {
+      final ExecutionGraphNode n = graph.getEdgeTarget(down);
+      downstream.add(n);
+    }
+    for (final ExecutionGraphNode n : downstream) {
+      graph.removeEdge(old_config, n);
+    }
+    
+    graph.removeVertex(old_config);
+    graph.addVertex(new_config);
+    
+    for (final ExecutionGraphNode up : upstream) {
+      try {
+        graph.addDagEdge(up, new_config);
+      } catch (CycleFoundException e) {
+        throw new IllegalArgumentException("The factory created a cycle "
+            + "setting up the graph from config: " + old_config, e);
+      }
+    }
+    
+    for (final ExecutionGraphNode down : downstream) {
+      try {
+        graph.addDagEdge(new_config, down);
+      } catch (CycleFoundException e) {
+        throw new IllegalArgumentException("The factory created a cycle "
+            + "setting up the graph from config: " + old_config, e);
+      }
+    }
+  }
 }
