@@ -95,6 +95,9 @@ public class SemanticQuery implements TimeSeriesQuery {
     if (builder.mode == null) {
       throw new IllegalArgumentException("Mode cannot be null.");
     }
+    if (builder.execution_graph == null) {
+      throw new IllegalArgumentException("Execution graph cannot be null.");
+    }
     execution_graph = builder.execution_graph;
     sink_configs = builder.sink_configs;
     sinks = builder.sinks;
@@ -104,7 +107,7 @@ public class SemanticQuery implements TimeSeriesQuery {
         filters.put(filter.id(), filter);
       }
     } else {
-      filters = null;
+      filters = Maps.newHashMapWithExpectedSize(0);
     }
     
     mode = builder.mode;
@@ -126,21 +129,22 @@ public class SemanticQuery implements TimeSeriesQuery {
     }
   }
 
-  /** @return user given start date/time, could be relative or absolute */
+  @Override
   public String getStart() {
     return start;
   }
 
-  /** @return user given end date/time, could be relative, absolute or empty */
+  @Override
   public String getEnd() {
     return end;
   }
 
-  /** @return user's timezone used for converting absolute human readable dates */
+  @Override
   public String getTimezone() {
     return time_zone;
   }
   
+  @Override
   public ExecutionGraph getExecutionGraph() {
     return execution_graph;
   }
@@ -157,6 +161,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     return Lists.newArrayList(filters.values());
   }
   
+  @Override
   public QueryMode getMode() {
     return mode;
   }
@@ -165,18 +170,17 @@ public class SemanticQuery implements TimeSeriesQuery {
     return serdes_options;
   }
   
+  @Override
   public QueryFilter getFilter(final String filter_id) {
     return filters == null ? null : filters.get(filter_id).filter();
   }
   
-  /** @return Returns the parsed start time. 
-   * @see DateTime#parseDateTimeString(String, String) */
+  @Override 
   public TimeStamp startTime() {
     return start_ts;
   }
   
-  /** @return Returns the parsed end time. 
-   * @see DateTime#parseDateTimeString(String, String) */
+  @Override
   public TimeStamp endTime() {
     return end_ts;
   }
