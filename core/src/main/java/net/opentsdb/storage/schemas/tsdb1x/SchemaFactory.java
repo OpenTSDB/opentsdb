@@ -25,6 +25,7 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
@@ -110,6 +111,13 @@ public class SchemaFactory extends BaseTSDBPlugin
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_BYTE_ID;
+  }
+  
+  @Override
+  public boolean supportsPushdown(
+      final Class<? extends QueryNodeConfig> function) {
+    // TODO Auto-generated method stub
+    return false;
   }
   
   @Override

@@ -20,6 +20,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.query.QueryNodeConfig;
 
 /**
  * Simple little factory that returns a {@link MockDataStore}.
@@ -49,6 +50,13 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;
+  }
+  
+  @Override
+  public boolean supportsPushdown(
+      final Class<? extends QueryNodeConfig> function) {
+    // TODO Auto-generated method stub
+    return false;
   }
   
   @Override
