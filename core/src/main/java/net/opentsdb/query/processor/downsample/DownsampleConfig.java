@@ -265,7 +265,9 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return null;
+    return Const.HASH_FUNCTION().newHasher()
+        .putInt(System.identityHashCode(this)) // TEMP!
+        .hash();
   }
   
   /** @return A new builder to work from. */

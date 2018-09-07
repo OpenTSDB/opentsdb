@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -28,6 +29,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.graph.DefaultEdge;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -51,15 +54,19 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 
@@ -265,5 +272,110 @@ public class TestDownsampleFactory {
       factory.newTypedIterator(NumericType.TYPE, node, dr, Collections.emptyList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void setupGraph() throws Exception {
+    
+    NumericInterpolatorConfig numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setDataType(NumericType.TYPE.toString())
+        .build();
+    
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(numeric_config)
+        .setId("downsample")
+        .build();
+    
+    ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
+        .setId("downsample")
+        .addSource("m1")
+        .setConfig(config)
+        .build();
+    
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("g1")
+        .addNode(ExecutionGraphNode.newBuilder()
+            .setId("DataSource")
+            .setConfig(QuerySourceConfig.newBuilder()
+                .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+                .setFilterId("f1")
+                .setId("m1")
+                .build()))
+        .addNode(node)
+        .addNode(ExecutionGraphNode.newBuilder()
+            .setId("groupby")
+            .addSource("downsample")
+            .setConfig(GroupByConfig.newBuilder()
+                .setAggregator("sum")
+                .addTagKey("host")
+                .addInterpolatorConfig(numeric_config)
+                .setId("gb")
+                .build()))
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    
+    // gb -> ds -> metric
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> dag = 
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    dag.addVertex(graph.getNodes().get(0));
+    dag.addVertex(graph.getNodes().get(1));
+    dag.addVertex(graph.getNodes().get(2));
+    
+    dag.addDagEdge(graph.getNodes().get(2), graph.getNodes().get(1));
+    dag.addDagEdge(graph.getNodes().get(1), graph.getNodes().get(0));
+    
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.setupGraph(query, node, dag);
+    
+    assertTrue(dag.containsVertex(graph.getNodes().get(0)));
+    assertFalse(dag.containsVertex(graph.getNodes().get(1)));
+    assertTrue(dag.containsVertex(graph.getNodes().get(2)));
+    
+    ExecutionGraphNode new_node = 
+        dag.getEdgeTarget(dag.outgoingEdgesOf(graph.getNodes().get(2)).iterator().next());
+    assertEquals("downsample", new_node.getId());
+    assertTrue(new_node.getSources().contains("m1"));
+    assertEquals(1514764800, ((DownsampleConfig) new_node.getConfig()).startTime().epoch());
+    assertEquals(1514768400, ((DownsampleConfig) new_node.getConfig()).endTime().epoch());
+    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).aggregator());
+    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).intervalAsString());
+    
+    assertTrue(dag.containsEdge(new_node, graph.getNodes().get(0)));
+    
+    // ds -> metric
+    dag = 
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    dag.addVertex(graph.getNodes().get(0));
+    dag.addVertex(graph.getNodes().get(1));
+    
+    dag.addDagEdge(graph.getNodes().get(1), graph.getNodes().get(0));
+    factory.setupGraph(query, node, dag);
+    
+    assertTrue(dag.containsVertex(graph.getNodes().get(0)));
+    assertFalse(dag.containsVertex(graph.getNodes().get(1)));
+    
+    new_node = 
+        dag.getEdgeSource(dag.incomingEdgesOf(graph.getNodes().get(0)).iterator().next());
+    assertEquals("downsample", new_node.getId());
+    assertTrue(new_node.getSources().contains("m1"));
+    assertEquals(1514764800, ((DownsampleConfig) new_node.getConfig()).startTime().epoch());
+    assertEquals(1514768400, ((DownsampleConfig) new_node.getConfig()).endTime().epoch());
+    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).aggregator());
+    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).intervalAsString());
+    
+    assertTrue(dag.containsEdge(new_node, graph.getNodes().get(0)));
   }
 }
