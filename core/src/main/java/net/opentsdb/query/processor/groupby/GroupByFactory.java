@@ -18,6 +18,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.graph.DefaultEdge;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -34,6 +37,8 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
 /**
@@ -77,6 +82,14 @@ public class GroupByFactory extends BaseQueryNodeFactory {
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return GroupByConfig.parse(mapper, tsdb, node);
+  }
+  
+  @Override
+  public void setupGraph(
+      final TimeSeriesQuery query, 
+      final ExecutionGraphNode config, 
+      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+    // TODO Auto-generated method stub
   }
   
   /**

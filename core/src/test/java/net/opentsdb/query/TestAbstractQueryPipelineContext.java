@@ -36,6 +36,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.graph.DefaultEdge;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -1378,6 +1380,14 @@ public class TestAbstractQueryPipelineContext {
       return null;
     }
     
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
+    }
+    
   }
   
   public static class MockNodeA extends AbstractQueryNode {
@@ -1439,6 +1449,14 @@ public class TestAbstractQueryPipelineContext {
       return null;
     }
     
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
+    }
+    
   }
   
   public static class MockNodeB extends AbstractQueryNode {
@@ -1498,6 +1516,14 @@ public class TestAbstractQueryPipelineContext {
     public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
         JsonNode node) {
       return null;
+    }
+    
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
     }
     
   }
@@ -1578,6 +1604,14 @@ public class TestAbstractQueryPipelineContext {
       return Lists.newArrayList(
           new MockNodeA(this, context, id + "_A", config),
           new MockNodeA(this, context, id + "_B", config));
+    }
+    
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
     }
     
   }

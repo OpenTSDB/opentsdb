@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.data.TypedIterator;
+
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.graph.DefaultEdge;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -50,6 +53,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
 public class TestBaseMultiQueryNodeFactory {
@@ -208,5 +212,12 @@ public class TestBaseMultiQueryNodeFactory {
       return null;
     }
     
+    @Override
+    public void setupGraph(
+        final TimeSeriesQuery query, 
+        final ExecutionGraphNode config, 
+        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      // TODO Auto-generated method stub
+    }
   }
 }

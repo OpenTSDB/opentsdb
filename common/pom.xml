@@ -20,6 +20,17 @@
 
     </properties>
     
+    <dependencyManagement>
+      <dependencies>
+        <!-- TODO - implement our own simple graph methods. -->
+        <dependency>
+          <groupId>org.jgrapht</groupId>
+          <artifactId>jgrapht-core</artifactId>
+          <version>0.9.2</version>
+        </dependency>
+      </dependencies>
+    </dependencyManagement>
+    
     <dependencies>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -48,6 +59,11 @@
       <dependency>
         <groupId>com.fasterxml.jackson.dataformat</groupId>
         <artifactId>jackson-dataformat-yaml</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.jgrapht</groupId>
+        <artifactId>jgrapht-core</artifactId>
       </dependency>
       
       <!-- TESTING Deps -->    
