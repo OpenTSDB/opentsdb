@@ -600,6 +600,11 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
     }
     
     @Override
+    public boolean pushDown() {
+      return false;
+    }
+    
+    @Override
     public boolean equals(final Object o) {
       if (this == o) {
         return true;

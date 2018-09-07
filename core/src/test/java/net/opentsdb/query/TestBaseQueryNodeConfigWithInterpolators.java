@@ -81,6 +81,11 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     }
 
     @Override
+    public boolean pushDown() {
+      return false;
+    }
+    
+    @Override
     public HashCode buildHashCode() { return null; }
 
     @Override

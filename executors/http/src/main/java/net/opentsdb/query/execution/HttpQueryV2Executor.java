@@ -798,6 +798,12 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
     }
     
     @Override
+    public boolean pushDown() {
+      // TODO Auto-generated method stub
+      return false;
+    }
+    
+    @Override
     public String toString() {
       return new StringBuilder()
           .append("id=")
@@ -875,5 +881,6 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
       return null;
     }
 
+    
   }
 }
