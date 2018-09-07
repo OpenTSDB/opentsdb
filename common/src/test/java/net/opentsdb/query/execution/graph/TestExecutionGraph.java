@@ -537,6 +537,12 @@ public class TestExecutionGraph {
       }
       
     }
+
+    @Override
+    public boolean pushDown() {
+      // TODO Auto-generated method stub
+      return false;
+    }
   }
   
   static class MockFactoryA implements SingleQueryNodeFactory {
@@ -647,6 +653,12 @@ public class TestExecutionGraph {
         return new MockConfigB(this);
       }
       
+    }
+
+    @Override
+    public boolean pushDown() {
+      // TODO Auto-generated method stub
+      return false;
     }
 
   }

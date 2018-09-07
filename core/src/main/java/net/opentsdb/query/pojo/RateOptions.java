@@ -152,6 +152,12 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     return units;
   }
   
+  @Override
+  public boolean pushDown() {
+    // TODO Auto-generated method stub
+    return false;
+  }
+  
   /**
    * Generates a String version of the rate option instance in a format that 
    * can be utilized in a query.

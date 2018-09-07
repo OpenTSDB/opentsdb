@@ -295,6 +295,11 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
     
     @Override
+    public boolean pushDown() {
+      return false;
+    }
+    
+    @Override
     public String getId() {
       // TODO Auto-generated method stub
       return null;

@@ -198,6 +198,12 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
   
   @Override
+  public boolean pushDown() {
+    // TODO Auto-generated method stub
+    return false;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
     return null;
