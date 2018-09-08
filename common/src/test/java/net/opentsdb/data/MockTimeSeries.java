@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import com.google.common.collect.Lists;
@@ -90,15 +91,18 @@ public class MockTimeSeries implements TimeSeries {
       return Optional.empty();
     }
     Collections.sort(types, new TimeSeriesValue.TimeSeriesValueComparator());
-    return Optional.of(new MockTimeSeriesIterator(types.iterator()));
+    return Optional.of(new MockTimeSeriesIterator(types.iterator(),
+        (TypeToken<? extends TimeSeriesDataType>) type));
   }
 
   @Override
   public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
     final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators
       = Lists.newArrayListWithCapacity(data.size());
-    for (final List<TimeSeriesValue<?>> types : data.values()) {
-      iterators.add(new MockTimeSeriesIterator(types.iterator()));
+    for (final Entry<TypeToken<?>, List<TimeSeriesValue<?>>> entry : data.entrySet()) {
+      
+      iterators.add(new MockTimeSeriesIterator(entry.getValue().iterator(),
+          (TypeToken<? extends TimeSeriesDataType>) entry.getKey()));
     }
     return iterators;
   }
@@ -123,8 +127,9 @@ public class MockTimeSeries implements TimeSeries {
   class MockTimeSeriesIterator extends TypedIterator<TimeSeriesValue<?>> {
     private final Iterator<TimeSeriesValue<?>> iterator;
     
-    MockTimeSeriesIterator(final Iterator<TimeSeriesValue<?>> iterator) {
-      super(iterator, new MockTimeSeriesDataType().type());
+    MockTimeSeriesIterator(final Iterator<TimeSeriesValue<?>> iterator,
+                           final TypeToken<? extends TimeSeriesDataType> type) {
+      super(iterator, type);
       this.iterator = iterator;
     }
     
@@ -138,16 +143,6 @@ public class MockTimeSeries implements TimeSeries {
       return iterator.next();
     }
     
-  }
-
-  class MockTimeSeriesDataType implements TimeSeriesDataType {
-
-    TypeToken<MockTimeSeriesDataType> TYPE = TypeToken.of(MockTimeSeriesDataType.class);
-
-    @Override
-    public TypeToken<? extends TimeSeriesDataType> type() {
-      return TYPE;
-    }
   }
   
 }
