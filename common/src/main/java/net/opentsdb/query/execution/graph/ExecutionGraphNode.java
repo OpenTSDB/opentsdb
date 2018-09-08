@@ -81,6 +81,9 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
     }
     id = builder.id;
     sources = builder.sources;
+    if (sources != null) {
+      Collections.sort(sources);
+    }
     config = builder.config;
   }
   
@@ -135,7 +138,6 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
           Lists.newArrayListWithCapacity(sources.size() + 
               (config != null ? 2 : 1));
       hashes.add(hc);
-      Collections.sort(sources);
       for (final String source : sources) {
         hashes.add(Const.HASH_FUNCTION().newHasher().putString(
             source, Const.UTF8_CHARSET).hash());
