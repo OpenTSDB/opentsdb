@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
+import java.time.Duration;
 import java.util.Collections;
 
 import org.junit.Before;
@@ -38,9 +39,17 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.MockTimeSeries;
+import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
@@ -57,8 +66,10 @@ public class TestJsonV2QuerySerdes {
   private QueryContext context;
   private QueryResult result;
   private TimeSeriesQuery query;
-  private NumericMillisecondShard ts1;
-  private NumericMillisecondShard ts2;
+  private TimeSeries ts1;
+  private TimeSeriesId id1;
+  private TimeSeries ts2;
+  private TimeSeriesId id2;
   private ReadableTimeSeriesDataStore store;
   private JsonV2QuerySerdesOptions options;
   
@@ -79,29 +90,31 @@ public class TestJsonV2QuerySerdes {
         .convert().build();
     when(context.query()).thenReturn(query);
     
-    ts1 = new NumericMillisecondShard(
-        BaseTimeSeriesStringId.newBuilder()
+    id1 = BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
         .addAggregatedTag("owner")
-        .build(), 
+        .build();
+    
+    ts1 = new NumericMillisecondShard(id1, 
         new MillisecondTimeStamp(1486045800000L), 
         new MillisecondTimeStamp(1486046000000L));
-    ts1.add(1486045800000L, 1);
-    ts1.add(1486045860000L, 5.75);
+    ((NumericMillisecondShard) ts1).add(1486045800000L, 1);
+    ((NumericMillisecondShard) ts1).add(1486045860000L, 5.75);
     
-    ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesStringId.newBuilder()
+    id2 = BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
         .addTags("host", "web02")
         .addTags("dc", "phx")
         .addAggregatedTag("owner")
-        .build(),
+        .build();
+    
+    ts2 = new NumericMillisecondShard(id2,
         new MillisecondTimeStamp(1486045800000L), 
         new MillisecondTimeStamp(1486046000000L));
-    ts2.add(1486045800000L, 4);
-    ts2.add(1486045860000L, 0.0015);
+    ((NumericMillisecondShard) ts2).add(1486045800000L, 4);
+    ((NumericMillisecondShard) ts2).add(1486045860000L, 0.0015);
     
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
@@ -290,40 +303,30 @@ public class TestJsonV2QuerySerdes {
       }
     });
     
-    TimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(store)
+    TimeSeriesByteId byte_id1 = BaseTimeSeriesByteId.newBuilder(store)
         .setMetric(new byte[] { 0, 0, 1 })
       .build();
-    TimeSeriesByteId id2 = BaseTimeSeriesByteId.newBuilder(store)
+    TimeSeriesByteId byte_id2 = BaseTimeSeriesByteId.newBuilder(store)
         .setMetric(new byte[] { 0, 0, 2 })
       .build();
     
-    when(store.resolveByteId(id1, null)).thenReturn(
-        Deferred.fromResult(BaseTimeSeriesStringId.newBuilder()
-            .setMetric("sys.cpu.user")
-            .addTags("host", "web01")
-            .addTags("dc", "phx")
-            .addAggregatedTag("owner")
-            .build()));
+    when(store.resolveByteId(byte_id1, null)).thenReturn(
+        Deferred.fromResult((TimeSeriesStringId) id1));
     
-    when(store.resolveByteId(id2, null)).thenReturn(
-        Deferred.fromResult(BaseTimeSeriesStringId.newBuilder()
-            .setMetric("sys.cpu.user")
-            .addTags("host", "web02")
-            .addTags("dc", "phx")
-            .addAggregatedTag("owner")
-            .build()));
+    when(store.resolveByteId(byte_id2, null)).thenReturn(
+        Deferred.fromResult((TimeSeriesStringId) id2));
     
-    ts1 = new NumericMillisecondShard(id1,
+    ts1 = new NumericMillisecondShard(byte_id1,
         new MillisecondTimeStamp(1486045800000L), 
         new MillisecondTimeStamp(1486046000000L));
-    ts1.add(1486045800000L, 1);
-    ts1.add(1486045860000L, 5.75);
+    ((NumericMillisecondShard) ts1).add(1486045800000L, 1);
+    ((NumericMillisecondShard) ts1).add(1486045860000L, 5.75);
     
-    ts2 = new NumericMillisecondShard(id2,
+    ts2 = new NumericMillisecondShard(byte_id2,
         new MillisecondTimeStamp(1486045800000L), 
         new MillisecondTimeStamp(1486046000000L));
-    ts2.add(1486045800000L, 4);
-    ts2.add(1486045860000L, 0.0015);
+    ((NumericMillisecondShard) ts2).add(1486045800000L, 4);
+    ((NumericMillisecondShard) ts2).add(1486045860000L, 0.0015);
     
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
@@ -358,35 +361,30 @@ public class TestJsonV2QuerySerdes {
       }
     });
     
-    TimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(store)
+    TimeSeriesByteId byte_id1 = BaseTimeSeriesByteId.newBuilder(store)
         .setMetric(new byte[] { 0, 0, 1 })
       .build();
-    TimeSeriesByteId id2 = BaseTimeSeriesByteId.newBuilder(store)
+    TimeSeriesByteId byte_id2 = BaseTimeSeriesByteId.newBuilder(store)
         .setMetric(new byte[] { 0, 0, 2 })
       .build();
     
-    when(store.resolveByteId(id1, null)).thenReturn(
-        Deferred.fromResult(BaseTimeSeriesStringId.newBuilder()
-            .setMetric("sys.cpu.user")
-            .addTags("host", "web01")
-            .addTags("dc", "phx")
-            .addAggregatedTag("owner")
-            .build()));
+    when(store.resolveByteId(byte_id1, null)).thenReturn(
+        Deferred.fromResult((TimeSeriesStringId) id1));
     
-    when(store.resolveByteId(id2, null)).thenReturn(
+    when(store.resolveByteId(byte_id2, null)).thenReturn(
         Deferred.fromError(new UnitTestException()));
     
-    ts1 = new NumericMillisecondShard(id1,
+    ts1 = new NumericMillisecondShard(byte_id1,
         new MillisecondTimeStamp(1486045800000L), 
         new MillisecondTimeStamp(1486046000000L));
-    ts1.add(1486045800000L, 1);
-    ts1.add(1486045860000L, 5.75);
+    ((NumericMillisecondShard) ts1).add(1486045800000L, 1);
+    ((NumericMillisecondShard) ts1).add(1486045860000L, 5.75);
     
-    ts2 = new NumericMillisecondShard(id2,
+    ts2 = new NumericMillisecondShard(byte_id2,
         new MillisecondTimeStamp(1486045800000L), 
         new MillisecondTimeStamp(1486046000000L));
-    ts2.add(1486045800000L, 4);
-    ts2.add(1486045860000L, 0.0015);
+    ((NumericMillisecondShard) ts2).add(1486045800000L, 4);
+    ((NumericMillisecondShard) ts2).add(1486045860000L, 0.0015);
     
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
@@ -397,5 +395,88 @@ public class TestJsonV2QuerySerdes {
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
     output.close();
+  }
+
+  @Test
+  public void serializeSummaryFull() throws Exception {
+    ts1 = new MockTimeSeries((TimeSeriesStringId) id1);
+    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new SecondTimeStamp(1486045800));
+    v.resetValue(0, 42);
+    ((MockTimeSeries) ts1).addValue(v);
+    
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new SecondTimeStamp(1486045860));
+    v.resetValue(0, 24.3);
+    ((MockTimeSeries) ts1).addValue(v);
+    
+    ts2 = new MockTimeSeries((TimeSeriesStringId) id2);
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new SecondTimeStamp(1486045800));
+    v.resetValue(0, -1.75);
+    ((MockTimeSeries) ts2).addValue(v);
+    
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new SecondTimeStamp(1486045860));
+    v.resetValue(0, 1024);
+    ((MockTimeSeries) ts2).addValue(v);
+    
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
+    
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
+    serdes.serialize(context, options, output, result, null);
+    output.close();
+    final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
+    
+    assertTrue(json.contains("\"metric\":\"sys.cpu.user\""));
+    assertTrue(json.contains("\"tags\":{"));
+    assertTrue(json.contains("\"dc\":\"phx\""));
+    assertTrue(json.contains("\"host\":\"web01\""));
+    assertTrue(json.contains("\"host\":\"web02\""));
+    assertTrue(json.contains("\"aggregateTags\":[\"owner\"]"));
+    assertTrue(json.contains("\"dps\":{"));
+    
+    assertTrue(json.contains("\"1486045800\":42"));
+    assertTrue(json.contains("\"1486045860\":24.3"));
+    assertTrue(json.contains("\"1486045800\":-1.75"));
+    assertTrue(json.contains("\"1486045860\":1024"));
+  }
+
+  @Test
+  public void serializeArrayFull() throws Exception {
+    TimeSpecification spec = mock(TimeSpecification.class);
+    when(spec.start()).thenReturn(new SecondTimeStamp(1486045800));
+    when(spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.timeSpecification()).thenReturn(spec);
+    
+    ts1 = new NumericArrayTimeSeries(id1, new SecondTimeStamp(1486045800));
+    ((NumericArrayTimeSeries) ts1).add(1);
+    ((NumericArrayTimeSeries) ts1).add(5);
+    
+    ts2 = new NumericArrayTimeSeries(id2, new SecondTimeStamp(1486045800));
+    ((NumericArrayTimeSeries) ts2).add(0.009);
+    ((NumericArrayTimeSeries) ts2).add(-2.45);
+    
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
+    
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
+    serdes.serialize(context, options, output, result, null);
+    output.close();
+    final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
+    System.out.println(json);
+    assertTrue(json.contains("\"metric\":\"sys.cpu.user\""));
+    assertTrue(json.contains("\"tags\":{"));
+    assertTrue(json.contains("\"dc\":\"phx\""));
+    assertTrue(json.contains("\"host\":\"web01\""));
+    assertTrue(json.contains("\"host\":\"web02\""));
+    assertTrue(json.contains("\"aggregateTags\":[\"owner\"]"));
+    assertTrue(json.contains("\"dps\":{"));
+    
+    assertTrue(json.contains("\"1486045800\":1"));
+    assertTrue(json.contains("\"1486045860\":5"));
+    assertTrue(json.contains("\"1486045800\":0.009"));
+    assertTrue(json.contains("\"1486045860\":-2.45"));
   }
 }

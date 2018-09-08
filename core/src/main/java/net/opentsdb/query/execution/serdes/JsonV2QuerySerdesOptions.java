@@ -40,6 +40,9 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
   /** Whether or not to show the summary. */
   private boolean show_summary;
   
+  /** The number of time series necessary to switch to parallel mode. */
+  private int parallel_threshold;
+  
   /**
    * Default ctor.
    * @param builder Non-null builder.
@@ -51,6 +54,7 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     show_query = builder.showQuery;
     show_stats = builder.showStats;
     show_summary = builder.showSummary;
+    parallel_threshold = builder.parallelThreshold;
   }
   
   @Override
@@ -83,6 +87,10 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     return show_summary;
   }
   
+  public int parallelThreshold() {
+    return parallel_threshold;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -98,6 +106,8 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     private boolean showStats;
     @JsonProperty
     private boolean showSummary;
+    @JsonProperty
+    private int parallelThreshold;
     
     public Builder setShowTsuids(final boolean showTsuids) {
       this.showTsuids = showTsuids;
@@ -121,6 +131,11 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     
     public Builder setShowSummary(final boolean showSummary) {
       this.showSummary = showSummary;
+      return this;
+    }
+    
+    public Builder setParallelThreshold(final int parallelThreshold) {
+      this.parallelThreshold = parallelThreshold;
       return this;
     }
     
