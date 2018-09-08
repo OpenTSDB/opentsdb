@@ -44,25 +44,15 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.filter.DefaultNamedFilter;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.MockStats;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.storage.MockDataStore;
 import net.opentsdb.storage.MockDataStoreFactory;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ TSDBV2QueryContextBuilder.class })
@@ -261,51 +251,31 @@ public class TestTSDBV2QueryContextBuilder {
       }
       
     }
+   
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Long.toString(start_ts))
+            .setEnd(Long.toString(end_ts))
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user")
+            .setFilter("f1")
+            .setId("m1"))
+        .addFilter(Filter.newBuilder()
+            .setId("f1")
+            .addFilter(TagVFilter.newBuilder()
+                .setFilter("web01")
+                .setType("literal_or")
+                .setTagk("host")))
+        .build().convert().build();
     
     TestListener listener = new TestListener();
-    
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Long.toString(start_ts))
-        .setEnd(Long.toString(end_ts))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("DataSource")
-                .setConfig(QuerySourceConfig.newBuilder()
-                    .setMetric(MetricLiteralFilter.newBuilder()
-                        .setMetric("sys.cpu.user")
-                        .build())
-                    .setFilterId("f1")
-                    .build())
-                .build())
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("GroupBy")
-                .addSource("DataSource")
-                .setConfig(GroupByConfig.newBuilder()
-                    .setAggregator("sum")
-                    .addTagKey("host")
-                    .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-                      .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-                      .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-                      .setDataType(NumericType.TYPE.toString())
-                      .build())
-                    .build()))
-            .build())
-        .addFilter(DefaultNamedFilter.newBuilder()
-            .setId("f1")
-            .setFilter(TagValueLiteralOrFilter.newBuilder()
-                .setTagKey("host")
-                .setFilter("web01")
-                .build())
-            .build())
-        .addSink(listener)
-        .build();
-    
-    QueryContext ctx = SemanticQueryContext.newBuilder()
-        .setTSDB(TSDB)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
+        .addQuerySink(listener)
         .build();
+    ctx.fetchNext(null);
     ctx.fetchNext(null);
     
     listener.completed.join(1000);
@@ -316,8 +286,6 @@ public class TestTSDBV2QueryContextBuilder {
   
   @Test
   public void querySingleOneMetricNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -378,13 +346,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(1, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
   
   @Test
   public void querySingleTwoMetrics() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -470,13 +435,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(1, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
   
   @Test
   public void querySingleTwoMetricsNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -541,13 +503,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(1, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
   
   @Test
   public void queryBoundedClientStream() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -636,13 +595,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
 
   @Test
   public void queryBoundedClientStreamNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -710,13 +666,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
 
   @Test
   public void queryContinousClientStream() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -808,13 +761,10 @@ public class TestTSDBV2QueryContextBuilder {
     } catch (TimeoutException e) { }
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
 
   @Test
   public void queryBoundedServerSyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -902,13 +852,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
   
   @Test
   public void queryContinousServerSyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -999,13 +946,10 @@ public class TestTSDBV2QueryContextBuilder {
     } catch (TimeoutException e) { }
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
 
   @Test
   public void queryBoundedServerAsyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -1093,13 +1037,10 @@ public class TestTSDBV2QueryContextBuilder {
     listener.call_limit.join(1000);
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
   
   @Test
   public void queryContinousServerAsyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(TSDB, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -1190,7 +1131,6 @@ public class TestTSDBV2QueryContextBuilder {
     } catch (TimeoutException e) { }
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
   
   static class PassThrough extends AbstractQueryNode {

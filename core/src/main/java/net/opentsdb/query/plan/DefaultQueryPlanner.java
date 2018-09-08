@@ -44,6 +44,7 @@ import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SingleQueryNodeFactory;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 /**
@@ -91,7 +92,7 @@ public class DefaultQueryPlanner {
   /**
    * Does the hard work.
    */
-  public void plan() {
+  public void plan(final Span span) {
     final Map<String, ExecutionGraphNode> config_map = 
         Maps.newHashMapWithExpectedSize(
             context.query().getExecutionGraph().getNodes().size());
@@ -152,6 +153,10 @@ public class DefaultQueryPlanner {
       }
       final QueryNodeFactory factory = context.tsdb().getRegistry()
           .getQueryNodeFactory(factory_id);
+      if (factory == null) {
+        throw new IllegalArgumentException("No node factory found for: " 
+            + factory_id);
+      }
       factory.setupGraph(context.query(), node, config_graph);
       factory_cache.put(factory_id, factory);
     }
@@ -255,7 +260,7 @@ public class DefaultQueryPlanner {
       }
       
       if (node != this) {
-        node.initialize(null /* TODO */);
+        node.initialize(span);
       }
     }
     sources.addAll(source_set);

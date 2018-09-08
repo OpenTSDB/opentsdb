@@ -166,7 +166,7 @@ public class TestDefaultQueryPlanner {
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
@@ -241,7 +241,7 @@ public class TestDefaultQueryPlanner {
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
@@ -306,7 +306,7 @@ public class TestDefaultQueryPlanner {
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
@@ -385,7 +385,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -477,7 +477,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -583,7 +583,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -669,7 +669,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
-    planner.plan();
+    planner.plan(null);
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -750,7 +750,7 @@ public class TestDefaultQueryPlanner {
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
     try {
-      planner.plan();
+      planner.plan(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());
@@ -813,7 +813,7 @@ public class TestDefaultQueryPlanner {
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, Lists.newArrayList(SINK));
     try {
-      planner.plan();
+      planner.plan(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());

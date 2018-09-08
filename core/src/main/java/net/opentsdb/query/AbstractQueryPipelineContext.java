@@ -18,20 +18,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.BreadthFirstIterator;
-import org.jgrapht.traverse.DepthFirstIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
@@ -41,10 +35,9 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
-import net.opentsdb.utils.Pair;
 
 /**
  * A useful base class for {@link QueryPipelineContext}s that stores references
@@ -59,7 +52,7 @@ import net.opentsdb.utils.Pair;
  * 
  * <b>Invariants:</b>
  * <ul>
- * <li>Each {@link ExecutionGraphNode} must have a unique ID within the graph.</li>
+ * <li>Each {@link ExecutionGraphNode} must have a unique ID within the plan.graph().</li>
  * <li>The graph must have at most one sink that will be used to execution a
  * query.</li>
  * <li>The graph must be a non-cyclical DAG.</li>
@@ -79,21 +72,12 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   
   /** The upstream query context this pipeline context belongs to. */
   protected final QueryContext context;
-  
-  /** The original user defined execution graph. */
-  protected final ExecutionGraph execution_graph;
-  
-  /** A mutable copy of the nodes. */
-  protected final List<ExecutionGraphNode> nodes;
+
+  /** The query plan. */
+  protected DefaultQueryPlanner plan;
   
   /** The set of query sinks. */
   protected final Collection<QuerySink> sinks;
-  
-  /** The set of node roots to link to the sinks. */
-  protected Set<QueryNode> roots;
-  
-  /** The list of source nodes. */
-  protected List<TimeSeriesDataSource> sources;
   
   /** The cumulative result object when operating in {@link QueryMode#SINGLE}. */
   protected CumulativeQueryResult single_results;
@@ -112,11 +96,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /** Used in a sync streaming mode to track how many sinks are done. */
   protected int completed_sinks;
   
-  /** The graph of query nodes. 
-   * PRIVATE so that we can swap out the graph implementation at a later date.
-   */
-  protected DirectedAcyclicGraph<QueryNode, DefaultEdge> graph;
-  
   /**
    * Default ctor.
    * @param tsdb A non-null TSDB to work with.
@@ -128,7 +107,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   public AbstractQueryPipelineContext(final TSDB tsdb, 
                                       final TimeSeriesQuery query, 
                                       final QueryContext context,
-                                      final ExecutionGraph execution_graph,
                                       final Collection<QuerySink> sinks) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB object cannot be null.");
@@ -139,22 +117,14 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (context == null) {
       throw new IllegalArgumentException("The context cannot be null.");
     }
-    if (execution_graph == null) {
-      throw new IllegalArgumentException("Execution graph cannot be null.");
-    }
     if (sinks == null || sinks.isEmpty()) {
       throw new IllegalArgumentException("The sinks cannot be null or empty");
     }
     this.tsdb = tsdb;
     this.query = query;
     this.context = context;
-    this.execution_graph = execution_graph;
     this.sinks = sinks;
-    graph = new DirectedAcyclicGraph<QueryNode, DefaultEdge>(DefaultEdge.class);
-    graph.addVertex(this);
-    roots = Sets.newHashSet();
-    sources = Lists.newArrayList();
-    nodes = Lists.newArrayList(execution_graph.getNodes());
+    plan = new DefaultQueryPlanner(this, Lists.newArrayList((QueryNode) this));
   }
   
   @Override
@@ -173,22 +143,27 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
+  public ExecutionGraph executionGraph() {
+    return query.getExecutionGraph();
+  }
+  
+  @Override
   public Collection<QueryNode> upstream(final QueryNode node) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (!graph.containsVertex(node)) {
+    if (!plan.graph().containsVertex(node)) {
       throw new IllegalArgumentException("The given node wasn't in this graph: " 
           + node);
     }
-    final Set<DefaultEdge> upstream = graph.incomingEdgesOf(node);
+    final Set<DefaultEdge> upstream = plan.graph().incomingEdgesOf(node);
     if (upstream.isEmpty()) {
       return Collections.emptyList();
     }
     final List<QueryNode> listeners = Lists.newArrayListWithCapacity(
         upstream.size());
     for (final DefaultEdge e : upstream) {
-      listeners.add(graph.getEdgeSource(e));
+      listeners.add(plan.graph().getEdgeSource(e));
     }
     return listeners;
   }
@@ -198,18 +173,18 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (!graph.containsVertex(node)) {
+    if (!plan.graph().containsVertex(node)) {
       throw new IllegalArgumentException("The given node wasn't in this graph: " 
           + node);
     }
-    final Set<DefaultEdge> downstream = graph.outgoingEdgesOf(node);
+    final Set<DefaultEdge> downstream = plan.graph().outgoingEdgesOf(node);
     if (downstream.isEmpty()) {
       return Collections.emptyList();
     }
     final List<QueryNode> downstreams = Lists.newArrayListWithCapacity(
         downstream.size());
     for (final DefaultEdge e : downstream) {
-      downstreams.add(graph.getEdgeTarget(e));
+      downstreams.add(plan.graph().getEdgeTarget(e));
     }
     return downstreams;
   }
@@ -219,18 +194,18 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (!graph.containsVertex(node)) {
+    if (!plan.graph().containsVertex(node)) {
       throw new IllegalArgumentException("The given node wasn't in this graph: " 
           + node);
     }
-    final Set<DefaultEdge> downstream = graph.outgoingEdgesOf(node);
+    final Set<DefaultEdge> downstream = plan.graph().outgoingEdgesOf(node);
     if (downstream.isEmpty()) {
       return Collections.emptyList();
     }
     final Set<TimeSeriesDataSource> downstreams = Sets.newHashSetWithExpectedSize(
         downstream.size());
     for (final DefaultEdge e : downstream) {
-      final QueryNode target = graph.getEdgeTarget(e);
+      final QueryNode target = plan.graph().getEdgeTarget(e);
       if (downstreams.contains(target)) {
         continue;
       }
@@ -253,19 +228,19 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
-    if (!graph.containsVertex(node)) {
+    if (!plan.graph().containsVertex(node)) {
       throw new IllegalArgumentException("The given node wasn't in this graph: " 
           + node);
     }
     
-    final Set<DefaultEdge> upstream = graph.incomingEdgesOf(node);
+    final Set<DefaultEdge> upstream = plan.graph().incomingEdgesOf(node);
     if (upstream.isEmpty()) {
       return Collections.emptyList();
     }
     
     List<QueryNode> upstreams = null;
     for (final DefaultEdge e : upstream) {
-      final QueryNode source = graph.getEdgeSource(e);
+      final QueryNode source = plan.graph().getEdgeSource(e);
       if (source.getClass().equals(type)) {
         if (upstreams == null) {
           upstreams = Lists.newArrayList();
@@ -294,19 +269,19 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
-    if (!graph.containsVertex(node)) {
+    if (!plan.graph().containsVertex(node)) {
       throw new IllegalArgumentException("The given node wasn't in this graph: " 
           + node);
     }
     
-    final Set<DefaultEdge> downstream = graph.outgoingEdgesOf(node);
+    final Set<DefaultEdge> downstream = plan.graph().outgoingEdgesOf(node);
     if (downstream.isEmpty()) {
       return Collections.emptyList();
     }
     
     List<QueryNode> downstreams = null;
     for (final DefaultEdge e : downstream) {
-      final QueryNode target = graph.getEdgeTarget(e);
+      final QueryNode target = plan.graph().getEdgeTarget(e);
       if (target.getClass().equals(type)) {
         if (downstreams == null) {
           downstreams = Lists.newArrayList();
@@ -333,7 +308,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   
   @Override
   public Collection<QueryNode> roots() {
-    return roots;
+    return plan.roots();
   }
   
   @Override
@@ -344,7 +319,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   @Override
   public void close() {
     final BreadthFirstIterator<QueryNode, DefaultEdge> bf_iterator = 
-        new BreadthFirstIterator<QueryNode, DefaultEdge>(graph);
+        new BreadthFirstIterator<QueryNode, DefaultEdge>(plan.graph());
     while (bf_iterator.hasNext()) {
       final QueryNode node = bf_iterator.next();
       if (node == this) {
@@ -365,7 +340,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         context.mode() == QueryMode.CONTINOUS_SERVER_SYNC_STREAM ||
         context.mode() == QueryMode.BOUNDED_SERVER_ASYNC_STREAM ||
         context.mode() == QueryMode.CONTINOUS_SERVER_ASYNC_STREAM) {
-      for (final TimeSeriesDataSource source : sources) {
+      for (final TimeSeriesDataSource source : plan.sources()) {
         try {
           source.fetchNext(span);
         } catch (Exception e) {
@@ -379,14 +354,14 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     }
     
     synchronized(this) {
-      if (source_idx >= sources.size()) {
+      if (source_idx >= plan.sources().size()) {
         source_idx = 0;
       }
       try {
-        sources.get(source_idx++).fetchNext(span);
+        plan.sources().get(source_idx++).fetchNext(span);
       } catch (Exception e) {
         LOG.error("Failed to fetch next from source: " 
-            + sources.get(source_idx - 1), e);
+            + plan.sources().get(source_idx - 1), e);
         onError(e);
       }
     }
@@ -452,6 +427,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     return null;
   }
   
+  /** @return The planner. */
+  public DefaultQueryPlanner plan() {
+    return plan;
+  }
+  
   /**
    * A helper to initialize the nodes in depth-first order.
    */
@@ -459,157 +439,14 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + ".initializeGraph")
-                  .withTag("graphId", execution_graph.getId() == null ? "null" : execution_graph.getId())
-                  .start();
+        .withTag("graphId", 
+            query.getExecutionGraph().getId() == null ? 
+                "null" : query.getExecutionGraph().getId())
+        .start();
     } else {
       child = null;
     }
-    
-    final Map<String, QueryNodeConfig> node_configs = 
-        execution_graph.nodeConfigs();
-    final Map<String, QueryNode> map = 
-        Maps.newHashMapWithExpectedSize(execution_graph.getNodes().size());
-    final Set<String> unique_ids = 
-        Sets.newHashSetWithExpectedSize(execution_graph.getNodes().size());
-    List<Pair<MultiQueryNodeFactory, ExecutionGraphNode>> multis = null;
-    
-    // first pass to instantiate the nodes.
-    for (final ExecutionGraphNode node : nodes) {
-      if (unique_ids.contains(node.getId())) {
-        throw new IllegalArgumentException("The node id \"" 
-            + node.getId() + "\" appeared more than once in the "
-            + "graph. It must be unique.");
-      }
-      unique_ids.add(node.getId());
-      
-      final QueryNodeFactory factory;
-      if (!Strings.isNullOrEmpty(node.getType())) {
-        factory = tsdb.getRegistry().getQueryNodeFactory(node.getType().toLowerCase());
-      } else {
-        factory = tsdb.getRegistry().getQueryNodeFactory(node.getId().toLowerCase());
-      }
-      if (factory == null) {
-        throw new IllegalArgumentException("No node factory found for "
-            + "configuration " + node);
-      }
-      
-      // we can only handle singles here, multis we run through in a second
-      // pass.
-      if (!(factory instanceof SingleQueryNodeFactory)) {
-        if (multis == null) {
-          multis = Lists.newArrayList();
-        }
-        multis.add(new Pair<MultiQueryNodeFactory, ExecutionGraphNode>(
-            (MultiQueryNodeFactory) factory, node));
-        continue;
-      }
-      
-      final QueryNode query_node;
-      QueryNodeConfig node_config = node.getConfig() != null ? 
-          node.getConfig() : node_configs.get(node.getId());
-      if (node_config == null) {
-        node_config = node_configs.get(node.getType());
-      }
-      if (node_config != null) {
-        query_node = ((SingleQueryNodeFactory) factory)
-            .newNode(this, node.getId(), node_config);
-      } else {
-        query_node = ((SingleQueryNodeFactory) factory)
-            .newNode(this, node.getId());
-      }
-      if (query_node == null) {
-        throw new IllegalStateException("Factory returned a null "
-            + "instance for " + node);
-      }
-      
-      map.put(node.getId(), query_node);
-      
-      graph.addVertex(query_node);
-    }
-    
-    // if there are multis that change the DAG, let's set em up now
-    if (multis != null) {
-      for (final Pair<MultiQueryNodeFactory, ExecutionGraphNode> pair : multis) {
-        QueryNodeConfig node_config = pair.getValue().getConfig() != null ? 
-            pair.getValue().getConfig() : node_configs.get(pair.getValue().getId());
-        if (node_config == null) {
-          node_config = node_configs.get(pair.getValue().getType());
-        }
-        if (node_config == null) {
-          throw new IllegalArgumentException("No config supplied for "
-              + "node: " + pair.getValue().getId());
-        }
-        
-        final Collection<QueryNode> query_nodes = pair.getKey().newNodes(
-            this, pair.getValue().getId(), node_config, nodes);
-        if (query_nodes == null || query_nodes.isEmpty()) {
-          throw new IllegalStateException("Factory returned a null or "
-              + "empty list of nodes for " + pair.getValue().getId());
-        }
-        for (final QueryNode node : query_nodes) {
-          if (node == null) {
-            throw new IllegalStateException("Factory returned a null "
-                + "node for " + pair.getValue().getId());
-          }
-          
-          map.put(node.id(), node);
-          graph.addVertex(node);
-        }
-        
-        // Important! We have to remove the original node config for
-        // debugging so we know it was replaced.
-        nodes.remove(pair.getValue());
-      }
-    }
-    
-    // second (or third) pass to build the graph.
-    for (final ExecutionGraphNode node : nodes) {
-      if (node != null && 
-          node.getSources() != null && 
-          !node.getSources().isEmpty()) {
-        final QueryNode query_node = map.get(node.getId());
-        for (final String source : node.getSources()) {
-          try {
-            graph.addDagEdge(query_node, map.get(source));
-          } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Failed to add node: " 
-                + node, e);
-          } catch (CycleFoundException e) {
-            throw new IllegalArgumentException("A cycle was detected "
-                + "adding node: " + node, e);
-          }
-        }
-      }
-    }
-    
-    // depth first initiation of the executors since we have to init
-    // the ones without any downstream dependencies first.
-    final DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
-    final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
-    while (iterator.hasNext()) {
-      final QueryNode node = iterator.next();
-      
-      final Set<DefaultEdge> incoming = graph.incomingEdgesOf(node);
-      if (incoming.size() == 0 && node != this) {
-        try {
-          graph.addDagEdge(this, node);
-        } catch (CycleFoundException e) {
-          throw new IllegalArgumentException(
-              "Invalid graph configuration", e);
-        }
-        roots.add(node);
-      }
-      
-      if (node instanceof TimeSeriesDataSource) {
-        source_set.add((TimeSeriesDataSource) node);
-      }
-      
-      if (node != this) {
-        node.initialize(child);
-      }
-    }
-    sources.addAll(source_set);
+    plan.plan(child);
     if (child != null) {
       child.setSuccessTags().finish();
     }
@@ -622,7 +459,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
    */
   protected void checkComplete() {
     if (completed_sinks >= total_sequences &&
-        completed_downstream >= roots.size()) {
+        completed_downstream >= plan.roots().size()) {
       for (final QuerySink sink : sinks) {
         if (context.mode() == QueryMode.SINGLE && single_results != null) {
           try {
