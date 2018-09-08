@@ -62,7 +62,8 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
 //        throw new RuntimeException("No factory!");
 //      }
       
-    final ReadableTimeSeriesDataStore store = ((DefaultRegistry) tsdb.getRegistry()).getDefaultStore();
+    final ReadableTimeSeriesDataStore store = ((DefaultRegistry) 
+        tsdb.getRegistry()).getDefaultStore();
     if (store == null) {
       throw new QueryExecutionException("Unable to get a data store!", 0);
     }
