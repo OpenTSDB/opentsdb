@@ -121,12 +121,6 @@ public class SemanticQuery implements TimeSeriesQuery {
         ((QuerySourceConfig) node.getConfig()).setTimeSeriesQuery(this);
       }
     }
-    for (final QueryNodeConfig config : execution_graph.nodeConfigs().values()) {
-      if (config instanceof QuerySourceConfig &&
-          ((QuerySourceConfig) config).getQuery() == null) {
-        ((QuerySourceConfig) config).setTimeSeriesQuery(this);
-      }
-    }
   }
 
   @Override

@@ -94,17 +94,11 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
       final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
     // For downsampling we need to set the config start and end times
     // to the query start and end times. The config will then align them.
-    DownsampleConfig.Builder builder = null;
-    if (config.getConfig() == null) {
-      DownsampleConfig dscfg = (DownsampleConfig) 
-          query.getExecutionGraph().nodeConfigs().get(config.getId());
-      builder = DownsampleConfig.newBuilder(dscfg);
-    } else {
-      builder = DownsampleConfig.newBuilder((DownsampleConfig) config.getConfig());
-    }
-    builder.setStart(query.getStart())
-           .setEnd(query.getEnd())
-           .setId(config.getId());
+    DownsampleConfig.Builder builder = DownsampleConfig
+        .newBuilder((DownsampleConfig) config.getConfig())
+        .setStart(query.getStart())
+        .setEnd(query.getEnd())
+        .setId(config.getId());
     
     ExecutionGraphNode node = ExecutionGraphNode.newBuilder(config)
         .setConfig(builder.build())

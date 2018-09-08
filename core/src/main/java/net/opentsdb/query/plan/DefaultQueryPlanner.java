@@ -37,7 +37,6 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.MultiQueryNodeFactory;
 import net.opentsdb.query.QueryDataSourceFactory;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
@@ -384,13 +383,7 @@ public class DefaultQueryPlanner {
           + "configuration " + node);
     }
     
-    QueryNodeConfig node_config = node.getConfig() != null ? node.getConfig() : 
-          context.query().getExecutionGraph().nodeConfigs().get(node.getId());
-    if (node_config == null) {
-      node_config = context.query().getExecutionGraph().nodeConfigs()
-          .get(node.getType());
-    }
-    if (node_config == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("No node config for " 
           + node.getId() + " or " + node.getType());
     }
@@ -401,7 +394,7 @@ public class DefaultQueryPlanner {
     if (!(factory instanceof SingleQueryNodeFactory)) {
       final Collection<QueryNode> query_nodes = 
           ((MultiQueryNodeFactory) factory).newNodes(
-              context, node.getId(), node_config, configs);
+              context, node.getId(), node.getConfig(), configs);
       if (query_nodes == null || query_nodes.isEmpty()) {
         throw new IllegalStateException("Factory returned a null or "
             + "empty list of nodes for " + node.getId());
@@ -433,7 +426,7 @@ public class DefaultQueryPlanner {
       }
     } else {
       query_node = ((SingleQueryNodeFactory) factory)
-          .newNode(context, node.getId(), node_config);
+          .newNode(context, node.getId(), node.getConfig());
       if (query_node == null) {
         throw new IllegalStateException("Factory returned a null "
             + "instance for " + node);
