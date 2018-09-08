@@ -144,7 +144,7 @@ public class SemanticQueryContext implements QueryContext {
 
     public LocalPipeline(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
         ExecutionGraph execution_graph, Collection<QuerySink> sinks) {
-      super(tsdb, query, context, execution_graph, sinks);
+      super(tsdb, query, context, sinks);
     }
 
     @Override
