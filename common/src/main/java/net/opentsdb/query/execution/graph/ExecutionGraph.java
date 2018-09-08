@@ -14,10 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.execution.graph;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
@@ -36,7 +34,6 @@ import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -69,10 +66,6 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   
   /** The list of nodes given by the user or config. */
   protected List<ExecutionGraphNode> nodes;
-
-  /** A set of optional node configs manually de-serialized. Not counted
-   * in the equals, hash code or comparable. */
-  protected Map<String, QueryNodeConfig> node_configs;
   
   /**
    * Protected ctor that sets up maps but doesn't generate the graph.
@@ -94,58 +87,6 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   /** @return The list of nodes configured in this graph. */
   public List<ExecutionGraphNode> getNodes() {
     return Collections.unmodifiableList(nodes);
-  }
-  
-  /** @return An optional map of node configs. */
-  public Map<String, QueryNodeConfig> nodeConfigs() {
-    return node_configs != null ? node_configs : Collections.emptyMap();
-  }
-  
-  /**
-   * Overrides the list of node configs with those given in the collection.
-   * Uses the {@link QueryNodeConfig#getId()} as the ID of a specific
-   * node or the name of node types. 
-   * @param configs A non-null list of node configs. May be empty.
-   * @throws IllegalArgumentException if the collection was null.
-   */
-  public void setNodeConfigs(final Collection<QueryNodeConfig> configs) {
-    if (configs == null) {
-      throw new IllegalArgumentException("Configs cannot be null.");
-    }
-    if (node_configs != null) {
-      node_configs.clear();
-    }
-    for (final QueryNodeConfig config : configs) {
-      addNodeConfig(config);
-    }
-  }
-  
-  /**
-   * Adds the given node config to the map using the 
-   * {@link QueryNodeConfig#getId()} as the unique key of config. This 
-   * may map to a node type to be used as the default for all nodes of 
-   * that type or it may be a specific node ID. It may not be null.
-   * @param config A non-null config.
-   * @throws IllegalArgumentException if the config was null or the 
-   * id of the config was null or empty or if a config with the same
-   * ID was already present.
-   */
-  public void addNodeConfig(final QueryNodeConfig config) {
-    if (config == null) {
-      throw new IllegalArgumentException("Config cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(config.getId())) {
-      throw new IllegalArgumentException("Config ID cannot be null or "
-          + "empty.");
-    }
-    if (node_configs == null) {
-      node_configs = Maps.newHashMap();
-    }
-    if (node_configs.containsKey(config.getId())) {
-      throw new IllegalArgumentException("Duplicate config ID found "
-          + "for:  " + config.getId());
-    }
-    node_configs.put(config.getId(), config);
   }
   
   @Override
@@ -195,8 +136,6 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
         .append(id)
         .append(", nodes=")
         .append(nodes)
-        .append(", nodeConfigs=")
-        .append(node_configs)
         .toString();
   }
   
