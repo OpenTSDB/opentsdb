@@ -239,6 +239,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   /** @return The number of intervals in the downsampling window bounded
    * by {@link #startTime()} and {@link #endTime()}. */
   public int intervals() {
+    if (run_all) {
+      return 1;
+    }
+    
     if (cached_intervals < 0) {
       TimeStamp ts = start_time.getCopy();
       int intervals = 0;
