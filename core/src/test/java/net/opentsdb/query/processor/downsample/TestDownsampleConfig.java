@@ -178,5 +178,17 @@ public class TestDownsampleConfig {
         .addInterpolatorConfig(summary_config)
         .build();
     assertEquals(240, config.intervals());
+    
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0s")
+        .setRunAll(true)
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    assertEquals(1, config.intervals());
   }
 }
