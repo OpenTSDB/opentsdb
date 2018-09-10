@@ -182,7 +182,7 @@ public class TestDownsampleConfig {
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
-        .setInterval("0s")
+        .setInterval("0all")
         .setRunAll(true)
         .setStart("1514843302")
         .setEnd("1514846902")

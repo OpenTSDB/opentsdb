@@ -18,36 +18,36 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-public class TestArraySum {
-
+public class TestArrayAverage {
   @Test
   public void longs() {
-    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 });
     agg.accumulate(new long[] { 3, -13, 5, -1 });
     
-    assertTrue(agg.isInteger());
-    assertNull(agg.doubleArray());
+    assertFalse(agg.isInteger());
+    assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(4, agg.end());
-    assertArrayEquals(new long[] { 45, -37, 5, 0 }, agg.longArray());
+    assertArrayEquals(new double[] { 22.5, -18.5, 2.5, 0 }, agg.doubleArray(), 0.001);
     
-    agg = new ArraySumFactory.ArraySum(false);
+    agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new long[] { });
     agg.accumulate(new long[] { });
     
-    assertTrue(agg.isInteger());
-    assertNull(agg.doubleArray());
+    assertFalse(agg.isInteger());
+    assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(0, agg.end());
-    assertArrayEquals(new long[] { }, agg.longArray());
+    assertArrayEquals(new double[] { }, agg.doubleArray(), 0.001);
     
     // bad length
+    agg = new ArrayAverageFactory.ArrayAverage(false);
+    agg.accumulate(new long[] { 42, -24, 0, 1 });
     try {
       agg.accumulate(new long[] { 1 });
       fail("Expected IllegalArgumentException");
@@ -56,7 +56,7 @@ public class TestArraySum {
   
   @Test
   public void doubles() throws Exception {
-    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new double[] { 42, -24, 0, 1 });
     agg.accumulate(new double[] { 3, -13, 5, -1 });
     
@@ -64,10 +64,10 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(4, agg.end());
-    assertArrayEquals(new double[] { 45, -37, 5, 0 }, agg.doubleArray(), 0.001);
+    assertArrayEquals(new double[] { 22.5, -18.5, 2.5, 0 }, agg.doubleArray(), 0.001);
     
     // non-infectious nans
-    agg = new ArraySumFactory.ArraySum(false);
+    agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new double[] { 42, -24, 0, Double.NaN });
     agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
     
@@ -75,10 +75,10 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(4, agg.end());
-    assertArrayEquals(new double[] { 45, -24, 5, -1 }, agg.doubleArray(), 0.001);
+    assertArrayEquals(new double[] { 22.5, -24, 2.5, -1 }, agg.doubleArray(), 0.001);
     
     // infectious nans
-    agg = new ArraySumFactory.ArraySum(true);
+    agg = new ArrayAverageFactory.ArrayAverage(true);
     agg.accumulate(new double[] { 42, -24, 0, Double.NaN });
     agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
     
@@ -86,10 +86,12 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(4, agg.end());
-    assertArrayEquals(new double[] { 45, Double.NaN, 5, Double.NaN }, 
+    assertArrayEquals(new double[] { 22.5, Double.NaN, 2.5, Double.NaN }, 
         agg.doubleArray(), 0.001);
     
     // bad length
+    agg = new ArrayAverageFactory.ArrayAverage(false);
+    agg.accumulate(new double[] { 42, -24, 0, 1 });
     try {
       agg.accumulate(new double[] { 1 });
       fail("Expected IllegalArgumentException");
@@ -98,7 +100,7 @@ public class TestArraySum {
   
   @Test
   public void mixed() throws Exception {
-    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 });
     agg.accumulate(new double[] { 3, -13, 5, -1 });
     
@@ -106,9 +108,9 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(4, agg.end());
-    assertArrayEquals(new double[] { 45, -37, 5, 0 }, agg.doubleArray(), 0.001);
+    assertArrayEquals(new double[] { 22.5, -18.5, 2.5, 0 }, agg.doubleArray(), 0.001);
     
-    agg = new ArraySumFactory.ArraySum(false);
+    agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new double[] { 3, -13, 5, -1 });
     agg.accumulate(new long[] { 42, -24, 0, 1 });
     
@@ -116,22 +118,22 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(4, agg.end());
-    assertArrayEquals(new double[] { 45, -37, 5, 0 }, agg.doubleArray(), 0.001);
+    assertArrayEquals(new double[] { 22.5, -18.5, 2.5, 0 }, agg.doubleArray(), 0.001);
   }
   
   @Test
   public void offsets() throws Exception {
-    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 }, 1, 3);
     agg.accumulate(new long[] { 3, -13, 5, -1 }, 1, 3);
     
-    assertTrue(agg.isInteger());
-    assertNull(agg.doubleArray());
+    assertFalse(agg.isInteger());
+    assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(2, agg.end());
-    assertArrayEquals(new long[] { -37, 5 }, agg.longArray());
+    assertArrayEquals(new double[] { -18.5, 2.5 }, agg.doubleArray(), 0.001);
     
-    agg = new ArraySumFactory.ArraySum(false);
+    agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new double[] { 42, -24, 0, 1 }, 1, 3);
     agg.accumulate(new double[] { 3, -13, 5, -1 }, 1, 3);
     
@@ -139,9 +141,9 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(2, agg.end());
-    assertArrayEquals(new double[] { -37, 5 }, agg.doubleArray(), 0.001);
+    assertArrayEquals(new double[] { -18.5, 2.5 }, agg.doubleArray(), 0.001);
     
-    agg = new ArraySumFactory.ArraySum(false);
+    agg = new ArrayAverageFactory.ArrayAverage(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 }, 1, 3);
     agg.accumulate(new double[] { 3, -13, 5, -1 }, 1, 3);
     
@@ -149,6 +151,6 @@ public class TestArraySum {
     assertNull(agg.longArray());
     assertEquals(0, agg.offset());
     assertEquals(2, agg.end());
-    assertArrayEquals(new double[] { -37, 5 }, agg.doubleArray(), 0.001);
+    assertArrayEquals(new double[] { -18.5, 2.5 }, agg.doubleArray(), 0.001);
   }
 }

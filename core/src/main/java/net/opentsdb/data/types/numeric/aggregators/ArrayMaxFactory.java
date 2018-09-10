@@ -17,31 +17,31 @@ package net.opentsdb.data.types.numeric.aggregators;
 import java.util.Arrays;
 
 /**
- * Returns a Sum array aggregator.
+ * Just the max.
  * 
  * @since 3.0
  */
-public class ArraySumFactory extends BaseArrayFactory {
+public class ArrayMaxFactory extends BaseArrayFactory {
 
   @Override
-  public NumericArrayAggregator newAggregator(boolean infectious_nan) {
-    return new ArraySum(infectious_nan);
+  public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
+    return new ArrayMax(infectious_nan);
   }
-  
+
   @Override
   public String id() {
-    return "sum";
+    return "max";
   }
-  
-  public static class ArraySum extends BaseArrayAggregator {
 
-    public ArraySum(final boolean infectious_nans) {
+  public static class ArrayMax extends BaseArrayAggregator {
+
+    public ArrayMax(final boolean infectious_nans) {
       super(infectious_nans);
     }
-    
+
     @Override
-    public void accumulate(final long[] values,
-                           final int from,
+    public void accumulate(final long[] values, 
+                           final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
         long_accumulator = Arrays.copyOfRange(values, from, to);
@@ -56,7 +56,10 @@ public class ArraySumFactory extends BaseArrayFactory {
         }
         int idx = 0;
         for (int i = from; i < to; i++) {
-          long_accumulator[idx++] += values[i];
+          if (values[i] > long_accumulator[idx]) {
+            long_accumulator[idx] = values[i];
+          }
+          idx++;
         }
       } else {
         if (to - from != double_accumulator.length) {
@@ -66,7 +69,10 @@ public class ArraySumFactory extends BaseArrayFactory {
         }
         int idx = 0;
         for (int i = from; i < to; i++) {
-          double_accumulator[idx++] += values[i];
+          if (values[i] > double_accumulator[idx]) {
+            double_accumulator[idx] = values[i];
+          }
+          idx++;
         }
       }
     }
@@ -76,7 +82,7 @@ public class ArraySumFactory extends BaseArrayFactory {
                            final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
-        double_accumulator = new double[to - from];
+        double_accumulator = Arrays.copyOfRange(values, from, to);
       }
       
       if (double_accumulator == null) {
@@ -97,16 +103,20 @@ public class ArraySumFactory extends BaseArrayFactory {
       for (int i = from; i < to; i++) {
         if (Double.isNaN(values[i])) {
           if (infectious_nans) {
-            double_accumulator[idx++] += values[i];
+            double_accumulator[idx++] = values[i];
           } else {
             idx++;
           }
         } else {
-          double_accumulator[idx++] += values[i];
+          if (Double.isNaN(double_accumulator[idx]) && !infectious_nans) {
+            double_accumulator[idx] = values[i];
+          } else if (values[i] > double_accumulator[idx]) {
+            double_accumulator[idx] = values[i];
+          }
+          idx++;
         }
       }
     }
     
   }
-  
 }
