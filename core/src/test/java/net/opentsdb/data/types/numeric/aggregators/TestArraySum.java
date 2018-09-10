@@ -27,7 +27,7 @@ public class TestArraySum {
 
   @Test
   public void longs() {
-    ArraySum agg = new ArraySum(false);
+    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 });
     agg.accumulate(new long[] { 3, -13, 5, -1 });
     
@@ -37,7 +37,7 @@ public class TestArraySum {
     assertEquals(4, agg.end());
     assertArrayEquals(new long[] { 45, -37, 5, 0 }, agg.longArray());
     
-    agg = new ArraySum(false);
+    agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new long[] { });
     agg.accumulate(new long[] { });
     
@@ -56,7 +56,7 @@ public class TestArraySum {
   
   @Test
   public void doubles() throws Exception {
-    ArraySum agg = new ArraySum(false);
+    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new double[] { 42, -24, 0, 1 });
     agg.accumulate(new double[] { 3, -13, 5, -1 });
     
@@ -67,7 +67,7 @@ public class TestArraySum {
     assertArrayEquals(new double[] { 45, -37, 5, 0 }, agg.doubleArray(), 0.001);
     
     // non-infectious nans
-    agg = new ArraySum(false);
+    agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new double[] { 42, -24, 0, Double.NaN });
     agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
     
@@ -78,7 +78,7 @@ public class TestArraySum {
     assertArrayEquals(new double[] { 45, -24, 5, -1 }, agg.doubleArray(), 0.001);
     
     // infectious nans
-    agg = new ArraySum(true);
+    agg = new ArraySumFactory.ArraySum(true);
     agg.accumulate(new double[] { 42, -24, 0, Double.NaN });
     agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
     
@@ -98,7 +98,7 @@ public class TestArraySum {
   
   @Test
   public void mixed() throws Exception {
-    ArraySum agg = new ArraySum(false);
+    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 });
     agg.accumulate(new double[] { 3, -13, 5, -1 });
     
@@ -108,7 +108,7 @@ public class TestArraySum {
     assertEquals(4, agg.end());
     assertArrayEquals(new double[] { 45, -37, 5, 0 }, agg.doubleArray(), 0.001);
     
-    agg = new ArraySum(false);
+    agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new double[] { 3, -13, 5, -1 });
     agg.accumulate(new long[] { 42, -24, 0, 1 });
     
@@ -121,7 +121,7 @@ public class TestArraySum {
   
   @Test
   public void offsets() throws Exception {
-    ArraySum agg = new ArraySum(false);
+    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 }, 1, 3);
     agg.accumulate(new long[] { 3, -13, 5, -1 }, 1, 3);
     
@@ -131,7 +131,7 @@ public class TestArraySum {
     assertEquals(2, agg.end());
     assertArrayEquals(new long[] { -37, 5 }, agg.longArray());
     
-    agg = new ArraySum(false);
+    agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new double[] { 42, -24, 0, 1 }, 1, 3);
     agg.accumulate(new double[] { 3, -13, 5, -1 }, 1, 3);
     
@@ -141,7 +141,7 @@ public class TestArraySum {
     assertEquals(2, agg.end());
     assertArrayEquals(new double[] { -37, 5 }, agg.doubleArray(), 0.001);
     
-    agg = new ArraySum(false);
+    agg = new ArraySumFactory.ArraySum(false);
     agg.accumulate(new long[] { 42, -24, 0, 1 }, 1, 3);
     agg.accumulate(new double[] { 3, -13, 5, -1 }, 1, 3);
     

@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import java.util.Arrays;
+
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -48,6 +50,93 @@ public class ArraySumFactory implements NumericArrayAggregatorFactory {
   @Override
   public String version() {
     return "3.0.0";
+  }
+  
+  public static class ArraySum extends BaseArrayAggregator {
+
+    public ArraySum(final boolean infectious_nans) {
+      super(infectious_nans);
+    }
+    
+    @Override
+    public void accumulate(final long[] values,
+                           final int from,
+                           final int to) {
+      if (double_accumulator == null && long_accumulator == null) {
+        long_accumulator = Arrays.copyOfRange(values, from, to);
+        return;
+      }
+      
+      if (long_accumulator != null) {
+        if (to - from != long_accumulator.length) {
+          throw new IllegalArgumentException("Values of length " 
+              + (to - from) + " did not match the original lengh of " 
+              + long_accumulator.length);
+        }
+        int idx = 0;
+        for (int i = from; i < to; i++) {
+          long_accumulator[idx++] += values[i];
+        }
+      } else {
+        if (to - from != double_accumulator.length) {
+          throw new IllegalArgumentException("Values of length " 
+              + (to - from) + " did not match the original lengh of " 
+              + double_accumulator.length);
+        }
+        int idx = 0;
+        for (int i = from; i < to; i++) {
+          double_accumulator[idx++] += values[i];
+        }
+      }
+    }
+
+    @Override
+    public void accumulate(final double[] values, 
+                           final int from, 
+                           final int to) {
+      if (double_accumulator == null && long_accumulator == null) {
+        double_accumulator = new double[to - from];
+      }
+      
+      if (double_accumulator == null) {
+        double_accumulator = new double[long_accumulator.length];
+        for (int i = 0; i < long_accumulator.length; i++) {
+          double_accumulator[i] = long_accumulator[i];
+        }
+        long_accumulator = null;
+      }
+      
+      if (to - from != double_accumulator.length) {
+        throw new IllegalArgumentException("Values of length " 
+            + (to - from) + " did not match the original lengh of " 
+            + double_accumulator.length);
+      }
+      
+      int idx = 0;
+      for (int i = from; i < to; i++) {
+        if (Double.isNaN(values[i])) {
+          if (infectious_nans) {
+            double_accumulator[idx++] += values[i];
+          } else {
+            idx++;
+          }
+        } else {
+          double_accumulator[idx++] += values[i];
+        }
+      }
+    }
+
+    @Override
+    public int offset() {
+      return 0;
+    }
+
+    @Override
+    public int end() {
+      return long_accumulator != null ? long_accumulator.length : 
+        double_accumulator.length;
+    }
+
   }
   
 }
