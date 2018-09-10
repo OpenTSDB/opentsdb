@@ -152,6 +152,14 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         end_time.snapToPreviousInterval(interval_part, units);
       }
     }
+    
+    // make sure we have at least one interval in our range
+    // TODO - propper difference function
+    if (start_time != null && end_time.msEpoch() - start_time.msEpoch() < 
+        DateTime.parseDuration(interval)) {
+      throw new IllegalArgumentException("The start and stop times of "
+          + "the query must be greater than the interval provided.");
+    }
   }
   
   /** @return The non-null and non-empty interval. */
