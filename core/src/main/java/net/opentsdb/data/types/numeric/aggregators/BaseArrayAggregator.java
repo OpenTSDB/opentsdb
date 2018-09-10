@@ -73,4 +73,15 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
     return NumericArrayType.TYPE;
   }
 
+  @Override
+  public int offset() {
+    return 0;
+  }
+
+  @Override
+  public int end() {
+    return long_accumulator != null ? long_accumulator.length : 
+      double_accumulator.length;
+  }
+  
 }

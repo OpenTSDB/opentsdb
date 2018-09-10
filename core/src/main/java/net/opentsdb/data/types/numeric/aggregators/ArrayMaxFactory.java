@@ -17,28 +17,25 @@ package net.opentsdb.data.types.numeric.aggregators;
 import java.util.Arrays;
 
 /**
- * Computes the average across the array. Returns a double array always.
+ * Just the max.
  * 
  * @since 3.0
  */
-public class ArrayAverageFactory extends BaseArrayFactory {
+public class ArrayMaxFactory extends BaseArrayFactory {
+
+  @Override
+  public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
+    return new ArrayMax(infectious_nan);
+  }
 
   @Override
   public String id() {
-    return "avg";
-  }
-  
-  @Override
-  public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
-    return new ArrayAverage(infectious_nan);
+    return "max";
   }
 
-  public static class ArrayAverage extends BaseArrayAggregator {
+  public static class ArrayMax extends BaseArrayAggregator {
 
-    protected int[] counts;
-    protected double[] results;
-    
-    public ArrayAverage(final boolean infectious_nans) {
+    public ArrayMax(final boolean infectious_nans) {
       super(infectious_nans);
     }
 
@@ -48,8 +45,6 @@ public class ArrayAverageFactory extends BaseArrayFactory {
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
         long_accumulator = Arrays.copyOfRange(values, from, to);
-        counts = new int[to - from];
-        Arrays.fill(counts, 1);
         return;
       }
       
@@ -61,8 +56,10 @@ public class ArrayAverageFactory extends BaseArrayFactory {
         }
         int idx = 0;
         for (int i = from; i < to; i++) {
-          counts[idx]++;
-          long_accumulator[idx++] += values[i];
+          if (values[i] > long_accumulator[idx]) {
+            long_accumulator[idx] = values[i];
+          }
+          idx++;
         }
       } else {
         if (to - from != double_accumulator.length) {
@@ -72,8 +69,10 @@ public class ArrayAverageFactory extends BaseArrayFactory {
         }
         int idx = 0;
         for (int i = from; i < to; i++) {
-          counts[idx]++;
-          double_accumulator[idx++] += values[i];
+          if (values[i] > double_accumulator[idx]) {
+            double_accumulator[idx] = values[i];
+          }
+          idx++;
         }
       }
     }
@@ -83,8 +82,7 @@ public class ArrayAverageFactory extends BaseArrayFactory {
                            final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
-        double_accumulator = new double[to - from];
-        counts = new int[to - from];
+        double_accumulator = Arrays.copyOfRange(values, from, to);
       }
       
       if (double_accumulator == null) {
@@ -105,49 +103,19 @@ public class ArrayAverageFactory extends BaseArrayFactory {
       for (int i = from; i < to; i++) {
         if (Double.isNaN(values[i])) {
           if (infectious_nans) {
-            double_accumulator[idx++] += values[i];
+            double_accumulator[idx++] = values[i];
           } else {
             idx++;
           }
         } else {
-          counts[idx]++;
-          double_accumulator[idx++] += values[i];
-        }
-      }
-      
-    }
-
-    @Override
-    public boolean isInteger() {
-      return false;
-    }
-    
-    @Override
-    public long[] longArray() {
-      return null;
-    }
-    
-    @Override
-    public double[] doubleArray() {
-      if (results == null) {
-        results = new double[counts.length];
-        for (int i = 0; i < counts.length; i++) {
-          if (long_accumulator != null) {
-            results[i] = (double) long_accumulator[i] / (double) counts[i];
-          } else {
-            results[i] = double_accumulator[i] / (double) counts[i];
+          if (Double.isNaN(double_accumulator[idx]) && !infectious_nans) {
+            double_accumulator[idx] = values[i];
+          } else if (values[i] > double_accumulator[idx]) {
+            double_accumulator[idx] = values[i];
           }
+          idx++;
         }
-        // allow the other arrays to be free.
-        long_accumulator = null;
-        double_accumulator = null;
       }
-      return results;
-    }
-    
-    @Override
-    public int end() {
-      return counts.length;
     }
     
   }
