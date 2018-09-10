@@ -93,10 +93,13 @@ tsdb_SRC := \
 	src/core/WritableDataPoints.java	\
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
-	src/auth/AuthenticationChannelHandler.java \
-	src/auth/Authentication.java \
-	src/auth/Authorization.java \
-	src/auth/AuthState.java \
+	src/auth/AllowAllAuthenticatingAuthorizer.java	\
+	src/auth/AuthenticationChannelHandler.java	\
+	src/auth/Authentication.java	\
+	src/auth/Authorization.java	\
+	src/auth/AuthState.java	\
+	src/auth/Permissions.java	\
+	src/auth/Roles.java	\
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
