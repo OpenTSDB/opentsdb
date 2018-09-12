@@ -326,6 +326,7 @@ public class ExpressionParser extends DefaultErrorStrategy
     // here we can cleanup, e.g. merge numerics
     final ExpressionParseNode.Builder builder = ExpressionParseNode
         .newBuilder()
+        .setExpressionConfig(config)
         .setExpressionOp(op);
     setBranch(builder, left, true);
     setBranch(builder, right, false);

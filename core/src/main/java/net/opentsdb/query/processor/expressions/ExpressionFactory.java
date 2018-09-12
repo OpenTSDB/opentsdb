@@ -15,30 +15,24 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
 import org.jgrapht.graph.DefaultEdge;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
+import com.google.common.collect.Maps;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -49,6 +43,11 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  * A factory used to instantiate expression nodes in the graph. This 
  * config will modify the list of nodes so make sure to pass in a copy 
  * of those given by the user.
+ * 
+ * NOTE: This factory will not generate nodes. Instead it will mutate the
+ * execution graph with {@link ExpressionParseNode} entries when 
+ * {@link #setupGraph(TimeSeriesQuery, ExecutionGraphNode, DirectedAcyclicGraph)} 
+ * is called.
  * 
  * TODO - we can walk the nodes and look for duplicates. It's a pain to
  * do though.
@@ -62,9 +61,6 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
    */
   public ExpressionFactory() {
     super("expression");
-    registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
-    registerIteratorFactory(NumericSummaryType.TYPE, 
-        new NumericSummaryIteratorFactory());
   }
 
   @Override
@@ -72,36 +68,40 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
                                         final String id,
                                         final QueryNodeConfig config, 
                                         final List<ExecutionGraphNode> nodes) {
+    return Collections.emptyList();
+  }
+  
+  @Override
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    return ExpressionConfig.parse(mapper, tsdb, node);
+  }
+  
+  @Override
+  public void setupGraph(
+      final TimeSeriesQuery query, 
+      final ExecutionGraphNode config, 
+      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
     
-    final ExpressionConfig c = (ExpressionConfig) config;
+    // parse the expression
+    final ExpressionConfig c = (ExpressionConfig) config.getConfig();
     final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
-    final List<QueryNode> query_nodes = 
-        Lists.newArrayListWithExpectedSize(configs.size());
     
-    // find me!
-    ExecutionGraphNode exp = null;
-    for (final ExecutionGraphNode graph_node : nodes) {
-      if (graph_node.getId().equals(config.getId())) {
-        exp = graph_node;
-        break;
-      }
-    }
-    if (exp == null) {
-      throw new RuntimeException("WTF? We weren't in the graph: " + config.getId());
+    final Map<String, ExecutionGraphNode> node_map = Maps.newHashMap();
+    for (final ExecutionGraphNode node: graph.vertexSet()) {
+      node_map.put(node.getId(), node);
     }
     
+    final List<ExecutionGraphNode> new_nodes = 
+        Lists.newArrayListWithCapacity(configs.size());
     for (final ExpressionParseNode parse_node : configs) {
-      final BinaryExpressionNode node =
-          new BinaryExpressionNode(this, context, parse_node.getId(), 
-              (ExpressionConfig) config, parse_node);
-      query_nodes.add(node);
-      
       final ExecutionGraphNode.Builder builder = ExecutionGraphNode
           .newBuilder()
             .setConfig(parse_node)
             .setId(parse_node.getId())
-            .setType("Expression");
+            .setType("BinaryExpression");
       if (parse_node.leftType() == OperandType.SUB_EXP) {
         builder.addSource((String) parse_node.left());
       }
@@ -112,8 +112,8 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
       // we may need to fix up variable names. Do so by searching 
       // recursively.
       String last_source = null;
-      if ((parse_node.leftType() == OperandType.VARIABLE)) {
-        String ds = validate2(parse_node, true, nodes, exp, 0);
+      if (parse_node.leftType() == OperandType.VARIABLE) {
+        String ds = validate(parse_node, true, graph, config, 0);
         if (ds != null) {
           builder.addSource(ds);
           last_source = ds;
@@ -122,8 +122,8 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         }
       }
       
-      if ((parse_node.rightType() == OperandType.VARIABLE)) {
-        String ds = validate2(parse_node, false, nodes, exp, 0);
+      if (parse_node.rightType() == OperandType.VARIABLE) {
+        String ds = validate(parse_node, false, graph, config, 0);
         if (ds != null) {
           // dedupe
           if (last_source == null || !last_source.equals(ds)) {
@@ -134,35 +134,58 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         }
       }
       
-      nodes.add(builder.build());
+      final ExecutionGraphNode new_node = builder.build();
+      new_nodes.add(new_node);
+      node_map.put(parse_node.getId(), new_node);
     }
-    return query_nodes;
-  }
-  
-  @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
-                                     final TSDB tsdb,
-                                     final JsonNode node) {
-    try {
-      return mapper.treeToValue(node, ExpressionConfig.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to parse config", e);
+    
+    // remove the old config and get the in and outgoing edges.
+    final List<ExecutionGraphNode> upstream = Lists.newArrayList();
+    for (final DefaultEdge up : graph.incomingEdgesOf(config)) {
+      final ExecutionGraphNode n = graph.getEdgeSource(up);
+      upstream.add(n);
+    }
+    for (final ExecutionGraphNode n : upstream) {
+      graph.removeEdge(n, config);
+    }
+    
+    final List<ExecutionGraphNode> downstream = Lists.newArrayList();
+    for (final DefaultEdge down : graph.outgoingEdgesOf(config)) {
+      final ExecutionGraphNode n = graph.getEdgeTarget(down);
+      downstream.add(n);
+    }
+    for (final ExecutionGraphNode n : downstream) {
+      graph.removeEdge(config, n);
+    }
+    
+    // now yank ourselves out and link.
+    graph.removeVertex(config);
+    for (final ExecutionGraphNode node : new_nodes) {
+      graph.addVertex(node);
+      for (final String source : node.getSources()) {
+        try {
+          graph.addDagEdge(node, node_map.get(source));
+        } catch (CycleFoundException e) {
+          throw new IllegalStateException("Cylcle found when generating "
+              + "sub expression graph.", e);
+        }
+      }
+    }
+    
+    for (final ExecutionGraphNode up : upstream) {
+      try {graph.addDagEdge(up, new_nodes.get(new_nodes.size() - 1));
+      } catch (CycleFoundException e) {
+        throw new IllegalStateException("Cylcle found when generating "
+            + "sub expression graph.", e);
+      }
     }
   }
   
-  @Override
-  public void setupGraph(
-      final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
-    // TODO Auto-generated method stub
-  }
-  
-  static String validate2(final ExpressionParseNode node, 
-                          final boolean left, 
-                          final List<ExecutionGraphNode> nodes, 
-                          final ExecutionGraphNode downstream, 
-                          final int depth) {
+  static String validate(final ExpressionParseNode node, 
+                         final boolean left, 
+                         final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph, 
+                         final ExecutionGraphNode downstream, 
+                         final int depth) {
     final String key = left ? (String) node.left() : (String) node.right();
     if (depth > 0 && 
         !Strings.isNullOrEmpty(downstream.getType()) && 
@@ -182,8 +205,8 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         }
         return downstream.getId();
       }
-    } else if ((!Strings.isNullOrEmpty(downstream.getType()) && 
-        downstream.getType().toLowerCase().equals("datasource"))) {
+    } else if (!Strings.isNullOrEmpty(downstream.getType()) && 
+        downstream.getType().toLowerCase().equals("datasource")) {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
         node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric().metric());
@@ -200,74 +223,18 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
       }
     }
     
-    if (downstream.getSources() != null) {
-      // TODO - EWWWWW!!!!! We should have a graph or map to navigate!
-      for (final String source : downstream.getSources()) {
-        for (final ExecutionGraphNode graph_node : nodes) {
-          if (graph_node.getId().equals(source)) {
-            final String ds = validate2(node, left, nodes, graph_node, depth + 1);
-            if (ds != null) {
-              if (depth == 0) {
-                return ds;
-              }
-              return downstream.getId();
-            }
-          }
+    for (final DefaultEdge edge : graph.outgoingEdgesOf(downstream)) {
+      final ExecutionGraphNode graph_node = graph.getEdgeTarget(edge);
+      final String ds = validate(node, left, graph, graph_node, depth + 1);
+      if (ds != null) {
+        if (depth == 0) {
+          return ds;
         }
+        return downstream.getId();
       }
     }
     
     return null;
   }
   
-  /**
-   * The default numeric iterator factory.
-   */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
-
-    @Override
-    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
-                                                    final QueryResult result,
-                                                    final Collection<TimeSeries> sources) {
-      throw new UnsupportedOperationException("Expression iterators must have a map.");
-    }
-
-    @Override
-    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
-                                                    final QueryResult result,
-                                                    final Map<String, TimeSeries> sources) {
-      return new ExpressionNumericIterator(node, result, sources);
-    }
-
-    @Override
-    public Collection<TypeToken<?>> types() {
-      return Lists.newArrayList(NumericType.TYPE);
-    }
-        
-  }
-
-  /**
-   * Handles summaries.
-   */
-  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
-
-    @Override
-    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
-                                                    final QueryResult result,
-                                                    final Collection<TimeSeries> sources) {
-      throw new UnsupportedOperationException("Expression iterators must have a map.");
-    }
-
-    @Override
-    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
-                                                    final QueryResult result,
-                                                    final Map<String, TimeSeries> sources) {
-      return new ExpressionNumericSummaryIterator(node, result, sources);
-    }
-    
-    @Override
-    public Collection<TypeToken<?>> types() {
-      return Lists.newArrayList(NumericSummaryType.TYPE);
-    }
-  }
 }

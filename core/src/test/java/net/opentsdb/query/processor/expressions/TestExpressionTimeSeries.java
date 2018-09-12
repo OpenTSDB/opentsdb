@@ -61,7 +61,7 @@ public class TestExpressionTimeSeries {
   private TimeSeriesId left_id;
   private TimeSeriesId right_id;
   private TimeSeriesId joined_id;
-  private ExpressionFactory factory;
+  private BinaryExpressionNodeFactory factory;
   
   @Before
   public void before() throws Exception {
@@ -70,7 +70,7 @@ public class TestExpressionTimeSeries {
     joiner = mock(Joiner.class);
     left = mock(TimeSeries.class);
     right = mock(TimeSeries.class);
-    factory = mock(ExpressionFactory.class);
+    factory = mock(BinaryExpressionNodeFactory.class);
     
     when(node.id()).thenReturn("e1");
     when(node.joiner()).thenReturn(joiner);

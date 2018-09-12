@@ -87,6 +87,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -130,6 +131,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .setNegate(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -162,6 +164,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .setNegate(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -228,6 +231,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -271,6 +275,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .setNegate(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -303,6 +308,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .setNegate(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -369,6 +375,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -434,6 +441,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -500,6 +508,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -581,6 +590,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -622,6 +632,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -651,6 +662,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -691,6 +703,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -720,6 +733,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -756,6 +770,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -786,6 +801,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -822,6 +838,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -851,6 +868,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -887,6 +905,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -924,6 +943,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     

@@ -108,6 +108,7 @@ public class BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     
     when(node.pipelineContext()).thenReturn(CONTEXT);

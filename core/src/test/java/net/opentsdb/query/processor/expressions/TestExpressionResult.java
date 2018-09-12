@@ -86,6 +86,7 @@ public class TestExpressionResult {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     
     when(node.config()).thenReturn(config);
@@ -124,6 +125,7 @@ public class TestExpressionResult {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -143,6 +145,7 @@ public class TestExpressionResult {
         .setRight("sub1")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -162,6 +165,7 @@ public class TestExpressionResult {
         .setRight("sub2")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -181,6 +185,7 @@ public class TestExpressionResult {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -200,6 +205,7 @@ public class TestExpressionResult {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -219,6 +225,7 @@ public class TestExpressionResult {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -238,6 +245,7 @@ public class TestExpressionResult {
         .setRight("sub2")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -279,6 +287,7 @@ public class TestExpressionResult {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -298,6 +307,7 @@ public class TestExpressionResult {
         .setRight("sub1")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -317,6 +327,7 @@ public class TestExpressionResult {
         .setRight("sub2")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -336,6 +347,7 @@ public class TestExpressionResult {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -355,6 +367,7 @@ public class TestExpressionResult {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -374,6 +387,7 @@ public class TestExpressionResult {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -393,6 +407,7 @@ public class TestExpressionResult {
         .setRight("sub2")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
