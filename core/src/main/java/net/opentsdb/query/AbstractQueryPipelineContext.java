@@ -563,10 +563,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
               + "specification in query result: " + next);
         }
         
-        if (!time_specification.equals(next.timeSpecification())) {
-          throw new IllegalStateException("Received a different time "
-              + "specification in query result: " + next);
-        }
+        // TODO - fix equivalence
+//        if (!time_specification.equals(next.timeSpecification())) {
+//          throw new IllegalStateException("Received a different time "
+//              + "specification in query result: " + next);
+//        }
       }
       if (next.sequenceId() > sequence_id) {
         sequence_id = next.sequenceId();

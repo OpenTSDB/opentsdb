@@ -106,13 +106,14 @@ public class TestBinaryExpressionNode {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
   }
   
   @Test
   public void ctor() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expressionConfig());
     assertTrue(node.need_two_sources);
@@ -126,9 +127,10 @@ public class TestBinaryExpressionNode {
         .setRight("SubExp#1")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expressionConfig());
     assertTrue(node.need_two_sources);
@@ -142,9 +144,10 @@ public class TestBinaryExpressionNode {
         .setRight("42#1")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expressionConfig());
     assertFalse(node.need_two_sources);
@@ -153,19 +156,13 @@ public class TestBinaryExpressionNode {
     
     try {
       new BinaryExpressionNode(
-          factory, null, "a+b", config, expression_config);
+          factory, null, "a+b", expression_config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       new BinaryExpressionNode(
-          factory, context, "a+b", null, expression_config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new BinaryExpressionNode(
-          factory, context, "a+b", config, null);
+          factory, context, "a+b", null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -173,7 +170,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onComplete() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     node.onComplete(mock(QueryNode.class), 42, 42);
@@ -188,7 +185,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onError() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     final UnitTestException ex = new UnitTestException();
@@ -205,7 +202,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextStringDouble() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -228,10 +225,11 @@ public class TestBinaryExpressionNode {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -244,7 +242,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteDouble() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -329,10 +327,11 @@ public class TestBinaryExpressionNode {
         .setRight("sub")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+sub", config, expression_config);
+        factory, context, "a+sub", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -417,10 +416,11 @@ public class TestBinaryExpressionNode {
         .setRight("sub2")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+sub", config, expression_config);
+        factory, context, "a+sub", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -490,10 +490,11 @@ public class TestBinaryExpressionNode {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -567,10 +568,11 @@ public class TestBinaryExpressionNode {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -639,7 +641,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteMetricException() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -704,7 +706,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteTagException() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -779,7 +781,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteNullTag() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", config, expression_config);
+        factory, context, "a+b", expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);

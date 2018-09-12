@@ -17,6 +17,7 @@ package net.opentsdb.query.processor.expressions;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
 
@@ -120,12 +121,18 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   /** Whether or not we're "not"ting the output. */
   private boolean not;
   
+  /** A link to the original expression config. */
+  private final ExpressionConfig expression_config;
+  
   /**
    * Protected ctor.
    * @param builder The non-null builder.
    */
   protected ExpressionParseNode(final Builder builder) {
     super(builder);
+    if (builder.expression_config == null) {
+      throw new IllegalArgumentException("Missing parent expression config.");
+    }
     this.id = super.getId();
     left = builder.left;
     left_type = builder.left_type;
@@ -135,6 +142,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     negate = builder.negate;
     not = builder.not;
     as = id;
+    expression_config = builder.expression_config;
   }
   
   /** @return The name to use for the metric. Defaults to the ID. */
@@ -197,6 +205,11 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     right = id;
   }
   
+  /** @return The original expressionConfig. */
+  public ExpressionConfig expressionConfig() {
+    return expression_config;
+  }
+  
   @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
@@ -206,7 +219,9 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return null;
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .hash();
   }
 
   @Override
@@ -224,7 +239,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   @Override
   public int hashCode() {
     // TODO Auto-generated method stub
-    return 0;
+    return buildHashCode().asInt();
   }
   
   public String toString() {
@@ -282,6 +297,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     private ExpressionOp op;
     private boolean negate;
     private boolean not;
+    private ExpressionConfig expression_config;
     
     public Builder setLeft(final Object left) {
       this.left = left;
@@ -315,6 +331,11 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     
     public Builder setNot(final boolean not) {
       this.not = not;
+      return this;
+    }
+    
+    public Builder setExpressionConfig(final ExpressionConfig expression_config) {
+      this.expression_config = expression_config;
       return this;
     }
     

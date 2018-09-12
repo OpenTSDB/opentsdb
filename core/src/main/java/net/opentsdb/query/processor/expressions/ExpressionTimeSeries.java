@@ -117,7 +117,7 @@ public class ExpressionTimeSeries implements TimeSeries {
     }
     
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        ((BaseMultiQueryNodeFactory) node.factory()).newTypedIterator(type, node, result,
+        ((BinaryExpressionNodeFactory) node.factory()).newTypedIterator(type, node, result,
             (Map<String, TimeSeries>) builder.build());
     if (iterator == null) {
       return Optional.empty();  
@@ -139,7 +139,7 @@ public class ExpressionTimeSeries implements TimeSeries {
     final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         Lists.newArrayListWithExpectedSize(types.size());
     for (final TypeToken<?> type : types) {
-      iterators.add(((BaseMultiQueryNodeFactory) node.factory()).newTypedIterator(
+      iterators.add(((BinaryExpressionNodeFactory) node.factory()).newTypedIterator(
           type, node, result, sources));
     }
     return iterators;

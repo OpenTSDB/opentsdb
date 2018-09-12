@@ -54,6 +54,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
   }
@@ -101,6 +102,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -124,6 +126,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -147,6 +150,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -170,6 +174,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -193,6 +198,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -230,6 +236,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -263,6 +270,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -287,6 +295,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -311,6 +320,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -335,6 +345,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -359,6 +370,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -420,6 +432,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -443,6 +456,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -466,6 +480,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -489,6 +504,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -512,6 +528,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -549,6 +566,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -582,6 +600,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -606,6 +625,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -630,6 +650,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -654,6 +675,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -678,6 +700,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -738,6 +761,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -761,6 +785,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -784,6 +809,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -807,6 +833,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -830,6 +857,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -889,6 +917,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -912,6 +941,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -935,6 +965,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -958,6 +989,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -981,6 +1013,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1041,6 +1074,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1065,6 +1099,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1089,6 +1124,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1113,6 +1149,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1137,6 +1174,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1212,6 +1250,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1235,6 +1274,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1258,6 +1298,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1281,6 +1322,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1304,6 +1346,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1339,6 +1382,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1368,6 +1412,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1390,6 +1435,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1412,6 +1458,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1434,6 +1481,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1456,6 +1504,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1490,6 +1539,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1519,6 +1569,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1541,6 +1592,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1563,6 +1615,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1585,6 +1638,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1607,6 +1661,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1637,6 +1692,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1666,6 +1722,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1688,6 +1745,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1710,6 +1768,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1732,6 +1791,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1754,6 +1814,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1776,6 +1837,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1803,6 +1865,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1825,6 +1888,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1847,6 +1911,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1869,6 +1934,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1891,6 +1957,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1921,6 +1988,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1950,6 +2018,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1972,6 +2041,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -1994,6 +2064,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2016,6 +2087,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2038,6 +2110,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2060,6 +2133,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(false)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -2087,6 +2161,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2109,6 +2184,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2131,6 +2207,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2153,6 +2230,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2175,6 +2253,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
@@ -2205,6 +2284,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -2242,6 +2322,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     

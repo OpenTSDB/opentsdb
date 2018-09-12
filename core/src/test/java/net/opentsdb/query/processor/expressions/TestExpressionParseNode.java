@@ -17,6 +17,7 @@ package net.opentsdb.query.processor.expressions;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
@@ -95,6 +96,7 @@ public class TestExpressionParseNode {
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MOD)
+        .setExpressionConfig(mock(ExpressionConfig.class))
         .build();
     assertEquals("a", node.left());
     assertEquals(OperandType.VARIABLE, node.leftType());

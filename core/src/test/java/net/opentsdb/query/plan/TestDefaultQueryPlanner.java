@@ -55,9 +55,12 @@ import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.groupby.GroupBy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
@@ -818,4 +821,5 @@ public class TestDefaultQueryPlanner {
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());
   }
+  
 }

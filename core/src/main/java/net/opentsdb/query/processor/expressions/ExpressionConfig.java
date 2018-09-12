@@ -24,7 +24,10 @@ import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
@@ -35,10 +38,13 @@ import com.google.common.hash.Hashing;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.joins.JoinConfig;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 
 /**
  * Represents a single arithmetic and/or logical expression involving 
@@ -159,9 +165,9 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     hashes.add(join_config.buildHashCode());
     hashes.add(Const.HASH_FUNCTION().newHasher()
         .putBoolean(infectious_nan)
-        .putString(id, Const.UTF8_CHARSET)
+        .putString(id == null ? "null" : id, Const.UTF8_CHARSET)
         .putString(expression, Const.UTF8_CHARSET)
-        .putString(as, Const.UTF8_CHARSET)
+        .putString(as == null ? "null" : as, Const.UTF8_CHARSET)
         .hash());
     if (variable_interpolators != null && !variable_interpolators.isEmpty()) {
       final Map<String, List<QueryInterpolatorConfig>> sorted = 
@@ -238,6 +244,62 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     return buildHashCode().asInt();
   }
 
+  public static ExpressionConfig parse(final ObjectMapper mapper,
+      final TSDB tsdb, 
+      final JsonNode node) {
+    Builder builder = new Builder();
+    JsonNode n = node.get("expression");
+    if (n != null) {
+      builder.setExpression(n.asText());
+    }
+    
+    n = node.get("join");
+    if (n != null) {
+      try {
+        builder.setJoinConfig(mapper.treeToValue(n, JoinConfig.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Unable to parse JoinConfig", e);
+      }
+    }
+    
+    n = node.get("infectiousNan");
+    if (n != null) {
+      builder.setInfectiousNan(n.asBoolean());
+    }
+    
+    n = node.get("as");
+    if (n != null) {
+      builder.setAs(n.asText());
+    }
+    
+    n = node.get("id");
+    if (n != null) {
+      builder.setId(n.asText());
+    }
+    
+    // TODO - variable interpolators
+    
+    n = node.get("interpolatorConfigs");
+    for (final JsonNode config : n) {
+      JsonNode type_json = config.get("type");
+      final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, 
+          type_json == null ? null : type_json.asText());
+      if (factory == null) {
+        throw new IllegalArgumentException("Unable to find an "
+            + "interpolator factory for: " + 
+            type_json == null ? "default" :
+              type_json.asText());
+      }
+      
+      final QueryInterpolatorConfig interpolator_config = 
+          factory.parseConfig(mapper, tsdb, config);
+      builder.addInterpolatorConfig(interpolator_config);
+    }
+    
+    return (ExpressionConfig) builder.build();
+  }
+  
   /** @return A new builder. */
   public static Builder newBuilder() {
     return new Builder();

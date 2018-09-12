@@ -127,6 +127,7 @@ public class BaseNumericSummaryTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
         .build();
     
     when(node.pipelineContext()).thenReturn(CONTEXT);

@@ -53,6 +53,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
   }
@@ -99,6 +100,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -142,6 +144,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -174,6 +177,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -240,6 +244,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -283,6 +288,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -315,6 +321,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .setNot(true)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
@@ -381,6 +388,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -446,6 +454,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -512,6 +521,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -593,6 +603,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -634,6 +645,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -664,6 +676,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -704,6 +717,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -733,6 +747,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -768,6 +783,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -797,6 +813,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -824,6 +841,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -851,6 +869,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -886,6 +905,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -915,6 +935,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -942,6 +963,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(false)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -969,6 +991,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(false)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1004,6 +1027,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1033,6 +1057,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1068,6 +1093,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.OR)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     
@@ -1097,6 +1123,7 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
         .build();
     when(node.expressionConfig()).thenReturn(expression_config);
     

@@ -15,24 +15,22 @@
 package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
+import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
+import org.jgrapht.graph.DefaultEdge;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -44,18 +42,15 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 public class TestExpressionFactory {
 
-  private static QueryPipelineContext CONTEXT;
   protected static NumericInterpolatorConfig NUMERIC_CONFIG;
   protected static JoinConfig JOIN_CONFIG;
+  protected static ExecutionGraphNode SINK;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
-    CONTEXT =  mock(QueryPipelineContext.class);
-    
     NUMERIC_CONFIG = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -66,557 +61,607 @@ public class TestExpressionFactory {
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()
         .setType(JoinType.NATURAL)
         .build();
+    
+    SINK = mock(ExecutionGraphNode.class);
   }
   
   @Test
   public void ctor() throws Exception {
     ExpressionFactory factory = new ExpressionFactory();
-    assertEquals(2, factory.types().size());
-    assertTrue(factory.types().contains(NumericType.TYPE));
-    assertTrue(factory.types().contains(NumericSummaryType.TYPE));
+    assertEquals(0, factory.types().size());
   }
   
   @Test
-  public void newNodesSimpleBinary() throws Exception {
+  public void setupGraph1MetricDirect() throws Exception {
     ExpressionFactory factory = new ExpressionFactory();
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph =
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
     
-    ExpressionConfig config = 
-        (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("a + b")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
+    ExecutionGraphNode m1 = ExecutionGraphNode.newBuilder()
+        .setId("m1")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build())
         .build();
-    
-    List<ExecutionGraphNode> nodes = Lists.newArrayList();
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setId("e1")
-        .setType("expression")
-        .setConfig(config)
-        .setSources(Lists.newArrayList("a", "b"))
-        .build());
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
+    ExecutionGraphNode exp = ExecutionGraphNode.newBuilder()
+        .setId("expression")
+        .addSource("m1")
+        .setConfig(ExpressionConfig.newBuilder()
+            .setExpression("m1 + 42")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setType(JoinType.NATURAL)
                 .build())
-            .build())
-        .build());
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
-    
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", config, nodes);
-    assertEquals(1, new_nodes.size());
-    
-    Iterator<QueryNode> iterator = new_nodes.iterator();
-    BinaryExpressionNode exp_node = (BinaryExpressionNode) iterator.next();
-    assertEquals("e1", exp_node.id());
-    assertSame(config, exp_node.config());
-    
-    assertEquals(4, nodes.size());
-    assertTrue(nodes.get(3).getSources().contains("a"));
-    assertTrue(nodes.get(3).getSources().contains("b"));
-    ExpressionParseNode parse_node = (ExpressionParseNode) nodes.get(3).getConfig();
-    assertEquals("metric.a", parse_node.left());
-    assertEquals(OperandType.VARIABLE, parse_node.leftType());
-    assertEquals("metric.b", parse_node.right());
-    assertEquals(OperandType.VARIABLE, parse_node.rightType());
-    assertEquals(ExpressionOp.ADD, parse_node.operator());
-    
-    // literal
-    nodes.remove(3);
-    config = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("a + 42")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
-    
-    new_nodes = factory.newNodes(
-        CONTEXT, "e1", config, nodes);
-    assertEquals(1, new_nodes.size());
-    
-    iterator = new_nodes.iterator();
-    exp_node = (BinaryExpressionNode) iterator.next();
-    assertEquals("e1", exp_node.id());
-    assertSame(config, exp_node.config());
-    
-    assertEquals(4, nodes.size());
-    assertTrue(nodes.get(3).getSources().contains("a"));
-    parse_node = (ExpressionParseNode) nodes.get(3).getConfig();
-    assertEquals("metric.a", parse_node.left());
-    assertEquals(OperandType.VARIABLE, parse_node.leftType());
-    assertTrue(parse_node.right() instanceof NumericLiteral);
-    assertEquals(OperandType.LITERAL_NUMERIC, parse_node.rightType());
-    assertEquals(ExpressionOp.ADD, parse_node.operator());
-  }
-  
-  @Test
-  public void newNodesTwoNewNodes() throws Exception {
-    ExpressionFactory factory = new ExpressionFactory();
-    
-    ExpressionConfig config = 
-        (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("a + b + c")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
-    
-    List<ExecutionGraphNode> nodes = Lists.newArrayList();
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setId("e1")
-        .setType("expression")
-        .setConfig(config)
-        .setSources(Lists.newArrayList("a", "b", "c"))
-        .build());
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
-                .build())
-            .build())
-        .build());
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setId("b")
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
-    nodes.add(ExecutionGraphNode.newBuilder()
-        .setId("c")
-        .setType("DataSource")
-        .setId("c")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.c")
-                .build())
-            .build())
-        .build());
-    
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", config, nodes);
-    assertEquals(2, new_nodes.size());
-    
-    Iterator<QueryNode> iterator = new_nodes.iterator();
-    BinaryExpressionNode exp_node = (BinaryExpressionNode) iterator.next();
-    assertEquals("e1_SubExp#0", exp_node.id());
-    assertSame(config, exp_node.config());
-    
-    exp_node = (BinaryExpressionNode) iterator.next();
-    assertEquals("e1", exp_node.id());
-    assertSame(config, exp_node.config());
-    
-    assertEquals(6, nodes.size());
-    assertEquals(2, nodes.get(4).getSources().size());
-    assertTrue(nodes.get(4).getSources().contains("a"));
-    assertTrue(nodes.get(4).getSources().contains("b"));
-    
-    ExpressionParseNode parse_node = (ExpressionParseNode) nodes.get(4).getConfig();
-    assertEquals("metric.a", parse_node.left());
-    assertEquals(OperandType.VARIABLE, parse_node.leftType());
-    assertEquals("metric.b", parse_node.right());
-    assertEquals(OperandType.VARIABLE, parse_node.rightType());
-    assertEquals(ExpressionOp.ADD, parse_node.operator());
-    
-    assertEquals(2, nodes.get(5).getSources().size());
-    assertTrue(nodes.get(5).getSources().contains("e1_SubExp#0"));
-    assertTrue(nodes.get(5).getSources().contains("c"));
-    parse_node = (ExpressionParseNode) nodes.get(5).getConfig();
-    assertEquals("e1_SubExp#0", parse_node.left());
-    assertEquals(OperandType.SUB_EXP, parse_node.leftType());
-    assertEquals("metric.c", parse_node.right());
-    assertEquals(OperandType.VARIABLE, parse_node.rightType());
-    assertEquals(ExpressionOp.ADD, parse_node.operator());
-  }
-
-  @Test
-  public void validateLiteralMetrics() throws Exception {
-    ExpressionConfig c = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("metric.a + metric.b")
-        .setJoinConfig(JOIN_CONFIG)
-        .setAs("e1")
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
-    
-    List<ExecutionGraphNode> graph = Lists.newArrayList();
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Expression")
-        .setId("e1")
-        .setConfig(c)
-        .addSource("a")
-        .addSource("b")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
-                .build())
-            .build())
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
-    
-    ExpressionFactory factory = new ExpressionFactory();
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", c, graph);
-    assertEquals(1, new_nodes.size());
-    
-    BinaryExpressionNode node = (BinaryExpressionNode) new_nodes.iterator().next();
-    assertEquals("metric.a", node.expressionConfig().left());
-    assertEquals("metric.b", node.expressionConfig().right());
-  }
-  
-  @Test
-  public void validateLiteralMetricThroughNodes() throws Exception {
-    ExpressionConfig c = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("metric.a + metric.b")
-        .setJoinConfig(JOIN_CONFIG)
-        .setAs("e1")
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
-    
-    List<ExecutionGraphNode> graph = Lists.newArrayList();
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Expression")
-        .setId("e1")
-        .setConfig(c)
-        .addSource("gb")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("GroupBy")
-        .setId("gb")
-        .setConfig(GroupByConfig.newBuilder()
-            .setAggregator("sum")
-            .addTagKey("host")
             .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
             .build())
-        .addSource("a")
-        .addSource("b")
-        .build());
+        .build();
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
-                .build())
-            .build())
-        .build());
+    graph.addVertex(SINK);
+    graph.addVertex(m1);
+    graph.addVertex(exp);
+    graph.addDagEdge(exp, m1);
+    graph.addDagEdge(SINK, exp);
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
+    factory.setupGraph(mock(TimeSeriesQuery.class), exp, graph);
+    assertEquals(3, graph.vertexSet().size());
+    assertTrue(graph.containsVertex(m1));
+    assertFalse(graph.containsVertex(exp));
+    assertTrue(graph.containsVertex(SINK));
     
-    ExpressionFactory factory = new ExpressionFactory();
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", c, graph);
-    assertEquals(1, new_nodes.size());
+    ExecutionGraphNode b1 = graph.getEdgeSource(
+        graph.incomingEdgesOf(m1).iterator().next());
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.containsEdge(b1, m1));
+    assertTrue(graph.containsEdge(SINK, b1));
     
-    BinaryExpressionNode node = (BinaryExpressionNode) new_nodes.iterator().next();
-    assertEquals("metric.a", node.expressionConfig().left());
-    assertEquals("metric.b", node.expressionConfig().right());
+    ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.left());
+    assertEquals(OperandType.VARIABLE, p1.leftType());
+    assertEquals(42, ((NumericLiteral) p1.right()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
+    assertEquals(ExpressionOp.ADD, p1.operator());
   }
   
   @Test
-  public void validateIdThroughNodes() throws Exception {
-    ExpressionConfig c = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("a + b")
-        .setJoinConfig(JOIN_CONFIG)
-        .setAs("e1")
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
+  public void setupGraph1MetricThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph =
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
     
-    List<ExecutionGraphNode> graph = Lists.newArrayList();
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Expression")
-        .setId("e1")
-        .setConfig(c)
-        .addSource("gb")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("GroupBy")
-        .setId("gb")
-        .setConfig(GroupByConfig.newBuilder()
-            .setAggregator("sum")
-            .addTagKey("host")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
+    ExecutionGraphNode m1 = ExecutionGraphNode.newBuilder()
+        .setId("m1")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
             .build())
-        .addSource("ds")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Downsample")
-        .setId("ds")
+        .build();
+    ExecutionGraphNode ds = ExecutionGraphNode.newBuilder()
+        .setId("downsample")
+        .addSource("m1")
         .setConfig(DownsampleConfig.newBuilder()
             .setAggregator("sum")
             .setInterval("1m")
             .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
             .build())
-        .addSource("a")
-        .addSource("b")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
+        .build();
+    ExecutionGraphNode exp = ExecutionGraphNode.newBuilder()
+        .setId("expression")
+        .addSource("downsample")
+        .setConfig(ExpressionConfig.newBuilder()
+            .setExpression("m1 + 42")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setType(JoinType.NATURAL)
                 .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
             .build())
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
-    
-    ExpressionFactory factory = new ExpressionFactory();
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", c, graph);
-    assertEquals(1, new_nodes.size());
-    
-    BinaryExpressionNode node = (BinaryExpressionNode) new_nodes.iterator().next();
-    assertEquals("metric.a", node.expressionConfig().left());
-    assertEquals("metric.b", node.expressionConfig().right());
-  }
-
-  @Test
-  public void validateTernaryIdsThroughNodes() throws Exception {
-    ExpressionConfig c = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("a + b + c")
-        .setJoinConfig(JOIN_CONFIG)
-        .setAs("e1")
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
         .build();
     
-    List<ExecutionGraphNode> graph = Lists.newArrayList();
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Expression")
-        .setId("e1")
-        .setConfig(c)
-        .addSource("gb")
-        .build());
+    graph.addVertex(SINK);
+    graph.addVertex(m1);
+    graph.addVertex(ds);
+    graph.addVertex(exp);
+    graph.addDagEdge(ds, m1);
+    graph.addDagEdge(exp, ds);
+    graph.addDagEdge(SINK, exp);
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("GroupBy")
-        .setId("gb")
-        .setConfig(GroupByConfig.newBuilder()
-            .setAggregator("sum")
-            .addTagKey("host")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
-            .build())
-        .addSource("ds")
-        .build());
+    factory.setupGraph(mock(TimeSeriesQuery.class), exp, graph);
+    assertEquals(4, graph.vertexSet().size());
+    assertTrue(graph.containsVertex(m1));
+    assertTrue(graph.containsVertex(ds));
+    assertFalse(graph.containsVertex(exp));
+    assertTrue(graph.containsVertex(SINK));
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Downsample")
-        .setId("ds")
-        .setConfig(DownsampleConfig.newBuilder()
-            .setAggregator("sum")
-            .setInterval("1m")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
-            .build())
-        .addSource("a")
-        .addSource("b")
-        .addSource("c")
-        .build());
+    ExecutionGraphNode b1 = graph.getEdgeSource(
+        graph.incomingEdgesOf(ds).iterator().next());
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.containsEdge(ds, m1));
+    assertTrue(graph.containsEdge(b1, ds));
+    assertTrue(graph.containsEdge(SINK, b1));
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
-                .build())
-            .build())
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("c")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.c")
-                .build())
-            .build())
-        .build());
-    
-    ExpressionFactory factory = new ExpressionFactory();
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", c, graph);
-    assertEquals(2, new_nodes.size());
-    
-    Iterator<QueryNode> iterator = new_nodes.iterator();
-    BinaryExpressionNode node = (BinaryExpressionNode) iterator.next();
-    assertEquals("metric.a", node.expressionConfig().left());
-    assertEquals("metric.b", node.expressionConfig().right());
-    
-    node = (BinaryExpressionNode) iterator.next();
-    assertEquals("e1_SubExp#0", node.expressionConfig().left());
-    assertEquals("metric.c", node.expressionConfig().right());
+    ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.left());
+    assertEquals(OperandType.VARIABLE, p1.leftType());
+    assertEquals(42, ((NumericLiteral) p1.right()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
+    assertEquals(ExpressionOp.ADD, p1.operator());
   }
   
   @Test
-  public void validateIdOfExpression() throws Exception {
-    ExpressionConfig c = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("a + b")
-        .setJoinConfig(JOIN_CONFIG)
-        .setAs("my.new.metric")
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
+  public void setupGraph2MetricsThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
     
-    ExpressionConfig c2 = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("e1 * c")
-        .setJoinConfig(JOIN_CONFIG)
-        .setAs("e")
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e2")
-        .build();
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph =
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
     
-    List<ExecutionGraphNode> graph = Lists.newArrayList();
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Expression")
-        .setId("e1")
-        .setConfig(c)
-        .addSource("gb")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Expression")
-        .setId("e2")
-        .setConfig(c2)
-        .addSource("gb")
-        .addSource("e1")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("GroupBy")
-        .setId("gb")
-        .setConfig(GroupByConfig.newBuilder()
-            .setAggregator("sum")
-            .addTagKey("host")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
+    ExecutionGraphNode m1 = ExecutionGraphNode.newBuilder()
+        .setId("m1")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
             .build())
-        .addSource("ds")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("Downsample")
-        .setId("ds")
+        .build();
+    ExecutionGraphNode m2 = ExecutionGraphNode.newBuilder()
+        .setId("m2")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build())
+        .build();
+    ExecutionGraphNode ds = ExecutionGraphNode.newBuilder()
+        .setId("downsample")
+        .addSource("m1")
+        .addSource("m2")
         .setConfig(DownsampleConfig.newBuilder()
             .setAggregator("sum")
             .setInterval("1m")
             .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
             .build())
-        .addSource("a")
-        .addSource("b")
-        .addSource("c")
-        .build());
-    
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("a")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.a")
+        .build();
+    ExecutionGraphNode exp = ExecutionGraphNode.newBuilder()
+        .setId("expression")
+        .addSource("downsample")
+        .setConfig(ExpressionConfig.newBuilder()
+            .setExpression("m1 + m2")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setType(JoinType.NATURAL)
                 .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
             .build())
-        .build());
+        .build();
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("b")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.b")
-                .build())
-            .build())
-        .build());
+    graph.addVertex(SINK);
+    graph.addVertex(m1);
+    graph.addVertex(m2);
+    graph.addVertex(ds);
+    graph.addVertex(exp);
+    graph.addDagEdge(ds, m1);
+    graph.addDagEdge(ds, m2);
+    graph.addDagEdge(exp, ds);
+    graph.addDagEdge(SINK, exp);
     
-    graph.add(ExecutionGraphNode.newBuilder()
-        .setType("DataSource")
-        .setId("c")
-        .setConfig(QuerySourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("metric.c")
-                .build())
-            .build())
-        .build());
+    factory.setupGraph(mock(TimeSeriesQuery.class), exp, graph);
+    assertEquals(5, graph.vertexSet().size());
+    assertTrue(graph.containsVertex(m1));
+    assertTrue(graph.containsVertex(m2));
+    assertTrue(graph.containsVertex(ds));
+    assertFalse(graph.containsVertex(exp));
+    assertTrue(graph.containsVertex(SINK));
     
+    ExecutionGraphNode b1 = graph.getEdgeSource(
+        graph.incomingEdgesOf(ds).iterator().next());
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.containsEdge(ds, m1));
+    assertTrue(graph.containsEdge(ds, m2));
+    assertTrue(graph.containsEdge(b1, ds));
+    assertTrue(graph.containsEdge(SINK, b1));
+    
+    ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.left());
+    assertEquals(OperandType.VARIABLE, p1.leftType());
+    assertEquals("sys.cpu.sys", p1.right());
+    assertEquals(OperandType.VARIABLE, p1.rightType());
+    assertEquals(ExpressionOp.ADD, p1.operator());
+  }
+  
+  @Test
+  public void setupGraph2Metrics1ThroughNode() throws Exception {
     ExpressionFactory factory = new ExpressionFactory();
-    Collection<QueryNode> new_nodes = factory.newNodes(
-        CONTEXT, "e1", c, graph);
-    assertEquals(1, new_nodes.size());
     
-    BinaryExpressionNode node = (BinaryExpressionNode) new_nodes.iterator().next();
-    assertEquals("metric.a", node.expressionConfig().left());
-    assertEquals("metric.b", node.expressionConfig().right());
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph =
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
     
-    // simulate removal
-    graph.remove(0);
+    ExecutionGraphNode m1 = ExecutionGraphNode.newBuilder()
+        .setId("m1")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build())
+        .build();
+    ExecutionGraphNode m2 = ExecutionGraphNode.newBuilder()
+        .setId("m2")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build())
+        .build();
+    ExecutionGraphNode ds = ExecutionGraphNode.newBuilder()
+        .setId("downsample")
+        .addSource("m1")
+        .setConfig(DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .build())
+        .build();
+    ExecutionGraphNode exp = ExecutionGraphNode.newBuilder()
+        .setId("expression")
+        .addSource("downsample")
+        .addSource("m2")
+        .setConfig(ExpressionConfig.newBuilder()
+            .setExpression("m1 + m2")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
+            .build())
+        .build();
     
-    new_nodes = factory.newNodes(CONTEXT, "e2", c2, graph);
-    assertEquals(1, new_nodes.size());
-    node = (BinaryExpressionNode) new_nodes.iterator().next();
-    assertEquals("my.new.metric", node.expressionConfig().left());
-    assertEquals("metric.c", node.expressionConfig().right());
+    graph.addVertex(SINK);
+    graph.addVertex(m1);
+    graph.addVertex(m2);
+    graph.addVertex(ds);
+    graph.addVertex(exp);
+    graph.addDagEdge(ds, m1);
+    graph.addDagEdge(exp, m2);
+    graph.addDagEdge(exp, ds);
+    graph.addDagEdge(SINK, exp);
+    
+    factory.setupGraph(mock(TimeSeriesQuery.class), exp, graph);
+    assertEquals(5, graph.vertexSet().size());
+    assertTrue(graph.containsVertex(m1));
+    assertTrue(graph.containsVertex(m2));
+    assertTrue(graph.containsVertex(ds));
+    assertFalse(graph.containsVertex(exp));
+    assertTrue(graph.containsVertex(SINK));
+    
+    ExecutionGraphNode b1 = graph.getEdgeSource(
+        graph.incomingEdgesOf(ds).iterator().next());
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.containsEdge(ds, m1));
+    assertTrue(graph.containsEdge(b1, m2));
+    assertTrue(graph.containsEdge(b1, ds));
+    assertTrue(graph.containsEdge(SINK, b1));
+    
+    ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.left());
+    assertEquals(OperandType.VARIABLE, p1.leftType());
+    assertEquals("sys.cpu.sys", p1.right());
+    assertEquals(OperandType.VARIABLE, p1.rightType());
+    assertEquals(ExpressionOp.ADD, p1.operator());
+  }
+  
+  @Test
+  public void setupGraph3MetricsThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph =
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    
+    ExecutionGraphNode m1 = ExecutionGraphNode.newBuilder()
+        .setId("m1")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build())
+        .build();
+    ExecutionGraphNode m2 = ExecutionGraphNode.newBuilder()
+        .setId("m2")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build())
+        .build();
+    ExecutionGraphNode m3 = ExecutionGraphNode.newBuilder()
+        .setId("m3")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.idle")
+                .build())
+            .setFilterId("f1")
+            .setId("m3")
+            .build())
+        .build();
+    ExecutionGraphNode ds = ExecutionGraphNode.newBuilder()
+        .setId("downsample")
+        .addSource("m1")
+        .addSource("m2")
+        .addSource("m3")
+        .setConfig(DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .build())
+        .build();
+    ExecutionGraphNode exp = ExecutionGraphNode.newBuilder()
+        .setId("expression")
+        .addSource("downsample")
+        .setConfig(ExpressionConfig.newBuilder()
+            .setExpression("m1 + m2 + m3")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
+            .build())
+        .build();
+    
+    graph.addVertex(SINK);
+    graph.addVertex(m1);
+    graph.addVertex(m2);
+    graph.addVertex(m3);
+    graph.addVertex(ds);
+    graph.addVertex(exp);
+    graph.addDagEdge(ds, m1);
+    graph.addDagEdge(ds, m2);
+    graph.addDagEdge(ds, m3);
+    graph.addDagEdge(exp, ds);
+    graph.addDagEdge(SINK, exp);
+    
+    factory.setupGraph(mock(TimeSeriesQuery.class), exp, graph);
+    assertEquals(7, graph.vertexSet().size());
+    assertTrue(graph.containsVertex(m1));
+    assertTrue(graph.containsVertex(m2));
+    assertTrue(graph.containsVertex(m3));
+    assertTrue(graph.containsVertex(ds));
+    assertFalse(graph.containsVertex(exp));
+    assertTrue(graph.containsVertex(SINK));
+    
+    assertTrue(graph.containsEdge(ds, m1));
+    assertTrue(graph.containsEdge(ds, m2));
+    
+    List<ExecutionGraphNode> expressions = Lists.newArrayListWithCapacity(2);
+    for (final DefaultEdge edge : graph.incomingEdgesOf(ds)) {
+      expressions.add(graph.getEdgeSource(edge));
+    }
+    assertEquals(2, expressions.size());
+    for (final ExecutionGraphNode binary : expressions) {
+      assertTrue(graph.containsEdge(binary, ds));
+      assertEquals("BinaryExpression", binary.getType());
+      
+      if (binary.getId().equals("expression_SubExp#0")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
+        assertEquals("expression_SubExp#0", p1.getId());
+        assertEquals("sys.cpu.user", p1.left());
+        assertEquals(OperandType.VARIABLE, p1.leftType());
+        assertEquals("sys.cpu.sys", p1.right());
+        assertEquals(OperandType.VARIABLE, p1.rightType());
+        assertEquals(ExpressionOp.ADD, p1.operator());
+        
+        assertFalse(graph.containsEdge(SINK, binary));
+      } else {
+        assertEquals("expression", binary.getId());
+        ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
+        assertEquals("expression", p1.getId());
+        assertEquals("expression_SubExp#0", p1.left());
+        assertEquals(OperandType.SUB_EXP, p1.leftType());
+        assertEquals("sys.cpu.idle", p1.right());
+        assertEquals(OperandType.VARIABLE, p1.rightType());
+        assertEquals(ExpressionOp.ADD, p1.operator());
+        
+        assertTrue(graph.containsEdge(SINK, binary));
+      }
+    }
+    
+  }
+  
+  @Test
+  public void setupGraph3MetricsComplexThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph =
+        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
+    
+    ExecutionGraphNode m1 = ExecutionGraphNode.newBuilder()
+        .setId("m1")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build())
+        .build();
+    ExecutionGraphNode m2 = ExecutionGraphNode.newBuilder()
+        .setId("m2")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build())
+        .build();
+    ExecutionGraphNode m3 = ExecutionGraphNode.newBuilder()
+        .setId("m3")
+        .setType("DataSource")
+        .setConfig(QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.idle")
+                .build())
+            .setFilterId("f1")
+            .setId("m3")
+            .build())
+        .build();
+    ExecutionGraphNode ds = ExecutionGraphNode.newBuilder()
+        .setId("downsample")
+        .addSource("m1")
+        .addSource("m2")
+        .addSource("m3")
+        .setConfig(DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .build())
+        .build();
+    ExecutionGraphNode exp = ExecutionGraphNode.newBuilder()
+        .setId("expression")
+        .addSource("downsample")
+        .setConfig(ExpressionConfig.newBuilder()
+            .setExpression("(m1 * 1024) + (m2 * 1024) + (m3 * 1024)")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
+            .build())
+        .build();
+    
+    graph.addVertex(SINK);
+    graph.addVertex(m1);
+    graph.addVertex(m2);
+    graph.addVertex(m3);
+    graph.addVertex(ds);
+    graph.addVertex(exp);
+    graph.addDagEdge(ds, m1);
+    graph.addDagEdge(ds, m2);
+    graph.addDagEdge(ds, m3);
+    graph.addDagEdge(exp, ds);
+    graph.addDagEdge(SINK, exp);
+    
+    factory.setupGraph(mock(TimeSeriesQuery.class), exp, graph);
+    assertEquals(10, graph.vertexSet().size());
+    assertTrue(graph.containsVertex(m1));
+    assertTrue(graph.containsVertex(m2));
+    assertTrue(graph.containsVertex(m3));
+    assertTrue(graph.containsVertex(ds));
+    assertFalse(graph.containsVertex(exp));
+    assertTrue(graph.containsVertex(SINK));
+    
+    assertTrue(graph.containsEdge(ds, m1));
+    assertTrue(graph.containsEdge(ds, m2));
+    
+    List<ExecutionGraphNode> expressions = Lists.newArrayListWithCapacity(2);
+    for (final DefaultEdge edge : graph.incomingEdgesOf(ds)) {
+      expressions.add(graph.getEdgeSource(edge));
+    }
+    assertEquals(3, expressions.size());
+    for (final ExecutionGraphNode binary : expressions) {
+      assertTrue(graph.containsEdge(binary, ds));
+      assertEquals("BinaryExpression", binary.getType());
+      if (binary.getId().equals("expression_SubExp#0")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
+        assertEquals("expression_SubExp#0", p1.getId());
+        assertEquals("sys.cpu.user", p1.left());
+        assertEquals(OperandType.VARIABLE, p1.leftType());
+        assertEquals(1024, ((NumericLiteral) p1.right()).longValue());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.operator());
+        
+        assertFalse(graph.containsEdge(SINK, binary));
+        assertEquals(1, graph.incomingEdgesOf(binary).size());
+        assertEquals("expression_SubExp#2", 
+            graph.getEdgeSource(graph.incomingEdgesOf(binary).iterator().next()).getId());
+      } else if (binary.getId().equals("expression_SubExp#1")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
+        assertEquals("expression_SubExp#1", p1.getId());
+        assertEquals("sys.cpu.sys", p1.left());
+        assertEquals(OperandType.VARIABLE, p1.leftType());
+        assertEquals(1024, ((NumericLiteral) p1.right()).longValue());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.operator());
+        
+        assertFalse(graph.containsEdge(SINK, binary));
+        assertEquals(1, graph.incomingEdgesOf(binary).size());
+        ExecutionGraphNode b2 = graph.getEdgeSource(
+            graph.incomingEdgesOf(binary).iterator().next());
+        assertEquals("expression_SubExp#2", b2.getId());
+        
+        // validate sub2 here
+        p1 = (ExpressionParseNode) b2.getConfig();
+        assertEquals("expression_SubExp#2", p1.getId());
+        assertEquals("expression_SubExp#0", p1.left());
+        assertEquals(OperandType.SUB_EXP, p1.leftType());
+        assertEquals("expression_SubExp#1", p1.right());
+        assertEquals(OperandType.SUB_EXP, p1.rightType());
+        assertEquals(ExpressionOp.ADD, p1.operator());
+        
+        assertFalse(graph.containsEdge(SINK, b2));
+        
+      } else if (binary.getId().equals("expression_SubExp#3")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
+        assertEquals("expression_SubExp#3", p1.getId());
+        assertEquals("sys.cpu.idle", p1.left());
+        assertEquals(OperandType.VARIABLE, p1.leftType());
+        assertEquals(1024, ((NumericLiteral) p1.right()).longValue());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.operator());
+        
+        assertFalse(graph.containsEdge(SINK, binary));
+        assertEquals(1, graph.incomingEdgesOf(binary).size());
+        
+        // validate the expression here
+        ExecutionGraphNode b2 = graph.getEdgeSource(
+            graph.incomingEdgesOf(binary).iterator().next());
+        assertEquals("expression", b2.getId());
+        
+        // validate parent here
+        p1 = (ExpressionParseNode) b2.getConfig();
+        assertEquals("expression", p1.getId());
+        assertEquals("expression_SubExp#2", p1.left());
+        assertEquals(OperandType.SUB_EXP, p1.leftType());
+        assertEquals("expression_SubExp#3", p1.right());
+        assertEquals(OperandType.SUB_EXP, p1.rightType());
+        assertEquals(ExpressionOp.ADD, p1.operator());
+        
+        assertTrue(graph.containsEdge(SINK, b2));
+      }
+    }
+    
   }
 }

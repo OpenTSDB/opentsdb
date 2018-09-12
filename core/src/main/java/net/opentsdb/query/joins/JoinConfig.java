@@ -124,7 +124,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
   @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
+        .putString(id == null ? "null" : id, Const.UTF8_CHARSET)
         .putString(type.toString(), Const.ASCII_CHARSET)
         .putBoolean(explicit_tags);
     final Map<String, String> sorted = new TreeMap<String, String>(joins);

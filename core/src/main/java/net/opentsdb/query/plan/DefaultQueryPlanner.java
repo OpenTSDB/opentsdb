@@ -137,6 +137,7 @@ public class DefaultQueryPlanner {
         new DepthFirstIterator<ExecutionGraphNode, DefaultEdge>(
             (Graph<ExecutionGraphNode, DefaultEdge>) config_graph.clone());
     final List<ExecutionGraphNode> data_sources = Lists.newArrayList();
+     
     while (iterator.hasNext()) {
       final ExecutionGraphNode node = iterator.next();
       if (node.getConfig() != null && 
@@ -372,11 +373,21 @@ public class DefaultQueryPlanner {
           factory_cache));
     }
     
-    final QueryNodeFactory factory;
+    QueryNodeFactory factory;
     if (!Strings.isNullOrEmpty(node.getType())) {
       factory = factory_cache.get(node.getType().toLowerCase());
+      if (factory == null) {
+        // last chance
+        factory = context.tsdb().getRegistry()
+            .getQueryNodeFactory(node.getType().toLowerCase());
+      }
     } else {
       factory = factory_cache.get(node.getId().toLowerCase());
+      if (factory == null) {
+        // last chance
+        factory = context.tsdb().getRegistry()
+            .getQueryNodeFactory(node.getId().toLowerCase());
+      }
     }
     if (factory == null) {
       throw new IllegalArgumentException("No node factory found for "
@@ -395,9 +406,9 @@ public class DefaultQueryPlanner {
       final Collection<QueryNode> query_nodes = 
           ((MultiQueryNodeFactory) factory).newNodes(
               context, node.getId(), node.getConfig(), configs);
-      if (query_nodes == null || query_nodes.isEmpty()) {
-        throw new IllegalStateException("Factory returned a null or "
-            + "empty list of nodes for " + node.getId());
+      if (query_nodes == null) {
+        throw new IllegalStateException("Factory returned a null list "
+            + "of nodes for " + node.getId());
       }
       
       QueryNode last = null;
@@ -416,12 +427,14 @@ public class DefaultQueryPlanner {
       }
       
       constructed.add(node.buildHashCode().asLong());
-      for (final QueryNode source : sources) {
-        try {
-          graph.addDagEdge(last, source);
-        } catch (CycleFoundException e) {
-          throw new IllegalArgumentException(
-              "Invalid graph configuration", e);
+      if (last != null) {
+        for (final QueryNode source : sources) {
+          try {
+            graph.addDagEdge(last, source);
+          } catch (CycleFoundException e) {
+            throw new IllegalArgumentException(
+                "Invalid graph configuration", e);
+          }
         }
       }
     } else {
