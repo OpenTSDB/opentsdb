@@ -28,6 +28,8 @@ import org.junit.Test;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
+import net.opentsdb.data.pbuf.TimeSpecificationPB;
+import net.opentsdb.data.pbuf.TimeStampPB;
 import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryNode;
@@ -42,13 +44,26 @@ public class TestPBufQueryResult {
         .setSequenceId(42)
         .addTimeseries(TimeSeriesPB.TimeSeries.newBuilder())
         .addTimeseries(TimeSeriesPB.TimeSeries.newBuilder())
+        .setTimeSpecification(TimeSpecificationPB.TimeSpecification.newBuilder()
+        .setStart(TimeStampPB.TimeStamp.newBuilder()
+            .setEpoch(1514764800)
+            .setNanos(500)
+            .setZoneId("UTC")
+            .build())
+        .setEnd(TimeStampPB.TimeStamp.newBuilder()
+            .setEpoch(1514768400)
+            .setNanos(250)
+            .setZoneId("UTC")
+            .build())
+        .setTimeZone("America/Denver")
+        .setInterval("1h"))
         .build();
     PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
     QueryNode node = mock(QueryNode.class);
     ByteArrayInputStream bais = new ByteArrayInputStream(pbuf.toByteArray());
     
     PBufQueryResult result = new PBufQueryResult(factory, node, null, bais);
-    assertNull(result.timeSpecification());
+    assertEquals("1h", result.timeSpecification().stringInterval());
     assertEquals(2, result.timeSeries().size());
     assertEquals(42, result.sequenceId());
     assertSame(node, result.source());

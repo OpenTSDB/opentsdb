@@ -44,10 +44,13 @@ public class PBufQueryResult implements QueryResult {
   private final PBufIteratorSerdesFactory factory;
   
   /** The protobuf result. */
-  private QueryResultPB.QueryResult result;
+  private final QueryResultPB.QueryResult result;
   
   /** The query node that deserialized this data. */
   private final QueryNode node;
+  
+  /** The optional time specification. */
+  private final PBufTimeSpecification time_spec;
   
   /**
    * Default ctor.
@@ -64,6 +67,11 @@ public class PBufQueryResult implements QueryResult {
     this.node = node;
     try {
       result = QueryResultPB.QueryResult.parseFrom(stream);
+      if (result.hasTimeSpecification()) {
+        time_spec = new PBufTimeSpecification(result.getTimeSpecification());
+      } else {
+        time_spec = null;
+      }
     } catch (IOException e) {
       throw new SerdesException("Failed to parse the query results.", e);
     }
@@ -71,8 +79,7 @@ public class PBufQueryResult implements QueryResult {
   
   @Override
   public TimeSpecification timeSpecification() {
-    // TODO Auto-generated method stub
-    return null;
+    return time_spec;
   }
 
   @Override
@@ -109,7 +116,7 @@ public class PBufQueryResult implements QueryResult {
   @Override
   public RollupConfig rollupConfig() {
     // TODO Auto-generated method stub
-    return null;
+    throw new UnsupportedOperationException("TODO!");
   }
   
   @Override
