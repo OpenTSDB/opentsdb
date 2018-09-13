@@ -32,6 +32,8 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.pbuf.QueryResultPB;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
+import net.opentsdb.data.pbuf.TimeSpecificationPB.TimeSpecification;
+import net.opentsdb.data.pbuf.TimeStampPB.TimeStamp;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
@@ -92,6 +94,19 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
     try {
       final QueryResultPB.QueryResult.Builder result_builder = 
           QueryResultPB.QueryResult.newBuilder();
+      if (result.timeSpecification() != null) {
+        result_builder.setTimeSpecification(TimeSpecification.newBuilder()
+            .setStart(TimeStamp.newBuilder()
+                .setEpoch(result.timeSpecification().start().epoch())
+                .setNanos(result.timeSpecification().start().nanos())
+                .setZoneId(result.timeSpecification().timezone().toString()))
+            .setEnd(TimeStamp.newBuilder()
+                .setEpoch(result.timeSpecification().end().epoch())
+                .setNanos(result.timeSpecification().end().nanos())
+                .setZoneId(result.timeSpecification().timezone().toString()))
+            .setInterval(result.timeSpecification().stringInterval())
+            .setTimeZone(result.timeSpecification().timezone().toString()));
+      }
       for (final TimeSeries ts : result.timeSeries()) {
         final TimeSeriesPB.TimeSeries.Builder ts_builder = 
             TimeSeriesPB.TimeSeries.newBuilder()
