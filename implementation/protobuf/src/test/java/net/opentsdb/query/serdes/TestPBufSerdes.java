@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Iterator;
@@ -50,6 +51,7 @@ import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
 import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.PBufQueryResult;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -181,9 +183,17 @@ public class TestPBufSerdes {
     sv.resetValue(2, 9);
     ts2.addValue(sv);
     
+    net.opentsdb.data.TimeSpecification spec = 
+        mock(net.opentsdb.data.TimeSpecification.class);
+    when(spec.start()).thenReturn(new SecondTimeStamp(1514764800));
+    when(spec.end()).thenReturn(new SecondTimeStamp(1514768400));
+    when(spec.stringInterval()).thenReturn("1m");
+    when(spec.timezone()).thenReturn(ZoneId.of("America/Denver"));
+    
     QueryResult result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts, ts2));
+    when(result.timeSpecification()).thenReturn(spec);
     
     PBufSerdes serdes = new PBufSerdes();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -208,6 +218,10 @@ public class TestPBufSerdes {
             validateBar(series);
           }
         }
+        assertEquals(1514764800, parsed.timeSpecification().start().epoch());
+        assertEquals(1514768400, parsed.timeSpecification().end().epoch());
+        assertEquals("1m", parsed.timeSpecification().stringInterval());
+        assertEquals(ZoneId.of("America/Denver"), parsed.timeSpecification().timezone());
         validated[0] = true;
         return null;
       }
