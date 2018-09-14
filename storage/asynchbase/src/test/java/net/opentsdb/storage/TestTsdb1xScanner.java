@@ -110,7 +110,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -145,7 +145,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
@@ -181,7 +181,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -209,7 +209,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -237,7 +237,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.MULTI_SERIES_EX, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -265,7 +265,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -294,7 +294,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -336,7 +336,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -379,7 +379,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -421,7 +421,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -459,7 +459,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -497,7 +497,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -538,7 +538,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -574,7 +574,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
@@ -612,7 +612,7 @@ public class TestTsdb1xScanner extends UTBase {
           .setTagKey(TAGK_STRING)
           .build();
   when(owner.filterDuringScan()).thenReturn(true);
-  when(config.getFilter()).thenReturn(filter);
+  when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(4);
@@ -648,7 +648,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
@@ -1010,7 +1010,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
@@ -1079,7 +1079,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
@@ -1151,7 +1151,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
@@ -1222,7 +1222,7 @@ public class TestTsdb1xScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.getFilter()).thenReturn(filter);
+    when(config.filter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);

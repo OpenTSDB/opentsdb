@@ -261,9 +261,9 @@ public class TestDefaultQueryPlanner {
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     assertEquals(1, planner.roots().size());
     assertTrue(planner.roots().get(0) instanceof GroupBy);
@@ -323,9 +323,9 @@ public class TestDefaultQueryPlanner {
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     assertEquals(1, planner.roots().size());
     assertTrue(planner.roots().get(0) instanceof TimeSeriesDataSource);
@@ -500,16 +500,16 @@ public class TestDefaultQueryPlanner {
     node = iterator.next();
     assertSame(STORE_NODES.get(1), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     assertEquals(1, planner.roots().size());
     assertTrue(planner.roots().get(0) instanceof GroupBy);
@@ -606,16 +606,16 @@ public class TestDefaultQueryPlanner {
     node = iterator.next();
     assertSame(STORE_NODES.get(1), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("ds2", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("ds2", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     assertEquals(1, planner.roots().size());
     assertTrue(planner.roots().get(0) instanceof GroupBy);
@@ -689,16 +689,16 @@ public class TestDefaultQueryPlanner {
     node = iterator.next();
     assertSame(STORE_NODES.get(1), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
-    assertEquals(1, source_config.pushDownNodes().size());
-    assertTrue(source_config.pushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.pushDownNodes().get(0).getId());
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     assertEquals(2, planner.roots().size());
     assertTrue(planner.roots().get(0) instanceof TimeSeriesDataSource);

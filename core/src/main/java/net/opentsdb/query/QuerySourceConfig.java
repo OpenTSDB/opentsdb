@@ -83,7 +83,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   }
   
   /** @return The non-null query object. */
-  public TimeSeriesQuery getQuery() {
+  public TimeSeriesQuery query() {
     return query;
   }
   
@@ -108,9 +108,15 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     return filter_id;
   }
   
-  /** @return The optional filter. If {@link #getFilterId()} is not null or
-   * empty, this will always return null. */
+  /** @return The local filter if set, null if not. */
   public QueryFilter getFilter() {
+    return filter;
+  }
+  
+  /** @return Returns either the filter linked by {@link #getFilterId()} 
+   * or the local filter. If no filter is associated with the config,
+   * it returns null. */
+  public QueryFilter filter() {
     if (Strings.isNullOrEmpty(filter_id)) {
       return filter;
     }
@@ -124,7 +130,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   }
   
   /** @return An optional list of push down nodes. May be null. */
-  public List<ExecutionGraphNode> pushDownNodes() {
+  public List<ExecutionGraphNode> getPushDownNodes() {
     return push_down_nodes;
   }
   

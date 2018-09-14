@@ -62,121 +62,121 @@ public class TestExpressionParser {
     List<ExpressionParseNode> nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.ADD, nodes.get(0).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.ADD, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric - b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.SUBTRACT, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.SUBTRACT, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric * b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.MULTIPLY, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.MULTIPLY, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric / b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.DIVIDE, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.DIVIDE, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric % b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.MOD, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.MOD, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric == b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.EQ, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.EQ, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric != b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.NE, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.NE, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric > b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.GT, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.GT, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric < b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.LT, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.LT, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric >= b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.GE, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.GE, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric <= b.metric"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals("my.new.metric", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.LE, nodes.get(0).operator());
+    assertEquals("my.new.metric", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.LE, nodes.get(0).getOperator());
   }
 
   @Test
@@ -187,20 +187,20 @@ public class TestExpressionParser {
     assertEquals(2, nodes.size());
     
     assertEquals("e1_SubExp#0", nodes.get(0).getId());
-    assertEquals("e1_SubExp#0", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("b.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.ADD, nodes.get(0).operator());
+    assertEquals("e1_SubExp#0", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("b.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.ADD, nodes.get(0).getOperator());
     
     assertEquals("e1", nodes.get(1).getId());
-    assertEquals("my.new.metric", nodes.get(1).as());
-    assertEquals(OperandType.SUB_EXP, nodes.get(1).leftType());
-    assertEquals("e1_SubExp#0", nodes.get(1).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(1).rightType());
-    assertEquals("c.metric", nodes.get(1).right());
-    assertEquals(ExpressionOp.ADD, nodes.get(1).operator());
+    assertEquals("my.new.metric", nodes.get(1).getAs());
+    assertEquals(OperandType.SUB_EXP, nodes.get(1).getLeftType());
+    assertEquals("e1_SubExp#0", nodes.get(1).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(1).getRightType());
+    assertEquals("c.metric", nodes.get(1).getRight());
+    assertEquals(ExpressionOp.ADD, nodes.get(1).getOperator());
     
     // change order of precedence
     parser = new ExpressionParser(config("a.metric + (b.metric + c.metric)"));
@@ -208,78 +208,78 @@ public class TestExpressionParser {
     assertEquals(2, nodes.size());
     
     assertEquals("e1_SubExp#0", nodes.get(0).getId());
-    assertEquals("e1_SubExp#0", nodes.get(0).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("b.metric", nodes.get(0).left());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).rightType());
-    assertEquals("c.metric", nodes.get(0).right());
-    assertEquals(ExpressionOp.ADD, nodes.get(0).operator());
+    assertEquals("e1_SubExp#0", nodes.get(0).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("b.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getRightType());
+    assertEquals("c.metric", nodes.get(0).getRight());
+    assertEquals(ExpressionOp.ADD, nodes.get(0).getOperator());
     
     assertEquals("e1", nodes.get(1).getId());
-    assertEquals("my.new.metric", nodes.get(1).as());
-    assertEquals(OperandType.VARIABLE, nodes.get(1).leftType());
-    assertEquals("a.metric", nodes.get(1).left());
-    assertEquals(OperandType.SUB_EXP, nodes.get(1).rightType());
-    assertEquals("e1_SubExp#0", nodes.get(1).right());
-    assertEquals(ExpressionOp.ADD, nodes.get(1).operator());
+    assertEquals("my.new.metric", nodes.get(1).getAs());
+    assertEquals(OperandType.VARIABLE, nodes.get(1).getLeftType());
+    assertEquals("a.metric", nodes.get(1).getLeft());
+    assertEquals(OperandType.SUB_EXP, nodes.get(1).getRightType());
+    assertEquals("e1_SubExp#0", nodes.get(1).getRight());
+    assertEquals(ExpressionOp.ADD, nodes.get(1).getOperator());
     
     // numeric squashing, test all operators
     parser = new ExpressionParser(config("a.metric + (42 + 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(44L, ((NumericLiteral) nodes.get(0).right()).longValue());
+    assertEquals(44L, ((NumericLiteral) nodes.get(0).getRight()).longValue());
     
     parser = new ExpressionParser(config("a.metric + (42 - 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(40L, ((NumericLiteral) nodes.get(0).right()).longValue());
+    assertEquals(40L, ((NumericLiteral) nodes.get(0).getRight()).longValue());
     
     parser = new ExpressionParser(config("a.metric + (42 * 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(84, ((NumericLiteral) nodes.get(0).right()).longValue());
+    assertEquals(84, ((NumericLiteral) nodes.get(0).getRight()).longValue());
     
     parser = new ExpressionParser(config("a.metric + (42 / 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(21, ((NumericLiteral) nodes.get(0).right()).longValue());
+    assertEquals(21, ((NumericLiteral) nodes.get(0).getRight()).longValue());
     
     // to double
     parser = new ExpressionParser(config("a.metric + (42 / 5)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(8.4, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
+    assertEquals(8.4, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
     
     parser = new ExpressionParser(config("a.metric + (42 % 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(0, ((NumericLiteral) nodes.get(0).right()).longValue());
+    assertEquals(0, ((NumericLiteral) nodes.get(0).getRight()).longValue());
     
     // doubles
     parser = new ExpressionParser(config("a.metric + (42.5 + 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(44.5, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
+    assertEquals(44.5, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
     
     parser = new ExpressionParser(config("a.metric + (42.5 - 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(40.5, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
+    assertEquals(40.5, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
     
     parser = new ExpressionParser(config("a.metric + (42.5 * 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(85, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
+    assertEquals(85, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
     
     parser = new ExpressionParser(config("a.metric + (42.5 / 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(21.25, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
+    assertEquals(21.25, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
     
     parser = new ExpressionParser(config("a.metric + (42.5 % 2)"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(0.0, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
+    assertEquals(0.0, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
   }
   
   @Test
@@ -289,54 +289,54 @@ public class TestExpressionParser {
     List<ExpressionParseNode> nodes = parser.parse();
     assertEquals(1, nodes.size());
     assertEquals("e1", nodes.get(0).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).rightType());
-    assertEquals(42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.EQ, nodes.get(0).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).getRightType());
+    assertEquals(42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.EQ, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric != 42"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.NE, nodes.get(0).operator());
+    assertEquals(42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.NE, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric > 42"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(0).operator());
+    assertEquals(42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric < 42"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.LT, nodes.get(0).operator());
+    assertEquals(42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.LT, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric >= 42"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.GE, nodes.get(0).operator());
+    assertEquals(42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.GE, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric <= 42"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.LE, nodes.get(0).operator());
+    assertEquals(42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.LE, nodes.get(0).getOperator());
     
     // check negative numbers
     parser = new ExpressionParser(config("a.metric <= -42"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(-42, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.LE, nodes.get(0).operator());
+    assertEquals(-42, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.LE, nodes.get(0).getOperator());
     
     parser = new ExpressionParser(config("a.metric <= -42.75"));
     nodes = parser.parse();
     assertEquals(1, nodes.size());
-    assertEquals(-42.75, ((NumericLiteral) nodes.get(0).right()).doubleValue(), 0.001);
-    assertEquals(ExpressionOp.LE, nodes.get(0).operator());
+    assertEquals(-42.75, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
+    assertEquals(ExpressionOp.LE, nodes.get(0).getOperator());
   }
   
   @Test
@@ -346,25 +346,25 @@ public class TestExpressionParser {
     List<ExpressionParseNode> nodes = parser.parse();
     assertEquals(3, nodes.size());
     assertEquals("e1_SubExp#0", nodes.get(0).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(0).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(0).getOperator());
     
     assertEquals("e1_SubExp#1", nodes.get(1).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(1).leftType());
-    assertEquals("b.metric", nodes.get(1).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(1).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(1).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(1).getLeftType());
+    assertEquals("b.metric", nodes.get(1).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(1).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(1).getOperator());
     
     assertEquals("e1", nodes.get(2).getId());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).leftType());
-    assertEquals("e1_SubExp#0", nodes.get(2).left());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).rightType());
-    assertEquals("e1_SubExp#1", nodes.get(2).right());
-    assertEquals(ExpressionOp.AND, nodes.get(2).operator());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getLeftType());
+    assertEquals("e1_SubExp#0", nodes.get(2).getLeft());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getRightType());
+    assertEquals("e1_SubExp#1", nodes.get(2).getRight());
+    assertEquals(ExpressionOp.AND, nodes.get(2).getOperator());
 
     // TODO - fix this parsing
 //    parser = new ExpressionParser("a.metric > 0 AND b.metric > 0", "e1");
@@ -381,25 +381,25 @@ public class TestExpressionParser {
     nodes = parser.parse();
     assertEquals(3, nodes.size());
     assertEquals("e1_SubExp#0", nodes.get(0).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(0).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(0).getOperator());
     
     assertEquals("e1_SubExp#1", nodes.get(1).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(1).leftType());
-    assertEquals("b.metric", nodes.get(1).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(1).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(1).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(1).getLeftType());
+    assertEquals("b.metric", nodes.get(1).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(1).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(1).getOperator());
     
     assertEquals("e1", nodes.get(2).getId());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).leftType());
-    assertEquals("e1_SubExp#0", nodes.get(2).left());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).rightType());
-    assertEquals("e1_SubExp#1", nodes.get(2).right());
-    assertEquals(ExpressionOp.OR, nodes.get(2).operator());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getLeftType());
+    assertEquals("e1_SubExp#0", nodes.get(2).getLeft());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getRightType());
+    assertEquals("e1_SubExp#1", nodes.get(2).getRight());
+    assertEquals(ExpressionOp.OR, nodes.get(2).getOperator());
 
     // TODO - fix this parsing
 //    parser = new ExpressionParser("a.metric > 0 OR b.metric > 0", "e1");
@@ -421,52 +421,52 @@ public class TestExpressionParser {
     List<ExpressionParseNode> nodes = parser.parse();
     assertEquals(3, nodes.size());
     assertEquals("e1_SubExp#0", nodes.get(0).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(0).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(0).getOperator());
     
     assertEquals("e1_SubExp#1", nodes.get(1).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(1).leftType());
-    assertEquals("b.metric", nodes.get(1).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(1).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(1).operator());
-    assertTrue(nodes.get(1).not());
+    assertEquals(OperandType.VARIABLE, nodes.get(1).getLeftType());
+    assertEquals("b.metric", nodes.get(1).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(1).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(1).getOperator());
+    assertTrue(nodes.get(1).getNot());
     
     assertEquals("e1", nodes.get(2).getId());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).leftType());
-    assertEquals("e1_SubExp#0", nodes.get(2).left());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).rightType());
-    assertEquals("e1_SubExp#1", nodes.get(2).right());
-    assertEquals(ExpressionOp.AND, nodes.get(2).operator());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getLeftType());
+    assertEquals("e1_SubExp#0", nodes.get(2).getLeft());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getRightType());
+    assertEquals("e1_SubExp#1", nodes.get(2).getRight());
+    assertEquals(ExpressionOp.AND, nodes.get(2).getOperator());
     
     // implicit
     parser = new ExpressionParser(config("a.metric > 0 && !b.metric > 0"));
     nodes = parser.parse();
     assertEquals(3, nodes.size());
     assertEquals("e1_SubExp#0", nodes.get(0).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(0).leftType());
-    assertEquals("a.metric", nodes.get(0).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(0).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(0).operator());
+    assertEquals(OperandType.VARIABLE, nodes.get(0).getLeftType());
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(0).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(0).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(0).getOperator());
     
     assertEquals("e1_SubExp#1", nodes.get(1).getId());
-    assertEquals(OperandType.VARIABLE, nodes.get(1).leftType());
-    assertEquals("b.metric", nodes.get(1).left());
-    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).rightType());
-    assertEquals(0, ((NumericLiteral) nodes.get(1).right()).longValue());
-    assertEquals(ExpressionOp.GT, nodes.get(1).operator());
-    assertTrue(nodes.get(1).not());
+    assertEquals(OperandType.VARIABLE, nodes.get(1).getLeftType());
+    assertEquals("b.metric", nodes.get(1).getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, nodes.get(1).getRightType());
+    assertEquals(0, ((NumericLiteral) nodes.get(1).getRight()).longValue());
+    assertEquals(ExpressionOp.GT, nodes.get(1).getOperator());
+    assertTrue(nodes.get(1).getNot());
     
     assertEquals("e1", nodes.get(2).getId());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).leftType());
-    assertEquals("e1_SubExp#0", nodes.get(2).left());
-    assertEquals(OperandType.SUB_EXP, nodes.get(2).rightType());
-    assertEquals("e1_SubExp#1", nodes.get(2).right());
-    assertEquals(ExpressionOp.AND, nodes.get(2).operator());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getLeftType());
+    assertEquals("e1_SubExp#0", nodes.get(2).getLeft());
+    assertEquals(OperandType.SUB_EXP, nodes.get(2).getRightType());
+    assertEquals("e1_SubExp#1", nodes.get(2).getRight());
+    assertEquals(ExpressionOp.AND, nodes.get(2).getOperator());
   }
   
   @Test

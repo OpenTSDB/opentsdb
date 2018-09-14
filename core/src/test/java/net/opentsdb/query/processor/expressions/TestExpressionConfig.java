@@ -18,6 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
@@ -29,6 +30,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.utils.JSON;
 
 public class TestExpressionConfig {
 
@@ -57,8 +59,8 @@ public class TestExpressionConfig {
     assertEquals("e1", config.getId());
     assertEquals("some.metric.name", config.getAs());
     assertEquals("a + b", config.getExpression());
-    assertEquals(JoinType.INNER, config.getJoinConfig().getType());
-    assertEquals("host", config.getJoinConfig().getJoins().get("host"));
+    assertEquals(JoinType.INNER, config.getJoin().getType());
+    assertEquals("host", config.getJoin().getJoins().get("host"));
     assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
     assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
     
@@ -78,8 +80,8 @@ public class TestExpressionConfig {
     assertEquals("e1", config.getId());
     assertEquals("e1", config.getAs());
     assertEquals("a + b", config.getExpression());
-    assertEquals(JoinType.INNER, config.getJoinConfig().getType());
-    assertEquals("host", config.getJoinConfig().getJoins().get("host"));
+    assertEquals(JoinType.INNER, config.getJoin().getType());
+    assertEquals("host", config.getJoin().getJoins().get("host"));
     assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
     assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
     
@@ -365,4 +367,36 @@ public class TestExpressionConfig {
     assertNull(config.interpolatorConfig(NumericSummaryType.TYPE, null));
   }
   
+  @Test
+  public void serialize() throws Exception {
+    NumericInterpolatorConfig numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+      .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+      .setDataType(NumericType.TYPE.toString())
+      .build();
+    
+    ExpressionConfig config = (ExpressionConfig) 
+        ExpressionConfig.newBuilder()
+          .setExpression("a + b")
+          .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+              .addJoins("host", "host")
+              .setType(JoinType.INNER)
+              .setId("jc")
+              .build())
+          .addVariableInterpolator("a", numeric_config)
+          .setAs("some.metric.name")
+          .addInterpolatorConfig(numeric_config)
+          .setId("e1")
+          .build();
+    
+    final String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"id\":\"e1\""));
+    assertTrue(json.contains("\"expression\":\"a + b\""));
+    assertTrue(json.contains("\"as\":\"some.metric.name\""));
+    assertTrue(json.contains("\"infectiousNan\":false"));
+    assertTrue(json.contains("\"join\":{"));
+    assertTrue(json.contains("\"variableInterpolators\":{"));
+    assertTrue(json.contains("\"interpolatorConfigs\":["));
+  }
 }

@@ -71,16 +71,16 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   /** @return The numeric fill policy. */
-  public FillPolicy fillPolicy() {
+  public FillPolicy getFillPolicy() {
     return fillPolicy;
   }
   
   /** @return The real fill policy. */
-  public FillWithRealPolicy realFillPolicy() {
+  public FillWithRealPolicy getRealFillPolicy() {
     return realFillPolicy;
   }
   
-  /** @return The base numeric fill using the {@link #fillPolicy()}. */
+  /** @return The base numeric fill using the {@link #getFillPolicy()}. */
   public QueryFillPolicy<NumericType> queryFill() {
     return new BaseNumericFillPolicy(this);
   }
@@ -93,7 +93,6 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
-        .putString(id != null ? id : "null", Const.UTF8_CHARSET)
         .putString(interpolator_type != null ? interpolator_type : "null", 
             Const.ASCII_CHARSET)
         .putString(data_type != null ? data_type : "null", Const.ASCII_CHARSET)
@@ -115,8 +114,6 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
     }
     
     return ComparisonChain.start()
-        .compare(id, ((NumericInterpolatorConfig) o).id,
-            Ordering.natural().nullsFirst())
         .compare(interpolator_type, 
             ((NumericInterpolatorConfig) o).interpolator_type,
             Ordering.natural().nullsFirst())
@@ -140,8 +137,7 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
     }
     
     final NumericInterpolatorConfig other = (NumericInterpolatorConfig) o;
-    return Objects.equals(id, other.id) &&
-           Objects.equals(interpolator_type, other.interpolator_type) &&
+    return Objects.equals(interpolator_type, other.interpolator_type) &&
            Objects.equals(data_type, other.data_type) && 
            Objects.equals(fillPolicy, other.fillPolicy) &&
            Objects.equals(realFillPolicy, other.realFillPolicy);
@@ -155,8 +151,7 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   @Override
   public String toString() {
     return new StringBuilder()
-        .append("{id=").append(id)
-        .append(", type=").append(interpolator_type)
+        .append("{type=").append(interpolator_type)
         .append(", dataType=").append(data_type)
         .append(", fill=").append(fillPolicy)
         .append(", realFill=").append(realFillPolicy)

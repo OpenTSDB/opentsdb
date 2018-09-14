@@ -58,7 +58,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
   
   @Override
   public NumericType fill() {
-    switch(config.fillPolicy()) {
+    switch(config.getFillPolicy()) {
     case NONE:
     case NULL:
       return null;
@@ -75,7 +75,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
 
   @Override
   public boolean isInteger() {
-    switch(config.fillPolicy()) {
+    switch(config.getFillPolicy()) {
     case ZERO:
       return true;
     default:
@@ -92,7 +92,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
   @Override
   public double doubleValue() {
     // If here then we're a NaN fill
-    switch(config.fillPolicy()) {
+    switch(config.getFillPolicy()) {
     case NOT_A_NUMBER:
       return Double.NaN;
     case MIN:
@@ -107,7 +107,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
 
   @Override
   public double toDouble() {
-    switch(config.fillPolicy()) {
+    switch(config.getFillPolicy()) {
     case ZERO:
       return 0D;
     case NOT_A_NUMBER:
@@ -120,7 +120,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
   
   @Override
   public FillWithRealPolicy realPolicy() {
-    return config.realFillPolicy();
+    return config.getRealFillPolicy();
   }
 
   @Override

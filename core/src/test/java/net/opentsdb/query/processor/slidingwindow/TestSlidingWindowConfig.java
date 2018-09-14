@@ -21,6 +21,8 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import net.opentsdb.utils.JSON;
+
 public class TestSlidingWindowConfig {
 
   @Test
@@ -83,4 +85,22 @@ public class TestSlidingWindowConfig {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
+
+  @Test
+  public void serialize() throws Exception {
+    SlidingWindowConfig config = 
+        (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+        .setAggregator("sum")
+        .setWindowSize("1m")
+        .setInfectiousNan(true)
+        .setId("myWindow")
+        .build();
+    
+    final String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"id\":\"myWindow\""));
+    assertTrue(json.contains("\"aggregator\":\"sum\""));
+    assertTrue(json.contains("\"windowSize\":\"1m\""));
+    assertTrue(json.contains("\"infectiousNan\":true"));
+  }
+  
 }

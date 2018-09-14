@@ -13,16 +13,23 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.utils.JSON;
 
 public class TestSemanticQuery {
 
@@ -105,4 +112,73 @@ public class TestSemanticQuery {
     } catch (IllegalArgumentException e) { }
   }
   
+  @Test
+  public void serialize() throws Exception {
+    NumericInterpolatorConfig numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setDataType(NumericType.TYPE.toString())
+        .build();
+    
+    NamedFilter filter = DefaultNamedFilter.newBuilder()
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+            .setFilter("web01")
+            .setTagKey("host")
+            .build())
+        .setId("f1")
+        .build();
+    
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("g1")
+        .addNode(ExecutionGraphNode.newBuilder()
+            .setId("DataSource")
+            .setConfig(QuerySourceConfig.newBuilder()
+                .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+                .setFilterId("f1")
+                .setId("m1")
+                .build()))
+        .addNode(ExecutionGraphNode.newBuilder()
+            .setId("ds")
+            .setType("downsample")
+            .addSource("DataSource")
+            .setConfig(DownsampleConfig.newBuilder()
+                .setAggregator("sum")
+                .setId("foo")
+                .setInterval("15s")
+                .setStart("1514764800")
+                .setEnd("1514768400")
+                .addInterpolatorConfig(numeric_config)
+                .build())
+            .build())
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .build();
+    
+    final String json = JSON.serializeToString(query);
+    assertTrue(json.contains("\"start\":\"1514764800\""));
+    assertTrue(json.contains("\"end\":\"1514768400\""));
+    assertTrue(json.contains("\"filters\":["));
+    assertTrue(json.contains("\"id\":\"f1\""));
+    assertTrue(json.contains("\"filter\":\"web01\""));
+    assertTrue(json.contains("\"mode\":\"SINGLE\""));
+    assertTrue(json.contains("\"timezone\":\"America/Denver\""));
+    assertTrue(json.contains("\"executionGraph\":{"));
+    assertTrue(json.contains("\"id\":\"g1\""));
+    assertTrue(json.contains("\"id\":\"DataSource\""));
+    assertTrue(json.contains("\"type\":\"DataSource\""));
+    assertTrue(json.contains("\"metric\":{"));
+    assertTrue(json.contains("\"id\":\"ds\""));
+    assertTrue(json.contains("\"sources\":[\"DataSource\"]"));
+    assertTrue(json.contains("\"interval\":\"15s\""));
+  }
 }

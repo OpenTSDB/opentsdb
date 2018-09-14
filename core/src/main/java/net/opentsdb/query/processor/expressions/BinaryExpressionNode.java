@@ -88,14 +88,14 @@ public class BinaryExpressionNode extends AbstractQueryNode {
       throw new IllegalArgumentException("Expression config cannot be null.");
     }
     this.expression_config = expression_config;
-    config = expression_config.expressionConfig();
+    config = expression_config.getExpressionConfig();
     result = new ExpressionResult(this);
     need_two_sources = 
-        (expression_config.leftType() == OperandType.SUB_EXP || 
-         expression_config.leftType() == OperandType.VARIABLE) &&
-        (expression_config.rightType() == OperandType.SUB_EXP || 
-         expression_config.rightType() == OperandType.VARIABLE);
-    joiner = new Joiner(config.getJoinConfig());
+        (expression_config.getLeftType() == OperandType.SUB_EXP || 
+         expression_config.getLeftType() == OperandType.VARIABLE) &&
+        (expression_config.getRightType() == OperandType.SUB_EXP || 
+         expression_config.getRightType() == OperandType.VARIABLE);
+    joiner = new Joiner(config.getJoin());
   }
 
   @Override
@@ -134,31 +134,31 @@ public class BinaryExpressionNode extends AbstractQueryNode {
     // Try to resolve the variable names as metrics. This should return
     // and empty
     if (next.idType() == Const.TS_BYTE_ID &&
-        (expression_config.leftType() == OperandType.VARIABLE || 
-         expression_config.rightType() == OperandType.VARIABLE) && 
+        (expression_config.getLeftType() == OperandType.VARIABLE || 
+         expression_config.getRightType() == OperandType.VARIABLE) && 
         !resolved_metrics) {
       final List<String> metrics = Lists.newArrayListWithExpectedSize(2);
-      if (expression_config.leftType() == OperandType.VARIABLE) {
-        metrics.add((String) expression_config.left());
-      } else if (expression_config.leftType() == OperandType.SUB_EXP){
-        left_metric = ((String) expression_config.left()).getBytes(Const.UTF8_CHARSET);
+      if (expression_config.getLeftType() == OperandType.VARIABLE) {
+        metrics.add((String) expression_config.getLeft());
+      } else if (expression_config.getLeftType() == OperandType.SUB_EXP){
+        left_metric = ((String) expression_config.getLeft()).getBytes(Const.UTF8_CHARSET);
       }
       
-      if (expression_config.rightType() == OperandType.VARIABLE) {
-        metrics.add((String) expression_config.right());
-      } else if (expression_config.rightType() == OperandType.SUB_EXP) {
-        right_metric = ((String) expression_config.right()).getBytes(Const.UTF8_CHARSET);
+      if (expression_config.getRightType() == OperandType.VARIABLE) {
+        metrics.add((String) expression_config.getRight());
+      } else if (expression_config.getRightType() == OperandType.SUB_EXP) {
+        right_metric = ((String) expression_config.getRight()).getBytes(Const.UTF8_CHARSET);
       }
       
       class ResolveCB implements Callback<Object, List<byte[]>> {
         @Override
         public Object call(final List<byte[]> uids) throws Exception {
           int idx = 0;
-          if (expression_config.leftType() == OperandType.VARIABLE) {
+          if (expression_config.getLeftType() == OperandType.VARIABLE) {
             left_metric = uids.get(idx++);
           }
           
-          if (expression_config.rightType() == OperandType.VARIABLE) {
+          if (expression_config.getRightType() == OperandType.VARIABLE) {
             right_metric = uids.get(idx);
           }
           resolved_metrics = true;
@@ -177,13 +177,13 @@ public class BinaryExpressionNode extends AbstractQueryNode {
     
     if (next.idType() == Const.TS_BYTE_ID && 
         joiner.encodedJoins() == null && 
-        !config.getJoinConfig().getJoins().isEmpty()) {
+        !config.getJoin().getJoins().isEmpty()) {
       // resolve the join tags
       final List<String> tagks = Lists.newArrayListWithExpectedSize(
-          config.getJoinConfig().getJoins().size());
+          config.getJoin().getJoins().size());
       // yeah we could dedupe but *shrug*
       for (final Entry<String, String> entry : 
-          config.getJoinConfig().getJoins().entrySet()) {
+          config.getJoin().getJoins().entrySet()) {
         tagks.add(entry.getKey());
         tagks.add(entry.getValue());
       }

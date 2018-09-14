@@ -89,7 +89,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     this.result = (DownsampleResult) result;
     
     // TODO - better way of supporting aggregators
-    aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
+    aggregator = Aggregators.get(((DownsampleConfig) node.config()).getAggregator());
     final Optional<Iterator<TimeSeriesValue<?>>> optional = 
         source.iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
@@ -163,7 +163,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
       }
       
       if (accumulator.valueIndex() > 0) {
-        accumulator.run(aggregator, ((DownsampleConfig) node.config()).infectiousNan());
+        accumulator.run(aggregator, ((DownsampleConfig) node.config()).getInfectiousNan());
         if (accumulator.dp().value().isInteger()) {
           if (long_values != null) {
             long_values[i] = accumulator.dp().value().longValue();

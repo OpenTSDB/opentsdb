@@ -78,7 +78,7 @@ public class GroupByResult implements QueryResult {
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     this.next = next;
-    boolean group_all = ((GroupByConfig) node.config()).groupAll();
+    boolean group_all = ((GroupByConfig) node.config()).getGroupAll();
     groups = Maps.newHashMap();
     if (next.idType().equals(Const.TS_STRING_ID)) {
       for (final TimeSeries series : next.timeSeries()) {

@@ -70,38 +70,38 @@ public class ExpressionResult implements QueryResult {
    */
   void join() {
     final Iterable<Pair<TimeSeries, TimeSeries>> joins;
-    if ((node.expressionConfig().leftType() == OperandType.SUB_EXP || 
-        node.expressionConfig().leftType() == OperandType.VARIABLE) &&
-        (node.expressionConfig().rightType() == OperandType.SUB_EXP || 
-        node.expressionConfig().rightType() == OperandType.VARIABLE)) {
+    if ((node.expressionConfig().getLeftType() == OperandType.SUB_EXP || 
+        node.expressionConfig().getLeftType() == OperandType.VARIABLE) &&
+        (node.expressionConfig().getRightType() == OperandType.SUB_EXP || 
+        node.expressionConfig().getRightType() == OperandType.VARIABLE)) {
       final boolean use_alias = 
-          node.expressionConfig().leftType() != OperandType.VARIABLE ||
-              node.expressionConfig().rightType() != OperandType.VARIABLE;
+          node.expressionConfig().getLeftType() != OperandType.VARIABLE ||
+              node.expressionConfig().getRightType() != OperandType.VARIABLE;
       joins = node.joiner().join(results, 
           node.leftMetric() != null ? node.leftMetric() : 
-            ((String) node.expressionConfig().left()).getBytes(Const.UTF8_CHARSET), 
+            ((String) node.expressionConfig().getLeft()).getBytes(Const.UTF8_CHARSET), 
           node.rightMetric() != null ? node.rightMetric() : 
-            ((String) node.expressionConfig().right()).getBytes(Const.UTF8_CHARSET),
+            ((String) node.expressionConfig().getRight()).getBytes(Const.UTF8_CHARSET),
           use_alias);
-    } else if (node.expressionConfig().leftType() == OperandType.SUB_EXP || 
-        node.expressionConfig().leftType() == OperandType.VARIABLE) {
+    } else if (node.expressionConfig().getLeftType() == OperandType.SUB_EXP || 
+        node.expressionConfig().getLeftType() == OperandType.VARIABLE) {
       final boolean use_alias = 
-          node.expressionConfig().leftType() != OperandType.VARIABLE;
+          node.expressionConfig().getLeftType() != OperandType.VARIABLE;
       // left
       joins = node.joiner().join(
           results, 
           node.leftMetric() != null ? node.leftMetric() : 
-            ((String) node.expressionConfig().left()).getBytes(Const.UTF8_CHARSET), 
+            ((String) node.expressionConfig().getLeft()).getBytes(Const.UTF8_CHARSET), 
           true,
           use_alias);
     } else {
       final boolean use_alias = 
-          node.expressionConfig().rightType() != OperandType.VARIABLE;
+          node.expressionConfig().getRightType() != OperandType.VARIABLE;
       // right
       joins = node.joiner().join(
           results, 
           node.rightMetric() != null ? node.rightMetric() :
-            ((String)  node.expressionConfig().right()).getBytes(Const.UTF8_CHARSET), 
+            ((String)  node.expressionConfig().getRight()).getBytes(Const.UTF8_CHARSET), 
           false, 
           use_alias);
     }

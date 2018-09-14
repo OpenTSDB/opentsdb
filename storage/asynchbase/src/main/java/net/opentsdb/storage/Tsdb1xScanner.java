@@ -841,7 +841,7 @@ public class Tsdb1xScanner {
       }
 
       if (FilterUtils.matchesTags(
-          ((QuerySourceConfig) owner.node().config()).getFilter(), id.tags())) {
+          ((QuerySourceConfig) owner.node().config()).filter(), id.tags())) {
         synchronized (keepers) {
           keepers.add(hash);
         }

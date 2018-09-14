@@ -172,24 +172,29 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     return timezone;
   }
   
+  /** @return The non-null timezone string name.. */
+  public String getTimezone() {
+    return timezone.toString();
+  }
+  
   /** @return The non-null and non-empty aggregation function name. */
-  public String aggregator() {
+  public String getAggregator() {
     return aggregator;
   }
   
   /** @return Whether or not NaNs should be treated as sentinels or considered 
    * in arithmetic. */
-  public boolean infectiousNan() {
+  public boolean getInfectiousNan() {
     return infectious_nan;
   }
   
   /** @return Whether or not to downsample to a single value. */
-  public boolean runAll() {
+  public boolean getRunAll() {
     return run_all;
   }
   
   /** @return Whether or not to fill missing values. */
-  public boolean fill() {
+  public boolean getFill() {
     return fill;
   }
   
@@ -207,7 +212,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
    * Converts the units to a 2x style parseable string.
    * @return
    */
-  public String intervalAsString() {
+  public String getInterval() {
     switch (units) {
     case NANOS:
       return interval_part + "ns";
@@ -411,11 +416,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     n = node.get("id");
     if (n != null) {
       builder.setId(n.asText());
-    }
-    
-    n = node.get("timezone");
-    if (n != null) {
-      builder.setTimeZone(n.asText());
     }
     
     n = node.get("timezone");

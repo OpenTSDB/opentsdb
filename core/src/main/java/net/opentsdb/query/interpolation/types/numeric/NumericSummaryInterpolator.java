@@ -233,7 +233,7 @@ public class NumericSummaryInterpolator implements
         present++;
       }
       
-      if (present == config.expectedSummaries().size()) {
+      if (present == config.getExpectedSummaries().size()) {
         // all there!
         setReadAheads(next);
         has_next = true;
@@ -251,8 +251,8 @@ public class NumericSummaryInterpolator implements
    */
   @SuppressWarnings("unchecked")
   private void initialize() {
-    data = Maps.newHashMapWithExpectedSize(config.expectedSummaries().size());
-    for (final int summary : config.expectedSummaries()) {
+    data = Maps.newHashMapWithExpectedSize(config.getExpectedSummaries().size());
+    for (final int summary : config.getExpectedSummaries()) {
       data.put(summary, new ReadAheadNumericInterpolator(config.queryFill(summary)));
     }
     if (iterator != null) {

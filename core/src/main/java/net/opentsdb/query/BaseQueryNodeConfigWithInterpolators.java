@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -76,9 +77,14 @@ public abstract class BaseQueryNodeConfigWithInterpolators
     return id;
   }
   
-  /** @return The interpolator configs. May be null. */
+  /** @return The interpolator configs as a typed map. May be null. */
   public Map<TypeToken<?>, QueryInterpolatorConfig> interpolatorConfigs() {
     return interpolator_configs;
+  }
+  
+  /** @return The array of interpolator configs. */
+  public Collection<QueryInterpolatorConfig> getInterpolatorConfigs() {
+    return interpolator_configs.values();
   }
   
   @Override

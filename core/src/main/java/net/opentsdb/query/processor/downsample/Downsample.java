@@ -177,7 +177,7 @@ public class Downsample extends AbstractQueryNode {
       }
       
       final SemanticQuery query = (SemanticQuery) context.query();
-      if (config.runAll()) {
+      if (config.getRunAll()) {
         start = query.startTime();
         end = query.endTime();
       } else if (config.timezone() != Const.UTC) {
@@ -211,7 +211,7 @@ public class Downsample extends AbstractQueryNode {
     
     @Override
     public TimeSpecification timeSpecification() {
-      return config.fill() ? this : results.timeSpecification();
+      return config.getFill() ? this : results.timeSpecification();
     }
 
     @Override
@@ -260,7 +260,7 @@ public class Downsample extends AbstractQueryNode {
       if (timestamp == null) {
         throw new IllegalArgumentException("Timestamp cannot be null.");
       }
-      if (config.runAll()) {
+      if (config.getRunAll()) {
         timestamp.update(start);
       } else {
         final TimeStamp increment = new ZonedNanoTimeStamp(
@@ -273,7 +273,7 @@ public class Downsample extends AbstractQueryNode {
     }
     
     public void nextTimestamp(final TimeStamp timestamp) {
-      if (config.runAll()) {
+      if (config.getRunAll()) {
         timestamp.update(start);
       } else {
         timestamp.add(config.interval());
@@ -297,7 +297,7 @@ public class Downsample extends AbstractQueryNode {
 
     @Override
     public String stringInterval() {
-      return config.intervalAsString();
+      return config.getInterval();
     }
     
     @Override

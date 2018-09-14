@@ -27,6 +27,8 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.processor.topn.TopNConfig;
+import net.opentsdb.utils.JSON;
 
 public class TestQuerySourceConfig {
 
@@ -42,10 +44,10 @@ public class TestQuerySourceConfig {
         .addPushDownNode(mock(ExecutionGraphNode.class))
         .setId("UT")
         .build();
-    assertSame(query, qsc.getQuery());
+    assertSame(query, qsc.query());
     assertEquals("system.cpu.user", qsc.getMetric().getMetric());
     assertEquals("UT", qsc.getId());
-    assertEquals(1, qsc.pushDownNodes().size());
+    assertEquals(1, qsc.getPushDownNodes().size());
     assertFalse(qsc.pushDown());
     
     try {
@@ -73,13 +75,46 @@ public class TestQuerySourceConfig {
     
     QuerySourceConfig clone = QuerySourceConfig.newBuilder(qsc).build();
     assertNotSame(qsc, clone);
-    assertSame(query, clone.getQuery());
+    assertSame(query, clone.query());
     assertNotSame(qsc.getTypes(), clone.getTypes());
     assertEquals(2, clone.getTypes().size());
     assertTrue(clone.getTypes().contains("Numeric"));
     assertTrue(clone.getTypes().contains("Annotation"));
     assertSame(qsc.getMetric(), clone.getMetric());
     assertEquals("UT", clone.getId());
-    assertNull(clone.pushDownNodes());
+    assertNull(clone.getPushDownNodes());
+  }
+
+  @Test
+  public void serialize() throws Exception {
+    final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
+    QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setQuery(query)
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setFetchLast(true)
+        .addPushDownNode(ExecutionGraphNode.newBuilder()
+            .setId("topn")
+            .setConfig(TopNConfig.newBuilder()
+                .setTop(true)
+                .setCount(10)
+                .setInfectiousNan(true)
+                .setId("Toppy")
+                .build())
+            .build())
+        .setId("UT")
+        .build();
+    
+    final String json = JSON.serializeToString(qsc);
+    assertTrue(json.contains("\"id\":\"UT\""));
+    assertTrue(json.contains("\"metric\":{"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+    assertTrue(json.contains("\"type\":\"MetricLiteral\""));
+    assertTrue(json.contains("\"filterId\":\"f1\""));
+    assertTrue(json.contains("\"fetchLast\":true"));
+    assertTrue(json.contains("\"pushDownNodes\":["));
+    assertTrue(json.contains("\"id\":\"topn\""));
   }
 }

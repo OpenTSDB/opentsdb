@@ -837,7 +837,7 @@ public class Tsdb1xBigtableScanner {
         grand_child = child;
       }
       if (FilterUtils.matchesTags(
-          ((QuerySourceConfig) owner.node().config()).getFilter(), id.tags())) {
+          ((QuerySourceConfig) owner.node().config()).filter(), id.tags())) {
         synchronized (keepers) {
           keepers.add(hash);
         }

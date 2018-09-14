@@ -35,6 +35,7 @@ import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.utils.JSON;
 
 public class TestNumericSummaryInterpolatorConfig {
   
@@ -53,21 +54,21 @@ public class TestNumericSummaryInterpolatorConfig {
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
       .setComponentAggregator(Aggregators.SUM)
-      .setId("myId")
+      .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
-    assertEquals(FillPolicy.NOT_A_NUMBER, config.defaultFillPolicy());
-    assertEquals(FillWithRealPolicy.NEXT_ONLY, config.defaultRealFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, config.getDefaultFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, config.getDefaultRealFillPolicy());
     assertEquals(1, config.summary_fill_policy_overrides.size());
     assertEquals(FillPolicy.ZERO, config.summary_fill_policy_overrides.get(0));
     assertEquals(1, config.summary_real_fill_overrides.size());
     assertEquals(FillWithRealPolicy.PREFER_NEXT, config.summary_real_fill_overrides.get(1));
-    assertEquals(2, config.expectedSummaries().size());
-    assertTrue(config.expectedSummaries().contains(0));
-    assertTrue(config.expectedSummaries().contains(1));
+    assertEquals(2, config.getExpectedSummaries().size());
+    assertTrue(config.getExpectedSummaries().contains(0));
+    assertTrue(config.getExpectedSummaries().contains(1));
     assertTrue(config.sync());
     assertSame(Aggregators.SUM, config.componentAggregator());
-    assertEquals("myId", config.id());
+    assertEquals("myId", config.getType());
     assertEquals(NumericSummaryType.TYPE, config.type());
     
     // adders where proper
@@ -82,18 +83,18 @@ public class TestNumericSummaryInterpolatorConfig {
         .setComponentAggregator(Aggregators.SUM)
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
-    assertEquals(FillPolicy.NOT_A_NUMBER, config.defaultFillPolicy());
-    assertEquals(FillWithRealPolicy.NEXT_ONLY, config.defaultRealFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, config.getDefaultFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, config.getDefaultRealFillPolicy());
     assertEquals(1, config.summary_fill_policy_overrides.size());
     assertEquals(FillPolicy.ZERO, config.summary_fill_policy_overrides.get(0));
     assertEquals(1, config.summary_real_fill_overrides.size());
     assertEquals(FillWithRealPolicy.PREFER_NEXT, config.summary_real_fill_overrides.get(1));
-    assertEquals(2, config.expectedSummaries().size());
-    assertTrue(config.expectedSummaries().contains(0));
-    assertTrue(config.expectedSummaries().contains(1));
+    assertEquals(2, config.getExpectedSummaries().size());
+    assertTrue(config.getExpectedSummaries().contains(0));
+    assertTrue(config.getExpectedSummaries().contains(1));
     assertTrue(config.sync());
     assertSame(Aggregators.SUM, config.componentAggregator());
-    assertNull(config.id());
+    assertNull(config.getType());
     assertEquals(NumericSummaryType.TYPE, config.type());
     
     // just the bare minimums.
@@ -103,12 +104,12 @@ public class TestNumericSummaryInterpolatorConfig {
         .addExpectedSummary(0)
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
-    assertEquals(FillPolicy.NOT_A_NUMBER, config.defaultFillPolicy());
-    assertEquals(FillWithRealPolicy.NEXT_ONLY, config.defaultRealFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, config.getDefaultFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, config.getDefaultRealFillPolicy());
     assertNull(config.summary_fill_policy_overrides);
     assertNull(config.summary_real_fill_overrides);
-    assertEquals(1, config.expectedSummaries().size());
-    assertTrue(config.expectedSummaries().contains(0));
+    assertEquals(1, config.getExpectedSummaries().size());
+    assertTrue(config.getExpectedSummaries().contains(0));
     assertFalse(config.sync());
     assertNull(config.componentAggregator());
     
@@ -203,27 +204,27 @@ public class TestNumericSummaryInterpolatorConfig {
     assertTrue(fill instanceof BaseNumericFillPolicy);
     NumericInterpolatorConfig nic = (NumericInterpolatorConfig) (
         (BaseNumericFillPolicy) fill).config();
-    assertEquals(FillPolicy.ZERO, nic.fillPolicy());
-    assertEquals(FillWithRealPolicy.NEXT_ONLY, nic.realFillPolicy());
+    assertEquals(FillPolicy.ZERO, nic.getFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, nic.getRealFillPolicy());
     
     fill = config.queryFill(1);
     assertTrue(fill instanceof BaseNumericFillPolicy);
     nic = (NumericInterpolatorConfig) ((BaseNumericFillPolicy) fill).config();
-    assertEquals(FillPolicy.NOT_A_NUMBER, nic.fillPolicy());
-    assertEquals(FillWithRealPolicy.PREFER_NEXT, nic.realFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, nic.getFillPolicy());
+    assertEquals(FillWithRealPolicy.PREFER_NEXT, nic.getRealFillPolicy());
     
     fill = config.queryFill(2);
     assertTrue(fill instanceof BaseNumericFillPolicy);
     nic = (NumericInterpolatorConfig) ((BaseNumericFillPolicy) fill).config();
-    assertEquals(FillPolicy.NOT_A_NUMBER, nic.fillPolicy());
-    assertEquals(FillWithRealPolicy.NEXT_ONLY, nic.realFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, nic.getFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, nic.getRealFillPolicy());
     
     // not expected
     fill = config.queryFill(3);
     assertTrue(fill instanceof BaseNumericFillPolicy);
     nic = (NumericInterpolatorConfig) ((BaseNumericFillPolicy) fill).config();
-    assertEquals(FillPolicy.NOT_A_NUMBER, nic.fillPolicy());
-    assertEquals(FillWithRealPolicy.NEXT_ONLY, nic.realFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, nic.getFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, nic.getRealFillPolicy());
   }
 
   @Test
@@ -241,7 +242,7 @@ public class TestNumericSummaryInterpolatorConfig {
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
       .setComponentAggregator(Aggregators.SUM)
-      .setId("myId")
+      .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     
@@ -258,7 +259,7 @@ public class TestNumericSummaryInterpolatorConfig {
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
       .setComponentAggregator(Aggregators.SUM)
-      .setId("myId")
+      .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     assertEquals(c1.hashCode(), c2.hashCode());
@@ -277,7 +278,7 @@ public class TestNumericSummaryInterpolatorConfig {
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
       .setComponentAggregator(Aggregators.SUM)
-      .setId("myId")
+      .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -296,7 +297,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -315,7 +316,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -334,7 +335,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -353,7 +354,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -372,7 +373,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -391,7 +392,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(1, 0)) // Diff order but ok!
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertEquals(c1.hashCode(), c2.hashCode());
@@ -410,7 +411,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 2)) // <-- DIFF
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -429,7 +430,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0)) // <-- DIFF
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -448,7 +449,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         //.setSync(true) 
         .setComponentAggregator(Aggregators.SUM)
-        .setId("myId")
+        .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -467,11 +468,40 @@ public class TestNumericSummaryInterpolatorConfig {
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM)
-        .setId("other") // <--DIFF
+        .setType("other") // <--DIFF
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
     assertEquals(-1, c1.compareTo(c2));
+  }
+
+  @Test
+  public void serialize() throws Exception {
+    NumericSummaryInterpolatorConfig config = 
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+      .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+      .setFillPolicyOverrides(ImmutableMap.<Integer, FillPolicy>builder()
+          .put(0, FillPolicy.ZERO)
+          .build())
+      .setRealFillPolicyOverrides(ImmutableMap.<Integer, FillWithRealPolicy>builder()
+          .put(1, FillWithRealPolicy.PREFER_NEXT)
+          .build())
+      .setExpectedSummaries(Lists.newArrayList(0, 1))
+      .setSync(true)
+      .setComponentAggregator(Aggregators.SUM)
+      .setType("myId")
+      .setDataType(NumericSummaryType.TYPE.toString())
+      .build();
+    
+    final String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"defaultFillPolicy\":\"nan\""));
+    assertTrue(json.contains("\"defaultRealFillPolicy\":\"NEXT_ONLY\""));
+    assertTrue(json.contains("\"expectedSummaries\":[0,1]"));
+    assertTrue(json.contains("\"fillPolicyOverrides\":{\"0\":\"zero\"}"));
+    assertTrue(json.contains("\"realFillPolicyOverrides\":{\"1\":\"PREFER_NEXT\"}"));
+    assertTrue(json.contains("\"type\":\"myId\""));
+    assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericSummaryType\""));
   }
 }

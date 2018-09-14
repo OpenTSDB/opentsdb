@@ -30,32 +30,31 @@ public class TestBaseInterpolatorConfig {
   @Test
   public void builder() throws Exception {
     QueryInterpolatorConfig config = TestInterpolatorConfig.newBuilder()
-        .setId("myid")
+        .setType("myid")
         .setDataType("numeric")
         .build();
-    assertEquals("myid", config.id());
-    assertNull(config.interpolatorType());
+    assertEquals("myid", config.getType());
+    assertEquals("numeric", config.getDataType());
     assertNull(config.type());
     
     config = TestInterpolatorConfig.newBuilder()
         .setType("LERP")
         .setDataType("numeric")
         .build();
-    assertNull(config.id());
-    assertEquals("LERP", config.interpolatorType());
+    assertEquals("LERP", config.getType());
+    assertEquals("numeric", config.getDataType());
     assertNull(config.type());
     
     config = TestInterpolatorConfig.newBuilder()
-        .setId("")
+        .setType("")
         .setDataType("numeric")
         .build();
-    assertEquals("", config.id());
-    assertNull(config.interpolatorType());
+    assertEquals("", config.getType());
+    assertEquals("numeric", config.getDataType());
     assertNull(config.type());
     
     try {
       TestInterpolatorConfig.newBuilder()
-        .setId("myid")
         .setType("")
         .build();
       fail("Expected IllegalArgumentException");

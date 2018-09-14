@@ -249,7 +249,7 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setId("interp")
+            .setType("interp")
             .setDataType(NumericType.TYPE.toString())
             .build())
         .build());

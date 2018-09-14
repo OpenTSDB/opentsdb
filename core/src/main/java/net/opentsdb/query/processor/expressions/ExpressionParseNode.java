@@ -14,6 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
@@ -28,6 +32,8 @@ import net.opentsdb.query.QueryNodeConfig;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = ExpressionParseNode.Builder.class)
 public class ExpressionParseNode extends BaseQueryNodeConfig {
   
   /**
@@ -130,48 +136,48 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
    */
   protected ExpressionParseNode(final Builder builder) {
     super(builder);
-    if (builder.expression_config == null) {
+    if (builder.expressionConfig == null) {
       throw new IllegalArgumentException("Missing parent expression config.");
     }
     this.id = super.getId();
     left = builder.left;
-    left_type = builder.left_type;
+    left_type = builder.leftType;
     right = builder.right;
-    right_type = builder.right_type;
+    right_type = builder.rightType;
     op = builder.op;
     negate = builder.negate;
     not = builder.not;
     as = id;
-    expression_config = builder.expression_config;
+    expression_config = builder.expressionConfig;
   }
   
   /** @return The name to use for the metric. Defaults to the ID. */
-  public String as() {
+  public String getAs() {
     return as;
   }
   
   /** @return The left operand. */
-  public Object left() {
+  public Object getLeft() {
     return left;
   }
   
   /** @return The type of the left operand. */
-  public OperandType leftType() {
+  public OperandType getLeftType() {
     return left_type;
   }
   
   /** @return The right operand. */
-  public Object right() {
+  public Object getRight() {
     return right;
   }
   
   /** @return The type of the right operand. */
-  public OperandType rightType() {
+  public OperandType getRightType() {
     return right_type;
   }
   
   /** @return The operator. */
-  public ExpressionOp operator() {
+  public ExpressionOp getOperator() {
     return op;
   }
   
@@ -181,7 +187,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
   
   /** @return Whether or not to negate the output. */
-  public boolean negate() {
+  public boolean getNegate() {
     return negate;
   }
   
@@ -191,7 +197,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
   
   /** @return Whether or not to "not" the output. */
-  public boolean not() {
+  public boolean getNot() {
     return not;
   }
   
@@ -206,7 +212,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
   
   /** @return The original expressionConfig. */
-  public ExpressionConfig expressionConfig() {
+  public ExpressionConfig getExpressionConfig() {
     return expression_config;
   }
   
@@ -290,14 +296,22 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
   
   static class Builder extends BaseQueryNodeConfig.Builder {
+    @JsonProperty
     private Object left;
-    private OperandType left_type;
+    @JsonProperty
+    private OperandType leftType;
+    @JsonProperty
     private Object right;
-    private OperandType right_type;
+    @JsonProperty
+    private OperandType rightType;
+    @JsonProperty
     private ExpressionOp op;
+    @JsonProperty
     private boolean negate;
+    @JsonProperty
     private boolean not;
-    private ExpressionConfig expression_config;
+    @JsonProperty
+    private ExpressionConfig expressionConfig;
     
     public Builder setLeft(final Object left) {
       this.left = left;
@@ -305,7 +319,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     }
     
     public Builder setLeftType(final OperandType left_type) {
-      this.left_type = left_type;
+      this.leftType = left_type;
       return this;
     }
     
@@ -315,7 +329,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     }
     
     public Builder setRightType(final OperandType right_type) {
-      this.right_type = right_type;
+      this.rightType = right_type;
       return this;
     }
     
@@ -335,7 +349,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     }
     
     public Builder setExpressionConfig(final ExpressionConfig expression_config) {
-      this.expression_config = expression_config;
+      this.expressionConfig = expression_config;
       return this;
     }
     

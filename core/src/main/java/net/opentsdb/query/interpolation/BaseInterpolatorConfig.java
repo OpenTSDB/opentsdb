@@ -24,9 +24,6 @@ import com.google.common.base.Strings;
  */
 public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig {
 
-  /** The ID, may be null. */
-  protected final String id;
-  
   /** The non-null data type ID. */
   protected final String interpolator_type;
   
@@ -42,35 +39,27 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
       throw new IllegalArgumentException("Data type cannot be null "
           + "or empty.");
     }
-    id = builder.id;
     interpolator_type = builder.type;
     data_type = builder.dataType;
   }
   
   /** @return The ID. */
   @Override
-  public String id() {
-    return id;
+  public String getType() {
+    return interpolator_type;
   }
   
   /** @return The data type for this config. */
   @Override
-  public String interpolatorType() {
-    return interpolator_type;
+  public String getDataType() {
+    return data_type;
   }
     
   public static abstract class Builder {
     @JsonProperty
-    protected String id;
-    @JsonProperty
     protected String type;
     @JsonProperty
     protected String dataType;
-    
-    public Builder setId(final String id) {
-      this.id = id;
-      return this;
-    }
     
     public Builder setType(final String type) {
       this.type = type;

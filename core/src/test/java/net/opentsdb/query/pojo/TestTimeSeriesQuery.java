@@ -666,8 +666,8 @@ public class TestTimeSeriesQuery {
     assertEquals(1, node.getSources().size());
     assertTrue(node.getSources().contains("m1"));
     DownsampleConfig dsc = (DownsampleConfig) node.getConfig();
-    assertEquals("15m", dsc.intervalAsString());
-    assertEquals("avg", dsc.aggregator());
+    assertEquals("15m", dsc.getInterval());
+    assertEquals("avg", dsc.getAggregator());
     
     node = query.getExecutionGraph().getNodes().get(3);
     assertEquals("m1_GroupBy", node.getId());

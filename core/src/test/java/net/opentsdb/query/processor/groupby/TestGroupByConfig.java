@@ -32,6 +32,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.utils.JSON;
 
 public class TestGroupByConfig {
   private NumericInterpolatorConfig numeric_config;
@@ -70,7 +71,7 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertFalse(config.groupAll());
+    assertFalse(config.getGroupAll());
     assertSame(numeric_config, config.interpolatorConfigs().get(NumericType.TYPE));
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
@@ -84,7 +85,7 @@ public class TestGroupByConfig {
     assertEquals("sum", config.getAggregator());
     assertEquals("GBy", config.getId());
     assertNull(config.getTagKeys());
-    assertTrue(config.groupAll());
+    assertTrue(config.getGroupAll());
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -100,7 +101,7 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertTrue(config.groupAll());
+    assertTrue(config.getGroupAll());
     
     try {
       GroupByConfig.newBuilder()
@@ -139,7 +140,7 @@ public class TestGroupByConfig {
     assertNull(config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertFalse(config.groupAll());
+    assertFalse(config.getGroupAll());
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -153,7 +154,7 @@ public class TestGroupByConfig {
       assertEquals("", config.getId());
       assertTrue(config.getTagKeys().contains("host"));
       assertTrue(config.getTagKeys().contains("dc"));
-      assertFalse(config.groupAll());
+      assertFalse(config.getGroupAll());
     
     try {
       GroupByConfig.newBuilder()
@@ -176,5 +177,26 @@ public class TestGroupByConfig {
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void serialize() throws Exception {
+    GroupByConfig config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .setTagKeys(Sets.newHashSet("host"))
+        .addTagKey("dc")
+        .setId("GBy")
+        .addInterpolatorConfig(numeric_config)
+        .build();
+    
+    final String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"id\":\"GBy\""));
+    assertTrue(json.contains("\"aggregator\":\"sum\""));
+    assertTrue(json.contains("\"tagKeys\":["));
+    assertTrue(json.contains("host"));
+    assertTrue(json.contains("dc"));
+    assertTrue(json.contains("\"groupAll\":false"));
+    assertTrue(json.contains("\"infectiousNan\":false"));
+    assertTrue(json.contains("\"interpolatorConfigs\":["));
   }
 }

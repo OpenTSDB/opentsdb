@@ -21,6 +21,7 @@ import java.util.Map;
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
 import org.jgrapht.graph.DefaultEdge;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -39,6 +40,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 
 /**
  * Returns a node and iterators for a binary expression (usually created
@@ -73,10 +76,97 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
-      JsonNode node) {
-    // TODO Auto-generated method stub
-    return null;
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    ExpressionParseNode.Builder builder = ExpressionParseNode.newBuilder();
+    
+    OperandType left_type;
+    OperandType right_type;
+    
+    JsonNode n = node.get("leftType");
+    if (n == null) {
+      throw new IllegalArgumentException("Node must have the left type.");
+    }
+    try {
+      left_type = mapper.treeToValue(n, OperandType.class);
+      builder.setLeftType(left_type);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Failed to parse left type.", e);
+    }
+    
+    n = node.get("rightType");
+    if (n == null) {
+      throw new IllegalArgumentException("Node must have the right type.");
+    }
+    try {
+      right_type = mapper.treeToValue(n, OperandType.class);
+      builder.setRightType(right_type);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Failed to parse right type.", e);
+    }
+    
+    n = node.get("left");
+    if (n == null && left_type != OperandType.NULL) {
+      throw new IllegalArgumentException("Left operand cannot be null.");
+    }
+    
+    switch(left_type) {
+    case LITERAL_NUMERIC:
+      if (NumericType.looksLikeInteger(n.asText())) {
+        builder.setLeft(new ExpressionParser.NumericLiteral(n.asLong()));
+      } else {
+        builder.setLeft(new ExpressionParser.NumericLiteral(n.asDouble()));
+      }
+      break;
+    default:
+      builder.setLeft(n.asText());
+    }
+    
+    n = node.get("right");
+    if (n == null && right_type != OperandType.NULL) {
+      throw new IllegalArgumentException("Right operand cannot be null.");
+    }
+    switch(right_type) {
+    case LITERAL_NUMERIC:
+      if (NumericType.looksLikeInteger(n.asText())) {
+        builder.setRight(new ExpressionParser.NumericLiteral(n.asLong()));
+      } else {
+        builder.setRight(new ExpressionParser.NumericLiteral(n.asDouble()));
+      }
+      break;
+    default:
+      builder.setRight(n.asText());
+    }
+    
+    n = node.get("operator");
+    if (n == null) {
+      throw new IllegalArgumentException("Operation cannot be null.");
+    }
+    try {
+      builder.setExpressionOp( mapper.treeToValue(n, ExpressionOp.class));
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Failed to parse op.", e);
+    }
+    
+    n = node.get("not");
+    if (n != null) {
+      builder.setNot(n.asBoolean());
+    }
+    
+    n = node.get("negate");
+    if (n != null) {
+      builder.setNegate(n.asBoolean());
+    }
+    
+    n = node.get("expressionConfig");
+    if (n == null) {
+      throw new IllegalArgumentException("The expressionConfig cannot "
+          + "be null.");
+    }
+    builder.setExpressionConfig(ExpressionConfig.parse(mapper, tsdb, n));
+    
+    return builder.build();
   }
 
   @Override

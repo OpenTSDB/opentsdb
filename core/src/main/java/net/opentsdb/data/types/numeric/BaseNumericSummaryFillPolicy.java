@@ -67,10 +67,10 @@ public class BaseNumericSummaryFillPolicy implements
   public NumericSummaryType fill() {
     // re-do fill
     value.clear();
-    for (final int summary : config.expectedSummaries()) {
+    for (final int summary : config.getExpectedSummaries()) {
       FillPolicy fill = config.fillPolicy(summary);
       if (fill == null) {
-        fill = config.defaultFillPolicy();
+        fill = config.getDefaultFillPolicy();
       }
       switch(fill) {
       case NONE:
@@ -103,7 +103,7 @@ public class BaseNumericSummaryFillPolicy implements
 
   @Override
   public FillWithRealPolicy realPolicy() {
-    return config.defaultRealFillPolicy();
+    return config.getDefaultRealFillPolicy();
   }
   
   public FillWithRealPolicy realPolicy(final int summary) {

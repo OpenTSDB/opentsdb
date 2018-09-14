@@ -41,7 +41,6 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 
 /**
@@ -100,7 +99,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     }
     this.result = (DownsampleResult) result;
     this.source = source;
-    aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
+    aggregator = Aggregators.get(((DownsampleConfig) node.config()).getAggregator());
     config = (DownsampleConfig) node.config();
     
     QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericSummaryType.TYPE);
@@ -112,16 +111,16 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       
       NumericSummaryInterpolatorConfig.Builder nsic = 
           NumericSummaryInterpolatorConfig.newBuilder()
-          .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).fillPolicy())
-          .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).realFillPolicy());
-      if (config.aggregator().equals("avg")) {
+          .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
+          .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
+      if (config.getAggregator().equals("avg")) {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
         .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
         .setSync(true)
         .setComponentAggregator(Aggregators.SUM);
       } else {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
-            DefaultRollupConfig.queryToRollupAggregation(config.aggregator())));
+            DefaultRollupConfig.queryToRollupAggregation(config.getAggregator())));
       }
       interpolator_config = nsic
           .setDataType(NumericSummaryType.TYPE.toString())
@@ -130,10 +129,10 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     this.interpolator_config = (NumericSummaryInterpolatorConfig) interpolator_config;
     
     QueryInterpolatorFactory factory = node.pipelineContext().tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-        interpolator_config.id());
+        interpolator_config.getType());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
+          interpolator_config.getDataType() == null ? "Default" : interpolator_config.getDataType());
     }
     
     QueryInterpolator<?> interp = factory.newInterpolator(
@@ -142,7 +141,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
-          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
+          interpolator_config.getDataType() == null ? "Default" : interpolator_config.getDataType());
     }
     interpolator = (QueryInterpolator<NumericSummaryType>) interp;
     interval_ts = this.result.start().getCopy();
@@ -154,7 +153,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         has_next = true;
       }
       
-      if (!config.fill()) {
+      if (!config.getFill()) {
         // advance to the first real value
         while (interpolator.nextReal().compare(Op.GT, interval_ts)) {
           this.result.nextTimestamp(interval_ts);
@@ -175,7 +174,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     dp.reset(interpolator.next(interval_ts));
     result.nextTimestamp(interval_ts);
     has_next = false;
-    if (config.fill() && !config.runAll()) {
+    if (config.getFill() && !config.getRunAll()) {
       if (interval_ts.compare(Op.GTE, result.end())) {
         has_next = false;
       } else {
@@ -234,7 +233,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     @SuppressWarnings("unchecked")
     Downsampler() {
       interval_start = result.start().getCopy();
-      if (config.runAll()) {
+      if (config.getRunAll()) {
         interval_end = result.end().getCopy();
       } else {
         interval_end = result.start().getCopy();
@@ -297,13 +296,13 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
           break;
         }
         
-        if (config.runAll() || 
-            next_dp.timestamp().compare(config.runAll() ? 
+        if (config.getRunAll() || 
+            next_dp.timestamp().compare(config.getRunAll() ? 
                 Op.LTE : Op.LT, interval_end)) {
           // when running through all the dps, make sure we don't go over the 
           // end timestamp of the query.
-          if (config.runAll() && 
-              next_dp.timestamp().compare(config.runAll() ? 
+          if (config.getRunAll() && 
+              next_dp.timestamp().compare(config.getRunAll() ? 
                   Op.GT : Op.GTE, interval_end)) {
             next_dp = null;
             break;
@@ -324,7 +323,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
              
               if (!value.isInteger() && 
                   Double.isNaN(value.doubleValue())) {
-                if (config.infectiousNan()) {
+                if (config.getInfectiousNan()) {
                   accumulator.add(Double.NaN);
                 }
               } else if (value != null) {
@@ -355,7 +354,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         } else if (!data_in_iteration) {
           result.nextTimestamp(interval_start);
           result.nextTimestamp(interval_end);
-          if (interval_start.compare(config.runAll()? 
+          if (interval_start.compare(config.getRunAll()? 
               Op.GT : Op.GTE, result.end())) {
             next_dp = null;
             break;
@@ -420,7 +419,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       
       result.nextTimestamp(interval_start);
       result.nextTimestamp(interval_end);
-      if (interval_start.compare(config.runAll() ? 
+      if (interval_start.compare(config.getRunAll() ? 
           Op.GT : Op.GTE, result.end())) {
         next_dp = null;
       }

@@ -77,7 +77,7 @@ public class ExpressionNumericSummaryIterator extends
       QueryInterpolatorConfig interpolator_config = 
           ((ExpressionConfig) node.config()).interpolatorConfig(
               NumericSummaryType.TYPE, 
-              (String) this.node.expressionConfig().left());
+              (String) this.node.expressionConfig().getLeft());
       if (interpolator_config == null) {
         interpolator_config = 
             ((ExpressionConfig) node.config())
@@ -88,7 +88,7 @@ public class ExpressionNumericSummaryIterator extends
         interpolator_config = 
             ((ExpressionConfig) node.config()).interpolatorConfig(
                 NumericType.TYPE, 
-                  (String) this.node.expressionConfig().left());
+                  (String) this.node.expressionConfig().getLeft());
         if (interpolator_config == null) {
           interpolator_config = 
               ((ExpressionConfig) node.config())
@@ -103,9 +103,9 @@ public class ExpressionNumericSummaryIterator extends
         NumericSummaryInterpolatorConfig.Builder nsic = 
             NumericSummaryInterpolatorConfig.newBuilder()
             .setDefaultFillPolicy(
-                ((NumericInterpolatorConfig) interpolator_config).fillPolicy())
+                ((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
             .setDefaultRealFillPolicy(
-                ((NumericInterpolatorConfig) interpolator_config).realFillPolicy());
+                ((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
         // we need expected summaries. Without reading the data we don't know
         // what to expect. So grab em all
         for (final int summary : result.rollupConfig().getAggregationIds().values()) {
@@ -113,17 +113,18 @@ public class ExpressionNumericSummaryIterator extends
         }
         interpolator_config = nsic
             .setDataType(NumericSummaryType.TYPE.toString())
-            .setId(null)
+            .setType(null)
             .build();
       }
       
       final QueryInterpolatorFactory factory = 
           node.pipelineContext().tsdb().getRegistry().getPlugin(
               QueryInterpolatorFactory.class, 
-              interpolator_config.id());
+              interpolator_config.getType());
       if (factory == null) {
         throw new IllegalArgumentException("No interpolator factory found for: " + 
-            (interpolator_config.id() == null ? "Default" : interpolator_config.id()));
+            (interpolator_config.getType() == null ? "Default" : 
+              interpolator_config.getType()));
       }
       
       left_interpolator = (QueryInterpolator<NumericSummaryType>) factory.newInterpolator(
@@ -141,7 +142,7 @@ public class ExpressionNumericSummaryIterator extends
       QueryInterpolatorConfig interpolator_config = 
           ((ExpressionConfig) node.config()).interpolatorConfig(
               NumericSummaryType.TYPE, 
-              (String) this.node.expressionConfig().right());
+              (String) this.node.expressionConfig().getRight());
       if (interpolator_config == null) {
         interpolator_config = 
             ((ExpressionConfig) node.config())
@@ -152,7 +153,7 @@ public class ExpressionNumericSummaryIterator extends
         interpolator_config = 
             ((ExpressionConfig) node.config()).interpolatorConfig(
                 NumericType.TYPE, 
-                  (String) this.node.expressionConfig().right());
+                  (String) this.node.expressionConfig().getRight());
         if (interpolator_config == null) {
           interpolator_config = 
               ((ExpressionConfig) node.config())
@@ -167,9 +168,9 @@ public class ExpressionNumericSummaryIterator extends
         NumericSummaryInterpolatorConfig.Builder nsic = 
             NumericSummaryInterpolatorConfig.newBuilder()
             .setDefaultFillPolicy(
-                ((NumericInterpolatorConfig) interpolator_config).fillPolicy())
+                ((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
             .setDefaultRealFillPolicy(
-                ((NumericInterpolatorConfig) interpolator_config).realFillPolicy());
+                ((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
         // we need expected summaries. Without reading the data we don't know
         // what to expect. So grab em all
         for (final int summary : result.rollupConfig().getAggregationIds().values()) {
@@ -177,17 +178,18 @@ public class ExpressionNumericSummaryIterator extends
         }
         interpolator_config = nsic
             .setDataType(NumericSummaryType.TYPE.toString())
-            .setId(null)
+            .setType(null)
             .build();
       }
       
       final QueryInterpolatorFactory factory = 
           node.pipelineContext().tsdb().getRegistry().getPlugin(
               QueryInterpolatorFactory.class, 
-              interpolator_config.id());
+              interpolator_config.getType());
       if (factory == null) {
         throw new IllegalArgumentException("No interpolator factory found for: " + 
-            interpolator_config.id() == null ? "Default" : interpolator_config.id());
+            interpolator_config.getType() == null ? "Default" : 
+              interpolator_config.getType());
       }
       
       right_interpolator = (QueryInterpolator<NumericSummaryType>) factory.newInterpolator(
@@ -270,7 +272,7 @@ public class ExpressionNumericSummaryIterator extends
           right_literal : right.value(summary);
       
       final NumericType result;
-      switch (node.expressionConfig().operator()) {
+      switch (node.expressionConfig().getOperator()) {
       // logical
       case OR:
       case AND:
@@ -302,7 +304,7 @@ public class ExpressionNumericSummaryIterator extends
       default:
         throw new QueryDownstreamException("Expression iterator was "
             + "told to handle the unexpected operator: " 
-            + node.expressionConfig().operator());
+            + node.expressionConfig().getOperator());
       }
       
       if (result != null) {

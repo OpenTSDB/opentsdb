@@ -28,6 +28,7 @@ import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.utils.JSON;
 
 public class TestNumericInterpolatorConfig {
 
@@ -39,8 +40,8 @@ public class TestNumericInterpolatorConfig {
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
         .build();
-    assertEquals(FillPolicy.NOT_A_NUMBER, config.fillPolicy());
-    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.realFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, config.getFillPolicy());
+    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.getRealFillPolicy());
     
     try {
       NumericInterpolatorConfig.newBuilder()
@@ -130,7 +131,7 @@ public class TestNumericInterpolatorConfig {
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
-        .setId("ni")
+        .setType("ni")
         .build();
     
     NumericInterpolatorConfig c2 = (NumericInterpolatorConfig) 
@@ -138,7 +139,7 @@ public class TestNumericInterpolatorConfig {
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
-        .setId("ni")
+        .setType("ni")
         .build();
     assertEquals(c1.hashCode(), c2.hashCode());
     assertEquals(c1, c2);
@@ -149,7 +150,7 @@ public class TestNumericInterpolatorConfig {
         .setFillPolicy(FillPolicy.MAX) // <-- DIFF
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
-        .setId("ni")
+        .setType("ni")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -160,7 +161,7 @@ public class TestNumericInterpolatorConfig {
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS) // <-- DIFF
         .setDataType(NumericType.TYPE.toString())
-        .setId("ni")
+        .setType("ni")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -171,7 +172,7 @@ public class TestNumericInterpolatorConfig {
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericSummaryType.TYPE.toString()) // <-- DIFF
-        .setId("ni")
+        .setType("ni")
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
@@ -182,10 +183,28 @@ public class TestNumericInterpolatorConfig {
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
-        .setId("foo") // <-- DIFF
+        .setType("foo") // <-- DIFF
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
     assertEquals(1, c1.compareTo(c2));
+  }
+
+  @Test
+  public void serialize() throws Exception {
+    NumericInterpolatorConfig config = (NumericInterpolatorConfig) 
+        NumericInterpolatorConfig.newBuilder()
+          .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+          .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+          .setDataType(NumericType.TYPE.toString())
+          .setType("LERP")
+          .build();
+    
+    final String json = JSON.serializeToString(config);
+    System.out.println(json);
+    assertTrue(json.contains("\"type\":\"LERP\""));
+    assertTrue(json.contains("\"fillPolicy\":\"nan\""));
+    assertTrue(json.contains("\"realFillPolicy\":\"PREFER_NEXT\""));
+    assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\""));
   }
 }
