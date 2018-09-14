@@ -28,9 +28,11 @@ import net.opentsdb.core.TSDB;
  */
 public class NotFilterFactory implements QueryFilterFactory {
 
+  static final String TYPE = "Not";
+  
   @Override
   public String getType() {
-    return "Not";
+    return TYPE;
   }
 
   @Override

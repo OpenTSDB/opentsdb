@@ -40,6 +40,11 @@ public class NotFilter implements NestedQueryFilter {
     return filter;
   }
   
+  @Override
+  public String getType() {
+    return NotFilterFactory.TYPE;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }

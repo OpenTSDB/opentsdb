@@ -104,7 +104,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     if (builder.filters != null) {
       filters = Maps.newHashMap();
       for (final NamedFilter filter : builder.filters) {
-        filters.put(filter.id(), filter);
+        filters.put(filter.getId(), filter);
       }
     } else {
       filters = Maps.newHashMapWithExpectedSize(0);
@@ -166,7 +166,7 @@ public class SemanticQuery implements TimeSeriesQuery {
   
   @Override
   public QueryFilter getFilter(final String filter_id) {
-    return filters == null ? null : filters.get(filter_id).filter();
+    return filters == null ? null : filters.get(filter_id).getFilter();
   }
   
   @Override 

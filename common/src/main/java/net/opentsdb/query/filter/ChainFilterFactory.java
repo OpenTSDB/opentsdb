@@ -32,10 +32,11 @@ import net.opentsdb.query.filter.ChainFilter.FilterOp;
  */
 public class ChainFilterFactory implements QueryFilterFactory {
 
+  static final String TYPE = "Chain";
+  
   @Override
   public String getType() {
-    // TODO Auto-generated method stub
-    return null;
+    return TYPE;
   }
 
   @Override

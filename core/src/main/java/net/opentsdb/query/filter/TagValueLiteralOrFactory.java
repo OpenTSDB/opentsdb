@@ -28,9 +28,11 @@ import net.opentsdb.core.TSDB;
  */
 public class TagValueLiteralOrFactory implements QueryFilterFactory {
 
+  static final String TYPE = "TagValueLiteralOr";
+  
   @Override
   public String getType() {
-    return "TagValueLiteralOr";
+    return TYPE;
   }
 
   public QueryFilter parse(final TSDB tsdb, 

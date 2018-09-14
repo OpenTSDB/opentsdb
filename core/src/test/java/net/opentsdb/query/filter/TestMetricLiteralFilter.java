@@ -15,6 +15,7 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -36,7 +37,7 @@ public class TestMetricLiteralFilter {
     JsonNode node = JSON.getMapper().readTree(json);
     MetricLiteralFilter filter = (MetricLiteralFilter) 
         factory.parse(tsdb, JSON.getMapper(), node);
-    assertEquals("sys.cpu.user", filter.metric());
+    assertEquals("sys.cpu.user", filter.getMetric());
     
     try {
       factory.parse(tsdb, JSON.getMapper(), null);
@@ -49,13 +50,13 @@ public class TestMetricLiteralFilter {
     MetricLiteralFilter filter = MetricLiteralFilter.newBuilder()
         .setMetric("system.cpu.user")
         .build();
-    assertEquals("system.cpu.user", filter.metric());
+    assertEquals("system.cpu.user", filter.getMetric());
     
     // trim
     filter = MetricLiteralFilter.newBuilder()
         .setMetric("  system.cpu.user ")
         .build();
-    assertEquals("system.cpu.user", filter.metric());
+    assertEquals("system.cpu.user", filter.getMetric());
     
     try {
       MetricLiteralFilter.newBuilder()
@@ -72,4 +73,16 @@ public class TestMetricLiteralFilter {
     } catch (IllegalArgumentException e) { }
     
   }
+  
+  @Test
+  public void serialize() throws Exception {
+    MetricLiteralFilter filter = MetricLiteralFilter.newBuilder()
+        .setMetric("system.cpu.user")
+        .build();
+    
+    final String json = JSON.serializeToString(filter);
+    assertTrue(json.contains("\"type\":\"MetricLiteral\""));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
 }

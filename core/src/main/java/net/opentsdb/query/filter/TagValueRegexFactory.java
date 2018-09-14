@@ -28,9 +28,11 @@ import net.opentsdb.core.TSDB;
  */
 public class TagValueRegexFactory implements QueryFilterFactory {
 
+  static final String TYPE = "TagValueRegexp";
+  
   @Override
   public String getType() {
-    return "TagValueRegexp";
+    return TYPE;
   }
 
   public QueryFilter parse(final TSDB tsdb, 

@@ -24,10 +24,10 @@ import java.util.Map;
 public interface TagValueFilter extends QueryFilter {
 
   /** @return The non-null and non-empty filter string. */
-  public String filter();
+  public String getFilter();
   
   /** @return The tag key for this filter. */
-  public String tagKey();
+  public String getTagKey();
   
   /**
    * Whether or not the filter is satisfied with the tag values.

@@ -70,6 +70,11 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
     return pattern.matcher(tagv).find();
   }
 
+  @Override
+  public String getType() {
+    return TagValueRegexFactory.TYPE;
+  }
+  
   /** Whether or not the regex would match all strings. */
   public boolean matchesAll() {
     return matches_all;

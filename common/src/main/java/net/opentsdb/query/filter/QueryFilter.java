@@ -21,4 +21,7 @@ package net.opentsdb.query.filter;
  */
 public interface QueryFilter {
   
+  /** @return A name for the filter tied to a factory for lookups. */
+  public String getType();
+  
 }

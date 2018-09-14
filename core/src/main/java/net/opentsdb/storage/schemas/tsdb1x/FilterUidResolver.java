@@ -125,7 +125,7 @@ public class FilterUidResolver {
         final List<Deferred<ResolvedQueryFilter>> deferreds = 
             Lists.newArrayListWithExpectedSize(2);
         deferreds.add(schema.getId(UniqueIdType.TAGK, 
-            ((TagValueFilter) filter).tagKey(), child)
+            ((TagValueFilter) filter).getTagKey(), child)
           .addCallback(new TagKCB(resolved)));
         deferreds.add(schema.getIds(UniqueIdType.TAGV, 
             ((TagValueLiteralOrFilter) filter).literals(), child)
@@ -134,7 +134,7 @@ public class FilterUidResolver {
             .addCallbacks(new GroupCB(), new ErrorCB(child));
       } else {
         return schema.getId(UniqueIdType.TAGK, 
-            ((TagValueFilter) filter).tagKey(), child)
+            ((TagValueFilter) filter).getTagKey(), child)
           .addCallbacks(new TagKCB(resolved), new ErrorCB(child));
       }
     // CHAIN FILTER
@@ -166,7 +166,7 @@ public class FilterUidResolver {
     // METRIC LITERAL
     } else if (filter instanceof MetricLiteralFilter) {
       return schema.getId(UniqueIdType.METRIC, 
-          ((MetricLiteralFilter) filter).metric(), child)
+          ((MetricLiteralFilter) filter).getMetric(), child)
           .addCallbacks(new MetricCB(filter), new ErrorCB(child));
     // NESTED
     } else if (filter instanceof NestedQueryFilter) {

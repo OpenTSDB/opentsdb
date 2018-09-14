@@ -28,9 +28,11 @@ import net.opentsdb.core.TSDB;
  */
 public class MetricLiteralFactory implements QueryFilterFactory {
 
+  static final String TYPE = "MetricLiteral";
+  
   @Override
   public String getType() {
-    return "MetricLiteral";
+    return TYPE;
   }
 
   public QueryFilter parse(final TSDB tsdb, 

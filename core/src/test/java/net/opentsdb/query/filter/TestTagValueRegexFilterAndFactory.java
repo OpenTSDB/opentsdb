@@ -41,8 +41,8 @@ public class TestTagValueRegexFilterAndFactory {
     JsonNode node = JSON.getMapper().readTree(json);
     TagValueRegexFilter filter = (TagValueRegexFilter) 
         factory.parse(tsdb, JSON.getMapper(), node);
-    assertEquals("host", filter.tagKey());
-    assertEquals("web.*", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web.*", filter.getFilter());
     assertFalse(filter.matchesAll());
     
     try {
@@ -76,8 +76,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter("ogg-01.ops.ankh.morpork.com")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("ogg-01.ops.ankh.morpork.com", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("ogg-01.ops.ankh.morpork.com", filter.getFilter());
     assertFalse(filter.matchesAll());
     assertTrue(filter.matches(tags));
     
@@ -85,8 +85,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter("ogg-01.ops.ankh.*")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("ogg-01.ops.ankh.*", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("ogg-01.ops.ankh.*", filter.getFilter());
     assertFalse(filter.matchesAll());
     assertTrue(filter.matches(tags));
     
@@ -94,8 +94,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter(".*")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals(".*", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals(".*", filter.getFilter());
     assertTrue(filter.matchesAll());
     assertTrue(filter.matches(tags));
     
@@ -103,8 +103,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter("^.*")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("^.*", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("^.*", filter.getFilter());
     assertTrue(filter.matchesAll());
     assertTrue(filter.matches(tags));
     
@@ -112,8 +112,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter(".*$")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals(".*$", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals(".*$", filter.getFilter());
     assertTrue(filter.matchesAll());
     assertTrue(filter.matches(tags));
     
@@ -121,8 +121,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter("^.*$")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("^.*$", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("^.*$", filter.getFilter());
     assertTrue(filter.matchesAll());
     assertTrue(filter.matches(tags));
     
@@ -131,8 +131,8 @@ public class TestTagValueRegexFilterAndFactory {
         .setTagKey("host")
         .setFilter(" ogg-01.ops.ankh.* ")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals(" ogg-01.ops.ankh.* ", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals(" ogg-01.ops.ankh.* ", filter.getFilter());
     assertFalse(filter.matchesAll());
     assertTrue(filter.matches(tags));
         
@@ -178,4 +178,17 @@ public class TestTagValueRegexFilterAndFactory {
     } catch (IllegalArgumentException e) { }
   }
 
+  @Test
+  public void serialize() throws Exception {
+    TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
+        .setTagKey("host")
+        .setFilter("ogg-01.ops.ankh.*")
+        .build();
+    
+    final String json = JSON.serializeToString(filter);
+    assertTrue(json.contains("\"filter\":\"ogg-01.ops.ankh.*\""));
+    assertTrue(json.contains("\"tagKey\":\"host"));
+    assertTrue(json.contains("\"type\":\"TagValueRegexp"));
+  }
+  
 }

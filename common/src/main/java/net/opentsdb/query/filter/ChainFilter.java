@@ -67,6 +67,11 @@ public class ChainFilter implements QueryFilter {
   }
   
   @Override
+  public String getType() {
+    return ChainFilterFactory.TYPE;
+  }
+  
+  @Override
   public String toString() {
     return new StringBuilder()
         .append("{type=")

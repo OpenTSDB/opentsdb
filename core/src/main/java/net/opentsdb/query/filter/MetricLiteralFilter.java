@@ -45,13 +45,18 @@ public class MetricLiteralFilter implements MetricFilter {
   }
   
   @Override
-  public String metric() {
+  public String getMetric() {
     return metric;
   }
   
   @Override
   public boolean matches(final String metric) {
     return this.metric.equals(metric);
+  }
+  
+  @Override
+  public String getType() {
+    return MetricLiteralFactory.TYPE;
   }
   
   public static Builder newBuilder() {

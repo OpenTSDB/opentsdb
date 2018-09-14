@@ -50,7 +50,7 @@ public class TestExplicitTagsFilterAndFactory {
     NotFilter filter = (NotFilter) exp_factory.parse(tsdb, JSON.getMapper(), node);
     assertTrue(filter.getFilter() instanceof TagValueLiteralOrFilter);
     assertEquals("web01|web02", ((TagValueLiteralOrFilter) 
-        filter.getFilter()).filter());
+        filter.getFilter()).getFilter());
     
     // no type
     json = "{\"type\":\"ExplicitTags\",\"filter\":"
@@ -209,6 +209,22 @@ public class TestExplicitTagsFilterAndFactory {
     // ok now
     tags.clear();
     assertTrue(filter.matches(tags));
+  }
+  
+  @Test
+  public void serialize() throws Exception {
+    ExplicitTagsFilter filter = ExplicitTagsFilter.newBuilder()
+        .setFilter(TagValueLiteralOrFilter.newBuilder()
+            .setFilter("web01")
+            .setTagKey("host")
+            .build())
+        .build();
+    
+    final String json = JSON.serializeToString(filter);
+    assertTrue(json.contains("\"filter\":\"web01\""));
+    assertTrue(json.contains("\"tagKey\":\"host"));
+    assertTrue(json.contains("\"type\":\"TagValueLiteralOr"));
+    assertTrue(json.contains("\"type\":\"ExplicitTags"));
   }
   
 }

@@ -46,13 +46,13 @@ public abstract class BaseTagValueFilter implements TagValueFilter {
   }
   
   /** @return The tag key to filter on. */
-  public String tagKey() {
+  public String getTagKey() {
     return tag_key;
   }
   
   /** @return The raw filter given by the user. */
   @Override
-  public String filter() {
+  public String getFilter() {
     return filter;
   }
 }

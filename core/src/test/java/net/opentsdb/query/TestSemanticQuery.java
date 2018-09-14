@@ -63,9 +63,9 @@ public class TestSemanticQuery {
     assertEquals("1514768400", query.getEnd());
     assertEquals(1514768400, query.endTime().epoch());
     assertEquals("America/Denver", query.getTimezone());
-    assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilter("f1")).filter());
-    assertEquals("f1", query.getFilters().get(0).id());
-    assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).filter()).filter());
+    assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilter("f1")).getFilter());
+    assertEquals("f1", query.getFilters().get(0).getId());
+    assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
     assertEquals(1, query.getExecutionGraph().getNodes().size());
     
     try {
@@ -104,4 +104,5 @@ public class TestSemanticQuery {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
+  
 }

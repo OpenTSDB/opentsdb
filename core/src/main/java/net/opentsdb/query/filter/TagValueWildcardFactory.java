@@ -28,9 +28,11 @@ import net.opentsdb.core.TSDB;
  */
 public class TagValueWildcardFactory implements QueryFilterFactory {
 
+  static final String TYPE = "TagValueWildcard";
+  
   @Override
   public String getType() {
-    return "TagValueWildcard";
+    return TYPE;
   }
 
   public QueryFilter parse(final TSDB tsdb, 

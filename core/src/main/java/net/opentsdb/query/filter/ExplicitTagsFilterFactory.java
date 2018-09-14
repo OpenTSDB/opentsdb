@@ -28,9 +28,11 @@ import net.opentsdb.core.TSDB;
  */
 public class ExplicitTagsFilterFactory implements QueryFilterFactory {
 
+  static final String TYPE = "ExplicitTags";
+  
   @Override
   public String getType() {
-    return "ExplicitTags";
+    return TYPE;
   }
 
   @Override

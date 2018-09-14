@@ -43,7 +43,7 @@ public class TestQuerySourceConfig {
         .setId("UT")
         .build();
     assertSame(query, qsc.getQuery());
-    assertEquals("system.cpu.user", qsc.getMetric().metric());
+    assertEquals("system.cpu.user", qsc.getMetric().getMetric());
     assertEquals("UT", qsc.getId());
     assertEquals(1, qsc.pushDownNodes().size());
     assertFalse(qsc.pushDown());

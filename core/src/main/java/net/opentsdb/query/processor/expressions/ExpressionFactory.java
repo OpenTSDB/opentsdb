@@ -209,16 +209,16 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         downstream.getType().toLowerCase().equals("datasource")) {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
-        node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric().metric());
+        node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric());
         return downstream.getId();
       } else if (left && 
-          key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().metric())) {
+          key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric())) {
         return downstream.getId();
         // right
       } else if (key.equals(downstream.getId())) {
-        node.setRight(((QuerySourceConfig) downstream.getConfig()).getMetric().metric());
+        node.setRight(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric());
         return downstream.getId();
-      } else if (key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().metric())) {
+      } else if (key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric())) {
         return downstream.getId();
       }
     }

@@ -47,12 +47,12 @@ public class DefaultNamedFilter implements NamedFilter {
   }
   
   @Override
-  public String id() {
+  public String getId() {
     return id;
   }
 
   @Override
-  public QueryFilter filter() {
+  public QueryFilter getFilter() {
     return filter;
   }
 

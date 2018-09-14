@@ -559,7 +559,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
       public Object call(final byte[] metric) throws Exception {
         if (metric == null) {
           final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.METRIC_TYPE, 
-              source_config.getMetric().metric());
+              source_config.getMetric().getMetric());
           if (child != null) {
             child.setErrorTags(ex)
                  .finish();
@@ -604,7 +604,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric().metric(), 
+      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric().getMetric(), 
           child)
         .addCallback(new MetricCB())
         .addErrback(new ErrorCB());
@@ -938,13 +938,13 @@ public class Tsdb1xScanners implements HBaseExecutor {
           if (!skip_nsun_tagks || explicit_tags) {
             final NoSuchUniqueName ex = 
                 new NoSuchUniqueName(Schema.TAGK_TYPE, 
-                    ((TagValueFilter) filter.filter()).tagKey());
+                    ((TagValueFilter) filter.filter()).getTagKey());
             throw ex;
           }
           
           if (LOG.isDebugEnabled()) {
             LOG.debug("Skipping tag key without an ID: " + 
-                ((TagValueFilter) filter.filter()).tagKey());
+                ((TagValueFilter) filter.filter()).getTagKey());
           }
           return;
         }

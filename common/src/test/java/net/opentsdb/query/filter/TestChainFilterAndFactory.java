@@ -15,6 +15,7 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
@@ -110,5 +111,24 @@ public class TestChainFilterAndFactory {
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void serialize() throws Exception {
+    ChainFilter filter = ChainFilter.newBuilder()
+        .setOp(FilterOp.OR)
+        .addFilter(new UTQueryFilter("host", "web01|web02"))
+        .addFilter(new UTQueryFilter("owner", "tyrion"))
+        .build();
+    
+    final String json = MAPPER.writeValueAsString(filter);
+    assertTrue(json.contains("\"filters\":["));
+    assertTrue(json.contains("\"type\":\"UTFilter\""));
+    assertTrue(json.contains("\"tag\":\"host\""));
+    assertTrue(json.contains("\"filter\":\"web01|web02\""));
+    assertTrue(json.contains("\"tag\":\"owner\""));
+    assertTrue(json.contains("\"filter\":\"tyrion\""));
+    assertTrue(json.contains("\"op\":\"OR\""));
+    assertTrue(json.contains("\"type\":\"Chain\""));
   }
 }
