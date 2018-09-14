@@ -118,6 +118,11 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
     return true;
   }
 
+  @Override
+  public String getType() {
+    return TagValueWildcardFactory.TYPE;
+  }
+  
   /** Whether or not the wildcard would match all strings. */
   public boolean matchesAll() {
     return matches_all;

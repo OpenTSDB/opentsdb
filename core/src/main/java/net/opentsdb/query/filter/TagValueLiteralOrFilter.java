@@ -78,6 +78,11 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
     return literals.contains(tagv);
   }
   
+  @Override
+  public String getType() {
+    return TagValueLiteralOrFactory.TYPE;
+  }
+  
   /** @return The collection of literal strings for resolution. */
   public List<String> literals() {
     return literals;

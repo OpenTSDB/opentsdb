@@ -34,6 +34,12 @@ public class UTFilterFactory implements QueryFilterFactory {
       this.tag = tag;
       this.filter = filter;
     }
+
+    
+    @Override
+    public String getType() {
+      return "UTFilter";
+    }
   }
 
   @Override

@@ -36,8 +36,8 @@ public class TestTagValueLiteralOrFilterAndFactory {
     JsonNode node = JSON.getMapper().readTree(json);
     TagValueLiteralOrFilter filter = (TagValueLiteralOrFilter) 
         factory.parse(tsdb, JSON.getMapper(), node);
-    assertEquals("host", filter.tagKey());
-    assertEquals("web01|web02", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web01|web02", filter.getFilter());
     assertEquals(2, filter.literals().size());
     assertTrue(filter.literals().contains("web01"));
     assertTrue(filter.literals().contains("web02"));
@@ -70,8 +70,8 @@ public class TestTagValueLiteralOrFilterAndFactory {
         .setTagKey("host")
         .setFilter("web01")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("web01", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web01", filter.getFilter());
     assertEquals(1, filter.literals().size());
     assertTrue(filter.literals().contains("web01"));
     
@@ -79,8 +79,8 @@ public class TestTagValueLiteralOrFilterAndFactory {
         .setTagKey("host")
         .setFilter("web01|web02")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("web01|web02", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web01|web02", filter.getFilter());
     assertEquals(2, filter.literals().size());
     assertTrue(filter.literals().contains("web01"));
     assertTrue(filter.literals().contains("web02"));
@@ -90,8 +90,8 @@ public class TestTagValueLiteralOrFilterAndFactory {
         .setTagKey("host")
         .setFilter(" web01 | web02 ")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals(" web01 | web02 ", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals(" web01 | web02 ", filter.getFilter());
     assertEquals(2, filter.literals().size());
     assertTrue(filter.literals().contains("web01"));
     assertTrue(filter.literals().contains("web02"));
@@ -101,8 +101,8 @@ public class TestTagValueLiteralOrFilterAndFactory {
         .setTagKey("host")
         .setFilter("| web01 | web02 | ")
         .build();
-    assertEquals("host", filter.tagKey());
-    assertEquals("| web01 | web02 | ", filter.filter());
+    assertEquals("host", filter.getTagKey());
+    assertEquals("| web01 | web02 | ", filter.getFilter());
     assertEquals(2, filter.literals().size());
     assertTrue(filter.literals().contains("web01"));
     assertTrue(filter.literals().contains("web02"));
@@ -147,4 +147,18 @@ public class TestTagValueLiteralOrFilterAndFactory {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
+
+  @Test
+  public void serialize() throws Exception {
+    TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
+        .setTagKey("host")
+        .setFilter("web01|web02")
+        .build();
+    
+    final String json = JSON.serializeToString(filter);
+    assertTrue(json.contains("\"filter\":\"web01|web02\""));
+    assertTrue(json.contains("\"tagKey\":\"host"));
+    assertTrue(json.contains("\"type\":\"TagValueLiteralOr"));
+  }
+  
 }

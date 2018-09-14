@@ -80,4 +80,18 @@ public class TestNotFilterAndFactory {
     } catch (IllegalArgumentException e) { }
   }
   
+  @Test
+  public void serialize() throws Exception {
+    NotFilter filter = NotFilter.newBuilder()
+        .setFilter(new UTQueryFilter("host", "web01|web02"))
+        .build();
+    
+    final String json = MAPPER.writeValueAsString(filter);
+    assertTrue(json.contains("\"filter\":{"));
+    assertTrue(json.contains("\"type\":\"UTFilter\""));
+    assertTrue(json.contains("\"tag\":\"host\""));
+    assertTrue(json.contains("\"filter\":\"web01|web02\""));
+    assertTrue(json.contains("\"type\":\"Not\""));
+  }
+  
 }

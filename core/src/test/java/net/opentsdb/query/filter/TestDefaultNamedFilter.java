@@ -33,8 +33,8 @@ public class TestDefaultNamedFilter {
         .setId("f1")
         .setFilter(filter)
         .build();
-    assertEquals("f1", nf.id());
-    assertSame(filter, nf.filter());
+    assertEquals("f1", nf.getId());
+    assertSame(filter, nf.getFilter());
     
     try {
       DefaultNamedFilter.newBuilder()

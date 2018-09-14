@@ -23,9 +23,9 @@ package net.opentsdb.query.filter;
 public interface NamedFilter {
 
   /** @return The non-null and non-empty filter name. */
-  public String id();
+  public String getId();
   
   /** @return The non-null query filter. */
-  public QueryFilter filter();
+  public QueryFilter getFilter();
   
 }

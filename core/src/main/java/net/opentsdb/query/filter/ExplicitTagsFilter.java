@@ -31,7 +31,7 @@ import com.google.common.collect.Sets;
  */
 public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
 
-  /** The filter to invert. */
+  /** The nested filters. */
   private final QueryFilter filter;
   
   /** The set of explicit tag keys we want to find. */
@@ -79,6 +79,11 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
     return true;
   }
   
+  @Override
+  public String getType() {
+    return ExplicitTagsFilterFactory.TYPE;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -107,7 +112,7 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
     // TODO - tag key filters.
     
     if (filter instanceof TagValueFilter) {
-      tag_keys.add(((TagValueFilter) filter).tagKey());
+      tag_keys.add(((TagValueFilter) filter).getTagKey());
       return;
     }
     if (filter instanceof ChainFilter) {
