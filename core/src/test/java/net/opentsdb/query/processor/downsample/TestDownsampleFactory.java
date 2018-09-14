@@ -350,8 +350,8 @@ public class TestDownsampleFactory {
     assertTrue(new_node.getSources().contains("m1"));
     assertEquals(1514764800, ((DownsampleConfig) new_node.getConfig()).startTime().epoch());
     assertEquals(1514768400, ((DownsampleConfig) new_node.getConfig()).endTime().epoch());
-    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).aggregator());
-    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).intervalAsString());
+    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).getAggregator());
+    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).getInterval());
     
     assertTrue(dag.containsEdge(new_node, graph.getNodes().get(0)));
     
@@ -373,8 +373,8 @@ public class TestDownsampleFactory {
     assertTrue(new_node.getSources().contains("m1"));
     assertEquals(1514764800, ((DownsampleConfig) new_node.getConfig()).startTime().epoch());
     assertEquals(1514768400, ((DownsampleConfig) new_node.getConfig()).endTime().epoch());
-    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).aggregator());
-    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).intervalAsString());
+    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).getAggregator());
+    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).getInterval());
     
     assertTrue(dag.containsEdge(new_node, graph.getNodes().get(0)));
   }

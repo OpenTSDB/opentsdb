@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.hash.HashCode;
 import com.google.common.reflect.TypeToken;
 
@@ -25,7 +24,6 @@ import net.opentsdb.data.TimeSeriesDataType;
  * 
  * @since 3.0
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public interface QueryInterpolatorConfig extends 
     Comparable<QueryInterpolatorConfig>{
 
@@ -34,7 +32,7 @@ public interface QueryInterpolatorConfig extends
    * default factory is used.
    * @return The ID of a factory to fetch an interpolator from.
    */
-  public String id();
+  public String getType();
   
   /**
    * The type of {@link TimeSeriesDataType} the interpolator works on. 
@@ -42,7 +40,7 @@ public interface QueryInterpolatorConfig extends
    * of a data type.
    * @return A non-null data type name.
    */
-  public String interpolatorType();
+  public String getDataType();
   
   /** @return A non-null deterministic hash code for the object. */
   public HashCode buildHashCode();

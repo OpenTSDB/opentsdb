@@ -178,7 +178,7 @@ public class ExpressionParser extends DefaultErrorStrategy
   }
   
   /** Helper class. */
-  protected class NumericLiteral {
+  protected static class NumericLiteral {
     final boolean is_integer;
     final long number;
     

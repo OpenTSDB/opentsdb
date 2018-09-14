@@ -366,8 +366,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     }
     if (ts != null && (reversed ? 
-        ts.compare(Op.LT, ((SemanticQuery) source_config.getQuery()).startTime()) : 
-        ts.compare(Op.GT, ((SemanticQuery) source_config.getQuery()).endTime()))) {
+        ts.compare(Op.LT, ((SemanticQuery) source_config.query()).startTime()) : 
+        ts.compare(Op.GT, ((SemanticQuery) source_config.query()).endTime()))) {
       // DONE with query!
       return true;
     }
@@ -389,8 +389,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         }
       }
       if (reversed ? 
-          ts.compare(Op.LT, ((SemanticQuery) source_config.getQuery()).startTime()) : 
-          ts.compare(Op.GT, ((SemanticQuery) source_config.getQuery()).endTime())) {
+          ts.compare(Op.LT, ((SemanticQuery) source_config.query()).startTime()) : 
+          ts.compare(Op.GT, ((SemanticQuery) source_config.query()).endTime())) {
         // DONE with query!
         return true;
       }
@@ -719,19 +719,19 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? ((SemanticQuery) source_config.getQuery()).endTime().epoch() + 1 : 
-              ((SemanticQuery) source_config.getQuery()).startTime().epoch() - 1), interval) * 1000L);      
+            (reversed ? ((SemanticQuery) source_config.query()).endTime().epoch() + 1 : 
+              ((SemanticQuery) source_config.query()).startTime().epoch() - 1), interval) * 1000L);      
       } else {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? ((SemanticQuery) source_config.getQuery()).endTime().epoch() : 
-              ((SemanticQuery) source_config.getQuery()).startTime().epoch()), interval) * 1000L);
+            (reversed ? ((SemanticQuery) source_config.query()).endTime().epoch() : 
+              ((SemanticQuery) source_config.query()).startTime().epoch()), interval) * 1000L);
       }
     } else {
-      long ts = reversed ? ((SemanticQuery) source_config.getQuery()).endTime().epoch() : 
-        ((SemanticQuery) source_config.getQuery()).startTime().epoch();
+      long ts = reversed ? ((SemanticQuery) source_config.query()).endTime().epoch() : 
+        ((SemanticQuery) source_config.query()).startTime().epoch();
       if (node.downsampleConfig() != null) {
         final long interval = DateTime.parseDuration(
-            node.downsampleConfig().intervalAsString());
+            node.downsampleConfig().getInterval());
         if (interval > 0) {
           final long interval_offset = (1000L * ts) % interval;
           ts -= interval_offset / 1000L;

@@ -2,7 +2,7 @@
 //Copyright (C) 2018  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
-//you may not use this file except in compliance with the License.
+//you may getNot use this file except in compliance with the License.
 //You may obtain a copy of the License at
 //
 //http://www.apache.org/licenses/LICENSE-2.0
@@ -58,12 +58,12 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   /** The next timestamp evaluated when returning the next value. */
   protected final TimeStamp next_next_ts = new MillisecondTimeStamp(0);
   
-  /** Whether or not nan is infectious. */
+  /** Whether or getNot nan is infectious. */
   protected final boolean infectious_nan;
   
   protected final MutableNumericType value;
   
-  /** Whether or not another real value is present. True while at least one 
+  /** Whether or getNot agetNother real value is present. True while at least one 
    * of the time series has a real value. */
   protected boolean has_next = false;
   
@@ -83,16 +83,16 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     
     if (sources.get(ExpressionTimeSeries.LEFT_KEY) == null) {
       left_literal = buildLiteral(
-          this.node.expressionConfig().left(), 
-          this.node.expressionConfig().leftType());
+          this.node.expressionConfig().getLeft(), 
+          this.node.expressionConfig().getLeftType());
     } else {
       left_literal = null;
     }
     
     if (sources.get(ExpressionTimeSeries.RIGHT_KEY) == null) {
       right_literal = buildLiteral(
-          this.node.expressionConfig().right(), 
-          this.node.expressionConfig().rightType());
+          this.node.expressionConfig().getRight(), 
+          this.node.expressionConfig().getRightType());
     } else {
       right_literal = null;
     }
@@ -104,9 +104,9 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   }
   
   /**
-   * Helper to determine if the value is null or not.
-   * @param v The value (nullable) to determine if true or not.
-   * @return True if the value is > 0, false if the number is not finite
+   * Helper to determine if the value is null or getNot.
+   * @param v The value (nullable) to determine if true or getNot.
+   * @return True if the value is > 0, false if the number is getNot finite
    * or it's null.
    */
   static boolean isTrue(final NumericType v) {
@@ -151,7 +151,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * Implements the modulus of two values. A null on either side will null 
    * the result. We follow IEEE 754 for NaN behavior.
    * <p>
-   * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
+   * <b>getNote:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left The left operand.
@@ -164,44 +164,44 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     }
     
     if (left.isInteger() && right.isInteger()) {
-      switch (node.expressionConfig().operator()) {
+      switch (node.expressionConfig().getOperator()) {
       case EQ:
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(left.longValue() == right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() == right.longValue() ? 1L : 0L);
         }
         break;
       case NE:
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(left.longValue() != right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() != right.longValue() ? 1L : 0L);
         }
         break;
       case LT:
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(left.longValue() < right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() < right.longValue() ? 1L : 0L);
         }
         break;
       case GT:
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(left.longValue() > right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() > right.longValue() ? 1L : 0L);
         }
         break;
       case LE:
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(left.longValue() <= right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() <= right.longValue() ? 1L : 0L);
         }
         break;
       case GE:
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(left.longValue() >= right.longValue() ? 0L : 1L); 
         } else {
           value.set(left.longValue() >= right.longValue() ? 1L : 0L);          
@@ -210,7 +210,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       default:
         throw new QueryDownstreamException("Relational iterator was "
             + "told to handle the unexpected operator: " 
-            + node.expressionConfig().operator());
+            + node.expressionConfig().getOperator());
       }
     } else {
       if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble())) &&
@@ -218,44 +218,44 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         value.set(Double.NaN);
       } else {
         // let the ieee 754 standard handle NaNs
-        switch (node.expressionConfig().operator()) {
+        switch (node.expressionConfig().getOperator()) {
         case EQ:
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(left.toDouble() == right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() == right.toDouble() ? 1L : 0L);
           }
           break;
         case NE:
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(left.toDouble() != right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() != right.toDouble() ? 1L : 0L);
           }
           break;
         case LT:
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(left.toDouble() < right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() < right.toDouble() ? 1L : 0L);
           }
           break;
         case GT:
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(left.toDouble() > right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() > right.toDouble() ? 1L : 0L);
           }
           break;
         case LE:
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(left.toDouble() <= right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() <= right.toDouble() ? 1L : 0L);
           }
           break;
         case GE:
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(left.toDouble() >= right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() >= right.toDouble() ? 1L : 0L);
@@ -264,7 +264,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         default:
           throw new QueryDownstreamException("Relational iterator was "
               + "told to handle the unexpected operator: " 
-              + node.expressionConfig().operator());
+              + node.expressionConfig().getOperator());
         }
       }
     }
@@ -277,7 +277,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * Non-finite floating point values are treated as false except in the 
    * case when both are NaN.
    * <p>
-   * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
+   * <b>getNote:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left The left operand.
@@ -285,16 +285,16 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @return The {@link #value}.
    */
   NumericType logical(final NumericType left, final NumericType right) {
-    switch (node.expressionConfig().operator()) {
+    switch (node.expressionConfig().getOperator()) {
     case OR:
       if (left == null) {
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(isTrue(right) ? 0 : 1);
         } else {
           value.set(isTrue(right) ? 1 : 0);
         }
       } else if (right == null) {
-        if (node.expressionConfig().not()) {
+        if (node.expressionConfig().getNot()) {
           value.set(isTrue(left) ? 0 : 1);
         } else {
           value.set(isTrue(left) ? 1 : 0);
@@ -303,9 +303,9 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         if (!left.isInteger() && !right.isInteger() && 
             Double.isNaN(left.doubleValue()) && 
             Double.isNaN(right.doubleValue())) {
-          value.set(node.expressionConfig().not() ? 0L : 1L);
+          value.set(node.expressionConfig().getNot() ? 0L : 1L);
         } else {
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(isTrue(left) || isTrue(right) ? 0 : 1);
           } else {
             value.set(isTrue(left) || isTrue(right) ? 1 : 0);
@@ -315,14 +315,14 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       break;
     case AND:
       if (left == null || right == null) {
-        value.set(node.expressionConfig().not() ? 1L : 0L);
+        value.set(node.expressionConfig().getNot() ? 1L : 0L);
       } else {
         if (!left.isInteger() && !right.isInteger() && 
             Double.isNaN(left.doubleValue()) && 
             Double.isNaN(right.doubleValue())) {
-          value.set(node.expressionConfig().not() ? 0L : 1L);
+          value.set(node.expressionConfig().getNot() ? 0L : 1L);
         } else {
-          if (node.expressionConfig().not()) {
+          if (node.expressionConfig().getNot()) {
             value.set(isTrue(left) && isTrue(right) ? 0 : 1);
           } else {
             value.set(isTrue(left) && isTrue(right) ? 1 : 0);
@@ -333,7 +333,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     default:
       throw new QueryDownstreamException("Logical iterator was "
           + "told to handle the unexpected operator: " 
-          + node.expressionConfig().operator());
+          + node.expressionConfig().getOperator());
     }
     
     return value;
@@ -345,7 +345,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * will just return the other operand.
    * <p>
    * Integer math is used unless a floating point is present in either
-   * operand. Note that values may overflow.
+   * operand. getNote that values may overflow.
    * 
    * TODO - overflow for addition.
    * 
@@ -360,14 +360,14 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     
     if (left.isInteger() && right.isInteger()) {
       // TOOD - overflow
-      if (node.expressionConfig().operator() == ExpressionOp.SUBTRACT) {
-        if (node.expressionConfig().negate()) {
+      if (node.expressionConfig().getOperator() == ExpressionOp.SUBTRACT) {
+        if (node.expressionConfig().getNegate()) {
           value.set(-(left.longValue() - right.longValue())); 
         } else {
           value.set(left.longValue() - right.longValue());  
         }
       } else {
-        if (node.expressionConfig().negate()) {
+        if (node.expressionConfig().getNegate()) {
           value.set(-(left.longValue() + right.longValue()));
         } else {
           value.set(left.longValue() + right.longValue());
@@ -379,21 +379,21 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
             (Double.isNaN(left.toDouble()) && Double.isNaN(right.toDouble()))) {
           value.set(Double.NaN);
         } else if (Double.isNaN(left.toDouble())) {
-          value.set(node.expressionConfig().negate() ? 
+          value.set(node.expressionConfig().getNegate() ? 
               -right.toDouble() : right.toDouble());
         } else {
-          value.set(node.expressionConfig().negate() ? 
+          value.set(node.expressionConfig().getNegate() ? 
               -left.toDouble() : left.toDouble());
         }
       } else {
-        if (node.expressionConfig().operator() == ExpressionOp.SUBTRACT) {
-          if (node.expressionConfig().negate()) {
+        if (node.expressionConfig().getOperator() == ExpressionOp.SUBTRACT) {
+          if (node.expressionConfig().getNegate()) {
             value.set(-(left.toDouble() - right.toDouble())); 
           } else {
             value.set(left.toDouble() - right.toDouble());
           }
         } else {
-          if (node.expressionConfig().negate()) {
+          if (node.expressionConfig().getNegate()) {
             value.set(-(left.toDouble() + right.toDouble())); 
           } else {
             value.set(left.toDouble() + right.toDouble());
@@ -410,7 +410,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * the result. A NaN in both returns NaN. Non-infectious NaN will just 
    * return the other operand.
    * <p>
-   * <b>NOTE</b> A divide-by-zero operation will return 0. Likewise a 
+   * <b>getNotE</b> A divide-by-zero operation will return 0. Likewise a 
    * NaN in the numerator or denominator will return a 0 unless both are
    * NaN or infectious NaN is enabled.
    * <p>
@@ -431,7 +431,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       if (right.longValue() == 0) {
         value.set(0L);
       } else {
-        if (node.expressionConfig().negate()) {
+        if (node.expressionConfig().getNegate()) {
           value.set(-(left.longValue() / right.longValue()));
         } else {
           value.set(left.longValue() / right.longValue());
@@ -449,7 +449,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         if (Math.abs(0.0 - right.toDouble()) <= EPSILON) {
           value.set(0.0);
         } else {
-          if (node.expressionConfig().negate()) {
+          if (node.expressionConfig().getNegate()) {
             value.set(-(left.toDouble() / right.toDouble())); 
           } else {
             value.set(left.toDouble() / right.toDouble());
@@ -465,11 +465,11 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * Implements the product of two values. A null on either side will null 
    * the result. A NaN in both returns NaN.
    * <p>
-   * Note that if a NaN is present in the left or right (but not both) then
+   * getNote that if a NaN is present in the left or right (but getNot both) then
    * a 0 is returned.
    * <p>
    * Integer math is used unless a floating point is present in either
-   * operand. Note that values may overflow.
+   * operand. getNote that values may overflow.
    * 
    * TODO - overflow.
    * 
@@ -484,7 +484,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     
     if (left.isInteger() && right.isInteger()) {
       // TOOD - overflow
-      if (node.expressionConfig().negate()) {
+      if (node.expressionConfig().getNegate()) {
         value.set(-(left.longValue() * right.longValue())); 
       } else {
         value.set(left.longValue() * right.longValue());
@@ -498,7 +498,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
           value.set(0.0);
         }
       } else {
-        if (node.expressionConfig().negate()) {
+        if (node.expressionConfig().getNegate()) {
           value.set(-(left.toDouble() * right.toDouble())); 
         } else {
           value.set(left.toDouble() * right.toDouble());
@@ -513,7 +513,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * Implements the modulus of two values. A null on either side will null 
    * the result. A NaN in both returns NaN.
    * <p>
-   * Note that if a NaN is present in the left or right (but not both) then
+   * getNote that if a NaN is present in the left or right (but getNot both) then
    * a 0 is returned.
    * <p>
    * Integer math is used unless a floating point is present in either
@@ -532,7 +532,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       if (right.longValue() == 0) {
         value.set(0L);
       } else {
-        if (node.expressionConfig().negate()) {
+        if (node.expressionConfig().getNegate()) {
           value.set(-(left.longValue() % right.longValue())); 
         } else {
           value.set(left.longValue() % right.longValue());
@@ -547,7 +547,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
           value.set(0.0);
         }
       } else {
-        if (node.expressionConfig().negate()) {
+        if (node.expressionConfig().getNegate()) {
           value.set(-(left.toDouble() % right.toDouble())); 
         } else {
           value.set(left.toDouble() % right.toDouble());

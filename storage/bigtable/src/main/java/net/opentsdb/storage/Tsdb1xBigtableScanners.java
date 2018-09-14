@@ -425,7 +425,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
   byte[] setStartKey(final byte[] metric, 
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
-    long start = ((SemanticQuery) source_config.getQuery()).startTime().epoch();
+    long start = ((SemanticQuery) source_config.query()).startTime().epoch();
     
     final Collection<QueryNode> rates = 
         node.pipelineContext().upstreamOfType(node, Rate.class);
@@ -442,7 +442,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
       // TODO - doesn't account for calendaring, etc.
       if (node.downsampleConfig() != null) {
         final long interval = DateTime.parseDuration(
-            node.downsampleConfig().intervalAsString());
+            node.downsampleConfig().getInterval());
         if (interval > 0) {
           final long interval_offset = (1000L * start) % interval;
           start -= interval_offset / 1000L;
@@ -479,7 +479,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
-    long end = ((SemanticQuery) source_config.getQuery()).endTime().epoch();
+    long end = ((SemanticQuery) source_config.query()).endTime().epoch();
     
     if (rollup_interval != null) {
       // TODO - need rollup end time here
@@ -490,7 +490,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
       long interval = 0;
       if (node.downsampleConfig() != null) {
         interval = DateTime.parseDuration(
-            node.downsampleConfig().intervalAsString());
+            node.downsampleConfig().getInterval());
       }
 
       if (interval > 0) {
@@ -588,12 +588,12 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
         
         if (!Strings.isNullOrEmpty(source_config.getFilterId())) {
           final QueryFilter filter;
-          if (source_config.getQuery() instanceof SemanticQuery) {
-            filter = ((SemanticQuery) source_config.getQuery())
+          if (source_config.query() instanceof SemanticQuery) {
+            filter = ((SemanticQuery) source_config.query())
                 .getFilter(source_config.getFilterId());
           } else {
             throw new UnsupportedOperationException("We don't support " 
-                + source_config.getQuery().getClass() + " yet");
+                + source_config.query().getClass() + " yet");
           }
           if (filter == null) {
             throw new IllegalStateException("No filter was found for: " 

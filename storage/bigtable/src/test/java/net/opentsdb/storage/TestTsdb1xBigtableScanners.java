@@ -278,7 +278,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setId("interp")
+            .setType("interp")
             .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
@@ -384,7 +384,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setId("interp")
+            .setType("interp")
             .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
@@ -402,7 +402,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setId("interp")
+            .setType("interp")
             .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
@@ -460,7 +460,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setId("interp")
+            .setType("interp")
             .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
@@ -478,7 +478,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setId("interp")
+            .setType("interp")
             .setDataType(NumericType.TYPE.toString())
             .build())
         .build());
@@ -2486,7 +2486,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
           .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
               .setFillPolicy(FillPolicy.NONE)
               .setRealFillPolicy(FillWithRealPolicy.NONE)
-              .setId("interp")
+              .setType("interp")
               .setDataType(NumericType.TYPE.toString())
               .build())
           .build());

@@ -84,10 +84,10 @@ public class TestExpressionNumericSummaryIterator
     NumericSummaryInterpolatorConfig nsic = 
         (NumericSummaryInterpolatorConfig) iterator.left_interpolator
           .fillPolicy().config();
-    assertEquals(3, nsic.expectedSummaries().size());
-    assertTrue(nsic.expectedSummaries().contains(0));
-    assertTrue(nsic.expectedSummaries().contains(2));
-    assertTrue(nsic.expectedSummaries().contains(5));
+    assertEquals(3, nsic.getExpectedSummaries().size());
+    assertTrue(nsic.getExpectedSummaries().contains(0));
+    assertTrue(nsic.getExpectedSummaries().contains(2));
+    assertTrue(nsic.getExpectedSummaries().contains(5));
     // nulls for both
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft(null)

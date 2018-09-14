@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.time.Duration;
@@ -31,6 +32,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.utils.JSON;
 
 public class TestDownsampleConfig {
   
@@ -67,14 +69,14 @@ public class TestDownsampleConfig {
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();
-    assertEquals("sum", config.aggregator());
+    assertEquals("sum", config.getAggregator());
     assertEquals("foo", config.getId());
     assertEquals(Duration.of(15, ChronoUnit.SECONDS), config.interval());
     assertEquals(15, config.intervalPart());
-    assertFalse(config.fill());
+    assertFalse(config.getFill());
     assertEquals(ZoneId.of("UTC"), config.timezone());
     assertEquals(ChronoUnit.SECONDS, config.units());
-    assertFalse(config.infectiousNan());
+    assertFalse(config.getInfectiousNan());
     assertEquals(15, config.intervalPart());
     assertEquals(1514843295, config.startTime().epoch());
     assertEquals(1514846895, config.endTime().epoch());
@@ -190,5 +192,33 @@ public class TestDownsampleConfig {
         .addInterpolatorConfig(summary_config)
         .build();
     assertEquals(1, config.intervals());
+  }
+
+  @Test
+  public void serialize() throws Exception {
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("15s")
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    final String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"id\":\"foo\""));
+    assertTrue(json.contains("\"interval\":\"15s\""));
+    assertTrue(json.contains("\"timezone\":\"UTC\""));
+    assertTrue(json.contains("\"aggregator\":\"sum\""));
+    assertTrue(json.contains("\"fill\":false"));
+    assertTrue(json.contains("\"infectiousNan\":false"));
+    assertTrue(json.contains("\"runAll\":false"));
+    
+    assertTrue(json.contains("\"interpolatorConfigs\":["));
+    assertTrue(json.contains("\"fillPolicy\":\"nan\""));
+    assertTrue(json.contains("\"realFillPolicy\":\"PREFER_NEXT\""));
+    assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\""));
+    assertTrue(json.contains("\"defaultRealFillPolicy\":\"NEXT_ONLY\""));
+    assertTrue(json.contains("\"expectedSummaries\":[0]"));
   }
 }

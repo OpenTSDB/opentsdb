@@ -117,7 +117,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     for (final ExecutionGraphNode node : execution_graph.getNodes()) {
       if (node.getConfig() != null && 
           node.getConfig() instanceof QuerySourceConfig &&
-          ((QuerySourceConfig) node.getConfig()).getQuery() == null) {
+          ((QuerySourceConfig) node.getConfig()).query() == null) {
         ((QuerySourceConfig) node.getConfig()).setTimeSeriesQuery(this);
       }
     }

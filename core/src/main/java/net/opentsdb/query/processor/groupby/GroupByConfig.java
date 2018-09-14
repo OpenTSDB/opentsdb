@@ -73,11 +73,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     group_all = builder.group_all;
   }
   
-  @Override
-  public String getId() {
-    return id;
-  }
-  
   /** @return The non-empty list of tag keys to group on. */
   public Set<String> getTagKeys() {
     return tag_keys;
@@ -89,6 +84,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     return encoded_tag_keys;
   }
   
+  /** @param encoded_tag_keys The encoded keys to join on. */
   public void setEncodedTagKeys(final List<byte[]> encoded_tag_keys) {
     this.encoded_tag_keys = encoded_tag_keys;
   }
@@ -105,7 +101,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   /** @return Whether or not to group by just the metric or the given tags. */
-  public boolean groupAll() {
+  public boolean getGroupAll() {
     return group_all;
   }
   

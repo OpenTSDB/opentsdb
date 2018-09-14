@@ -140,10 +140,11 @@ public class GroupByNumericIterator implements QueryIterator,
     
     QueryInterpolatorFactory factory = node.pipelineContext().tsdb()
         .getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-            interpolator_config.id());
+            interpolator_config.getType());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.id() == null ? "Default" : interpolator_config.id());
+          interpolator_config.getType() == null ? "Default" : 
+            interpolator_config.getType());
     }
     
     for (final TimeSeries source : sources) {

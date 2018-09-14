@@ -109,7 +109,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
     return joins;
   }
   
-  /** @return true if the series must contain values for all of the join
+  /** @return True if the series must contain values for all of the join
    * tags and <b>only</b> those join tags. */
   public boolean getExplicitTags() {
     return explicit_tags;

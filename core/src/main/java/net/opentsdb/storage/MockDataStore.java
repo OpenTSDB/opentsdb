@@ -526,12 +526,12 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
             query.endTime().msEpoch() : 
               query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Running the filter: " + config.getFilter());
+          LOG.debug("Running the filter: " + config.filter());
         }
         
         final QueryFilter filter;
-        if (config.getFilter() != null) {
-          filter = config.getFilter();
+        if (config.filter() != null) {
+          filter = config.filter();
         } else {
           filter = null;
         }

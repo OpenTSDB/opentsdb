@@ -291,10 +291,10 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
         ds_config = (DownsampleConfig) downsamplers.iterator().next().config();
         rollup_intervals = parent.schema()
             .rollupConfig().getRollupIntervals(
-                DateTime.parseDuration(ds_config.intervalAsString()) / 1000, 
-                ds_config.intervalAsString(), 
+                DateTime.parseDuration(ds_config.getInterval()) / 1000, 
+                ds_config.getInterval(), 
                 true);
-        rollup_aggregation = ds_config.aggregator();
+        rollup_aggregation = ds_config.getAggregator();
       } else {
         rollup_intervals = null;
         rollup_aggregation = null;

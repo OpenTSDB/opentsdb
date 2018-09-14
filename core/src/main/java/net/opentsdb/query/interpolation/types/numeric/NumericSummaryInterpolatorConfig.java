@@ -104,12 +104,12 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   /** @return The default numeric fill policy. */
-  public FillPolicy defaultFillPolicy() {
+  public FillPolicy getDefaultFillPolicy() {
     return fill_policy;
   }
   
   /** @return The default real fill policy. */
-  public FillWithRealPolicy defaultRealFillPolicy() {
+  public FillWithRealPolicy getDefaultRealFillPolicy() {
     return real_fill;
   }
   
@@ -167,7 +167,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   /** @return The list of expected summary IDs. */
-  public List<Integer> expectedSummaries() {
+  public List<Integer> getExpectedSummaries() {
     return expected_summaries;
   }
   
@@ -189,7 +189,6 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
   @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
         .putString(interpolator_type == null ? "" : interpolator_type, 
             Const.ASCII_CHARSET)
         .putString(data_type, Const.ASCII_CHARSET)
@@ -236,7 +235,6 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     }
     
     return ComparisonChain.start()
-        .compare(id, ((NumericSummaryInterpolatorConfig) o).id)
         .compare(interpolator_type, 
             ((NumericSummaryInterpolatorConfig) o).interpolator_type,
             Ordering.<String>natural().nullsFirst())
@@ -268,8 +266,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     }
     
     final NumericSummaryInterpolatorConfig other = (NumericSummaryInterpolatorConfig) o;
-    return Objects.equals(id, other.id) &&
-           Objects.equals(interpolator_type, other.interpolator_type) &&
+    return Objects.equals(interpolator_type, other.interpolator_type) &&
            Objects.equals(data_type, other.data_type) && 
            Objects.equals(fill_policy, other.fill_policy) &&
            Objects.equals(real_fill, other.real_fill) && 
@@ -282,6 +279,14 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
+  }
+  
+  public Map<Integer, FillPolicy> getFillPolicyOverrides() {
+    return summary_fill_policy_overrides;
+  }
+  
+  public Map<Integer, FillWithRealPolicy> getRealFillPolicyOverrides() {
+    return summary_real_fill_overrides;
   }
   
   /** @return A new builder. */

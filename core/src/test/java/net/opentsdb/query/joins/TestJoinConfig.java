@@ -183,4 +183,22 @@ public class TestJoinConfig {
     assertEquals(1, c1.compareTo(c2));
 
   }
+
+  @Test
+  public void serialize() throws Exception {
+    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
+        .setType(JoinType.INNER)
+        .addJoins("host", "Hostname")
+        .addJoins("owner", "owner")
+        .setId("join1")
+        .build();
+    
+    final String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"id\":\"join1\""));
+    assertTrue(json.contains("\"type\":\"INNER\""));
+    assertTrue(json.contains("\"joins\":{"));
+    assertTrue(json.contains("\"owner\":\"owner\""));
+    assertTrue(json.contains("\"host\":\"Hostname\""));
+    assertTrue(json.contains("\"explicitTags\":false"));
+  }
 }

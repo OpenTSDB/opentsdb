@@ -176,7 +176,7 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
   }
 
   protected TimeSeriesValue<NumericType> fill(final TimeStamp timestamp) {
-    switch (config.realFillPolicy()) {
+    switch (config.getRealFillPolicy()) {
     case PREVIOUS_ONLY:
       if (previous != null) {
         response.reset(timestamp, previous.value());

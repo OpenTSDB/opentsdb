@@ -34,12 +34,10 @@ import net.opentsdb.data.types.numeric.NumericAccumulator;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -143,8 +141,8 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
       
       NumericSummaryInterpolatorConfig.Builder nsic = 
           NumericSummaryInterpolatorConfig.newBuilder()
-          .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).fillPolicy())
-          .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).realFillPolicy());
+          .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
+          .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
       if (((GroupByConfig) node.config()).getAggregator().equals("avg")) {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
         .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
@@ -157,15 +155,16 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
       }
       interpolator_config = nsic
           .setDataType(NumericSummaryType.TYPE.toString())
-          .setId(null).build();
+          .setType(null).build();
     }
     config = (NumericSummaryInterpolatorConfig) interpolator_config;
     
-    QueryInterpolatorFactory factory = node.pipelineContext().tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-        interpolator_config.id());
+    QueryInterpolatorFactory factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(QueryInterpolatorFactory.class, 
+            interpolator_config.getType());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
+          interpolator_config.getDataType() == null ? "Default" : interpolator_config.getDataType());
     }
     
     for (final TimeSeries source : sources) {
@@ -186,8 +185,8 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     }
     
     accumulators = Maps.newHashMapWithExpectedSize(
-        config.expectedSummaries().size());
-    for (final int summary : config.expectedSummaries()) {
+        config.getExpectedSummaries().size());
+    for (final int summary : config.getExpectedSummaries()) {
       accumulators.put(summary, new NumericAccumulator());
     }
     sum_id = result.rollupConfig().getIdForAggregator("sum");
@@ -251,7 +250,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     }
     
     if (aggregator.name().equals("avg") && 
-        !config.expectedSummaries().contains(avg_id)) {
+        !config.getExpectedSummaries().contains(avg_id)) {
       for (final Entry<Integer, NumericAccumulator> entry : accumulators.entrySet()) {
         final NumericAccumulator accumulator = entry.getValue();
         if (accumulator.valueIndex() > 0) {
@@ -284,7 +283,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
         }
       }
       if (dp.summariesAvailable().isEmpty() && had_nan) {
-        for (int summary : config.expectedSummaries()) {
+        for (int summary : config.getExpectedSummaries()) {
           dp.resetValue(summary, Double.NaN);
         }
       }

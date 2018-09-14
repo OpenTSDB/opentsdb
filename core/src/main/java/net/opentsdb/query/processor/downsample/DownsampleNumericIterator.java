@@ -38,7 +38,7 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
  * Iterator that downsamples data points using an {@link Aggregator} following
  * various rules:
  * <ul>
- * <li>If {@link DownsampleConfig#fill()} is enabled, then a value is emitted
+ * <li>If {@link DownsampleConfig#getFill()} is enabled, then a value is emitted
  * for every timestamp between {@link DownsampleConfig#start()} and 
  * {@link DownsampleConfig#end()} inclusive. Otherwise only values that are 
  * not null or {@link Double#isNaN()} will be emitted.</li>
@@ -135,7 +135,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     }
     this.result = (DownsampleResult) result;
     this.source = source;
-    aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
+    aggregator = Aggregators.get(((DownsampleConfig) node.config()).getAggregator());
     config = (DownsampleConfig) node.config();
     final QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericType.TYPE);
     if (interpolator_config == null) {
@@ -144,10 +144,10 @@ public class DownsampleNumericIterator implements QueryIterator {
     
     final QueryInterpolatorFactory factory = node.pipelineContext()
         .tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-                                        interpolator_config.id());
+                                        interpolator_config.getType());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
+          interpolator_config.getDataType() == null ? "Default" : interpolator_config.getDataType());
     }
     
     final QueryInterpolator<?> interp = factory.newInterpolator(
@@ -156,12 +156,12 @@ public class DownsampleNumericIterator implements QueryIterator {
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
-          interpolator_config.interpolatorType() == null ? "Default" : interpolator_config.interpolatorType());
+          interpolator_config.getDataType() == null ? "Default" : interpolator_config.getDataType());
     }
     interpolator = (QueryInterpolator<NumericType>) interp;
     interval_ts = this.result.start().getCopy();
     
-    if (config.fill() && !config.runAll()) {
+    if (config.getFill() && !config.getRunAll()) {
       if (!interpolator.hasNext()) {
         has_next = false;
       } else {
@@ -213,7 +213,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     response.reset(value);
     result.nextTimestamp(interval_ts);
     
-    if (config.fill() && !config.runAll()) {
+    if (config.getFill() && !config.getRunAll()) {
       value = interpolator.next(interval_ts);
       if (interval_ts.compare(Op.LTE, result.end())) {
         has_next = true;
@@ -282,7 +282,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     @SuppressWarnings("unchecked")
     Downsampler() {
       interval_start = result.start().getCopy();
-      if (config.runAll()) {
+      if (config.getRunAll()) {
         interval_end = result.end().getCopy();
       } else {
         interval_end = result.start().getCopy();
@@ -387,11 +387,11 @@ public class DownsampleNumericIterator implements QueryIterator {
           break;
         }
         
-        if (config.runAll() || 
+        if (config.getRunAll() || 
             next_dp.timestamp().compare(Op.LT, interval_end)) {
           // when running through all the dps, make sure we don't go over the 
           // end timestamp of the query.
-          if (config.runAll() && 
+          if (config.getRunAll() && 
               next_dp.timestamp().compare(Op.GT, interval_end)) {
             next_dp = null;
             break;
@@ -399,7 +399,7 @@ public class DownsampleNumericIterator implements QueryIterator {
           
           if (next_dp.value() != null && !next_dp.value().isInteger() && 
               Double.isNaN(next_dp.value().doubleValue())) {
-            if (config.infectiousNan()) {
+            if (config.getInfectiousNan()) {
               longs = false;
               shiftToDouble();
               add(Double.NaN);

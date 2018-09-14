@@ -121,11 +121,11 @@ public class TestExpressionFactory {
     
     ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
     assertEquals("expression", p1.getId());
-    assertEquals("sys.cpu.user", p1.left());
-    assertEquals(OperandType.VARIABLE, p1.leftType());
-    assertEquals(42, ((NumericLiteral) p1.right()).longValue());
-    assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
-    assertEquals(ExpressionOp.ADD, p1.operator());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals(42, ((NumericLiteral) p1.getRight()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
   
   @Test
@@ -192,11 +192,11 @@ public class TestExpressionFactory {
     
     ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
     assertEquals("expression", p1.getId());
-    assertEquals("sys.cpu.user", p1.left());
-    assertEquals(OperandType.VARIABLE, p1.leftType());
-    assertEquals(42, ((NumericLiteral) p1.right()).longValue());
-    assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
-    assertEquals(ExpressionOp.ADD, p1.operator());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals(42, ((NumericLiteral) p1.getRight()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
   
   @Test
@@ -280,11 +280,11 @@ public class TestExpressionFactory {
     
     ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
     assertEquals("expression", p1.getId());
-    assertEquals("sys.cpu.user", p1.left());
-    assertEquals(OperandType.VARIABLE, p1.leftType());
-    assertEquals("sys.cpu.sys", p1.right());
-    assertEquals(OperandType.VARIABLE, p1.rightType());
-    assertEquals(ExpressionOp.ADD, p1.operator());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals("sys.cpu.sys", p1.getRight());
+    assertEquals(OperandType.VARIABLE, p1.getRightType());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
   
   @Test
@@ -368,11 +368,11 @@ public class TestExpressionFactory {
     
     ExpressionParseNode p1 = (ExpressionParseNode) b1.getConfig();
     assertEquals("expression", p1.getId());
-    assertEquals("sys.cpu.user", p1.left());
-    assertEquals(OperandType.VARIABLE, p1.leftType());
-    assertEquals("sys.cpu.sys", p1.right());
-    assertEquals(OperandType.VARIABLE, p1.rightType());
-    assertEquals(ExpressionOp.ADD, p1.operator());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals("sys.cpu.sys", p1.getRight());
+    assertEquals(OperandType.VARIABLE, p1.getRightType());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
   
   @Test
@@ -475,22 +475,22 @@ public class TestExpressionFactory {
       if (binary.getId().equals("expression_SubExp#0")) {
         ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
         assertEquals("expression_SubExp#0", p1.getId());
-        assertEquals("sys.cpu.user", p1.left());
-        assertEquals(OperandType.VARIABLE, p1.leftType());
-        assertEquals("sys.cpu.sys", p1.right());
-        assertEquals(OperandType.VARIABLE, p1.rightType());
-        assertEquals(ExpressionOp.ADD, p1.operator());
+        assertEquals("sys.cpu.user", p1.getLeft());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals("sys.cpu.sys", p1.getRight());
+        assertEquals(OperandType.VARIABLE, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
         
         assertFalse(graph.containsEdge(SINK, binary));
       } else {
         assertEquals("expression", binary.getId());
         ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
         assertEquals("expression", p1.getId());
-        assertEquals("expression_SubExp#0", p1.left());
-        assertEquals(OperandType.SUB_EXP, p1.leftType());
-        assertEquals("sys.cpu.idle", p1.right());
-        assertEquals(OperandType.VARIABLE, p1.rightType());
-        assertEquals(ExpressionOp.ADD, p1.operator());
+        assertEquals("expression_SubExp#0", p1.getLeft());
+        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
+        assertEquals("sys.cpu.idle", p1.getRight());
+        assertEquals(OperandType.VARIABLE, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
         
         assertTrue(graph.containsEdge(SINK, binary));
       }
@@ -597,11 +597,11 @@ public class TestExpressionFactory {
       if (binary.getId().equals("expression_SubExp#0")) {
         ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
         assertEquals("expression_SubExp#0", p1.getId());
-        assertEquals("sys.cpu.user", p1.left());
-        assertEquals(OperandType.VARIABLE, p1.leftType());
-        assertEquals(1024, ((NumericLiteral) p1.right()).longValue());
-        assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
-        assertEquals(ExpressionOp.MULTIPLY, p1.operator());
+        assertEquals("sys.cpu.user", p1.getLeft());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
         
         assertFalse(graph.containsEdge(SINK, binary));
         assertEquals(1, graph.incomingEdgesOf(binary).size());
@@ -610,11 +610,11 @@ public class TestExpressionFactory {
       } else if (binary.getId().equals("expression_SubExp#1")) {
         ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
         assertEquals("expression_SubExp#1", p1.getId());
-        assertEquals("sys.cpu.sys", p1.left());
-        assertEquals(OperandType.VARIABLE, p1.leftType());
-        assertEquals(1024, ((NumericLiteral) p1.right()).longValue());
-        assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
-        assertEquals(ExpressionOp.MULTIPLY, p1.operator());
+        assertEquals("sys.cpu.sys", p1.getLeft());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
         
         assertFalse(graph.containsEdge(SINK, binary));
         assertEquals(1, graph.incomingEdgesOf(binary).size());
@@ -625,22 +625,22 @@ public class TestExpressionFactory {
         // validate sub2 here
         p1 = (ExpressionParseNode) b2.getConfig();
         assertEquals("expression_SubExp#2", p1.getId());
-        assertEquals("expression_SubExp#0", p1.left());
-        assertEquals(OperandType.SUB_EXP, p1.leftType());
-        assertEquals("expression_SubExp#1", p1.right());
-        assertEquals(OperandType.SUB_EXP, p1.rightType());
-        assertEquals(ExpressionOp.ADD, p1.operator());
+        assertEquals("expression_SubExp#0", p1.getLeft());
+        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
+        assertEquals("expression_SubExp#1", p1.getRight());
+        assertEquals(OperandType.SUB_EXP, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
         
         assertFalse(graph.containsEdge(SINK, b2));
         
       } else if (binary.getId().equals("expression_SubExp#3")) {
         ExpressionParseNode p1 = (ExpressionParseNode) binary.getConfig();
         assertEquals("expression_SubExp#3", p1.getId());
-        assertEquals("sys.cpu.idle", p1.left());
-        assertEquals(OperandType.VARIABLE, p1.leftType());
-        assertEquals(1024, ((NumericLiteral) p1.right()).longValue());
-        assertEquals(OperandType.LITERAL_NUMERIC, p1.rightType());
-        assertEquals(ExpressionOp.MULTIPLY, p1.operator());
+        assertEquals("sys.cpu.idle", p1.getLeft());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
         
         assertFalse(graph.containsEdge(SINK, binary));
         assertEquals(1, graph.incomingEdgesOf(binary).size());
@@ -653,11 +653,11 @@ public class TestExpressionFactory {
         // validate parent here
         p1 = (ExpressionParseNode) b2.getConfig();
         assertEquals("expression", p1.getId());
-        assertEquals("expression_SubExp#2", p1.left());
-        assertEquals(OperandType.SUB_EXP, p1.leftType());
-        assertEquals("expression_SubExp#3", p1.right());
-        assertEquals(OperandType.SUB_EXP, p1.rightType());
-        assertEquals(ExpressionOp.ADD, p1.operator());
+        assertEquals("expression_SubExp#2", p1.getLeft());
+        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
+        assertEquals("expression_SubExp#3", p1.getRight());
+        assertEquals(OperandType.SUB_EXP, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
         
         assertTrue(graph.containsEdge(SINK, b2));
       }

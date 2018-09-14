@@ -44,7 +44,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.joins.JoinConfig;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
 
 /**
  * Represents a single arithmetic and/or logical expression involving 
@@ -105,7 +104,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   /** @return The join config. */
-  public JoinConfig getJoinConfig() {
+  public JoinConfig getJoin() {
     return join_config;
   }
   

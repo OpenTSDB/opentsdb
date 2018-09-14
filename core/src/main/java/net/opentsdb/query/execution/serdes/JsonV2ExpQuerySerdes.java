@@ -164,11 +164,11 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
         
         QueryInterpolatorFactory factory = tsdb
             .getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-                nic.id());
+                nic.getType());
         
         if (factory == null) {
           throw new IllegalArgumentException("No interpolator factory found for: " + 
-              nic.id() == null ? "Default" : nic.id());
+              nic.getType() == null ? "Default" : nic.getType());
         }
         
         try {

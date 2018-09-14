@@ -40,7 +40,7 @@ public class TestScalarNumericInterpolatorConfig {
         .build();
     assertTrue(((ScalarNumericInterpolatorConfig) config).isInteger());
     assertEquals(42, ((ScalarNumericInterpolatorConfig) config).longValue());
-    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.realFillPolicy());
+    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.getRealFillPolicy());
     
     config = (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
         .setValue(42.5D)
@@ -50,7 +50,7 @@ public class TestScalarNumericInterpolatorConfig {
         .build();
     assertFalse(((ScalarNumericInterpolatorConfig) config).isInteger());
     assertEquals(42.5, ((ScalarNumericInterpolatorConfig) config).doubleValue(), 0.01);
-    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.realFillPolicy());
+    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.getRealFillPolicy());
     
     config = (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
         //.setValue(42) <== defaults to 0
@@ -60,7 +60,7 @@ public class TestScalarNumericInterpolatorConfig {
         .build();
     assertTrue(((ScalarNumericInterpolatorConfig) config).isInteger());
     assertEquals(0, ((ScalarNumericInterpolatorConfig) config).longValue());
-    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.realFillPolicy());
+    assertEquals(FillWithRealPolicy.PREFER_NEXT, config.getRealFillPolicy());
     
     try {
       ScalarNumericInterpolatorConfig.newBuilder()

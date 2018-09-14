@@ -102,17 +102,17 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
             .setConfig(parse_node)
             .setId(parse_node.getId())
             .setType("BinaryExpression");
-      if (parse_node.leftType() == OperandType.SUB_EXP) {
-        builder.addSource((String) parse_node.left());
+      if (parse_node.getLeftType() == OperandType.SUB_EXP) {
+        builder.addSource((String) parse_node.getLeft());
       }
-      if (parse_node.rightType() == OperandType.SUB_EXP) {
-        builder.addSource((String) parse_node.right());
+      if (parse_node.getRightType() == OperandType.SUB_EXP) {
+        builder.addSource((String) parse_node.getRight());
       }
       
       // we may need to fix up variable names. Do so by searching 
       // recursively.
       String last_source = null;
-      if (parse_node.leftType() == OperandType.VARIABLE) {
+      if (parse_node.getLeftType() == OperandType.VARIABLE) {
         String ds = validate(parse_node, true, graph, config, 0);
         if (ds != null) {
           builder.addSource(ds);
@@ -122,7 +122,7 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         }
       }
       
-      if (parse_node.rightType() == OperandType.VARIABLE) {
+      if (parse_node.getRightType() == OperandType.VARIABLE) {
         String ds = validate(parse_node, false, graph, config, 0);
         if (ds != null) {
           // dedupe
@@ -186,7 +186,7 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
                          final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph, 
                          final ExecutionGraphNode downstream, 
                          final int depth) {
-    final String key = left ? (String) node.left() : (String) node.right();
+    final String key = left ? (String) node.getLeft() : (String) node.getRight();
     if (depth > 0 && 
         !Strings.isNullOrEmpty(downstream.getType()) && 
         downstream.getType().toLowerCase().equals("expression")) {
@@ -194,14 +194,14 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         if (downstream.getConfig() instanceof ExpressionConfig) {
           node.setLeft(((ExpressionConfig) downstream.getConfig()).getAs());
         } else {
-          node.setLeft(((ExpressionParseNode) downstream.getConfig()).as());
+          node.setLeft(((ExpressionParseNode) downstream.getConfig()).getAs());
         }
         return downstream.getId();
       } else if (key.equals(downstream.getId())) {
         if (downstream.getConfig() instanceof ExpressionConfig) {
           node.setRight(((ExpressionConfig) downstream.getConfig()).getAs());
         } else {
-          node.setRight(((ExpressionParseNode) downstream.getConfig()).as());
+          node.setRight(((ExpressionParseNode) downstream.getConfig()).getAs());
         }
         return downstream.getId();
       }

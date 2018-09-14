@@ -65,7 +65,7 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       QueryInterpolatorConfig interpolator_config = 
           ((ExpressionConfig) node.config()).interpolatorConfig(
               NumericType.TYPE, 
-              (String) this.node.expressionConfig().left());
+              (String) this.node.expressionConfig().getLeft());
       if (interpolator_config == null) {
         interpolator_config = 
             ((ExpressionConfig) node.config())
@@ -75,10 +75,11 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       final QueryInterpolatorFactory factory = 
           node.pipelineContext().tsdb().getRegistry().getPlugin(
               QueryInterpolatorFactory.class, 
-              interpolator_config.id());
+              interpolator_config.getType());
       if (factory == null) {
         throw new IllegalArgumentException("No interpolator factory found for: " + 
-            (interpolator_config.id() == null ? "Default" : interpolator_config.id()));
+            (interpolator_config.getType() == null ? "Default" : 
+              interpolator_config.getType()));
       }
       
       left_interpolator = (QueryInterpolator<NumericType>) factory.newInterpolator(
@@ -96,7 +97,7 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       QueryInterpolatorConfig interpolator_config = 
           ((ExpressionConfig) node.config()).interpolatorConfig(
               NumericType.TYPE, 
-              (String) this.node.expressionConfig().right());
+              (String) this.node.expressionConfig().getRight());
       if (interpolator_config == null) {
         interpolator_config = ((ExpressionConfig) node.config())
             .interpolatorConfig(NumericType.TYPE);
@@ -105,10 +106,11 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       final QueryInterpolatorFactory factory = 
           node.pipelineContext().tsdb().getRegistry().getPlugin(
               QueryInterpolatorFactory.class, 
-              interpolator_config.id());
+              interpolator_config.getType());
       if (factory == null) {
         throw new IllegalArgumentException("No interpolator factory found for: " + 
-            interpolator_config.id() == null ? "Default" : interpolator_config.id());
+            interpolator_config.getType() == null ? "Default" : 
+              interpolator_config.getType());
       }
       
       right_interpolator = (QueryInterpolator<NumericType>) factory.newInterpolator(
@@ -174,7 +176,7 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
     }
     
     final NumericType result;
-    switch (node.expressionConfig().operator()) {
+    switch (node.expressionConfig().getOperator()) {
     // logical
     case OR:
     case AND:
@@ -206,7 +208,7 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
     default:
       throw new QueryDownstreamException("Expression iterator was "
           + "told to handle the unexpected operator: " 
-          + node.expressionConfig().operator());
+          + node.expressionConfig().getOperator());
     }
     
     if (result == null) {
