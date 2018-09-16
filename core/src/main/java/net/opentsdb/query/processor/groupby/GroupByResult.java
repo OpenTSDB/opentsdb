@@ -109,7 +109,7 @@ public class GroupByResult implements QueryResult {
         final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
         GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
         if (group == null) {
-          group = new GroupByTimeSeries(node, next);
+          group = new GroupByTimeSeries(node, this);
           groups.put(hash, group);
         }
         group.addSource(series);
@@ -151,7 +151,7 @@ public class GroupByResult implements QueryResult {
           final long hash = LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
           GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
           if (group == null) {
-            group = new GroupByTimeSeries(node, next);
+            group = new GroupByTimeSeries(node, this);
             groups.put(hash, group);
           }
           group.addSource(series);
