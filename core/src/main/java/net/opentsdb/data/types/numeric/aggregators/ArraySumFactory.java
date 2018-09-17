@@ -16,6 +16,10 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
+
 /**
  * Returns a Sum array aggregator.
  * 
@@ -31,6 +35,13 @@ public class ArraySumFactory extends BaseArrayFactory {
   @Override
   public String id() {
     return "sum";
+  }
+  
+  @Override
+  public Deferred<Object> initialize(TSDB tsdb) {
+    tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
+        "zimsum", this);
+    return Deferred.fromResult(null);
   }
   
   public static class ArraySum extends BaseArrayAggregator {
