@@ -16,6 +16,10 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
+
 /**
  * Just the max.
  * 
@@ -33,6 +37,13 @@ public class ArrayMaxFactory extends BaseArrayFactory {
     return "max";
   }
 
+  @Override
+  public Deferred<Object> initialize(TSDB tsdb) {
+    tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
+        "mimmax", this);
+    return Deferred.fromResult(null);
+  }
+  
   public static class ArrayMax extends BaseArrayAggregator {
 
     public ArrayMax(final boolean infectious_nans) {

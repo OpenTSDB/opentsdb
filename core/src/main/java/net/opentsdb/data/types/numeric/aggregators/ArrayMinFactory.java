@@ -16,6 +16,10 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
+
 /**
  * Just the min.
  * 
@@ -33,6 +37,13 @@ public class ArrayMinFactory extends BaseArrayFactory {
     return "min";
   }
 
+  @Override
+  public Deferred<Object> initialize(TSDB tsdb) {
+    tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
+        "mimmin", this);
+    return Deferred.fromResult(null);
+  }
+  
   public static class ArrayMin extends BaseArrayAggregator {
 
     public ArrayMin(final boolean infectious_nans) {
