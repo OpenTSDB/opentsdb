@@ -133,7 +133,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       start_time = new MillisecondTimeStamp(
           DateTime.parseDateTimeString(builder.start, builder.timezone));
       if (!run_all) {
+        final TimeStamp original = start_time.getCopy();
         start_time.snapToPreviousInterval(interval_part, units);
+        if (start_time.compare(Op.LT, original)) {
+          start_time.add(duration);
+        }
       }
     } else {
       start_time = null;

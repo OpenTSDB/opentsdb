@@ -375,6 +375,7 @@ final public class QueryRpc {
         .addQuerySink(new LocalSink(async))
         .setStats(DefaultQueryStats.newBuilder()
             .setTrace(trace)
+            .setQuerySpan(query_span)
             .build())
         // TODO - stats
         .build();

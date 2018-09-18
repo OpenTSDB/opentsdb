@@ -651,15 +651,17 @@ public class TimeSeriesQuery extends Validatable
     Map<String, String> id_to_node_roots = Maps.newHashMap();
     
     final List<ExecutionGraphNode> nodes = Lists.newArrayList();
+    int metric_id = 1;
     for (final Metric metric : metrics) {
       ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-          .setId(metric.getId())
+          .setId(Strings.isNullOrEmpty(metric.getId()) ? "m" + metric_id++ : metric.getId())
           .setType("DataSource")
           .setConfig(QuerySourceConfig.newBuilder()
               .setMetric(MetricLiteralFilter.newBuilder()
                   .setMetric(metric.getMetric())
                   .build())
               .setFilterId(metric.getFilter())
+              .setId(Strings.isNullOrEmpty(metric.getId()) ? "m" + metric_id++ : metric.getId())
               .build())
           .build();
       nodes.add(node);
