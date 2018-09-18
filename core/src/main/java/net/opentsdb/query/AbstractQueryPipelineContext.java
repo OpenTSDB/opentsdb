@@ -388,11 +388,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
           single_results.addResults(next);
         }
       }
-      try {
-        next.close();
-      } catch (Exception e) {
-        LOG.error("Failed to close result: " + next, e);
-      }
     } else {
       for (final QuerySink sink : sinks) {
         try {
@@ -490,6 +485,8 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     /** The accumulation of time series. */
     private final List<TimeSeries> series;
     
+    private final List<QueryResult> results;
+    
     /** The type of ID token pulled from the result. */
     private final TypeToken<? extends TimeSeriesId> id_type;
     
@@ -509,6 +506,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       resolution = result.resolution();
       sequence_id = result.sequenceId();
       rollup_config = result.rollupConfig();
+      results = Lists.newArrayList(result);
     }
     
     @Override
@@ -548,7 +546,9 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     
     @Override
     public void close() {
-      // No-Op
+      for (final QueryResult result : results) {
+        result.close();
+      }
     }
     
     /**
@@ -576,8 +576,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         resolution = next.resolution();
       }
       series.addAll(next.timeSeries());
+      results.add(next);
     }
-
-    
   }
 }
