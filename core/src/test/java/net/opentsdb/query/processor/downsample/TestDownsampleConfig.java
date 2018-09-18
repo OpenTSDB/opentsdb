@@ -78,7 +78,8 @@ public class TestDownsampleConfig {
     assertEquals(ChronoUnit.SECONDS, config.units());
     assertFalse(config.getInfectiousNan());
     assertEquals(15, config.intervalPart());
-    assertEquals(1514843295, config.startTime().epoch());
+    // snap forward
+    assertEquals(1514843310, config.startTime().epoch());
     assertEquals(1514846895, config.endTime().epoch());
     
     try {
@@ -179,7 +180,7 @@ public class TestDownsampleConfig {
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();
-    assertEquals(240, config.intervals());
+    assertEquals(239, config.intervals());
     
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")

@@ -53,6 +53,7 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
@@ -234,6 +235,10 @@ public class RawQueryRpc {
     SemanticQueryContext context = (SemanticQueryContext) SemanticQueryContext.newBuilder()
         .setTSDB(tsdb)
         .setQuery(query)
+        .setStats(DefaultQueryStats.newBuilder()
+            .setTrace(trace)
+            .setQuerySpan(query_span)
+            .build())
         .build();
     
     class AsyncTimeout implements AsyncListener {

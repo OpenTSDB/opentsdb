@@ -32,12 +32,7 @@ public class DefaultQueryStats implements QueryStats {
    */
   DefaultQueryStats(final Builder builder) {
     trace = builder.trace;
-    if (trace != null) {
-      query_span = trace.newSpan("OpenTSDB Query")
-          .start();
-    } else {
-      query_span = null;
-    }
+    query_span = builder.query_span;
   }
   
   @Override
@@ -60,12 +55,19 @@ public class DefaultQueryStats implements QueryStats {
   public static class Builder {
     private Trace trace;
     
+    private Span query_span;
+    
     /**
      * @param trace An optional trace.
      * @return The builder.
      */
     public Builder setTrace(final Trace trace) {
       this.trace = trace;
+      return this;
+    }
+    
+    public Builder setQuerySpan(final Span query_span) {
+      this.query_span = query_span;
       return this;
     }
     
