@@ -55,9 +55,6 @@ public class GroupByNumericArrayIterator implements QueryIterator,
    * of the time series has a real value. */
   private boolean has_next = false;
   
-  /** List of iterators. */
-  private final List<Iterator<TimeSeriesValue<?>>> iterators;
-  
   /**
    * Default ctor.
    * @param node The non-null node this iterator belongs to.
@@ -109,7 +106,8 @@ public class GroupByNumericArrayIterator implements QueryIterator,
       throw new IllegalArgumentException("No aggregator found of type: " 
           + ((GroupByConfig) node.config()).getAggregator());
     }
-    iterators = Lists.newArrayListWithExpectedSize(sources.size());
+    
+    // gotta do it here otherwise we won't know if there is any data.
     for (final TimeSeries source : sources) {
       if (source == null) {
         throw new IllegalArgumentException("Null time series are not "
@@ -119,9 +117,22 @@ public class GroupByNumericArrayIterator implements QueryIterator,
           source.iterator(NumericArrayType.TYPE);
       if (optional.isPresent()) {
         final Iterator<TimeSeriesValue<?>> iterator = optional.get();
-        iterators.add(iterator);
         if (iterator.hasNext()) {
           has_next = true;
+          final TimeSeriesValue<NumericArrayType> array = 
+              (TimeSeriesValue<NumericArrayType>) iterator.next();
+          // skip empties.
+          if (array.value().end() - array.value().offset() > 0) {
+            if (array.value().isInteger()) {
+              if (array.value().longArray().length > 0) {
+                aggregator.accumulate(array.value().longArray(), 
+                    array.value().offset(), array.value().end());
+              }
+            } else if (array.value().doubleArray().length > 0) {
+              aggregator.accumulate(array.value().doubleArray(),
+                  array.value().offset(), array.value().end());
+            }
+          }
         }
       }
     }
@@ -135,22 +146,6 @@ public class GroupByNumericArrayIterator implements QueryIterator,
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
     has_next = false;
-    for (final Iterator<TimeSeriesValue<?>> iterator : iterators) {
-      final TimeSeriesValue<NumericArrayType> array = 
-          (TimeSeriesValue<NumericArrayType>) iterator.next();
-      // skip empties.
-      if (array.value().end() - array.value().offset() > 0) {
-        if (array.value().isInteger()) {
-          if (array.value().longArray().length > 0) {
-            aggregator.accumulate(array.value().longArray(), 
-                array.value().offset(), array.value().end());
-          }
-        } else if (array.value().doubleArray().length > 0) {
-          aggregator.accumulate(array.value().doubleArray(),
-              array.value().offset(), array.value().end());
-        }
-      }
-    }
     return this;
   }
 
