@@ -44,6 +44,8 @@ import org.mockito.stubbing.Answer;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -63,6 +65,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
@@ -128,6 +131,11 @@ public class TestPBufSerdes {
     
     QueryContext ctx = mock(QueryContext.class);
     when(ctx.query()).thenReturn(q);
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.registry = new DefaultRegistry(tsdb);
+    ((DefaultRegistry) tsdb.registry).initialize(true);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(tsdb);
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -205,6 +213,7 @@ public class TestPBufSerdes {
     // now deserialize
     final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     QueryNode node = mock(QueryNode.class);
+    when(node.pipelineContext()).thenReturn(context);
     final boolean[] validated = new boolean[1];
     doAnswer(new Answer<Void>() {
 

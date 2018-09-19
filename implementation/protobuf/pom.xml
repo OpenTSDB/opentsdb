@@ -15,7 +15,7 @@
    <packaging>jar</packaging>
    
    <properties>
-      <grpc.version>1.14.0</grpc.version>
+      <grpc.version>1.15.0</grpc.version>
       <protobuf.version>3.6.0</protobuf.version>
    </properties>
    
@@ -48,6 +48,7 @@
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf.version}</version>
          </dependency>
+
          <dependency>
            <groupId>io.grpc</groupId>
            <artifactId>grpc-core</artifactId>
@@ -63,6 +64,12 @@
            <artifactId>grpc-protobuf</artifactId>
            <version>${grpc.version}</version>
          </dependency>
+         <dependency>
+           <groupId>io.grpc</groupId>
+           <artifactId>grpc-netty-shaded</artifactId>
+           <version>${grpc.version}</version>
+         </dependency>
+
       </dependencies>
    </dependencyManagement>
    
@@ -79,6 +86,7 @@
          <groupId>com.google.protobuf</groupId>
          <artifactId>protobuf-java</artifactId>
       </dependency>
+
       <dependency>
          <groupId>io.grpc</groupId>
          <artifactId>grpc-core</artifactId>
@@ -91,7 +99,11 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-protobuf</artifactId>
       </dependency>
-      
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty-shaded</artifactId>
+      </dependency>
+
       <!-- TESTING Deps. -->
       <dependency>
          <groupId>net.opentsdb</groupId>
