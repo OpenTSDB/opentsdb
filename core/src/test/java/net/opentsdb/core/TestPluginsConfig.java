@@ -717,6 +717,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     config.setLoadDefaultInstances(false);
+    config.setLoadDefaultTypes(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -739,6 +740,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     config.setLoadDefaultInstances(false);
+    config.setLoadDefaultTypes(false);
     
     try {
       config.initialize(tsdb).join(1);
