@@ -170,6 +170,14 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
       
       try {
+        if (dp == null) {
+          if (show_details) {
+            details.add(this.getHttpDetails("Unexpected null datapoint encountered in set.", dp));
+          }
+          LOG.warn("Datapoint null was encountered in set.");
+          illegal_arguments.incrementAndGet();
+          continue;
+        }
         if (dp.getMetric() == null || dp.getMetric().isEmpty()) {
           if (show_details) {
             details.add(this.getHttpDetails("Metric name was empty", dp));
