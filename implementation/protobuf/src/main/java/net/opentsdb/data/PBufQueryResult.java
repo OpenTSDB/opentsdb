@@ -52,6 +52,9 @@ public class PBufQueryResult implements QueryResult {
   /** The optional time specification. */
   private final PBufTimeSpecification time_spec;
   
+  /** Series cache. */
+  private List<TimeSeries> series;
+  
   /**
    * Default ctor.
    * @param factory A non-null factory.
@@ -77,6 +80,27 @@ public class PBufQueryResult implements QueryResult {
     }
   }
   
+  /**
+   * Ctor from a result.
+   * @param factory A non-null factory.
+   * @param node A non-null node that owns this data.
+   * @param options A non-null options object.
+   * @param result The non-null result to parse.
+   */
+  public PBufQueryResult(final PBufIteratorSerdesFactory factory, 
+                         final QueryNode node, 
+                         final SerdesOptions options, 
+                         final QueryResultPB.QueryResult result) {
+    this.factory = factory;
+    this.node = node;
+    this.result = result;
+    if (result.hasTimeSpecification()) {
+      time_spec = new PBufTimeSpecification(result.getTimeSpecification());
+    } else {
+      time_spec = null;
+    }
+  }
+  
   @Override
   public TimeSpecification timeSpecification() {
     return time_spec;
@@ -84,11 +108,14 @@ public class PBufQueryResult implements QueryResult {
 
   @Override
   public Collection<TimeSeries> timeSeries() {
-    final List<TimeSeries> series = Lists.newArrayListWithCapacity(
-        result.getTimeseriesCount());
-    for (final TimeSeriesPB.TimeSeries time_series : 
-        result.getTimeseriesList()) {
-      series.add(new PBufTimeSeries(factory, time_series));
+    if (series == null) {
+      series = Lists.newArrayListWithCapacity(
+          result.getTimeseriesCount());
+      for (final TimeSeriesPB.TimeSeries time_series : 
+          result.getTimeseriesList()) {
+        series.add(new PBufTimeSeries(node.pipelineContext().tsdb(), 
+            factory, time_series));
+      }
     }
     return series;
   }
@@ -116,7 +143,7 @@ public class PBufQueryResult implements QueryResult {
   @Override
   public RollupConfig rollupConfig() {
     // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("TODO!");
+    return null;
   }
   
   @Override

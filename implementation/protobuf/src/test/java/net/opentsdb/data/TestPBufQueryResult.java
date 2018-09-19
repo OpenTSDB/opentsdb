@@ -20,6 +20,9 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.time.temporal.ChronoUnit;
@@ -27,18 +30,24 @@ import java.time.temporal.ChronoUnit;
 import org.junit.Test;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.data.pbuf.TimeSpecificationPB;
 import net.opentsdb.data.pbuf.TimeStampPB;
 import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
 
 public class TestPBufQueryResult {
 
   @Test
-  public void ctorWithTimeSeries() throws Exception {
+  public void ctorStream() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    
     QueryResult pbuf = QueryResult.newBuilder()
         .setResolution(2)
         .setSequenceId(42)
@@ -60,15 +69,58 @@ public class TestPBufQueryResult {
         .build();
     PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
     QueryNode node = mock(QueryNode.class);
+    when(node.pipelineContext()).thenReturn(context);
     ByteArrayInputStream bais = new ByteArrayInputStream(pbuf.toByteArray());
     
     PBufQueryResult result = new PBufQueryResult(factory, node, null, bais);
     assertEquals("1h", result.timeSpecification().stringInterval());
     assertEquals(2, result.timeSeries().size());
+    assertEquals(2, result.timeSeries().size());
     assertEquals(42, result.sequenceId());
     assertSame(node, result.source());
     assertEquals(Const.TS_STRING_ID, result.idType());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
+    verify(context, times(2)).tsdb();
+  }
+  
+  @Test
+  public void ctorObj() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    
+    QueryResult pbuf = QueryResult.newBuilder()
+        .setResolution(2)
+        .setSequenceId(42)
+        .addTimeseries(TimeSeriesPB.TimeSeries.newBuilder())
+        .addTimeseries(TimeSeriesPB.TimeSeries.newBuilder())
+        .setTimeSpecification(TimeSpecificationPB.TimeSpecification.newBuilder()
+        .setStart(TimeStampPB.TimeStamp.newBuilder()
+            .setEpoch(1514764800)
+            .setNanos(500)
+            .setZoneId("UTC")
+            .build())
+        .setEnd(TimeStampPB.TimeStamp.newBuilder()
+            .setEpoch(1514768400)
+            .setNanos(250)
+            .setZoneId("UTC")
+            .build())
+        .setTimeZone("America/Denver")
+        .setInterval("1h"))
+        .build();
+    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    QueryNode node = mock(QueryNode.class);
+    when(node.pipelineContext()).thenReturn(context);
+    
+    PBufQueryResult result = new PBufQueryResult(factory, node, null, pbuf);
+    assertEquals("1h", result.timeSpecification().stringInterval());
+    assertEquals(2, result.timeSeries().size());
+    assertEquals(2, result.timeSeries().size());
+    assertEquals(42, result.sequenceId());
+    assertSame(node, result.source());
+    assertEquals(Const.TS_STRING_ID, result.idType());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
+    verify(context, times(2)).tsdb();
   }
   
   @Test

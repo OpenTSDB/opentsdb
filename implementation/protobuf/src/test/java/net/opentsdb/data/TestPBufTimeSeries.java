@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.reflect.TypeToken;
@@ -30,6 +31,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import net.opentsdb.data.pbuf.TimeSeriesIdPB;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -37,9 +40,18 @@ import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
 
 public class TestPBufTimeSeries {
 
+  private static MockTSDB TSDB;
+  
   private PBufIteratorSerdesFactory factory;
   private byte[] numeric_data;
   private byte[] summary_data;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -72,7 +84,7 @@ public class TestPBufTimeSeries {
   
   @Test
   public void ctor() throws Exception {
-    PBufTimeSeries time_series = new PBufTimeSeries(factory, getSeries(true, true));
+    PBufTimeSeries time_series = new PBufTimeSeries(TSDB, factory, getSeries(true, true));
     assertEquals(2, time_series.types().size());
     assertTrue(time_series.types().contains(NumericType.TYPE));
     assertTrue(time_series.types().contains(NumericSummaryType.TYPE));
@@ -80,25 +92,25 @@ public class TestPBufTimeSeries {
     assertEquals("web01", ((TimeSeriesStringId) time_series.id()).tags().get("host"));
     
     // empty series is fine
-    time_series = new PBufTimeSeries(factory, getSeries(false, false));
+    time_series = new PBufTimeSeries(TSDB, factory, getSeries(false, false));
     assertTrue(time_series.types().isEmpty());
     assertEquals("sys.cpu", ((TimeSeriesStringId) time_series.id()).metric());
     assertEquals("web01", ((TimeSeriesStringId) time_series.id()).tags().get("host"));
     
     try {
-      new PBufTimeSeries(factory, null);
+      new PBufTimeSeries(TSDB, factory, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new PBufTimeSeries(null, getSeries(true, true));
+      new PBufTimeSeries(TSDB, null, getSeries(true, true));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void iterator() throws Exception {
-    PBufTimeSeries time_series = new PBufTimeSeries(factory, getSeries(true, true));
+    PBufTimeSeries time_series = new PBufTimeSeries(TSDB, factory, getSeries(true, true));
     Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
         time_series.iterator(NumericType.TYPE).get();
     assertTrue(iterator.hasNext());
@@ -119,7 +131,7 @@ public class TestPBufTimeSeries {
     assertFalse(time_series.iterator(null).isPresent());
     
     // empty
-    time_series = new PBufTimeSeries(factory, getSeries(false, false));
+    time_series = new PBufTimeSeries(TSDB, factory, getSeries(false, false));
     assertFalse(time_series.iterator(NumericType.TYPE).isPresent());
     assertFalse(time_series.iterator(NumericSummaryType.TYPE).isPresent());
     assertFalse(time_series.iterator(string_type).isPresent());
@@ -128,7 +140,7 @@ public class TestPBufTimeSeries {
   
   @Test
   public void iterators() throws Exception {
-    PBufTimeSeries time_series = new PBufTimeSeries(factory, getSeries(true, true));
+    PBufTimeSeries time_series = new PBufTimeSeries(TSDB, factory, getSeries(true, true));
     Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
         time_series.iterators();
     assertEquals(2, iterators.size());
@@ -145,7 +157,7 @@ public class TestPBufTimeSeries {
     }
 
     // empty
-    time_series = new PBufTimeSeries(factory, getSeries(false, false));
+    time_series = new PBufTimeSeries(TSDB, factory, getSeries(false, false));
     assertTrue(time_series.iterators().isEmpty());
   }
   

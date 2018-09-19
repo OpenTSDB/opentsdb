@@ -17,10 +17,10 @@ package net.opentsdb.query.serdes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Iterator;
-import java.util.Optional;
 
-import com.google.common.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -30,6 +30,7 @@ import net.opentsdb.data.PBufTimeSeriesId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedIterator;
 import net.opentsdb.data.pbuf.QueryResultPB;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.data.pbuf.TimeSpecificationPB.TimeSpecification;
@@ -54,7 +55,8 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
-
+  private static final Logger LOG = LoggerFactory.getLogger(PBufSerdes.class);
+  
   /** The factory. */
   protected final PBufIteratorSerdesFactory factory;
   
@@ -92,49 +94,7 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
     }
     
     try {
-      final QueryResultPB.QueryResult.Builder result_builder = 
-          QueryResultPB.QueryResult.newBuilder();
-      if (result.timeSpecification() != null) {
-        result_builder.setTimeSpecification(TimeSpecification.newBuilder()
-            .setStart(TimeStamp.newBuilder()
-                .setEpoch(result.timeSpecification().start().epoch())
-                .setNanos(result.timeSpecification().start().nanos())
-                .setZoneId(result.timeSpecification().timezone().toString()))
-            .setEnd(TimeStamp.newBuilder()
-                .setEpoch(result.timeSpecification().end().epoch())
-                .setNanos(result.timeSpecification().end().nanos())
-                .setZoneId(result.timeSpecification().timezone().toString()))
-            .setInterval(result.timeSpecification().stringInterval())
-            .setTimeZone(result.timeSpecification().timezone().toString()));
-      }
-      for (final TimeSeries ts : result.timeSeries()) {
-        final TimeSeriesPB.TimeSeries.Builder ts_builder = 
-            TimeSeriesPB.TimeSeries.newBuilder()
-            .setId(PBufTimeSeriesId.newBuilder(
-                  ts.id())
-                .build()
-                .pbufID());
-        
-        for (final TypeToken<?> type : ts.types()) {
-          final Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> 
-              optional = ts.iterator(type);
-          if (optional.isPresent()) {
-            final PBufIteratorSerdes serdes = factory.serdesForType(type);
-            if (serdes != null) {
-              serdes.serialize(ts_builder, context, options, result, optional.get());
-            } else {
-              final SerdesException ex = new SerdesException(
-                  "Unable to find a serialiation module for type: " + type);
-              if (child != null) {
-                child.setErrorTags(ex).finish();
-              }
-              throw ex;
-            }
-          }
-        }
-        result_builder.addTimeseries(ts_builder);
-      }
-      result_builder.build().writeTo(stream);
+      serializeResult(context, options, result).writeTo(stream);
   
       if (child != null) {
         child.setSuccessTags().finish();
@@ -205,6 +165,58 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
    */
   public void registerSerdes(final PBufIteratorSerdes serdes) {
     factory.register(serdes);
+  }
+  
+  /**
+   * Serializes the result into a PBuf object.
+   * @param context The non-null context to pull the query from.
+   * @param options Options for serdes.
+   * @param result The non-null result to serialize.
+   * @return A non-null pbuf object.
+   */
+  public QueryResultPB.QueryResult serializeResult(
+      final QueryContext context, 
+      final SerdesOptions options,
+      final QueryResult result) {
+    final QueryResultPB.QueryResult.Builder result_builder = 
+        QueryResultPB.QueryResult.newBuilder();
+    if (result.timeSpecification() != null) {
+      result_builder.setTimeSpecification(TimeSpecification.newBuilder()
+          .setStart(TimeStamp.newBuilder()
+              .setEpoch(result.timeSpecification().start().epoch())
+              .setNanos(result.timeSpecification().start().nanos())
+              .setZoneId(result.timeSpecification().timezone().toString()))
+          .setEnd(TimeStamp.newBuilder()
+              .setEpoch(result.timeSpecification().end().epoch())
+              .setNanos(result.timeSpecification().end().nanos())
+              .setZoneId(result.timeSpecification().timezone().toString()))
+          .setInterval(result.timeSpecification().stringInterval())
+          .setTimeZone(result.timeSpecification().timezone().toString()));
+    }
+    for (final TimeSeries ts : result.timeSeries()) {
+      final TimeSeriesPB.TimeSeries.Builder ts_builder = 
+          TimeSeriesPB.TimeSeries.newBuilder()
+          .setId(PBufTimeSeriesId.newBuilder(
+                ts.id())
+              .build()
+              .pbufID());
+      
+      for (final TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> 
+          iterator : ts.iterators()) {
+        final PBufIteratorSerdes serdes = factory.serdesForType(iterator.getType());
+        if (serdes == null) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Skipping serialization of unknown type: " 
+                + iterator.getType());
+          }
+          continue;
+        }
+        serdes.serialize(ts_builder, context, options, result, iterator);
+      }
+      
+      result_builder.addTimeseries(ts_builder);
+    }
+    return result_builder.build();
   }
   
   @Override

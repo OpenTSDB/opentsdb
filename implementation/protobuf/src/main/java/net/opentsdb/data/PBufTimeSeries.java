@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.exceptions.SerdesException;
@@ -52,10 +53,12 @@ public class PBufTimeSeries implements TimeSeries {
   
   /**
    * Default ctor.
+   * @param The non-null TSDB we belong to.
    * @param factory A non-null factory.
    * @param time_series A non-null source time series.
    */
-  public PBufTimeSeries(final PBufIteratorSerdesFactory factory, 
+  public PBufTimeSeries(final TSDB tsdb,
+                        final PBufIteratorSerdesFactory factory, 
                         final TimeSeriesPB.TimeSeries time_series) {
     if (factory == null) {
       throw new IllegalArgumentException("Factory cannot be null.");
@@ -67,14 +70,12 @@ public class PBufTimeSeries implements TimeSeries {
     this.time_series = time_series;
     data = Maps.newHashMapWithExpectedSize(time_series.getDataCount());
     for (final TimeSeriesData data : time_series.getDataList()) {
-      try {
-        final Class<?> clazz = Class.forName(data.getType());
-        final TypeToken<?> type = TypeToken.of(clazz);
-        this.data.put(type, data);
-      } catch (ClassNotFoundException e) {
-        throw new SerdesException("Failed to find a class for type: " 
-            + data.getType(), e);
+      final TypeToken<?> type = tsdb.getRegistry().getType(data.getType());
+      if (type == null) {
+        throw new IllegalArgumentException("No type found for: " 
+            + data.getType());
       }
+      this.data.put(type, data);
     }
   }
   
