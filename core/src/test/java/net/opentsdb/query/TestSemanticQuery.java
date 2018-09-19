@@ -13,6 +13,8 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -180,5 +182,95 @@ public class TestSemanticQuery {
     assertTrue(json.contains("\"id\":\"ds\""));
     assertTrue(json.contains("\"sources\":[\"DataSource\"]"));
     assertTrue(json.contains("\"interval\":\"15s\""));
+  }
+  
+  @Test
+  public void getFilter() {
+    NumericInterpolatorConfig numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setDataType(NumericType.TYPE.toString())
+        .build();
+    
+    NamedFilter filter = DefaultNamedFilter.newBuilder()
+          .setFilter(TagValueLiteralOrFilter.newBuilder()
+          .setFilter("web01")
+          .setTagKey("host")
+          .build())
+      .setId("f1")
+        .build();
+    
+    ExecutionGraph graph = ExecutionGraph.newBuilder()
+        .setId("g1")
+      .addNode(ExecutionGraphNode.newBuilder()
+          .setId("DataSource")
+          .setConfig(QuerySourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric("sys.cpu.user")
+                  .build())
+              .setFilterId("f1")
+              .setId("m1")
+              .build()))
+      .addNode(ExecutionGraphNode.newBuilder()
+          .setId("ds")
+          .setType("downsample")
+          .addSource("DataSource")
+          .setConfig(DownsampleConfig.newBuilder()
+              .setAggregator("sum")
+              .setId("foo")
+              .setInterval("15s")
+              .setStart("1514764800")
+              .setEnd("1514768400")
+                .addInterpolatorConfig(numeric_config)
+                .build())
+            .build())
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+      .setEnd("1514768400")
+      .setTimeZone("America/Denver")
+      .addFilter(filter)
+      .setExecutionGraph(graph)
+      .build();
+    
+    assertSame(filter.getFilter(), query.getFilter("f1"));
+    assertNull(query.getFilter("nosuchfilter"));
+    
+    ExecutionGraph.newBuilder()
+      .setId("g1")
+      .addNode(ExecutionGraphNode.newBuilder()
+          .setId("DataSource")
+          .setConfig(QuerySourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric("sys.cpu.user")
+                  .build())
+              .setId("m1")
+              .build()))
+      .addNode(ExecutionGraphNode.newBuilder()
+          .setId("ds")
+          .setType("downsample")
+          .addSource("DataSource")
+          .setConfig(DownsampleConfig.newBuilder()
+              .setAggregator("sum")
+              .setId("foo")
+              .setInterval("15s")
+              .setStart("1514764800")
+              .setEnd("1514768400")
+                .addInterpolatorConfig(numeric_config)
+                .build())
+            .build())
+        .build();
+    
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setTimeZone("America/Denver")
+        .setExecutionGraph(graph)
+        .build();
+    assertNull(query.getFilter("f1"));
   }
 }

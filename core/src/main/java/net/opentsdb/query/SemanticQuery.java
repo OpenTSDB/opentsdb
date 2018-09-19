@@ -166,7 +166,14 @@ public class SemanticQuery implements TimeSeriesQuery {
   
   @Override
   public QueryFilter getFilter(final String filter_id) {
-    return filters == null ? null : filters.get(filter_id).getFilter();
+    if (filters == null) {
+      return null;
+    }
+    final NamedFilter filter = filters.get(filter_id);
+    if (filter == null) {
+      return null;
+    }
+    return filter.getFilter();
   }
   
   @Override 
@@ -299,12 +306,12 @@ public class SemanticQuery implements TimeSeriesQuery {
     builder.setStart(node.asText());
     
     node = root.get("end");
-    if (node != null) {
+    if (node != null && !node.isNull()) {
       builder.setEnd(node.asText());
     }
     
     node = root.get("timezone");
-    if (node != null) {
+    if (node != null && !node.isNull()) {
       builder.setTimeZone(node.asText());
     }
     
