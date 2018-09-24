@@ -22,6 +22,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
@@ -31,7 +34,10 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 
 /**
  * A serializable node configuration for use in building DAG of a query.
@@ -280,5 +286,58 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
     public ExecutionGraphNode build() {
       return new ExecutionGraphNode(this);
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static ExecutionGraphNode.Builder parse(
+      final ObjectMapper mapper,
+      final TSDB tsdb, 
+      final JsonNode node) {
+    final ExecutionGraphNode.Builder node_builder = 
+        ExecutionGraphNode.newBuilder();
+    final String id = node.get("id").asText();
+    final JsonNode type_node = node.get("type");
+    final String type;
+    if (type_node != null) {
+       type = type_node.asText();
+    } else {
+      type = null;
+    }
+    node_builder.setId(id);
+    if (!Strings.isNullOrEmpty(type)) {
+      node_builder.setType(type);
+    }
+    
+    final JsonNode sources = node.get("sources");
+    if (sources != null) {
+      try {
+        node_builder.setSources(mapper.treeToValue(
+            node.get("sources"), List.class));
+      } catch (JsonProcessingException e) {
+        throw new QueryExecutionException("Failed to parse sources: " 
+            + node, 0, e);
+      }
+    }
+    
+    final JsonNode config = node.get("config");
+    if (config != null) {
+      final QueryNodeFactory factory;
+      if (!Strings.isNullOrEmpty(type)) {
+        factory = tsdb.getRegistry().getQueryNodeFactory(type.toLowerCase());
+        if (factory == null) {
+          throw new IllegalArgumentException("No node factory found "
+              + "for node type: " + type);
+        }
+      } else {
+        factory = tsdb.getRegistry().getQueryNodeFactory(id.toLowerCase());
+        if (factory == null) {
+          throw new IllegalArgumentException("No node factory found "
+              + "for node type: " + id);
+        }
+      }
+      final QueryNodeConfig node_config = factory.parseConfig(mapper, tsdb, config);
+      node_builder.setConfig(node_config);
+    }
+    return node_builder;
   }
 }

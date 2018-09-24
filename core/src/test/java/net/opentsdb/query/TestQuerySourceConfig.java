@@ -23,8 +23,11 @@ import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.processor.topn.TopNConfig;
@@ -116,5 +119,29 @@ public class TestQuerySourceConfig {
     assertTrue(json.contains("\"fetchLast\":true"));
     assertTrue(json.contains("\"pushDownNodes\":["));
     assertTrue(json.contains("\"id\":\"topn\""));
+  }
+  
+  @Test
+  public void parseConfig() throws Exception {
+    final String json = "{\"id\":\"UT\",\"metric\":{\"metric\":"
+        + "\"system.cpu.user\",\"type\":\"MetricLiteral\"},\"filterId\":"
+        + "\"f1\",\"fetchLast\":true,\"pushDownNodes\":[{\"id\":\"topn\","
+        + "\"type\":\"topn\",\"config\":{\"id\":\"Toppy\",\"count\":10,"
+        + "\"top\":true,\"infectiousNan\":true}}]}";
+    
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.registry = new DefaultRegistry(tsdb);
+    ((DefaultRegistry) tsdb.registry).initialize(true);
+    
+    JsonNode root = JSON.getMapper().readTree(json);
+    QuerySourceConfig config = (QuerySourceConfig) 
+        new QueryDataSourceFactory().parseConfig(JSON.getMapper(), 
+            tsdb, root);
+    assertEquals("UT", config.getId());
+    assertEquals("system.cpu.user", config.getMetric().getMetric());
+    assertTrue(config.getMetric() instanceof MetricLiteralFilter);
+    assertEquals("f1", config.getFilterId());
+    assertEquals(1, config.getPushDownNodes().size());
+    assertEquals("topn", config.getPushDownNodes().get(0).getId());
   }
 }
