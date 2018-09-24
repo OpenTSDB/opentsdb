@@ -121,6 +121,12 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
     }
     builder.setMetric((MetricFilter) filter);
     
+    n = node.get("id");
+    if (n == null || Strings.isNullOrEmpty(n.asText())) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
+    builder.setId(n.asText());
+    
     n = node.get("fetchLast");
     if (n != null) {
       builder.setFetchLast(n.asBoolean());
@@ -151,6 +157,14 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
           throw new IllegalArgumentException("Unable to parse filter config.");
         }
         builder.setQueryFilter(filter);
+      }
+    }
+    
+    n = node.get("pushDownNodes");
+    if (n != null) {
+      for (final JsonNode pushdown : n) {
+        builder.addPushDownNode(ExecutionGraphNode.parse(
+            mapper, tsdb, pushdown).build());
       }
     }
     
