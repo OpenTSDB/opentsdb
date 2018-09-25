@@ -23,8 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.PBufQueryResult;
 import net.opentsdb.data.PBufTimeSeriesId;
 import net.opentsdb.data.TimeSeries;
@@ -54,25 +52,66 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
+public class PBufSerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(PBufSerdes.class);
   
   /** The factory. */
-  protected final PBufIteratorSerdesFactory factory;
+  protected final PBufSerdesFactory factory;
+  
+  /** The query context we belong to. */
+  protected final QueryContext context;
+  
+  /** The config. */
+  protected final SerdesOptions options;
+  
+  /** The output stream for serialization. */
+  protected final OutputStream output_stream;
+  
+  /** The input stream for deserialization. */
+  protected final InputStream input_stream;
   
   /**
-   * Default ctor.
+   * Serialization ctor.
+   * @param factory The non-null factory we came from.
+   * @param context The non-null context to deal with.
+   * @param options The non-null options to pull from.
+   * @param stream The output stream to write to.
    */
-  public PBufSerdes() {
-    factory = new PBufIteratorSerdesFactory();
+  public PBufSerdes(final PBufSerdesFactory factory,
+                    final QueryContext context,
+                    final SerdesOptions options, 
+                    final OutputStream stream) {
+    if (factory == null) {
+      throw new IllegalArgumentException("Factory cannot be null.");
+    }
+    if (context == null) {
+      throw new IllegalArgumentException("Context cannot be null.");
+    }
+    if (options == null) {
+      throw new IllegalArgumentException("Options cannot be null.");
+    }
+    // NOTE: Stream can be null if we're just calling serializeResult.
+    this.factory = factory;
+    this.context = context;
+    this.options = options;
+    output_stream = stream;
+    input_stream = null;
   }
   
-  @Override
-  public Deferred<Object> serialize(final QueryContext context, 
-                                    final SerdesOptions options,
-                                    final OutputStream stream, 
-                                    final QueryResult result, 
-                                    final Span span) {
+  /**
+   * Deserialization ctor.
+   * @param factory The non-null factory we came from.
+   * @param context The non-null context to deal with.
+   * @param options The non-null options to pull from.
+   * @param stream The input stream to read from.
+   */
+  public PBufSerdes(final PBufSerdesFactory factory,
+                    final QueryContext context,
+                    final SerdesOptions options, 
+                    final InputStream stream) {
+    if (factory == null) {
+      throw new IllegalArgumentException("Factory cannot be null.");
+    }
     if (context == null) {
       throw new IllegalArgumentException("Context cannot be null.");
     }
@@ -80,8 +119,18 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
       throw new IllegalArgumentException("Options cannot be null.");
     }
     if (stream == null) {
-      throw new IllegalArgumentException("Stream cannot be null.");
+      throw new IllegalArgumentException("Input stream cannot be null.");
     }
+    this.factory = factory;
+    this.context = context;
+    this.options = options;
+    output_stream = null;
+    input_stream = stream;
+  }
+  
+  @Override
+  public Deferred<Object> serialize(final QueryResult result, 
+                                    final Span span) {
     if (result == null) {
       throw new IllegalArgumentException("Query result cannot be null.");
     }
@@ -94,7 +143,7 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
     }
     
     try {
-      serializeResult(context, options, result).writeTo(stream);
+      serializeResult(result).writeTo(output_stream);
   
       if (child != null) {
         child.setSuccessTags().finish();
@@ -118,16 +167,8 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
   }
 
   @Override
-  public void deserialize(final SerdesOptions options, 
-                          final InputStream stream, 
-                          final QueryNode node, 
+  public void deserialize(final QueryNode node, 
                           final Span span) {
-    if (options == null) {
-      throw new IllegalArgumentException("Options cannot be null.");
-    }
-    if (stream == null) {
-      throw new IllegalArgumentException("Stream cannot be null.");
-    }
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
     }
@@ -141,7 +182,7 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
     }
     final PBufQueryResult result;
     try {
-      result = new PBufQueryResult(factory, node, options, stream);
+      result = new PBufQueryResult(factory, node, options, input_stream);
       if (child != null) {
         child.setSuccessTags().finish();
       }
@@ -169,17 +210,13 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
   
   /**
    * Serializes the result into a PBuf object.
-   * @param context The non-null context to pull the query from.
-   * @param options Options for serdes.
    * @param result The non-null result to serialize.
    * @return A non-null pbuf object.
    */
-  public QueryResultPB.QueryResult serializeResult(
-      final QueryContext context, 
-      final SerdesOptions options,
-      final QueryResult result) {
+  public QueryResultPB.QueryResult serializeResult(final QueryResult result) {
     final QueryResultPB.QueryResult.Builder result_builder = 
-        QueryResultPB.QueryResult.newBuilder();
+        QueryResultPB.QueryResult.newBuilder()
+          .setDataSource(result.dataSource());
     if (result.timeSpecification() != null) {
       result_builder.setTimeSpecification(TimeSpecification.newBuilder()
           .setStart(TimeStamp.newBuilder()
@@ -218,25 +255,10 @@ public class PBufSerdes implements TimeSeriesSerdes, TSDBPlugin {
     }
     return result_builder.build();
   }
-  
-  @Override
-  public String id() {
-    return getClass().getSimpleName();
-  }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
+  public void serializeComplete(final Span span) {
+    // nothing to do here.
   }
   
 }

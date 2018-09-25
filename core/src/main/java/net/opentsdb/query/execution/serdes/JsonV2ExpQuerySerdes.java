@@ -15,7 +15,6 @@
 package net.opentsdb.query.execution.serdes;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,7 +36,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
@@ -70,64 +68,64 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
+public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV2ExpQuerySerdes.class);
   
-  /** The TSDB to which we belong for pulling out the factory. */
-  private TSDB tsdb;
+  /** The TSDB we belong to. */
+  private final TSDB tsdb;
   
-  @Override
-  public String id() {
-    return "JsonV2ExpQuerySerdes";
-  }
-
-  @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
-    this.tsdb = tsdb;
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
-  }
-
-  @Override
-  public Deferred<Object> serialize(final QueryContext context, 
-                                    final SerdesOptions options,
-                                    final OutputStream stream, 
-                                    final QueryResult result, 
-                                    final Span span) {
-    if (stream == null) {
-      throw new IllegalArgumentException("Output stream may not be null.");
-    }
-    if (result == null) {
-      throw new IllegalArgumentException("Data may not be null.");
-    }
-    final JsonV2QuerySerdesOptions opts;
+  /** The options for this serialization. */
+  private final SerdesOptions options;
+  
+  /** The generator. */
+  private final JsonGenerator json;
+  
+  /** Whether or not we've serialized the first result set. */
+  private boolean initialized;
+  
+  /**
+   * Default ctor.
+   */
+  public JsonV2ExpQuerySerdes(final QueryContext context,
+                              final SerdesOptions options,
+                              final OutputStream stream) {
     if (options == null) {
       throw new IllegalArgumentException("Options cannot be null.");
     }
-    opts = (JsonV2QuerySerdesOptions) options;
-    
-    final JsonGenerator json;
+    if (!(options instanceof JsonV2QuerySerdesOptions)) {
+      throw new IllegalArgumentException("Options must be an instance of "
+          + "JsonV2QuerySerdesOptions.");
+    }
+    if (stream == null) {
+      throw new IllegalArgumentException("Stream cannot be null.");
+    }
+    tsdb = context.tsdb();
+    this.options = options;
     try {
       json = JSON.getFactory().createGenerator(stream);
     } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+      throw new RuntimeException("WTF? Failed to instantiate a JSON "
+          + "generator", e);
     }
+  }
+  
+  @Override
+  public Deferred<Object> serialize(final QueryResult result, 
+                                    final Span span) {
+    if (result == null) {
+      throw new IllegalArgumentException("Data may not be null.");
+    }
+    final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
     
-    try {
-      json.writeStartObject();
-      json.writeArrayFieldStart("outputs");
-    } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+    if (!initialized) {
+      try {
+        json.writeStartObject();
+        json.writeArrayFieldStart("outputs");
+      } catch (IOException e) {
+        throw new RuntimeException("WTF?", e);
+      }
+      initialized = true;
     }
     
     final List<TimeSeries> series;
@@ -156,10 +154,11 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
         
         // TODO - proper interpolation config
         // TODO - interpolation config for summaries.
-        NumericInterpolatorConfig nic = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+        NumericInterpolatorConfig nic = 
+            (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NOT_A_NUMBER)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType(NumericType.TYPE.toString())
+            .setDataType(NumericType.TYPE.toString())
             .build();
         
         QueryInterpolatorFactory factory = tsdb
@@ -173,7 +172,8 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
         
         try {
           int idx = 0;
-          final Map<String, List<Pair<TimeSeriesStringId, TimeSeries>>> outputs = Maps.newHashMap();
+          final Map<String, List<Pair<TimeSeriesStringId, TimeSeries>>> 
+              outputs = Maps.newHashMap();
           
           for (final TimeSeries series : 
               series != null ? series : result.timeSeries()) {
@@ -193,14 +193,16 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
           }
           
           
-          for (final Entry<String, List<Pair<TimeSeriesStringId, TimeSeries>>> entry : outputs.entrySet()) {
+          for (final Entry<String, List<Pair<TimeSeriesStringId, TimeSeries>>> 
+              entry : outputs.entrySet()) {
             List<QueryInterpolator<?>> iterators = Lists.newArrayList();
             TimeStamp next_ts = new MillisecondTimeStamp(0);
             TimeStamp next_next_ts = new MillisecondTimeStamp(0);
             next_ts.setMax();
             
             json.writeStartObject();
-            json.writeStringField("id", entry.getKey() == null ? "null!?!?!" : entry.getKey());
+            json.writeStringField("id", entry.getKey() == null ? 
+                "null!?!?!" : entry.getKey());
             json.writeArrayFieldStart("dps");
             boolean has_next = false;
             for (final Pair<TimeSeriesStringId, TimeSeries> pair : entry.getValue()) {
@@ -331,19 +333,14 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
                 json.writeString(agg);
               }
               json.writeEndArray();
-              
               json.writeEndObject();
             }
             
             json.writeEndArray();
-            
             json.writeEndObject();
           }
           
           json.flush();
-          
-          json.writeEndArray();
-          json.close();
           
         } catch (Exception e) {
           LOG.error("Unexpected exception", e);
@@ -382,9 +379,21 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
     }
   }
 
+
   @Override
-  public void deserialize(SerdesOptions options, InputStream stream,
-      QueryNode node, Span span) {
+  public void serializeComplete(final Span span) {
+    try {
+      json.writeEndArray();
+      json.writeEndObject();
+      json.flush();
+    } catch (IOException e) {
+      throw new QueryExecutionException("Failure closing serializer", 500, e);
+    }
+  }
+  
+  @Override
+  public void deserialize(final QueryNode node,
+                          final Span span) {
     node.onError(new UnsupportedOperationException("Not implemented for this "
         + "class: " + getClass().getCanonicalName()));
   }

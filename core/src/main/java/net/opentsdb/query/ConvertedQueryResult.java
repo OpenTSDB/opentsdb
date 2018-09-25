@@ -203,6 +203,11 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   }
 
   @Override
+  public String dataSource() {
+    return result.dataSource();
+  }
+  
+  @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;
   }
@@ -216,7 +221,7 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   public RollupConfig rollupConfig() {
     return result.rollupConfig();
   }
-  
+    
   @Override
   public void close() {
     result.close();
@@ -324,4 +329,6 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
     }
     
   }
+
+  
 }

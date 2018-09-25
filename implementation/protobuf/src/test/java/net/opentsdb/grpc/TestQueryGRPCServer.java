@@ -18,7 +18,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -38,7 +37,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.ByteString;
 
 import io.grpc.BindableService;
@@ -53,12 +51,16 @@ import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
+import net.opentsdb.query.SemanticQueryContext.Builder;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFactory;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
+import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.UnitTestException;
 
@@ -72,6 +74,7 @@ public class TestQueryGRPCServer {
   
   private ServerBuilder server_builder;
   private Server server;
+  private QueryContext context;
   private SemanticQueryContext.Builder ctx_builder;
   private SemanticQueryContext ctx;
   
@@ -88,6 +91,7 @@ public class TestQueryGRPCServer {
   public void before() throws Exception {
     server_builder = mock(ServerBuilder.class);
     server = mock(Server.class);
+    context = mock(QueryContext.class);
     ctx_builder = mock(SemanticQueryContext.Builder.class);
     ctx = mock(SemanticQueryContext.class);
 
@@ -107,6 +111,10 @@ public class TestQueryGRPCServer {
     when(ctx_builder.setQuery(any(TimeSeriesQuery.class)))
       .thenReturn(ctx_builder);
     when(ctx_builder.build()).thenReturn(ctx);
+    
+    when(context.tsdb()).thenReturn(TSDB);
+    when(TSDB.getRegistry().getPlugin(SerdesFactory.class, PBufSerdesFactory.ID))
+      .thenReturn(new PBufSerdesFactory());
   }
   
   @Test
@@ -229,20 +237,15 @@ public class TestQueryGRPCServer {
         .build();
     
     QuerySink[] sinks = new QuerySink[1];
-    SemanticQuery.Builder bldr = mock(SemanticQuery.Builder.class);
-    PowerMockito.mockStatic(SemanticQuery.class);
-    when(SemanticQuery.parse(any(net.opentsdb.core.TSDB.class), any(JsonNode.class)))
-      .thenReturn(bldr);
-    doAnswer(new Answer<SemanticQuery.Builder>() {
-      @Override
-      public SemanticQuery.Builder answer(InvocationOnMock invocation)
-          throws Throwable {
-        sinks[0] = (QuerySink) invocation.getArguments()[0];
-        return bldr;
-      }
-    }).when(bldr).addSink(any(QuerySink.class));
-    when(bldr.build()).thenReturn(q);
-    
+    when(ctx_builder.setQuery(any(TimeSeriesQuery.class)))
+      .thenAnswer(new Answer<SemanticQueryContext.Builder>() {
+        @Override
+        public Builder answer(InvocationOnMock invocation) throws Throwable {
+          SemanticQuery q = (SemanticQuery) invocation.getArguments()[0];
+          sinks[0] = new QueryGRPCSink(context, q.getSinkConfigs().get(0));
+          return ctx_builder;
+        }
+      });
     when(ctx.query()).thenReturn(q);
     
     StreamObserver observer = mock(StreamObserver.class);
@@ -252,7 +255,9 @@ public class TestQueryGRPCServer {
     verify(observer, never()).onCompleted();
     verify(observer, never()).onError(any(UnitTestException.class));
     
-    sinks[0].onNext(mock(net.opentsdb.query.QueryResult.class));
+    net.opentsdb.query.QueryResult result = mock(net.opentsdb.query.QueryResult.class);
+    when(result.dataSource()).thenReturn("UT");
+    sinks[0].onNext(result);
     verify(ctx, times(1)).fetchNext(null);
     verify(observer, times(1)).onNext(any(QueryResultPB.QueryResult.class));
     verify(observer, never()).onCompleted();
@@ -286,21 +291,17 @@ public class TestQueryGRPCServer {
         .build();
     
     QuerySink[] sinks = new QuerySink[1];
-    SemanticQuery.Builder bldr = mock(SemanticQuery.Builder.class);
-    PowerMockito.mockStatic(SemanticQuery.class);
-    when(SemanticQuery.parse(any(net.opentsdb.core.TSDB.class), any(JsonNode.class)))
-      .thenReturn(bldr);
-    doAnswer(new Answer<SemanticQuery.Builder>() {
-      @Override
-      public SemanticQuery.Builder answer(InvocationOnMock invocation)
-          throws Throwable {
-        sinks[0] = (QuerySink) invocation.getArguments()[0];
-        return bldr;
-      }
-    }).when(bldr).addSink(any(QuerySink.class));
-    when(bldr.build()).thenReturn(q);
-    
+    when(ctx_builder.setQuery(any(TimeSeriesQuery.class)))
+      .thenAnswer(new Answer<SemanticQueryContext.Builder>() {
+        @Override
+        public Builder answer(InvocationOnMock invocation) throws Throwable {
+          SemanticQuery q = (SemanticQuery) invocation.getArguments()[0];
+          sinks[0] = new QueryGRPCSink(context, q.getSinkConfigs().get(0));
+          return ctx_builder;
+        }
+      });
     when(ctx.query()).thenReturn(q);
+    when(context.query()).thenReturn(q);
     
     StreamObserver observer = mock(StreamObserver.class);
     rpc.remoteQuery(pbuf, observer);

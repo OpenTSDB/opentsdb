@@ -114,13 +114,6 @@ public interface QueryPipelineContext extends QueryNode {
   public Collection<QuerySink> sinks();
   
   /**
-   * The list of "root" or "sink" query nodes for the DAG. These will be linked
-   * to the {@link #sinks()}.
-   * @return A non-null and non-empty collection of root query nodes.
-   */
-  public Collection<QueryNode> roots();
-  
-  /**
    * @return The execution graph associated with this pipeline.
    */
   public ExecutionGraph executionGraph();

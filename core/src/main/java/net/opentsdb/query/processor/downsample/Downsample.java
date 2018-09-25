@@ -230,6 +230,11 @@ public class Downsample extends AbstractQueryNode {
     }
 
     @Override
+    public String dataSource() {
+      return results.dataSource();
+    }
+    
+    @Override
     public TypeToken<? extends TimeSeriesId> idType() {
       return results.idType();
     }

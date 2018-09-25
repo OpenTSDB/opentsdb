@@ -29,7 +29,7 @@ import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.rollup.RollupConfig;
 
@@ -41,7 +41,7 @@ import net.opentsdb.rollup.RollupConfig;
 public class PBufQueryResult implements QueryResult {
   
   /** The factory used to serdes data types. */
-  private final PBufIteratorSerdesFactory factory;
+  private final PBufSerdesFactory factory;
   
   /** The protobuf result. */
   private final QueryResultPB.QueryResult result;
@@ -62,7 +62,7 @@ public class PBufQueryResult implements QueryResult {
    * @param options A non-null options object.
    * @param stream The input stream to parse.
    */
-  public PBufQueryResult(final PBufIteratorSerdesFactory factory, 
+  public PBufQueryResult(final PBufSerdesFactory factory, 
                          final QueryNode node, 
                          final SerdesOptions options, 
                          final InputStream stream) {
@@ -87,7 +87,7 @@ public class PBufQueryResult implements QueryResult {
    * @param options A non-null options object.
    * @param result The non-null result to parse.
    */
-  public PBufQueryResult(final PBufIteratorSerdesFactory factory, 
+  public PBufQueryResult(final PBufSerdesFactory factory, 
                          final QueryNode node, 
                          final SerdesOptions options, 
                          final QueryResultPB.QueryResult result) {
@@ -131,6 +131,11 @@ public class PBufQueryResult implements QueryResult {
   }
 
   @Override
+  public String dataSource() {
+    return result.getDataSource();
+  }
+  
+  @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;
   }
@@ -150,5 +155,6 @@ public class PBufQueryResult implements QueryResult {
   public void close() {
     // no-op
   }
+
 
 }

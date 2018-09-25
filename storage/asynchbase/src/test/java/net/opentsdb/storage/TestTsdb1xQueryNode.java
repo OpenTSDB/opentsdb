@@ -161,7 +161,6 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertSame(source_config, node.config());
     assertSame(schema, node.schema());
     assertNull(node.sequenceEnd());
-    assertEquals("m1", node.id());
     assertFalse(node.skipNSUI());
     assertTrue(node.fetchDataType((byte) 0));
     assertFalse(node.deleteData());

@@ -12,26 +12,38 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query;
+package net.opentsdb.servlet.sinks;
 
-import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QuerySink;
+import net.opentsdb.query.QuerySinkConfig;
+import net.opentsdb.query.QuerySinkFactory;
 
 /**
- * A factory used to generate sink instances.
+ * A factory to generate the servlet sink.
  * 
  * @since 3.0
  */
-public interface QuerySinkFactory extends TSDBPlugin {
+public class ServletSinkFactory extends BaseTSDBPlugin 
+    implements QuerySinkFactory {
 
-  /** @return The ID of this factory. */
-  public String id();
+  public static final String ID = "TSDBServletSink";
   
-  /**
-   * Returns a new sink instance.
-   * @param context A non-null query context.
-   * @param config An optional sink configuration.
-   * @return A non-null sink instance.
-   */
+  @Override
+  public String id() {
+    return ID;
+  }
+
+  @Override
   public QuerySink newSink(final QueryContext context, 
-                           final QuerySinkConfig config);
+                           final QuerySinkConfig config) {
+    return new ServletSink(context, (ServletSinkConfig) config);
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
+  }
+
 }

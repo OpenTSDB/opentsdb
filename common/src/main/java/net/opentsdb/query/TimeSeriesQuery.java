@@ -68,6 +68,9 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
   /** @return The parsed end time of the query. */
   public TimeStamp endTime();
   
+  /** @return A non-null list of sink configs. */
+  public List<QuerySinkConfig> getSinkConfigs();
+  
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode();
   

@@ -144,6 +144,11 @@ public class TopNResult implements QueryResult, Runnable {
   }
 
   @Override
+  public String dataSource() {
+    return next.dataSource();
+  }
+  
+  @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return next.idType();
   }

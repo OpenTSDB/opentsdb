@@ -17,8 +17,6 @@ package net.opentsdb.query.serdes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -32,26 +30,26 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Iterator;
 
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
-import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.PBufQueryResult;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -75,44 +73,29 @@ import net.opentsdb.utils.UnitTestException;
 
 public class TestPBufSerdes {
 
-  @Test
-  public void ctorAndPluginMethods() throws Exception {
-    PBufSerdes serdes = new PBufSerdes();
-    
-    assertTrue(serdes.factory.serdesForType(NumericType.TYPE) 
-        instanceof PBufNumericTimeSeriesSerdes);
-    assertTrue(serdes.factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummaryTimeSeriesSerdes);
-    assertNull(serdes.factory.serdesForType(TypeToken.of(String.class)));
-    assertEquals("PBufSerdes", serdes.id());
-    assertNull(serdes.initialize(mock(TSDB.class)).join());
-    assertNull(serdes.shutdown().join());
+  private static MockTSDB TSDB;
+  
+  private PBufSerdesFactory factory;
+  private QueryContext context;
+  private SerdesOptions options;
+  
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
+  
+  @Before
+  public void before() throws Exception {
+    factory = new PBufSerdesFactory();
+    context = mock(QueryContext.class);
+    options = mock(SerdesOptions.class);
   }
   
   @Test
-  public void registerSerdes() throws Exception {
-    PBufSerdes serdes = new PBufSerdes();
-    
-    TypeToken<?> string_type = TypeToken.of(String.class);
-    PBufIteratorSerdes string_serdes = mock(PBufIteratorSerdes.class);
-    when(string_serdes.type()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return string_type;
-      }
-    });
-    
-    serdes.registerSerdes(string_serdes);
-    assertTrue(serdes.factory.serdesForType(NumericType.TYPE) 
-        instanceof PBufNumericTimeSeriesSerdes);
-    assertTrue(serdes.factory.serdesForType(NumericSummaryType.TYPE) 
-        instanceof PBufNumericSummaryTimeSeriesSerdes);
-    assertSame(string_serdes, serdes.factory.serdesForType(string_type));
-  }
-
-  @Test
   public void serdes() throws Exception {
-    SerdesOptions options = BaseSerdesOptions.newBuilder()
+    options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
         .setId("pbuf")
@@ -129,13 +112,7 @@ public class TestPBufSerdes {
             .setMetric("sys.cpu.user"))
         .build().convert().build();
     
-    QueryContext ctx = mock(QueryContext.class);
-    when(ctx.query()).thenReturn(q);
-    MockTSDB tsdb = new MockTSDB();
-    tsdb.registry = new DefaultRegistry(tsdb);
-    ((DefaultRegistry) tsdb.registry).initialize(true);
-    QueryPipelineContext context = mock(QueryPipelineContext.class);
-    when(context.tsdb()).thenReturn(tsdb);
+    when(context.query()).thenReturn(q);
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -199,13 +176,14 @@ public class TestPBufSerdes {
     when(spec.timezone()).thenReturn(ZoneId.of("America/Denver"));
     
     QueryResult result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn("UT");
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts, ts2));
     when(result.timeSpecification()).thenReturn(spec);
     
-    PBufSerdes serdes = new PBufSerdes();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    serdes.serialize(ctx, options, baos, result, null);
+    PBufSerdes serdes = (PBufSerdes) factory.newInstance(context, options, baos);
+    serdes.serialize(result, null);
     
     final byte[] serialized = baos.toByteArray();
     assertNotNull(serialized);
@@ -213,102 +191,33 @@ public class TestPBufSerdes {
     // now deserialize
     final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     QueryNode node = mock(QueryNode.class);
-    when(node.pipelineContext()).thenReturn(context);
-    final boolean[] validated = new boolean[1];
+    QueryPipelineContext ctx = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(ctx);
+    when(ctx.tsdb()).thenReturn(TSDB);
+    final QueryResult[] results = new QueryResult[1];
     doAnswer(new Answer<Void>() {
-
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
-        final QueryResult parsed = (QueryResult) invocation.getArguments()[0];
-        for (final TimeSeries series : parsed.timeSeries()) {
-          if (((TimeSeriesStringId) series.id()).metric().equals("metric.foo")) {
-            validateFoo(series);
-          } else {
-            validateBar(series);
-          }
-        }
-        assertEquals(1514764800, parsed.timeSpecification().start().epoch());
-        assertEquals(1514768400, parsed.timeSpecification().end().epoch());
-        assertEquals("1m", parsed.timeSpecification().stringInterval());
-        assertEquals(ZoneId.of("America/Denver"), parsed.timeSpecification().timezone());
-        validated[0] = true;
+        results[0] = (QueryResult) invocation.getArguments()[0];
         return null;
       }
-      
-      void validateFoo(final TimeSeries series) {
-        assertEquals("metric.foo", ((TimeSeriesStringId) series.id()).metric());
-        assertEquals("web01", ((TimeSeriesStringId) series.id()).tags().get("host"));
-        
-        Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = 
-            series.iterator(NumericType.TYPE).get();
-        assertTrue(it.hasNext());
-        
-        TimeSeriesValue<NumericType> val = (TimeSeriesValue<NumericType>) it.next();
-        assertEquals(1525824000000L, val.timestamp().msEpoch());
-        assertEquals(42, val.value().longValue());
-        
-        val = (TimeSeriesValue<NumericType>) it.next();
-        assertEquals(1525824060000L, val.timestamp().msEpoch());
-        assertEquals(25.6, val.value().doubleValue(), 0.001);
-        
-        assertFalse(it.hasNext());
-        
-        it = series.iterator(NumericSummaryType.TYPE).get();
-        assertTrue(it.hasNext());
-        
-        TimeSeriesValue<NumericSummaryType> sv = 
-            (TimeSeriesValue<NumericSummaryType>) it.next();
-        assertEquals(1525824000000L, sv.timestamp().msEpoch());
-        assertEquals(42.5, sv.value().value(0).doubleValue(), 0.001);
-        assertEquals(4, sv.value().value(2).longValue());
-        
-        sv = (TimeSeriesValue<NumericSummaryType>) it.next();
-        assertEquals(1525824060000L, sv.timestamp().msEpoch());
-        assertEquals(8, sv.value().value(0).longValue());
-        assertEquals(1, sv.value().value(2).longValue());
-        
-        assertFalse(it.hasNext());
-      }
-      
-      void validateBar(final TimeSeries series) {
-        assertEquals("metric.bar", ((TimeSeriesStringId) series.id()).metric());
-        assertEquals("web02", ((TimeSeriesStringId) series.id()).tags().get("host"));
-        assertEquals("phx", ((TimeSeriesStringId) series.id()).tags().get("dc"));
-        
-        Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = 
-            series.iterator(NumericType.TYPE).get();
-        assertTrue(it.hasNext());
-        
-        TimeSeriesValue<NumericType> val = (TimeSeriesValue<NumericType>) it.next();
-        assertEquals(1525824000000L, val.timestamp().msEpoch());
-        assertEquals(128, val.value().longValue());
-        
-        val = (TimeSeriesValue<NumericType>) it.next();
-        assertEquals(1525824060000L, val.timestamp().msEpoch());
-        assertEquals(888.997968, val.value().doubleValue(), 0.001);
-        
-        assertFalse(it.hasNext());
-        
-        it = series.iterator(NumericSummaryType.TYPE).get();
-        assertTrue(it.hasNext());
-        
-        TimeSeriesValue<NumericSummaryType> sv = 
-            (TimeSeriesValue<NumericSummaryType>) it.next();
-        assertEquals(1525824000000L, sv.timestamp().msEpoch());
-        assertEquals(-5, sv.value().value(0).longValue());
-        assertEquals(16, sv.value().value(2).longValue());
-        
-        sv = (TimeSeriesValue<NumericSummaryType>) it.next();
-        assertEquals(1525824120000L, sv.timestamp().msEpoch());
-        assertEquals(24.75, sv.value().value(0).doubleValue(), 0.001);
-        assertEquals(9, sv.value().value(2).longValue());
-        
-        assertFalse(it.hasNext());
-      }
-      
     }).when(node).onNext(any(QueryResult.class));
-    serdes.deserialize(options, bais, node, null);
-    assertTrue(validated[0]);
+    
+    serdes = (PBufSerdes) factory.newInstance(context, options, bais);
+    serdes.deserialize(node, null);
+    assertNotNull(results[0]);
+    assertEquals(1514764800, results[0].timeSpecification().start().epoch());
+    assertEquals(1514768400, results[0].timeSpecification().end().epoch());
+    assertEquals("1m", results[0].timeSpecification().stringInterval());
+    assertEquals(ZoneId.of("America/Denver"), results[0].timeSpecification().timezone());
+    
+    for (final TimeSeries series : results[0].timeSeries()) {
+      if (((TimeSeriesStringId) series.id()).metric().equals("metric.foo")) {
+        validateFoo(series);
+      } else {
+        validateBar(series);
+      }
+    }
   }
   
   @Test
@@ -330,15 +239,14 @@ public class TestPBufSerdes {
             .setMetric("sys.cpu.user"))
         .build().convert().build();
     
-    QueryContext ctx = mock(QueryContext.class);
-    when(ctx.query()).thenReturn(q);
     QueryResult result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn("UT");
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     
-    PBufSerdes serdes = new PBufSerdes();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    serdes.serialize(ctx, options, baos, result, null);
+    PBufSerdes serdes = (PBufSerdes) factory.newInstance(context, options, baos);
+    serdes.serialize(result, null);
     
     final byte[] serialized = baos.toByteArray();
     assertNotNull(serialized);
@@ -358,55 +266,37 @@ public class TestPBufSerdes {
       }
       
     }).when(node).onNext(any(QueryResult.class));
-    serdes.deserialize(options, bais, node, null);
+    
+    serdes = (PBufSerdes) factory.newInstance(context, options, bais);
+    serdes.deserialize(node, null);
     assertTrue(validated[0]);
   }
 
   @Test
-  public void serializeErrors() throws Exception {
+  public void serdesErrors() throws Exception {
     SerdesOptions options = BaseSerdesOptions.newBuilder()
         .setStart(new MillisecondTimeStamp(1525824000000L))
         .setEnd(new MillisecondTimeStamp(1525827600000L))
         .setId("pbuf")
         .build();
-    
-    TimeSeriesQuery q = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1525824000")
-            .setEnd("1525827600")
-            .setAggregator("sum")
-            .build())
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("sys.cpu.user"))
-        .build().convert().build();
-    
-    QueryContext ctx = mock(QueryContext.class);
-    when(ctx.query()).thenReturn(q);
+
     QueryResult result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn("UT");
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     
-    PBufSerdes serdes = new PBufSerdes();
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    
     try {
-      serdes.serialize(null, options, baos, result, null);
+      factory.newInstance(null, options, mock(ByteArrayOutputStream.class));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      serdes.serialize(ctx, null, baos, result, null);
+      factory.newInstance(context, null, mock(ByteArrayOutputStream.class));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      serdes.serialize(ctx, options, null, result, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.serialize(ctx, options, baos, null, null);
+      factory.newInstance(context, options, (InputStream) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -417,50 +307,99 @@ public class TestPBufSerdes {
         .build());
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts));
     
-    baos = mock(ByteArrayOutputStream.class);
+    ByteArrayOutputStream baos = mock(ByteArrayOutputStream.class);
     doThrow(new UnitTestException()).when(baos).write(any(byte[].class), 
         anyInt(), anyInt());
+    PBufSerdes serdes = (PBufSerdes) factory.newInstance(context, options, baos);
     try {
-      serdes.serialize(ctx, options, baos, result, null);
+      serdes.serialize(result, null);
       fail("Expected SerdesException");
     } catch (SerdesException e) { }
-  }
-  
-  @Test
-  public void deserializeErrors() throws Exception {
-    SerdesOptions options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525824000000L))
-        .setEnd(new MillisecondTimeStamp(1525827600000L))
-        .setId("pbuf")
-        .build();
-    
-    QueryNode node = mock(QueryNode.class);
-    ByteArrayInputStream bais = new ByteArrayInputStream(new byte[0]);
-    PBufSerdes serdes = new PBufSerdes();
-    
-    try {
-      serdes.deserialize(null, bais, node, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.deserialize(options, null, node, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.deserialize(options, bais, null, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
     
     // empty returns an empty result.
-    serdes.deserialize(options, bais, node, null);
+    QueryNode node = mock(QueryNode.class);
+    ByteArrayInputStream bais = new ByteArrayInputStream(new byte[0]);
+    serdes = (PBufSerdes) factory.newInstance(context, options, bais);
+    serdes.deserialize(node, null);
     verify(node, times(1)).onNext(any(PBufQueryResult.class));
     
     // corrupt.
     node = mock(QueryNode.class);
     bais = new ByteArrayInputStream(new byte[] { 42, 0, 1, 1, 4 });
-    serdes.deserialize(options, bais, node, null);
+    serdes = (PBufSerdes) factory.newInstance(context, options, bais);
+    serdes.deserialize(node, null);
     verify(node, times(1)).onError(any(Throwable.class));
   }
+  
+  void validateFoo(final TimeSeries series) {
+    assertEquals("metric.foo", ((TimeSeriesStringId) series.id()).metric());
+    assertEquals("web01", ((TimeSeriesStringId) series.id()).tags().get("host"));
+    
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = 
+        series.iterator(NumericType.TYPE).get();
+    assertTrue(it.hasNext());
+    
+    TimeSeriesValue<NumericType> val = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1525824000000L, val.timestamp().msEpoch());
+    assertEquals(42, val.value().longValue());
+    
+    val = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1525824060000L, val.timestamp().msEpoch());
+    assertEquals(25.6, val.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+    
+    it = series.iterator(NumericSummaryType.TYPE).get();
+    assertTrue(it.hasNext());
+    
+    TimeSeriesValue<NumericSummaryType> sv = 
+        (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(1525824000000L, sv.timestamp().msEpoch());
+    assertEquals(42.5, sv.value().value(0).doubleValue(), 0.001);
+    assertEquals(4, sv.value().value(2).longValue());
+    
+    sv = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(1525824060000L, sv.timestamp().msEpoch());
+    assertEquals(8, sv.value().value(0).longValue());
+    assertEquals(1, sv.value().value(2).longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  void validateBar(final TimeSeries series) {
+    assertEquals("metric.bar", ((TimeSeriesStringId) series.id()).metric());
+    assertEquals("web02", ((TimeSeriesStringId) series.id()).tags().get("host"));
+    assertEquals("phx", ((TimeSeriesStringId) series.id()).tags().get("dc"));
+    
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = 
+        series.iterator(NumericType.TYPE).get();
+    assertTrue(it.hasNext());
+    
+    TimeSeriesValue<NumericType> val = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1525824000000L, val.timestamp().msEpoch());
+    assertEquals(128, val.value().longValue());
+    
+    val = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1525824060000L, val.timestamp().msEpoch());
+    assertEquals(888.997968, val.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+    
+    it = series.iterator(NumericSummaryType.TYPE).get();
+    assertTrue(it.hasNext());
+    
+    TimeSeriesValue<NumericSummaryType> sv = 
+        (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(1525824000000L, sv.timestamp().msEpoch());
+    assertEquals(-5, sv.value().value(0).longValue());
+    assertEquals(16, sv.value().value(2).longValue());
+    
+    sv = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(1525824120000L, sv.timestamp().msEpoch());
+    assertEquals(24.75, sv.value().value(0).doubleValue(), 0.001);
+    assertEquals(9, sv.value().value(2).longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
 }

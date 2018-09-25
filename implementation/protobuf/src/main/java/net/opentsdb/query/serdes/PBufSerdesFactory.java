@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.serdes;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -26,15 +28,18 @@ import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
 import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryContext;
 
 /**
  * A factory used to return de/serializers for various data types.
  * 
  * @since 3.0
  */
-public class PBufIteratorSerdesFactory {
+public class PBufSerdesFactory implements SerdesFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
-      PBufIteratorSerdesFactory.class);
+      PBufSerdesFactory.class);
+  
+  public static final String ID = "PBufSerdes";
   
   /** The map of types. */
   private final Map<TypeToken<?>, PBufIteratorSerdes> types;
@@ -42,10 +47,15 @@ public class PBufIteratorSerdesFactory {
   /**
    * Default ctor.
    */
-  public PBufIteratorSerdesFactory() {
+  public PBufSerdesFactory() {
     types = Maps.newConcurrentMap();
     types.put(NumericType.TYPE, new PBufNumericTimeSeriesSerdes());
     types.put(NumericSummaryType.TYPE, new PBufNumericSummaryTimeSeriesSerdes());
+  }
+  
+  @Override
+  public String id() {
+    return ID;
   }
   
   /**
@@ -81,5 +91,19 @@ public class PBufIteratorSerdesFactory {
    */
   public PBufIteratorSerdes serdesForType(final TypeToken<?> type) {
     return types.get(type);
+  }
+
+  @Override
+  public TimeSeriesSerdes newInstance(final QueryContext context,
+                                      final SerdesOptions options, 
+                                      final OutputStream stream) {
+    return new PBufSerdes(this, context, options, stream);
+  }
+
+  @Override
+  public TimeSeriesSerdes newInstance(final QueryContext context,
+                                      final SerdesOptions options, 
+                                      final InputStream stream) {
+    return new PBufSerdes(this, context, options, stream);
   }
 }

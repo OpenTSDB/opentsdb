@@ -140,7 +140,12 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   }
   
   @Override
-  public boolean equals(Object o) {
+  public boolean joins() {
+    return false;
+  }
+  
+  @Override
+  public boolean equals(final Object o) {
     // TODO Auto-generated method stub
     return false;
   }

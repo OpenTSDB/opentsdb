@@ -138,10 +138,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
           return cache_execution;
         }
       });
-    when(serdes.serialize(any(QueryContext.class), 
-        any(SerdesOptions.class), any(OutputStream.class), 
-        any(QueryResult.class), any(Span.class)))
-      .thenReturn(Deferred.fromResult(null));
+//    when(serdes.serialize(any(QueryContext.class), 
+//        any(SerdesOptions.class), any(OutputStream.class), 
+//        any(QueryResult.class), any(Span.class)))
+//      .thenReturn(Deferred.fromResult(null));
   }
   
 //  @Test

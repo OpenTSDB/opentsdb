@@ -162,6 +162,11 @@ public class Rate extends AbstractQueryNode {
     }
 
     @Override
+    public String dataSource() {
+      return results.dataSource();
+    }
+    
+    @Override
     public TypeToken<? extends TimeSeriesId> idType() {
       return results.idType();
     }
@@ -184,7 +189,6 @@ public class Rate extends AbstractQueryNode {
         results.close();
       }
     }
-
     
   }
   

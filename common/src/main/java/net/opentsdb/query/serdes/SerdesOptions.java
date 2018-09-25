@@ -26,7 +26,8 @@ public interface SerdesOptions {
   /** @return The ID of this serdes option. */
   public String getId();
   
-  /** @return An optional class name for deserialization. */
+  /** @return The required ID of the serializer factory to instantiate
+   * a serdes instance from. */
   public String getType();
   
   /** @return The inclusive start boundary of the serialization. */

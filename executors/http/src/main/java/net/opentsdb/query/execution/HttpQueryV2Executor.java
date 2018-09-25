@@ -881,6 +881,11 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
       return null;
     }
 
+    @Override
+    public boolean joins() {
+      // TODO Auto-generated method stub
+      return false;
+    }
     
   }
 }

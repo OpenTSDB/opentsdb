@@ -134,6 +134,11 @@ public class DedupNode extends AbstractQueryNode {
     }
 
     @Override
+    public String dataSource() {
+      return next.dataSource();
+    }
+    
+    @Override
     public TypeToken<? extends TimeSeriesId> idType() {
       return next.idType();
     }

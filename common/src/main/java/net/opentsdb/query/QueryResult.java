@@ -61,7 +61,14 @@ public interface QueryResult {
    * @return A non-null query node.
    */
   public QueryNode source();
-
+  
+  /** @return The name of the data source that these results came from.
+   * E.g. can be a metric source (QuerySourceConfig) or it could be a 
+   * node that generates a new result set such as an expression. If 
+   * data is just passing through (e.g. a downsample node) this should
+   * be the source metric or node. */
+  public String dataSource();
+  
   /**
    * The type of time series ID used to describe the time series in this
    * result set. 

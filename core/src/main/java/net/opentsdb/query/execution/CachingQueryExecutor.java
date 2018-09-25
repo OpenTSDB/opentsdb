@@ -203,11 +203,6 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
     }
     
     @Override
-    public String id() {
-      return config.getId();
-    }
-    
-    @Override
     public void onComplete(final QueryNode downstream, 
                            final long final_sequence,
                            final long total_sequences) {
@@ -605,6 +600,11 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
     
     @Override
     public boolean pushDown() {
+      return false;
+    }
+    
+    @Override
+    public boolean joins() {
       return false;
     }
     

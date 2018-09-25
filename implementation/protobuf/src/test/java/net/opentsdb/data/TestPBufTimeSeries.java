@@ -36,13 +36,13 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
 
 public class TestPBufTimeSeries {
 
   private static MockTSDB TSDB;
   
-  private PBufIteratorSerdesFactory factory;
+  private PBufSerdesFactory factory;
   private byte[] numeric_data;
   private byte[] summary_data;
   
@@ -55,7 +55,7 @@ public class TestPBufTimeSeries {
   
   @Before
   public void before() throws Exception {
-    factory = new PBufIteratorSerdesFactory();
+    factory = new PBufSerdesFactory();
     numeric_data = new byte[] { 10, 43, 110, 101, 116, 46, 111, 112, 101, 
         110, 116, 115, 100, 98, 46, 100, 97, 116, 97, 46, 116, 121, 112, 
         101, 115, 46, 110, 117, 109, 101, 114, 105, 99, 46, 78, 117, 109, 

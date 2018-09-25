@@ -18,7 +18,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.BreadthFirstIterator;
@@ -26,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
@@ -64,72 +67,45 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   private static final Logger LOG = LoggerFactory.getLogger(
       AbstractQueryPipelineContext.class);
   
-  /** The TSDB to which we belong. */
-  protected final TSDB tsdb;
+  /** The list of sink nodes. */
+  protected final List<QuerySink> sinks;
   
-  /** The query we're working on. */
-  protected final TimeSeriesQuery query;
+  /** A list of query results expected per type so we can call close on
+   * sinks when we've passed them through. */
+  protected final Map<String, AtomicInteger> countdowns;
   
   /** The upstream query context this pipeline context belongs to. */
   protected final QueryContext context;
 
   /** The query plan. */
-  protected DefaultQueryPlanner plan;
-  
-  /** The set of query sinks. */
-  protected final Collection<QuerySink> sinks;
-  
-  /** The cumulative result object when operating in {@link QueryMode#SINGLE}. */
-  protected CumulativeQueryResult single_results;
+  protected final DefaultQueryPlanner plan;
   
   /** Used to iterate over sources when in a client streaming mode. */
   protected int source_idx = 0;
   
-  /** Tracks the total number of sequences sent by the downstream sources so
-   * we know when to call {@link QuerySink#onComplete()}.
-   */
-  protected long total_sequences;
-  
-  /** Used in a streaming mode to track how many roots are complete. */
-  protected int completed_downstream;
-  
-  /** Used in a sync streaming mode to track how many sinks are done. */
-  protected int completed_sinks;
-  
   /**
    * Default ctor.
-   * @param tsdb A non-null TSDB to work with.
-   * @param query A non-null query to execute.
    * @param context The user's query context.
-   * @param sinks A collection of one or more sinks to publish to.
    * @throws IllegalArgumentException if any argument was null.
    */
-  public AbstractQueryPipelineContext(final TSDB tsdb, 
-                                      final TimeSeriesQuery query, 
-                                      final QueryContext context,
-                                      final Collection<QuerySink> sinks) {
-    if (tsdb == null) {
-      throw new IllegalArgumentException("TSDB object cannot be null.");
-    }
-    if (query == null) {
-      throw new IllegalArgumentException("The query cannot be null.");
-    }
+  public AbstractQueryPipelineContext(final QueryContext context) {
     if (context == null) {
       throw new IllegalArgumentException("The context cannot be null.");
     }
-    if (sinks == null || sinks.isEmpty()) {
-      throw new IllegalArgumentException("The sinks cannot be null or empty");
-    }
-    this.tsdb = tsdb;
-    this.query = query;
     this.context = context;
-    this.sinks = sinks;
-    plan = new DefaultQueryPlanner(this, Lists.newArrayList((QueryNode) this));
+    if (context.query().getSinkConfigs() == null || 
+        context.query().getSinkConfigs().isEmpty()) {
+      throw new IllegalArgumentException("The query must have at least "
+          + "one sink config.");
+    }
+    plan = new DefaultQueryPlanner(this, (QueryNode) this);
+    sinks = Lists.newArrayListWithExpectedSize(1);
+    countdowns = Maps.newHashMap();
   }
   
   @Override
   public TSDB tsdb() {
-    return tsdb;
+    return context.tsdb();
   }
   
   @Override
@@ -144,7 +120,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   
   @Override
   public ExecutionGraph executionGraph() {
-    return query.getExecutionGraph();
+    return context.query().getExecutionGraph();
   }
   
   @Override
@@ -307,13 +283,8 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
-  public Collection<QueryNode> roots() {
-    return plan.roots();
-  }
-  
-  @Override
   public TimeSeriesQuery query() {
-    return query;
+    return context.query();
   }
   
   @Override
@@ -371,37 +342,19 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   public void onComplete(final QueryNode downstream, 
                          final long final_sequence,
                          final long total_sequences) {
-    synchronized(this) {
-      this.total_sequences += total_sequences;
-      completed_downstream++;
-      checkComplete();
-    }
+    // TODO - handle this with streaming.
   }
   
   @Override
   public void onNext(final QueryResult next) {
-    if (context.mode() == QueryMode.SINGLE) {
-      synchronized(this) {
-        if (single_results == null) {
-          single_results = new CumulativeQueryResult(next);
-        } else {
-          single_results.addResults(next);
-        }
+    final ResultWrapper wrapped = new ResultWrapper(next);
+    for (final QuerySink sink : sinks) {
+      try {
+        sink.onNext(wrapped);
+      } catch (Throwable e) {
+        LOG.error("Exception thrown passing results to sink: " + sink, e);
+        // TODO - should we kill the query here?
       }
-    } else {
-      for (final QuerySink sink : sinks) {
-        try {
-          sink.onNext(next);
-        } catch (Throwable e) {
-          LOG.error("Exception thrown passing results to sink: " + sink, e);
-          // TODO - should we kill the query here?
-        }
-      }
-    }
-    
-    synchronized(this) {
-      completed_sinks++;
-      checkComplete();
     }
   }
   
@@ -435,13 +388,35 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (span != null) {
       child = span.newChild(getClass() + ".initializeGraph")
         .withTag("graphId", 
-            query.getExecutionGraph().getId() == null ? 
-                "null" : query.getExecutionGraph().getId())
+            context.query().getExecutionGraph().getId() == null ? 
+                "null" : context.query().getExecutionGraph().getId())
         .start();
     } else {
       child = null;
     }
     plan.plan(child);
+    
+    // setup sinks if the graph is happy
+    for (final QuerySinkConfig config : context.query().getSinkConfigs()) {
+      final QuerySinkFactory factory = context.tsdb().getRegistry()
+          .getPlugin(QuerySinkFactory.class, config.getSerdesId());
+      if (factory == null) {
+        throw new IllegalArgumentException("No sink factory found for " 
+            + config.getSerdesId());
+      }
+      
+      final QuerySink sink = factory.newSink(context, config);
+      if (sink == null) {
+        throw new IllegalArgumentException("Factory returned a null sink for " 
+            + config.getSerdesId());
+      }
+      sinks.add(sink);
+    }
+    
+    for (final String source : plan.serializationSources()) {
+      countdowns.put(source, new AtomicInteger(sinks.size()));
+    }
+    
     if (child != null) {
       child.setSuccessTags().finish();
     }
@@ -453,130 +428,82 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
    * <b>NOTE:</b> This method must be synchronized.
    */
   protected void checkComplete() {
-    if (completed_sinks >= total_sequences &&
-        completed_downstream >= plan.roots().size()) {
-      for (final QuerySink sink : sinks) {
-        if (context.mode() == QueryMode.SINGLE && single_results != null) {
-          try {
-            sink.onNext(single_results);
-          } catch (Throwable e) {
-            LOG.error("Failed to send cumulative results to sink: " + sink, e);
-          }
-        }
-        
-        try {
-          sink.onComplete();
-        } catch (Exception e) {
-          LOG.error("Failed to close sink: " + sink, e);
-        }
+    for (final AtomicInteger integer : countdowns.values()) {
+      if (integer.get() > 0) {
+        return;
       }
+    }
+    
+    // done!
+    for (final QuerySink sink : sinks) {
+      sink.onComplete();
     }
   }
   
   /**
-   * A class that accumulates the results for multi-source queries when the mode
-   * is set to {@link QueryMode#SINGLE}.
+   * A simple pass-through wrapper that will decrement the proper counter
+   * when the result is closed.
    */
-  class CumulativeQueryResult implements QueryResult {
-    /** The time spec pulled from the first result. 
-     * TODO - if the sources have different specs, this needs fixing. */
-    private final TimeSpecification time_specification;
+  private class ResultWrapper implements QueryResult {
     
-    /** The accumulation of time series. */
-    private final List<TimeSeries> series;
+    private final QueryResult result;
     
-    private final List<QueryResult> results;
-    
-    /** The type of ID token pulled from the result. */
-    private final TypeToken<? extends TimeSeriesId> id_type;
-    
-    /** The max resolution for the results. */
-    private ChronoUnit resolution;
-    
-    /** The sequence ID to return. */
-    private long sequence_id = 0;
-    
-    /** Rollup config if a result gave us one. */
-    private RollupConfig rollup_config;
-    
-    public CumulativeQueryResult(final QueryResult result) {
-      series = Lists.newArrayList(result.timeSeries());
-      time_specification = result.timeSpecification();
-      id_type = result.idType();
-      resolution = result.resolution();
-      sequence_id = result.sequenceId();
-      rollup_config = result.rollupConfig();
-      results = Lists.newArrayList(result);
+    ResultWrapper(final QueryResult result) {
+      this.result = result;
     }
-    
+
     @Override
     public TimeSpecification timeSpecification() {
-      return time_specification;
+      return result.timeSpecification();
     }
 
     @Override
     public Collection<TimeSeries> timeSeries() {
-      return series;
+      return result.timeSeries();
     }
 
     @Override
     public long sequenceId() {
-      return sequence_id;
+      return result.sequenceId();
     }
 
     @Override
     public QueryNode source() {
-      return AbstractQueryPipelineContext.this;
+      return result.source();
     }
 
     @Override
     public TypeToken<? extends TimeSeriesId> idType() {
-      return id_type;
+      return result.idType();
     }
-    
+
     @Override
     public ChronoUnit resolution() {
-      return resolution;
+      return result.resolution();
     }
-    
+
     @Override
     public RollupConfig rollupConfig() {
-      return rollup_config;
+      return result.rollupConfig();
+    }
+
+    @Override
+    public String dataSource() {
+      return result.dataSource();
     }
     
     @Override
     public void close() {
-      for (final QueryResult result : results) {
-        result.close();
+      if (result.source().config() instanceof QuerySourceConfig ||
+          result.source().config().joins()) {
+        countdowns.get(result.dataSource()).decrementAndGet();
+      } else {
+        countdowns.get(result.source().config().getId() + ":" 
+            + result.dataSource()).decrementAndGet();
       }
+      checkComplete();
     }
     
-    /**
-     * Add the resulting time series to the accumulation.
-     * @param next A non-null result.
-     */
-    protected void addResults(final QueryResult next) {
-      if (time_specification != null || next.timeSpecification() != null) {
-        if ((time_specification == null && next.timeSpecification() != null) ||
-            (time_specification != null && next.timeSpecification() == null)) {
-          throw new IllegalStateException("Received a different time "
-              + "specification in query result: " + next);
-        }
-        
-        // TODO - fix equivalence
-//        if (!time_specification.equals(next.timeSpecification())) {
-//          throw new IllegalStateException("Received a different time "
-//              + "specification in query result: " + next);
-//        }
-      }
-      if (next.sequenceId() > sequence_id) {
-        sequence_id = next.sequenceId();
-      }
-      if (next.resolution().ordinal() < resolution.ordinal()) {
-        resolution = next.resolution();
-      }
-      series.addAll(next.timeSeries());
-      results.add(next);
-    }
   }
+  
 }

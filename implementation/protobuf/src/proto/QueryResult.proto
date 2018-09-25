@@ -36,4 +36,8 @@ message QueryResult {
   
   /* The time spec, may be null. */
   TimeSpecification time_specification = 4;
+  
+  /* The name of the data source. */
+  string data_source = 5;
+  
 }

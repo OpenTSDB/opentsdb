@@ -99,6 +99,12 @@ public class TestBaseQueryNodeConfigWithInterpolators {
       }
       
     }
+
+    @Override
+    public boolean joins() {
+      // TODO Auto-generated method stub
+      return false;
+    }
   }
   
   static class TestInterpolatorConfig extends BaseInterpolatorConfig {

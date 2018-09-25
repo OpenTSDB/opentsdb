@@ -17,7 +17,6 @@ package net.opentsdb.query;
 import java.util.Collection;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 
@@ -48,13 +47,13 @@ public class SemanticQueryContext implements QueryContext {
           .start();
     }
     
-    pipeline = new LocalPipeline(tsdb, query, this, query.getExecutionGraph(), query.getSinks());
+    pipeline = new LocalPipeline(this);
     pipeline.initialize(local_span);
   }
   
   @Override
   public Collection<QuerySink> sinks() {
-    return query.getSinks();
+    return pipeline.sinks();
   }
 
   @Override
@@ -86,6 +85,11 @@ public class SemanticQueryContext implements QueryContext {
     return query;
   }
   
+  @Override
+  public TSDB tsdb() {
+    return tsdb;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -101,19 +105,7 @@ public class SemanticQueryContext implements QueryContext {
     }
     
     @Override
-    public QueryContextBuilder addQuerySink(QuerySink sink) {
-      // TODO Auto-generated method stub
-      return this;
-    }
-
-    @Override
-    public QueryContextBuilder setQuerySinks(Collection<QuerySink> sinks) {
-      // TODO Auto-generated method stub
-      return this;
-    }
-
-    @Override
-    public QueryContextBuilder setQuery(TimeSeriesQuery query) {
+    public QueryContextBuilder setQuery(final TimeSeriesQuery query) {
       if (!(query instanceof SemanticQuery)) {
         throw new IllegalArgumentException("Hey, we want a semantic query here.");
       }
@@ -122,13 +114,13 @@ public class SemanticQueryContext implements QueryContext {
     }
 
     @Override
-    public QueryContextBuilder setMode(QueryMode mode) {
+    public QueryContextBuilder setMode(final QueryMode mode) {
       // TODO Auto-generated method stub
       return this;
     }
 
     @Override
-    public QueryContextBuilder setStats(QueryStats stats) {
+    public QueryContextBuilder setStats(final QueryStats stats) {
       this.stats = stats;
       return this;
     }
@@ -142,9 +134,8 @@ public class SemanticQueryContext implements QueryContext {
 
   class LocalPipeline extends AbstractQueryPipelineContext {
 
-    public LocalPipeline(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
-        ExecutionGraph execution_graph, Collection<QuerySink> sinks) {
-      super(tsdb, query, context, sinks);
+    public LocalPipeline(final QueryContext context) {
+      super(context);
     }
 
     @Override
@@ -156,18 +147,10 @@ public class SemanticQueryContext implements QueryContext {
       } else {
         child = null;
       }
-      System.out.println("SETTING UP SEMANTIC CONTEXT GRAPH....");
       initializeGraph(child);
-      System.out.println("GRAPH all setup....");
       if (child != null) {
         child.setSuccessTags().finish();
       }
-    }
-
-    @Override
-    public String id() {
-      // TODO Auto-generated method stub
-      return null;
     }
     
   }

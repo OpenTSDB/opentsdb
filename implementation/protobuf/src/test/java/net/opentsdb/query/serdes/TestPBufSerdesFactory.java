@@ -32,11 +32,11 @@ import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 
-public class TestPBufIteratorSerdesFactory {
+public class TestPBufSerdesFactory {
 
   @Test
   public void ctor() throws Exception {
-    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    PBufSerdesFactory factory = new PBufSerdesFactory();
     assertTrue(factory.serdesForType(NumericType.TYPE) 
         instanceof PBufNumericTimeSeriesSerdes);
     assertTrue(factory.serdesForType(NumericSummaryType.TYPE) 
@@ -46,7 +46,7 @@ public class TestPBufIteratorSerdesFactory {
   
   @Test
   public void register() throws Exception {
-    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    PBufSerdesFactory factory = new PBufSerdesFactory();
     TypeToken<?> string_type = TypeToken.of(String.class);
     PBufIteratorSerdes string_serdes = mock(PBufIteratorSerdes.class);
     when(string_serdes.type()).thenAnswer(new Answer<TypeToken<?>>() {

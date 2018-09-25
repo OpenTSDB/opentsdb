@@ -16,7 +16,6 @@ package net.opentsdb.query.execution.serdes;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,8 +33,6 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -69,102 +66,178 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
+public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV2QuerySerdes.class);
+  
+  /** The options for this serialization. */
+  private final SerdesOptions options;
+  
+  /** The generator. */
+  private final JsonGenerator json;
+  
+  /** Whether or not we've serialized the first result set. */
+  private boolean initialized;
   
   /**
    * Default ctor.
    */
-  public JsonV2QuerySerdes() {
-
+  public JsonV2QuerySerdes(final QueryContext context,
+                           final SerdesOptions options,
+                           final OutputStream stream) {
+    if (options == null) {
+      throw new IllegalArgumentException("Options cannot be null.");
+    }
+    if (!(options instanceof JsonV2QuerySerdesOptions)) {
+      throw new IllegalArgumentException("Options must be an instance of "
+          + "JsonV2QuerySerdesOptions.");
+    }
+    if (stream == null) {
+      throw new IllegalArgumentException("Stream cannot be null.");
+    }
+    this.options = options;
+    try {
+      json = JSON.getFactory().createGenerator(stream);
+    } catch (IOException e) {
+      throw new RuntimeException("WTF? Failed to instantiate a JSON "
+          + "generator", e);
+    }
   }
   
   @SuppressWarnings("unchecked")
   @Override
-  public Deferred<Object> serialize(final QueryContext context, 
-                                    final SerdesOptions options,
-                                    final OutputStream stream, 
-                                    final QueryResult result,
+  public Deferred<Object> serialize(final QueryResult result,
                                     final Span span) {
-    if (stream == null) {
-      throw new IllegalArgumentException("Output stream may not be null.");
-    }
-    if (result == null) {
-      throw new IllegalArgumentException("Data may not be null.");
-    }
-    final JsonV2QuerySerdesOptions opts;
-    if (options == null) {
-      throw new IllegalArgumentException("Options cannot be null.");
-    }
-     if (!(options instanceof JsonV2QuerySerdesOptions)) {
-      throw new IllegalArgumentException("Options were of the wrong type: " 
-          + options.getClass());
-    }
-    opts = (JsonV2QuerySerdesOptions) options;
-    
-    final JsonGenerator json;
-    try {
-      json = JSON.getFactory().createGenerator(stream);
-    } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
-    }
-    
-    try {
-      json.writeStartArray();
-    } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
-    }
-    
-    final List<TimeSeries> series;
-    final List<Deferred<TimeSeriesStringId>> deferreds;
-    if (result.idType() == Const.TS_BYTE_ID) {
-      series = Lists.newArrayList(result.timeSeries());
-      deferreds = Lists.newArrayListWithCapacity(series.size());
-      for (final TimeSeries ts : result.timeSeries()) {
-        deferreds.add(((TimeSeriesByteId) ts.id()).decode(false, 
-            null /* TODO - implement tracing */));
+    System.out.println("WOWOWOWOWOTOTOTOTOTOTO");
+    synchronized(this) {
+      if (result == null) {
+        throw new IllegalArgumentException("Data may not be null.");
       }
-    } else {
-      series = null;
-      deferreds = null;
-    }
-
-    /**
-     * Performs the serialization after determining if the serializations
-     * need to resolve series IDs.
-     */
-    class ResolveCB implements Callback<Object, ArrayList<TimeSeriesStringId>> {
-
-      @Override
-      public Object call(final ArrayList<TimeSeriesStringId> ids) 
-            throws Exception {
+      final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
+      
+      if (!initialized) {
         try {
-          int idx = 0;
-          if (opts.parallelThreshold() > 0 && 
-              result.timeSeries().size() > opts.parallelThreshold()) {
-            final List<Pair<Integer, TimeSeries>> pairs = 
-                Lists.newArrayListWithExpectedSize(result.timeSeries().size());
-            idx = 0;
-            for (final TimeSeries ts : result.timeSeries()) {
-              pairs.add(new Pair<Integer, TimeSeries>(idx++, ts));
-            }
-            
-            final List<String> sets = 
-                Lists.newArrayListWithExpectedSize(result.timeSeries().size());
-            pairs.stream().parallel().forEach((pair) -> {
-              try {
+          json.writeStartArray();
+        } catch (IOException e) {
+          throw new RuntimeException("WTF?", e);
+        }
+        initialized = true;
+      }
+      
+      final List<TimeSeries> series;
+      final List<Deferred<TimeSeriesStringId>> deferreds;
+      if (result.idType() == Const.TS_BYTE_ID) {
+        series = Lists.newArrayList(result.timeSeries());
+        deferreds = Lists.newArrayListWithCapacity(series.size());
+        for (final TimeSeries ts : result.timeSeries()) {
+          deferreds.add(((TimeSeriesByteId) ts.id()).decode(false, span));
+        }
+      } else {
+        series = null;
+        deferreds = null;
+      }
+    
+      /**
+       * Performs the serialization after determining if the serializations
+       * need to resolve series IDs.
+       */
+      class ResolveCB implements Callback<Object, ArrayList<TimeSeriesStringId>> {
+    
+        @Override
+        public Object call(final ArrayList<TimeSeriesStringId> ids) 
+              throws Exception {
+          try {
+            int idx = 0;
+            if (opts.parallelThreshold() > 0 && 
+                result.timeSeries().size() > opts.parallelThreshold()) {
+              final List<Pair<Integer, TimeSeries>> pairs = 
+                  Lists.newArrayListWithExpectedSize(result.timeSeries().size());
+              idx = 0;
+              for (final TimeSeries ts : result.timeSeries()) {
+                pairs.add(new Pair<Integer, TimeSeries>(idx++, ts));
+              }
+              
+              final List<String> sets = 
+                  Lists.newArrayListWithExpectedSize(result.timeSeries().size());
+              pairs.stream().parallel().forEach((pair) -> {
+                try {
+                  final Collection<TypedIterator<TimeSeriesValue<?>>> iterators = 
+                      pair.getValue().iterators();
+                  if (iterators.isEmpty()) {
+                    return;
+                  }
+                  // NOTE: We should only have one here.
+                  final TypedIterator<TimeSeriesValue<?>> iterator = 
+                      iterators.iterator().next();
+                  if (!iterator.hasNext()) {
+                    return;
+                  }
+                  TimeSeriesValue<? extends TimeSeriesDataType> value = 
+                      (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
+                  while (value != null && value.timestamp().compare(
+                      Op.LT, opts.start)) {
+                    if (iterator.hasNext()) {
+                      value = (TimeSeriesValue<NumericType>) iterator.next();
+                    } else {
+                      value = null;
+                    }
+                  }
+                  
+                  if (value == null) {
+                    return;
+                  }
+                  if (value.timestamp().compare(Op.LT, opts.start()) ||
+                      value.timestamp().compare(Op.GT, opts.end)) {
+                    return;
+                  }
+                  
+                  final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                  final JsonGenerator json = JSON.getFactory().createGenerator(baos);
+                  json.writeStartObject();
+                  
+                  final TimeSeriesStringId id;
+                  if (ids != null) {
+                    id = (ids.get(pair.getKey()));
+                  } else {
+                    id = (TimeSeriesStringId) pair.getValue().id();
+                  }
+                  
+                  serializeSeries(opts, value, iterator, id, json, result);
+                  json.close();
+                  synchronized(sets) {
+                    sets.add(new String(baos.toByteArray(), Const.UTF8_CHARSET));
+                  }
+                  baos.close();
+                } catch (Exception e) {
+                  LOG.error("Failed to serialize ts: " + series, e);
+                  throw new QueryExecutionException("Unexpected exception "
+                      + "serializing ts: " + series, 0, e);
+                }
+              });
+              
+              idx = 0;
+              for (final String set : sets) {
+                if (idx++ > 0) {
+                  json.writeRaw(",");
+                }
+                json.writeRaw(set);
+              }
+              
+            } else {
+              for (final TimeSeries series : 
+                series != null ? series : result.timeSeries()) {
                 final Collection<TypedIterator<TimeSeriesValue<?>>> iterators = 
-                    pair.getValue().iterators();
+                    series.iterators();
                 if (iterators.isEmpty()) {
-                  return;
+                  continue;
                 }
                 // NOTE: We should only have one here.
                 final TypedIterator<TimeSeriesValue<?>> iterator = 
                     iterators.iterator().next();
                 if (!iterator.hasNext()) {
-                  return;
+                  continue;
                 }
+                
                 TimeSeriesValue<? extends TimeSeriesDataType> value = 
                     (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
                 while (value != null && value.timestamp().compare(
@@ -177,162 +250,81 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
                 }
                 
                 if (value == null) {
-                  return;
+                  continue;
                 }
                 if (value.timestamp().compare(Op.LT, opts.start()) ||
                     value.timestamp().compare(Op.GT, opts.end)) {
-                  return;
+                  continue;
                 }
                 
-                final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                final JsonGenerator json = JSON.getFactory().createGenerator(baos);
                 json.writeStartObject();
                 
                 final TimeSeriesStringId id;
                 if (ids != null) {
-                  id = (ids.get(pair.getKey()));
+                  id = (ids.get(idx++));
                 } else {
-                  id = (TimeSeriesStringId) pair.getValue().id();
+                  id = (TimeSeriesStringId) series.id();
                 }
-                
                 serializeSeries(opts, value, iterator, id, json, result);
-                json.close();
-                synchronized(sets) {
-                  sets.add(new String(baos.toByteArray(), Const.UTF8_CHARSET));
-                }
-                baos.close();
-              } catch (Exception e) {
-                LOG.error("Failed to serialize ts: " + series, e);
-                throw new QueryExecutionException("Unexpected exception "
-                    + "serializing ts: " + series, 0, e);
+                json.flush();
               }
-            });
-            
-            idx = 0;
-            for (final String set : sets) {
-              if (idx++ > 0) {
-                json.writeRaw(",");
-              }
-              json.writeRaw(set);
             }
             
-          } else {
-            for (final TimeSeries series : 
-              series != null ? series : result.timeSeries()) {
-              final Collection<TypedIterator<TimeSeriesValue<?>>> iterators = 
-                  series.iterators();
-              if (iterators.isEmpty()) {
-                continue;
-              }
-              // NOTE: We should only have one here.
-              final TypedIterator<TimeSeriesValue<?>> iterator = 
-                  iterators.iterator().next();
-              if (!iterator.hasNext()) {
-                continue;
-              }
-              
-              TimeSeriesValue<? extends TimeSeriesDataType> value = 
-                  (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
-              while (value != null && value.timestamp().compare(
-                  Op.LT, opts.start)) {
-                if (iterator.hasNext()) {
-                  value = (TimeSeriesValue<NumericType>) iterator.next();
-                } else {
-                  value = null;
-                }
-              }
-              
-              if (value == null) {
-                continue;
-              }
-              if (value.timestamp().compare(Op.LT, opts.start()) ||
-                  value.timestamp().compare(Op.GT, opts.end)) {
-                continue;
-              }
-              
-              json.writeStartObject();
-              
-              final TimeSeriesStringId id;
-              if (ids != null) {
-                id = (ids.get(idx++));
-              } else {
-                id = (TimeSeriesStringId) series.id();
-              }
-              serializeSeries(opts, value, iterator, id, json, result);
-              json.flush();
-            }
+            json.flush();
+          } catch (Exception e) {
+            LOG.error("Unexpected exception", e);
+            return Deferred.fromError(new QueryExecutionException(
+                "Unexpected exception "+ "serializing: " + result, 500, e));
           }
           
-          json.flush();
-          
-          json.writeEndArray();
-          json.close();
-          
-        } catch (Exception e) {
-          LOG.error("Unexpected exception", e);
-          return Deferred.fromError(new QueryExecutionException(
-              "Unexpected exception "+ "serializing: " + result, 500, e));
+          return Deferred.fromResult(null);
         }
-        return Deferred.fromResult(null);
       }
       
-    }
-    
-    class ErrorCB implements Callback<Object, Exception> {
-      @Override
-      public Object call(final Exception ex) throws Exception {
-        if (ex instanceof DeferredGroupException) {
-          throw (Exception) Exceptions.getCause((DeferredGroupException) ex);
+      class ErrorCB implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception ex) throws Exception {
+          if (ex instanceof DeferredGroupException) {
+            throw (Exception) Exceptions.getCause((DeferredGroupException) ex);
+          }
+          throw ex;
         }
-        throw ex;
       }
-    }
-    
-    try {
-      if (deferreds != null) {
-        return Deferred.group(deferreds)
-          .addCallback(new ResolveCB())
-          .addErrback(new ErrorCB());
-      } else {
-        return Deferred.fromResult(new ResolveCB().call(null));
+      
+      try {
+        if (deferreds != null) {
+          return Deferred.group(deferreds)
+            .addCallback(new ResolveCB())
+            .addErrback(new ErrorCB());
+        } else {
+          return Deferred.fromResult(new ResolveCB().call(null));
+        }
+      } catch (InterruptedException e) {
+        throw new QueryExecutionException("Failed to resolve IDs", 500, e);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        throw new QueryExecutionException("Unexpected exception", 500, e);
       }
-    } catch (InterruptedException e) {
-      throw new QueryExecutionException("Failed to resolve IDs", 500, e);
-    } catch (Exception e) {
-      LOG.error("Unexpected exception", e);
-      throw new QueryExecutionException("Failed to resolve IDs", 500, e);
     }
   }
 
   @Override
-  public void deserialize(final SerdesOptions options,
-                                    final InputStream stream,
-                                    final QueryNode node,
-                                    final Span span) {
+  public void serializeComplete(final Span span) {
+    try {
+      json.writeEndArray();
+      json.flush();
+    } catch (IOException e) {
+      throw new QueryExecutionException("Failure closing serializer", 500, e);
+    }
+  }
+  
+  @Override
+  public void deserialize(final QueryNode node,
+                          final Span span) {
     node.onError(new UnsupportedOperationException("Not implemented for this "
         + "class: " + getClass().getCanonicalName()));
   }
-
-  @Override
-  public String id() {
-    return "JsonV2QuerySerdes";
-  }
-
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
-  }
-
+  
   private void serializeSeries(
       final JsonV2QuerySerdesOptions options,
       final TimeSeriesValue<?> value,

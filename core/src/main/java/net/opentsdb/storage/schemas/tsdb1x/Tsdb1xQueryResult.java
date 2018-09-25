@@ -130,6 +130,11 @@ public class Tsdb1xQueryResult implements QueryResult {
   }
 
   @Override
+  public String dataSource() {
+    return node.config().getId();
+  }
+  
+  @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_BYTE_ID;
   }
