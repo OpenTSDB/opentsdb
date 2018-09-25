@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 
@@ -62,4 +63,6 @@ public interface QueryContext {
   /** @return The original query. */
   public TimeSeriesQuery query();
   
+  /** @return The TSDB to which we belong. */
+  public TSDB tsdb();
 }

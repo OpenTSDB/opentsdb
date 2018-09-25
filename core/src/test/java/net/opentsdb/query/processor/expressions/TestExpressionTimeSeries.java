@@ -25,14 +25,11 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Iterator;
 import java.util.Map;
 
 import net.opentsdb.data.TypedIterator;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
 
@@ -72,7 +69,6 @@ public class TestExpressionTimeSeries {
     right = mock(TimeSeries.class);
     factory = mock(BinaryExpressionNodeFactory.class);
     
-    when(node.id()).thenReturn("e1");
     when(node.joiner()).thenReturn(joiner);
     when(node.factory()).thenReturn(factory);
     

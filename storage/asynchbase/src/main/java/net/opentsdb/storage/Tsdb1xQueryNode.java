@@ -210,11 +210,6 @@ public class Tsdb1xQueryNode implements SourceNode {
   }
 
   @Override
-  public String id() {
-    return config.getId();
-  }
-
-  @Override
   public void close() {
     if (executor != null) {
       executor.close();

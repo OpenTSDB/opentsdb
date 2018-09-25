@@ -27,22 +27,23 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 
 /**
- * A factory for returning JSON serializers for the OpenTSDB 2x format.
+ * A factory for returning JSON serializers for the OpenTSDB 2x 
+ * expression format.
  * 
  * @since 3.0
  */
-public class JsonV2QuerySerdesFactory implements SerdesFactory, TSDBPlugin {
-
+public class JsonV2ExpQuerySerdesFactory implements SerdesFactory, TSDBPlugin {
+  
   @Override
   public String id() {
-    return "JsonV2QuerySerdes";
+    return "JsonV2ExpQuerySerdes";
   }
 
   @Override
   public TimeSeriesSerdes newInstance(final QueryContext context,
                                       final SerdesOptions options,
                                       final OutputStream stream) {
-    return new JsonV2QuerySerdes(context, options, stream);
+    return new JsonV2ExpQuerySerdes(context, options, stream);
   }
   
   @Override

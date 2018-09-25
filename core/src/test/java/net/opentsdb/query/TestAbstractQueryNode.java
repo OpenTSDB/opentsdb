@@ -70,17 +70,14 @@ public class TestAbstractQueryNode {
   @Test
   public void ctor() throws Exception {
     TestAQ node = new TestAQ(factory, context, null);
-    assertNull(node.id());
     assertSame(factory, node.factory());
     assertSame(context, node.pipelineContext());
     
     node = new TestAQ(factory, context, "");
-    assertEquals("", node.id());
     assertSame(factory, node.factory());
     assertSame(context, node.pipelineContext());
     
     node = new TestAQ(factory, context, "boo!");
-    assertEquals("boo!", node.id());
     assertSame(factory, node.factory());
     assertSame(context, node.pipelineContext());
     
@@ -93,7 +90,6 @@ public class TestAbstractQueryNode {
   @Test
   public void initialize() throws Exception {
     final TestAQ node = new TestAQ(factory, context, null);
-    assertNull(node.id());
     assertNull(node.upstream);
     assertNull(node.downstream);
     assertNull(node.downstream_sources);

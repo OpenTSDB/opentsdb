@@ -40,6 +40,12 @@ public interface QueryNodeConfig extends Comparable<QueryNodeConfig> {
    * the query source. */
   public boolean pushDown();
   
+  /** @return Whether or not this type of node joins results. E.g. an
+   * binary expression node will take two results from downstream and 
+   * combine them into one so this would be true, vs. a group by node
+   * will group each result from downstream and pass it up. */
+  public boolean joins();
+  
   /** @return An optional map of query parameter overrides. May be null. */
   public Map<String, String> getOverrides();
   

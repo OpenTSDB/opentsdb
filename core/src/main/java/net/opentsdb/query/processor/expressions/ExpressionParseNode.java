@@ -223,6 +223,11 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
   
   @Override
+  public boolean joins() {
+    return true;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().newHasher()

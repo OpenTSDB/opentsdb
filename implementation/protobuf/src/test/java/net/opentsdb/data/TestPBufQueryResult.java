@@ -38,7 +38,7 @@ import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
 
 public class TestPBufQueryResult {
 
@@ -67,7 +67,7 @@ public class TestPBufQueryResult {
         .setTimeZone("America/Denver")
         .setInterval("1h"))
         .build();
-    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    PBufSerdesFactory factory = new PBufSerdesFactory();
     QueryNode node = mock(QueryNode.class);
     when(node.pipelineContext()).thenReturn(context);
     ByteArrayInputStream bais = new ByteArrayInputStream(pbuf.toByteArray());
@@ -108,7 +108,7 @@ public class TestPBufQueryResult {
         .setTimeZone("America/Denver")
         .setInterval("1h"))
         .build();
-    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    PBufSerdesFactory factory = new PBufSerdesFactory();
     QueryNode node = mock(QueryNode.class);
     when(node.pipelineContext()).thenReturn(context);
     
@@ -129,7 +129,7 @@ public class TestPBufQueryResult {
         .setResolution(2)
         .setSequenceId(42)
         .build();
-    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    PBufSerdesFactory factory = new PBufSerdesFactory();
     QueryNode node = mock(QueryNode.class);
     ByteArrayInputStream bais = new ByteArrayInputStream(pbuf.toByteArray());
     
@@ -144,7 +144,7 @@ public class TestPBufQueryResult {
   
   @Test
   public void ctorBadData() throws Exception {
-    PBufIteratorSerdesFactory factory = new PBufIteratorSerdesFactory();
+    PBufSerdesFactory factory = new PBufSerdesFactory();
     QueryNode node = mock(QueryNode.class);
     ByteArrayInputStream bais = new ByteArrayInputStream(
         new byte[] { 42, 3, 0 });

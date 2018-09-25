@@ -46,11 +46,6 @@ public interface QueryNode {
   public QueryNodeConfig config();
   
   /**
-   * @return The descriptive ID of this node.
-   */
-  public String id();
-  
-  /**
    * Closes the node and releases all resources locally.
    * TODO - I think I want it to close downstream nodes as well, but not sure.
    */

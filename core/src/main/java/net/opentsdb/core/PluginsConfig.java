@@ -114,6 +114,7 @@ public class PluginsConfig extends Validatable {
     DEFAULT_TYPES.add("net.opentsdb.storage.DatumIdValidator");
     DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.serdes.SerdesFactory");
+    DEFAULT_TYPES.add("net.opentsdb.query.QuerySinkFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.execution.QueryExecutorFactory");
     DEFAULT_TYPES.add("net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory");
     DEFAULT_TYPES.add("net.opentsdb.storage.TimeSeriesDataStoreFactory");
@@ -127,8 +128,6 @@ public class PluginsConfig extends Validatable {
         "net.opentsdb.storage.Tsdb1xHBaseFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
         "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.TimeSeriesSerdes", 
-        "net.opentsdb.query.serdes.PBufSerdes");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
         "net.opentsdb.query.interpolation.DefaultInterpolatorFactory");    
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 

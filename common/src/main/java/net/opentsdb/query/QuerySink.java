@@ -52,6 +52,9 @@ public interface QuerySink {
   /**
    * Called by the pipeline when a new query result is available. The result is
    * always non-null but may have an empty result set. 
+   * <b>NOTE:</b> Always call {@link QueryResult#close()} when finished with
+   * the result. Only when all of the results have been closed will the 
+   * {@link #onComplete()} method be called.
    * @param next A non-null result for a query.
    */
   public void onNext(final QueryResult next);

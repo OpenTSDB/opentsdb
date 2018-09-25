@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -128,11 +128,13 @@ public class TestJsonV2QuerySerdes {
   @Test
   public void serializeFull() throws Exception {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
-    output.close();
-    final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
+
+    String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     
+    assertTrue(json.startsWith("["));
+    assertFalse(json.endsWith("]"));
     assertTrue(json.contains("\"metric\":\"sys.cpu.user\""));
     assertTrue(json.contains("\"tags\":{"));
     assertTrue(json.contains("\"dc\":\"phx\""));
@@ -145,19 +147,25 @@ public class TestJsonV2QuerySerdes {
     assertTrue(json.contains("\"1486045860\":5.75"));
     assertTrue(json.contains("\"1486045800\":4"));
     assertTrue(json.contains("\"1486045860\":0.0015"));
+    
+    // close it.
+    serdes.serializeComplete(null);
+    output.close();
+    json = new String(output.toByteArray(), Const.UTF8_CHARSET);
+    assertTrue(json.endsWith("]"));
   }
   
   @Test
   public void serializeWithMilliseconds() throws Exception {
-    final SerdesOptions conf = JsonV2QuerySerdesOptions.newBuilder()
+    options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
         .setMsResolution(true)
         .setStart(new MillisecondTimeStamp(1486045800000L))
         .setEnd(new MillisecondTimeStamp(1486045860000L))
         .setId("json")
         .build();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, conf, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize( result, null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     
@@ -184,8 +192,8 @@ public class TestJsonV2QuerySerdes {
         .build();
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     
@@ -212,11 +220,10 @@ public class TestJsonV2QuerySerdes {
         .build();
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
-    System.out.println(json);
     assertTrue(json.contains("\"metric\":\"sys.cpu.user\""));
     assertTrue(json.contains("\"tags\":{"));
     assertTrue(json.contains("\"dc\":\"phx\""));
@@ -240,8 +247,9 @@ public class TestJsonV2QuerySerdes {
         .build();
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
+    serdes.serializeComplete(null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     assertEquals("[]", json);
@@ -256,8 +264,9 @@ public class TestJsonV2QuerySerdes {
         .build();
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
+    serdes.serializeComplete(null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     assertEquals("[]", json);
@@ -266,9 +275,10 @@ public class TestJsonV2QuerySerdes {
   @Test
   public void serializeEmpty() throws Exception {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
-    serdes.serialize(context, options, output, result, null);
+    serdes.serialize(result, null);
+    serdes.serializeComplete(null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     assertEquals("[]", json);
@@ -277,21 +287,31 @@ public class TestJsonV2QuerySerdes {
   @Test
   public void serializeExceptions() throws Exception {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(null, options, output);
     
     try {
-      serdes.serialize(context, options, null, result, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.serialize(context, options, output, null, null);
+      serdes.serialize(null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     QueryNode node = mock(QueryNode.class);
-    serdes.deserialize(options, null, node, null);
+    serdes.deserialize(node, null);
     verify(node, times(1)).onError(any(Throwable.class));
+    
+    try {
+      new JsonV2QuerySerdes(context, null, output);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new JsonV2QuerySerdes(context, mock(SerdesOptions.class), output);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new JsonV2QuerySerdes(context, options, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
 
   @Test
@@ -331,8 +351,8 @@ public class TestJsonV2QuerySerdes {
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     
@@ -389,9 +409,9 @@ public class TestJsonV2QuerySerdes {
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
     try {
-      serdes.serialize(context, options, output, result, null).join();
+      serdes.serialize(result, null).join();
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
     output.close();
@@ -424,8 +444,8 @@ public class TestJsonV2QuerySerdes {
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
     
@@ -461,11 +481,10 @@ public class TestJsonV2QuerySerdes {
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes();
-    serdes.serialize(context, options, output, result, null);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
-    System.out.println(json);
     assertTrue(json.contains("\"metric\":\"sys.cpu.user\""));
     assertTrue(json.contains("\"tags\":{"));
     assertTrue(json.contains("\"dc\":\"phx\""));

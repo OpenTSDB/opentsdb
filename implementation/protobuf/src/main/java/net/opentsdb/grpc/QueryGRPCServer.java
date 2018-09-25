@@ -15,6 +15,7 @@
 package net.opentsdb.grpc;
 
 import java.io.File;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,12 +29,11 @@ import io.grpc.stub.StreamObserver;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery;
-import net.opentsdb.query.QuerySink;
+import net.opentsdb.grpc.QueryGRPCSink.GRPCSinkConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
-import net.opentsdb.query.serdes.PBufSerdes;
-import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.rpc.RPCServer;
 import net.opentsdb.utils.JSON;
 
@@ -59,9 +59,6 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
   /** The RPC server. */
   private Server server;
   
-  /** A Pbuf serdes instance. */
-  private PBufSerdes serdes;
-  
   @Override
   public void remoteQuery(final TimeSeriesQuery query, 
                           final StreamObserver<QueryResult> observer) {
@@ -79,59 +76,23 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
       return;
     }
     
-    /** The sink to serialize to pbuf and send upstream. */
-    class LocalSink implements QuerySink {
-      
-      SemanticQueryContext context;
-      
-      @Override
-      public void onComplete() {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Yay, all done!");
-        }
-        observer.onCompleted();
-      }
-
-      @Override
-      public void onNext(final net.opentsdb.query.QueryResult next) {
-        try {
-          final SerdesOptions opts = JsonV2QuerySerdesOptions.newBuilder()
-              .setStart(context.query().startTime())
-              .setEnd(context.query().endTime())
-              .setId("serdes")
-              .build();
-          observer.onNext(serdes.serializeResult(context, opts, next));
-        } catch (Throwable t) {
-          LOG.error("Failed to send query upstream: " 
-              + new String(query.getQuery().toByteArray()), t);
-          onError(t);
-        }
-      }
-
-      @Override
-      public void onError(Throwable t) {
-        LOG.error("Exception for query: " +
-            new String(query.getQuery().toByteArray()), t);
-        try {
-          observer.onError(t);
-        } catch (Exception e) {
-          LOG.error("Failed to send error upstream.", e);
-        }
-      }
-    }
-    
     try {
-      final LocalSink sink = new LocalSink();
+      final SemanticQuery temp = query_builder.build();
       final SemanticQuery semantic_query = query_builder
-          .addSink(sink)
+          .addSinkConfig(GRPCSinkConfig.newBuilder()
+              .setObserver(observer)
+              .setOptions(JsonV2QuerySerdesOptions.newBuilder()
+                .setStart(temp.startTime())
+                .setEnd(temp.endTime())
+                .setId(PBufSerdesFactory.ID)
+                .build())
+              .build())
           .build();
       final SemanticQueryContext context = (SemanticQueryContext) 
           SemanticQueryContext.newBuilder()
               .setTSDB(tsdb)
               .setQuery(semantic_query)
               .build();
-      // don't forget to set the context
-      sink.context = context;
       context.fetchNext(null /* TODO */);
     } catch (Throwable t) {
       LOG.error("Unexpected eception", t);
@@ -166,8 +127,6 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
       return Deferred.fromError(e);
     }
     
-    // TODO - probably pull this from the factory.
-    serdes = new PBufSerdes();
     LOG.info("GRPC Server started, listening on port: " + server.getPort());
     return Deferred.fromResult(null);
   }
@@ -205,4 +164,5 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
           "A port to listen on for the GRPC server.");
     }
   }
+  
 }

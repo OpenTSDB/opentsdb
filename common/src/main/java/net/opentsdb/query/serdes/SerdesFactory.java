@@ -14,10 +14,45 @@
 // limitations under the License.
 package net.opentsdb.query.serdes;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
+import net.opentsdb.query.QueryContext;
+
+/**
+ * An interface for serialization/deserialization implementation 
+ * factories. It's used to return a new instance of the implementation
+ * depending on the context (in or out).
+ * 
+ * @since 3.0
+ */
 public interface SerdesFactory {
 
+  /** @return The non-null, non-empty and unique ID of this factory. */
   public String id();
   
-  public TimeSeriesSerdes newInstance();
+  /**
+   * Returns a serialization instance used to write to the given 
+   * output stream.
+   * @param context The non-null query context.
+   * @param options The non-null serdes options.
+   * @param stream The non-null and open stream to write to.
+   * @return The non-null serdes instance.
+   */
+  public TimeSeriesSerdes newInstance(final QueryContext context,
+                                      final SerdesOptions options,
+                                      final OutputStream stream);
+  
+  /**
+   * Returns a deserialization instance used to read to the given 
+   * input stream.
+   * @param context The non-null query context.
+   * @param options The non-null serdes options.
+   * @param stream The non-null and open stream to read from.
+   * @return The non-null serdes instance.
+   */
+  public TimeSeriesSerdes newInstance(final QueryContext context,
+                                      final SerdesOptions options,
+                                      final InputStream stream);
   
 }

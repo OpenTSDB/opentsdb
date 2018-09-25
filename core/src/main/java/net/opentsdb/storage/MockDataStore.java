@@ -32,8 +32,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
@@ -72,9 +70,6 @@ import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
@@ -379,7 +374,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     @Override
     public void fetchNext(final Span span) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Fetching next set of data.");
+        LOG.debug("Fetching next set of data: " + config.getId());
       }
       try {
         if (completed.get()) {
@@ -400,11 +395,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       } catch (Exception e) {
         e.printStackTrace();
       }
-    }
-    
-    @Override
-    public String id() {
-      return config.getId();
     }
     
     @Override
@@ -483,7 +473,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         this.trace_span = null;
       }
       query = (SemanticQuery) context.query();
-      System.out.println("ISETUP result from mock");
     }
     
     @Override
@@ -595,7 +584,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
             }
             
             if (LOG.isDebugEnabled()) {
-              LOG.debug("No more data, marking complete");
+              LOG.debug("No more data, marking complete: " + config.getId());
             }
             if (pipeline.completed.compareAndSet(false, true)) {
               node.onComplete(pipeline, sequence_id, sequence_id + 1);
@@ -696,6 +685,11 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     @Override
     public QueryNode source() {
       return pipeline;
+    }
+
+    @Override
+    public String dataSource() {
+      return config.getId();
     }
     
     @Override

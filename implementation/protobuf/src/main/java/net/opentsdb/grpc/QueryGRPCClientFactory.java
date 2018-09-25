@@ -35,7 +35,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
@@ -59,7 +59,7 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
   protected QueryRpcBetaStub stub;
   
   /** The serdes factory. */
-  protected PBufIteratorSerdesFactory serdes_factory;
+  protected PBufSerdesFactory serdes_factory;
   
   /** The channel. */
   private ManagedChannel channel;
@@ -79,7 +79,7 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
           // TODO - many more config options.
           .build();
       stub = QueryRpcBetaGrpc.newStub(channel);
-      serdes_factory = new PBufIteratorSerdesFactory();
+      serdes_factory = new PBufSerdesFactory();
     } catch (Exception e) {
       LOG.error("Unexpected exception setting up client.", e);
       return Deferred.fromError(e);

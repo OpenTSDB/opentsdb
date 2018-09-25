@@ -159,6 +159,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
+  public boolean joins() {
+    return true;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     final List<HashCode> hashes = Lists.newArrayListWithExpectedSize(2);
     hashes.add(join_config.buildHashCode());

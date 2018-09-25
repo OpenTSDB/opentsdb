@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.Collection;
-
 import net.opentsdb.stats.QueryStats;
 
 /**
@@ -26,21 +24,6 @@ import net.opentsdb.stats.QueryStats;
  * @since 3.0
  */
 public interface QueryContextBuilder {
-  
-  /**
-   * Adds a listener to the collection of sinks.
-   * @param sink A non-null query listener.
-   * @return The builder.
-   */
-  public QueryContextBuilder addQuerySink(final QuerySink sink);
-  
-  /**
-   * Sets the collection of query sinks. If any sinks have been set already, 
-   * the existing sinks will be overwritten.
-   * @param sinks A collection of one or more non-null query sinks.
-   * @return The builder.
-   */
-  public QueryContextBuilder setQuerySinks(final Collection<QuerySink> sinks);
   
   /**
    * Sets the query for this execution.

@@ -158,6 +158,11 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     return false;
   }
   
+  @Override
+  public boolean joins() {
+    return false;
+  }
+  
   /**
    * Generates a String version of the rate option instance in a format that 
    * can be utilized in a query.

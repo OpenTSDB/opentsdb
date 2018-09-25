@@ -30,7 +30,7 @@ import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.serdes.PBufIteratorSerdes;
-import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
+import net.opentsdb.query.serdes.PBufSerdesFactory;
 
 /**
  * Wrapper around a protobuf {@link TimeSeries} implementation.
@@ -40,7 +40,7 @@ import net.opentsdb.query.serdes.PBufIteratorSerdesFactory;
 public class PBufTimeSeries implements TimeSeries {
   
   /** The serdes factory link. */
-  private final PBufIteratorSerdesFactory factory;
+  private final PBufSerdesFactory factory;
   
   /** The protobuf time series. */
   private final TimeSeriesPB.TimeSeries time_series;
@@ -58,7 +58,7 @@ public class PBufTimeSeries implements TimeSeries {
    * @param time_series A non-null source time series.
    */
   public PBufTimeSeries(final TSDB tsdb,
-                        final PBufIteratorSerdesFactory factory, 
+                        final PBufSerdesFactory factory, 
                         final TimeSeriesPB.TimeSeries time_series) {
     if (factory == null) {
       throw new IllegalArgumentException("Factory cannot be null.");

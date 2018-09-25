@@ -16,27 +16,10 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.RateOptions;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 
@@ -51,9 +34,6 @@ import net.opentsdb.stats.Span;
 public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
   /** The TSDB to pull configs and settings from. */
   private TSDB tsdb;
-  
-  /** The list of sinks to callback with results. */
-  private List<QuerySink> sinks;
   
   /** The query. */
   private TimeSeriesQuery query;
@@ -83,28 +63,6 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
   }
   
   @Override
-  public QueryContextBuilder addQuerySink(final QuerySink listener) {
-    if (built) {
-      throw new IllegalStateException("Builder was already built.");
-    }
-    if (sinks == null) {
-      sinks = Lists.newArrayListWithExpectedSize(1);
-    }
-    sinks.add(listener);
-    return this;
-  }
-
-  @Override
-  public QueryContextBuilder setQuerySinks(
-      final Collection<QuerySink> listeners) {
-    if (built) {
-      throw new IllegalStateException("Builder was already built.");
-    }
-    this.sinks = Lists.newArrayList(listeners);
-    return this;
-  }
-
-  @Override
   public QueryContextBuilder setQuery(final TimeSeriesQuery query) {
     if (built) {
       throw new IllegalStateException("Builder was already built.");
@@ -133,11 +91,11 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
 
   @Override
   public QueryContext build() {
-    if (sinks == null || sinks.isEmpty()) {
-      throw new IllegalArgumentException("At least one sink must be provided.");
-    }
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
+    }
+    if (query.getSinkConfigs() == null || query.getSinkConfigs().isEmpty()) {
+      throw new IllegalArgumentException("At least one sink must be provided.");
     }
     if (mode == null) {
       throw new IllegalArgumentException("Query mode cannot be null.");
@@ -152,7 +110,7 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
    */
   class LocalContext implements QueryContext {
     /** The downstream pipeline context. */
-    private QueryPipelineContext context;
+    private LocalPipeline context;
     
     /** A local span for tracing. */
     private Span local_span;
@@ -163,14 +121,13 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
             .asChildOf(stats.querySpan())
             .start();
       }
-      context = new LocalPipeline(tsdb, query, this, 
-          ((SemanticQuery) query).getExecutionGraph(), sinks);
+      context = new LocalPipeline(this);
       context.initialize(local_span);
     }
     
     @Override
     public Collection<QuerySink> sinks() {
-      return sinks;
+      return context.sinks();
     }
 
     @Override
@@ -201,14 +158,18 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
     public TimeSeriesQuery query() {
       return query;
     }
-
+    
+    @Override
+    public TSDB tsdb() {
+      return tsdb;
+    }
+  
   }
   
   class LocalPipeline extends AbstractQueryPipelineContext {
 
-    public LocalPipeline(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
-        ExecutionGraph execution_graph, Collection<QuerySink> sinks) {
-      super(tsdb, query, context, sinks);
+    public LocalPipeline(final QueryContext context) {
+      super(context);
     }
 
     @Override
@@ -227,10 +188,5 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
       }
     }
 
-    @Override
-    public String id() {
-      return "TsdbV2Pipeline";
-    }
-    
   }
 }

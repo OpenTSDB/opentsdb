@@ -541,6 +541,11 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
     }
     
     @Override
+    public boolean joins() {
+      return false;
+    }
+    
+    @Override
     public String getId() {
       // TODO Auto-generated method stub
       return null;

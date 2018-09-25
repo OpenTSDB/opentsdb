@@ -89,11 +89,6 @@ public abstract class AbstractQueryNode implements QueryNode {
       child.setSuccessTags().finish();
     }
   }
-
-  @Override
-  public String id() {
-    return id;
-  }
   
   @Override
   public QueryPipelineContext pipelineContext() {

@@ -16,7 +16,6 @@ package net.opentsdb.query.execution.serdes;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -33,8 +32,6 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -56,64 +53,61 @@ import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
-public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
+public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV3QuerySerdes.class);
   
-  @Override
-  public String id() {
-    return "V3";
-  }
 
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
-  }
-
-  @Override
-  public Deferred<Object> serialize(final QueryContext context, 
-                                    final SerdesOptions options,
-                                    final OutputStream stream, 
-                                    final QueryResult result, 
-                                    final Span span) {
-    if (stream == null) {
-      throw new IllegalArgumentException("Output stream may not be null.");
-    }
-    if (result == null) {
-      throw new IllegalArgumentException("Data may not be null.");
-    }
-    final JsonV2QuerySerdesOptions opts;
+  /** The options for this serialization. */
+  private final SerdesOptions options;
+  
+  /** The generator. */
+  private final JsonGenerator json;
+  
+  /** Whether or not we've serialized the first result set. */
+  private boolean initialized;
+  
+  /**
+   * Default ctor.
+   */
+  public JsonV3QuerySerdes(final QueryContext context,
+                           final SerdesOptions options,
+                           final OutputStream stream) {
     if (options == null) {
       throw new IllegalArgumentException("Options cannot be null.");
     }
-     if (!(options instanceof JsonV2QuerySerdesOptions)) {
-      throw new IllegalArgumentException("Options were of the wrong type: " 
-          + options.getClass());
+    if (!(options instanceof JsonV2QuerySerdesOptions)) {
+      throw new IllegalArgumentException("Options must be an instance of "
+          + "JsonV2QuerySerdesOptions.");
     }
-    opts = (JsonV2QuerySerdesOptions) options;
-    
-    final JsonGenerator json;
+    if (stream == null) {
+      throw new IllegalArgumentException("Stream cannot be null.");
+    }
+    this.options = options;
     try {
       json = JSON.getFactory().createGenerator(stream);
     } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+      throw new RuntimeException("WTF? Failed to instantiate a JSON "
+          + "generator", e);
     }
+  }
+  
+  @Override
+  public Deferred<Object> serialize(final QueryResult result, 
+                                    final Span span) {
+    if (result == null) {
+      throw new IllegalArgumentException("Data may not be null.");
+    }
+    final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
     
-    try {
-      json.writeStartObject();
-      
-    } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+    if (!initialized) {
+      try {
+        json.writeStartObject();
+        json.writeArrayFieldStart("results");
+      } catch (IOException e) {
+        throw new RuntimeException("WTF?", e);
+      }
+      initialized = true;
     }
     
     final List<TimeSeries> series;
@@ -122,8 +116,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
       series = Lists.newArrayList(result.timeSeries());
       deferreds = Lists.newArrayListWithCapacity(series.size());
       for (final TimeSeries ts : result.timeSeries()) {
-        deferreds.add(((TimeSeriesByteId) ts.id()).decode(false, 
-            null /* TODO - implement tracing */));
+        deferreds.add(((TimeSeriesByteId) ts.id()).decode(false, span));
       }
     } else {
       series = null;
@@ -140,6 +133,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
       public Object call(final ArrayList<TimeSeriesStringId> ids) 
             throws Exception {
         try {
+          json.writeStartObject();
+          json.writeStringField("source", result.source().config().getId() + ":" + result.dataSource());
+          // TODO - array of data sources
+          
           // serdes time spec if present
           if (result.timeSpecification() != null) {
             json.writeObjectFieldStart("timeSpecification");
@@ -203,16 +200,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
                   null, 
                   result);
             }
-            // end of the data array
-            json.writeEndArray();
-            
-            // TODO - flag
-            //json.writeObjectField("executionGraph", context.query());
-            
-            // final end of the object.
-            json.writeEndObject();
-            json.close();
           }
+          // end of the data array
+          json.writeEndArray();
+          
+          json.writeEndObject();
         } catch (Exception e) {
           LOG.error("Unexpected exception", e);
           return Deferred.fromError(new QueryExecutionException(
@@ -251,9 +243,19 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
   }
 
   @Override
-  public void deserialize(final SerdesOptions options, 
-                          final InputStream stream,
-                          final QueryNode node, 
+  public void serializeComplete(final Span span) {
+    try {
+      // TODO - other bits like the query and trace data
+      json.writeEndArray();
+      json.writeEndObject();
+      json.flush();
+    } catch (IOException e) {
+      throw new QueryExecutionException("Failure closing serializer", 500, e);
+    }
+  }
+  
+  @Override
+  public void deserialize(final QueryNode node, 
                           final Span span) {
     node.onError(new UnsupportedOperationException("Not implemented for this "
         + "class: " + getClass().getCanonicalName()));

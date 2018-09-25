@@ -12,6 +12,7 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -62,9 +63,6 @@ public class SemanticQuery implements TimeSeriesQuery {
   /** A list of sink configurations. */
   private List<QuerySinkConfig> sink_configs;
   
-  /** A list of sinks to match the configs. */
-  private List<QuerySink> sinks;
-  
   /** An optional map of filter IDs to the filters. */
   private Map<String, NamedFilter> filters;
   
@@ -99,8 +97,8 @@ public class SemanticQuery implements TimeSeriesQuery {
       throw new IllegalArgumentException("Execution graph cannot be null.");
     }
     execution_graph = builder.execution_graph;
-    sink_configs = builder.sink_configs;
-    sinks = builder.sinks;
+    sink_configs = builder.sink_configs == null ? Collections.emptyList() 
+        : builder.sink_configs;
     if (builder.filters != null) {
       filters = Maps.newHashMap();
       for (final NamedFilter filter : builder.filters) {
@@ -143,12 +141,9 @@ public class SemanticQuery implements TimeSeriesQuery {
     return execution_graph;
   }
   
+  @Override
   public List<QuerySinkConfig> getSinkConfigs() {
     return sink_configs;
-  }
-  
-  public List<QuerySink> getSinks() {
-    return sinks;
   }
   
   public List<NamedFilter> getFilters() {
@@ -211,7 +206,6 @@ public class SemanticQuery implements TimeSeriesQuery {
     private String time_zone;
     private ExecutionGraph execution_graph;
     private List<QuerySinkConfig> sink_configs;
-    private List<QuerySink> sinks;
     private List<NamedFilter> filters;
     private QueryMode mode;
     private List<SerdesOptions> serdes_options;
@@ -246,19 +240,7 @@ public class SemanticQuery implements TimeSeriesQuery {
         sink_configs = Lists.newArrayList();
       }
       sink_configs.add(sink);
-      return this;
-    }
-    
-    public Builder setSinks(final List<QuerySink> sinks) {
-      this.sinks = sinks;
-      return this;
-    }
-    
-    public Builder addSink(final QuerySink sink) {
-      if (sinks == null) {
-        sinks = Lists.newArrayList();
-      }
-      sinks.add(sink);
+
       return this;
     }
     

@@ -135,6 +135,11 @@ public class ExpressionResult implements QueryResult {
   }
 
   @Override
+  public String dataSource() {
+    return node.config().getId();
+  }
+  
+  @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return results.get(0).idType();
   }
