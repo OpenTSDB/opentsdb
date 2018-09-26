@@ -100,7 +100,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
   private Map<TimeSeriesDatumStringId, MockSpan> database;
   
   /** Thread pool used by the executions. */
-  private ExecutorService thread_pool;
+  private final ExecutorService thread_pool;
   
   public MockDataStore(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
@@ -108,9 +108,15 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     
     database = Maps.newHashMap();
     generateMockData();
-    if (tsdb.getConfig().hasProperty("MockDataStore.threadpool.enable") && 
-        tsdb.getConfig().getBoolean("MockDataStore.threadpool.enable")) {
+    if (!tsdb.getConfig().hasProperty("MockDataStore.threadpool.enable")) {
+      tsdb.getConfig().register("MockDataStore.threadpool.enable", false, 
+          false, "Whether or not to execute results in an asynchronous "
+              + "thread pool or not.");
+    }
+    if (tsdb.getConfig().getBoolean("MockDataStore.threadpool.enable")) {
       thread_pool = Executors.newCachedThreadPool();
+    } else {
+      thread_pool = null;
     }
   }
   
