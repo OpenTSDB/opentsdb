@@ -108,7 +108,6 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   @Override
   public Deferred<Object> serialize(final QueryResult result,
                                     final Span span) {
-    System.out.println("WOWOWOWOWOTOTOTOTOTOTO");
     synchronized(this) {
       if (result == null) {
         throw new IllegalArgumentException("Data may not be null.");

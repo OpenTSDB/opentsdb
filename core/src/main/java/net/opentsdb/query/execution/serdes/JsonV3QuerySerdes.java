@@ -92,9 +92,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
   }
   
+  // TODO - find a better way to not sync
   @Override
-  public Deferred<Object> serialize(final QueryResult result, 
-                                    final Span span) {
+  public synchronized Deferred<Object> serialize(final QueryResult result, 
+                                                 final Span span) {
     if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }

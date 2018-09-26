@@ -117,13 +117,13 @@ final public class QueryRpc {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response post(final @Context ServletConfig servlet_config, 
+  public void post(final @Context ServletConfig servlet_config, 
                        final @Context HttpServletRequest request,
                        final @Context HttpServletResponse response) throws Exception {
     if (request.getAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
-      return handleException(request);
+      handleException(request);
     } else {
-      return handleQuery(servlet_config, request, response, false);
+      handleQuery(servlet_config, request, response, false);
     }
   }
   
@@ -137,13 +137,13 @@ final public class QueryRpc {
    */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Response get(final @Context ServletConfig servlet_config, 
+  public void get(final @Context ServletConfig servlet_config, 
                       final @Context HttpServletRequest request,
                       final @Context HttpServletResponse response) throws Exception {
     if (request.getAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
-      return handleException(request);
+      handleException(request);
     } else {
-      return handleQuery(servlet_config, request, response, true);
+      handleQuery(servlet_config, request, response, true);
     }
   }
   
@@ -157,11 +157,10 @@ final public class QueryRpc {
    * @throws Exception if something went pear shaped.
    */
   @VisibleForTesting
-  Response handleQuery(final ServletConfig servlet_config, 
+  void handleQuery(final ServletConfig servlet_config, 
                        final HttpServletRequest request,
                        final HttpServletResponse response,
                        final boolean is_get) throws Exception {
-    response.setHeader("Content-Type", "application/json");
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
     if (obj == null) {
@@ -385,7 +384,6 @@ final public class QueryRpc {
                   .setTag("finalThread", Thread.currentThread().getName())
                   .finish();
     }
-    return null;
   }
   
   /**

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.servlet.sinks;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -48,6 +49,9 @@ public class ServletSink implements QuerySink {
   /** The serializer. */
   private final TimeSeriesSerdes serdes;
   
+  /** TEMP - This sucks but we need to figure out proper async writes. */
+  private final ByteArrayOutputStream stream;
+  
   /**
    * Default ctor.
    * @param context The non-null context.
@@ -64,12 +68,13 @@ public class ServletSink implements QuerySink {
       throw new IllegalArgumentException("Unable to find a serdes "
           + "factory for the type: " + config.serdesOptions().getType());
     }
-    try {
-      serdes = factory.newInstance(context, config.serdesOptions(), 
-          config.response().getOutputStream());
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to open HTTP output stream", e);
-    }
+    
+    // TODO - noooo!!!!
+    stream = new ByteArrayOutputStream();
+    serdes = factory.newInstance(
+        context, 
+        config.serdesOptions(), 
+        stream);
     if (serdes == null) {
       throw new IllegalArgumentException("Factory returned a null "
           + "instance for the type: " + config.serdesOptions().getType());
@@ -81,7 +86,13 @@ public class ServletSink implements QuerySink {
     try {
       serdes.serializeComplete(null);
       try {
-        config.response().flushBuffer();
+        // TODO - oh this is sooooo ugly.... *sniff*
+        config.response().setContentType("application/json");
+        final byte[] data = stream.toByteArray();
+        stream.close();
+        config.response().setContentLength(data.length);
+        config.response().setStatus(200);
+        config.response().getOutputStream().write(data);
         config.response().getOutputStream().close();
       } catch (IOException e1) {
         onError(e1);
