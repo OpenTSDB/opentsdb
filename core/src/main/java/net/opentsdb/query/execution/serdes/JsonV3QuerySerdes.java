@@ -315,7 +315,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           value.timestamp().compare(Op.GT, options.end)) {
         continue;
       }
-     
+      
       if (iterator.getType() == NumericType.TYPE) {
         writeNumeric((TimeSeriesValue<NumericType>) value,
             options, iterator, json, result);
@@ -413,43 +413,49 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final Iterator<TimeSeriesValue<?>> iterator, 
       final JsonGenerator json,
       final QueryResult result) throws IOException {
-    if (result.timeSpecification() != null) {
-      json.writeArrayFieldStart("NumericSummaryType");
-      // just the values
-      while (value != null) {
-        if (value.timestamp().compare(Op.GT, options.end())) {
-          break;
-        }
-        if (value.value() == null) {
-          json.writeNull();
-        } else {
-          final NumericSummaryType v = ((TimeSeriesValue<NumericSummaryType>) value).value();
-          json.writeStartArray();
-          for (final int summary : v.summariesAvailable()) {
-            final NumericType summary_value = v.value(summary);
-            if (summary_value == null) {
-              json.writeNumberField(Integer.toString(summary), null);
-            } else if (summary_value.isInteger()) {
-              json.writeNumberField(Integer.toString(summary),
-                  summary_value.longValue());
-            } else {
-              json.writeNumberField(Integer.toString(summary),
-                  summary_value.doubleValue());
-            }
-            
-          }
-          json.writeEndArray();
-        }
-        
-        if (iterator.hasNext()) {
-          value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-        } else {
-          value = null;
-        }
-      }
-      json.writeEndArray();
-      return;
-    }
+    // TODO!
+//    if (result.timeSpecification() != null) {
+//      json.writeObjectFieldStart("NumericSummaryType");
+//      // just the values
+//      while (value != null) {
+//        if (value.timestamp().compare(Op.GT, options.end())) {
+//          break;
+//        }
+//        long ts = (options != null && options.msResolution()) 
+//            ? value.timestamp().msEpoch() 
+//            : value.timestamp().msEpoch() / 1000;
+//        json.writeObjectFieldStart(Long.toString(ts));
+//        if (value.value() == null) {
+//          json.writeNull();
+//        } else {
+//          final NumericSummaryType v = ((TimeSeriesValue<NumericSummaryType>) value).value();
+//          json.writeStartArray();
+//          for (final int summary : v.summariesAvailable()) {
+//            final NumericType summary_value = v.value(summary);
+//            if (summary_value == null) {
+//              json.writeNumberField(Integer.toString(summary), null);
+//            } else if (summary_value.isInteger()) {
+//              json.writeNumberField(Integer.toString(summary),
+//                  summary_value.longValue());
+//            } else {
+//              json.writeNumberField(Integer.toString(summary),
+//                  summary_value.doubleValue());
+//            }
+//            
+//          }
+//          json.writeEndArray();
+//        }
+//        json.writeEndObject();
+//        
+//        if (iterator.hasNext()) {
+//          value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+//        } else {
+//          value = null;
+//        }
+//      }
+//      json.writeEndObject();
+//      return;
+//    }
     
     json.writeObjectFieldStart("NumericSummaryType");
     while (value != null) {
@@ -463,24 +469,23 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       if (value.value() == null) {
         json.writeNullField(ts_string);
       } else {
-        json.writeObjectFieldStart(ts_string);
         final NumericSummaryType v = ((TimeSeriesValue<NumericSummaryType>) value).value();
-        json.writeStartArray();
+        json.writeArrayFieldStart(ts_string);
         for (final int summary : v.summariesAvailable()) {
+          json.writeStartObject();
           final NumericType summary_value = v.value(summary);
           if (summary_value == null) {
             json.writeNumberField(Integer.toString(summary), null);
           } else if (summary_value.isInteger()) {
-            json.writeNumberField(Integer.toString(summary),
+            json.writeNumberField(result.rollupConfig().getAggregatorForId(summary),
                 summary_value.longValue());
           } else {
-            json.writeNumberField(Integer.toString(summary),
+            json.writeNumberField(result.rollupConfig().getAggregatorForId(summary),
                 summary_value.doubleValue());
           }
-          
+          json.writeEndObject();
         }
         json.writeEndArray();
-        json.writeEndObject();
       }
       
       if (iterator.hasNext()) {
@@ -489,6 +494,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         value = null;
       }
     }
+    
+    json.writeEndObject();
   }
   
   private void writeNumericArray(
