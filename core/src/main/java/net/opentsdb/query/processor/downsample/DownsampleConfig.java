@@ -59,6 +59,12 @@ import net.opentsdb.utils.DateTime;
 @JsonDeserialize(builder = DownsampleConfig.Builder.class)
 public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   
+  /** The given start timestamp. */
+  private final String start;
+  
+  /** The given end timestamp. */
+  private final String end;
+  
   /** The raw interval string. */
   private final String interval;
   
@@ -99,7 +105,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
    * Default ctor.
    * @param builder A non-null builder to pull settings from.
    */
-  DownsampleConfig(final Builder builder) {
+  protected DownsampleConfig(final Builder builder) {
     super(builder);
     if (Strings.isNullOrEmpty(builder.interval)) {
       throw new IllegalArgumentException("Interval cannot be null or empty.");
@@ -129,6 +135,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       duration = null;
     }
     
+    start = builder.start;
     if (!Strings.isNullOrEmpty(builder.start)) {
       start_time = new MillisecondTimeStamp(
           DateTime.parseDateTimeString(builder.start, builder.timezone));
@@ -143,6 +150,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       start_time = null;
     }
     
+    end = builder.end;
     if (!Strings.isNullOrEmpty(builder.end)) {
       end_time = new MillisecondTimeStamp(
           DateTime.parseDateTimeString(builder.end, builder.timezone));
@@ -303,6 +311,8 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   
   public static Builder newBuilder(final DownsampleConfig config) {
     return (Builder) new Builder()
+        .setStart(config.start)
+        .setEnd(config.end)
         .setAggregator(config.aggregator)
         .setFill(config.fill)
         .setInfectiousNan(config.infectious_nan)

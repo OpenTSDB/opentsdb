@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,13 +34,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -70,9 +75,11 @@ import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 /**
  * A simple store that generates a set of time series to query as well as stores
@@ -95,6 +102,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
 
   private final TSDB tsdb;
   private final String id;
+  private final RollupConfig rollup_config;
   
   /** The super inefficient and thread unsafe in-memory db. */
   private Map<TimeSeriesDatumStringId, MockSpan> database;
@@ -117,6 +125,42 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       thread_pool = Executors.newCachedThreadPool();
     } else {
       thread_pool = null;
+    }
+    
+    // TODO - we may not need this enable flag any more but we do want
+    // a configurable mapping between IDs and agg names.
+    String key = configKey("rollups.enable");
+    if (!tsdb.getConfig().hasProperty(key)) {
+      tsdb.getConfig().register(key, false, false, 
+          "Whether or not rollups are enabled for this schema.");
+    }
+    
+    key = configKey("rollups.config");
+    if (!tsdb.getConfig().hasProperty(key)) {
+      tsdb.getConfig().register(key, null, false, 
+          "The path to a JSON file containing the rollup configuration.");
+    }
+    
+    key = configKey("rollups.enable");
+    final boolean rollups_enabled = tsdb.getConfig().getBoolean(key);
+    if (rollups_enabled) {
+      key = configKey("rollups.config");
+      String value = tsdb.getConfig().getString(key);
+      if (Strings.isNullOrEmpty(value)) { 
+        throw new ConfigurationException("Null value for config key: " + key);
+      }
+      
+      if (value.endsWith(".json")) {
+        try {
+          value = Files.toString(new File(value), Const.UTF8_CHARSET);
+        } catch (IOException e) {
+          throw new IllegalArgumentException("Failed to open conf file: " 
+              + value, e);
+        }
+      }
+      rollup_config = JSON.parseToObject(value, DefaultRollupConfig.class);
+    } else {
+      rollup_config = null;
     }
   }
   
@@ -710,8 +754,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     
     @Override
     public RollupConfig rollupConfig() {
-      // TODO Auto-generated method stub
-      return null;
+      return rollup_config;
     }
     
     @Override
@@ -839,5 +882,10 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       }
       
     }
+  }
+
+  String configKey(final String suffix) {
+    return "tsd.storage." + (Strings.isNullOrEmpty(id) ? "" : id + ".")
+      + suffix;
   }
 }
