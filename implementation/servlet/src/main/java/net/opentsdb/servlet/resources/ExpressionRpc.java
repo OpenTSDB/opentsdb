@@ -50,6 +50,7 @@ import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
@@ -235,28 +236,28 @@ public class ExpressionRpc {
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
     response.setHeader("Content-Type", "application/json");
-    TimeSeriesQuery temp = query.build();
-    query.addSinkConfig(ServletSinkConfig.newBuilder()
-        .setAsync(async)
-        .setResponse(response)
-        .setSerdesId(ServletSinkFactory.ID)
-        .setSerdesOptions(JsonV2QuerySerdesOptions.newBuilder()
-//                .setMsResolution(ts_query.getMsResolution())
-//                .setShowQuery(ts_query.getShowQuery())
-//                .setShowStats(ts_query.getShowStats())
-//                .setShowSummary(ts_query.getShowSummary())
-                .setStart(temp.startTime())
-                .setEnd(temp.endTime())
-                .setId("JsonV2ExpQuerySerdes")
-                .build())
-        .build());
+    
     TimeSeriesQuery q = query.build();
+    SerdesOptions serdes = q.getSerdesConfigs().isEmpty() ? null :
+      q.getSerdesConfigs().get(0);
+    if (serdes == null) {
+      serdes = JsonV2QuerySerdesOptions.newBuilder()
+          .setId("JsonV2ExpQuerySerdes")
+          .build();
+    }
+    
     SemanticQueryContext context = (SemanticQueryContext) SemanticQueryContext.newBuilder()
         .setTSDB(tsdb)
         .setQuery(q)
         .setStats(DefaultQueryStats.newBuilder()
             .setTrace(trace)
             .setQuerySpan(query_span)
+            .build())
+        .addSink(ServletSinkConfig.newBuilder()
+            .setId(ServletSinkFactory.ID)
+            .setSerdesOptions(serdes)
+            .setResponse(response)
+            .setAsync(async)
             .build())
         .build();
     request.setAttribute(QUERY_KEY, q);

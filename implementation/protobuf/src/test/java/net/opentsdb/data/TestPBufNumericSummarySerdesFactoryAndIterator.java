@@ -36,24 +36,49 @@ import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.serdes.SerdesOptions;
 
 public class TestPBufNumericSummarySerdesFactoryAndIterator {
 
+  private SemanticQuery query;
   private SerdesOptions options;
   private QueryContext ctx;
   private QueryResult result;
+  private ExecutionGraph graph;
   
   @Before
   public void before() throws Exception {
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525824000000L))
-        .setEnd(new MillisecondTimeStamp(1525827600000L))
-        .setId("pbuf")
-        .build();
+    options = mock(SerdesOptions.class);
     ctx = mock(QueryContext.class);
+    
+    graph = ExecutionGraph.newBuilder()
+        .addNode(ExecutionGraphNode.newBuilder()
+            .setId("m1")
+            .setType("DataSource")
+            .setConfig(QuerySourceConfig.newBuilder()
+                .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+                .build())
+            .build())
+        .build();
+    
+    query = SemanticQuery.newBuilder()
+        .setStart("1525824000")
+        .setEnd("1525827600")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
+        .build();
+    when(ctx.query()).thenReturn(query);
+    
     result = mock(QueryResult.class);
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
   }
@@ -472,11 +497,14 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     assertEquals("UTC", data.getSegments(0).getEnd().getZoneId());
     assertTrue(data.getSegments(0).getData().is(NumericSummarySegment.class));
     
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525827600000L))
-        .setEnd(new MillisecondTimeStamp(1525831200000L))
-        .setId("pbuf")
+    query = SemanticQuery.newBuilder()
+        .setStart("1525827600")
+        .setEnd("1525831200")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
         .build();
+    when(ctx.query()).thenReturn(query);
     
     ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -498,11 +526,14 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
         ts.iterator(NumericSummaryType.TYPE).get());
     builder.addSegments(data2.getSegments(0));
     
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525831200000L))
-        .setEnd(new MillisecondTimeStamp(1525834800000L))
-        .setId("pbuf")
+    query = SemanticQuery.newBuilder()
+        .setStart("1525831200")
+        .setEnd("1525834800")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
         .build();
+    when(ctx.query()).thenReturn(query);
     
     ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -569,11 +600,14 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     assertEquals("UTC", data.getSegments(0).getEnd().getZoneId());
     assertTrue(data.getSegments(0).getData().is(NumericSummarySegment.class));
     
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525827600000L))
-        .setEnd(new MillisecondTimeStamp(1525831200000L))
-        .setId("pbuf")
+    query = SemanticQuery.newBuilder()
+        .setStart("1525827600")
+        .setEnd("1525831200")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
         .build();
+    when(ctx.query()).thenReturn(query);
     
     // no data!
     
@@ -582,11 +616,14 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
         (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));
     builder.addSegments(data2.getSegments(0));
     
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525831200000L))
-        .setEnd(new MillisecondTimeStamp(1525834800000L))
-        .setId("pbuf")
+    query = SemanticQuery.newBuilder()
+        .setStart("1525831200")
+        .setEnd("1525834800")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
         .build();
+    when(ctx.query()).thenReturn(query);
     
     ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -643,11 +680,14 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     assertEquals("UTC", data.getSegments(0).getEnd().getZoneId());
     assertTrue(data.getSegments(0).getData().is(NumericSummarySegment.class));
     
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525827600000L))
-        .setEnd(new MillisecondTimeStamp(1525831200000L))
-        .setId("pbuf")
+    query = SemanticQuery.newBuilder()
+        .setStart("1525827600")
+        .setEnd("1525831200")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
         .build();
+    when(ctx.query()).thenReturn(query);
     
     // no data!
     
@@ -656,11 +696,14 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
         (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));
     builder.addSegments(data2.getSegments(0));
     
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525831200000L))
-        .setEnd(new MillisecondTimeStamp(1525834800000L))
-        .setId("pbuf")
+    query = SemanticQuery.newBuilder()
+        .setStart("1525831200")
+        .setEnd("1525834800")
+        .setTimeZone("UTC")
+        .setMode(QueryMode.SINGLE)
+        .setExecutionGraph(graph)
         .build();
+    when(ctx.query()).thenReturn(query);
     
     // no data!
     

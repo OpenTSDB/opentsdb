@@ -15,7 +15,6 @@
 package net.opentsdb.grpc;
 
 import java.io.OutputStream;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,6 @@ import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.serdes.PBufSerdes;
-import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -128,18 +126,8 @@ public class QueryGRPCSink implements QuerySink {
     }
 
     @Override
-    public String getSerdesId() {
-      return PBufSerdesFactory.ID;
-    }
-
-    @Override
     public SerdesOptions serdesOptions() {
       return options;
-    }
-
-    @Override
-    public List<String> filter() {
-      return null;
     }
     
     public static Builder newBuilder() {

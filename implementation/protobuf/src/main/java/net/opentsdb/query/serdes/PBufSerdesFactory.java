@@ -21,14 +21,19 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 
 /**
  * A factory used to return de/serializers for various data types.
@@ -105,5 +110,16 @@ public class PBufSerdesFactory implements SerdesFactory {
                                       final SerdesOptions options, 
                                       final InputStream stream) {
     return new PBufSerdes(this, context, options, stream);
+  }
+
+  @Override
+  public SerdesOptions parseConfig(ObjectMapper mapper, TSDB tsdb,
+      JsonNode node) {
+    // TODO Auto-generated method stub
+    try {
+      return mapper.treeToValue(node, JsonV2QuerySerdesOptions.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse JSON", e);
+    }
   }
 }

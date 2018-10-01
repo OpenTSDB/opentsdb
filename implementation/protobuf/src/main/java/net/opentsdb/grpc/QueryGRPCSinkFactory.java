@@ -14,7 +14,13 @@
 // limitations under the License.
 package net.opentsdb.grpc;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.grpc.QueryGRPCSink.GRPCSinkConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkConfig;
@@ -44,6 +50,18 @@ public class QueryGRPCSinkFactory extends BaseTSDBPlugin
   @Override
   public String version() {
     return "3.0.0";
+  }
+
+  
+  @Override
+  public QuerySinkConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    try {
+      return mapper.treeToValue(node, GRPCSinkConfig.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse JSON", e);
+    }
   }
 
 }

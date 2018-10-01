@@ -14,9 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.execution.serdes;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.serdes.SerdesOptions;
 
 /**
@@ -24,6 +27,8 @@ import net.opentsdb.query.serdes.SerdesOptions;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = JsonV2QuerySerdesOptions.Builder.class)
 public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
   /** Whether or not to show the TSUIDs. */
   private boolean show_tsuids;
@@ -57,37 +62,27 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     parallel_threshold = builder.parallelThreshold;
   }
   
-  @Override
-  public TimeStamp start() {
-    return start;
-  }
-  
-  @Override
-  public TimeStamp end() {
-    return end;
-  }
-  
-  public boolean showTsuids() {
+  public boolean getShowTsuids() {
     return show_tsuids;
   }
   
-  public boolean msResolution() {
+  public boolean getMsResolution() {
     return msResolution;
   }
 
-  public boolean showQuery() {
+  public boolean getShowQuery() {
     return show_query;
   }
 
-  public boolean showStats() {
+  public boolean getShowStats() {
     return show_stats;
   }
 
-  public boolean showSummary() {
+  public boolean getShowSummary() {
     return show_summary;
   }
   
-  public int parallelThreshold() {
+  public int getParallelThreshold() {
     return parallel_threshold;
   }
   
@@ -95,6 +90,7 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     return new Builder();
   }
   
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseSerdesOptions.Builder {
     @JsonProperty
     private boolean showTsuids;

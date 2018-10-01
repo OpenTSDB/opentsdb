@@ -77,21 +77,21 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
     }
     
     try {
-      final SemanticQuery temp = query_builder.build();
       final SemanticQuery semantic_query = query_builder
-          .addSinkConfig(GRPCSinkConfig.newBuilder()
-              .setObserver(observer)
-              .setOptions(JsonV2QuerySerdesOptions.newBuilder()
-                .setStart(temp.startTime())
-                .setEnd(temp.endTime())
-                .setId(PBufSerdesFactory.ID)
-                .build())
+          .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+              .setId(PBufSerdesFactory.ID)
               .build())
           .build();
       final SemanticQueryContext context = (SemanticQueryContext) 
           SemanticQueryContext.newBuilder()
               .setTSDB(tsdb)
               .setQuery(semantic_query)
+              .addSink(GRPCSinkConfig.newBuilder()
+                  .setObserver(observer)
+                  .setOptions(JsonV2QuerySerdesOptions.newBuilder()
+                    .setId(PBufSerdesFactory.ID)
+                    .build())
+                  .build())
               .build();
       context.fetchNext(null /* TODO */);
     } catch (Throwable t) {

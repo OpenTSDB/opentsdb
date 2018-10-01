@@ -43,6 +43,9 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
   
   /** The stats object. */
   private QueryStats stats;
+
+  /** The sinks we'll write to. */
+  private List<QuerySinkConfig> sink_configs;
   
   /** Whether or not this object was built users can't call the set methods. */
   private boolean built;
@@ -88,13 +91,28 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
     this.stats = stats;
     return this;
   }
-
+  
+  @Override
+  public QueryContextBuilder setSinks(final List<QuerySinkConfig> configs) {
+    this.sink_configs = configs;
+    return this;
+  }
+  
+  @Override
+  public QueryContextBuilder addSink(final QuerySinkConfig config) {
+    if (sink_configs == null) {
+      sink_configs = Lists.newArrayList();
+    }
+    sink_configs.add(config);
+    return this;
+  }
+  
   @Override
   public QueryContext build() {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
-    if (query.getSinkConfigs() == null || query.getSinkConfigs().isEmpty()) {
+    if (sink_configs == null || sink_configs.isEmpty()) {
       throw new IllegalArgumentException("At least one sink must be provided.");
     }
     if (mode == null) {
@@ -152,6 +170,11 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
     @Override
     public QueryStats stats() {
       return stats;
+    }
+    
+    @Override
+    public List<QuerySinkConfig> sinkConfigs() {
+      return sink_configs;
     }
     
     @Override

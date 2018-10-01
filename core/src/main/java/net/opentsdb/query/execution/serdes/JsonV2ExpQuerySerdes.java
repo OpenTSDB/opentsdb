@@ -112,7 +112,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
   
   // TODO - better way to avoid sync I hope.
   @Override
-  public synchronized Deferred<Object> serialize(final QueryResult result, 
+  public Deferred<Object> serialize(final QueryResult result, 
                                                  final Span span) {
     if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
@@ -381,7 +381,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
   }
   
   @Override
-  public void serializeComplete(final Span span) {
+  public synchronized void serializeComplete(final Span span) {
     try {
       json.writeEndArray();
       json.writeEndObject();

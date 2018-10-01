@@ -15,6 +15,9 @@
 package net.opentsdb.query;
 
 import java.util.Collection;
+import java.util.List;
+
+import com.google.common.collect.Lists;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.QueryStats;
@@ -31,6 +34,9 @@ public class SemanticQueryContext implements QueryContext {
   /** A stats object. */
   private QueryStats stats;
   
+  /** The sinks we'll write to. */
+  private List<QuerySinkConfig> sink_configs;
+  
   /** The pipeline. */
   private LocalPipeline pipeline;
   
@@ -41,6 +47,7 @@ public class SemanticQueryContext implements QueryContext {
     tsdb = builder.tsdb;
     query = builder.query;
     stats = builder.stats;
+    sink_configs = builder.sink_configs;
     if (stats != null && stats.trace() != null) {
       local_span = stats.trace().newSpan("Query Context Initialization")
           .asChildOf(stats.querySpan())
@@ -81,6 +88,11 @@ public class SemanticQueryContext implements QueryContext {
   }
 
   @Override
+  public List<QuerySinkConfig> sinkConfigs() {
+    return sink_configs;
+  }
+  
+  @Override
   public TimeSeriesQuery query() {
     return query;
   }
@@ -98,6 +110,7 @@ public class SemanticQueryContext implements QueryContext {
     private TSDB tsdb;
     private SemanticQuery query;
     private QueryStats stats;
+    private List<QuerySinkConfig> sink_configs;
     
     public QueryContextBuilder setTSDB(final TSDB tsdb) {
       this.tsdb = tsdb;
@@ -125,6 +138,21 @@ public class SemanticQueryContext implements QueryContext {
       return this;
     }
 
+    @Override
+    public QueryContextBuilder setSinks(final List<QuerySinkConfig> configs) {
+      this.sink_configs = configs;
+      return this;
+    }
+    
+    @Override
+    public QueryContextBuilder addSink(final QuerySinkConfig config) {
+      if (sink_configs == null) {
+        sink_configs = Lists.newArrayList();
+      }
+      sink_configs.add(config);
+      return this;
+    }
+    
     @Override
     public QueryContext build() {
       return (QueryContext) new SemanticQueryContext(this);

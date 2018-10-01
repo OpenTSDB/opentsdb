@@ -48,6 +48,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import jersey.repackaged.com.google.common.collect.Lists;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
@@ -64,6 +65,7 @@ import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
@@ -292,27 +294,31 @@ final public class QueryRpc {
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
     // TODO - oh this is so ugly it isn't even funny.
-    final SemanticQuery.Builder semantic = query.convert();
-    semantic.addSinkConfig(ServletSinkConfig.newBuilder()
-        .setAsync(async)
-        .setResponse(response)
-        .setSerdesId(ServletSinkFactory.ID)
-        .setSerdesOptions(JsonV2QuerySerdesOptions.newBuilder()
-                .setMsResolution(ts_query.getMsResolution())
-                .setShowQuery(ts_query.getShowQuery())
-                .setShowStats(ts_query.getShowStats())
-                .setShowSummary(ts_query.getShowSummary())
-                .setStart(query.getTime().startTime())
-                .setEnd(query.getTime().endTime())
-                .setId("JsonV2QuerySerdes")
-                .build())
-        .build());
+    final SemanticQuery q = query.convert().build();
+    SerdesOptions serdes = q.getSerdesConfigs().isEmpty() ? null :
+      q.getSerdesConfigs().get(0);
+    if (serdes == null) {
+      serdes = JsonV2QuerySerdesOptions.newBuilder()
+          .setMsResolution(ts_query.getMsResolution())
+          .setShowQuery(ts_query.getShowQuery())
+          .setShowStats(ts_query.getShowStats())
+          .setShowSummary(ts_query.getShowSummary())
+          .setId("JsonV2QuerySerdes")
+          .build();
+    }
+    
     final QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(tsdb)
-        .setQuery(semantic.build())
+        .setQuery(q)
         .setMode(QueryMode.SINGLE)
         .setStats(DefaultQueryStats.newBuilder()
             .setTrace(trace)
             .setQuerySpan(query_span)
+            .build())
+        .addSink(ServletSinkConfig.newBuilder()
+            .setId(ServletSinkFactory.ID)
+            .setSerdesOptions(serdes)
+            .setResponse(response)
+            .setAsync(async)
             .build())
         .build();
     request.setAttribute(CONTEXT_KEY, ctx);

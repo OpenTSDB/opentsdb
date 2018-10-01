@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017 The OpenTSDB Authors.
+// Copyright (C) 2017-2018 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.serdes;
 
-import net.opentsdb.data.TimeStamp;
+import java.util.List;
 
 /**
  * Interface used to encapsulate Serdes specific options at query time.
@@ -30,9 +30,8 @@ public interface SerdesOptions {
    * a serdes instance from. */
   public String getType();
   
-  /** @return The inclusive start boundary of the serialization. */
-  public TimeStamp start();
+  /** @return A non-null filter of nodes to serialize in the sink. If the
+   * list is empty, then all root sources are automatically serialized. */
+  public List<String> getFilter();
   
-  /** @return The inclusive end boundary of the serialization. */
-  public TimeStamp end();
 }

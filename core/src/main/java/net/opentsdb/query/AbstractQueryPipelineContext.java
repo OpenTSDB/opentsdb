@@ -93,8 +93,8 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       throw new IllegalArgumentException("The context cannot be null.");
     }
     this.context = context;
-    if (context.query().getSinkConfigs() == null || 
-        context.query().getSinkConfigs().isEmpty()) {
+    if (context.sinkConfigs() == null || 
+        context.sinkConfigs().isEmpty()) {
       throw new IllegalArgumentException("The query must have at least "
           + "one sink config.");
     }
@@ -397,18 +397,18 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     plan.plan(child);
     
     // setup sinks if the graph is happy
-    for (final QuerySinkConfig config : context.query().getSinkConfigs()) {
+    for (final QuerySinkConfig config : context.sinkConfigs()) {
       final QuerySinkFactory factory = context.tsdb().getRegistry()
-          .getPlugin(QuerySinkFactory.class, config.getSerdesId());
+          .getPlugin(QuerySinkFactory.class, config.getId());
       if (factory == null) {
         throw new IllegalArgumentException("No sink factory found for " 
-            + config.getSerdesId());
+            + config.getId());
       }
       
       final QuerySink sink = factory.newSink(context, config);
       if (sink == null) {
         throw new IllegalArgumentException("Factory returned a null sink for " 
-            + config.getSerdesId());
+            + config.getId());
       }
       sinks.add(sink);
     }

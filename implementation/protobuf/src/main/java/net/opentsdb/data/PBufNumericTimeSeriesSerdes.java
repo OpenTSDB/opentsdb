@@ -90,15 +90,19 @@ public class PBufNumericTimeSeriesSerdes implements PBufIteratorSerdes {
     switch(result.resolution()) {
     case NANOS:
     case MICROS:
-      long seconds = options.end().epoch() - options.start().epoch();
-      long ns = options.end().nanos() - options.start().nanos();
+      long seconds = context.query().endTime().epoch() - 
+          context.query().startTime().epoch();
+      long ns = context.query().endTime().nanos() - 
+          context.query().startTime().nanos();
       span = (seconds * 1000L * 1000L * 1000L) + ns;
       break;
     case MILLIS:
-      span = options.end().epoch() - options.start().epoch();
+      span = context.query().endTime().epoch() - 
+          context.query().startTime().epoch();
       break;
     default:
-      span = options.end().epoch() - options.start().epoch();
+      span = context.query().endTime().epoch() - 
+          context.query().startTime().epoch();
     }
     byte encode_on = NumericCodec.encodeOn(span, NumericCodec.LENGTH_MASK);
     
@@ -109,14 +113,14 @@ public class PBufNumericTimeSeriesSerdes implements PBufIteratorSerdes {
         @SuppressWarnings("unchecked")
         final TimeSeriesValue<NumericType> value = 
             (TimeSeriesValue<NumericType>) iterator.next();
-        if (value.timestamp().compare(Op.LT, options.start())) {
+        if (value.timestamp().compare(Op.LT, context.query().startTime())) {
           continue;
         }
-        if (value.timestamp().compare(Op.GT, options.end())) {
+        if (value.timestamp().compare(Op.GT, context.query().endTime())) {
           break;
         }
         
-        long current_offset = offset(options.start(), 
+        long current_offset = offset(context.query().startTime(), 
             value.timestamp(), result.resolution());
         if (current_offset == previous_offset) {
           throw new SerdesException("With results set to a resolution of " 
@@ -164,17 +168,17 @@ public class PBufNumericTimeSeriesSerdes implements PBufIteratorSerdes {
         .build();
     
     final TimeStampPB.TimeStamp.Builder start = TimeStampPB.TimeStamp.newBuilder()
-        .setEpoch(options.start().epoch())
-        .setNanos(options.start().nanos());
-    if (options.start().timezone() != null) {
-      start.setZoneId(options.start().timezone().toString());
+        .setEpoch(context.query().startTime().epoch())
+        .setNanos(context.query().startTime().nanos());
+    if (context.query().getTimezone() != null) {
+      start.setZoneId(context.query().getTimezone().toString());
     }
     
     final TimeStampPB.TimeStamp.Builder end = TimeStampPB.TimeStamp.newBuilder()
-        .setEpoch(options.end().epoch())
-        .setNanos(options.end().nanos());
-    if (options.end().timezone() != null) {
-      end.setZoneId(options.end().timezone().toString());
+        .setEpoch(context.query().endTime().epoch())
+        .setNanos(context.query().endTime().nanos());
+    if (context.query().getTimezone() != null) {
+      end.setZoneId(context.query().getTimezone().toString());
     }
     
     return TimeSeriesData.newBuilder()
