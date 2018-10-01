@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.List;
-
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -33,14 +31,7 @@ public interface QuerySinkConfig {
   /** @return A hash code for this configuration. */
   public HashCode buildHashCode();
   
-  /** @return The ID of a serializer to use for encoding the data. */
-  public String getSerdesId();
-  
   /** @return The serdes options for this config. */
   public SerdesOptions serdesOptions();
-  
-  /** @return A non-null filter of nodes to serialize in the sink. If the
-   * list is empty, then all root sources are automatically serialized. */
-  public List<String> filter();
   
 }

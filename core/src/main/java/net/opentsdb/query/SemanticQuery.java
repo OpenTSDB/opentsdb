@@ -33,6 +33,7 @@ import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
+import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
@@ -59,9 +60,6 @@ public class SemanticQuery implements TimeSeriesQuery {
   
   /** The non-null and non-empty execution graph to build the query from. */
   private ExecutionGraph execution_graph;
-  
-  /** A list of sink configurations. */
-  private List<QuerySinkConfig> sink_configs;
   
   /** An optional map of filter IDs to the filters. */
   private Map<String, NamedFilter> filters;
@@ -97,8 +95,6 @@ public class SemanticQuery implements TimeSeriesQuery {
       throw new IllegalArgumentException("Execution graph cannot be null.");
     }
     execution_graph = builder.execution_graph;
-    sink_configs = builder.sink_configs == null ? Collections.emptyList() 
-        : builder.sink_configs;
     if (builder.filters != null) {
       filters = Maps.newHashMap();
       for (final NamedFilter filter : builder.filters) {
@@ -109,7 +105,8 @@ public class SemanticQuery implements TimeSeriesQuery {
     }
     
     mode = builder.mode;
-    serdes_options = builder.serdes_options;
+    serdes_options = builder.serdes_config == null ? 
+        Collections.emptyList() : builder.serdes_config;
     
     // set the query if needed
     for (final ExecutionGraphNode node : execution_graph.getNodes()) {
@@ -142,8 +139,8 @@ public class SemanticQuery implements TimeSeriesQuery {
   }
   
   @Override
-  public List<QuerySinkConfig> getSinkConfigs() {
-    return sink_configs;
+  public List<SerdesOptions> getSerdesConfigs() {
+    return serdes_options;
   }
   
   public List<NamedFilter> getFilters() {
@@ -153,10 +150,6 @@ public class SemanticQuery implements TimeSeriesQuery {
   @Override
   public QueryMode getMode() {
     return mode;
-  }
-  
-  public List<SerdesOptions> getSerdesOptions() {
-    return serdes_options;
   }
   
   @Override
@@ -205,10 +198,9 @@ public class SemanticQuery implements TimeSeriesQuery {
     private String end;
     private String time_zone;
     private ExecutionGraph execution_graph;
-    private List<QuerySinkConfig> sink_configs;
     private List<NamedFilter> filters;
     private QueryMode mode;
-    private List<SerdesOptions> serdes_options;
+    private List<SerdesOptions> serdes_config;
     
     public Builder setStart(final String start) {
       this.start = start;
@@ -230,20 +222,6 @@ public class SemanticQuery implements TimeSeriesQuery {
       return this;
     }
     
-    public Builder setSinkConfigs(final List<QuerySinkConfig> sink_configs) {
-      this.sink_configs = sink_configs;
-      return this;
-    }
-    
-    public Builder addSinkConfig(final QuerySinkConfig sink) {
-      if (sink_configs == null) {
-        sink_configs = Lists.newArrayList();
-      }
-      sink_configs.add(sink);
-
-      return this;
-    }
-    
     public Builder setFilters(final List<NamedFilter> filters) {
       this.filters = filters;
       return this;
@@ -262,9 +240,21 @@ public class SemanticQuery implements TimeSeriesQuery {
       return this;
     }
     
-    public Builder setSerdesOptions(final List<SerdesOptions> serdes_options) {
-      this.serdes_options = serdes_options;
+    public Builder setSerdesConfigs(final List<SerdesOptions> serdes_config) {
+      this.serdes_config = serdes_config;
       return this;
+    }
+    
+    public Builder addSerdesConfig(final SerdesOptions serdes_config) {
+      if (this.serdes_config == null) {
+        this.serdes_config = Lists.newArrayList();
+      }
+      this.serdes_config.add(serdes_config);
+      return this;
+    }
+    
+    public List<SerdesOptions> serdesConfigs() {
+      return serdes_config;
     }
     
     public SemanticQuery build() {
@@ -345,6 +335,39 @@ public class SemanticQuery implements TimeSeriesQuery {
       }
     } else {
       builder.setMode(QueryMode.SINGLE);
+    }
+    
+    node = root.get("serdesConfigs");
+    if (node != null) {
+      for (final JsonNode serdes : node) {
+        SerdesFactory factory = null;
+        node = serdes.get("type");
+        if (node == null || node.isNull()) {
+          node = serdes.get("id");
+          if (node == null || node.isNull()) {
+            throw new IllegalArgumentException("The serdes config needs "
+                + "a type and/or ID.");
+          }
+          factory = tsdb.getRegistry().getPlugin(SerdesFactory.class, 
+              node.asText());
+        } else {
+          factory = tsdb.getRegistry().getPlugin(SerdesFactory.class, 
+              node.asText());
+        }
+        
+        if (factory == null) {
+          throw new IllegalArgumentException("No serdes factory found for: " 
+              + node.asText());
+        }
+        
+        final SerdesOptions config = factory.parseConfig(
+            JSON.getMapper(), tsdb, serdes);
+        if (config == null) {
+          throw new IllegalArgumentException("Serdes factory returned a "
+              + "null config for: " + node.asText());
+        }
+        builder.addSerdesConfig(config);
+      }
     }
     
     return builder;

@@ -19,6 +19,11 @@ import java.util.List;
 import javax.servlet.AsyncContext;
 import javax.servlet.http.HttpServletResponse;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
@@ -30,20 +35,18 @@ import net.opentsdb.query.serdes.SerdesOptions;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = ServletSinkConfig.Builder.class)
 public class ServletSinkConfig implements QuerySinkConfig {
 
   private final String id;
-  private final String serdes_id;
   private final SerdesOptions options;
-  private final List<String> filter;
   private final AsyncContext async;
   private final HttpServletResponse response;
   
   ServletSinkConfig(final Builder builder) {
     id = builder.id;
-    serdes_id = builder.serdesId;
     options = builder.serdesOptions;
-    filter = builder.filter;
     async = builder.async;
     response = builder.response;
   }
@@ -60,18 +63,8 @@ public class ServletSinkConfig implements QuerySinkConfig {
   }
 
   @Override
-  public String getSerdesId() {
-    return serdes_id;
-  }
-
-  @Override
   public SerdesOptions serdesOptions() {
     return options;
-  }
-
-  @Override
-  public List<String> filter() {
-    return filter;
   }
 
   public AsyncContext async() {
@@ -86,11 +79,19 @@ public class ServletSinkConfig implements QuerySinkConfig {
     return new Builder();
   }
   
+  public static Builder newBuilder(final QuerySinkConfig config) {
+    return new Builder()
+        .setId(config.getId())
+        .setSerdesOptions(config.serdesOptions());
+  }
+  
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
+    @JsonProperty
     private String id;
-    private String serdesId;
+    @JsonProperty
     private SerdesOptions serdesOptions;
-    private List<String> filter;
+    
     private AsyncContext async;
     private HttpServletResponse response;
     
@@ -99,26 +100,8 @@ public class ServletSinkConfig implements QuerySinkConfig {
       return this;
     }
     
-    public Builder setSerdesId(final String serdes_id) {
-      serdesId = serdes_id;
-      return this;
-    }
-    
     public Builder setSerdesOptions(final SerdesOptions serdes_options) {
       serdesOptions = serdes_options;
-      return this;
-    }
-    
-    public Builder setFilter(final List<String> filter) {
-      this.filter = filter;
-      return this;
-    }
-    
-    public Builder addFilter(final String filter) {
-      if (this.filter == null) {
-        this.filter = Lists.newArrayList();
-      }
-      this.filter.add(filter);
       return this;
     }
     

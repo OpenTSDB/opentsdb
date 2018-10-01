@@ -14,6 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 
 /**
@@ -34,4 +38,15 @@ public interface QuerySinkFactory extends TSDBPlugin {
    */
   public QuerySink newSink(final QueryContext context, 
                            final QuerySinkConfig config);
+
+  /**
+   * Parse the given JSON or YAML into the proper serdes config.
+   * @param mapper A non-null mapper to use for parsing.
+   * @param tsdb The non-null TSD to pull factories from.
+   * @param node The non-null node to parse.
+   * @return An instantiated node config if successful.
+   */
+  public QuerySinkConfig parseConfig(final ObjectMapper mapper,
+                                     final TSDB tsdb, 
+                                     final JsonNode node);
 }

@@ -17,10 +17,12 @@ package net.opentsdb.query.execution.serdes;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import com.stumbleupon.async.Deferred;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -31,7 +33,7 @@ import net.opentsdb.query.serdes.TimeSeriesSerdes;
  * 
  * @since 3.0
  */
-public class JsonV3QuerySerdesFactory implements SerdesFactory, TSDBPlugin {
+public class JsonV3QuerySerdesFactory extends BaseTSDBPlugin implements SerdesFactory {
 
   @Override
   public String id() {
@@ -51,20 +53,22 @@ public class JsonV3QuerySerdesFactory implements SerdesFactory, TSDBPlugin {
                                       final InputStream stream) {
     throw new UnsupportedOperationException();
   }
-
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";
+  }
+
+  @Override
+  public SerdesOptions parseConfig(final ObjectMapper mapper, 
+                                   final TSDB tsdb,
+                                   final JsonNode node) {
+    try {
+      return (SerdesOptions) mapper.treeToValue(node, 
+          JsonV2QuerySerdesOptions.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to parse config.", e);
+    }
   }
   
 }

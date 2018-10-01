@@ -477,12 +477,12 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       JsonNode type_json = config.get("type");
       final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
           QueryInterpolatorFactory.class, 
-          type_json == null ? null : type_json.asText());
+          type_json == null ? "Default" : type_json.asText());
       if (factory == null) {
         throw new IllegalArgumentException("Unable to find an "
             + "interpolator factory for: " + 
-            type_json == null ? "default" :
-              type_json.asText());
+            (type_json == null ? "default" :
+             type_json.asText()));
       }
       
       final QueryInterpolatorConfig interpolator_config = 

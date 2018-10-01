@@ -14,10 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.execution.serdes;
 
+import java.util.Collections;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.serdes.SerdesOptions;
 
 /**
@@ -33,11 +36,8 @@ public class BaseSerdesOptions implements SerdesOptions {
   /** The type of serialization plugin this config refers to. */
   protected String type;
   
-  /** The start timestamp for serialization. */
-  protected TimeStamp start;
-  
-  /** The end timestamp for serialization. */
-  protected TimeStamp end;
+  /** A list of serialization filters. */
+  protected List<String> filter;
   
   /**
    * Default ctor.
@@ -47,20 +47,13 @@ public class BaseSerdesOptions implements SerdesOptions {
     if (Strings.isNullOrEmpty(builder.id)) {
       throw new IllegalArgumentException("ID cannot be null or empty.");
     }
-    if (builder.start == null) {
-      throw new IllegalArgumentException("Start timestamp cannot be null.");
-    }
-    if (builder.end == null) {
-      throw new IllegalArgumentException("End timestamp cannot be null.");
-    }
     id = builder.id;
     if (Strings.isNullOrEmpty(builder.type)) {
       type = builder.id;
     } else {
       type = builder.type;
     }
-    start = builder.start;
-    end = builder.end;
+    filter = builder.filter;
   }
   
   public String getId() {
@@ -72,13 +65,8 @@ public class BaseSerdesOptions implements SerdesOptions {
   }
   
   @Override
-  public TimeStamp start() {
-    return start;
-  }
-  
-  @Override
-  public TimeStamp end() {
-    return end;
+  public List<String> getFilter() {
+    return filter == null ? Collections.emptyList() : filter;
   }
   
   /** @return A new builder. */
@@ -92,9 +80,7 @@ public class BaseSerdesOptions implements SerdesOptions {
     @JsonProperty
     private String type;
     @JsonProperty
-    private TimeStamp start;
-    @JsonProperty
-    private TimeStamp end;
+    private List<String> filter;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -106,21 +92,16 @@ public class BaseSerdesOptions implements SerdesOptions {
       return this;
     }
     
-    /**
-     * @param start A non-null inclusive start timestamp.
-     * @return The builder.
-     */
-    public Builder setStart(final TimeStamp start) {
-      this.start = start;
+    public Builder setFilter(final List<String> filter) {
+      this.filter = filter;
       return this;
     }
     
-    /**
-     * @param end A non-null inclusive end timestamp.
-     * @return The builder.
-     */
-    public Builder setEnd(final TimeStamp end) {
-      this.end = end;
+    public Builder addFilter(final String filter) {
+      if (this.filter == null) {
+        this.filter = Lists.newArrayList();
+      }
+      this.filter.add(filter);
       return this;
     }
     

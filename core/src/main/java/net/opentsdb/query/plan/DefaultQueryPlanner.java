@@ -43,11 +43,11 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SingleQueryNodeFactory;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
@@ -110,10 +110,10 @@ public class DefaultQueryPlanner {
     nodes_map = Maps.newHashMap();
     context_sink_config = new ContextNodeConfig();
     
-    if (context.query().getSinkConfigs() != null) {
-      for (final QuerySinkConfig config : context.query().getSinkConfigs()) {
-        if (config.filter() != null) {
-          for (final String filter : config.filter()) {
+    if (context.query().getSerdesConfigs() != null) {
+      for (final SerdesOptions config : context.query().getSerdesConfigs()) {
+        if (config.getFilter() != null) {
+          for (final String filter : config.getFilter()) {
             // Note: Assuming input validation here, that one or either
             // side is not null and includes a proper node Id.
             final String[] split = filter.split(":");

@@ -46,7 +46,6 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -63,6 +62,7 @@ import net.opentsdb.query.processor.expressions.BinaryExpressionNode;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.groupby.GroupBy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
@@ -166,7 +166,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -260,7 +260,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -344,7 +344,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("downsample")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("downsample")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -419,7 +419,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("m1", "m2")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("m1", "m2")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -511,7 +511,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -615,7 +615,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -733,7 +733,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -831,7 +831,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("downsample")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("downsample")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -954,7 +954,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb1", "gb2")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb1", "gb2")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1063,7 +1063,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb", "m1", "m2")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb", "m1", "m2")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1184,7 +1184,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("expression")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("expression")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1300,7 +1300,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("expression", "m1", "m2")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("expression", "m1", "m2")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1394,7 +1394,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1458,7 +1458,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1512,7 +1512,7 @@ public class TestDefaultQueryPlanner {
         .setStart("1514764800")
         .setEnd("1514768400")
         .setExecutionGraph(graph)
-        .addSinkConfig(sinkConfig(Lists.newArrayList("nosuchnode")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("nosuchnode")))
         .build();
     
     when(context.query()).thenReturn(query);
@@ -1526,9 +1526,9 @@ public class TestDefaultQueryPlanner {
     assertNull(planner.graph());
   }
   
-  private QuerySinkConfig sinkConfig(final List<String> filter) {
-    final QuerySinkConfig config = mock(QuerySinkConfig.class);
-    when(config.filter()).thenReturn(filter);
+  private SerdesOptions serdesConfigs(final List<String> filter) {
+    final SerdesOptions config = mock(SerdesOptions.class);
+    when(config.getFilter()).thenReturn(filter);
     return config;
   }
 }

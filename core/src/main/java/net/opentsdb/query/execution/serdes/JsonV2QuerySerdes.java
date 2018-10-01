@@ -76,6 +76,10 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   /** The generator. */
   private final JsonGenerator json;
   
+  /** The query start and end timestamps. */
+  private final TimeStamp start;
+  private final TimeStamp end;
+  
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
   
@@ -102,6 +106,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       throw new RuntimeException("WTF? Failed to instantiate a JSON "
           + "generator", e);
     }
+    start = context.query().startTime();
+    end = context.query().endTime();
   }
   
   @SuppressWarnings("unchecked")
@@ -135,7 +141,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         series = null;
         deferreds = null;
       }
-    
+      
       /**
        * Performs the serialization after determining if the serializations
        * need to resolve series IDs.
@@ -147,8 +153,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
               throws Exception {
           try {
             int idx = 0;
-            if (opts.parallelThreshold() > 0 && 
-                result.timeSeries().size() > opts.parallelThreshold()) {
+            if (opts.getParallelThreshold() > 0 && 
+                result.timeSeries().size() > opts.getParallelThreshold()) {
               final List<Pair<Integer, TimeSeries>> pairs = 
                   Lists.newArrayListWithExpectedSize(result.timeSeries().size());
               idx = 0;
@@ -173,8 +179,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                   }
                   TimeSeriesValue<? extends TimeSeriesDataType> value = 
                       (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
-                  while (value != null && value.timestamp().compare(
-                      Op.LT, opts.start)) {
+                  while (value != null && value.timestamp().compare(Op.LT, start)) {
                     if (iterator.hasNext()) {
                       value = (TimeSeriesValue<NumericType>) iterator.next();
                     } else {
@@ -185,8 +190,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                   if (value == null) {
                     return;
                   }
-                  if (value.timestamp().compare(Op.LT, opts.start()) ||
-                      value.timestamp().compare(Op.GT, opts.end)) {
+                  if (value.timestamp().compare(Op.LT, start) ||
+                      value.timestamp().compare(Op.GT, end)) {
                     return;
                   }
                   
@@ -240,7 +245,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                 TimeSeriesValue<? extends TimeSeriesDataType> value = 
                     (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
                 while (value != null && value.timestamp().compare(
-                    Op.LT, opts.start)) {
+                    Op.LT, start)) {
                   if (iterator.hasNext()) {
                     value = (TimeSeriesValue<NumericType>) iterator.next();
                   } else {
@@ -251,8 +256,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                 if (value == null) {
                   continue;
                 }
-                if (value.timestamp().compare(Op.LT, opts.start()) ||
-                    value.timestamp().compare(Op.GT, opts.end)) {
+                if (value.timestamp().compare(Op.LT, start) ||
+                    value.timestamp().compare(Op.GT, end)) {
                   continue;
                 }
                 
@@ -366,10 +371,10 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       final JsonGenerator json,
       final QueryResult result) throws IOException {
     while (value != null) {
-      if (value.timestamp().compare(Op.GT, options.end())) {
+      if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
-      long ts = (options != null && options.msResolution()) 
+      long ts = (options != null && options.getMsResolution()) 
           ? value.timestamp().msEpoch() 
           : value.timestamp().msEpoch() / 1000;
       final String ts_string = Long.toString(ts);
@@ -400,10 +405,10 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       final JsonGenerator json,
       final QueryResult result) throws IOException {
     while (value != null) {
-      if (value.timestamp().compare(Op.GT, options.end())) {
+      if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
-      long ts = (options != null && options.msResolution()) 
+      long ts = (options != null && options.getMsResolution()) 
           ? value.timestamp().msEpoch() 
           : value.timestamp().msEpoch() / 1000;
       final String ts_string = Long.toString(ts);
@@ -453,7 +458,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
     final TimeStamp timestamp = 
         result.timeSpecification().start().getCopy();
     for (int i = value.value().offset(); i < value.value().end(); i++) {
-      long ts = (options != null && options.msResolution()) 
+      long ts = (options != null && options.getMsResolution()) 
           ? timestamp.msEpoch() 
           : timestamp.msEpoch() / 1000;
       final String ts_string = Long.toString(ts);

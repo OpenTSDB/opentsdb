@@ -37,6 +37,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedIterator;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericArrayType;
@@ -63,6 +64,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   
   /** The generator. */
   private final JsonGenerator json;
+
+  /** The query start and end timestamps. */
+  private final TimeStamp start;
+  private final TimeStamp end;
   
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
@@ -90,6 +95,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       throw new RuntimeException("WTF? Failed to instantiate a JSON "
           + "generator", e);
     }
+    start = context.query().startTime();
+    end = context.query().endTime();
   }
   
   // TODO - find a better way to not sync
@@ -157,8 +164,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           json.writeArrayFieldStart("data");
           int idx = 0;
           
-          if (opts.parallelThreshold() > 0 && 
-              result.timeSeries().size() > opts.parallelThreshold()) {
+          if (opts.getParallelThreshold() > 0 && 
+              result.timeSeries().size() > opts.getParallelThreshold()) {
             final List<Pair<Integer, TimeSeries>> pairs = 
                 Lists.newArrayListWithExpectedSize(result.timeSeries().size());
             idx = 0;
@@ -300,7 +307,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       
       TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
       while (value != null && value.timestamp().compare(
-          Op.LT, options.start)) {
+          Op.LT, start)) {
         if (iterator.hasNext()) {
           value = iterator.next();
         } else {
@@ -311,8 +318,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       if (value == null) {
         continue;
       }
-      if (value.timestamp().compare(Op.LT, options.start()) ||
-          value.timestamp().compare(Op.GT, options.end)) {
+      if (value.timestamp().compare(Op.LT, start) ||
+          value.timestamp().compare(Op.GT, end)) {
         continue;
       }
       
@@ -351,7 +358,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       json.writeArrayFieldStart("NumericType");
       // just the values
       while (value != null) {
-        if (value.timestamp().compare(Op.GT, options.end())) {
+        if (value.timestamp().compare(Op.GT, end)) {
           break;
         }
         if (value.value() == null) {
@@ -379,10 +386,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     // timestamp and values
     json.writeObjectFieldStart("NumericType");
     while (value != null) {
-      if (value.timestamp().compare(Op.GT, options.end())) {
+      if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
-      long ts = (options != null && options.msResolution()) 
+      long ts = (options != null && options.getMsResolution()) 
           ? value.timestamp().msEpoch() 
           : value.timestamp().msEpoch() / 1000;
       final String ts_string = Long.toString(ts);
@@ -459,10 +466,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     
     json.writeObjectFieldStart("NumericSummaryType");
     while (value != null) {
-      if (value.timestamp().compare(Op.GT, options.end())) {
+      if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
-      long ts = (options != null && options.msResolution()) 
+      long ts = (options != null && options.getMsResolution()) 
           ? value.timestamp().msEpoch() 
           : value.timestamp().msEpoch() / 1000;
       final String ts_string = Long.toString(ts);

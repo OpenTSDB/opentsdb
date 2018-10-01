@@ -119,8 +119,6 @@ public class TestJsonV2QuerySerdes {
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     
     options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1486045800000L))
-        .setEnd(new MillisecondTimeStamp(1486046000000L))
         .setId("json")
         .build();
   }
@@ -159,8 +157,6 @@ public class TestJsonV2QuerySerdes {
   public void serializeWithMilliseconds() throws Exception {
     options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
         .setMsResolution(true)
-        .setStart(new MillisecondTimeStamp(1486045800000L))
-        .setEnd(new MillisecondTimeStamp(1486045860000L))
         .setId("json")
         .build();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -185,11 +181,17 @@ public class TestJsonV2QuerySerdes {
   
   @Test
   public void serializeFilterEarlyValues() throws Exception {
-    options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1486045860000L))
-        .setEnd(new MillisecondTimeStamp(1486046100000L))
-        .setId("json")
-        .build();
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1486045860")
+            .setEnd("1486046000")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build()
+        .convert().build();
+    when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
@@ -213,11 +215,17 @@ public class TestJsonV2QuerySerdes {
   
   @Test
   public void serializeFilterLateValues() throws Exception {
-    options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1486045200000L))
-        .setEnd(new MillisecondTimeStamp(1486045800000L))
-        .setId("json")
-        .build();
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1486045200")
+            .setEnd("1486045800")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build()
+        .convert().build();
+    when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
@@ -240,11 +248,17 @@ public class TestJsonV2QuerySerdes {
   
   @Test
   public void serializeFilterOOBEarlyValues() throws Exception {
-    options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1486046100000L))
-        .setEnd(new MillisecondTimeStamp(1486046400000L))
-        .setId("json")
-        .build();
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1486046100")
+            .setEnd("1486046400")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build()
+        .convert().build();
+    when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
@@ -257,11 +271,17 @@ public class TestJsonV2QuerySerdes {
   
   @Test
   public void serializeFilterOOBLateValues() throws Exception {
-    options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1486045200000L))
-        .setEnd(new MillisecondTimeStamp(1486045500000L))
-        .setId("json")
-        .build();
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1486045200")
+            .setEnd("1486045500")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build()
+        .convert().build();
+    when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
@@ -287,7 +307,7 @@ public class TestJsonV2QuerySerdes {
   @Test
   public void serializeExceptions() throws Exception {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(null, options, output);
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
     
     try {
       serdes.serialize(null, null);

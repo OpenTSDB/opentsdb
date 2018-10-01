@@ -152,7 +152,6 @@ public class TestTSDBV2QueryContextBuilder {
                 .setType("literal_or")
                 .setTagk("host")))
         .build().convert()
-        .addSinkConfig(mock(QuerySinkConfig.class))
         .build();
     
     when(SINK_FACTORY.newSink(any(QueryContext.class), 
@@ -164,6 +163,7 @@ public class TestTSDBV2QueryContextBuilder {
     final QueryContext context = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
+        .addSink(mock(QuerySinkConfig.class))
         .build();
     
     assertEquals(QueryMode.SINGLE, context.mode());
@@ -180,6 +180,7 @@ public class TestTSDBV2QueryContextBuilder {
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
         .setStats(stats)
+        .addSink(mock(QuerySinkConfig.class))
         .build();
     
     assertEquals(QueryMode.SINGLE, context.mode());
@@ -196,6 +197,7 @@ public class TestTSDBV2QueryContextBuilder {
       TSDBV2QueryContextBuilder.newBuilder(null)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
+        .addSink(mock(QuerySinkConfig.class))
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -204,6 +206,7 @@ public class TestTSDBV2QueryContextBuilder {
       TSDBV2QueryContextBuilder.newBuilder(TSDB)
         //.setQuery(query)
         .setMode(QueryMode.SINGLE)
+        .addSink(mock(QuerySinkConfig.class))
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -212,6 +215,16 @@ public class TestTSDBV2QueryContextBuilder {
       TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         //.setMode(QueryMode.SINGLE)
+        .addSink(mock(QuerySinkConfig.class))
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      TSDBV2QueryContextBuilder.newBuilder(TSDB)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        //.addSink(mock(QuerySinkConfig.class))
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }

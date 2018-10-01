@@ -47,6 +47,7 @@ import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
@@ -166,21 +167,6 @@ public class RawQueryRpc {
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
-    final SemanticQuery temp_build = query_builder.build();
-    query_builder.addSinkConfig(ServletSinkConfig.newBuilder()
-        .setAsync(async)
-        .setResponse(response)
-        .setSerdesId(ServletSinkFactory.ID)
-        .setSerdesOptions(JsonV2QuerySerdesOptions.newBuilder()
-//                .setMsResolution(ts_query.getMsResolution())
-//                .setShowQuery(ts_query.getShowQuery())
-//                .setShowStats(ts_query.getShowStats())
-//                .setShowSummary(ts_query.getShowSummary())
-                .setStart(temp_build.startTime())
-                .setEnd(temp_build.endTime())
-                .setId("JsonV3QuerySerdes")
-                .build())
-        .build());
     final SemanticQuery query = query_builder.build();
     request.setAttribute(QUERY_KEY, query);
     LOG.info("Executing new query=" + JSON.serializeToString(
@@ -199,12 +185,26 @@ public class RawQueryRpc {
           .start();
     }
     
+    SerdesOptions serdes = query.getSerdesConfigs().isEmpty() ? null :
+      query.getSerdesConfigs().get(0);
+    if (serdes == null) {
+      serdes = JsonV2QuerySerdesOptions.newBuilder()
+          .setId("JsonV3QuerySerdes")
+          .build();
+    }
+    
     SemanticQueryContext context = (SemanticQueryContext) SemanticQueryContext.newBuilder()
         .setTSDB(tsdb)
         .setQuery(query)
         .setStats(DefaultQueryStats.newBuilder()
             .setTrace(trace)
             .setQuerySpan(query_span)
+            .build())
+        .addSink(ServletSinkConfig.newBuilder()
+            .setId(ServletSinkFactory.ID)
+            .setSerdesOptions(serdes)
+            .setResponse(response)
+            .setAsync(async)
             .build())
         .build();
     

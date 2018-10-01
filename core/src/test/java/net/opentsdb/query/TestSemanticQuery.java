@@ -20,10 +20,15 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.NamedFilter;
@@ -64,6 +69,10 @@ public class TestSemanticQuery {
         .setTimeZone("America/Denver")
         .addFilter(filter)
         .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
         .build();
     
     assertEquals(QueryMode.SINGLE, query.getMode());
@@ -76,6 +85,7 @@ public class TestSemanticQuery {
     assertEquals("f1", query.getFilters().get(0).getId());
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
     assertEquals(1, query.getExecutionGraph().getNodes().size());
+    assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
     
     try {
       SemanticQuery.newBuilder()
@@ -115,7 +125,7 @@ public class TestSemanticQuery {
   }
   
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     NumericInterpolatorConfig numeric_config = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -164,6 +174,10 @@ public class TestSemanticQuery {
         .setTimeZone("America/Denver")
         .addFilter(filter)
         .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("JsonV2QuerySerdes")
+            .build())
         .build();
     
     final String json = JSON.serializeToString(query);
@@ -182,6 +196,27 @@ public class TestSemanticQuery {
     assertTrue(json.contains("\"id\":\"ds\""));
     assertTrue(json.contains("\"sources\":[\"DataSource\"]"));
     assertTrue(json.contains("\"interval\":\"15s\""));
+    assertTrue(json.contains("\"serdesConfigs\":["));
+    assertTrue(json.contains("\"filter\":[\"ds\"]"));
+    
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.registry = new DefaultRegistry(tsdb);
+    ((DefaultRegistry) tsdb.registry).initialize(true);
+    
+    JsonNode node = JSON.getMapper().readTree(json);
+    query = SemanticQuery.parse(tsdb, node).build();
+    
+    assertEquals(QueryMode.SINGLE, query.getMode());
+    assertEquals("1514764800", query.getStart());
+    assertEquals(1514764800, query.startTime().epoch());
+    assertEquals("1514768400", query.getEnd());
+    assertEquals(1514768400, query.endTime().epoch());
+    assertEquals("America/Denver", query.getTimezone());
+    assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilter("f1")).getFilter());
+    assertEquals("f1", query.getFilters().get(0).getId());
+    assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
+    assertEquals(2, query.getExecutionGraph().getNodes().size());
+    assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
   }
   
   @Test

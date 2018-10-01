@@ -22,6 +22,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.serdes.SerdesOptions;
 
 /**
  * The base interface for OpenTSDB queries.
@@ -68,8 +69,8 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
   /** @return The parsed end time of the query. */
   public TimeStamp endTime();
   
-  /** @return A non-null list of sink configs. */
-  public List<QuerySinkConfig> getSinkConfigs();
+  /** @return A non-null list of serdes configs. */
+  public List<SerdesOptions> getSerdesConfigs();
   
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode();

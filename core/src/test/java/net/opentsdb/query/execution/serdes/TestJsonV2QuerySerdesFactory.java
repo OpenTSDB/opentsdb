@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,6 +29,9 @@ import org.junit.Test;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 
@@ -43,9 +47,22 @@ public class TestJsonV2QuerySerdesFactory {
   
   @Test
   public void newInstance() throws Exception {
+    QueryContext context = mock(QueryContext.class);
+    TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1486045800")
+            .setEnd("1486046000")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build()
+        .convert().build();
+    when(context.query()).thenReturn(query);
+    
     JsonV2QuerySerdesFactory factory = new JsonV2QuerySerdesFactory();
     TimeSeriesSerdes serdes = factory.newInstance(
-        mock(QueryContext.class), 
+        context, 
         mock(JsonV2QuerySerdesOptions.class), 
         mock(OutputStream.class));
     assertNotNull(serdes);

@@ -17,6 +17,10 @@ package net.opentsdb.query.serdes;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryContext;
 
 /**
@@ -55,4 +59,14 @@ public interface SerdesFactory {
                                       final SerdesOptions options,
                                       final InputStream stream);
   
+  /**
+   * Parse the given JSON or YAML into the proper serdes config.
+   * @param mapper A non-null mapper to use for parsing.
+   * @param tsdb The non-null TSD to pull factories from.
+   * @param node The non-null node to parse.
+   * @return An instantiated node config if successful.
+   */
+  public SerdesOptions parseConfig(final ObjectMapper mapper, 
+                                   final TSDB tsdb,
+                                   final JsonNode node);
 }

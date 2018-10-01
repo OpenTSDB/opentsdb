@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -66,7 +65,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.UnitTestException;
@@ -77,6 +75,7 @@ public class TestPBufSerdes {
   
   private PBufSerdesFactory factory;
   private QueryContext context;
+  private TimeSeriesQuery query;
   private SerdesOptions options;
   
   @BeforeClass
@@ -95,13 +94,7 @@ public class TestPBufSerdes {
   
   @Test
   public void serdes() throws Exception {
-    options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525824000000L))
-        .setEnd(new MillisecondTimeStamp(1525827600000L))
-        .setId("pbuf")
-        .build();
-    
-    TimeSeriesQuery q = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1525824000")
             .setEnd("1525827600")
@@ -112,7 +105,7 @@ public class TestPBufSerdes {
             .setMetric("sys.cpu.user"))
         .build().convert().build();
     
-    when(context.query()).thenReturn(q);
+    when(context.query()).thenReturn(query);
     
     MockTimeSeries ts = new MockTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
@@ -222,13 +215,7 @@ public class TestPBufSerdes {
   
   @Test
   public void serdesEmpty() throws Exception {
-    SerdesOptions options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525824000000L))
-        .setEnd(new MillisecondTimeStamp(1525827600000L))
-        .setId("pbuf")
-        .build();
-    
-    TimeSeriesQuery q = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1525824000")
             .setEnd("1525827600")
@@ -238,6 +225,7 @@ public class TestPBufSerdes {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build().convert().build();
+    when(context.query()).thenReturn(query);
     
     QueryResult result = mock(QueryResult.class);
     when(result.dataSource()).thenReturn("UT");
@@ -274,12 +262,6 @@ public class TestPBufSerdes {
 
   @Test
   public void serdesErrors() throws Exception {
-    SerdesOptions options = BaseSerdesOptions.newBuilder()
-        .setStart(new MillisecondTimeStamp(1525824000000L))
-        .setEnd(new MillisecondTimeStamp(1525827600000L))
-        .setId("pbuf")
-        .build();
-
     QueryResult result = mock(QueryResult.class);
     when(result.dataSource()).thenReturn("UT");
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);

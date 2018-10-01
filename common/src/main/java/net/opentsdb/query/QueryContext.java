@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import java.util.Collection;
+import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.QueryStats;
@@ -59,6 +60,12 @@ public interface QueryContext {
    * @return An optional stats collector for the query, may be null.
    */
   public QueryStats stats();
+  
+  /**
+   * @return A list of zero or more sink configurations. If none are 
+   * provided, default configs should be used.
+   */
+  public List<QuerySinkConfig> sinkConfigs();
   
   /** @return The original query. */
   public TimeSeriesQuery query();
