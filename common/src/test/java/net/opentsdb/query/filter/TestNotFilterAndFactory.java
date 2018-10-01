@@ -15,8 +15,12 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Test;
@@ -92,6 +96,18 @@ public class TestNotFilterAndFactory {
     assertTrue(json.contains("\"tag\":\"host\""));
     assertTrue(json.contains("\"filter\":\"web01|web02\""));
     assertTrue(json.contains("\"type\":\"Not\""));
+  }
+  
+  @Test
+  public void initialize() throws Exception {
+    UTQueryFilter filter_a = spy(new UTQueryFilter("host", "web01|web02"));
+    
+    NotFilter filter = NotFilter.newBuilder()
+        .setFilter(filter_a)
+        .build();
+    
+    assertNull(filter.initialize(null).join());
+    verify(filter_a, times(1)).initialize(null);
   }
   
 }

@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.Span;
 
 public class UTFilterFactory implements QueryFilterFactory {
 
@@ -34,11 +35,15 @@ public class UTFilterFactory implements QueryFilterFactory {
       this.tag = tag;
       this.filter = filter;
     }
-
     
     @Override
     public String getType() {
       return "UTFilter";
+    }
+
+    @Override
+    public Deferred<Void> initialize(final Span span) {
+      return INITIALIZED;
     }
   }
 
@@ -78,6 +83,5 @@ public class UTFilterFactory implements QueryFilterFactory {
   public String version() {
     return "3.0.0";
   }
-  
   
 }

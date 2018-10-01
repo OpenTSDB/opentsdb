@@ -16,6 +16,7 @@ package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -189,6 +190,15 @@ public class TestTagValueRegexFilterAndFactory {
     assertTrue(json.contains("\"filter\":\"ogg-01.ops.ankh.*\""));
     assertTrue(json.contains("\"tagKey\":\"host"));
     assertTrue(json.contains("\"type\":\"TagValueRegexp"));
+  }
+  
+  @Test
+  public void initialize() throws Exception {
+    TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
+        .setTagKey("host")
+        .setFilter("ogg-01.ops.ankh.morpork.com")
+        .build();
+    assertNull(filter.initialize(null).join());
   }
   
 }

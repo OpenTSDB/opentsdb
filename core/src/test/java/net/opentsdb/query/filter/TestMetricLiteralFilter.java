@@ -15,6 +15,7 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -83,6 +84,14 @@ public class TestMetricLiteralFilter {
     final String json = JSON.serializeToString(filter);
     assertTrue(json.contains("\"type\":\"MetricLiteral\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+
+  @Test
+  public void initialize() throws Exception {
+    MetricLiteralFilter filter = MetricLiteralFilter.newBuilder()
+        .setMetric("system.cpu.user")
+        .build();
+    assertNull(filter.initialize(null).join());
   }
   
 }

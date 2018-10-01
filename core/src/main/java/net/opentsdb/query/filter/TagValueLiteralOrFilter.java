@@ -26,7 +26,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.StringUtils;
 
 /**
@@ -99,6 +101,11 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
         .append(filter)
         .append("}")
         .toString();
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    return INITIALIZED;
   }
   
   public static Builder newBuilder() {

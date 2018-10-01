@@ -15,6 +15,7 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -161,4 +162,12 @@ public class TestTagValueLiteralOrFilterAndFactory {
     assertTrue(json.contains("\"type\":\"TagValueLiteralOr"));
   }
   
+  @Test
+  public void initialize() throws Exception {
+    TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
+        .setTagKey("host")
+        .setFilter("web01")
+        .build();
+    assertNull(filter.initialize(null).join());
+  }
 }
