@@ -22,6 +22,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.stats.Span;
 
 /**
  * Regular expression filter for tag values given a literal tag key.
@@ -93,6 +96,11 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
         .append(matches_all)
         .append("}")
         .toString();
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    return INITIALIZED;
   }
   
   public static Builder newBuilder() {

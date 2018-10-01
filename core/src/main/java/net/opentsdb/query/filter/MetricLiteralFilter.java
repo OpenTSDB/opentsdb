@@ -20,6 +20,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.stats.Span;
 
 /**
  * Filters by matching a case sensitive literal string for the metric.
@@ -57,6 +60,11 @@ public class MetricLiteralFilter implements MetricFilter {
   @Override
   public String getType() {
     return MetricLiteralFactory.TYPE;
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    return INITIALIZED;
   }
   
   public static Builder newBuilder() {

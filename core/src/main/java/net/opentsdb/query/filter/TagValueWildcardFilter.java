@@ -21,6 +21,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.stats.Span;
 
 /**
  * A wildcard or glob match on tag values given a literal tag key.
@@ -131,6 +134,11 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
   /** @return The components of the filter. */
   public String[] components() {
     return components;
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    return INITIALIZED;
   }
   
   public static Builder newBuilder() {

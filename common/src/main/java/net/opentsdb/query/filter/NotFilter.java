@@ -14,6 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.stats.Span;
+
 /**
  * Inverts the match on a filter.
  * 
@@ -43,6 +47,11 @@ public class NotFilter implements NestedQueryFilter {
   @Override
   public String getType() {
     return NotFilterFactory.TYPE;
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    return filter.initialize(span);
   }
   
   public static Builder newBuilder() {

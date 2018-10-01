@@ -16,8 +16,12 @@ package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
@@ -29,6 +33,7 @@ import com.google.common.collect.Maps;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
+import net.opentsdb.query.filter.UTFilterFactory.UTQueryFilter;
 import net.opentsdb.utils.JSON;
 
 public class TestExplicitTagsFilterAndFactory {
@@ -225,6 +230,18 @@ public class TestExplicitTagsFilterAndFactory {
     assertTrue(json.contains("\"tagKey\":\"host"));
     assertTrue(json.contains("\"type\":\"TagValueLiteralOr"));
     assertTrue(json.contains("\"type\":\"ExplicitTags"));
+  }
+
+  @Test
+  public void initialize() throws Exception {
+    UTQueryFilter filter_a = spy(new UTQueryFilter("host", "web01|web02"));
+    
+    ExplicitTagsFilter filter = ExplicitTagsFilter.newBuilder()
+        .setFilter(filter_a)
+        .build();
+    
+    assertNull(filter.initialize(null).join());
+    verify(filter_a, times(1)).initialize(null);
   }
   
 }

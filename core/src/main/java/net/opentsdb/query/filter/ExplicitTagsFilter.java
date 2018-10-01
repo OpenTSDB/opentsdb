@@ -18,6 +18,9 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.stats.Span;
 
 /**
  * Attempts to walk all of the child filters and extract the tag keys
@@ -82,6 +85,11 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
   @Override
   public String getType() {
     return ExplicitTagsFilterFactory.TYPE;
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    return filter.initialize(span);
   }
   
   public static Builder newBuilder() {

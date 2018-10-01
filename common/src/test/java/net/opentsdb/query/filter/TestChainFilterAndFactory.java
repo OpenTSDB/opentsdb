@@ -15,8 +15,12 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Test;
@@ -131,4 +135,21 @@ public class TestChainFilterAndFactory {
     assertTrue(json.contains("\"op\":\"OR\""));
     assertTrue(json.contains("\"type\":\"Chain\""));
   }
+  
+  @Test
+  public void initialize() throws Exception {
+    UTQueryFilter filter_a = spy(new UTQueryFilter("host", "web01|web02"));
+    UTQueryFilter filter_b = spy(new UTQueryFilter("owner", "tyrion"));
+    
+    ChainFilter filter = ChainFilter.newBuilder()
+        .setOp(FilterOp.OR)
+        .addFilter(filter_a)
+        .addFilter(filter_b)
+        .build();
+    
+    assertNull(filter.initialize(null).join());
+    verify(filter_a, times(1)).initialize(null);
+    verify(filter_b, times(1)).initialize(null);
+  }
+  
 }

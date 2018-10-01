@@ -29,6 +29,9 @@ public class Deferreds {
   /** A singleton to group deferreds that are expected to return nulls on completion. */
   public static final NullGroupCB NULL_GROUP_CB = new NullGroupCB(null);
   
+  /** A singleton to group deferreds that are expected to return nulls on completion. */
+  public static final VoidGroupCB VOID_GROUP_CB = new VoidGroupCB(null);
+  
   /** A simple class to group deferreds that are expected to return nulls on completion. */
   public static class NullGroupCB implements Callback<Object, ArrayList<Object>> {
     private final Deferred<Object> deferred;
@@ -44,6 +47,28 @@ public class Deferreds {
     
     @Override
     public Object call(final ArrayList<Object> ignored) throws Exception {
+      if (deferred != null) {
+        deferred.callback(null);
+      }
+      return null;
+    }
+  }
+  
+  /** A simple class to group deferreds that are expected to return nulls on completion. */
+  public static class VoidGroupCB implements Callback<Void, ArrayList<Void>> {
+    private final Deferred<Void> deferred;
+    
+    /**
+     * Default Ctor
+     * @param deferred a non-null Deferred to call on completion or null if
+     * not used.
+     */
+    public VoidGroupCB(final Deferred<Void> deferred) {
+      this.deferred = deferred;
+    }
+    
+    @Override
+    public Void call(final ArrayList<Void> ignored) throws Exception {
       if (deferred != null) {
         deferred.callback(null);
       }

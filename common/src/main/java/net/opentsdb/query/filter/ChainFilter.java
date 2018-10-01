@@ -17,6 +17,10 @@ package net.opentsdb.query.filter;
 import java.util.List;
 
 import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Deferreds;
 
 /**
  * A chain of two or more filters to evaluate. Filters can be nested
@@ -82,6 +86,16 @@ public class ChainFilter implements QueryFilter {
         .append(filters)
         .append("}")
         .toString();
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    final List<Deferred<Void>> deferreds = 
+        Lists.newArrayListWithExpectedSize(filters.size());
+    for (final QueryFilter filter : filters) {
+      deferreds.add(filter.initialize(span));
+    }
+    return Deferred.group(deferreds).addBoth(Deferreds.VOID_GROUP_CB);
   }
   
   public static Builder newBuilder() {
