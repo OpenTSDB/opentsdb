@@ -247,6 +247,7 @@ public class RawQueryRpc {
     request.setAttribute(CONTEXT_KEY, context);
     
     try {
+      context.initialize(query_span).join();
       context.fetchNext(query_span);
     } catch (Exception e) {
       LOG.error("Unexpected exception adding callbacks to deferred.", e);

@@ -75,6 +75,9 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xBigtableQueryNode.class);
 
+  private static final Deferred<Void> INITIALIZED = 
+      Deferred.fromResult(null);
+  
   /** A reference to the parent of this node. */
   protected final Tsdb1xBigtableDataStore parent;
   
@@ -270,7 +273,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   }
   
   @Override
-  public void initialize(final Span span) {
+  public Deferred<Void> initialize(final Span span) {
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + ".initialize()").start();
@@ -305,6 +308,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
     if (child != null) {
       child.setSuccessTags().finish();
     }
+    return INITIALIZED;
   }
   
   @Override

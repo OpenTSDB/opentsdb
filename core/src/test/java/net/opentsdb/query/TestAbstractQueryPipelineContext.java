@@ -1209,8 +1209,8 @@ public class TestAbstractQueryPipelineContext {
     }
   
     @Override
-    public void initialize(Span span) {
-      initializeGraph(span);
+    public Deferred<Void> initialize(Span span) {
+      return initializeGraph(span);
     }
     
   }

@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
@@ -34,6 +35,11 @@ import net.opentsdb.stats.Span;
 public abstract class AbstractQueryNode implements QueryNode {
   private static final Logger LOG = 
       LoggerFactory.getLogger(AbstractQueryNode.class);
+  
+  /** Return if nothing happens in the {@link #initialize(Span)} method
+   * asynchronously. */
+  protected static final Deferred<Void> INITIALIZED = 
+      Deferred.fromResult(null);
   
   /** A reference to the query node factory that generated this node. */
   protected QueryNodeFactory factory;
@@ -75,7 +81,7 @@ public abstract class AbstractQueryNode implements QueryNode {
   }
   
   @Override
-  public void initialize(final Span span) {
+  public Deferred<Void> initialize(final Span span) {
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + ".initialize()").start();
@@ -88,6 +94,7 @@ public abstract class AbstractQueryNode implements QueryNode {
     if (child != null) {
       child.setSuccessTags().finish();
     }
+    return INITIALIZED;
   }
   
   @Override

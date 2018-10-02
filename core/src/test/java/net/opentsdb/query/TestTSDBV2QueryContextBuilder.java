@@ -165,6 +165,7 @@ public class TestTSDBV2QueryContextBuilder {
         .setMode(QueryMode.SINGLE)
         .addSink(mock(QuerySinkConfig.class))
         .build();
+    context.initialize(null).join();
     
     assertEquals(QueryMode.SINGLE, context.mode());
     assertSame(sink, context.sinks().iterator().next());
@@ -182,6 +183,7 @@ public class TestTSDBV2QueryContextBuilder {
         .setStats(stats)
         .addSink(mock(QuerySinkConfig.class))
         .build();
+    context.initialize(null).join();
     
     assertEquals(QueryMode.SINGLE, context.mode());
     assertSame(sink, context.sinks().iterator().next());

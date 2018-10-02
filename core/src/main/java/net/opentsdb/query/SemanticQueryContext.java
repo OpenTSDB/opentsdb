@@ -18,10 +18,14 @@ import java.util.Collection;
 import java.util.List;
 
 import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Deferreds;
 
 public class SemanticQueryContext implements QueryContext {
 
@@ -55,7 +59,6 @@ public class SemanticQueryContext implements QueryContext {
     }
     
     pipeline = new LocalPipeline(this);
-    pipeline.initialize(local_span);
   }
   
   @Override
@@ -100,6 +103,33 @@ public class SemanticQueryContext implements QueryContext {
   @Override
   public TSDB tsdb() {
     return tsdb;
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    List<Deferred<Void>> initializations = null;
+    if (query.getFilters() != null && !query.getFilters().isEmpty()) {
+      initializations = Lists.newArrayListWithExpectedSize(
+          query.getFilters().size());
+      for (final NamedFilter filter : query.getFilters()) {
+        initializations.add(filter.getFilter().initialize(span));
+      }
+    }
+    
+    class FilterCB implements Callback<Deferred<Void>, Void> {
+      @Override
+      public Deferred<Void> call(Void arg) throws Exception {
+        return pipeline.initialize(local_span);
+      }
+    }
+    
+    if (initializations != null) {
+      return Deferred.group(initializations)
+          .addBoth(Deferreds.VOID_GROUP_CB)
+          .addCallbackDeferring(new FilterCB());
+    } else {
+      return pipeline.initialize(local_span);
+    }
   }
   
   public static Builder newBuilder() {
@@ -167,7 +197,7 @@ public class SemanticQueryContext implements QueryContext {
     }
 
     @Override
-    public void initialize(Span span) {
+    public Deferred<Void> initialize(Span span) {
       final Span child;
       if (span != null) {
         child = span.newChild(getClass().getSimpleName() + ".initialize()")
@@ -175,10 +205,18 @@ public class SemanticQueryContext implements QueryContext {
       } else {
         child = null;
       }
-      initializeGraph(child);
-      if (child != null) {
-        child.setSuccessTags().finish();
+      
+      class SpanCB implements Callback<Void, Void> {
+        @Override
+        public Void call(final Void ignored) throws Exception {
+          if (child != null) {
+            child.setSuccessTags().finish();
+          }
+          return null;
+        }
       }
+      
+      return initializeGraph(child).addCallback(new SpanCB());
     }
     
   }
