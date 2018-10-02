@@ -193,6 +193,16 @@ public class DefaultQueryPlanner {
       final ExecutionGraphNode node = iterator.next();
       if (node.getConfig() != null && 
           node.getConfig() instanceof QuerySourceConfig) {
+        // TODO - do this async
+        if (((QuerySourceConfig) node.getConfig()).filter() != null) {
+          try {
+            ((QuerySourceConfig) node.getConfig()).filter().initialize(span).join();
+          } catch (InterruptedException e) {
+            throw new RuntimeException("WTF?", e);
+          } catch (Exception e) {
+            throw new RuntimeException("WTF?", e);
+          }
+        }
         source_nodes.add(node);
       }
       
