@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.TimeSeriesDataSource;
@@ -134,7 +135,7 @@ public class DefaultQueryPlanner {
    * Does the hard work.
    */
   @SuppressWarnings("unchecked")
-  public void plan(final Span span) {
+  public Deferred<Void> plan(final Span span) {
     final Map<String, ExecutionGraphNode> config_map = 
         Maps.newHashMapWithExpectedSize(
             context.query().getExecutionGraph().getNodes().size());
@@ -352,6 +353,9 @@ public class DefaultQueryPlanner {
       }
     }
     data_sources.addAll(source_set);
+    
+    // TODO!!!
+    return Deferred.fromResult(null);
   }
   
   /**

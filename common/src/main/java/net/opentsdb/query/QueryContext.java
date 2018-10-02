@@ -17,6 +17,8 @@ package net.opentsdb.query;
 import java.util.Collection;
 import java.util.List;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
@@ -46,6 +48,8 @@ public interface QueryContext {
   
   /**
    * Travels downstream the pipeline to fetch the next set of results. 
+   * <b>WARNING:</b> Make sure to call {@link #initialize(Span)} before
+   * calling this function.
    * @param span An optional tracing span.
    * @throws IllegalStateException if no sinks was set on this context.
    */
@@ -72,4 +76,12 @@ public interface QueryContext {
   
   /** @return The TSDB to which we belong. */
   public TSDB tsdb();
+  
+  /**
+   * Called after building the context but before calling 
+   * {@link #fetchNext(Span)} so filters and such can be initialized.
+   * @return A deferred resolving to a null if successful or an 
+   * exception if something went wrong.
+   */
+  public Deferred<Void> initialize(final Span span);
 }

@@ -374,6 +374,7 @@ final public class QueryRpc {
     }
     
     try {
+      ctx.initialize(query_span).join();
       ctx.fetchNext(query_span);
     } catch (Exception e) {
       LOG.error("Unexpected exception adding callbacks to deferred.", e);

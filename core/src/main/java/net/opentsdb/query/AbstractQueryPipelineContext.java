@@ -31,6 +31,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -383,7 +385,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /**
    * A helper to initialize the nodes in depth-first order.
    */
-  protected void initializeGraph(final Span span) {
+  protected Deferred<Void> initializeGraph(final Span span) {
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + ".initializeGraph")
@@ -394,32 +396,41 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     } else {
       child = null;
     }
-    plan.plan(child);
     
-    // setup sinks if the graph is happy
-    for (final QuerySinkConfig config : context.sinkConfigs()) {
-      final QuerySinkFactory factory = context.tsdb().getRegistry()
-          .getPlugin(QuerySinkFactory.class, config.getId());
-      if (factory == null) {
-        throw new IllegalArgumentException("No sink factory found for " 
-            + config.getId());
+    class PlanCB implements Callback<Void, Void> {
+      @Override
+      public Void call(final Void ignored) throws Exception {
+
+        // setup sinks if the graph is happy
+        for (final QuerySinkConfig config : context.sinkConfigs()) {
+          final QuerySinkFactory factory = context.tsdb().getRegistry()
+              .getPlugin(QuerySinkFactory.class, config.getId());
+          if (factory == null) {
+            throw new IllegalArgumentException("No sink factory found for " 
+                + config.getId());
+          }
+          
+          final QuerySink sink = factory.newSink(context, config);
+          if (sink == null) {
+            throw new IllegalArgumentException("Factory returned a null sink for " 
+                + config.getId());
+          }
+          sinks.add(sink);
+        }
+        
+        for (final String source : plan.serializationSources()) {
+          countdowns.put(source, new AtomicInteger(sinks.size()));
+        }
+        
+        if (child != null) {
+          child.setSuccessTags().finish();
+        }
+        
+        return null;
       }
-      
-      final QuerySink sink = factory.newSink(context, config);
-      if (sink == null) {
-        throw new IllegalArgumentException("Factory returned a null sink for " 
-            + config.getId());
-      }
-      sinks.add(sink);
     }
     
-    for (final String source : plan.serializationSources()) {
-      countdowns.put(source, new AtomicInteger(sinks.size()));
-    }
-    
-    if (child != null) {
-      child.setSuccessTags().finish();
-    }
+    return plan.plan(child).addCallback(new PlanCB());
   }
   
   /**

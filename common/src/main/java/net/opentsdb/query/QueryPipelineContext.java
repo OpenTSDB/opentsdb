@@ -16,6 +16,8 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
@@ -49,8 +51,10 @@ public interface QueryPipelineContext extends QueryNode {
    * Called by the user's {@link #pipelineContext()} to initialize the pipeline. Must
    * be called before any of the node functions.
    * @param span An optional tracing span.
+   * @return A deferred resolving to a null on success or an exception if
+   * something went wrong during an async call.
    */
-  public void initialize(final Span span);
+  public Deferred<Void> initialize(final Span span);
   
   /**
    * Called by the upstream context or nodes to fetch the next set of data.
