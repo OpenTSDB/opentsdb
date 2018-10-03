@@ -38,7 +38,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -300,7 +300,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
     json.writeEndArray();
     
-    for (final TypedIterator<TimeSeriesValue<?>> iterator : series.iterators()) {
+    for (final TypedTimeSeriesIterator iterator : series.iterators()) {
       if (!iterator.hasNext()) {
         continue;
       }

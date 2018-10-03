@@ -17,7 +17,6 @@ package net.opentsdb.query;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,9 +31,8 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
@@ -299,18 +297,18 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        final TypeToken<? extends TimeSeriesDataType> type) {
       return source.iterator(type);
     }
 
     @Override
-    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedTimeSeriesIterator> iterators() {
       return source.iterators();
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return source.types();
     }
 

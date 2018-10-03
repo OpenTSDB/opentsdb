@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -94,7 +94,7 @@ public class TestExpressionTimeSeries {
         NumericType.TYPE, NumericSummaryType.TYPE));
     
     when(factory.newTypedIterator(eq(NumericType.TYPE), eq(node), eq(result), any(Map.class)))
-        .thenReturn(mock(TypedIterator.class));
+        .thenReturn(mock(TypedTimeSeriesIterator.class));
 
     JoinConfig jc = (JoinConfig) JoinConfig.newBuilder()
         .setType(JoinType.INNER)

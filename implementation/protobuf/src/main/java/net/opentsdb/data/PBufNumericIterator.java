@@ -16,9 +16,9 @@ package net.opentsdb.data;
 
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
 
 import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import net.opentsdb.data.pbuf.NumericSegmentPB.NumericSegment;
@@ -39,8 +39,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class PBufNumericIterator implements 
-  Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
+public class PBufNumericIterator implements TypedTimeSeriesIterator {
 
   /** The encoded source. */
   private final TimeSeriesData source;
@@ -148,6 +147,11 @@ public class PBufNumericIterator implements
     }
     
     return dp;
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericType.TYPE;
   }
   
   /**

@@ -34,6 +34,7 @@ import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
+import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
@@ -126,7 +127,7 @@ public class TestPBufTimeSeries {
     assertEquals(42.5, sv.value().value(0).doubleValue(), 0.001);
     assertEquals(4, sv.value().value(2).longValue());
     
-    TypeToken<?> string_type = TypeToken.of(String.class);
+    TypeToken<? extends TimeSeriesDataType> string_type = AnnotationType.TYPE;
     assertFalse(time_series.iterator(string_type).isPresent());
     assertFalse(time_series.iterator(null).isPresent());
     
@@ -141,7 +142,7 @@ public class TestPBufTimeSeries {
   @Test
   public void iterators() throws Exception {
     PBufTimeSeries time_series = new PBufTimeSeries(TSDB, factory, getSeries(true, true));
-    Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+    Collection<TypedTimeSeriesIterator> iterators =
         time_series.iterators();
     assertEquals(2, iterators.size());
     for (final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it : iterators) {

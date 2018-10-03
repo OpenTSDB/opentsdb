@@ -15,31 +15,21 @@
 package net.opentsdb.data.types.numeric;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Ignore;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.iterators.IteratorStatus;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.pojo.NumericFillPolicy;
-import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 /**
  * Simple little class for mocking out a source.
@@ -81,8 +71,8 @@ public class MockNumericTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-      final TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     if (type != NumericType.TYPE) {
       return Optional.empty();
     }
@@ -90,25 +80,28 @@ public class MockNumericTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+  public Collection<TypedTimeSeriesIterator> iterators() {
+    final List<TypedTimeSeriesIterator> iterators =
         Lists.newArrayListWithCapacity(1);
     iterators.add(new LocalIterator(data.iterator()));
     return iterators;
   }
 
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return Lists.newArrayList(NumericType.TYPE);
   }
 
   @Override
   public void close() { }
   
-  class LocalIterator extends TypedIterator<TimeSeriesValue<?>> {
+  class LocalIterator implements TypedTimeSeriesIterator {
 
-    public LocalIterator(Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator) {
-      super(iterator, NumericType.TYPE);
+    private final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator;
+    
+    public LocalIterator(
+        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator) {
+      this.iterator = iterator;
     }
 
     @Override
@@ -122,6 +115,11 @@ public class MockNumericTimeSeries implements TimeSeries {
         throw ex;
       }
       return iterator.next();
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericType.TYPE;
     }
     
   }

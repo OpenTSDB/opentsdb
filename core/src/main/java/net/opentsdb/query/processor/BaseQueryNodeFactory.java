@@ -15,10 +15,9 @@
 package net.opentsdb.query.processor;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +30,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
@@ -51,7 +49,8 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
   protected final String id;
   
   /** The map of iterator factories keyed on type. */
-  protected final Map<TypeToken<?>, QueryIteratorFactory> iterator_factories;
+  protected final Map<TypeToken<? extends TimeSeriesDataType>, 
+      QueryIteratorFactory> iterator_factories;
   
   /**
    * Default ctor.
@@ -72,13 +71,14 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
   }
   
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return iterator_factories.keySet();
   }
   
   @Override
-  public void registerIteratorFactory(final TypeToken<?> type,
-                                      final QueryIteratorFactory factory) {
+  public void registerIteratorFactory(
+      final TypeToken<? extends TimeSeriesDataType> type,
+      final QueryIteratorFactory factory) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
@@ -97,8 +97,8 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
   }
 
   @Override
-  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
-      final TypeToken<?> type,
+  public TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<? extends TimeSeriesDataType> type,
       final QueryNode node,
       final QueryResult result,
       final Collection<TimeSeries> sources) {
@@ -116,12 +116,12 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
     if (factory == null) {
       return null;
     }
-    return new TypedIterator(factory.newIterator(node, result, sources), type);
+    return factory.newIterator(node, result, sources, type);
   }
 
   @Override
-  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
-      final TypeToken<?> type,
+  public TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<? extends TimeSeriesDataType> type,
       final QueryNode node,
       final QueryResult result,
       final Map<String, TimeSeries> sources) {
@@ -139,7 +139,7 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
     if (factory == null) {
       return null;
     }
-    return new TypedIterator(factory.newIterator(node, result, sources), type);
+    return factory.newIterator(node, result, sources, type);
   }
 
   @Override

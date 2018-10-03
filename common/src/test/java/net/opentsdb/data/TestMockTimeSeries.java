@@ -100,9 +100,9 @@ public class TestMockTimeSeries {
   public void iterators() throws Exception {
     MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesStringId.class));
     
-    TypeToken<?> type1 = mock(TypeToken.class);
-    TypeToken<?> type2 = mock(TypeToken.class);
-    TypeToken<?> type3 = mock(TypeToken.class);
+    TypeToken<? extends TimeSeriesDataType> type1 = mock(TypeToken.class);
+    TypeToken<? extends TimeSeriesDataType> type2 = mock(TypeToken.class);
+    TypeToken<? extends TimeSeriesDataType> type3 = mock(TypeToken.class);
     
     TimeStamp ts1 = new MillisecondTimeStamp(1000L);
     TimeStamp ts2 = new MillisecondTimeStamp(2000L);
@@ -164,7 +164,7 @@ public class TestMockTimeSeries {
     
     assertFalse(iterator.hasNext());
     
-    Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators
+    Collection<TypedTimeSeriesIterator> iterators
       = series.iterators();
     assertEquals(2, iterators.size());
   }

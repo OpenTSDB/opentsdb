@@ -25,11 +25,10 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -456,18 +455,18 @@ public class TestGroupByNumericArrayIterator {
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        TypeToken<? extends TimeSeriesDataType> type) {
       return Optional.empty();
     }
 
     @Override
-    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedTimeSeriesIterator> iterators() {
       return Collections.emptyList();
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList();
     }
 

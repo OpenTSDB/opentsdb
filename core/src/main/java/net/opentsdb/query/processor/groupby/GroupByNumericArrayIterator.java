@@ -16,18 +16,17 @@ package net.opentsdb.query.processor.groupby;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
@@ -113,7 +112,7 @@ public class GroupByNumericArrayIterator implements QueryIterator,
         throw new IllegalArgumentException("Null time series are not "
             + "allowed in the sources.");
       }
-      final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+      final Optional<TypedTimeSeriesIterator> optional = 
           source.iterator(NumericArrayType.TYPE);
       if (optional.isPresent()) {
         final Iterator<TimeSeriesValue<?>> iterator = optional.get();
@@ -149,6 +148,11 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     return this;
   }
 
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericArrayType.TYPE;
+  }
+  
   @Override
   public TimeStamp timestamp() {
     return result.downstreamResult().timeSpecification().start();

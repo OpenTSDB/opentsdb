@@ -15,14 +15,13 @@
 package net.opentsdb.query;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 
 /**
  * A factory that returns iterators for a {@link QueryNode} to mutate time series
@@ -41,12 +40,14 @@ public interface QueryIteratorFactory {
    * @param result The result this source is a part of.
    * @param sources A non-null and non-empty list of time series sources to
    * read from. 
+   * @param type The non-null type.
    * @return A non-null iterator over a specific data type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public TypedTimeSeriesIterator newIterator(
       final QueryNode node,
       final QueryResult result,
-      final Collection<TimeSeries> sources);
+      final Collection<TimeSeries> sources,
+      final TypeToken<? extends TimeSeriesDataType> type);
 
   /**
    * Returns an iterator using a keyed collection of time series sources.
@@ -54,10 +55,12 @@ public interface QueryIteratorFactory {
    * @param result The result this source is a part of.
    * @param sources A non-null and non-empty list of time series sources to
    * read from. 
+   * @param type The non-null type.
    * @return A non-null iterator over a specific data type.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+  public TypedTimeSeriesIterator newIterator(
       final QueryNode node,
       final QueryResult result,
-      final Map<String, TimeSeries> sources);
+      final Map<String, TimeSeries> sources,
+      final TypeToken<? extends TimeSeriesDataType> type);
 }

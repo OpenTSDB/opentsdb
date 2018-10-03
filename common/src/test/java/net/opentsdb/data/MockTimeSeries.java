@@ -38,17 +38,31 @@ public class MockTimeSeries implements TimeSeries {
   /** The non-null ID. */
   protected final TimeSeriesStringId id;
   
+  /** Whether or not we should sort when returning iterators. */
+  protected final boolean sort;
+  
   /** Whether or not closed has been called. */
   protected boolean closed;
   
   /** The map of types to lists of time series. */
-  protected Map<TypeToken<?>, List<TimeSeriesValue<?>>> data;
+  protected Map<TypeToken<? extends TimeSeriesDataType>, 
+    List<TimeSeriesValue<?>>> data;
   
   /**
    * Default ctor.
    * @param id A non-null Id.
    */
   public MockTimeSeries(final TimeSeriesStringId id) {
+    this(id, false);
+  }
+  
+  /**
+   * Alternate ctor to set sorting.
+   * @param id A non-null Id.
+   * @param sort Whether or not to sort on timestamps on the output.
+   */
+  public MockTimeSeries(final TimeSeriesStringId id, final boolean sort) {
+    this.sort = sort;
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -84,22 +98,25 @@ public class MockTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-      final TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     List<TimeSeriesValue<?>> types = data.get(type);
     if (types == null) {
       return Optional.empty();
     }
-    Collections.sort(types, new TimeSeriesValue.TimeSeriesValueComparator());
+    if (sort) {
+      Collections.sort(types, new TimeSeriesValue.TimeSeriesValueComparator());
+    }
     return Optional.of(new MockTimeSeriesIterator(types.iterator(),
         (TypeToken<? extends TimeSeriesDataType>) type));
   }
 
   @Override
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators
+  public Collection<TypedTimeSeriesIterator> iterators() {
+    final List<TypedTimeSeriesIterator> iterators
       = Lists.newArrayListWithCapacity(data.size());
-    for (final Entry<TypeToken<?>, List<TimeSeriesValue<?>>> entry : data.entrySet()) {
+    for (final Entry<TypeToken<? extends TimeSeriesDataType>, 
+        List<TimeSeriesValue<?>>> entry : data.entrySet()) {
       
       iterators.add(new MockTimeSeriesIterator(entry.getValue().iterator(),
           (TypeToken<? extends TimeSeriesDataType>) entry.getKey()));
@@ -108,7 +125,7 @@ public class MockTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return data.keySet();
   }
 
@@ -124,13 +141,14 @@ public class MockTimeSeries implements TimeSeries {
   /**
    * Iterator over the list of values.
    */
-  class MockTimeSeriesIterator extends TypedIterator<TimeSeriesValue<?>> {
+  class MockTimeSeriesIterator implements TypedTimeSeriesIterator {
     private final Iterator<TimeSeriesValue<?>> iterator;
+    private final TypeToken<? extends TimeSeriesDataType> type;
     
     MockTimeSeriesIterator(final Iterator<TimeSeriesValue<?>> iterator,
                            final TypeToken<? extends TimeSeriesDataType> type) {
-      super(iterator, type);
       this.iterator = iterator;
+      this.type = type;
     }
     
     @Override
@@ -141,6 +159,11 @@ public class MockTimeSeries implements TimeSeries {
     @Override
     public TimeSeriesValue<?> next() {
       return iterator.next();
+    }
+    
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return type;
     }
     
   }

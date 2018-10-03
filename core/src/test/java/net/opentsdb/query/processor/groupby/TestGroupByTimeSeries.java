@@ -27,7 +27,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,6 +41,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNodeFactory;
@@ -181,13 +182,13 @@ public class TestGroupByTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> opt = 
+    Optional<TypedTimeSeriesIterator> opt = 
         ts.iterator(NumericType.TYPE);
     assertTrue(opt.isPresent());
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = opt.get();
     assertFalse(iterator.hasNext());
     
-    opt = ts.iterator(TypeToken.of(String.class));
+    opt = ts.iterator(AnnotationType.TYPE);
     assertFalse(opt.isPresent());
     
     try {
@@ -202,7 +203,7 @@ public class TestGroupByTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    final Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>>
+    final Collection<TypedTimeSeriesIterator>
       iterators = ts.iterators();
     assertEquals(1, iterators.size());
     
@@ -217,7 +218,7 @@ public class TestGroupByTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    final Collection<TypeToken<?>> types = ts.types();
+    final Collection<TypeToken<? extends TimeSeriesDataType>> types = ts.types();
     assertEquals(1, types.size());
     assertTrue(types.contains(NumericType.TYPE));
   }

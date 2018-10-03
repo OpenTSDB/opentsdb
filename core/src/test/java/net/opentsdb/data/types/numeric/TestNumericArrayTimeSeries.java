@@ -32,7 +32,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 
 public class TestNumericArrayTimeSeries {
 
@@ -140,11 +140,10 @@ public class TestNumericArrayTimeSeries {
     series.add(-24);
     series.add(1);
     
-    Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators
+    Collection<TypedTimeSeriesIterator> iterators
       = series.iterators();
     assertEquals(1, iterators.size());
-    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
-        iterators.iterator().next();
+    TypedTimeSeriesIterator iterator = iterators.iterator().next();
     
     assertTrue(iterator.hasNext());
     

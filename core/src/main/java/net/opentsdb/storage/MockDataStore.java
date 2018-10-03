@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -261,7 +261,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
   class MockRow implements TimeSeries {
     private TimeSeriesStringId id;
     public long base_timestamp;
-    public Map<TypeToken<?>, TimeSeries> sources;
+    public Map<TypeToken<? extends TimeSeriesDataType>, TimeSeries> sources;
     
     public MockRow(final TimeSeriesDatumStringId id, 
                    final TimeSeriesValue<?> value) {
@@ -303,27 +303,26 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        final TypeToken<? extends TimeSeriesDataType> type) {
       // TODO - other types
       if (type == NumericType.TYPE) {
-        return Optional.of(((NumericMillisecondShard) 
-            sources.get(NumericType.TYPE)).iterator());
+        return Optional.of(sources.get(NumericType.TYPE).iterator(NumericType.TYPE).get());
       }
       return Optional.empty();
     }
 
     @Override
-    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    public Collection<TypedTimeSeriesIterator> iterators() {
       // TODO - other types
-      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> its =
+      final List<TypedTimeSeriesIterator> its =
           Lists.newArrayListWithCapacity(1);
-      its.add(new TypedIterator(((NumericMillisecondShard) sources.get(NumericType.TYPE)).iterator(), NumericType.TYPE));
+      its.add(sources.get(NumericType.TYPE).iterator(NumericType.TYPE).get());
       return its;
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return sources.keySet();
     }
 
@@ -810,8 +809,8 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        TypeToken<? extends TimeSeriesDataType> type) {
       if (row != null && row.types().contains(type)) {
         return Optional.of(new LocalIterator(type));
       }
@@ -819,11 +818,11 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
 
     @Override
-    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+    public Collection<TypedTimeSeriesIterator> iterators() {
+      final List<TypedTimeSeriesIterator> iterators =
           Lists.newArrayListWithCapacity(row == null ? 0 : row.types().size());
       if (row != null) {
-        for (final TypeToken<?> type : row.types()) {
+        for (final TypeToken<? extends TimeSeriesDataType> type : row.types()) {
           iterators.add(new LocalIterator(type));
         }
       }
@@ -831,7 +830,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return row != null ? row.types() : Collections.emptyList();
     }
 
@@ -839,13 +838,14 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     public void close() {
     }
     
-    class LocalIterator<T extends TimeSeriesDataType> extends TypedIterator<TimeSeriesValue<T>> {
+    class LocalIterator implements TypedTimeSeriesIterator {
+      private final TypeToken<? extends TimeSeriesDataType> type;
       boolean has_next = false;
       TimeSeriesValue<?> value;
       
       LocalIterator(final TypeToken<? extends TimeSeriesDataType> type) {
-        super(null, type);
-        final Optional<Iterator<TimeSeriesValue<?>>> opt = row.iterator(type);
+        this.type = type;
+        final Optional<TypedTimeSeriesIterator> opt = row.iterator(type);
         if (opt.isPresent()) {
           
           // this is super ugly but it's one way to get the last value
@@ -881,6 +881,10 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         return value;
       }
       
+      @Override
+      public TypeToken<? extends TimeSeriesDataType> getType() {
+        return type;
+      }
     }
   }
 

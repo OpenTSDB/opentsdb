@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.slidingwindow;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,9 +25,8 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -182,13 +180,13 @@ public class SlidingWindow extends AbstractQueryNode {
       }
 
       @Override
-      public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-          final TypeToken<?> type) {
+      public Optional<TypedTimeSeriesIterator> iterator(
+          final TypeToken<? extends TimeSeriesDataType> type) {
         if (!source.types().contains(type)) {
           return Optional.empty();
         }
         if (((SlidingWindowFactory) factory).types().contains(type)) {
-          final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+          final TypedTimeSeriesIterator iterator = 
               ((SlidingWindowFactory) factory).newTypedIterator(
                   type, 
                   SlidingWindow.this, 
@@ -200,12 +198,13 @@ public class SlidingWindow extends AbstractQueryNode {
       }
 
       @Override
-      public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-        final Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = Lists.newArrayListWithExpectedSize(source.types().size());
+      public Collection<TypedTimeSeriesIterator> iterators() {
+        final Collection<TypedTimeSeriesIterator> iterators = 
+            Lists.newArrayListWithExpectedSize(source.types().size());
         
-        for (final TypeToken<?> type : source.types()) {
+        for (final TypeToken<? extends TimeSeriesDataType> type : source.types()) {
           if (((SlidingWindowFactory) factory).types().contains(type)) {
-            final TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+            final TypedTimeSeriesIterator iterator = 
                 ((SlidingWindowFactory) factory).newTypedIterator(
                     type, 
                     SlidingWindow.this, 
@@ -213,10 +212,10 @@ public class SlidingWindow extends AbstractQueryNode {
                     Lists.newArrayList(source));
             iterators.add(iterator);
           } else {
-            final Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> 
-              optional = source.iterator(type);
+            final Optional<TypedTimeSeriesIterator>  optional = 
+                source.iterator(type);
             if (optional.isPresent()) {
-              iterators.add((TypedIterator) optional.get());
+              iterators.add((TypedTimeSeriesIterator) optional.get());
             }
           }
         }
@@ -224,7 +223,7 @@ public class SlidingWindow extends AbstractQueryNode {
       }
 
       @Override
-      public Collection<TypeToken<?>> types() {
+      public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
         return source.types();
       }
 

@@ -17,6 +17,7 @@ package net.opentsdb.query.processor.expressions;
 import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -101,6 +102,11 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   @Override
   public boolean hasNext() {
     return has_next;
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericType.TYPE;
   }
   
   /**

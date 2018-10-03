@@ -29,7 +29,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
@@ -79,7 +79,7 @@ public class DedupNode extends AbstractQueryNode {
     DedupResult dedupResult = new DedupResult(next);
 
     for (TimeSeries ts : next.timeSeries()) {
-      Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> optional = ts
+      Optional<TypedTimeSeriesIterator> optional = ts
           .iterator(NumericType.TYPE);
       if (optional.isPresent()) {
         Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
@@ -159,7 +159,7 @@ public class DedupNode extends AbstractQueryNode {
     }
   }
 
-  private class DedupTimeSeries implements TimeSeries {
+  private class DedupTimeSeries implements TimeSeries, TypedTimeSeriesIterator {
 
     private TimeSeries timeSeries;
     private Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator;
@@ -177,27 +177,26 @@ public class DedupNode extends AbstractQueryNode {
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> 
-        iterator(TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == NumericType.TYPE) {
-        return Optional.of(iterator);
+        return Optional.of(this);
       }
       return timeSeries.iterator(type);
     }
 
     @Override
-    public Collection<TypedIterator<
-      TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-      List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> 
-          iterators = timeSeries.iterators().stream().filter(
+    public Collection<TypedTimeSeriesIterator> iterators() {
+      List<TypedTimeSeriesIterator> iterators = 
+          timeSeries.iterators().stream().filter(
               ti -> ti.getType() == NumericType.TYPE
               ).collect(Collectors.toList());
-      iterators.add(new TypedIterator(iterator, NumericType.TYPE));
+      iterators.add(this);
       return iterators;
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return timeSeries.types();
     }
 
@@ -205,5 +204,21 @@ public class DedupNode extends AbstractQueryNode {
     public void close() {
         timeSeries.close();
     }
+
+    @Override
+    public boolean hasNext() {
+      return iterator.hasNext();
+    }
+
+    @Override
+    public TimeSeriesValue<? extends TimeSeriesDataType> next() {
+      return iterator.next();
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericType.TYPE;
+    }
+    
   }
 }

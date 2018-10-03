@@ -18,12 +18,11 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +33,6 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
@@ -342,15 +340,15 @@ public class Downsample extends AbstractQueryNode {
       }
 
       @Override
-      public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-          final TypeToken<?> type) {
+      public Optional<TypedTimeSeriesIterator> iterator(
+          final TypeToken<? extends TimeSeriesDataType> type) {
         if (type == null) {
           throw new IllegalArgumentException("Type cannot be null.");
         }
         if (!source.types().contains(type)) {
           return Optional.empty();
         }
-        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+        final TypedTimeSeriesIterator iterator = 
             ((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
                 type, 
                 Downsample.this, 
@@ -363,11 +361,11 @@ public class Downsample extends AbstractQueryNode {
       }
       
       @Override
-      public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-        final Collection<TypeToken<?>> types = source.types();
-        final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+      public Collection<TypedTimeSeriesIterator> iterators() {
+        final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
+        final List<TypedTimeSeriesIterator> iterators =
             Lists.newArrayListWithCapacity(types.size());
-        for (final TypeToken<?> type : types) {
+        for (final TypeToken<? extends TimeSeriesDataType> type : types) {
           iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
               type, 
               Downsample.this, 
@@ -378,7 +376,7 @@ public class Downsample extends AbstractQueryNode {
       }
 
       @Override
-      public Collection<TypeToken<?>> types() {
+      public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
         // TODO - join with the factories supported.
         return source.types();
       }
@@ -390,7 +388,6 @@ public class Downsample extends AbstractQueryNode {
       
     }
 
-    
   }
   
 }

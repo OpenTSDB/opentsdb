@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query;
+package net.opentsdb.data;
 
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import com.google.common.reflect.TypeToken;
+import java.util.Iterator;
 
 /**
- * An iterator generated at query time over time series values.
+ * An iterator for {@link TimeSeriesValue}s that lets us determine the
+ * type of the underlying data without having to resolve the types.
  * 
  * @since 3.0
  */
-public interface QueryIterator extends TypedTimeSeriesIterator {
+public interface TypedTimeSeriesIterator extends 
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
+
+  /**
+   * @return The non-null type of data returned in the iterator.
+   */
+  public TypeToken<? extends TimeSeriesDataType> getType();
 
 }

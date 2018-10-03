@@ -20,12 +20,14 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
@@ -193,13 +195,17 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     return dp;
   }
   
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
+  }
+  
   /**
    * A class that actually performs the downsampling calculation on real
    * values from the source timeseries. It's a child class so we share the same
    * reference for the config and source.
    */
-  protected class Downsampler implements  
-      Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
+  protected class Downsampler implements TypedTimeSeriesIterator {
     /** The last data point extracted from the source. */
     private TimeSeriesValue<NumericSummaryType> next_dp = null;
     
@@ -243,7 +249,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       count_id = result.rollupConfig().getIdForAggregator("count");
       avg_id = result.rollupConfig().getIdForAggregator("avg");
       
-      final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+      final Optional<TypedTimeSeriesIterator> optional = 
           source.iterator(NumericSummaryType.TYPE);
       if (optional.isPresent()) {
         iterator = optional.get();
@@ -427,6 +433,11 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       return dp;
     }
 
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericSummaryType.TYPE;
+    }
+    
     private void resetIndices() {
       for (final NumericAccumulator accumulator : accumulators.values()) {
         accumulator.reset();

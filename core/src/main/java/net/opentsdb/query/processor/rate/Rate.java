@@ -16,12 +16,11 @@ package net.opentsdb.query.processor.rate;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +30,6 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
@@ -214,12 +212,12 @@ public class Rate extends AbstractQueryNode {
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        final TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == null) {
         throw new IllegalArgumentException("Type cannot be null.");
       }
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+      final TypedTimeSeriesIterator iterator = 
           ((ProcessorFactory) Rate.this.factory()).newTypedIterator(
               type, 
               Rate.this, 
@@ -232,11 +230,11 @@ public class Rate extends AbstractQueryNode {
     }
     
     @Override
-    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-      final Collection<TypeToken<?>> types = source.types();
-      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+    public Collection<TypedTimeSeriesIterator> iterators() {
+      final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
+      final List<TypedTimeSeriesIterator> iterators =
           Lists.newArrayListWithCapacity(types.size());
-      for (final TypeToken<?> type : types) {
+      for (final TypeToken<? extends TimeSeriesDataType> type : types) {
         iterators.add(((ProcessorFactory) Rate.this.factory()).newTypedIterator(
             type, 
             Rate.this, 
@@ -247,7 +245,7 @@ public class Rate extends AbstractQueryNode {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
 

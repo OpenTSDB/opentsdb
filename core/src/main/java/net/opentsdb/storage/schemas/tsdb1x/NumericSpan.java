@@ -25,6 +25,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
@@ -117,7 +118,7 @@ public class NumericSpan implements Span<NumericType> {
    * An iterator over the rows in the list.
    */
   public class SequenceIterator implements 
-      Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>,
+      TypedTimeSeriesIterator,
       TimeSeriesValue<NumericType>, 
       NumericType {
 
@@ -248,6 +249,11 @@ public class NumericSpan implements Span<NumericType> {
       is_integer = !((flags & NumericCodec.FLAG_FLOAT) == 
           NumericCodec.FLAG_FLOAT);
       return this;
+    }
+    
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericType.TYPE;
     }
     
   }

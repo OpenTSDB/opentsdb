@@ -157,6 +157,11 @@ public class SummarizerNumericIterator implements QueryIterator {
     return dp;
   }
   
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
+  }
+  
   /**
    * Stores a long.
    * @param value The value.

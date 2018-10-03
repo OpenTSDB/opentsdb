@@ -17,9 +17,13 @@ package net.opentsdb.query.processor.rate;
 import java.util.Iterator;
 import java.util.Optional;
 
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
@@ -67,7 +71,7 @@ public class RateNumericIterator implements QueryIterator {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     options = (RateOptions) node.config();
-    final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+    final Optional<TypedTimeSeriesIterator> optional = 
         source.iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();
@@ -88,6 +92,11 @@ public class RateNumericIterator implements QueryIterator {
     prev_rate.reset(next_rate);
     populateNextRate();
     return prev_rate;
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericType.TYPE;
   }
   
   /**

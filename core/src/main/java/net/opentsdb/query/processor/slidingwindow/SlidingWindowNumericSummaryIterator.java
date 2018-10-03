@@ -30,6 +30,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryType;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
@@ -111,7 +112,7 @@ public class SlidingWindowNumericSummaryIterator implements QueryIterator,
     this.node = (SlidingWindow) node;
     aggregator = Aggregators.get(((SlidingWindowConfig) node.config()).getAggregator());
     dp = new MutableNumericSummaryValue();
-    final Optional<Iterator<TimeSeriesValue<?>>> opt = 
+    final Optional<TypedTimeSeriesIterator> opt = 
         sources.iterator().next().iterator(NumericSummaryType.TYPE);
     if (opt.isPresent()) {
       iterator = opt.get();
@@ -176,6 +177,11 @@ public class SlidingWindowNumericSummaryIterator implements QueryIterator,
     return dp;
   }
 
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
+  }
+  
   @Override
   public TimeStamp timestamp() {
     return dp.timestamp();

@@ -15,7 +15,6 @@
 package net.opentsdb.data;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -49,7 +48,7 @@ public class PBufTimeSeries implements TimeSeries {
   private PBufTimeSeriesId id;
   
   /** A map of data types to parsed time series. */
-  private Map<TypeToken<?>, TimeSeriesData> data;
+  private Map<TypeToken<? extends TimeSeriesDataType>, TimeSeriesData> data;
   
   /**
    * Default ctor.
@@ -70,7 +69,8 @@ public class PBufTimeSeries implements TimeSeries {
     this.time_series = time_series;
     data = Maps.newHashMapWithExpectedSize(time_series.getDataCount());
     for (final TimeSeriesData data : time_series.getDataList()) {
-      final TypeToken<?> type = tsdb.getRegistry().getType(data.getType());
+      final TypeToken<? extends TimeSeriesDataType> type = 
+          tsdb.getRegistry().getType(data.getType());
       if (type == null) {
         throw new IllegalArgumentException("No type found for: " 
             + data.getType());
@@ -88,8 +88,8 @@ public class PBufTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-      final TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     TimeSeriesData series = data.get(type);
     if (series == null) {
       return Optional.empty();
@@ -99,29 +99,28 @@ public class PBufTimeSeries implements TimeSeries {
       throw new SerdesException("Had data but unable to find a "
           + "deserializer for the type: " + type);
     }
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        serdes.deserialize(series);
+    TypedTimeSeriesIterator iterator = serdes.deserialize(series);
     return Optional.of(iterator);
   }
 
   @Override
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+  public Collection<TypedTimeSeriesIterator> iterators() {
+    List<TypedTimeSeriesIterator> iterators =
         Lists.newArrayListWithCapacity(data.size());
-    for (final Entry<TypeToken<?>, TimeSeriesData> entry : 
+    for (final Entry<TypeToken<? extends TimeSeriesDataType>, TimeSeriesData> entry : 
           data.entrySet()) {
       PBufIteratorSerdes serdes = factory.serdesForType(entry.getKey());
       if (serdes == null) {
         throw new SerdesException("Had data but unable to find a "
             + "deserializer for the type: " + entry.getKey());
       }
-      iterators.add(new TypedIterator(serdes.deserialize(entry.getValue()), entry.getKey()));
+      iterators.add(serdes.deserialize(entry.getValue()));
     }
     return iterators;
   }
 
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return data.keySet();
   }
 

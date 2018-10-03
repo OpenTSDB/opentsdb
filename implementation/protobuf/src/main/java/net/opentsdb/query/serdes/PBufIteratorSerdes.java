@@ -20,6 +20,7 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.query.QueryContext;
@@ -74,6 +75,6 @@ public interface PBufIteratorSerdes {
    * 
    * @throws SerdesException If something goes wrong during deserialization.
    */
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> 
-    deserialize(final TimeSeriesData series);
+  public TypedTimeSeriesIterator deserialize(final TimeSeriesData series);
+  
 }
