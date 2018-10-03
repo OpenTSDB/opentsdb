@@ -17,11 +17,14 @@ package net.opentsdb.query.processor.downsample;
 import java.util.Iterator;
 import java.util.Optional;
 
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
@@ -241,13 +244,17 @@ public class DownsampleNumericIterator implements QueryIterator {
     return response;
   }
   
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericType.TYPE;
+  }
+  
   /**
    * A class that actually performs the downsampling calculation on real
    * values from the source timeseries. It's a child class so we share the same
    * reference for the config and source.
    */
-  private class Downsampler implements 
-      Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
+  private class Downsampler implements TypedTimeSeriesIterator {
     /** The last data point extracted from the source. */
     private TimeSeriesValue<NumericType> next_dp = null;
     
@@ -289,7 +296,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         result.nextTimestamp(interval_end);
       }
       
-      final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+      final Optional<TypedTimeSeriesIterator> optional = 
           source.iterator(NumericType.TYPE);
       if (optional.isPresent()) {
         iterator = optional.get();
@@ -451,6 +458,11 @@ public class DownsampleNumericIterator implements QueryIterator {
       }
       has_next = next_dp != null;
       return dp;
+    }
+  
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericType.TYPE;
     }
   }
 }

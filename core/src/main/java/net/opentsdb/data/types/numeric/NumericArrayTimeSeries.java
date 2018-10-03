@@ -15,7 +15,6 @@
 package net.opentsdb.data.types.numeric;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,7 +26,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 
 /**
  * A simple implementation of the {@link NumericArrayType} primarily
@@ -125,8 +124,8 @@ public class NumericArrayTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-      TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     if (type == NumericArrayType.TYPE) {
       return Optional.of(new LocalIterator());
     }
@@ -134,15 +133,15 @@ public class NumericArrayTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
+  public Collection<TypedTimeSeriesIterator> iterators() {
+    final List<TypedTimeSeriesIterator> iterators = 
         Lists.newArrayListWithExpectedSize(1);
-    iterators.add(new TypedIterator(new LocalIterator(), NumericArrayType.TYPE));
+    iterators.add(new LocalIterator());
     return iterators;
   }
 
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return Lists.newArrayList(NumericArrayType.TYPE);
   }
 
@@ -154,7 +153,7 @@ public class NumericArrayTimeSeries implements TimeSeries {
   /**
    * Just reflects the data in the arrays.
    */
-  class LocalIterator implements Iterator<TimeSeriesValue<?>>, 
+  class LocalIterator implements TypedTimeSeriesIterator, 
                                  TimeSeriesValue<NumericArrayType>, 
                                  NumericArrayType {
     private boolean read;
@@ -210,5 +209,9 @@ public class NumericArrayTimeSeries implements TimeSeries {
       return this;
     }
   
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericArrayType.TYPE;
+    }
   }
 }

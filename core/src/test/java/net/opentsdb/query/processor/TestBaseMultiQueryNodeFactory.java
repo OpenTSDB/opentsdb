@@ -24,13 +24,11 @@ import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Type;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -40,11 +38,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -110,10 +107,10 @@ public class TestBaseMultiQueryNodeFactory {
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Test
   public void newIteratorList() throws Exception {
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
-        mock(TypedIterator.class);
+    TypedTimeSeriesIterator iterator = mock(TypedTimeSeriesIterator.class);
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
-    when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), anyCollection()))
+    when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), 
+        anyCollection(), any(TypeToken.class)))
       .thenReturn(iterator);
     QueryNode node = mock(QueryNode.class);
     MockNodeFactory factory = new MockNodeFactory("Mock!");
@@ -122,10 +119,10 @@ public class TestBaseMultiQueryNodeFactory {
         Lists.newArrayList(mock(TimeSeries.class))));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
-    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory =
+    TypedTimeSeriesIterator from_factory =
         factory.newTypedIterator(NumericType.TYPE, node, null,
             Lists.newArrayList(mock(TimeSeries.class)));
-    assertSame(iterator, from_factory.getIterator());
+    assertSame(iterator, from_factory);
     
     try {
       factory.newTypedIterator(null, node, null,
@@ -153,12 +150,12 @@ public class TestBaseMultiQueryNodeFactory {
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Test
   public void newIteratorMap() throws Exception {
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
-        mock(TypedIterator.class);
+    TypedTimeSeriesIterator iterator = mock(TypedTimeSeriesIterator.class);
     Map<String, TimeSeries> sources = Maps.newHashMap();
     sources.put("a", mock(TimeSeries.class));
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
-    when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), anyMap()))
+    when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), 
+        anyMap(), any(TypeToken.class)))
       .thenReturn(iterator);
     QueryNode node = mock(QueryNode.class);
     MockNodeFactory factory = new MockNodeFactory("Mock!");
@@ -166,9 +163,9 @@ public class TestBaseMultiQueryNodeFactory {
     assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,sources));
     
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
-    TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> from_factory =
+    TypedTimeSeriesIterator from_factory =
         factory.newTypedIterator(NumericType.TYPE, node, null,sources);
-    assertSame(iterator, from_factory.getIterator());
+    assertSame(iterator, from_factory);
     
     try {
       factory.newTypedIterator(null, node, null,sources);

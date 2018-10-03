@@ -15,7 +15,6 @@
 package net.opentsdb.query.processor.summarizer;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
@@ -29,7 +28,8 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -98,16 +98,18 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
   protected class NumericIteratorFactory implements QueryIteratorFactory {
 
     @Override
-    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
-                                                    final QueryResult result,
-                                                    final Collection<TimeSeries> sources) {
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Collection<TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
       return new SummarizerNumericIterator(result, sources.iterator().next());
     }
 
     @Override
-    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
-                                                    final QueryResult result,
-                                                    final Map<String, TimeSeries> sources) {
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Map<String, TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
       return new SummarizerNumericIterator(result, sources.values().iterator().next());
     }
 

@@ -40,7 +40,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -166,13 +166,13 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                   Lists.newArrayListWithExpectedSize(result.timeSeries().size());
               pairs.stream().parallel().forEach((pair) -> {
                 try {
-                  final Collection<TypedIterator<TimeSeriesValue<?>>> iterators = 
+                  final Collection<TypedTimeSeriesIterator> iterators = 
                       pair.getValue().iterators();
                   if (iterators.isEmpty()) {
                     return;
                   }
                   // NOTE: We should only have one here.
-                  final TypedIterator<TimeSeriesValue<?>> iterator = 
+                  final TypedTimeSeriesIterator iterator = 
                       iterators.iterator().next();
                   if (!iterator.hasNext()) {
                     return;
@@ -230,13 +230,13 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             } else {
               for (final TimeSeries series : 
                 series != null ? series : result.timeSeries()) {
-                final Collection<TypedIterator<TimeSeriesValue<?>>> iterators = 
+                final Collection<TypedTimeSeriesIterator> iterators = 
                     series.iterators();
                 if (iterators.isEmpty()) {
                   continue;
                 }
                 // NOTE: We should only have one here.
-                final TypedIterator<TimeSeriesValue<?>> iterator = 
+                final TypedTimeSeriesIterator iterator = 
                     iterators.iterator().next();
                 if (!iterator.hasNext()) {
                   continue;
@@ -332,7 +332,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   private void serializeSeries(
       final JsonV2QuerySerdesOptions options,
       final TimeSeriesValue<?> value,
-      final TypedIterator<TimeSeriesValue<?>> iterator,
+      final TypedTimeSeriesIterator iterator,
       final TimeSeriesStringId id,
       final JsonGenerator json,
       final QueryResult result) throws IOException {

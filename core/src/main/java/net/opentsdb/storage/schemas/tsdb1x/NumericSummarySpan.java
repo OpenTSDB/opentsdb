@@ -29,6 +29,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -122,7 +123,7 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
    * An iterator over the rows in the list.
    */
   public class SequenceIterator implements 
-      Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>,
+      TypedTimeSeriesIterator,
       TimeSeriesValue<NumericSummaryType>,
       NumericSummaryType{
 
@@ -264,6 +265,11 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
       return this;
     }
 
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericSummaryType.TYPE;
+    }
+    
     @Override
     public Collection<Integer> summariesAvailable() {
       return data_points.keySet();

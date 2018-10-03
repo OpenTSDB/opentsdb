@@ -17,7 +17,7 @@ package net.opentsdb.query.processor;
 import java.util.Collection;
 import java.util.Map;
 
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.MultiQueryNodeFactory;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
@@ -110,8 +109,8 @@ public abstract class BaseMultiQueryNodeFactory
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
-      final TypeToken<?> type,
+  public TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<? extends TimeSeriesDataType> type,
       final QueryNode node,
       final QueryResult result,
       final Collection<TimeSeries> sources) {
@@ -129,7 +128,7 @@ public abstract class BaseMultiQueryNodeFactory
     if (factory == null) {
       return null;
     }
-    return new TypedIterator(factory.newIterator(node, result, sources), type);
+    return factory.newIterator(node, result, sources, type);
   }
 
   /**
@@ -141,8 +140,8 @@ public abstract class BaseMultiQueryNodeFactory
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
-      final TypeToken<?> type,
+  public TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<? extends TimeSeriesDataType> type,
       final QueryNode node,
       final QueryResult result,
       final Map<String, TimeSeries> sources) {
@@ -160,7 +159,7 @@ public abstract class BaseMultiQueryNodeFactory
     if (factory == null) {
       return null;
     }
-    return new TypedIterator(factory.newIterator(node, result, sources), type);
+    return factory.newIterator(node, result, sources, type);
   }
 
   @Override

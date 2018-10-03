@@ -295,6 +295,11 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
   }
 
   @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
+  }
+  
+  @Override
   public TimeStamp timestamp() {
     return dp.timestamp();
   }

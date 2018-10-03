@@ -24,10 +24,12 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -90,7 +92,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     
     // TODO - better way of supporting aggregators
     aggregator = Aggregators.get(((DownsampleConfig) node.config()).getAggregator());
-    final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+    final Optional<TypedTimeSeriesIterator> optional = 
         source.iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();
@@ -186,6 +188,11 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     return this;
   }
 
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericArrayType.TYPE;
+  }
+  
   @Override
   public TimeStamp timestamp() {
     return result.start();

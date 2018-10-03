@@ -25,10 +25,14 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
@@ -69,15 +73,15 @@ public class TestDedupNode {
   @Test
   public void testRemovesDuplicateTimeseries() {
 
-    List<TimeSeriesValue<? extends TimeSeriesDataType>> tsValues = 
-        new ArrayList() {{
-        add(new MutableNumericValue(new SecondTimeStamp(1532455200), 43363892));
-        add(new MutableNumericValue(new SecondTimeStamp(1532455200), 44421636.8));
-        add(new MutableNumericValue(new SecondTimeStamp(1532483800), 49255974.4));
-        add(new MutableNumericValue(new SecondTimeStamp(1532483500), 43338914.45831));
-        add(new MutableNumericValue(new SecondTimeStamp(1532482900), 44013684.8));
-        add(new MutableNumericValue(new SecondTimeStamp(1532483500), 43338914.4));
-    }};
+    MockTimeSeries series = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
+        .setMetric("foo")
+        .build());
+    series.addValue(new MutableNumericValue(new SecondTimeStamp(1532455200), 43363892));
+    series.addValue(new MutableNumericValue(new SecondTimeStamp(1532455200), 44421636.8));
+    series.addValue(new MutableNumericValue(new SecondTimeStamp(1532483800), 49255974.4));
+    series.addValue(new MutableNumericValue(new SecondTimeStamp(1532483500), 43338914.45831));
+    series.addValue(new MutableNumericValue(new SecondTimeStamp(1532482900), 44013684.8));
+    series.addValue(new MutableNumericValue(new SecondTimeStamp(1532483500), 43338914.4));
 
     List<TimeSeriesValue<? extends TimeSeriesDataType>> expectedValues = 
         new ArrayList() {{
@@ -86,14 +90,11 @@ public class TestDedupNode {
         add(new MutableNumericValue(new SecondTimeStamp(1532482900), 44013684.8));
         add(new MutableNumericValue(new SecondTimeStamp(1532483500), 43338914.4));
     }};
-
-    Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator = 
-        Optional.of(tsValues.iterator());
-    when(timeSeries.iterator(NumericType.TYPE)).thenReturn(iterator);
+    
     when(pipelineContext.upstream(any(DedupNode.class))).thenReturn(
         new ArrayList<QueryNode>(){{add(upStream);}});
     when(queryResult.timeSeries()).thenReturn(new ArrayList<TimeSeries>() {{
-        add(timeSeries);
+        add(series);
     }});
 
     DedupNode dedupNode = new DedupNode(null, pipelineContext, null, 
@@ -108,7 +109,7 @@ public class TestDedupNode {
     Collection<TimeSeries> dedupedTSCollection = dedupedResult.timeSeries();
     assertEquals(1, dedupedTSCollection.size());
     TimeSeries dedupedTs = dedupedTSCollection.iterator().next();
-    Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> optional = 
+    Optional<TypedTimeSeriesIterator> optional = 
         dedupedTs.iterator(NumericType.TYPE);
     assertTrue(optional.isPresent());
     Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> dedupedIterator = optional.get();

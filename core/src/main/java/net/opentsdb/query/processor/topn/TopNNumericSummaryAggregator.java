@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
@@ -86,7 +87,7 @@ public class TopNNumericSummaryAggregator {
   
   /** @return Perform the aggregation. If no data is present, return null. */
   NumericType run() {
-    final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+    final Optional<TypedTimeSeriesIterator> optional = 
         series.iterator(NumericSummaryType.TYPE);
     if (!optional.isPresent()) {
       return null;

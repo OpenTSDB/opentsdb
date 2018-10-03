@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.summarizer;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,9 +25,8 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -132,15 +130,15 @@ public class SummarizerResult implements QueryResult {
     }
 
     @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        final TypeToken<?> type) {
+    public Optional<TypedTimeSeriesIterator> iterator(
+        final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == null) {
         throw new IllegalArgumentException("Type cannot be null.");
       }
       if (!source.types().contains(type)) {
         return Optional.empty();
       }
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+      final TypedTimeSeriesIterator iterator = 
           ((ProcessorFactory) node.factory()).newTypedIterator(
               type, 
               node, 
@@ -153,9 +151,9 @@ public class SummarizerResult implements QueryResult {
     }
     
     @Override
-    public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-      final Collection<TypeToken<?>> types = source.types();
-      final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+    public Collection<TypedTimeSeriesIterator> iterators() {
+      final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
+      final List<TypedTimeSeriesIterator> iterators =
           Lists.newArrayListWithCapacity(types.size());
       for (final TypeToken<?> type : types) {
         if (!((SummarizerFactory) node.factory()).types().contains(type)) {
@@ -171,7 +169,7 @@ public class SummarizerResult implements QueryResult {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       // TODO - join with the factories supported.
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }

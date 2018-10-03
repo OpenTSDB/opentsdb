@@ -20,15 +20,11 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
-import java.util.Optional;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -41,8 +37,6 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.pojo.RateOptions;
 
 import org.junit.Test;
-
-import com.google.common.collect.Lists;
 
 public class TestRateNumericIterator {
   private TimeSeries source;
@@ -559,12 +553,13 @@ public class TestRateNumericIterator {
 
   @Test(expected = IllegalStateException.class)
   public void decreasingTimestamps() {
-    source = mock(TimeSeries.class);
-    final List<TimeSeriesValue<? extends TimeSeriesDataType>> dps = 
-        Lists.newArrayListWithCapacity(2);
-    dps.add(new MutableNumericValue(new MillisecondTimeStamp(2000L), 42));
-    dps.add(new MutableNumericValue(new MillisecondTimeStamp(1000L), 24));
-    when(source.iterator(NumericType.TYPE)).thenReturn(Optional.of(dps.iterator()));
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
+        .setMetric("foo")
+        .build());
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(2000L), 42));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(1000L), 24));
     config = RateOptions.newBuilder()
         .setId("foo")
         .setInterval("1s")
@@ -576,12 +571,13 @@ public class TestRateNumericIterator {
 
   @Test(expected = IllegalStateException.class)
   public void duplicatedTimestamps() {
-    source = mock(TimeSeries.class);
-    final List<TimeSeriesValue<? extends TimeSeriesDataType>> dps = 
-        Lists.newArrayListWithCapacity(2);
-    dps.add(new MutableNumericValue(new MillisecondTimeStamp(2000L), 42));
-    dps.add(new MutableNumericValue(new MillisecondTimeStamp(2000L), 24));
-    when(source.iterator(NumericType.TYPE)).thenReturn(Optional.of(dps.iterator()));
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
+        .setMetric("foo")
+        .build());
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(2000L), 42));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(2000L), 24));
     config = RateOptions.newBuilder()
         .setId("foo")
         .setInterval("1s")

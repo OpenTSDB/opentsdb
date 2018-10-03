@@ -27,8 +27,7 @@ import net.opentsdb.data.PBufQueryResult;
 import net.opentsdb.data.PBufTimeSeriesId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.pbuf.QueryResultPB;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.data.pbuf.TimeSpecificationPB.TimeSpecification;
@@ -238,8 +237,7 @@ public class PBufSerdes implements TimeSeriesSerdes {
               .build()
               .pbufID());
       
-      for (final TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> 
-          iterator : ts.iterators()) {
+      for (final TypedTimeSeriesIterator iterator : ts.iterators()) {
         final PBufIteratorSerdes serdes = factory.serdesForType(iterator.getType());
         if (serdes == null) {
           if (LOG.isDebugEnabled()) {

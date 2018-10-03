@@ -74,8 +74,7 @@ public class PBufNumericSummaryTimeSeriesSerdes implements PBufIteratorSerdes {
   }
 
   @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> deserialize(
-      final TimeSeriesData series) {
+  public TypedTimeSeriesIterator deserialize(final TimeSeriesData series) {
     return new PBufNumericSummaryIterator(series);
   }
 

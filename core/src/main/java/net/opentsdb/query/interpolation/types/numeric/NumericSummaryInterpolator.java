@@ -28,6 +28,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -86,7 +87,7 @@ public class NumericSummaryInterpolator implements
     }
     this.config = (NumericSummaryInterpolatorConfig) config;
     fill_policy = ((NumericSummaryInterpolatorConfig) config).queryFill();
-    final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+    final Optional<TypedTimeSeriesIterator> optional = 
         source.iterator(NumericSummaryType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();

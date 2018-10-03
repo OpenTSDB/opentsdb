@@ -16,12 +16,12 @@ package net.opentsdb.data;
 
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment;
@@ -44,8 +44,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class PBufNumericSummaryIterator implements 
-  Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
+public class PBufNumericSummaryIterator implements TypedTimeSeriesIterator {
 
   /** The encoded source. */
   private final TimeSeriesData source;
@@ -157,6 +156,11 @@ public class PBufNumericSummaryIterator implements
       }
     }
     return dp;
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
   }
   
   /**

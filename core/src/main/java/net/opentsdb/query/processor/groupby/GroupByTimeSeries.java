@@ -29,8 +29,7 @@ import net.opentsdb.data.MergedTimeSeriesId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.ProcessorFactory;
 
@@ -51,7 +50,7 @@ public class GroupByTimeSeries implements TimeSeries {
   protected final QueryResult result;
   
   /** The set of types in this series. */
-  protected final Set<TypeToken<?>> types;
+  protected final Set<TypeToken<? extends TimeSeriesDataType>> types;
   
   /** The ID merger combining all of the time series IDs. */
   protected final MergedTimeSeriesId.Builder merging_id;
@@ -115,8 +114,8 @@ public class GroupByTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-      final TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
@@ -124,7 +123,7 @@ public class GroupByTimeSeries implements TimeSeries {
     if (!types.contains(type)) {
       return Optional.empty();
     }
-    final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+    final TypedTimeSeriesIterator iterator = 
         ((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources);
     if (iterator == null) {
       return Optional.empty();  
@@ -133,22 +132,24 @@ public class GroupByTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+  public Collection<TypedTimeSeriesIterator> iterators() {
     iterators_returned = true;
-    final Collection<TypeToken<?>> types = types(); // calc the union
-    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+    final Collection<TypeToken<? extends TimeSeriesDataType>> types = types(); // calc the union
+    final List<TypedTimeSeriesIterator> iterators =
         Lists.newArrayListWithCapacity(types.size());
-    for (final TypeToken<?> type : types) {
+    for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       iterators.add(((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources));
     }
     return iterators;
   }
 
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     if (!types_unioned) {
-      final Collection<TypeToken<?>> factory_types = ((ProcessorFactory) node.factory()).types();
-      final Iterator<TypeToken<?>> iterator = types.iterator();
+      final Collection<TypeToken<? extends TimeSeriesDataType>> factory_types = 
+          ((ProcessorFactory) node.factory()).types();
+      final Iterator<TypeToken<? extends TimeSeriesDataType>> iterator = 
+          types.iterator();
       while (iterator.hasNext()) {
         if (!factory_types.contains(iterator.next())) {
           iterator.remove();

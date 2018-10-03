@@ -15,15 +15,13 @@
 package net.opentsdb.query.processor;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -41,15 +39,16 @@ public interface ProcessorFactory extends SingleQueryNodeFactory {
   /**
    * @return The types of data this factory can instantiate iterators for.
    */
-  public Collection<TypeToken<?>> types();
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types();
   
   /**
    * Registers a specific iterator factory for a given type.
    * @param type A non-null type.
    * @param factory A non-null factory for the type.
    */
-  public void registerIteratorFactory(final TypeToken<?> type, 
-                                      final QueryIteratorFactory factory);
+  public void registerIteratorFactory(
+      final TypeToken<? extends TimeSeriesDataType> type, 
+      final QueryIteratorFactory factory);
   
   /**
    * Returns an instantiated iterator of the given type if supported
@@ -60,8 +59,8 @@ public interface ProcessorFactory extends SingleQueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
-      final TypeToken<?> type,
+  public TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<? extends TimeSeriesDataType> type,
       final QueryNode node,
       final QueryResult result,
       final Collection<TimeSeries> sources);
@@ -75,8 +74,8 @@ public interface ProcessorFactory extends SingleQueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>> newTypedIterator(
-      final TypeToken<?> type,
+  public TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<? extends TimeSeriesDataType> type,
       final QueryNode node,
       final QueryResult result,
       final Map<String, TimeSeries> sources);

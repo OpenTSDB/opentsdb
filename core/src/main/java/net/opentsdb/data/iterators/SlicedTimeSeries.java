@@ -28,7 +28,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedIterator;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 
 /**
  * A logical view on top of one or more time series iterators. For example, if
@@ -54,7 +54,7 @@ public class SlicedTimeSeries implements TimeSeries {
   private List<TimeSeries> sources;
   
   /** The types of data available. */
-  private Set<TypeToken<?>> types;
+  private Set<TypeToken<? extends TimeSeriesDataType>> types;
   
   /**
    * Default ctor. Sets up an array and instantiates a timestamp.
@@ -87,8 +87,8 @@ public class SlicedTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> 
-    iterator(final TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     if (!types.contains(type)) {
       return Optional.empty();
     }
@@ -97,17 +97,17 @@ public class SlicedTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-    final List<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators =
+  public Collection<TypedTimeSeriesIterator> iterators() {
+    final List<TypedTimeSeriesIterator> iterators =
         Lists.newArrayListWithCapacity(types.size());
-    for (final TypeToken<?> type : types) {
+    for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       iterators.add(new LocalIterator(type));
     }
     return iterators;
   }
   
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return Collections.unmodifiableSet(types);
   }
   
@@ -123,15 +123,16 @@ public class SlicedTimeSeries implements TimeSeries {
    *
    * @param <T> The type of data this iterator works over.
    */
-  class LocalIterator<T extends TimeSeriesDataType> extends TypedIterator<TimeSeriesValue<T>> {
+  class LocalIterator implements TypedTimeSeriesIterator {
     
+    private final TypeToken<? extends TimeSeriesDataType> type;
+    private Iterator<TimeSeriesValue<?>> iterator;
     private int source_idx;
 
     LocalIterator(final TypeToken<? extends TimeSeriesDataType> type) {
-      super(null, type);
       this.type = type;
       for (source_idx = 0; source_idx < sources.size(); source_idx++) {
-        final Optional<Iterator<TimeSeriesValue<?>>> it = 
+        final Optional<TypedTimeSeriesIterator> it = 
             sources.get(source_idx).iterator(type);
         if (it.isPresent()) {
           iterator = it.get();
@@ -152,7 +153,7 @@ public class SlicedTimeSeries implements TimeSeries {
       
       source_idx++;
       for (; source_idx < sources.size(); source_idx++) {
-        final Optional<Iterator<TimeSeriesValue<?>>> it = 
+        final Optional<TypedTimeSeriesIterator> it = 
             sources.get(source_idx).iterator(type);
         if (it.isPresent()) {
           iterator = it.get();
@@ -165,10 +166,14 @@ public class SlicedTimeSeries implements TimeSeries {
     }
 
     @Override
-    public TimeSeriesValue<T> next() {
-      return (TimeSeriesValue<T>) iterator.next();
+    public TimeSeriesValue<? extends TimeSeriesDataType> next() {
+      return iterator.next();
     }
     
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return type;
+    }
   }
   
 }

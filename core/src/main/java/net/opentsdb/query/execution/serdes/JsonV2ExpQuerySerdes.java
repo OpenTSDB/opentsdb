@@ -42,6 +42,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -208,7 +209,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
             boolean has_next = false;
             for (final Pair<TimeSeriesStringId, TimeSeries> pair : entry.getValue()) {
               final QueryInterpolator<?> interp;
-              Optional<Iterator<TimeSeriesValue<?>>> optional = 
+              Optional<TypedTimeSeriesIterator> optional = 
                   pair.getValue().iterator(NumericType.TYPE);
               if (!optional.isPresent()) {
                 optional = pair.getValue().iterator(NumericSummaryType.TYPE);

@@ -15,22 +15,19 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
-import java.util.stream.Collectors;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedIterator;
-import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.exceptions.IllegalDataException;
 
 public class Tsdb1xTimeSeries implements TimeSeries {
@@ -38,7 +35,7 @@ public class Tsdb1xTimeSeries implements TimeSeries {
   protected TSUID tsuid;
   
   /** A map of types to spans. */
-  protected volatile Map<TypeToken<?>, Span<?>> data;
+  protected volatile Map<TypeToken<? extends TimeSeriesDataType>, Span<?>> data;
   
   /**
    * Default ctor.
@@ -58,36 +55,32 @@ public class Tsdb1xTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<Iterator<
-      TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-      final TypeToken<?> type) {
+  public Optional<TypedTimeSeriesIterator> iterator(
+      final TypeToken<? extends TimeSeriesDataType> type) {
     final Span<?> span = data.get(type);
     if (span == null) {
       return Optional.empty();
     }
-    Iterator<TimeSeriesValue<?>> it = span.iterator();
+    final TypedTimeSeriesIterator it = 
+        (TypedTimeSeriesIterator) span.iterator();
     return Optional.of(it);
   }
 
   @Override
-  public Collection<TypedIterator<
-        TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-
-//    List<TypedIterator<TimeSeriesValue<?>>> collect = data.entrySet().stream()
-//        .map(e -> new TypedIterator(e.getValue().iterator(), e.getKey())).collect(
-//            Collectors.toList());
-
-    final List<TypedIterator<TimeSeriesValue<?>>> iterators =
+  public Collection<TypedTimeSeriesIterator> iterators() {
+    final List<TypedTimeSeriesIterator> iterators =
         Lists.newArrayListWithExpectedSize(data.size());
 
-    for (Map.Entry<TypeToken<?>, Span<?>> entry: data.entrySet() ) {
-      iterators.add(new TypedIterator(entry.getValue().iterator(), entry.getKey()));
+    for (final Entry<TypeToken<? extends TimeSeriesDataType>, 
+          Span<? extends TimeSeriesDataType>> entry: 
+        data.entrySet() ) {
+      iterators.add((TypedTimeSeriesIterator) entry.getValue().iterator());
     }
     return iterators;
   }
 
   @Override
-  public Collection<TypeToken<?>> types() {
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return data.keySet();
   }
 

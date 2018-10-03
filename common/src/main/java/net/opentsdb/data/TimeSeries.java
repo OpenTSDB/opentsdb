@@ -65,22 +65,22 @@ public interface TimeSeries {
    * @return A new iterator for the type of data or absent if no such type is
    * present for the time series.
    */
-  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>
-    iterator(final TypeToken<?> type);
+  public Optional<TypedTimeSeriesIterator>iterator(
+      final TypeToken<? extends TimeSeriesDataType> type);
   
   /**
    * Returns a collection of iterators for all types of data belonging to the 
    * time series. The collection returned may not be null but may be empty.
    * @return A non-null collection of zero or more iterators.
    */
-  public Collection<TypedIterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators();
+  public Collection<TypedTimeSeriesIterator> iterators();
   
   /**
    * Returns a collection of data types contained in the time series. The 
    * collection returned may not be null but may be empty.
    * @return A non-null collection of zero or more data types.
    */
-  public Collection<TypeToken<?>> types();
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types();
   
   /**
    * Method called when the consuming sink is finished processing this time series
