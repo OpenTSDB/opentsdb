@@ -30,6 +30,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -59,6 +60,8 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
         new NumericSummaryIteratorFactory());
+    registerIteratorFactory(NumericArrayType.TYPE, 
+        new NumericArrayIteratorFactory());
   }
 
   @Override
@@ -229,6 +232,33 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     @Override
     public Collection<TypeToken<?>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
+    }
+  }
+
+  /**
+   * Handles arrays.
+   */
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Collection<TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      throw new UnsupportedOperationException("Expression iterators must have a map.");
+    }
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Map<String, TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new ExpressionNumericArrayIterator(node, result, sources);
+    }
+    
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericArrayType.TYPE);
     }
   }
 }
