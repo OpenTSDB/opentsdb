@@ -117,6 +117,7 @@ public class BraveSpan implements net.opentsdb.stats.Span {
   public BraveSpanBuilder newChild(final String id) {
     return new BraveSpanBuilder(trace)
         .buildSpan(id)
+        .withTag("startThread", Thread.currentThread().getName())
         .asChildOf(this);
   }
   
