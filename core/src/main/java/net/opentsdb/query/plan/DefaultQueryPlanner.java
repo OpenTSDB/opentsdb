@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.Configuration;
@@ -51,6 +52,7 @@ import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.utils.Deferreds;
 
 /**
  * A query planner that handles push-down operations to data sources.
@@ -193,16 +195,6 @@ public class DefaultQueryPlanner {
       final ExecutionGraphNode node = iterator.next();
       if (node.getConfig() != null && 
           node.getConfig() instanceof QuerySourceConfig) {
-        // TODO - do this async
-        if (((QuerySourceConfig) node.getConfig()).filter() != null) {
-          try {
-            ((QuerySourceConfig) node.getConfig()).filter().initialize(span).join();
-          } catch (InterruptedException e) {
-            throw new RuntimeException("WTF?", e);
-          } catch (Exception e) {
-            throw new RuntimeException("WTF?", e);
-          }
-        }
         source_nodes.add(node);
       }
       
@@ -263,109 +255,126 @@ public class DefaultQueryPlanner {
       factory_cache.put(factory_id, factory);
     }
     
-    // before doing any more work, make sure the the filters have been
-    // satisfied.
-    for (final String key : sink_filter.keySet()) {
-      if (!satisfied_filters.contains(key)) {
-        throw new IllegalArgumentException("Unsatisfied sink filter: " + key);
-      }
-    }
-    
-    // next, push down by walking up from the data sources.
-    for (final ExecutionGraphNode node : source_nodes) {
-      final QueryNodeFactory factory;
-      if (!Strings.isNullOrEmpty(node.getType())) {
-        factory = factory_cache.get(node.getType().toLowerCase());
-      } else {
-        factory = factory_cache.get(node.getId().toLowerCase());
-      }
-      
-      // TODO - cleanup the source factories. ugg!!!
-      if (factory == null || !(factory instanceof QueryDataSourceFactory)) {
-        throw new IllegalArgumentException("No node factory found for "
-            + "configuration " + node);
-      }
-      
-      final List<ExecutionGraphNode> push_downs = Lists.newArrayList();
-      for (final DefaultEdge edge : 
-        Sets.newHashSet(config_graph.incomingEdgesOf(node))) {
-        final ExecutionGraphNode n = config_graph.getEdgeSource(edge);
+    class MyCB implements Callback<Void, Void> {
+
+      @Override
+      public Void call(Void arg) throws Exception {
+
         
-        // TODO - temp! Get named source.
-        final TimeSeriesDataStoreFactory source_factory = 
-            context.tsdb().getRegistry().getDefaultPlugin(
-                TimeSeriesDataStoreFactory.class);
-        if (source_factory == null) {
-          throw new IllegalArgumentException("Unable to find a default "
-              + "time series data store factory class!");
-        }
-        final DefaultEdge e = pushDown(node, node, source_factory, n, push_downs);
-        if (e != null) {
-          config_graph.removeEdge(e);
-          push_downs.add(n);
+        // before doing any more work, make sure the the filters have been
+        // satisfied.
+        for (final String key : sink_filter.keySet()) {
+          if (!satisfied_filters.contains(key)) {
+            throw new IllegalArgumentException("Unsatisfied sink filter: " + key);
+          }
         }
         
-        if (config_graph.outgoingEdgesOf(n).isEmpty()) {
-          config_graph.removeVertex(n);
+        // next, push down by walking up from the data sources.
+        for (final ExecutionGraphNode node : source_nodes) {
+          final QueryNodeFactory factory;
+          if (!Strings.isNullOrEmpty(node.getType())) {
+            factory = factory_cache.get(node.getType().toLowerCase());
+          } else {
+            factory = factory_cache.get(node.getId().toLowerCase());
+          }
+          
+          // TODO - cleanup the source factories. ugg!!!
+          if (factory == null || !(factory instanceof QueryDataSourceFactory)) {
+            throw new IllegalArgumentException("No node factory found for "
+                + "configuration " + node);
+          }
+          
+          final List<ExecutionGraphNode> push_downs = Lists.newArrayList();
+          for (final DefaultEdge edge : 
+            Sets.newHashSet(config_graph.incomingEdgesOf(node))) {
+            final ExecutionGraphNode n = config_graph.getEdgeSource(edge);
+            
+            // TODO - temp! Get named source.
+            final TimeSeriesDataStoreFactory source_factory = 
+                context.tsdb().getRegistry().getDefaultPlugin(
+                    TimeSeriesDataStoreFactory.class);
+            if (source_factory == null) {
+              throw new IllegalArgumentException("Unable to find a default "
+                  + "time series data store factory class!");
+            }
+            final DefaultEdge e = pushDown(node, node, source_factory, n, push_downs);
+            if (e != null) {
+              config_graph.removeEdge(e);
+              push_downs.add(n);
+            }
+            
+            if (config_graph.outgoingEdgesOf(n).isEmpty()) {
+              config_graph.removeVertex(n);
+            }
+          }
+          
+          if (!push_downs.isEmpty()) {
+            // now dump the push downs into this node.
+            final QuerySourceConfig new_config = QuerySourceConfig.newBuilder(
+                (QuerySourceConfig) node.getConfig())
+                .setPushDownNodes(push_downs)
+                .build();
+            final ExecutionGraphNode new_node = ExecutionGraphNode.newBuilder(node)
+                .setConfig(new_config)
+                .build();
+            ExecutionGraph.replace(node, new_node, config_graph);
+          }
         }
+        
+        // TODO clean out nodes that won't contribute to serialization.
+        
+        // compute source IDs.
+        serialization_sources = computeSerializationSources(context_node);
+        
+        // now go and build the node graph
+        graph = new DirectedAcyclicGraph<QueryNode, DefaultEdge>(DefaultEdge.class);
+        graph.addVertex(context_sink);
+        nodes_map.put(context_sink_config.getId(), context_sink);
+        
+        final List<Long> constructed = Lists.newArrayList();
+        final BreadthFirstIterator<ExecutionGraphNode, DefaultEdge> bfi = 
+            new BreadthFirstIterator<ExecutionGraphNode, DefaultEdge>(config_graph);
+        while (bfi.hasNext()) {
+          final ExecutionGraphNode node = bfi.next();
+          if (config_graph.incomingEdgesOf(node).isEmpty()) {
+            buildNodeGraph(context, node, constructed, nodes_map, factory_cache);
+          }
+        }
+        
+        // depth first initiation of the executors since we have to init
+        // the ones without any downstream dependencies first.
+        final DepthFirstIterator<QueryNode, DefaultEdge> node_iterator = 
+            new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
+        final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
+        while (node_iterator.hasNext()) {
+          final QueryNode node = node_iterator.next();
+          if (node == context_sink) {
+            continue;
+          }
+          
+          if (node instanceof TimeSeriesDataSource) {
+            source_set.add((TimeSeriesDataSource) node);
+          }
+          
+          if (node != this) {
+            node.initialize(span);
+          }
+        }
+        data_sources.addAll(source_set);
+        return null;
       }
       
-      if (!push_downs.isEmpty()) {
-        // now dump the push downs into this node.
-        final QuerySourceConfig new_config = QuerySourceConfig.newBuilder(
-            (QuerySourceConfig) node.getConfig())
-            .setPushDownNodes(push_downs)
-            .build();
-        final ExecutionGraphNode new_node = ExecutionGraphNode.newBuilder(node)
-            .setConfig(new_config)
-            .build();
-        ExecutionGraph.replace(node, new_node, config_graph);
+    }
+    
+    List<Deferred<Void>> deferreds = Lists.newArrayListWithExpectedSize(source_nodes.size());
+    for (final ExecutionGraphNode c : source_nodes) {
+      // TODO - do this async
+      if (((QuerySourceConfig) c.getConfig()).filter() != null) {
+        deferreds.add(((QuerySourceConfig) c.getConfig()).filter().initialize(span));
       }
     }
     
-    // TODO clean out nodes that won't contribute to serialization.
-    
-    // compute source IDs.
-    serialization_sources = computeSerializationSources(context_node);
-    
-    // now go and build the node graph
-    graph = new DirectedAcyclicGraph<QueryNode, DefaultEdge>(DefaultEdge.class);
-    graph.addVertex(context_sink);
-    nodes_map.put(context_sink_config.getId(), context_sink);
-    
-    final List<Long> constructed = Lists.newArrayList();
-    final BreadthFirstIterator<ExecutionGraphNode, DefaultEdge> bfi = 
-        new BreadthFirstIterator<ExecutionGraphNode, DefaultEdge>(config_graph);
-    while (bfi.hasNext()) {
-      final ExecutionGraphNode node = bfi.next();
-      if (config_graph.incomingEdgesOf(node).isEmpty()) {
-        buildNodeGraph(context, node, constructed, nodes_map, factory_cache);
-      }
-    }
-    
-    // depth first initiation of the executors since we have to init
-    // the ones without any downstream dependencies first.
-    final DepthFirstIterator<QueryNode, DefaultEdge> node_iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
-    final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
-    while (node_iterator.hasNext()) {
-      final QueryNode node = node_iterator.next();
-      if (node == context_sink) {
-        continue;
-      }
-      
-      if (node instanceof TimeSeriesDataSource) {
-        source_set.add((TimeSeriesDataSource) node);
-      }
-      
-      if (node != this) {
-        node.initialize(span);
-      }
-    }
-    data_sources.addAll(source_set);
-    
-    // TODO!!!
-    return Deferred.fromResult(null);
+    return Deferred.group(deferreds).addCallback(Deferreds.VOID_GROUP_CB).addCallback(new MyCB());
   }
   
   /**

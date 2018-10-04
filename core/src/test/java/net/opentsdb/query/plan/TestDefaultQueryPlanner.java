@@ -173,7 +173,7 @@ public class TestDefaultQueryPlanner {
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
@@ -213,7 +213,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(1, planner.serializationSources().size());
   }
   
@@ -267,7 +267,7 @@ public class TestDefaultQueryPlanner {
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
@@ -306,7 +306,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(1, planner.serializationSources().size());
   }
   
@@ -351,7 +351,7 @@ public class TestDefaultQueryPlanner {
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
@@ -384,7 +384,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(1, planner.serializationSources().size());
   }
 
@@ -426,7 +426,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -456,7 +456,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
   
@@ -518,7 +518,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -557,7 +557,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
 
@@ -622,7 +622,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -664,7 +664,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
   
@@ -740,7 +740,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -782,7 +782,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
 
@@ -838,7 +838,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -877,7 +877,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
   
@@ -961,7 +961,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -1008,7 +1008,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
   
@@ -1070,7 +1070,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -1117,7 +1117,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
   
@@ -1191,7 +1191,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -1233,7 +1233,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(1, planner.serializationSources().size());
   }
   
@@ -1307,7 +1307,7 @@ public class TestDefaultQueryPlanner {
 
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     
     // validate
     assertEquals(2, planner.sources().size());
@@ -1349,7 +1349,7 @@ public class TestDefaultQueryPlanner {
         .build();
     when(context.query()).thenReturn(query);
     planner = new DefaultQueryPlanner(context, SINK);
-    planner.plan(null);
+    planner.plan(null).join();
     assertEquals(1, planner.serializationSources().size());
   }
   
@@ -1402,7 +1402,7 @@ public class TestDefaultQueryPlanner {
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
     try {
-      planner.plan(null);
+      planner.plan(null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());
@@ -1466,7 +1466,7 @@ public class TestDefaultQueryPlanner {
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
     try {
-      planner.plan(null);
+      planner.plan(null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());
@@ -1520,7 +1520,7 @@ public class TestDefaultQueryPlanner {
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);
     try {
-      planner.plan(null);
+      planner.plan(null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());
