@@ -37,6 +37,7 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.annotation.AnnotationType;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
@@ -93,9 +94,13 @@ public class TestExpressionTimeSeries {
     when(right.types()).thenReturn(Lists.newArrayList(
         NumericType.TYPE, NumericSummaryType.TYPE));
     
-    when(factory.newTypedIterator(eq(NumericType.TYPE), eq(node), eq(result), any(Map.class)))
+    when(factory.newTypedIterator(eq(NumericType.TYPE), 
+        eq(node), eq(result), any(Map.class)))
         .thenReturn(mock(TypedTimeSeriesIterator.class));
-
+    when(factory.newTypedIterator(eq(NumericArrayType.TYPE), 
+        eq(node), eq(result), any(Map.class)))
+        .thenReturn(mock(TypedTimeSeriesIterator.class));
+    
     JoinConfig jc = (JoinConfig) JoinConfig.newBuilder()
         .setType(JoinType.INNER)
         .addJoins("host", "host")
@@ -124,9 +129,8 @@ public class TestExpressionTimeSeries {
     ExpressionTimeSeries series = new ExpressionTimeSeries(
         node, result, left, right);
     assertSame(joined_id, series.id());
-    assertEquals(2, series.types().size());
+    assertEquals(1, series.types().size());
     assertTrue(series.types().contains(NumericType.TYPE));
-    assertTrue(series.types().contains(NumericSummaryType.TYPE));
     
     series = new ExpressionTimeSeries(node, result, left, null);
     assertSame(joined_id, series.id());
@@ -137,6 +141,13 @@ public class TestExpressionTimeSeries {
       new ExpressionTimeSeries(node, result, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    // no overlapping types
+    when(right.types()).thenReturn(Lists.newArrayList(
+        NumericArrayType.TYPE));
+    series = new ExpressionTimeSeries(node, result, left, right);
+    assertSame(joined_id, series.id());
+    assertEquals(0, series.types().size());
   }
   
   @Test
@@ -153,13 +164,21 @@ public class TestExpressionTimeSeries {
     series = new ExpressionTimeSeries(node, result, left, null);
     assertTrue(series.iterator(NumericType.TYPE).isPresent());
     assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
+    
+    when(left.types()).thenReturn(Lists.newArrayList(
+        NumericArrayType.TYPE));
+    when(right.types()).thenReturn(Lists.newArrayList(
+        NumericArrayType.TYPE));
+    series = new ExpressionTimeSeries(node, result, left, right);
+    assertTrue(series.iterator(NumericArrayType.TYPE).isPresent());
+    assertFalse(series.iterator(NumericType.TYPE).isPresent());
   }
   
   @Test
   public void iterators() throws Exception {
     ExpressionTimeSeries series = new ExpressionTimeSeries(
         node, result, left, right);
-    assertEquals(2, series.iterators().size());
+    assertEquals(1, series.iterators().size());
     
     series = new ExpressionTimeSeries(node, result, null, right);
     assertEquals(2, series.iterators().size());

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mock;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -61,9 +61,10 @@ public class TestBinaryExpressionNodeFactory {
   @Test
   public void ctor() throws Exception {
     BinaryExpressionNodeFactory factory = new BinaryExpressionNodeFactory();
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertTrue(factory.types().contains(NumericSummaryType.TYPE));
+    assertTrue(factory.types().contains(NumericArrayType.TYPE));
   }
   
   @Test

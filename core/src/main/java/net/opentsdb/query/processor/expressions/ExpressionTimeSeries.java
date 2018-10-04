@@ -29,6 +29,9 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
 
 /**
@@ -83,12 +86,25 @@ public class ExpressionTimeSeries implements TimeSeries {
     this.right = right;
     
     types = Sets.newHashSetWithExpectedSize(1);
-    if (left != null) {
+    // look to join on types
+    if (left != null && right != null) {
+      if (left.types().contains(NumericArrayType.TYPE) && 
+        right != null && right.types().contains(NumericArrayType.TYPE)) {
+        types.add(NumericArrayType.TYPE);
+      } else if (left != null && left.types().contains(NumericSummaryType.TYPE) && 
+          right != null && right.types().contains(NumericSummaryType.TYPE)) {
+        types.add(NumericSummaryType.TYPE);
+      } else if (left != null && left.types().contains(NumericType.TYPE) && 
+          right != null && right.types().contains(NumericType.TYPE)) {
+        types.add(NumericType.TYPE);
+      }
+    } else if (left == null) {
+      types.addAll(right.types());
+    } else {
       types.addAll(left.types());
     }
-    if (right != null) {
-      types.addAll(right.types());
-    }
+    // TODO - handle other types, e.g. bools if we add em.
+    // Otherwise we just drop the data since we don't have a type join.
     id = node.joiner().joinIds(left, right, 
         ((ExpressionConfig) node.config()).getAs());
   }
@@ -114,7 +130,8 @@ public class ExpressionTimeSeries implements TimeSeries {
     }
     
     final TypedTimeSeriesIterator iterator = 
-        ((BinaryExpressionNodeFactory) node.factory()).newTypedIterator(type, node, result,
+        ((BinaryExpressionNodeFactory) node.factory())
+          .newTypedIterator(type, node, result,
             (Map<String, TimeSeries>) builder.build());
     if (iterator == null) {
       return Optional.empty();  
