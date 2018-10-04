@@ -206,9 +206,7 @@ final public class QueryRpc {
     }
     Span parse_span = null;
     if (query_span != null) {
-      parse_span = trace.newSpanWithThread("parseAndValidate")
-          .withTag("startThread", Thread.currentThread().getName())
-          .asChildOf(query_span)
+      parse_span = query_span.newChild("parseAndValidate")
           .start();
     }
     // parse the query
@@ -225,7 +223,6 @@ final public class QueryRpc {
     } catch (Exception e) {
       throw new QueryExecutionException("Invalid query", 400, e);
     }
-    
     if (parse_span != null) {
       parse_span.setSuccessTags()
                 .finish();
@@ -233,9 +230,7 @@ final public class QueryRpc {
     
     Span convert_span = null;
     if (query_span != null) {
-      convert_span = trace.newSpanWithThread("convertAndValidate")
-          .withTag("startThread", Thread.currentThread().getName())
-          .asChildOf(query_span)
+      convert_span = query_span.newChild("convertAndValidate")
           .start();
     }
     // copy the required headers.
@@ -255,7 +250,11 @@ final public class QueryRpc {
           Bytes.byteArrayToString(query.buildHashCode().asBytes()));
     }
     query.validate();
-    request.setAttribute(QUERY_KEY, query);
+    if (convert_span != null) {
+      convert_span.setSuccessTags()
+                  .finish();
+    }
+    
     LOG.info("Executing new query=" + JSON.serializeToString(
         ImmutableMap.<String, Object>builder()
         // TODO - possible upstream headers
@@ -264,20 +263,12 @@ final public class QueryRpc {
         .put("traceId", trace != null ? trace.traceId() : "")
         .put("query", ts_query)
         .build()));
-    if (convert_span != null) {
-      convert_span.setTag("Status", "OK")
-                  .setTag("finalThread", Thread.currentThread().getName())
-                  .finish();
-    }
     
     Span setup_span = null;
     if (query_span != null) {
-      setup_span = trace.newSpanWithThread("setupContext")
-          .withTag("startThread", Thread.currentThread().getName())
-          .asChildOf(query_span)
+      setup_span = query_span.newChild("setupContext")
           .start();
     }
-    
     
     // start the Async context and pass it around. 
     // WARNING After this point, make sure to catch all exceptions and dispatch
@@ -349,30 +340,28 @@ final public class QueryRpc {
 
     async.addListener(new AsyncTimeout());
     
-    if (setup_span != null) {
-      setup_span.setTag("Status", "OK")
-                .setTag("finalThread", Thread.currentThread().getName())
-                .finish();
-    }
-    
     Span execute_span = null;
-    if (query_span != null) {
-      execute_span = trace.newSpanWithThread("startExecution")
-          .withTag("startThread", Thread.currentThread().getName())
-          .asChildOf(query_span)
-          .start();
-    }
-    
     try {
       ctx.initialize(query_span).join();
+      if (setup_span != null) {
+        setup_span.setSuccessTags()
+                  .finish();
+      }
+      
+      if (query_span != null) {
+        execute_span = trace.newSpanWithThread("startExecution")
+            .withTag("startThread", Thread.currentThread().getName())
+            .asChildOf(query_span)
+            .start();
+      }
       ctx.fetchNext(query_span);
     } catch (Throwable t) {
       LOG.error("Unexpected exception adding callbacks to deferred.", t);
+      GenericExceptionMapper.serialize(t, response);
       if (execute_span != null) {
         execute_span.setErrorTags(t)
                     .finish();
       }
-      GenericExceptionMapper.serialize(t, response);
       async.complete();
       if (query_span != null) {
         query_span.setErrorTags(t)

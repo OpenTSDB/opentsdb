@@ -31,6 +31,7 @@ import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
@@ -103,7 +104,6 @@ public class ServletSink implements QuerySink {
         return;
       }
       config.async().complete();
-      context.stats().querySpan().setSuccessTags().finish();
       logComplete();
     } catch (Exception e) {
       LOG.error("Unexpected exception dispatching async request for "
@@ -131,16 +131,24 @@ public class ServletSink implements QuerySink {
               .build()));
     }
     
+    final Span serdes_span = context.stats().querySpan() != null ?
+        context.stats().querySpan().newChild("onNext_" + next.source().config().getId() + ":" + next.dataSource())
+        .start()
+        : null;
+    
     class FinalCB implements Callback<Void, Object> {
       @Override
       public Void call(final Object ignored) throws Exception {
         next.close();
+        if (serdes_span != null) {
+          serdes_span.setSuccessTags().finish();
+        }
         return null;
       }
     }
     
     try {
-      serdes.serialize(next, null /* TODO */)
+      serdes.serialize(next, serdes_span)
         .addBoth(new FinalCB());
     } catch (Exception e) {
       onError(e);
