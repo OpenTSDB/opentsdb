@@ -17,6 +17,8 @@ package net.opentsdb.servlet.sinks;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import javax.ws.rs.core.Response;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
@@ -39,6 +42,7 @@ import net.opentsdb.utils.JSON;
 public class ServletSink implements QuerySink {
   private static final Logger LOG = LoggerFactory.getLogger(
       ServletSink.class);
+  private static final Logger QUERY_LOG = LoggerFactory.getLogger("QueryLog");
   
   /** The context we're operating under. */
   private final QueryContext context;
@@ -99,46 +103,14 @@ public class ServletSink implements QuerySink {
         return;
       }
       config.async().complete();
-      
-//      tsdb.getStatsCollector().incrementCounter("query.success", "endpoint", "2x");
-//      //query_success.incrementAndGet();
-//      LOG.info("Completing query=" 
-//          + JSON.serializeToString(ImmutableMap.<String, Object>builder()
-//          // TODO - possible upstream headers
-//          .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
-//          //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
-//          //.put("traceId", trace != null ? trace.getTraceId() : null)
-//          .put("status", Response.Status.OK)
-//          .put("query", JSON.serializeToString(context.query()))));
-//        
-////      QUERY_LOG.info("Completing query=" 
-////          + JSON.serializeToString(ImmutableMap.<String, Object>builder()
-////          // TODO - possible upstream headers
-////          .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
-////          .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-////          //.put("traceId", trace != null ? trace.getTraceId() : null)
-////          .put("status", Response.Status.OK)
-////          //.put("trace", trace.serializeToString())
-////          .put("query", request.getAttribute(V2_QUERY_KEY))
-////          .build()));
-//       
-//        
-////        if (response_span != null) {
-////          response_span.setTag("finalThread", Thread.currentThread().getName())
-////                       .setTag("status", "OK")
-////                       .finish();
-////        }
-//        if (context.stats().trace() != null && 
-//            context.stats().trace().firstSpan() != null) {
-//          context.stats().trace().firstSpan()
-//            .setTag("status", "OK")
-//            .setTag("finalThread", Thread.currentThread().getName())
-//            .finish();
-//        }
-      
+      context.stats().querySpan().setSuccessTags().finish();
+      logComplete();
     } catch (Exception e) {
       LOG.error("Unexpected exception dispatching async request for "
           + "query: " + JSON.serializeToString(context.query()), e);
+      GenericExceptionMapper.serialize(e, config.response());
+      config.async().complete();
+      logComplete();
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug("Yay, all done!");
@@ -179,13 +151,58 @@ public class ServletSink implements QuerySink {
   @Override
   public void onError(final Throwable t) {
     LOG.error("Exception for query: " 
-        //+ Bytes.byteArrayToString(query.buildHashCode().asBytes()), t);
-        ,t);
-    //request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, t);
+        + JSON.serializeToString(context.query()), t);
     try {
-      config.async().dispatch();
-    } catch (Exception e) {
-      LOG.error("WFT? Dispatch may have already been called", e);
+      GenericExceptionMapper.serialize(t, config.response());
+      config.async().complete();
+      logComplete(t);
+    } catch (Throwable t1) {
+      LOG.error("WFT? response may have been serialized?", t1);
+    }
+  }
+  
+  void logComplete() {
+    logComplete(null);
+  }
+  
+  void logComplete(final Throwable t) {
+    LOG.info("Completing query=" 
+      + JSON.serializeToString(ImmutableMap.<String, Object>builder()
+      // TODO - possible upstream headers
+      .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
+      //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
+      .put("traceId", context.stats().trace() != null ? 
+          context.stats().trace().traceId() : "")
+      .put("status", Response.Status.OK)
+      //.put("query", JSON.serializeToString(context.query()))
+      .put("error", t == null ? "null" : t.toString())
+      .build()));
+    
+    QUERY_LOG.info("Completing query=" 
+       + JSON.serializeToString(ImmutableMap.<String, Object>builder()
+      // TODO - possible upstream headers
+      .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
+      //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
+      .put("traceId", context.stats().trace() != null ? 
+          context.stats().trace().traceId() : "")
+      .put("status", Response.Status.OK)
+      //.put("trace", trace.serializeToString())
+      .put("query", JSON.serializeToString(context.query()))
+      .put("error", t == null ? "null" : t.toString())
+      .build()));
+    
+    if (context.stats().querySpan() != null) {
+      if (t != null) {
+        context.stats().querySpan()
+          .setErrorTags(t)
+          .setTag("query", JSON.serializeToString(context.query()))
+          .finish();
+      } else {
+        context.stats().querySpan()
+        .setSuccessTags()
+        .setTag("query", JSON.serializeToString(context.query()))
+        .finish();        
+      }
     }
   }
 }

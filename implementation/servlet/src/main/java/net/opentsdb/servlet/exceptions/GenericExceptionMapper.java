@@ -14,12 +14,16 @@
 // limitations under the License.
 package net.opentsdb.servlet.exceptions;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
 
 import org.slf4j.Logger;
@@ -27,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -41,10 +46,12 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
   
   @Override
   public Response toResponse(final Throwable t) {
-    if (!(t instanceof NotFoundException)) {
-      LOG.error("Unexpected exception", t);
+    if (t instanceof NotFoundException) {
+      return Response.status(Response.Status.NOT_FOUND)
+          .build(); 
     }
     
+    LOG.error("Unexpected exception", t);
     final ThrowableProxy tp = new ThrowableProxy(t);
     tp.calculatePackagingData();
     final String formattedTrace = ThrowableProxyUtil.asString(tp);
@@ -62,4 +69,42 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
         .build(); 
   }
 
+  public static void serialize(final Throwable t, 
+                               final ServletResponse response) {
+    if (t instanceof NotFoundException) {
+      if (response instanceof HttpServletResponse) {
+        ((HttpServletResponse) response).setStatus(
+            Status.NOT_FOUND.getStatusCode());
+      }
+      return;
+    }
+    
+    LOG.error("Unexpected exception", t);
+    
+    final ThrowableProxy tp = new ThrowableProxy(t);
+    tp.calculatePackagingData();
+    final String formattedTrace = ThrowableProxyUtil.asString(tp);
+    
+    int status = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    if (t instanceof QueryExecutionException) {
+      status = ((QueryExecutionException) t).getStatusCode();
+    }
+    
+    final Map<String, Object> map = new HashMap<String, Object>(3);
+    map.put("code", status);
+    map.put("message", t.getMessage());
+    map.put("trace", formattedTrace);
+    
+    final Map<String, Object> outerMap = new HashMap<String, Object>(1);
+    outerMap.put("error", map);
+    if (response instanceof HttpServletResponse) {
+      ((HttpServletResponse) response).setStatus(status);
+    }
+    response.setContentType("application/json");
+    try {
+      response.getOutputStream().write(JSON.serializeToBytes(outerMap));
+    } catch (IOException e) {
+      LOG.error("WTF? Failed to serialize error?", e);
+    }
+  }
 }

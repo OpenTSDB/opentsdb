@@ -37,21 +37,19 @@ import javax.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
@@ -59,13 +57,11 @@ import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
-import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
 @Path("api/query/exp")
 public class ExpressionRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
-  private static final Logger QUERY_LOG = LoggerFactory.getLogger("QueryLog");
   
   /** Request key used for the V3 TSDB query. */
   public static final String QUERY_KEY = "TSDQUERY";
@@ -89,30 +85,9 @@ public class ExpressionRpc {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response post(final @Context ServletConfig servlet_config, 
+  public void post(final @Context ServletConfig servlet_config, 
                        final @Context HttpServletRequest request,
                        final @Context HttpServletResponse response) throws Exception {
-    if (request.getAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
-      return handleException(request);
-    } else {
-      return handleQuery(servlet_config, request, response);
-    }
-  }
-
-  /**
-   * Method that parses the query and triggers it asynchronously.
-   * @param servlet_config The servlet config to fetch the TSDB from.
-   * @param request The request.
-   * @param is_get Whether or not it was a get request. Lets us determine whether
-   * or not to read from the input stream.
-   * @return Always null.
-   * @throws Exception if something went pear shaped.
-   */
-  @VisibleForTesting
-  Response handleQuery(final ServletConfig servlet_config, 
-                       final HttpServletRequest request,
-                       final HttpServletResponse response) throws Exception {
-    
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
     if (obj == null) {
@@ -156,7 +131,6 @@ public class ExpressionRpc {
           .withTag("user", auth_state != null ? auth_state.getUser() : "Unkown")
           // TODO - more useful info
           .start();
-      request.setAttribute(TRACE_KEY, trace);
     } else {
       trace = null;
       query_span = null;
@@ -175,7 +149,6 @@ public class ExpressionRpc {
           net.opentsdb.query.pojo.TimeSeriesQuery.class);
       // throws an exception if invalid.
       ts_query.validate();
-      request.setAttribute(V2EXP_QUERY_KEY, ts_query);
     } catch (Exception e) {
       throw new QueryExecutionException("Invalid query", 400, e);
     }
@@ -260,39 +233,35 @@ public class ExpressionRpc {
             .setAsync(async)
             .build())
         .build();
-    request.setAttribute(QUERY_KEY, q);
-    request.setAttribute(CONTEXT_KEY, context);
+    
     class AsyncTimeout implements AsyncListener {
 
       @Override
-      public void onComplete(AsyncEvent event) throws IOException {
-        // TODO Auto-generated method stub
-        LOG.debug("Yay the async was all done!");
+      public void onComplete(final AsyncEvent event) throws IOException {
+        // no-op
       }
 
       @Override
-      public void onTimeout(AsyncEvent event) throws IOException {
-        // TODO Auto-generated method stub
+      public void onTimeout(final AsyncEvent event) throws IOException {
         LOG.error("The query has timed out");
         try {
           context.close();
         } catch (Exception e) {
           LOG.error("Failed to close the query: ", e);
         }
-        throw new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504);
+        GenericExceptionMapper.serialize(
+            new QueryExecutionException("The query has exceeded "
+            + "the timeout limit.", 504), event.getSuppliedResponse());
       }
 
       @Override
-      public void onError(AsyncEvent event) throws IOException {
-        // TODO Auto-generated method stub
+      public void onError(final AsyncEvent event) throws IOException {
         LOG.error("WTF? An error for the AsyncTimeout?: " + event);
       }
 
       @Override
-      public void onStartAsync(AsyncEvent event) throws IOException {
-        // TODO Auto-generated method stub
-        LOG.debug("Starting an async something or other");
+      public void onStartAsync(final AsyncEvent event) throws IOException {
+        // no-op
       }
 
     }
@@ -316,75 +285,24 @@ public class ExpressionRpc {
     try {
       context.initialize(query_span).join();
       context.fetchNext(query_span);
-    } catch (Exception e) {
-      LOG.error("Unexpected exception adding callbacks to deferred.", e);
-      request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, e);
-      try {
-        async.dispatch();
-      } catch (Exception ex) {
-        LOG.error("WFT? Dispatch may have already been called", ex);
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception triggering query.", t);
+      if (execute_span != null) {
+        execute_span.setErrorTags(t)
+                    .finish();
+      }
+      GenericExceptionMapper.serialize(t, response);
+      async.complete();
+      if (query_span != null) {
+        query_span.setErrorTags(t)
+                   .finish();
       }
     }
     
     if (execute_span != null) {
-      execute_span.setTag("Status", "OK")
-                  .setTag("finalThread", Thread.currentThread().getName())
+      execute_span.setSuccessTags()
                   .finish();
     }
-    return null;
   }
   
-  /**
-   * Handles exceptions returned by the query execution.
-   * @param request The request.
-   * @return Always null.
-   * @throws Exception if something goes pear shaped.
-   */
-  @VisibleForTesting
-  Response handleException(final HttpServletRequest request) throws Exception {
-    final QueryContext context = (QueryContext) request.getAttribute(CONTEXT_KEY);
-    final TimeSeriesQuery query = (TimeSeriesQuery) request.getAttribute(QUERY_KEY);
-    final Trace trace;
-    if (context != null && context.stats().trace() != null) {
-      trace = context.stats().trace();
-    } else {
-      trace = null;
-    }
-    
-    final Exception e = (Exception) request.getAttribute(
-            OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE);
-    LOG.info("Completing query=" 
-      + JSON.serializeToString(ImmutableMap.<String, Object>builder()
-      // TODO - possible upstream headers
-      .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
-      //.put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.traceId() : "")
-      .put("status", Response.Status.OK)
-      .put("query", request.getAttribute(V2EXP_QUERY_KEY))
-      .build()));
-    
-    QUERY_LOG.info("Completing query=" 
-       + JSON.serializeToString(ImmutableMap.<String, Object>builder()
-      
-      // TODO - possible upstream headers
-      .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
-      //.put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.traceId() : "")
-      .put("status", Response.Status.OK)
-      //.put("trace", trace.serializeToString())
-      .put("query", request.getAttribute(V2EXP_QUERY_KEY))
-      .build()));
-    
-    if (trace != null && trace.firstSpan() != null) {
-      trace.firstSpan()
-        .setTag("status", "Error")
-        .setTag("finalThread", Thread.currentThread().getName())
-        .setTag("error", e.getMessage() == null ? "null" : e.getMessage())
-        .log("exception", e)
-        .finish();
-    }
-    //query_exceptions.incrementAndGet();
-    throw e;
-  }
-
 }
