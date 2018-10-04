@@ -154,10 +154,10 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   }
 
   /**
-   * Implements the modulus of two values. A null on either side will null 
-   * the result. We follow IEEE 754 for NaN behavior.
+   * Implements a relational comparison of two values. A null on either 
+   * side will null the result. We follow IEEE 754 for NaN behavior.
    * <p>
-   * <b>getNote:</b> All values are returned as 1 for true and 0 for false as 
+   * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left The left operand.
@@ -279,11 +279,11 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   }
 
   /**
-   * Implements the modulus of two values. Nulls are treated as false. 
-   * Non-finite floating point values are treated as false except in the 
-   * case when both are NaN.
+   * Implements a logical comparison of two values, e.g. AND and OR. 
+   * Nulls are treated as false. Non-finite floating point values are 
+   * treated as false except in the case when both are NaN.
    * <p>
-   * <b>getNote:</b> All values are returned as 1 for true and 0 for false as 
+   * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left The left operand.
@@ -416,7 +416,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * the result. A NaN in both returns NaN. Non-infectious NaN will just 
    * return the other operand.
    * <p>
-   * <b>getNotE</b> A divide-by-zero operation will return 0. Likewise a 
+   * <b>Note</b> A divide-by-zero operation will return 0. Likewise a 
    * NaN in the numerator or denominator will return a 0 unless both are
    * NaN or infectious NaN is enabled.
    * <p>
