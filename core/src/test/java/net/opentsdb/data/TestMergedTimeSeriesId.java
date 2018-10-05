@@ -108,6 +108,7 @@ public class TestMergedTimeSeriesId {
         .build();
     
     MergedTimeSeriesId.Builder builder = MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
       .addSeries(a)
       .addSeries(b);
     assertEquals(2, builder.ids.size());
@@ -136,6 +137,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     builder = MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d);
       assertEquals(2, builder.ids.size());
@@ -147,6 +149,7 @@ public class TestMergedTimeSeriesId {
           .build();
       try {
         MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
           .addSeries(c)
           .addSeries(d)
           .build();
@@ -166,12 +169,14 @@ public class TestMergedTimeSeriesId {
         .build();
     
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
     assertNull(merged.alias());
     
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setAlias("Merged!")
@@ -179,6 +184,7 @@ public class TestMergedTimeSeriesId {
     assertEquals("Merged!", merged.alias());
     
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setAlias("")
@@ -186,6 +192,7 @@ public class TestMergedTimeSeriesId {
     assertNull(merged.alias());
     
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setAlias((String) null)
@@ -193,6 +200,7 @@ public class TestMergedTimeSeriesId {
     assertNull(merged.alias());
     
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setAlias("Merged!")
@@ -200,6 +208,7 @@ public class TestMergedTimeSeriesId {
     assertEquals("Merged!", merged.alias());
     
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setAlias("000001")
@@ -218,12 +227,14 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
     assertEquals("Tyrell", merged.namespace());
 
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setNamespace("Dorne")
@@ -239,12 +250,14 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
     assertArrayEquals(BYTES_1, merged_bytes.namespace());
     
     merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .setNamespace(BYTES_3)
         .addSeries(c)
         .addSeries(d)
@@ -261,12 +274,14 @@ public class TestMergedTimeSeriesId {
         .setMetric("Lanister")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
     assertEquals("Tyrell", merged.metric());
 
     merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .setMetric("Stark")
@@ -280,12 +295,14 @@ public class TestMergedTimeSeriesId {
         .setMetric(BYTES_2)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
     assertArrayEquals(BYTES_1, merged_bytes.metric());
     
     merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .setMetric(BYTES_3)
         .addSeries(c)
         .addSeries(d)
@@ -306,6 +323,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -328,6 +346,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -351,6 +370,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -374,6 +394,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -397,6 +418,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -419,6 +441,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -442,6 +465,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -464,6 +488,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -487,6 +512,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -509,6 +535,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -532,6 +559,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -554,6 +582,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -577,6 +606,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -599,6 +629,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -622,6 +653,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -646,6 +678,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -670,6 +703,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -696,6 +730,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -721,6 +756,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -743,6 +779,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -766,6 +803,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -788,6 +826,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -816,6 +855,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .addSeries(c)
@@ -846,6 +886,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(d)
         .addSeries(e)
         .addSeries(f)
@@ -871,6 +912,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -893,6 +935,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -915,6 +958,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -939,6 +983,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -963,6 +1008,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -989,6 +1035,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();
@@ -1014,6 +1061,7 @@ public class TestMergedTimeSeriesId {
         .setMetric("ice.dragon")
         .build();
     TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -1038,6 +1086,7 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
+        .setFullMerge(true)
         .addSeries(c)
         .addSeries(d)
         .build();

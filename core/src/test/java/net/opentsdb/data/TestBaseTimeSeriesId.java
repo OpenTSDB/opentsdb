@@ -129,46 +129,6 @@ public class TestBaseTimeSeriesId {
         id.tags().get("colo"));
     
     tags = Maps.newHashMap();
-    tags.put("colo", "");
-    id = BaseTimeSeriesStringId.newBuilder()
-        .setTags(tags)
-        .setMetric("sys.cpu.user")
-        .build();
-    assertEquals(1, id.tags().size());
-    assertEquals("", 
-        id.tags().get("colo"));
-    
-    tags = Maps.newHashMap();
-    tags.put("colo", null);
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .setTags(tags)
-          .setMetric("sys.cpu.user")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    tags = Maps.newHashMap();
-    tags.put("", "lax");
-    id = BaseTimeSeriesStringId.newBuilder()
-        .setTags(tags)
-        .setMetric("sys.cpu.user")
-        .build();
-    assertEquals(1, id.tags().size());
-    assertEquals("lax", 
-        id.tags().get(""));
-    
-    tags = Maps.newHashMap();
-    tags.put(null, "lax");
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .setTags(tags)
-          .setMetric("sys.cpu.user")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    tags = Maps.newHashMap();
     id = BaseTimeSeriesStringId.newBuilder()
         .setTags(tags)
         .setMetric("sys.cpu.user")
@@ -204,38 +164,6 @@ public class TestBaseTimeSeriesId {
     assertEquals(1, id.tags().size());
     assertEquals("", 
         id.tags().get("colo"));
-    
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .addTags("colo", null)
-          .setMetric("sys.cpu.user")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    id = BaseTimeSeriesStringId.newBuilder()
-        .addTags("", "lax")
-        .setMetric("sys.cpu.user")
-        .build();
-    assertEquals(1, id.tags().size());
-    assertEquals("lax", 
-        id.tags().get(""));
-    
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .addTags(null, "lax")
-          .setMetric("sys.cpu.user")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .addTags(null, null)
-          .setMetric("sys.cpu.user")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
   }
   
   @Test
