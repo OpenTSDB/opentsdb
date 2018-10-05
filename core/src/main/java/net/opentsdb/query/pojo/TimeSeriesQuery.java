@@ -599,9 +599,8 @@ public class TimeSeriesQuery extends Validatable
         .setTimeZone(time.getTimezone())
         .setMode(QueryMode.SINGLE);
     
+    final Map<String, QueryFilter> filter_map = Maps.newHashMap();
     if (filters != null) {
-      final List<NamedFilter> named_filter = 
-          Lists.newArrayListWithExpectedSize(filters.size());
       for (final Filter filter : filters) {
         final ChainFilter.Builder chain_builder = ChainFilter.newBuilder();
         for (final TagVFilter tag_filter : filter.getTags()) {
@@ -632,20 +631,13 @@ public class TimeSeriesQuery extends Validatable
         }
         
         if (filter.getExplicitTags()) {
-          named_filter.add(DefaultNamedFilter.newBuilder()
-              .setId(filter.getId())
-              .setFilter(ExplicitTagsFilter.newBuilder()
+          filter_map.put(filter.getId(), ExplicitTagsFilter.newBuilder()
                   .setFilter(almost_final)
-                  .build())
-              .build());
+                  .build());
         } else {
-          named_filter.add(DefaultNamedFilter.newBuilder()
-              .setId(filter.getId())
-              .setFilter(almost_final)
-              .build());
+          filter_map.put(filter.getId(), almost_final);
         }
       }
-      builder.setFilters(named_filter);
     }
     
     Map<String, String> id_to_node_roots = Maps.newHashMap();
@@ -653,16 +645,21 @@ public class TimeSeriesQuery extends Validatable
     final List<ExecutionGraphNode> nodes = Lists.newArrayList();
     int metric_id = 1;
     for (final Metric metric : metrics) {
+      
+      QuerySourceConfig.Builder source = 
+          (QuerySourceConfig.Builder) QuerySourceConfig.newBuilder()
+      .setMetric(MetricLiteralFilter.newBuilder()
+          .setMetric(metric.getMetric())
+          .build())
+      .setId(Strings.isNullOrEmpty(metric.getId()) ? "m" + metric_id++ : metric.getId());
+      if (!Strings.isNullOrEmpty(metric.getFilter())) {
+        source.setQueryFilter(filter_map.get(metric.getFilter()));
+      }
+      
       ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
           .setId(Strings.isNullOrEmpty(metric.getId()) ? "m" + metric_id++ : metric.getId())
           .setType("DataSource")
-          .setConfig(QuerySourceConfig.newBuilder()
-              .setMetric(MetricLiteralFilter.newBuilder()
-                  .setMetric(metric.getMetric())
-                  .build())
-              .setFilterId(metric.getFilter())
-              .setId(Strings.isNullOrEmpty(metric.getId()) ? "m" + metric_id++ : metric.getId())
-              .build())
+          .setConfig(source.build())
           .build();
       nodes.add(node);
       

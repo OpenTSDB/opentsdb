@@ -120,8 +120,10 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     if (Strings.isNullOrEmpty(filter_id)) {
       return filter;
     }
-    // TODO - no no no!!!
-    return ((SemanticQuery) query).getFilter(filter_id);
+    if (query == null) {
+      return null;
+    }
+    return query.getFilter(filter_id);
   }
   
   /** @return Whether or not to fetch just the last (latest) value. */

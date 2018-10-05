@@ -69,6 +69,7 @@ public class MergedTimeSeriesId {
     protected byte[] alias;
     protected byte[] namespace;
     protected byte[] metric;
+    protected boolean full_merge;
     protected TypeToken<? extends TimeSeriesId> type;
     protected ReadableTimeSeriesDataStore data_store;
     
@@ -188,15 +189,68 @@ public class MergedTimeSeriesId {
       return this;
     }
 
+    public Builder setFullMerge(final boolean full_merge) {
+      this.full_merge = full_merge;
+      return this;
+    }
+    
     /** @return The merged time series ID. */
     public TimeSeriesId build() {
       if (type.equals(Const.TS_STRING_ID)) {
-        return mergeStringIds();
+        if (full_merge) {
+          return mergeStringIds();
+        } else {
+          return mergeStringIdsWODisjoint();
+        }
       } else if (type.equals(Const.TS_BYTE_ID)) {
         return mergeByteIds();
       }
       // TODO - proper exception
       throw new RuntimeException("Unhandled ID type: " + type);
+    }
+    
+    /**
+     * Alternate method that saves a ton of CPU time by just computing
+     * the tags and agg tags.
+     * @return
+     */
+    private TimeSeriesId mergeStringIdsWODisjoint() {
+      if (ids.size() == 1) {
+        return ids.get(0);
+      }
+      
+      TimeSeriesStringId first_id = (TimeSeriesStringId) ids.get(0);
+      final BaseTimeSeriesStringId.Builder builder = 
+          BaseTimeSeriesStringId.newBuilder()
+          .setNamespace(first_id.namespace())
+          .setMetric(first_id.metric());
+      
+      Set<String> agg = Sets.newHashSet();
+      if (first_id.tags() != null && !first_id.tags().isEmpty()) {
+        builder.setTags(Maps.newHashMap(first_id.tags()));
+      }
+      if (first_id.aggregatedTags() != null && 
+          !first_id.aggregatedTags().isEmpty()) {
+        agg.addAll(first_id.aggregatedTags());
+      }
+      
+      for (final TimeSeriesId raw_id : ids) {
+        final TimeSeriesStringId id = (TimeSeriesStringId) raw_id;
+        for (final Entry<String, String> entry : id.tags().entrySet()) {
+          final String extant = builder.tags().get(entry.getKey());
+          if (extant == null) {
+            agg.add(entry.getKey());
+          } else if (!extant.equals(entry.getValue())) {
+            builder.tags().remove(entry.getKey());
+            agg.add(entry.getKey());
+          }
+        }
+      }
+      
+      if (!agg.isEmpty()) {
+        builder.setAggregatedTags(Lists.newArrayList(agg));
+      }
+      return builder.build();
     }
     
     /**

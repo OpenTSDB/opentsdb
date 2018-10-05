@@ -30,6 +30,7 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.processor.topn.TopNConfig;
 import net.opentsdb.utils.JSON;
 
@@ -97,6 +98,10 @@ public class TestQuerySourceConfig {
             .setMetric("system.cpu.user")
             .build())
         .setFilterId("f1")
+        .setQueryFilter(TagValueLiteralOrFilter.newBuilder()
+            .setFilter("web01")
+            .setTagKey("host")
+            .build())
         .setFetchLast(true)
         .addPushDownNode(ExecutionGraphNode.newBuilder()
             .setId("topn")
@@ -111,6 +116,7 @@ public class TestQuerySourceConfig {
         .build();
     
     final String json = JSON.serializeToString(qsc);
+    System.out.println(json);
     assertTrue(json.contains("\"id\":\"UT\""));
     assertTrue(json.contains("\"metric\":{"));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));

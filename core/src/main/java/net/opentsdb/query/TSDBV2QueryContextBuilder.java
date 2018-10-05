@@ -208,6 +208,9 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
         }
       }
       
+      if (initializations == null) {
+        return context.initialize(local_span);
+      }
       return Deferred.group(initializations)
           .addBoth(Deferreds.VOID_GROUP_CB)
           .addCallbackDeferring(new FilterCB());

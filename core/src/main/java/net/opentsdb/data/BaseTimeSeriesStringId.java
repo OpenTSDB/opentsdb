@@ -92,15 +92,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       throw new IllegalArgumentException("Metric cannot be null or empty.");
     }
     if (builder.tags != null && !builder.tags.isEmpty()) {
-      for (final Entry<String, String> pair : builder.tags.entrySet()) {
-        if (pair.getKey() == null) {
-          throw new IllegalArgumentException("Tag key cannot be null.");
-        }
-        if (pair.getValue() == null) {
-          throw new IllegalArgumentException("Tag value cannot be null.");
-        }
-        tags = Collections.unmodifiableMap(builder.tags);
-      }
+      tags = builder.tags;
     } else {
       tags = Collections.emptyMap();
     }
@@ -110,7 +102,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       } catch (NullPointerException e) {
         throw new IllegalArgumentException("Aggregated tags cannot contain nulls");
       }
-      aggregated_tags = Collections.unmodifiableList(builder.aggregated_tags);
+      aggregated_tags = builder.aggregated_tags;
     } else {
       aggregated_tags = Collections.emptyList();
     }
@@ -120,12 +112,12 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       } catch (NullPointerException e) {
         throw new IllegalArgumentException("Disjoint Tags cannot contain nulls");
       }
-      disjoint_tags = Collections.unmodifiableList(builder.disjoint_tags);
+      disjoint_tags = builder.disjoint_tags;
     } else {
       disjoint_tags = Collections.emptyList();
     }
     if (builder.unique_ids != null) {
-      unique_ids = Collections.unmodifiableSet(builder.unique_ids);
+      unique_ids = builder.unique_ids;
     } else {
       unique_ids = Collections.emptySet();
     }
@@ -327,11 +319,18 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       return this;
     }
     
+    public String namespace() {
+      return namespace;
+    }
+    
     public Builder setMetric(final String metric) {
       this.metric = metric;
       return this;
     }
     
+    public String metric() {
+      return metric;
+    }
     /**
      * Sets the tags map. <b>NOTE:</b> This will maintain a reference to the
      * map and will NOT make a copy. Be sure to avoid mutating the map after 
@@ -352,6 +351,10 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       return this;
     }
     
+    public Map<String, String> tags() {
+      return tags == null ? Collections.emptyMap() : tags;
+    }
+    
     public Builder setAggregatedTags(final List<String> aggregated_tags) {
       this.aggregated_tags = aggregated_tags;
       return this;
@@ -365,6 +368,11 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       return this;
     }
     
+    public List<String> aggregatedTags() {
+      return aggregated_tags == null ? Collections.emptyList() : 
+        aggregated_tags;
+    }
+    
     public Builder setDisjointTags(final List<String> disjoint_tags) {
       this.disjoint_tags = disjoint_tags;
       return this;
@@ -376,6 +384,11 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       }
       disjoint_tags.add(tag);
       return this;
+    }
+    
+    public List<String> disjointTags() {
+      return disjoint_tags == null ? Collections.emptyList() : 
+        disjoint_tags;
     }
     
     public Builder setUniqueId(final Set<String> unique_ids) {
@@ -392,6 +405,10 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       }
       unique_ids.add(id);
       return this;
+    }
+    
+    public Set<String> uniqueIds() {
+      return unique_ids == null ? Collections.emptySet() : unique_ids;
     }
     
     public BaseTimeSeriesStringId build() {
