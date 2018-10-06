@@ -30,6 +30,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -57,6 +58,8 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
         new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
         new NumericSummaryIteratorFactory());
+    registerIteratorFactory(NumericArrayType.TYPE, 
+        new NumericArrayIteratorFactory());
   }
   
   /**
@@ -155,6 +158,34 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     @Override
     public Collection<TypeToken<?>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
+    }
+    
+  }
+  
+  /**
+   * The default numeric summary iterator factory.
+   */
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Collection<TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new SlidingWindowNumericArrayIterator(node, result, sources);
+    }
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Map<String, TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new SlidingWindowNumericArrayIterator(node, result, sources);
+    }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericArrayType.TYPE);
     }
     
   }
