@@ -27,6 +27,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
@@ -89,6 +90,10 @@ public class TopNResult implements QueryResult, Runnable {
         } else if (ts.types().contains(NumericSummaryType.TYPE)) {
           final TopNNumericSummaryAggregator agg = 
               new TopNNumericSummaryAggregator(node, this, ts);
+          value = agg.run();
+        } else if (ts.types().contains(NumericArrayType.TYPE)) {
+          final TopNNumericArrayAggregator agg = 
+              new TopNNumericArrayAggregator(node, this, ts);
           value = agg.run();
         } else {
           continue;
