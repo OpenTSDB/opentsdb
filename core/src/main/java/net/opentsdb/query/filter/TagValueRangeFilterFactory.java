@@ -55,7 +55,7 @@ public class TagValueRangeFilterFactory implements QueryFilterFactory {
 
   @Override
   public String id() {
-    return "TagValueRegex";
+    return TYPE;
   }
 
   @Override

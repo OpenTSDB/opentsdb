@@ -28,7 +28,7 @@ import net.opentsdb.core.TSDB;
  */
 public class TagValueRegexFactory implements QueryFilterFactory {
 
-  static final String TYPE = "TagValueRegexp";
+  static final String TYPE = "TagValueRegex";
   
   @Override
   public String getType() {
@@ -50,7 +50,7 @@ public class TagValueRegexFactory implements QueryFilterFactory {
 
   @Override
   public String id() {
-    return "TagValueRegex";
+    return TYPE;
   }
 
   @Override

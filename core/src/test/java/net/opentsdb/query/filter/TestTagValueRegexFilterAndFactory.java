@@ -189,7 +189,7 @@ public class TestTagValueRegexFilterAndFactory {
     final String json = JSON.serializeToString(filter);
     assertTrue(json.contains("\"filter\":\"ogg-01.ops.ankh.*\""));
     assertTrue(json.contains("\"tagKey\":\"host"));
-    assertTrue(json.contains("\"type\":\"TagValueRegexp"));
+    assertTrue(json.contains("\"type\":\"TagValueRegex"));
   }
   
   @Test
