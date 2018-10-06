@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -99,11 +100,12 @@ public class NumericArrayTimeSeries implements TimeSeries {
       final long[] temp = new long[long_values.length < 1024 ? 
           long_values.length * 2 : long_values.length + 16];
       for (int i = 0; i < long_values.length; i++) {
-        temp[i] = long_values.length;
+        temp[i] = long_values[i];
       }
       long_values = temp;
     }
     long_values[idx++] = value;
+    
   }
   
   private void addDouble(final double value) {
