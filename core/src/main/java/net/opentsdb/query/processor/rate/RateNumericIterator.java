@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014-2017 The OpenTSDB Authors.
+// Copyright (C) 2014-2018 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
 
 import com.google.common.reflect.TypeToken;
@@ -28,12 +30,15 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
 
 /**
  * Iterator that generates rates from a sequence of adjacent data points.
  * 
- * @since 2.0
+ * TODO - proper interval conversion. May not work for > 1hr
+ * 
+ * @since 3.0
  */
 public class RateNumericIterator implements QueryIterator {
   
@@ -57,22 +62,37 @@ public class RateNumericIterator implements QueryIterator {
   
   /**
    * Constructs a {@link RateNumericIterator} instance.
-   * @param source The iterator to access the underlying data.
-   * @param options Options for calculating rates.
+   * @param node The non-null query node.
+   * @param result The non-null result.
+   * @param sources The non-null map of sources.
    */
-  public RateNumericIterator(final QueryNode node, final TimeSeries source) {
+  public RateNumericIterator(final QueryNode node, 
+                             final QueryResult result,
+                             final Map<String, TimeSeries> sources) {
+    this(node, result, sources == null ? null : sources.values());
+  }
+  
+  /**
+   * Constructs a {@link RateNumericIterator} instance.
+   * @param node The non-null query node.
+   * @param result The non-null result.
+   * @param sources The non-null collection of sources.
+   */
+  public RateNumericIterator(final QueryNode node, 
+                             final QueryResult result,
+                             final Collection<TimeSeries> sources) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
     }
-    if (source == null) {
-      throw new IllegalArgumentException("Source cannot be null.");
+    if (sources == null) {
+      throw new IllegalArgumentException("Sources cannot be null.");
     }
     if (node.config() == null) {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     options = (RateOptions) node.config();
     final Optional<TypedTimeSeriesIterator> optional = 
-        source.iterator(NumericType.TYPE);
+        sources.iterator().next().iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();
       populateNextRate();
@@ -160,7 +180,13 @@ public class RateNumericIterator implements QueryIterator {
             next_rate.reset(next.timestamp(), rate);
           }
         } else {
-          next_rate.reset(next.timestamp(), (double) value_delta / time_delta);
+          final double rate = (double) value_delta / time_delta;
+          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > options.getResetValue()) {
+            next_rate.reset(next.timestamp(), 0.0D);
+          } else {
+            next_rate.reset(next.timestamp(), rate);
+          }
         }
       } else {
         double value_delta = next.value().toDouble() - prev_data.toDouble();
@@ -181,7 +207,14 @@ public class RateNumericIterator implements QueryIterator {
             next_rate.reset(next.timestamp(), rate);
           }
         } else {
-          next_rate.reset(next.timestamp(), value_delta / time_delta);
+          final double rate = value_delta / time_delta;
+          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > options.getResetValue()) {
+            next_rate.reset(next.timestamp(), 0.0D);
+          } else {
+            next_rate.reset(next.timestamp(), rate);
+          }
+          next_rate.reset(next.timestamp(), rate);
         }
       }
       

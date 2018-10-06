@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
@@ -54,6 +55,8 @@ public class RateFactory extends BaseQueryNodeFactory {
   public RateFactory() {
     super("rate");
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
+    registerIteratorFactory(NumericArrayType.TYPE, 
+        new NumericArrayIteratorFactory());
   }
 
   @Override
@@ -102,7 +105,7 @@ public class RateFactory extends BaseQueryNodeFactory {
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new RateNumericIterator(node, sources.iterator().next());
+      return new RateNumericIterator(node, result, sources);
     }
 
     @Override
@@ -110,12 +113,40 @@ public class RateFactory extends BaseQueryNodeFactory {
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new RateNumericIterator(node, sources.values().iterator().next());
+      return new RateNumericIterator(node, result, sources);
     }
 
     @Override
     public Collection<TypeToken<?>> types() {
       return Lists.newArrayList(NumericType.TYPE);
+    }
+    
+  }
+  
+  /**
+   * The default numeric iterator factory.
+   */
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Collection<TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new RateNumericArrayIterator(node, result, sources);
+    }
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+                                               final QueryResult result,
+                                               final Map<String, TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new RateNumericArrayIterator(node, result, sources);
+    }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericArrayType.TYPE);
     }
     
   }

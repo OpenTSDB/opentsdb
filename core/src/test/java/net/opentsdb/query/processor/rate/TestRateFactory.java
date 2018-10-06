@@ -46,7 +46,7 @@ public class TestRateFactory {
   @Test
   public void ctor() throws Exception {
     final RateFactory factory = new RateFactory();
-    assertEquals(1, factory.types().size());
+    assertEquals(2, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertEquals("rate", factory.id());
   }
@@ -54,11 +54,11 @@ public class TestRateFactory {
   @Test
   public void registerIteratorFactory() throws Exception {
     final RateFactory factory = new RateFactory();
-    assertEquals(1, factory.types().size());
+    assertEquals(2, factory.types().size());
     
     QueryIteratorFactory mock = mock(QueryIteratorFactory.class);
     factory.registerIteratorFactory(NumericType.TYPE, mock);
-    assertEquals(1, factory.types().size());
+    assertEquals(2, factory.types().size());
     
     try {
       factory.registerIteratorFactory(null, mock);

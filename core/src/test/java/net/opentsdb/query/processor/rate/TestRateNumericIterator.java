@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014-2017 The OpenTSDB Authors.
+// Copyright (C) 2014-2018 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,16 +33,20 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.pojo.RateOptions;
 
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestRateNumericIterator {
   private TimeSeries source;
   private TimeSeriesQuery query;
   private RateOptions config;
   private QueryNode node;
+  private QueryResult result;
   private QueryContext query_context;
   private QueryPipelineContext pipeline_context;
   
@@ -69,7 +73,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+        Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -120,7 +125,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -171,7 +177,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -222,7 +229,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -273,7 +281,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -324,7 +333,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -386,7 +396,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -438,7 +449,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -490,7 +502,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -527,7 +540,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertFalse(it.hasNext());
   }
@@ -546,7 +560,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertFalse(it.hasNext());
   }
@@ -566,7 +581,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    new RateNumericIterator(node, source);
+    new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
   }
 
   @Test(expected = IllegalStateException.class)
@@ -584,7 +600,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    new RateNumericIterator(node, source);
+    new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
   }
 
   @Test
@@ -603,7 +620,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -635,7 +653,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -683,7 +702,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -714,11 +734,48 @@ public class TestRateNumericIterator {
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
-        .setResetValue(1)
+        .setResetValue(10)
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 1000, v.timestamp().msEpoch());
+    assertEquals(10.0, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000, v.timestamp().msEpoch());
+    assertEquals(0.0, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void counterWithResetValuePositive() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 80);
+    
+    config = RateOptions.newBuilder()
+        .setId("foo")
+        .setInterval("1s")
+        .setCounter(true)
+        .setCounterMax(70)
+        .setResetValue(10)
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -753,7 +810,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -787,7 +845,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -816,7 +875,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
 
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -844,7 +904,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertFalse(it.hasNext());
   }
@@ -868,7 +929,8 @@ public class TestRateNumericIterator {
         .build();
     
     setupMock();
-    RateNumericIterator it = new RateNumericIterator(node, source);
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -881,6 +943,7 @@ public class TestRateNumericIterator {
   
   private void setupMock() {
     node = mock(QueryNode.class);
+    result = mock(QueryResult.class);
     when(node.config()).thenReturn(config);
     query_context = mock(QueryContext.class);
     pipeline_context = mock(QueryPipelineContext.class);
