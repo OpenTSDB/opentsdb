@@ -50,7 +50,7 @@ public class TagValueWildcardFactory implements QueryFilterFactory {
 
   @Override
   public String id() {
-    return "TagValueWildcard";
+    return TYPE;
   }
 
   @Override

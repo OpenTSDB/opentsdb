@@ -70,7 +70,7 @@ public class ExplicitTagsFilterFactory implements QueryFilterFactory {
 
   @Override
   public String id() {
-    return "ExplicitTags";
+    return TYPE;
   }
 
   @Override

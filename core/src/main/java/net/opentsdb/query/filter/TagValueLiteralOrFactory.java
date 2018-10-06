@@ -50,7 +50,7 @@ public class TagValueLiteralOrFactory implements QueryFilterFactory {
 
   @Override
   public String id() {
-    return "TagValueLiteralOr";
+    return TYPE;
   }
 
   @Override
