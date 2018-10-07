@@ -80,12 +80,12 @@ public class TestSlidingWindow {
     SlidingWindow sl = new SlidingWindow(factory, context, null, config);
     sl.initialize(null);
     
-    sl.onComplete(mock(QueryNode.class), 42, 42);
+    sl.onComplete(null, 42, 42);
     verify(upstream, times(1)).onComplete(sl, 42, 42);
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onComplete(any(QueryNode.class), anyLong(), anyLong());
-    sl.onComplete(mock(QueryNode.class), 42, 42);
+    sl.onComplete(null, 42, 42);
     verify(upstream, times(2)).onComplete(sl, 42, 42);
   }
   

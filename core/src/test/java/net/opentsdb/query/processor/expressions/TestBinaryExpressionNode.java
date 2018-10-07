@@ -173,12 +173,12 @@ public class TestBinaryExpressionNode {
         factory, context, "a+b", expression_config);
     node.initialize(null);
     
-    node.onComplete(mock(QueryNode.class), 42, 42);
+    node.onComplete(null, 42, 42);
     verify(upstream, times(1)).onComplete(node, 42, 42);
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onComplete(any(QueryNode.class), anyLong(), anyLong());
-    node.onComplete(mock(QueryNode.class), 42, 42);
+    node.onComplete(null, 42, 42);
     verify(upstream, times(2)).onComplete(node, 42, 42);
   }
   

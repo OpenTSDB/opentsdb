@@ -64,20 +64,7 @@ public class Summarizer extends AbstractQueryNode {
     // TODO Auto-generated method stub
     
   }
-
-  @Override
-  public void onComplete(final QueryNode downstream, 
-                         final long final_sequence,
-                         final long total_sequences) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onComplete(this, final_sequence, total_sequences);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onComplete on Node: " + us, e);
-      }
-    }
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     final SummarizerResult results = new SummarizerResult(this, next);
@@ -90,16 +77,5 @@ public class Summarizer extends AbstractQueryNode {
       }
     }
   }
-
-  @Override
-  public void onError(final Throwable t) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onError(t);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onError on Node: " + us, e);
-      }
-    }
-  }
-
+  
 }

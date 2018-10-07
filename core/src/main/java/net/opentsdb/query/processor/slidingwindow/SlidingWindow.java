@@ -83,21 +83,10 @@ public class SlidingWindow extends AbstractQueryNode {
     // TODO Auto-generated method stub
     
   }
-
-  @Override
-  public void onComplete(QueryNode downstream, long final_sequence,
-      long total_sequences) {
-    completeUpstream(final_sequence, total_sequences);
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     sendUpstream(new SlidingWindowResult(next));
-  }
-
-  @Override
-  public void onError(Throwable t) {
-    sendUpstream(t);
   }
   
   /**

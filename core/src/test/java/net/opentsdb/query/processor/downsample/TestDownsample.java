@@ -121,12 +121,12 @@ public class TestDownsample {
     Downsample ds = new Downsample(factory, context, null, config);
     ds.initialize(null);
     
-    ds.onComplete(mock(QueryNode.class), 42, 42);
+    ds.onComplete(null, 42, 42);
     verify(upstream, times(1)).onComplete(ds, 42, 42);
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onComplete(any(QueryNode.class), anyLong(), anyLong());
-    ds.onComplete(mock(QueryNode.class), 42, 42);
+    ds.onComplete(null, 42, 42);
     verify(upstream, times(2)).onComplete(ds, 42, 42);
   }
   

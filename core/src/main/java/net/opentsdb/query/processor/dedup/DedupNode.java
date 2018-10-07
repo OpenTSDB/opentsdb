@@ -66,14 +66,7 @@ public class DedupNode extends AbstractQueryNode {
   @Override
   public void close() {
   }
-
-  @Override
-  public void onComplete(final QueryNode downstream, 
-                         final long final_sequence,
-                         final long total_sequences) {
-    completeUpstream(final_sequence, total_sequences);
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     DedupResult dedupResult = new DedupResult(next);
@@ -98,12 +91,7 @@ public class DedupNode extends AbstractQueryNode {
 
     sendUpstream(dedupResult);
   }
-
-  @Override
-  public void onError(final Throwable t) {
-    sendUpstream(t);
-  }
-
+  
   private class DedupResult implements QueryResult {
 
     private QueryResult next;

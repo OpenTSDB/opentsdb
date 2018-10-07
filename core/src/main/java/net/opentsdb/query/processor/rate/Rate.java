@@ -76,19 +76,6 @@ public class Rate extends AbstractQueryNode {
   }
   
   @Override
-  public void onComplete(final QueryNode downstream, 
-                         final long final_sequence,
-                         final long total_sequences) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onComplete(this, final_sequence, total_sequences);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onComplete on Node: " + us, e);
-      }
-    }
-  }
-  
-  @Override
   public void onNext(final QueryResult next) {
     final RateResult results = new RateResult(next);
     for (final QueryNode us : upstream) {
@@ -97,17 +84,6 @@ public class Rate extends AbstractQueryNode {
       } catch (Exception e) {
         LOG.error("Failed to call upstream onNext on Node: " + us, e);
         results.close();
-      }
-    }
-  }
-
-  @Override
-  public void onError(final Throwable t) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onError(t);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onError on Node: " + us, e);
       }
     }
   }

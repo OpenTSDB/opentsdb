@@ -17,9 +17,6 @@ package net.opentsdb.query.processor.groupby;
 import java.util.Iterator;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 
@@ -27,7 +24,6 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -48,7 +44,6 @@ import net.opentsdb.storage.ReadableTimeSeriesDataStore;
  * @since 3.0
  */
 public class GroupBy extends AbstractQueryNode {
-  private static final Logger LOG = LoggerFactory.getLogger(GroupBy.class);
   
   /** The config for this group by node. */
   private final GroupByConfig config;
@@ -75,20 +70,7 @@ public class GroupBy extends AbstractQueryNode {
   public void close() {
     // No-op
   }
-
-  @Override
-  public void onComplete(final QueryNode downstream, 
-                         final long final_sequence,
-                         final long total_sequences) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onComplete(this, final_sequence, total_sequences);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onComplete on Node: " + us, e);
-      }
-    }
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     if (next.idType() == Const.TS_BYTE_ID && 
@@ -137,17 +119,6 @@ public class GroupBy extends AbstractQueryNode {
     } else {
       final GroupByResult result = new GroupByResult(this, next);
       sendUpstream(result);
-    }
-  }
-
-  @Override
-  public void onError(final Throwable t) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onError(t);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onError on Node: " + us, e);
-      }
     }
   }
   
