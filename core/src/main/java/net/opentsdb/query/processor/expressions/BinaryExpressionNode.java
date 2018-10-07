@@ -24,7 +24,6 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -108,14 +107,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
     // TODO Auto-generated method stub
     
   }
-
-  @Override
-  public void onComplete(final QueryNode downstream, 
-                         final long final_sequence,
-                         final long total_sequences) {
-      completeUpstream(final_sequence, total_sequences);
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     // TODO - track the source properly
@@ -244,12 +236,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
       }
     }
   }
-
-  @Override
-  public void onError(final Throwable t) {
-    sendUpstream(t);
-  }
-
+  
   ExpressionParseNode expressionConfig() {
     return expression_config;
   }

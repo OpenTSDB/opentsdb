@@ -106,6 +106,31 @@ public abstract class AbstractQueryNode implements QueryNode {
     return factory;
   }
 
+  @Override
+  public void onComplete(final QueryNode downstream, 
+                         final long final_sequence,
+                         final long total_sequences) {
+    for (final QueryNode us : upstream) {
+      try {
+        us.onComplete(downstream == null ? this : downstream, 
+            final_sequence, total_sequences);
+      } catch (Exception e) {
+        LOG.error("Failed to call upstream onComplete on Node: " + us, e);
+      }
+    }
+  }
+  
+  @Override
+  public void onError(final Throwable t) {
+    for (final QueryNode us : upstream) {
+      try {
+        us.onError(t);
+      } catch (Exception e) {
+        LOG.error("Failed to call upstream onError on Node: " + us, e);
+      }
+    }
+  }
+  
   /**
    * Calls {@link #fetchNext(Span)} on all of the downstream nodes.
    * @param span An optional tracing span.

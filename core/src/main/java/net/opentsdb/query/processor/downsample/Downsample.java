@@ -86,20 +86,7 @@ public class Downsample extends AbstractQueryNode {
   public void close() {
     // No-op
   }
-
-  @Override
-  public void onComplete(final QueryNode downstream, 
-                         final long final_sequence,
-                         final long total_sequences) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onComplete(this, final_sequence, total_sequences);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onComplete on Node: " + us, e);
-      }
-    }
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     final DownsampleResult results = new DownsampleResult(next);
@@ -112,18 +99,7 @@ public class Downsample extends AbstractQueryNode {
       }
     }
   }
-
-  @Override
-  public void onError(final Throwable t) {
-    for (final QueryNode us : upstream) {
-      try {
-        us.onError(t);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onError on Node: " + us, e);
-      }
-    }
-  }
-
+  
   /**
    * A downsample result that's a member class of the main node so that we share
    * the references to the config and node.

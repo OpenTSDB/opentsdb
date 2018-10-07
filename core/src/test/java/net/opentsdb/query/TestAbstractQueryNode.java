@@ -162,6 +162,10 @@ public class TestAbstractQueryNode {
     node.sendUpstream(ex);
     verify(upstream.get(0), times(1)).onError(ex);
     verify(upstream.get(1), times(1)).onError(ex);
+    
+    node.onError(ex);
+    verify(upstream.get(0), times(2)).onError(ex);
+    verify(upstream.get(1), times(2)).onError(ex);
   }
   
   @Test
@@ -198,6 +202,14 @@ public class TestAbstractQueryNode {
     node.completeUpstream(42, 42);
     verify(upstream.get(0), times(1)).onComplete(node, 42, 42);
     verify(upstream.get(1), times(1)).onComplete(node, 42, 42);
+    
+    node.onComplete(node, 42, 42);
+    verify(upstream.get(0), times(2)).onComplete(node, 42, 42);
+    verify(upstream.get(1), times(2)).onComplete(node, 42, 42);
+    
+    node.onComplete(null, 42, 42);
+    verify(upstream.get(0), times(3)).onComplete(node, 42, 42);
+    verify(upstream.get(1), times(3)).onComplete(node, 42, 42);
   }
   
   @Test
@@ -210,6 +222,10 @@ public class TestAbstractQueryNode {
     node.completeUpstream(42, 42);
     verify(upstream.get(0), times(1)).onComplete(node, 42, 42);
     verify(upstream.get(1), times(1)).onComplete(node, 42, 42);
+    
+    node.onComplete(node, 42, 42);
+    verify(upstream.get(0), times(2)).onComplete(node, 42, 42);
+    verify(upstream.get(1), times(2)).onComplete(node, 42, 42);
   }
   
   @Test
@@ -222,6 +238,10 @@ public class TestAbstractQueryNode {
     node.completeUpstream(42, 42);
     verify(upstream.get(0), times(1)).onComplete(node, 42, 42);
     verify(upstream.get(1), times(1)).onComplete(node, 42, 42);
+    
+    node.onComplete(node, 42, 42);
+    verify(upstream.get(0), times(2)).onComplete(node, 42, 42);
+    verify(upstream.get(1), times(2)).onComplete(node, 42, 42);
   }
   
   @Test
@@ -292,14 +312,7 @@ public class TestAbstractQueryNode {
     public void close() { }
 
     @Override
-    public void onComplete(QueryNode downstream, long final_sequence,
-        long total_sequences) { }
-
-    @Override
     public void onNext(QueryResult next) { }
-
-    @Override
-    public void onError(Throwable t) { }
     
   }
   
@@ -316,16 +329,9 @@ public class TestAbstractQueryNode {
     
     @Override
     public void close() { }
-
-    @Override
-    public void onComplete(QueryNode downstream, long final_sequence,
-        long total_sequences) { }
-
+    
     @Override
     public void onNext(QueryResult next) { }
 
-    @Override
-    public void onError(Throwable t) { }
-    
   }
 }

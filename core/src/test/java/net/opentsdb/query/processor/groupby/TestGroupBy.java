@@ -48,7 +48,6 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryUpstreamException;
@@ -129,12 +128,12 @@ public class TestGroupBy {
     GroupBy gb = new GroupBy(factory, context, null, config);
     gb.initialize(null);
     
-    gb.onComplete(mock(QueryNode.class), 42, 42);
+    gb.onComplete(null, 42, 42);
     verify(upstream, times(1)).onComplete(gb, 42, 42);
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onComplete(any(QueryNode.class), anyLong(), anyLong());
-    gb.onComplete(mock(QueryNode.class), 42, 42);
+    gb.onComplete(null, 42, 42);
     verify(upstream, times(2)).onComplete(gb, 42, 42);
   }
   

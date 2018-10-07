@@ -15,7 +15,6 @@
 package net.opentsdb.query.processor.topn;
 
 import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -52,13 +51,7 @@ public class TopN extends AbstractQueryNode {
     // TODO Auto-generated method stub
     
   }
-
-  @Override
-  public void onComplete(QueryNode downstream, long final_sequence,
-      long total_sequences) {
-    completeUpstream(final_sequence, total_sequences);
-  }
-
+  
   @Override
   public void onNext(final QueryResult next) {
     if (next instanceof TopNResult) {
@@ -70,10 +63,5 @@ public class TopN extends AbstractQueryNode {
     final TopNResult result = new TopNResult(this, next);
     result.run();
   }
-
-  @Override
-  public void onError(final Throwable t) {
-    sendUpstream(t);
-  }
-
+  
 }
