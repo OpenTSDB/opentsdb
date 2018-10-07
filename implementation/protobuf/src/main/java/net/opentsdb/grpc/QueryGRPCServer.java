@@ -93,9 +93,10 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
                     .build())
                   .build())
               .build();
+      context.initialize(null /* TODO */).join(1000);
       context.fetchNext(null /* TODO */);
     } catch (Throwable t) {
-      LOG.error("Unexpected eception", t);
+      LOG.error("Unexpected exception", t);
       observer.onError(t);
     }
   }
@@ -116,6 +117,8 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
           .forPort(tsdb.getConfig().getInt(PORT_KEY))
           .addService(this);
       if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CERTIFICATE_KEY))) {
+        LOG.info("Starting GRPC server with TLS and certificate: " 
+            + tsdb.getConfig().getString(CERTIFICATE_KEY));
         builder.useTransportSecurity(
             new File(tsdb.getConfig().getString(CERTIFICATE_KEY)), 
             new File(tsdb.getConfig().getString(KEY_KEY)));

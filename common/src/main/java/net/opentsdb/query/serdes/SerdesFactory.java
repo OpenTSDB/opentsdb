@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 
 /**
@@ -30,7 +31,7 @@ import net.opentsdb.query.QueryContext;
  * 
  * @since 3.0
  */
-public interface SerdesFactory {
+public interface SerdesFactory extends TSDBPlugin {
 
   /** @return The non-null, non-empty and unique ID of this factory. */
   public String id();

@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -40,7 +41,7 @@ import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
  * 
  * @since 3.0
  */
-public class PBufSerdesFactory implements SerdesFactory {
+public class PBufSerdesFactory extends BaseTSDBPlugin implements SerdesFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       PBufSerdesFactory.class);
   
@@ -121,5 +122,10 @@ public class PBufSerdesFactory implements SerdesFactory {
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to parse JSON", e);
     }
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
   }
 }

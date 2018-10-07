@@ -31,11 +31,14 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.protobuf.ByteString;
+import com.stumbleupon.async.Deferred;
 
 import io.grpc.BindableService;
 import io.grpc.Server;
@@ -57,6 +60,7 @@ import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.UnitTestException;
 
@@ -111,6 +115,14 @@ public class TestQueryGRPCServer {
     when(ctx_builder.build()).thenReturn(ctx);
     
     when(context.tsdb()).thenReturn(TSDB);
+    when(ctx.initialize(any(Span.class)))
+      .thenAnswer(new Answer<Deferred<Void>>() {
+      @Override
+      public Deferred<Void> answer(InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromResult(null);
+      }
+    });
     when(TSDB.getRegistry().getPlugin(SerdesFactory.class, PBufSerdesFactory.ID))
       .thenReturn(new PBufSerdesFactory());
   }
