@@ -79,6 +79,9 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
           // TODO - many more config options.
           .build();
       stub = QueryRpcBetaGrpc.newStub(channel);
+      LOG.info("Opened GPRC client connection to " 
+          + tsdb.getConfig().getString(HOST_KEY) + ":" 
+          + tsdb.getConfig().getString(PORT_KEY));
       serdes_factory = new PBufSerdesFactory();
     } catch (Exception e) {
       LOG.error("Unexpected exception setting up client.", e);
