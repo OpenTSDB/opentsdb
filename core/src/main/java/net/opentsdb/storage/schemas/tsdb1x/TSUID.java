@@ -26,6 +26,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesByteId;
@@ -345,6 +346,11 @@ public class TSUID implements TimeSeriesByteId {
         .append(", uniqueIds=")
         .append(uniqueIds());
     return buf.toString();
+  }
+  
+  @Override
+  public long buildHashCode() {
+    return LongHashFunction.xx_r39().hashBytes(tsuid);
   }
   
   /** @return The original TSUID. */

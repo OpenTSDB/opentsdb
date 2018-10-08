@@ -225,4 +225,11 @@ public class TestTSUID extends SchemaBase {
     } catch (NoSuchUniqueId e) { }
     verifySpan(TSUID.class.getName() + ".decode", NoSuchUniqueId.class, 4);
   }
+  
+  @Test
+  public void buildHashCode() throws Exception {
+    TSUID tsuid = new TSUID(Bytes.concat(METRIC_BYTES, TAGK_BYTES, 
+        TAGV_BYTES, TAGK_B_BYTES, NSUI_TAGV), schema());
+    assertEquals(-5870990467325021724L, tsuid.buildHashCode());
+  }
 }

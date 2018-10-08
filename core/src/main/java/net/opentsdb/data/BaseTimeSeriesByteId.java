@@ -235,7 +235,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
     return Long.hashCode(cached_hash);
   }
   
-  /** @return A HashCode object for deterministic, non-secure hashing */
+  @Override
   public long buildHashCode() {
     try {
       final ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -269,7 +269,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
           buf.write(id);
         }
       }
-      return (int) LongHashFunction.xx_r39().hashChars(buf.toString());
+      return LongHashFunction.xx_r39().hashChars(buf.toString());
     } catch (IOException e) {
       throw new RuntimeException("WTF? Shouldn't have happened.", e);
     }

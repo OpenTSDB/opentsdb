@@ -14,13 +14,21 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
+import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.pbuf.TimeSeriesIdPB;
 
@@ -33,6 +41,9 @@ public class PBufTimeSeriesId implements TimeSeriesStringId {
 
   /** The source ID. */
   private TimeSeriesIdPB.TimeSeriesId id;
+  
+  /** A cached hash code ID. */
+  protected volatile long cached_hash; 
   
   /**
    * Protected ctor from the builder.
@@ -61,11 +72,96 @@ public class PBufTimeSeriesId implements TimeSeriesStringId {
   }
 
   @Override
-  public int compareTo(TimeSeriesStringId o) {
-    // TODO Auto-generated method stub
-    return 0;
+  public int compareTo(final TimeSeriesStringId o) {
+    return ComparisonChain.start()
+        .compare(Strings.nullToEmpty(id.getAlias()), Strings.nullToEmpty(o.alias()))
+        .compare(Strings.nullToEmpty(id.getNamespace()), Strings.nullToEmpty(o.namespace()))
+        .compare(id.getMetric(), o.metric())
+        .compare(id.getTagsMap(), o.tags(), BaseTimeSeriesStringId.STR_MAP_CMP)
+        .compare(id.getAggregatedTagsList(), o.aggregatedTags(), 
+            Ordering.<String>natural().lexicographical().nullsFirst())
+        .compare(id.getDisjointTagsList(), o.disjointTags(), 
+            Ordering.<String>natural().lexicographical().nullsFirst())
+        .compare(id.getUniqueIdsList(), o.uniqueIds(), 
+            Ordering.<String>natural().lexicographical().nullsFirst())
+        .result();
   }
-
+  
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || !(o instanceof TimeSeriesStringId))
+      return false;
+    
+    final TimeSeriesStringId id = (TimeSeriesStringId) o;
+    
+    if (!Objects.equal(alias(), id.alias())) {
+      return false;
+    }
+    if (!Objects.equal(namespace(), id.namespace())) {
+      return false;
+    }
+    if (!Objects.equal(metric(), id.metric())) {
+      return false;
+    }
+    if (!Objects.equal(tags(), id.tags())) {
+      return false;
+    }
+    if (!Objects.equal(aggregatedTags(), id.aggregatedTags())) {
+      return false;
+    }
+    if (!Objects.equal(disjointTags(), id.disjointTags())) {
+      return false;
+    }
+    if (!Objects.equal(uniqueIds(), id.uniqueIds())) {
+      return false;
+    }
+    return true;
+  }
+  
+  @Override
+  public int hashCode() {
+    if (cached_hash == 0) {
+      cached_hash = buildHashCode();
+    }
+    return Long.hashCode(cached_hash);
+  }
+  
+  @Override
+  public long buildHashCode() {
+    final StringBuilder buf = new StringBuilder();
+    if (alias() != null) {
+      buf.append(alias());
+    }
+    buf.append(namespace());
+    buf.append(metric());
+    if (tags() != null) {
+      for (final Entry<String, String> pair : tags().entrySet()) {
+        buf.append(pair.getKey());
+        buf.append(pair.getValue());
+      }
+    }
+    if (aggregatedTags() != null) {
+      for (final String t : aggregatedTags()) {
+        buf.append(t);
+      }
+    }
+    if (disjointTags() != null) {
+      for (final String t : disjointTags()) {
+        buf.append(t);
+      }
+    }
+    if (uniqueIds() != null) {
+      final List<String> sorted = Lists.newArrayList(uniqueIds());
+      Collections.sort(sorted);
+      for (final String id : sorted) {
+        buf.append(id);
+      }
+    }
+    return LongHashFunction.xx_r39().hashChars(buf.toString());
+  }
+  
   @Override
   public String alias() {
     return id.getAlias();
