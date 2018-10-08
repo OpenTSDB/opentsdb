@@ -220,7 +220,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     return Long.hashCode(cached_hash);
   }
   
-  /** @return A HashCode object for deterministic, non-secure hashing */
+  @Override
   public long buildHashCode() {
     final StringBuilder buf = new StringBuilder();
     if (alias != null) {
@@ -251,7 +251,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
         buf.append(id);
       }
     }
-    return (int) LongHashFunction.xx_r39().hashChars(buf.toString());
+    return LongHashFunction.xx_r39().hashChars(buf.toString());
   }
 
   @Override
