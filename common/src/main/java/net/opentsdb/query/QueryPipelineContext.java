@@ -87,6 +87,15 @@ public interface QueryPipelineContext extends QueryNode {
   public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node);
   
   /**
+   * Returns the downstream source nodes for the requested node.
+   * @param node A non-null query node.
+   * @return A non-null collection of downstream data source node IDs in
+   * the format "node:source" or "source". If the node is a source then
+   * just the node's ID is returned.
+   */
+  public Collection<String> downstreamSourcesIds(final QueryNode node);
+  
+  /**
    * Returns the a collection of the <b>first</b> instance of the given
    * query node type per upstream branch from the given node, exclusive
    * of the given node.

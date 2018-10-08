@@ -37,4 +37,10 @@ public interface TimeSeriesId {
    */
   public TypeToken<? extends TimeSeriesId> type();
 
+  /**
+   * A signed 64 bit hash code for collision reduction.
+   * @return A hash as a long.
+   */
+  public long buildHashCode();
+  
 }

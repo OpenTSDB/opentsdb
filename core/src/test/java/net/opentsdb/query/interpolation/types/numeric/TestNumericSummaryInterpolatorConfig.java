@@ -134,16 +134,6 @@ public class TestNumericSummaryInterpolatorConfig {
     } catch (IllegalArgumentException e) { }
     
     try {
-      config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
-          .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-          .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-          //.addExpectedSummary(0)
-          .setDataType(NumericSummaryType.TYPE.toString())
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
       config = NumericSummaryInterpolatorConfig.newBuilder()
           .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
