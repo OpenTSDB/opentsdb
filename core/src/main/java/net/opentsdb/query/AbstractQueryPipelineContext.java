@@ -40,6 +40,7 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -195,6 +196,29 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       }
     }
     return downstreams;
+  }
+  
+  @Override
+  public Collection<String> downstreamSourcesIds(final QueryNode node) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (!plan.graph().containsVertex(node)) {
+      throw new IllegalArgumentException("The given node wasn't in this graph: " 
+          + node);
+    }
+    if (node.config() instanceof QuerySourceConfig ||
+        node.config().joins()) {
+      return Sets.newHashSet(node.config().getId());
+    }
+    
+    final Set<String> ids = Sets.newHashSet();
+    for (final DefaultEdge edge : plan.graph().outgoingEdgesOf(node)) {
+      final QueryNode downstream = plan.graph().getEdgeTarget(edge);
+      final Set<String> downstream_ids = (Set<String>) downstreamSourcesIds(downstream);
+      ids.addAll(downstream_ids);
+    }
+    return ids;
   }
   
   @Override
