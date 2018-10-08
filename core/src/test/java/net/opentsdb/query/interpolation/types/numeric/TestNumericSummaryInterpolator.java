@@ -799,6 +799,36 @@ public class TestNumericSummaryInterpolator {
     assertEquals(2, tsv.value().summariesAvailable().size());
   }
   
+  @Test
+  public void nextNoExpectedSummaries() throws Exception {
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
+//        .addExpectedSummary(0)
+//        .addExpectedSummary(2)
+        .setDataType(NumericSummaryType.TYPE.toString())
+        .build();
+    
+    NumericSummaryInterpolator interpolator = 
+        new NumericSummaryInterpolator(source, config);
+    
+    long[] sums = new long[] { 42, 24, 89, 1 };
+    long[] counts = new long[] { 5, 3, 6, 1 };
+    long ts = 1000;
+    int i = 0;
+    while (interpolator.hasNext()) {
+      final TimeSeriesValue<NumericSummaryType> tsv = 
+          (TimeSeriesValue<NumericSummaryType>) interpolator.next(
+              new MillisecondTimeStamp(ts));
+      assertEquals(ts, tsv.timestamp().msEpoch());
+      assertEquals(sums[i], tsv.value().value(0).longValue());
+      assertEquals(counts[i++], tsv.value().value(2).longValue());
+      assertEquals(2, tsv.value().summariesAvailable().size());
+      ts += 1000L;
+    }
+    assertEquals(4, i);
+  }
+  
   void print(final TimeSeriesValue<NumericSummaryType> tsv) {
     System.out.println("**** [UT] " + tsv.timestamp());
     if (tsv.value() == null) {

@@ -80,11 +80,6 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
    */
   NumericSummaryInterpolatorConfig(final Builder builder) {
     super(builder);
-    if (builder.expected_summaries == null || 
-        builder.expected_summaries.isEmpty()) {
-      throw new IllegalArgumentException("Expected summaries cannot "
-          + "be null or empty.");
-    }
     if (builder.fill_policy == null) {
       throw new IllegalArgumentException("Default fill policy cannot be null.");
     }
@@ -99,7 +94,8 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
     summary_fill_policy_overrides = builder.summary_fill_policy_overrides;
     summary_real_fill_overrides = builder.summary_real_fill_overrides;
     sync = builder.sync;
-    expected_summaries = builder.expected_summaries;
+    expected_summaries = builder.expected_summaries == null ? 
+        Collections.emptyList() : builder.expected_summaries;
     component_agg = builder.component_agg;
   }
   
