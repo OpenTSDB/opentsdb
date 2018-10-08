@@ -193,9 +193,14 @@ public class NumericSummaryInterpolator implements
     for (final int summary : value.value().summariesAvailable()) {
       ReadAheadNumericInterpolator interpolator = data.get(summary);
       if (interpolator == null) {
-        // we don't care about this one.
-        // TODO - a counter of these drops
-        continue;
+        if (config.getExpectedSummaries().isEmpty()) {
+          interpolator = new ReadAheadNumericInterpolator(config.queryFill(summary));
+          data.put(summary, interpolator);
+        } else {
+          // we don't care about this one.
+          // TODO - a counter of these drops
+          continue;
+        }
       }
       final NumericType v = value.value().value(summary);
       if (v == null) {
