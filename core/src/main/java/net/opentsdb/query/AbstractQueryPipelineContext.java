@@ -461,18 +461,24 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
    * A helper to determine if the stream is finished and calls the sink's 
    * {@link QuerySink#onComplete()} method.
    * <b>NOTE:</b> This method must be synchronized.
+   * @return True if complete, false if not.
    */
-  protected void checkComplete() {
+  protected boolean checkComplete() {
     for (final AtomicInteger integer : countdowns.values()) {
       if (integer.get() > 0) {
-        return;
+        return false;
       }
     }
     
     // done!
     for (final QuerySink sink : sinks) {
-      sink.onComplete();
+      try {
+        sink.onComplete();
+      } catch (Throwable t) {
+        LOG.error("Failed to close sink: " + sink, t);
+      }
     }
+    return true;
   }
   
   /**
@@ -536,7 +542,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         countdowns.get(result.source().config().getId() + ":" 
             + result.dataSource()).decrementAndGet();
       }
-      checkComplete();
+      result.close();
     }
     
   }
