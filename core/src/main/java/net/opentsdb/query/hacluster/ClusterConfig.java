@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution.cluster;
+package net.opentsdb.query.hacluster;
 
 import java.util.List;
 import java.util.Map;
@@ -42,8 +42,8 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.execution.cluster.ClusterConfigPlugin.Config;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.hacluster.ClusterConfigPlugin.Config;
 import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.PluginLoader;
 
