@@ -37,7 +37,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
-import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
@@ -63,6 +62,7 @@ import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
 import net.opentsdb.query.plan.QueryPlannnerFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.processor.merge.DataShardMerger;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
