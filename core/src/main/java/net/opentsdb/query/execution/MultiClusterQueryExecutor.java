@@ -44,7 +44,7 @@ import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.data.DataMerger;
+//import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
@@ -82,7 +82,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       MultiClusterQueryExecutor.class);
 
   /** The data merger used to merge results. */
-  private DataMerger<T> default_data_merger;
+//  private DataMerger<T> default_data_merger;
   
   /** The cluster graph used with this executor. */
   private final ClusterConfig cluster_graph;
@@ -360,8 +360,8 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               // we have at least one good result so return it.
               if (valid > 0) {
                 try {
-                  callback(default_data_merger.merge(data, context, tracer_span),
-                      TsdbTrace.successfulTags());
+//                  callback(default_data_merger.merge(data, context, tracer_span),
+//                      TsdbTrace.successfulTags());
                 } catch (IllegalArgumentException e) {
                   if (LOG.isDebugEnabled()) {
                     LOG.debug("Lost race returning good data on execution: " 
@@ -506,7 +506,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         timer_timeout = null;
       }
       try {
-        callback(default_data_merger.merge(results, context, tracer_span));
+//        callback(default_data_merger.merge(results, context, tracer_span));
       } catch (IllegalArgumentException ex) {
         // lost race, no prob.
       } catch (Exception ex) {
@@ -521,12 +521,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       return executions;
     }
   }
-
-  @VisibleForTesting
-  DataMerger<T> dataMerger() {
-    return default_data_merger;
-  }
-
+  
   @VisibleForTesting
   Map<String, QueryExecutor<T>> executors() {
     return executors;
