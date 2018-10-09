@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -35,6 +36,8 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import io.grpc.CompressorRegistry;
+import io.grpc.DecompressorRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.opentsdb.core.MockTSDB;
@@ -65,6 +68,10 @@ public class TestQueryGRPCClientFactory {
     
     PowerMockito.mockStatic(ManagedChannelBuilder.class);
     when(ManagedChannelBuilder.forAddress(anyString(), anyInt()))
+      .thenReturn(channel_builder);
+    when(channel_builder.compressorRegistry(any(CompressorRegistry.class)))
+      .thenReturn(channel_builder);
+    when(channel_builder.decompressorRegistry(any(DecompressorRegistry.class)))
       .thenReturn(channel_builder);
     when(channel_builder.build()).thenReturn(channel);
   }
