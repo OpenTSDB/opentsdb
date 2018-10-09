@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,6 +80,22 @@ public class GroupByTimeSeries implements TimeSeries {
     this.result = result;
     types = Sets.newHashSetWithExpectedSize(1);
     merging_id = MergedTimeSeriesId.newBuilder();
+    if (((GroupByConfig) node.config()).getFullMerge()) {
+      merging_id.setFullMerge(true);
+    }
+  }
+  
+  public GroupByTimeSeries(final GroupBy node, 
+                           final QueryResult result, 
+                           final TimeSeriesId id) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null");
+    }
+    this.node = node;
+    this.result = result;
+    types = Sets.newHashSetWithExpectedSize(1);
+    merging_id = null;
+    this.id = id;
   }
   
   /**
@@ -93,14 +109,13 @@ public class GroupByTimeSeries implements TimeSeries {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
-    if (id != null || types_unioned || iterators_returned) {
-      throw new IllegalArgumentException("Cannot add sources after the time "
-          + "series has been used.");
-    }
     if (sources == null) {
       sources = Sets.newHashSet();
     }
-    merging_id.addSeries(source.id());
+    if (((GroupByConfig) node.config()).getMergeIds() || 
+        ((GroupByConfig) node.config()).getFullMerge()) {
+      merging_id.addSeries(source.id());
+    }
     sources.add(source);
     types.addAll(source.types());
   }

@@ -64,17 +64,19 @@ public class TestGroupByTimeSeries {
   private TimeSeriesStringId id_b;
   private TimeSeries source_a;
   private TimeSeries source_b;
+  private NumericInterpolatorConfig numeric_config;
+  private NumericSummaryInterpolatorConfig summary_config;
   
   @Before
   public void before() throws Exception {
-    NumericInterpolatorConfig numeric_config = 
+    numeric_config = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
     .setFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
     .setDataType(NumericType.TYPE.toString())
     .build();
     
-    NumericSummaryInterpolatorConfig summary_config = 
+    summary_config = 
         (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
     .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
     .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
@@ -142,7 +144,17 @@ public class TestGroupByTimeSeries {
   }
   
   @Test
-  public void addSource() throws Exception {
+  public void addSourceMergeIds() throws Exception {
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("host")
+        .setMergeIds(true)
+        .setId("GB")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
     GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);
@@ -157,15 +169,50 @@ public class TestGroupByTimeSeries {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    ts.id();
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
+    assertEquals("a", id.metric());
+    assertEquals(1, id.aggregatedTags().size());
+    assertEquals("host", id.aggregatedTags().get(0));
+  }
+  
+  @Test
+  public void addSourceIdProvided() throws Exception {
+    GroupByTimeSeries ts = new GroupByTimeSeries(node, result, 
+        BaseTimeSeriesStringId.newBuilder()
+          .setMetric("aprime")
+          .addTags("host", "web03")
+          .build());
+    ts.addSource(source_a);
+    ts.addSource(source_b);
+    assertEquals(2, ts.sources().size());
+    
+    // add same is fine, hashed :)
+    ts.addSource(source_a);
+    assertEquals(2, ts.sources().size());
+    
     try {
-      ts.addSource(source_a);
+      ts.addSource(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
+    assertEquals("aprime", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("web03", id.tags().get("host"));
   }
   
   @Test
   public void id() throws Exception {
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("host")
+        .setMergeIds(true)
+        .setId("GB")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
     GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
     ts.addSource(source_a);
     ts.addSource(source_b);

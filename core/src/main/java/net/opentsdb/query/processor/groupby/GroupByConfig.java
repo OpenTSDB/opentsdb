@@ -50,6 +50,8 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   private final String aggregator;
   private final boolean infectious_nan;
   private final boolean group_all;
+  private final boolean merge_ids;
+  private final boolean full_merge;
   
   private GroupByConfig(final Builder builder) {
     super(builder);
@@ -71,6 +73,8 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     aggregator = builder.aggregator;
     infectious_nan = builder.infectiousNan;
     group_all = builder.group_all;
+    merge_ids = builder.mergeIds;
+    full_merge = builder.fullMerge;
   }
   
   /** @return The non-empty list of tag keys to group on. */
@@ -103,6 +107,16 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   /** @return Whether or not to group by just the metric or the given tags. */
   public boolean getGroupAll() {
     return group_all;
+  }
+  
+  /** @return Whether or not to merge the IDs or just take the group tags. */
+  public boolean getMergeIds() {
+    return merge_ids;
+  }
+  
+  /** @return Whether or not to compute disjoint tags. */
+  public boolean getFullMerge() {
+    return full_merge;
   }
   
   @Override
@@ -151,6 +165,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     private boolean infectiousNan;
     @JsonProperty
     private boolean group_all;
+    @JsonProperty
+    private boolean mergeIds;
+    @JsonProperty
+    private boolean fullMerge;
     
     /**
      * @param tag_keys A non-null and non-empty set of tag keys to replace any
@@ -226,6 +244,26 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       return this;
     }
     
+    /**
+     * @param merge_ids Whether or not to merge IDs or just use the tags
+     * identified in the group-by.
+     * @return The builder.
+     */
+    public Builder setMergeIds(final boolean merge_ids) {
+      mergeIds = merge_ids;
+      return this;
+    }
+    
+    /**
+     * @param merge_ids Whether or not to create a full merge with
+     * disjoint tags.
+     * @return The builder.
+     */
+    public Builder setFullMerge(final boolean full_merge) {
+      fullMerge = full_merge;
+      return this;
+    }
+    
     /** @return The constructed config.
      * @throws IllegalArgumentException if a required parameter is missing or
      * invalid. */
@@ -265,15 +303,26 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       builder.setGroupAll(n.asBoolean());
     }
     
+    n = node.get("mergeIds");
+    if (n != null) {
+      builder.setMergeIds(n.asBoolean());
+    }
+    
+    n = node.get("fullMerge");
+    if (n != null) {
+      builder.setFullMerge(n.asBoolean());
+    }
+    
     n = node.get("interpolatorConfigs");
     for (final JsonNode config : n) {
       JsonNode type_json = config.get("type");
       final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
           QueryInterpolatorFactory.class, 
-          type_json == null ? null : type_json.asText());
+          type_json == null || type_json.isNull() ? null : type_json.asText());
       if (factory == null) {
         throw new IllegalArgumentException("Unable to find an "
-            + "interpolator factory for: " + type_json.asText());
+            + "interpolator factory for: " + 
+            (type_json == null ? "default" : type_json.asText()));
       }
       
       final QueryInterpolatorConfig interpolator_config = 

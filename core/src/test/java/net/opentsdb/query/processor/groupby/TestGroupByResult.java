@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -30,6 +31,8 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -74,6 +77,7 @@ public class TestGroupByResult {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
+        .setMergeIds(true)
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -135,11 +139,23 @@ public class TestGroupByResult {
     
     // xx hash is deterministic
     GroupByTimeSeries ts = (GroupByTimeSeries) gbr.groups.get(1016930065491533874L);
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
+    assertEquals("a", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("lga", id.tags().get("dc"));
+    assertEquals(1, id.aggregatedTags().size());
+    assertTrue(id.aggregatedTags().contains("host"));
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     assertTrue(ts.sources.contains(ts2));
     
     ts = (GroupByTimeSeries) gbr.groups.get(2354124408228422003L);
+    id = (TimeSeriesStringId) ts.id();
+    assertEquals("a", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("phx", id.tags().get("dc"));
+    assertEquals(1, id.aggregatedTags().size());
+    assertTrue(id.aggregatedTags().contains("host"));
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts3));
     assertTrue(ts.sources.contains(ts4));
@@ -253,6 +269,64 @@ public class TestGroupByResult {
   }
   
   @Test
+  public void stringsNoMerging() throws Exception {
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("dc")
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
+    GroupByResult gbr = new GroupByResult(node, result);
+    assertEquals(42, gbr.sequenceId());
+    assertSame(time_spec, gbr.timeSpecification());
+    assertEquals(2, gbr.groups.size());
+    
+    // xx hash is deterministic
+    GroupByTimeSeries ts = (GroupByTimeSeries) gbr.groups.get(1016930065491533874L);
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
+    assertEquals("a", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("lga", id.tags().get("dc"));
+    assertTrue(id.aggregatedTags().isEmpty());
+    
+    ts = (GroupByTimeSeries) gbr.groups.get(2354124408228422003L);
+    assertEquals(2, ts.sources().size());
+    id = (TimeSeriesStringId) ts.id();
+    assertEquals("a", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("phx", id.tags().get("dc"));
+    assertTrue(id.aggregatedTags().isEmpty());
+  }
+  
+  @Test
+  public void stringsNoMergingGroupAll() throws Exception {
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("dc")
+        .setGroupAll(true)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
+    GroupByResult gbr = new GroupByResult(node, result);
+    assertEquals(42, gbr.sequenceId());
+    assertSame(time_spec, gbr.timeSpecification());
+    assertEquals(1, gbr.groups.size());
+    
+    // xx hash is deterministic
+    GroupByTimeSeries ts = (GroupByTimeSeries) gbr.groups.entrySet().iterator().next().getValue();
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
+    assertEquals("a", id.metric());
+    assertTrue(id.tags().isEmpty());
+    assertTrue(id.aggregatedTags().isEmpty());
+  }
+  
+  @Test
   public void bytes1Tag() throws Exception {
     setupBytes();
     GroupByResult gbr = new GroupByResult(node, result);
@@ -262,11 +336,23 @@ public class TestGroupByResult {
     
     // xx hash is deterministic
     GroupByTimeSeries ts = (GroupByTimeSeries) gbr.groups.get(4725406361284816093L);
+    TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
+    assertArrayEquals("a".getBytes(), id.metric());
+    assertEquals(1, id.tags().size());
+    assertArrayEquals("phx".getBytes(), id.tags().get("dc".getBytes()));
+    assertEquals(1, id.aggregatedTags().size());
+    assertArrayEquals("host".getBytes(), id.aggregatedTags().get(0));
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts3));
     assertTrue(ts.sources.contains(ts4));
     
     ts = (GroupByTimeSeries) gbr.groups.get(-2414897214160805570L);
+    id = (TimeSeriesByteId) ts.id();
+    assertArrayEquals("a".getBytes(), id.metric());
+    assertEquals(1, id.tags().size());
+    assertArrayEquals("lga".getBytes(), id.tags().get("dc".getBytes()));
+    assertEquals(1, id.aggregatedTags().size());
+    assertArrayEquals("host".getBytes(), id.aggregatedTags().get(0));
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     assertTrue(ts.sources.contains(ts2));
@@ -387,12 +473,75 @@ public class TestGroupByResult {
     assertEquals(0, gbr.groups.size());
   }
   
+  @Test
+  public void bytesNoMergeIds() throws Exception {
+    setupBytes();
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("dc")
+        .addTagKey("dc".getBytes())
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
+    GroupByResult gbr = new GroupByResult(node, result);
+    assertEquals(42, gbr.sequenceId());
+    assertSame(time_spec, gbr.timeSpecification());
+    assertEquals(2, gbr.groups.size());
+    
+    // xx hash is deterministic
+    GroupByTimeSeries ts = (GroupByTimeSeries) gbr.groups.get(4725406361284816093L);
+    TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
+    assertArrayEquals("a".getBytes(), id.metric());
+    assertEquals(1, id.tags().size());
+    assertArrayEquals("phx".getBytes(), id.tags().get("dc".getBytes()));
+    assertTrue(id.aggregatedTags().isEmpty());
+    
+    ts = (GroupByTimeSeries) gbr.groups.get(-2414897214160805570L);
+    id = (TimeSeriesByteId) ts.id();
+    assertArrayEquals("a".getBytes(), id.metric());
+    assertEquals(1, id.tags().size());
+    assertArrayEquals("lga".getBytes(), id.tags().get("dc".getBytes()));
+    assertTrue(id.aggregatedTags().isEmpty());
+  }
+  
+  @Test
+  public void bytesNoMergeIdsGroupAll() throws Exception {
+    setupBytes();
+    config = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .addTagKey("dc")
+        .setGroupAll(true)
+        .setId("Testing")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
+    
+    GroupByResult gbr = new GroupByResult(node, result);
+    assertEquals(42, gbr.sequenceId());
+    assertSame(time_spec, gbr.timeSpecification());
+    assertEquals(1, gbr.groups.size());
+    
+    // xx hash is deterministic
+    GroupByTimeSeries ts = (GroupByTimeSeries) gbr.groups.entrySet().iterator().next().getValue();
+    TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
+    assertArrayEquals("a".getBytes(), id.metric());
+    assertTrue(id.tags().isEmpty());
+    assertTrue(id.aggregatedTags().isEmpty());
+    
+  }
+  
   private void setupBytes() {
     final ReadableTimeSeriesDataStore data_store = mock(ReadableTimeSeriesDataStore.class);
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
         .addTagKey("dc".getBytes())
+        .setMergeIds(true)
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
