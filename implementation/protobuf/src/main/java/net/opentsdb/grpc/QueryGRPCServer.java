@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import io.grpc.CompressorRegistry;
+import io.grpc.DecompressorRegistry;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -115,6 +117,8 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
     try {
       final ServerBuilder<?> builder = ServerBuilder
           .forPort(tsdb.getConfig().getInt(PORT_KEY))
+          .compressorRegistry(CompressorRegistry.getDefaultInstance())
+          .decompressorRegistry(DecompressorRegistry.getDefaultInstance())
           .addService(this);
       if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CERTIFICATE_KEY))) {
         LOG.info("Starting GRPC server with TLS and certificate: " 

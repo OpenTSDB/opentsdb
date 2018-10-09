@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import io.grpc.CompressorRegistry;
+import io.grpc.DecompressorRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.opentsdb.common.Const;
@@ -76,6 +78,8 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
       channel = ManagedChannelBuilder
           .forAddress(tsdb.getConfig().getString(HOST_KEY), 
                       tsdb.getConfig().getInt(PORT_KEY))
+          .compressorRegistry(CompressorRegistry.getDefaultInstance())
+          .decompressorRegistry(DecompressorRegistry.getDefaultInstance())
           // TODO - many more config options.
           .build();
       stub = QueryRpcBetaGrpc.newStub(channel);

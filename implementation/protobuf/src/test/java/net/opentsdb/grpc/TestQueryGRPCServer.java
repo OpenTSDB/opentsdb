@@ -41,6 +41,8 @@ import com.google.protobuf.ByteString;
 import com.stumbleupon.async.Deferred;
 
 import io.grpc.BindableService;
+import io.grpc.CompressorRegistry;
+import io.grpc.DecompressorRegistry;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -101,6 +103,10 @@ public class TestQueryGRPCServer {
     when(server_builder.addService(any(BindableService.class)))
       .thenReturn(server_builder);
     when(server_builder.useTransportSecurity(any(File.class), any(File.class)))
+      .thenReturn(server_builder);
+    when(server_builder.compressorRegistry(any(CompressorRegistry.class)))
+      .thenReturn(server_builder);
+    when(server_builder.decompressorRegistry(any(DecompressorRegistry.class)))
       .thenReturn(server_builder);
     when(server_builder.build()).thenReturn(server);
     when(server.start()).thenReturn(server);
