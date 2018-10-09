@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.data;
+package net.opentsdb.query.processor.merge;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +31,12 @@ import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
 import io.opentracing.Tracer.SpanBuilder;
+import net.opentsdb.data.DataMerger;
+import net.opentsdb.data.DataShardMergeStrategy;
+import net.opentsdb.data.MergedTimeSeriesId;
+import net.opentsdb.data.TimeSeriesGroupId;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.MergedTimeSeriesId.Builder;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.DefaultTimeSeriesIterators;

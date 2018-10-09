@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.data;
+package net.opentsdb.query.processor.merge;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -38,7 +38,10 @@ import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SimpleStringGroupId;
+import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.DataShardMergeStrategy;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
@@ -53,6 +56,7 @@ import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.processor.merge.DataShardMerger;
 
 public class TestDataShardMerger {
 
