@@ -38,7 +38,6 @@ import com.stumbleupon.async.Deferred;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
@@ -76,7 +75,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
   protected final int default_parallel_executors;
   
   /** The data merger used to merge results. */
-  private DataMerger<T> default_data_merger;
+//  private DataMerger<T> default_data_merger;
   
   /** The downstream executor to pass sharded queries to. */
   protected QueryExecutor<T> executor;
@@ -263,8 +262,8 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         outstanding_executions.remove(QuerySplitter.this);
         try {
           // TODO - override
-          callback(default_data_merger.merge(data, context, tracer_span),
-              TsdbTrace.successfulTags());
+//          callback(default_data_merger.merge(data, context, tracer_span),
+//              TsdbTrace.successfulTags());
         } catch (IllegalStateException e) {
           LOG.warn("Group callback tried to return results despite being "
               + "called: " + this);
@@ -346,12 +345,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     }
     
   }
-  
-  @VisibleForTesting
-  DataMerger<T> dataMerger() {
-    return default_data_merger;
-  }
-  
+    
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)

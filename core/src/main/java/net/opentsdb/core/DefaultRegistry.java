@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,11 +36,8 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.DataMerger;
-import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -88,9 +85,6 @@ public class DefaultRegistry implements Registry {
   private final Map<String, TypeToken<? extends TimeSeriesDataType>> type_map;
   
   private final Map<TypeToken<? extends TimeSeriesDataType>, String> default_type_name_map;
-  
-  /** The map of data mergers. */
-  private final Map<String, DataMerger<?>> data_mergers;
   
   /** The map of available executor graphs for query execution. */
   private final Map<String, ExecutionGraph> executor_graphs;
@@ -145,8 +139,6 @@ public class DefaultRegistry implements Registry {
     this.tsdb = tsdb;
     type_map = Maps.newHashMap();
     default_type_name_map = Maps.newHashMap();
-    data_mergers = 
-        Maps.<String, DataMerger<?>>newHashMapWithExpectedSize(1);
     executor_graphs = 
         Maps.<String, ExecutionGraph>newHashMapWithExpectedSize(1);
     factories = Maps.newHashMapWithExpectedSize(1);
@@ -492,10 +484,6 @@ public class DefaultRegistry implements Registry {
     return shared_objects.get(id);
   }
   
-  public DataMerger<?> getDataMerger(final String merger) {
-    return data_mergers.get(merger);
-  }
-  
   public TimeSeriesSerdes getSerdes(final String id) {
     return serdes.get(id);
   }
@@ -583,11 +571,6 @@ public class DefaultRegistry implements Registry {
     if (true) {
       return Deferred.fromResult(null);
     }
-    final DataShardMerger shards_merger = new DataShardMerger();
-    shards_merger.registerStrategy(new NumericMergeLargest());
-    data_mergers.put(null, shards_merger);
-    data_mergers.put("default", shards_merger);
-    data_mergers.put("largest", shards_merger);
     
     List<Deferred<Object>> deferreds = Lists.newArrayList();
     
