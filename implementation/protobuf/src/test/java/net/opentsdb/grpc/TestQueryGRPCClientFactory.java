@@ -73,7 +73,7 @@ public class TestQueryGRPCClientFactory {
   public void initialize() throws Exception {
     QueryGRPCClientFactory factory = new QueryGRPCClientFactory();
     assertNull(factory.initialize(TSDB).join(1));
-    assertNotNull(factory.stub);
+    assertNotNull(factory.stub());
     
     when(channel_builder.build()).thenThrow(new UnitTestException());
     factory = new QueryGRPCClientFactory();
