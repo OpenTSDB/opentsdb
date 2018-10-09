@@ -24,8 +24,11 @@ import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -45,6 +48,7 @@ public class TestGroupByConfig {
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
       .setDataType(NumericType.TYPE.toString())
+      .setType("Default")
       .build();
     
     summary_config = 
@@ -53,6 +57,7 @@ public class TestGroupByConfig {
       .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
       .addExpectedSummary(0)
       .setDataType(NumericSummaryType.TYPE.toString())
+      .setType("Default")
       .build();
   }
   
@@ -77,6 +82,8 @@ public class TestGroupByConfig {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setGroupAll(true)
+        .setMergeIds(true)
+        .setFullMerge(true)
         .setId("GBy")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -86,6 +93,8 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertNull(config.getTagKeys());
     assertTrue(config.getGroupAll());
+    assertTrue(config.getMergeIds());
+    assertTrue(config.getFullMerge());
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -180,11 +189,14 @@ public class TestGroupByConfig {
   }
 
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     GroupByConfig config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
+        .setGroupAll(true)
+        .setMergeIds(true)
+        .setFullMerge(true)
         .setId("GBy")
         .addInterpolatorConfig(numeric_config)
         .build();
@@ -195,8 +207,27 @@ public class TestGroupByConfig {
     assertTrue(json.contains("\"tagKeys\":["));
     assertTrue(json.contains("host"));
     assertTrue(json.contains("dc"));
-    assertTrue(json.contains("\"groupAll\":false"));
+    assertTrue(json.contains("\"groupAll\":true"));
+    assertTrue(json.contains("\"mergeIds\":true"));
+    assertTrue(json.contains("\"fullMerge\":true"));
     assertTrue(json.contains("\"infectiousNan\":false"));
     assertTrue(json.contains("\"interpolatorConfigs\":["));
+    
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.registry = new DefaultRegistry(tsdb);
+    ((DefaultRegistry) tsdb.registry).initialize(true);
+    JsonNode node = JSON.getMapper().readTree(json);
+    config = GroupByConfig.parse(JSON.getMapper(), tsdb, node);
+    
+    assertEquals("sum", config.getAggregator());
+    assertEquals("GBy", config.getId());
+    assertTrue(config.getTagKeys().contains("host"));
+    assertTrue(config.getTagKeys().contains("dc"));
+    assertTrue(config.getGroupAll());
+    assertTrue(config.getFullMerge());
+    assertTrue(config.getFullMerge());
+    assertFalse(config.getInfectiousNan());
+    assertTrue(config.interpolatorConfigs().get(NumericType.TYPE) 
+        instanceof NumericInterpolatorConfig);
   }
 }

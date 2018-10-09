@@ -30,6 +30,8 @@ import com.google.common.reflect.TypeToken;
 
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
+import net.opentsdb.data.BaseTimeSeriesByteId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
@@ -109,7 +111,22 @@ public class GroupByResult implements QueryResult {
         final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
         GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
         if (group == null) {
-          group = new GroupByTimeSeries(node, this);
+          if (((GroupByConfig) node.config()).getMergeIds() || 
+              ((GroupByConfig) node.config()).getFullMerge()) {
+            group = new GroupByTimeSeries(node, this);  
+          } else {
+            BaseTimeSeriesStringId.Builder group_id = 
+                BaseTimeSeriesStringId.newBuilder()
+                  .setAlias(id.alias())
+                  .setNamespace(id.namespace())
+                  .setMetric(id.metric());
+            if (!((GroupByConfig) node.config()).getGroupAll()) {
+              for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
+                group_id.addTags(key, id.tags().get(key));
+              }
+            }
+            group = new GroupByTimeSeries(node, this, group_id.build());
+          }
           groups.put(hash, group);
         }
         group.addSource(series);
@@ -151,7 +168,22 @@ public class GroupByResult implements QueryResult {
           final long hash = LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
           GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
           if (group == null) {
-            group = new GroupByTimeSeries(node, this);
+            if (((GroupByConfig) node.config()).getMergeIds() || 
+                ((GroupByConfig) node.config()).getFullMerge()) {
+              group = new GroupByTimeSeries(node, this);  
+            } else {
+              BaseTimeSeriesByteId.Builder group_id = 
+                  BaseTimeSeriesByteId.newBuilder(id.dataStore())
+                    .setAlias(id.alias())
+                    .setNamespace(id.namespace())
+                    .setMetric(id.metric());
+              if (!((GroupByConfig) node.config()).getGroupAll()) {
+                for (final byte[] key : ((GroupByConfig) node.config()).getEncodedTagKeys()) {
+                  group_id.addTags(key, id.tags().get(key));
+                }
+              }
+              group = new GroupByTimeSeries(node, this, group_id.build());
+            }
             groups.put(hash, group);
           }
           group.addSource(series);
