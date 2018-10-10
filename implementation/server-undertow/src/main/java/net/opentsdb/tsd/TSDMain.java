@@ -60,7 +60,9 @@ import com.google.common.io.Files;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
+import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.PathHandler;
+import io.undertow.server.handlers.encoding.EncodingHandler;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
@@ -230,8 +232,12 @@ public class TSDMain {
       final PathHandler path = Handlers.path(Handlers.redirect(root))
               .addPrefixPath(root, manager.start());
       
+      final HttpHandler encoding_handler= new EncodingHandler.Builder()
+          .build(null)
+          .wrap(path);
+      
       final Builder builder = Undertow.builder()
-          .setHandler(path);
+          .setHandler(encoding_handler);
       if (port > 0) {
         builder.addHttpListener(port, bind);
       }
