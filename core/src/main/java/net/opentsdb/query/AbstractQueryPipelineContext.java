@@ -542,7 +542,12 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         countdowns.get(result.source().config().getId() + ":" 
             + result.dataSource()).decrementAndGet();
       }
-      result.close();
+      checkComplete();
+      try {
+        result.close();
+      } catch (Throwable t) {
+        LOG.error("Failed to close result: " + result, t);
+      }
     }
     
   }
