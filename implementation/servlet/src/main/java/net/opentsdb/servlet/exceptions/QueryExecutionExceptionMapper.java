@@ -27,10 +27,9 @@ import javax.ws.rs.ext.ExceptionMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 
-import ch.qos.logback.classic.spi.ThrowableProxy;
-import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import jersey.repackaged.com.google.common.collect.Lists;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.utils.JSON;
@@ -89,10 +88,8 @@ public class QueryExecutionExceptionMapper implements
     response.put("code", e.getStatusCode());
     response.put("message", e.getMessage());
     if (show_trace) {
-      final ThrowableProxy tp = new ThrowableProxy(e);
-      tp.calculatePackagingData();
-      final String formatted_trace = ThrowableProxyUtil.asString(tp);
-      response.put("trace", formatted_trace);  
+      response.put("trace", 
+          Throwables.getStackTraceAsString(e.getCause()));  
     }
     if (!e.getThrowables().isEmpty()) {
       final List<Map<String, Object>> sub_exceptions = 
@@ -111,10 +108,8 @@ public class QueryExecutionExceptionMapper implements
               ((QueryExecutionException) t).getStatusCode() : 0);
           sub_exception.put("message", t.getMessage());
           if (show_trace) {
-            final ThrowableProxy tp = new ThrowableProxy(t);
-            tp.calculatePackagingData();
-            final String formatted_trace = ThrowableProxyUtil.asString(tp);
-            sub_exception.put("trace", formatted_trace);  
+            sub_exception.put("trace", 
+                Throwables.getStackTraceAsString(e.getCause()));  
           }
           sub_exceptions.add(sub_exception);
         }
@@ -133,10 +128,8 @@ public class QueryExecutionExceptionMapper implements
             ((QueryExecutionException) e.getCause()).getStatusCode() : 0);
         cause.put("message", e.getCause().getMessage());
         if (show_trace) {
-          final ThrowableProxy tp = new ThrowableProxy(e.getCause());
-          tp.calculatePackagingData();
-          final String formatted_trace = ThrowableProxyUtil.asString(tp);
-          cause.put("trace", formatted_trace);  
+          cause.put("trace", 
+              Throwables.getStackTraceAsString(e.getCause()));  
         }
         response.put("cause", cause);
       }

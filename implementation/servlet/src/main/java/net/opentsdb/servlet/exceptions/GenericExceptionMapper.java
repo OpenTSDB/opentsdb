@@ -29,8 +29,8 @@ import javax.ws.rs.ext.ExceptionMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ch.qos.logback.classic.spi.ThrowableProxy;
-import ch.qos.logback.classic.spi.ThrowableProxyUtil;
+import com.google.common.base.Throwables;
+
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.utils.JSON;
 
@@ -52,14 +52,11 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
     }
     
     LOG.error("Unexpected exception", t);
-    final ThrowableProxy tp = new ThrowableProxy(t);
-    tp.calculatePackagingData();
-    final String formattedTrace = ThrowableProxyUtil.asString(tp);
     
     final Map<String, Object> response = new HashMap<String, Object>(3);
     response.put("code", Response.Status.INTERNAL_SERVER_ERROR);
     response.put("message", t.getMessage());
-    response.put("trace", formattedTrace);
+    response.put("trace", Throwables.getStackTraceAsString(t));
     
     final Map<String, Object> outerMap = new HashMap<String, Object>(1);
     outerMap.put("error", response);
@@ -81,10 +78,6 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
     
     LOG.error("Unexpected exception", t);
     
-    final ThrowableProxy tp = new ThrowableProxy(t);
-    tp.calculatePackagingData();
-    final String formattedTrace = ThrowableProxyUtil.asString(tp);
-    
     int status = Status.INTERNAL_SERVER_ERROR.getStatusCode();
     if (t instanceof QueryExecutionException) {
       status = ((QueryExecutionException) t).getStatusCode();
@@ -93,7 +86,8 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
     final Map<String, Object> map = new HashMap<String, Object>(3);
     map.put("code", status);
     map.put("message", t.getMessage());
-    map.put("trace", formattedTrace);
+    map.put("trace", 
+        Throwables.getStackTraceAsString(t));
     
     final Map<String, Object> outerMap = new HashMap<String, Object>(1);
     outerMap.put("error", map);
