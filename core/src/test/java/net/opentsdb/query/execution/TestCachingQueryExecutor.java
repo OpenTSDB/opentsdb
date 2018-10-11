@@ -48,6 +48,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryContext;
@@ -127,7 +128,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
             .setId("m1")
             .setMetric("system.cpu.user"))
         .build()
-        .convert().build();
+        .convert(mock(TSDB.class)).build();
     when(pcontext.query()).thenReturn(query);
    // cache_execution = new MockDownstream<IteratorGroups>(query);
     when(plugin.fetch(any(QueryContext.class), any(byte[].class), any(Span.class)))
