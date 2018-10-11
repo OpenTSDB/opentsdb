@@ -855,7 +855,6 @@ public class TimeSeriesQuery extends Validatable
       FillPolicy policy = downsampler == null ? 
           FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
       GroupByConfig.Builder gb_config = (GroupByConfig.Builder) GroupByConfig.newBuilder()
-          .setGroupAll(true)
           .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
               .setFillPolicy(policy)
               .setRealFillPolicy(FillWithRealPolicy.NONE)

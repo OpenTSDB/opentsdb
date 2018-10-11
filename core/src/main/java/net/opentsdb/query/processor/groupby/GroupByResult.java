@@ -80,7 +80,6 @@ public class GroupByResult implements QueryResult {
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     this.next = next;
-    boolean group_all = ((GroupByConfig) node.config()).getGroupAll();
     groups = Maps.newHashMap();
     if (next.idType().equals(Const.TS_STRING_ID)) {
       for (final TimeSeries series : next.timeSeries()) {
@@ -88,7 +87,7 @@ public class GroupByResult implements QueryResult {
         final StringBuilder buf = new StringBuilder()
             .append(id.metric());
         
-        if (!group_all) {
+        if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
           boolean matched = true;
           for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
             final String tagv = id.tags().get(key);
@@ -120,7 +119,7 @@ public class GroupByResult implements QueryResult {
                   .setAlias(id.alias())
                   .setNamespace(id.namespace())
                   .setMetric(id.metric());
-            if (!((GroupByConfig) node.config()).getGroupAll()) {
+            if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
               for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
                 group_id.addTags(key, id.tags().get(key));
               }
@@ -140,7 +139,7 @@ public class GroupByResult implements QueryResult {
         
         try {
           buf.write(id.metric());
-          if (!group_all) {
+          if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
             boolean matched = true;
             for (final byte[] key : keys) {
               if (id.tags() == null || id.tags().size() < 1) {
@@ -177,7 +176,7 @@ public class GroupByResult implements QueryResult {
                     .setAlias(id.alias())
                     .setNamespace(id.namespace())
                     .setMetric(id.metric());
-              if (!((GroupByConfig) node.config()).getGroupAll()) {
+              if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
                 for (final byte[] key : ((GroupByConfig) node.config()).getEncodedTagKeys()) {
                   group_id.addTags(key, id.tags().get(key));
                 }

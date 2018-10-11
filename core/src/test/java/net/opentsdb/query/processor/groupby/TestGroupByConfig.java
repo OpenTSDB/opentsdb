@@ -76,12 +76,10 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertFalse(config.getGroupAll());
     assertSame(numeric_config, config.interpolatorConfigs().get(NumericType.TYPE));
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setGroupAll(true)
         .setMergeIds(true)
         .setFullMerge(true)
         .setId("GBy")
@@ -91,8 +89,7 @@ public class TestGroupByConfig {
     
     assertEquals("sum", config.getAggregator());
     assertEquals("GBy", config.getId());
-    assertNull(config.getTagKeys());
-    assertTrue(config.getGroupAll());
+    assertTrue(config.getTagKeys().isEmpty());
     assertTrue(config.getMergeIds());
     assertTrue(config.getFullMerge());
     
@@ -100,7 +97,6 @@ public class TestGroupByConfig {
         .setAggregator("sum")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setGroupAll(true)
         .setId("GBy")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -110,7 +106,6 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertTrue(config.getGroupAll());
     
     try {
       GroupByConfig.newBuilder()
@@ -149,7 +144,6 @@ public class TestGroupByConfig {
     assertNull(config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertFalse(config.getGroupAll());
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -163,19 +157,6 @@ public class TestGroupByConfig {
       assertEquals("", config.getId());
       assertTrue(config.getTagKeys().contains("host"));
       assertTrue(config.getTagKeys().contains("dc"));
-      assertFalse(config.getGroupAll());
-    
-    try {
-      GroupByConfig.newBuilder()
-        .setAggregator("sum")
-        //.setTagKeys(Sets.newHashSet("host"))
-        //.addTagKey("dc")
-        .setId("GBy")
-        .addInterpolatorConfig(numeric_config)
-        .addInterpolatorConfig(summary_config)
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
     
     try {
       GroupByConfig.newBuilder()
@@ -194,7 +175,6 @@ public class TestGroupByConfig {
         .setAggregator("sum")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setGroupAll(true)
         .setMergeIds(true)
         .setFullMerge(true)
         .setId("GBy")
@@ -207,7 +187,6 @@ public class TestGroupByConfig {
     assertTrue(json.contains("\"tagKeys\":["));
     assertTrue(json.contains("host"));
     assertTrue(json.contains("dc"));
-    assertTrue(json.contains("\"groupAll\":true"));
     assertTrue(json.contains("\"mergeIds\":true"));
     assertTrue(json.contains("\"fullMerge\":true"));
     assertTrue(json.contains("\"infectiousNan\":false"));
@@ -223,7 +202,6 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
-    assertTrue(config.getGroupAll());
     assertTrue(config.getFullMerge());
     assertTrue(config.getFullMerge());
     assertFalse(config.getInfectiousNan());

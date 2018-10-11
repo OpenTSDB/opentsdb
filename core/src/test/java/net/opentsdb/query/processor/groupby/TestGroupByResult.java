@@ -215,7 +215,6 @@ public class TestGroupByResult {
   public void stringsGroupAll() throws Exception {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setGroupAll(true)
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -237,8 +236,6 @@ public class TestGroupByResult {
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setGroupAll(true)
-        .addTagKey("host") // <-- ignored
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -305,8 +302,6 @@ public class TestGroupByResult {
   public void stringsNoMergingGroupAll() throws Exception {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .addTagKey("dc")
-        .setGroupAll(true)
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -419,7 +414,6 @@ public class TestGroupByResult {
     setupBytes();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setGroupAll(true)
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -441,8 +435,6 @@ public class TestGroupByResult {
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setGroupAll(true)
-        .addTagKey("host") // <-- ignored
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
@@ -512,8 +504,6 @@ public class TestGroupByResult {
     setupBytes();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .addTagKey("dc")
-        .setGroupAll(true)
         .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
