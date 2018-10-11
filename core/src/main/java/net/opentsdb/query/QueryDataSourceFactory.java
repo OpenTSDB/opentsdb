@@ -97,8 +97,12 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
                                      final JsonNode node) {
     QuerySourceConfig.Builder builder = QuerySourceConfig.newBuilder();
     // TODO - types
+    JsonNode n = node.get("sourceId");
+    if (n != null && !n.isNull()) {
+      builder.setSourceId(n.asText());
+    }
     
-    JsonNode n = node.get("metric");
+    n = node.get("metric");
     if (n == null) {
       throw new IllegalArgumentException("Missing the metric field.");
     }
