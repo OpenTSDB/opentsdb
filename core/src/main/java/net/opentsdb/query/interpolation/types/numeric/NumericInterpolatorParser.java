@@ -36,10 +36,10 @@ public class NumericInterpolatorParser implements QueryInterpolatorConfigParser 
                                        final JsonNode node) {
     try {
       final JsonNode fill_node = node.get("fillPolicy");
-      if (fill_node != null) {
+      if (fill_node != null && !fill_node.isNull()) {
         final FillPolicy fill = mapper.treeToValue(fill_node, FillPolicy.class);
         if (fill == FillPolicy.SCALAR) {
-          return mapper.treeToValue(node, ScalarNumericInterpolatorConfig.class);
+          return ScalarNumericInterpolatorConfig.parse(mapper, tsdb, node);
         }
       }
       
