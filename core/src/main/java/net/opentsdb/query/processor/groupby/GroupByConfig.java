@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -49,18 +50,11 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   private List<byte[]> encoded_tag_keys;
   private final String aggregator;
   private final boolean infectious_nan;
-  private final boolean group_all;
   private final boolean merge_ids;
   private final boolean full_merge;
   
   private GroupByConfig(final Builder builder) {
     super(builder);
-    if (!builder.group_all && builder.tagKeys == null) {
-      throw new IllegalArgumentException("Tag keys cannot be null.");
-    }
-    if (!builder.group_all && builder.tagKeys.isEmpty()) {
-      throw new IllegalArgumentException("Tag keys cannot be empty.");
-    }
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
@@ -68,11 +62,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       throw new IllegalArgumentException("Must include at least one"
           + " interpolator config.");
     }
-    tag_keys = builder.tagKeys;
+    tag_keys = builder.tagKeys == null ? Collections.emptySet() : builder.tagKeys;
     encoded_tag_keys = builder.encoded_tag_keys;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectiousNan;
-    group_all = builder.group_all;
     merge_ids = builder.mergeIds;
     full_merge = builder.fullMerge;
   }
@@ -102,11 +95,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
    * in arithmetic. */
   public boolean getInfectiousNan() {
     return infectious_nan;
-  }
-  
-  /** @return Whether or not to group by just the metric or the given tags. */
-  public boolean getGroupAll() {
-    return group_all;
   }
   
   /** @return Whether or not to merge the IDs or just take the group tags. */
@@ -163,8 +151,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     private String aggregator;
     @JsonProperty
     private boolean infectiousNan;
-    @JsonProperty
-    private boolean group_all;
     @JsonProperty
     private boolean mergeIds;
     @JsonProperty
@@ -236,15 +222,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
     /**
-     * @param group_all Whether or not to group by all tags (just on metrics)
-     * @return The builder.
-     */
-    public Builder setGroupAll(final boolean group_all) {
-      this.group_all = group_all;
-      return this;
-    }
-    
-    /**
      * @param merge_ids Whether or not to merge IDs or just use the tags
      * identified in the group-by.
      * @return The builder.
@@ -296,11 +273,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     n = node.get("infectiousNan");
     if (n != null) {
       builder.setInfectiousNan(n.asBoolean());
-    }
-    
-    n = node.get("groupAll");
-    if (n != null) {
-      builder.setGroupAll(n.asBoolean());
     }
     
     n = node.get("mergeIds");
