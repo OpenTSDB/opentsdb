@@ -34,6 +34,7 @@ import com.google.common.hash.Hashing;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryMode;
@@ -43,10 +44,8 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.ChainFilter;
-import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
@@ -75,6 +74,9 @@ import java.util.Set;
 @JsonDeserialize(builder = TimeSeriesQuery.Builder.class)
 public class TimeSeriesQuery extends Validatable 
     implements Comparable<TimeSeriesQuery>{
+  
+  public static final String RATE_1_TO_0_KEY = "tsd.query.convert.2x.rate1to0";
+  
   /** An optional name for the query */
   private String name;
   
@@ -588,9 +590,10 @@ public class TimeSeriesQuery extends Validatable
   
   /**
    * Converts the query into a semantic query builder. 
+   * @param tsdb The TSDB to pull configs from.
    * @return A non-null builder if successful.
    */
-  public SemanticQuery.Builder convert() {
+  public SemanticQuery.Builder convert(final TSDB tsdb) {
     validate();
     
     final SemanticQuery.Builder builder = SemanticQuery.newBuilder()
@@ -684,10 +687,10 @@ public class TimeSeriesQuery extends Validatable
       }
       
       if (metric.isRate()) {
-        node = rate(metric, metric.getRateOptions(), node);
+        node = rate(metric, metric.getRateOptions(), node, tsdb);
         nodes.add(node);
       } else if (time.isRate()) {
-        node = rate(metric, time.getRateOptions(), node);
+        node = rate(metric, time.getRateOptions(), node, tsdb);
         nodes.add(node);
       }
       
@@ -786,11 +789,37 @@ public class TimeSeriesQuery extends Validatable
    * @param metric The non-null metric.
    * @param options The rate options.
    * @param parent The parent node.
+   * @param tsdb The TSDB to pull configs from.
    * @return An execution graph node.
    */
   private ExecutionGraphNode rate(final Metric metric, 
-                          final RateOptions options, 
-                          final ExecutionGraphNode parent) {
+                                  final RateOptions options, 
+                                  final ExecutionGraphNode parent,
+                                  final TSDB tsdb) {
+    if (!tsdb.getConfig().hasProperty(RATE_1_TO_0_KEY)) {
+      synchronized(tsdb.getConfig()) { 
+        if (!tsdb.getConfig().hasProperty(RATE_1_TO_0_KEY)) {
+          tsdb.getConfig().register(RATE_1_TO_0_KEY, false, true,
+              "For 2.x queries, if the rate reset value was set to 1 to "
+              + "avoid missbehavior in the past, converts it to 0 for the "
+              + "proper new behvaior.");
+        }
+      }
+    }
+    
+    if (options.getResetValue() == 1 && 
+        tsdb.getConfig().getBoolean(RATE_1_TO_0_KEY)) {
+      return ExecutionGraphNode.newBuilder()
+          .setId(metric.getId() + "_Rate")
+          .setType("Rate")
+          .addSource(parent.getId())
+          .setConfig(RateOptions.newBuilder(metric.getRateOptions())
+            .setResetValue(0)
+            .setId(metric.getId() + "_Rate")
+            .build())
+          .build();
+    }
+    
     return ExecutionGraphNode.newBuilder()
       .setId(metric.getId() + "_Rate")
       .setType("Rate")

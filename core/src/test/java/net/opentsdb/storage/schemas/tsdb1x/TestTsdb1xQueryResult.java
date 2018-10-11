@@ -90,7 +90,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
               .setId("m1")
               .setMetric(METRIC_STRING))
           .build()
-          .convert().build())
+          .convert(tsdb).build())
         .setId("m1")
         .build();
     when(node.config()).thenReturn(source_config);
@@ -137,7 +137,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
               .setId("m1")
               .setMetric(METRIC_STRING))
           .build()
-          .convert().build())
+          .convert(tsdb).build())
         .addOverride(Schema.QUERY_BYTE_LIMIT_KEY, "42")
         .addOverride(Schema.QUERY_DP_LIMIT_KEY, "24")
         .setId("m1")
@@ -396,7 +396,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
               .setId("m1")
               .setMetric(METRIC_STRING))
           .build()
-          .convert().build())
+          .convert(tsdb).build())
         .addOverride(Schema.QUERY_BYTE_LIMIT_KEY, "42")
         .addOverride(Schema.QUERY_DP_LIMIT_KEY, "24")
         .setId("m1")

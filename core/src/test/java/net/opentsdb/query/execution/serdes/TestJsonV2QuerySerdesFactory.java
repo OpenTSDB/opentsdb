@@ -57,7 +57,7 @@ public class TestJsonV2QuerySerdesFactory {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert().build();
+        .convert(mock(TSDB.class)).build();
     when(context.query()).thenReturn(query);
     
     JsonV2QuerySerdesFactory factory = new JsonV2QuerySerdesFactory();
