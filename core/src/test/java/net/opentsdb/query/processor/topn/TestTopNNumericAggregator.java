@@ -59,6 +59,7 @@ public class TestTopNNumericAggregator {
         .setAggregator("sum")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
   }
@@ -75,6 +76,7 @@ public class TestTopNNumericAggregator {
         .setAggregator("nosuchagg")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     try {
@@ -168,6 +170,7 @@ public class TestTopNNumericAggregator {
         .setCount(10)
         .setTop(true)
         .setInfectiousNan(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     aggregator = new TopNNumericAggregator(node, result, source);

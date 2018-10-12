@@ -84,8 +84,8 @@ public class TestGroupByNumericIterator {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     node = mock(GroupBy.class);
     when(node.config()).thenReturn(config);
@@ -179,8 +179,8 @@ public class TestGroupByNumericIterator {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("nosuchagg")
         .addTagKey("dc")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     try {
@@ -307,8 +307,8 @@ public class TestGroupByNumericIterator {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -594,8 +594,8 @@ public class TestGroupByNumericIterator {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -654,8 +654,8 @@ public class TestGroupByNumericIterator {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -715,8 +715,8 @@ public class TestGroupByNumericIterator {
         .setAggregator("sum")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -775,8 +775,8 @@ public class TestGroupByNumericIterator {
         .setAggregator("sum")
         .addTagKey("dc")
         .setInfectiousNan(false)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -842,8 +842,8 @@ public class TestGroupByNumericIterator {
         .setAggregator("sum")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -902,8 +902,8 @@ public class TestGroupByNumericIterator {
         .setAggregator("sum")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setId("Testing")        
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")        
         .build();
     when(node.config()).thenReturn(config);
     
@@ -964,8 +964,8 @@ public class TestGroupByNumericIterator {
         .setAggregator("sum")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -1054,8 +1054,8 @@ public class TestGroupByNumericIterator {
         .setAggregator("sum")
         .addTagKey("dc")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     

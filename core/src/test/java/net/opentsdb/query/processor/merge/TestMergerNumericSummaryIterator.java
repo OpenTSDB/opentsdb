@@ -90,8 +90,8 @@ public class TestMergerNumericSummaryIterator {
         .build();
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(interpolator_config)
+        .setId("Testing")
         .build();
     result = mock(QueryResult.class);
     when(result.rollupConfig()).thenReturn(rollup_config);
@@ -185,8 +185,8 @@ public class TestMergerNumericSummaryIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(interpolator_config)
+        .setId("Testing")
         .build();
     
     long[] sums = new long[] { -1, 11, 12, -1, 21, 22, -1, 24, 31, 32, 33, 34 };
@@ -323,8 +323,8 @@ public class TestMergerNumericSummaryIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(interpolator_config)
+        .setId("Testing")
         .build();
     
     long[] sums = new long[] { -1, 11, 12, 13, -1, 22, 23, 24, -31, 32, 33, 34 };
@@ -368,8 +368,8 @@ public class TestMergerNumericSummaryIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(interpolator_config)
+        .setId("Testing")
         .build();
     
     long[] sums = new long[] { 10, 11, 12, -1, 22, 22, 23, -1, 31, 32, 33, -1 };
@@ -413,8 +413,8 @@ public class TestMergerNumericSummaryIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(interpolator_config)
+        .setId("Testing")
         .build();
     
     long[] sums = new long[] { 10, -1, 12, 13, 22, -1, 23, 24, 31, -1, 33, 34 };
@@ -474,12 +474,12 @@ public class TestMergerNumericSummaryIterator {
   public void nextFromNumericInterpolatorConfig() throws Exception {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setDataType(NumericType.TYPE.toString())
             .build())
+        .setId("Testing")
         .build();
     
     long[] sums = new long[] { 10, 11, 12, 13, 21, 22, 23, 24, 31, 32, 33, 34 };
@@ -505,12 +505,12 @@ public class TestMergerNumericSummaryIterator {
   public void nextFromNumericInterpolatorConfigAvg() throws Exception {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("avg")
-        .setId("Testing")
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NONE)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setDataType(NumericType.TYPE.toString())
             .build())
+        .setId("Testing")
         .build();
     
     long[] sums = new long[] { 10, 11, 12, 13, 21, 22, 23, 24, 31, 32, 33, 34 };

@@ -80,8 +80,8 @@ public class TestMergerNumericArrayIterator {
     
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     
     node = mock(Merger.class);
@@ -177,8 +177,8 @@ public class TestMergerNumericArrayIterator {
     // invalid agg
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("nosuchagg")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     when(registry.getPlugin(any(Class.class), anyString()))
@@ -357,8 +357,8 @@ public class TestMergerNumericArrayIterator {
     
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -402,8 +402,8 @@ public class TestMergerNumericArrayIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .setInfectiousNan(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     

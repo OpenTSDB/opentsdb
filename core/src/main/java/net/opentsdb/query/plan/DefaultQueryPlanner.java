@@ -658,7 +658,19 @@ public class DefaultQueryPlanner {
     public String getId() {
       return "QueryContext";
     }
+    
+    @Override
+    public String getType() {
+      // TODO Auto-generated method stub
+      return null;
+    }
 
+    @Override
+    public List<String> getSources() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
     @Override
     public HashCode buildHashCode() {
       // TODO Auto-generated method stub
@@ -718,6 +730,7 @@ public class DefaultQueryPlanner {
       // TODO Auto-generated method stub
       return false;
     }
+
     
   }
 }

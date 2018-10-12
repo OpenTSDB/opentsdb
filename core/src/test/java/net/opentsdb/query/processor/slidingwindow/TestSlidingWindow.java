@@ -50,6 +50,7 @@ public class TestSlidingWindow {
     config = (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
         .setAggregator("sum")
         .setWindowSize("5m")
+        .setId("win")
         .build();
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))

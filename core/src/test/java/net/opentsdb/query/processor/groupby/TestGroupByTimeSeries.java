@@ -89,9 +89,9 @@ public class TestGroupByTimeSeries {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("host")
-        .setId("GB")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("GB")
         .build();
     result = mock(QueryResult.class);
     final QueryPipelineContext context = mock(QueryPipelineContext.class);
@@ -149,9 +149,9 @@ public class TestGroupByTimeSeries {
         .setAggregator("sum")
         .addTagKey("host")
         .setMergeIds(true)
-        .setId("GB")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("GB")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -207,9 +207,9 @@ public class TestGroupByTimeSeries {
         .setAggregator("sum")
         .addTagKey("host")
         .setMergeIds(true)
-        .setId("GB")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("GB")
         .build();
     when(node.config()).thenReturn(config);
     

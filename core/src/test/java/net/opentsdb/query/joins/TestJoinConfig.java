@@ -30,48 +30,49 @@ public class TestJoinConfig {
   @Test
   public void builder() throws Exception {
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setId("join1")
         .build();
     
-    assertEquals(JoinType.INNER, config.getType());
+    assertEquals(JoinType.INNER, config.getJoinType());
     assertEquals(2, config.getJoins().size());
     assertEquals("Hostname", config.getJoins().get("host"));
     assertEquals("owner", config.getJoins().get("owner"));
     assertFalse(config.getExplicitTags());
     
     String json = JSON.serializeToString(config);
+    System.out.println(json);
     assertTrue(json.contains("\"id\":\"join1\""));
-    assertTrue(json.contains("\"type\":\"INNER\""));
+    assertTrue(json.contains("\"joinType\":\"INNER\""));
     assertTrue(json.contains("\"joins\":{"));
     assertTrue(json.contains("\"host\":\"Hostname\""));
     assertTrue(json.contains("\"owner\":\"owner\""));
     assertTrue(json.contains("\"explicitTags\":false"));
     
-    config = JSON.parseToObject("{\"id\":\"join1\",\"type\":\"INNER\","
+    config = JSON.parseToObject("{\"id\":\"join1\",\"joinType\":\"INNER\","
         + "\"joins\":{\"host\":\"Hostname\",\"owner\":\"owner\"},"
         + "\"explicitTags\":true}", 
         JoinConfig.class);
-    assertEquals(JoinType.INNER, config.getType());
+    assertEquals(JoinType.INNER, config.getJoinType());
     assertEquals(2, config.getJoins().size());
     assertEquals("Hostname", config.getJoins().get("host"));
     assertEquals("owner", config.getJoins().get("owner"));
     assertTrue(config.getExplicitTags());
     
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .setId("join1")
         .build();
-    assertEquals(JoinType.NATURAL, config.getType());
+    assertEquals(JoinType.NATURAL, config.getJoinType());
     assertTrue(config.getJoins().isEmpty());
     
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .setId("join1")
         .build();
-    assertEquals(JoinType.CROSS, config.getType());
+    assertEquals(JoinType.CROSS, config.getJoinType());
     assertTrue(config.getJoins().isEmpty());
     
     try {
@@ -86,7 +87,7 @@ public class TestJoinConfig {
 
     try {
       JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         //.addJoins("host", "Hostname")
         //.addJoins("owner", "owner")
         .setId("join1")
@@ -98,7 +99,7 @@ public class TestJoinConfig {
   @Test
   public void compareEqualsHash() throws Exception {
     final JoinConfig c1 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setExplicitTags(true)
@@ -106,7 +107,7 @@ public class TestJoinConfig {
         .build();
     
     JoinConfig c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setExplicitTags(true)
@@ -117,7 +118,7 @@ public class TestJoinConfig {
     assertEquals(0, c1.compareTo(c2));
     
     c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.OUTER) // <-- Diff
+        .setJoinType(JoinType.OUTER) // <-- Diff
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setExplicitTags(true)
@@ -128,7 +129,7 @@ public class TestJoinConfig {
     assertEquals(-1, c1.compareTo(c2));
     
     c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("owner", "owner") // <-- Diff order OK!
         .addJoins("host", "Hostname")
         .setExplicitTags(true)
@@ -139,7 +140,7 @@ public class TestJoinConfig {
     assertEquals(0, c1.compareTo(c2));
     
     c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "hostname") // <-- Diff
         .addJoins("owner", "owner")
         .setExplicitTags(true)
@@ -150,7 +151,7 @@ public class TestJoinConfig {
     assertEquals(-1, c1.compareTo(c2));
     
     c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL) // <-- Diff
+        .setJoinType(JoinType.NATURAL) // <-- Diff
         //.addJoins("host", "Hostname")
         //.addJoins("owner", "owner")
         .setExplicitTags(true)
@@ -161,7 +162,7 @@ public class TestJoinConfig {
     assertEquals(-1, c1.compareTo(c2));
 
     c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setExplicitTags(false) // <-- Diff
@@ -172,7 +173,7 @@ public class TestJoinConfig {
     assertEquals(1, c1.compareTo(c2));
     
     c2 = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setExplicitTags(true)
@@ -187,7 +188,7 @@ public class TestJoinConfig {
   @Test
   public void serialize() throws Exception {
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setId("join1")
@@ -195,7 +196,7 @@ public class TestJoinConfig {
     
     final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"join1\""));
-    assertTrue(json.contains("\"type\":\"INNER\""));
+    assertTrue(json.contains("\"joinType\":\"INNER\""));
     assertTrue(json.contains("\"joins\":{"));
     assertTrue(json.contains("\"owner\":\"owner\""));
     assertTrue(json.contains("\"host\":\"Hostname\""));

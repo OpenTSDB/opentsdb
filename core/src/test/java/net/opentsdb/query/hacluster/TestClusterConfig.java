@@ -54,8 +54,8 @@ public class TestClusterConfig {
         .setSources(Lists.newArrayList("colo1", "colo2"))
         .setMergeAggregator("sum")
         .setSecondaryTimeout("5s")
-        .setId("ha")
         .addInterpolatorConfig(numeric_config)
+        .setId("ha")
         .build();
     
     assertEquals(2, config.getSources().size());
@@ -71,8 +71,8 @@ public class TestClusterConfig {
           .setSources(Lists.newArrayList())
           .setMergeAggregator("sum")
           .setSecondaryTimeout("5s")
-          .setId("ha")
           .addInterpolatorConfig(numeric_config)
+          .setId("ha")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -82,8 +82,8 @@ public class TestClusterConfig {
           //.setSources(Lists.newArrayList("colo1", "colo2"))
           .setMergeAggregator("sum")
           .setSecondaryTimeout("5s")
-          .setId("ha")
           .addInterpolatorConfig(numeric_config)
+          .setId("ha")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -93,8 +93,8 @@ public class TestClusterConfig {
           .setSources(Lists.newArrayList("colo1", "colo2"))
           .setMergeAggregator("")
           .setSecondaryTimeout("5s")
-          .setId("ha")
           .addInterpolatorConfig(numeric_config)
+          .setId("ha")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -104,8 +104,8 @@ public class TestClusterConfig {
           .setSources(Lists.newArrayList("colo1", "colo2"))
           //.setMergeAggregator("sum")
           .setSecondaryTimeout("5s")
-          .setId("ha")
           .addInterpolatorConfig(numeric_config)
+          .setId("ha")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -115,8 +115,8 @@ public class TestClusterConfig {
           .setSources(Lists.newArrayList("colo1", "colo2"))
           .setMergeAggregator("sum")
           .setSecondaryTimeout("notaduration")
-          .setId("ha")
           .addInterpolatorConfig(numeric_config)
+          .setId("ha")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -128,8 +128,8 @@ public class TestClusterConfig {
         .setSources(Lists.newArrayList("colo1", "colo2"))
         .setMergeAggregator("sum")
         .setSecondaryTimeout("5s")
-        .setId("ha")
         .addInterpolatorConfig(numeric_config)
+        .setId("ha")
         .build();
     
     String json = JSON.serializeToString(config);

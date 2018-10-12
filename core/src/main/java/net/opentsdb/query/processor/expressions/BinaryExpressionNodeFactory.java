@@ -169,6 +169,12 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
     builder.setExpressionConfig(ExpressionConfig.parse(mapper, tsdb, n));
     
+    n = node.get("id");
+    if (n == null || n.isNull()) {
+      throw new IllegalArgumentException("Missing ID for node config");
+    }
+    builder.setId(n.asText());
+    
     return builder.build();
   }
 

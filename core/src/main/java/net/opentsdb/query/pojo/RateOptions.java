@@ -16,6 +16,8 @@ package net.opentsdb.query.pojo;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -27,13 +29,14 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.BaseQueryNodeConfig.Builder;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -56,6 +59,12 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
 
   /** The ID of this config. */
   private String id;
+  
+  /** The class of an {@link QueryNode} implementation. */
+  private final String type;
+  
+  /** An optional list of downstream sources. */
+  private final List<String> sources;
   
   /**
    * If true, then when calculating a rate of change assume that the metric
@@ -90,6 +99,8 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   
   /** Used for Jackson non-default serdes. */
   protected RateOptions() {
+    type = null;
+    sources = null;
     overrides = null;
   }
   
@@ -98,6 +109,9 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
    */
   protected RateOptions(final Builder builder) {
     id = builder.id;
+    type = builder.type;
+    sources = builder.sources == null ? Collections.emptyList() : 
+      builder.sources;
     counter = builder.counter;
     drop_resets = builder.dropResets;
     counter_max = builder.counterMax;
@@ -139,6 +153,16 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   @Override
   public String getId() {
     return id;
+  }
+  
+  @Override
+  public String getType() {
+    return type;
+  }
+
+  @Override
+  public List<String> getSources() {
+    return sources;
   }
   
   /** @return The duration of the rate to convert to. E.g. per second or per
@@ -366,7 +390,12 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
   public static final class Builder {
+    @JsonProperty
     private String id;
+    @JsonProperty
+    private String type;
+    @JsonProperty
+    private List<String> sources;
     @JsonProperty
     private boolean counter;
     @JsonProperty
@@ -382,6 +411,37 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     
     public Builder setId(final String id) {
       this.id = id;
+      return this;
+    }
+    
+    /**
+     * @param type The class of the implementation.
+     * @return The builder.
+     */
+    public Builder setType(final String type) {
+      this.type = type;
+      return this;
+    }
+    
+    /**
+     * @param sources An optional list of sources consisting of the IDs 
+     * of a nodes in the graph.
+     * @return The builder.
+     */
+    public Builder setSources(final List<String> sources) {
+      this.sources = sources;
+      return this;
+    }
+    
+    /**
+     * @param source A source to pull from for this node.
+     * @return The builder.
+     */
+    public Builder addSource(final String source) {
+      if (sources == null) {
+        sources = Lists.newArrayListWithExpectedSize(1);
+      }
+      sources.add(source);
       return this;
     }
     

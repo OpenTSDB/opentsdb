@@ -59,7 +59,7 @@ public class TestExpressionFactory {
       .build();
     
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .build();
     
     SINK = mock(ExecutionGraphNode.class);
@@ -94,7 +94,7 @@ public class TestExpressionFactory {
         .setConfig(ExpressionConfig.newBuilder()
             .setExpression("m1 + 42")
             .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                .setType(JoinType.NATURAL)
+                .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
@@ -161,7 +161,7 @@ public class TestExpressionFactory {
         .setConfig(ExpressionConfig.newBuilder()
             .setExpression("m1 + 42")
             .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                .setType(JoinType.NATURAL)
+                .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
@@ -245,7 +245,7 @@ public class TestExpressionFactory {
         .setConfig(ExpressionConfig.newBuilder()
             .setExpression("m1 + m2")
             .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                .setType(JoinType.NATURAL)
+                .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
@@ -333,7 +333,7 @@ public class TestExpressionFactory {
         .setConfig(ExpressionConfig.newBuilder()
             .setExpression("m1 + m2")
             .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                .setType(JoinType.NATURAL)
+                .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
@@ -432,7 +432,7 @@ public class TestExpressionFactory {
         .setConfig(ExpressionConfig.newBuilder()
             .setExpression("m1 + m2 + m3")
             .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                .setType(JoinType.NATURAL)
+                .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
@@ -555,7 +555,7 @@ public class TestExpressionFactory {
         .setConfig(ExpressionConfig.newBuilder()
             .setExpression("(m1 * 1024) + (m2 * 1024) + (m3 * 1024)")
             .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                .setType(JoinType.NATURAL)
+                .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.util.List;
 import java.util.Map;
 
 import com.google.common.hash.HashCode;
@@ -33,8 +34,23 @@ public interface QueryNodeConfig extends Comparable<QueryNodeConfig> {
    */
   public String getId();
   
+  /** @return The type of configuration registered with the TSDB registry.
+   * This is used during parsing to determine what parser to use and 
+   * also what kind of node to generate. */
+  public String getType();
+  
+  /** @return The list of {@link #getId()}s of other nodes that
+   * feed into this node. This is used to build the query DAG. */
+  public List<String> getSources();
+  
   /** @return A hash code for this configuration. */
   public HashCode buildHashCode();
+  
+  @Override
+  public boolean equals(final Object o);
+  
+  @Override
+  public int hashCode();
   
   /** @return Whether or not the node config can be pushed down to 
    * the query source. */

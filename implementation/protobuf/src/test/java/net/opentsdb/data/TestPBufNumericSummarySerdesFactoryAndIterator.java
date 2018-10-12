@@ -66,6 +66,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
                 .setMetric(MetricLiteralFilter.newBuilder()
                     .setMetric("sys.cpu.user")
                     .build())
+                .setId("m1")
                 .build())
             .build())
         .build();

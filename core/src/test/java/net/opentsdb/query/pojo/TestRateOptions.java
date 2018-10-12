@@ -39,7 +39,7 @@ public class TestRateOptions {
         .build();
     String json = JSON.serializeToString(options);
     // defaults are empty
-    assertEquals("{}", json);
+    assertEquals("{\"sources\":[]}", json);
     
     options = RateOptions.newBuilder()
         .setCounter(true)

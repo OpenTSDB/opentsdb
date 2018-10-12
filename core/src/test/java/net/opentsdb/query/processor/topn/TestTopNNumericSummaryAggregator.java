@@ -62,6 +62,7 @@ public class TestTopNNumericSummaryAggregator {
         .setAggregator("sum")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -93,6 +94,7 @@ public class TestTopNNumericSummaryAggregator {
         .setAggregator("nosuchagg")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     try {
@@ -226,6 +228,7 @@ public class TestTopNNumericSummaryAggregator {
         .setCount(10)
         .setTop(true)
         .setInfectiousNan(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     aggregator = new TopNNumericSummaryAggregator(node, result, source);
@@ -280,6 +283,7 @@ public class TestTopNNumericSummaryAggregator {
         .setAggregator("count")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -308,6 +312,7 @@ public class TestTopNNumericSummaryAggregator {
         .setAggregator("avg")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -336,6 +341,7 @@ public class TestTopNNumericSummaryAggregator {
         .setAggregator("avg")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -369,6 +375,7 @@ public class TestTopNNumericSummaryAggregator {
         .setAggregator("avg")
         .setCount(10)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     

@@ -82,10 +82,10 @@ public class JoinConfig extends BaseQueryNodeConfig {
    */
   protected JoinConfig(final Builder builder) {
     super(builder);
-    if (builder.type == null) {
+    if (builder.joinType == null) {
       throw new IllegalArgumentException("Type cannot be null");
     }
-    type = builder.type;
+    type = builder.joinType;
     if (builder.joins == null) {
       if (type == JoinType.NATURAL || type == JoinType.CROSS) {
         joins = Collections.emptyMap();
@@ -100,7 +100,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
   }
   
   /** @return The type of join to execute. */
-  public JoinType getType() {
+  public JoinType getJoinType() {
     return type;
   }
   
@@ -184,14 +184,18 @@ public class JoinConfig extends BaseQueryNodeConfig {
   
   public static class Builder extends BaseQueryNodeConfig.Builder {
     @JsonProperty
-    private JoinType type;
+    private JoinType joinType;
     @JsonProperty
     private Map<String, String> joins;
     @JsonProperty
     private boolean explicitTags;
     
-    public Builder setType(final JoinType type) {
-      this.type = type;
+    protected Builder() {
+      id = "Join";
+    }
+    
+    public Builder setJoinType(final JoinType type) {
+      this.joinType = type;
       return this;
     }
     

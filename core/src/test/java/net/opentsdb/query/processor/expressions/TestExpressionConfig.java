@@ -48,7 +48,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -59,7 +59,7 @@ public class TestExpressionConfig {
     assertEquals("e1", config.getId());
     assertEquals("some.metric.name", config.getAs());
     assertEquals("a + b", config.getExpression());
-    assertEquals(JoinType.INNER, config.getJoin().getType());
+    assertEquals(JoinType.INNER, config.getJoin().getJoinType());
     assertEquals("host", config.getJoin().getJoins().get("host"));
     assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
     assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
@@ -69,7 +69,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           //.setAs("some.metric.name") // defaults
@@ -80,7 +80,7 @@ public class TestExpressionConfig {
     assertEquals("e1", config.getId());
     assertEquals("e1", config.getAs());
     assertEquals("a + b", config.getExpression());
-    assertEquals(JoinType.INNER, config.getJoin().getType());
+    assertEquals(JoinType.INNER, config.getJoin().getJoinType());
     assertEquals("host", config.getJoin().getJoins().get("host"));
     assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
     assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
@@ -90,7 +90,7 @@ public class TestExpressionConfig {
           //.setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .setAs("e1")
@@ -105,7 +105,7 @@ public class TestExpressionConfig {
           .setExpression("")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .setAs("e1")
@@ -135,7 +135,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .setAs("e1")
@@ -167,7 +167,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -181,7 +181,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -198,7 +198,7 @@ public class TestExpressionConfig {
           .setExpression("b + a") // <-- DIFF (though we should be able to detect it some day)
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -215,7 +215,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "Hostname") // <-- DIFF
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -232,7 +232,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config2) // <-- DIFF
@@ -249,7 +249,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           //.addVariableInterpolator("a", numeric_config)
@@ -266,7 +266,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -283,7 +283,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -300,7 +300,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -317,7 +317,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -352,7 +352,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config2)
@@ -381,7 +381,7 @@ public class TestExpressionConfig {
           .setExpression("a + b")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)

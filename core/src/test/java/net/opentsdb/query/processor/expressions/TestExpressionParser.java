@@ -50,7 +50,7 @@ public class TestExpressionParser {
       .build();
     
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId("join")
         .build();

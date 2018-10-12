@@ -54,7 +54,7 @@ public class TestJoiner extends BaseJoinTest {
   @Test
   public void ctor() throws Exception {
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -74,7 +74,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -120,7 +120,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -158,7 +158,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "HostName") // this is to make sure we use the right join.
         .setId(ID)
         .build();
@@ -190,7 +190,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setExplicitTags(true)
         .setId(ID)
@@ -236,7 +236,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setExplicitTags(true)
         .setId(ID)
@@ -282,7 +282,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "HostName") // this is to make sure we use the right join.
         .setExplicitTags(true)
         .setId(ID)
@@ -322,7 +322,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("owner", "owner")
         .addJoins("dc", "dc")
         .addJoins("role", "role")
@@ -363,7 +363,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("owner", "owner")
         .addJoins("dc", "dc")
         .addJoins("role", "role")
@@ -400,7 +400,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .setId(ID)
         .build();
     
@@ -445,7 +445,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -488,7 +488,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .addJoins("host", "host")
         .addJoins("noTag", "noTag")
         .setId(ID)
@@ -527,7 +527,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .setId(ID)
         .build();
     
@@ -572,7 +572,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -618,7 +618,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .addJoins("host", "host")
         .addJoins("noTag", "noTag")
         .setId(ID)
@@ -658,7 +658,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -707,7 +707,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -748,7 +748,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "HostName") // this is to make sure we use the right join.
         .setId(ID)
         .build();
@@ -783,7 +783,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setExplicitTags(true)
         .setId(ID)
@@ -832,7 +832,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setExplicitTags(true)
         .setId(ID)
@@ -881,7 +881,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "HostName") // this is to make sure we use the right join.
         .setExplicitTags(true)
         .setId(ID)
@@ -924,7 +924,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("owner", "owner")
         .addJoins("dc", "dc")
         .addJoins("role", "role")
@@ -970,7 +970,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("owner", "owner")
         .addJoins("dc", "dc")
         .addJoins("role", "role")
@@ -1012,7 +1012,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .setId(ID)
         .build();
     
@@ -1057,7 +1057,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1103,7 +1103,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
         .addJoins("host", "host")
         .addJoins("noTag", "noTag")
         .setId(ID)
@@ -1146,7 +1146,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .setId(ID)
         .build();
     
@@ -1191,7 +1191,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1240,7 +1240,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.CROSS)
+        .setJoinType(JoinType.CROSS)
         .addJoins("host", "host")
         .addJoins("noTag", "noTag")
         .setId(ID)
@@ -1284,7 +1284,7 @@ public class TestJoiner extends BaseJoinTest {
     setStringIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1388,7 +1388,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // left join keep metric
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.LEFT)
+        .setJoinType(JoinType.LEFT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1405,7 +1405,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // right join keep metric
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.RIGHT)
+        .setJoinType(JoinType.RIGHT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1426,7 +1426,7 @@ public class TestJoiner extends BaseJoinTest {
     setByteIds();
     
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1530,7 +1530,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // left join keep metric
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.LEFT)
+        .setJoinType(JoinType.LEFT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1547,7 +1547,7 @@ public class TestJoiner extends BaseJoinTest {
     
     // right join keep metric
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.RIGHT)
+        .setJoinType(JoinType.RIGHT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1568,7 +1568,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setStringIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1589,7 +1589,7 @@ public class TestJoiner extends BaseJoinTest {
     assertEquals(9, pairs);
     
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.OUTER_DISJOINT)
+        .setJoinType(JoinType.OUTER_DISJOINT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1691,7 +1691,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setByteIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1715,7 +1715,7 @@ public class TestJoiner extends BaseJoinTest {
     assertEquals(9, pairs);
     
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.OUTER_DISJOINT)
+        .setJoinType(JoinType.OUTER_DISJOINT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1818,7 +1818,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setStringIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1839,7 +1839,7 @@ public class TestJoiner extends BaseJoinTest {
     assertEquals(9, pairs);
     
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.OUTER_DISJOINT)
+        .setJoinType(JoinType.OUTER_DISJOINT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1902,7 +1902,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setByteIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -1926,7 +1926,7 @@ public class TestJoiner extends BaseJoinTest {
     assertEquals(9, pairs);
     
     config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.OUTER_DISJOINT)
+        .setJoinType(JoinType.OUTER_DISJOINT)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -2000,7 +2000,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setStringIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -2068,7 +2068,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setByteIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -2139,7 +2139,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setStringIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();
@@ -2164,7 +2164,7 @@ public class TestJoiner extends BaseJoinTest {
     // See the various joins for details.
     setByteIds();
     JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId(ID)
         .build();

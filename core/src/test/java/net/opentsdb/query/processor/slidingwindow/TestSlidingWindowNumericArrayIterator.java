@@ -67,6 +67,7 @@ public class TestSlidingWindowNumericArrayIterator {
     config = (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
         .setAggregator("sum")
         .setWindowSize("5m")
+        .setId("win")
         .build();
     
     when(node.pipelineContext()).thenReturn(context);
@@ -165,6 +166,7 @@ public class TestSlidingWindowNumericArrayIterator {
         .setAggregator("sum")
         .setWindowSize("5m")
         .setInfectiousNan(true)
+        .setId("win")
         .build();
     when(node.config()).thenReturn(config);
     
