@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
 
@@ -105,7 +106,7 @@ public class TopNConfig extends BaseQueryNodeConfig {
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return null;
+    return Const.HASH_FUNCTION().hashInt(System.identityHashCode(this));
   }
 
   @Override
