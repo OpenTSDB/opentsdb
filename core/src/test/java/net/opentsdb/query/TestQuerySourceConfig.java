@@ -136,7 +136,7 @@ public class TestQuerySourceConfig {
   public void parseConfig() throws Exception {
     final String json = "{\"sourceId\":\"HBase\",\"id\":\"UT\",\"metric\":{\"metric\":"
         + "\"system.cpu.user\",\"type\":\"MetricLiteral\"},\"filterId\":"
-        + "\"f1\",\"fetchLast\":true,\"pushDownNodes\":[{\"id\":\"topn\","
+        + "\"f1\",\"filter\":null,\"fetchLast\":true,\"pushDownNodes\":[{\"id\":\"topn\","
         + "\"type\":\"topn\",\"config\":{\"id\":\"Toppy\",\"count\":10,"
         + "\"top\":true,\"infectiousNan\":true}}]}";
     

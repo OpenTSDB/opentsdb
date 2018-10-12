@@ -141,7 +141,7 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
       builder.setFilterId(n.asText());
     } else {
       n = node.get("filter");
-      if (n != null) {
+      if (n != null && !n.isNull()) {
         type_node = n.get("type");
         if (type_node == null) {
           throw new IllegalArgumentException("Missing the filter type field.");
