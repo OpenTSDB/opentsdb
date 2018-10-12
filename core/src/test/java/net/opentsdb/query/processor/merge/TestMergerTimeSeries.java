@@ -87,9 +87,9 @@ public class TestMergerTimeSeries {
     node = mock(Merger.class);
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("GB")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("GB")
         .build();
     result = mock(QueryResult.class);
     final QueryPipelineContext context = mock(QueryPipelineContext.class);

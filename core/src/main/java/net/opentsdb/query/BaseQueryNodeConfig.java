@@ -14,11 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import net.opentsdb.configuration.Configuration;
@@ -34,21 +37,44 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
   /** A unique name for this config. */
   protected final String id;
   
+  /** The class of an {@link QueryNode} implementation. */
+  private final String type;
+  
+  /** An optional list of downstream sources. */
+  private final List<String> sources;
+  
   /** The optional map of overrides. */
   protected final Map<String, String> overrides;
   
   /**
    * Protected ctor.
    * @param builder A non-null builder.
+   * @throws IllegalArgumentException if the ID was null or empty.
    */
   protected BaseQueryNodeConfig(final Builder builder) {
+    if (Strings.isNullOrEmpty(builder.id)) {
+      throw new IllegalArgumentException("ID cannot be null or empty.");
+    }
     id = builder.id;
+    type = builder.type;
+    sources = builder.sources == null ? Collections.emptyList() : 
+      builder.sources;
     overrides = builder.overrides;
   }
   
   @Override
   public String getId() {
     return id;
+  }
+  
+  /** @return The class of the implementation. */
+  public String getType() {
+    return type;
+  }
+    
+  /** @return An optional lost of sources mapping to node IDs. */
+  public List<String> getSources() {
+    return sources;
   }
   
   @Override
@@ -166,7 +192,10 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
 
     @JsonProperty
     protected String id;
-    
+    @JsonProperty
+    private String type;
+    @JsonProperty
+    private List<String> sources;
     @JsonProperty
     protected Map<String, String> overrides;
     
@@ -176,6 +205,37 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
      */
     public Builder setId(final String id) {
       this.id = id;
+      return this;
+    }
+    
+    /**
+     * @param type The class of the implementation.
+     * @return The builder.
+     */
+    public Builder setJoinType(final String type) {
+      this.type = type;
+      return this;
+    }
+    
+    /**
+     * @param sources An optional list of sources consisting of the IDs 
+     * of a nodes in the graph.
+     * @return The builder.
+     */
+    public Builder setSources(final List<String> sources) {
+      this.sources = sources;
+      return this;
+    }
+    
+    /**
+     * @param source A source to pull from for this node.
+     * @return The builder.
+     */
+    public Builder addSource(final String source) {
+      if (sources == null) {
+        sources = Lists.newArrayListWithExpectedSize(1);
+      }
+      sources.add(source);
       return this;
     }
     

@@ -60,12 +60,12 @@ public class TestExpressionParseNode {
       }
     });
     
-    final String json = "{\"left\":\"a\",\"right\":\"42\","
+    final String json = "{\"id\":\"exp\",\"left\":\"a\",\"right\":\"42\","
         + "\"negate\":false,\"not\":true,\"leftType\":\"VARIABLE\","
         + "\"rightType\":\"LITERAL_NUMERIC\",\"operator\":\"MOD\","
         + "\"expressionConfig\":{\"id\":\"e1\",\"expression\":\"a + 42\","
         + "\"as\":\"some.metric.name\",\"join\":{\"id\":\"jc\","
-        + "\"type\":\"INNER\",\"joins\":{\"host\":\"host\"},"
+        + "\"joinType\":\"INNER\",\"joins\":{\"host\":\"host\"},"
         + "\"explicitTags\":false},\"variableInterpolators\":{\"a\":["
         + "{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"PREFER_NEXT\","
         + "\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\"}]},"
@@ -159,6 +159,7 @@ public class TestExpressionParseNode {
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MOD)
         .setExpressionConfig(mock(ExpressionConfig.class))
+        .setId("expression")
         .build();
     assertEquals("a", node.getLeft());
     assertEquals(OperandType.VARIABLE, node.getLeftType());
@@ -183,7 +184,7 @@ public class TestExpressionParseNode {
           .setExpression("a + 42")
           .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
               .addJoins("host", "host")
-              .setType(JoinType.INNER)
+              .setJoinType(JoinType.INNER)
               .setId("jc")
               .build())
           .addVariableInterpolator("a", numeric_config)
@@ -199,6 +200,7 @@ public class TestExpressionParseNode {
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MOD)
         .setExpressionConfig(config)
+        .setId("expression")
         .build();
     
     final String json = JSON.serializeToString(node);

@@ -54,7 +54,8 @@ public class TestBinaryExpressionNodeFactory {
       .build();
     
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.NATURAL)
+        .setJoinType(JoinType.NATURAL)
+        .setId("expression")
         .build();
   }
   
@@ -76,6 +77,7 @@ public class TestBinaryExpressionNodeFactory {
         .setJoinConfig(JOIN_CONFIG)
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("e1")
+        .setId("expression")
         .build();
     ExpressionParseNode expression_config = 
         (ExpressionParseNode) ExpressionParseNode.newBuilder()
@@ -85,6 +87,7 @@ public class TestBinaryExpressionNodeFactory {
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
+        .setId("expression")
         .build();
     QueryNode new_node = factory.newNode(CONTEXT, null, 
         (QueryNodeConfig) expression_config);

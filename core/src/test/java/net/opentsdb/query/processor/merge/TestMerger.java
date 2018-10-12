@@ -77,9 +77,9 @@ public class TestMerger {
     
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("merger")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("merger")
         .build();
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))

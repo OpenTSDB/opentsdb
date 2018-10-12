@@ -95,9 +95,9 @@ public class TestGroupBy {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("host")
-        .setId("GB")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("GB")
         .build();
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))

@@ -88,7 +88,7 @@ public class BaseNumericSummaryTest {
       .build();
     
     JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId("join")
         .build();
@@ -128,6 +128,7 @@ public class BaseNumericSummaryTest {
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(CONFIG)
+        .setId("expression")
         .build();
     
     when(node.pipelineContext()).thenReturn(CONTEXT);

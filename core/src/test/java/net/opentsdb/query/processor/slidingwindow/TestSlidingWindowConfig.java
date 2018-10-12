@@ -32,6 +32,7 @@ public class TestSlidingWindowConfig {
         .setAggregator("sum")
         .setWindowSize("1m")
         .setInfectiousNan(true)
+        .setId("win")
         .build();
     assertEquals("sum", config.getAggregator());
     assertEquals("1m", config.getWindowSize());
@@ -40,6 +41,7 @@ public class TestSlidingWindowConfig {
     config = (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
         .setAggregator("sum")
         .setWindowSize("1h")
+        .setId("win")
         .build();
     assertEquals("sum", config.getAggregator());
     assertEquals("1h", config.getWindowSize());
@@ -49,6 +51,7 @@ public class TestSlidingWindowConfig {
       SlidingWindowConfig.newBuilder()
           .setAggregator("sum")
           .setWindowSize("no-such-window")
+          .setId("win")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -57,6 +60,7 @@ public class TestSlidingWindowConfig {
       SlidingWindowConfig.newBuilder()
           //.setAggregator("sum")
           .setWindowSize("1h")
+          .setId("win")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -65,6 +69,7 @@ public class TestSlidingWindowConfig {
       SlidingWindowConfig.newBuilder()
           .setAggregator("")
           .setWindowSize("1h")
+          .setId("win")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -73,6 +78,7 @@ public class TestSlidingWindowConfig {
       SlidingWindowConfig.newBuilder()
           .setAggregator("sum")
           //.setWindowSize("1h")
+          .setId("win")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -81,6 +87,7 @@ public class TestSlidingWindowConfig {
       SlidingWindowConfig.newBuilder()
           .setAggregator("sum")
           .setWindowSize("")
+          .setId("win")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }

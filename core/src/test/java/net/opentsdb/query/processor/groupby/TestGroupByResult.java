@@ -78,9 +78,9 @@ public class TestGroupByResult {
         .setAggregator("sum")
         .addTagKey("dc")
         .setMergeIds(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     node = mock(GroupBy.class);
     result = mock(QueryResult.class);
@@ -167,9 +167,9 @@ public class TestGroupByResult {
         .setAggregator("sum")
         .addTagKey("dc")
         .addTagKey("host")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -201,9 +201,9 @@ public class TestGroupByResult {
         .setAggregator("sum")
         .addTagKey("dc")
         .addTagKey("foo")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -215,9 +215,9 @@ public class TestGroupByResult {
   public void stringsGroupAll() throws Exception {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -236,9 +236,9 @@ public class TestGroupByResult {
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -270,9 +270,9 @@ public class TestGroupByResult {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -302,9 +302,9 @@ public class TestGroupByResult {
   public void stringsNoMergingGroupAll() throws Exception {
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -362,9 +362,9 @@ public class TestGroupByResult {
         .addTagKey("host")
         .addTagKey("dc".getBytes())
         .addTagKey("host".getBytes())
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -399,9 +399,9 @@ public class TestGroupByResult {
         .addTagKey("foo")
         .addTagKey("dc".getBytes())
         .addTagKey("foo".getBytes())
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -414,9 +414,9 @@ public class TestGroupByResult {
     setupBytes();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -435,9 +435,9 @@ public class TestGroupByResult {
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -472,9 +472,9 @@ public class TestGroupByResult {
         .setAggregator("sum")
         .addTagKey("dc")
         .addTagKey("dc".getBytes())
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -504,9 +504,9 @@ public class TestGroupByResult {
     setupBytes();
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     
@@ -532,9 +532,9 @@ public class TestGroupByResult {
         .addTagKey("dc")
         .addTagKey("dc".getBytes())
         .setMergeIds(true)
-        .setId("Testing")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
     

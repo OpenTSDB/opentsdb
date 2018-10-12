@@ -124,7 +124,7 @@ public class Joiner {
     
     if (results.get(0).idType() == Const.TS_BYTE_ID && 
         encoded_joins == null &&
-        config.getType() != JoinType.NATURAL) {
+        config.getJoinType() != JoinType.NATURAL) {
       throw new IllegalStateException("Received a result with encoded "
           + "IDs but the local encoded tags map was null.");
     }
@@ -242,7 +242,7 @@ public class Joiner {
     
     if (results.get(0).idType() == Const.TS_BYTE_ID && 
         encoded_joins == null &&
-        config.getType() != JoinType.NATURAL) {
+        config.getJoinType() != JoinType.NATURAL) {
       throw new IllegalStateException("Received a result with encoded "
           + "IDs but the local encoded tags map was null.");
     }

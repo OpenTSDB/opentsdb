@@ -15,28 +15,23 @@
 package net.opentsdb.query.processor.summarizer;
 
 import java.util.List;
-import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.configuration.Configuration;
+import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = SummarizerConfig.Builder.class)
-public class SummarizerConfig implements QueryNodeConfig {
+public class SummarizerConfig extends BaseQueryNodeConfig {
 
-  /** The ID. */
-  protected String id;
-  
   /** The non-null and non-empty list of summaries. */
   protected List<String> summaries;
 
@@ -44,21 +39,13 @@ public class SummarizerConfig implements QueryNodeConfig {
   private final boolean infectious_nan;
   
   protected SummarizerConfig(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.id)) {
-      throw new IllegalArgumentException("The ID cannot be null.");
-    }
+    super(builder);
     if (builder.summaries == null || builder.summaries.isEmpty()) {
       throw new IllegalArgumentException("Summaries cannot be null or "
           + "empty.");
     }
-    id = builder.id;
     summaries = builder.summaries;
     infectious_nan = builder.infectiousNan;
-  }
-  
-  @Override
-  public String getId() {
-    return id;
   }
   
   /** @return The non-null and non-empty list of summaries to record. */
@@ -79,6 +66,18 @@ public class SummarizerConfig implements QueryNodeConfig {
   }
   
   @Override
+  public boolean equals(Object o) {
+    // TODO Auto-generated method stub
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().hashInt(System.identityHashCode(this));
@@ -93,66 +92,17 @@ public class SummarizerConfig implements QueryNodeConfig {
   public boolean joins() {
     return false;
   }
-
-  @Override
-  public Map<String, String> getOverrides() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public String getString(Configuration config, String key) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public int getInt(Configuration config, String key) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-  @Override
-  public long getLong(Configuration config, String key) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-  @Override
-  public boolean getBoolean(Configuration config, String key) {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-  @Override
-  public double getDouble(Configuration config, String key) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-  @Override
-  public boolean hasKey(String key) {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
+  
   public static Builder newBuilder() {
     return new Builder();
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder {
-    @JsonProperty
-    protected String id;
+  public static class Builder extends BaseQueryNodeConfig.Builder {
     @JsonProperty
     private boolean infectiousNan;
     @JsonProperty
     protected List<String> summaries;
-    
-    public Builder setId(final String id) {
-      this.id = id;
-      return this;
-    }
     
     public Builder setSummaries(final List<String> summaries) {
       this.summaries = summaries;

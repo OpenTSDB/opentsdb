@@ -574,6 +574,18 @@ public class TestExecutionGraph {
       // TODO Auto-generated method stub
       return false;
     }
+
+    @Override
+    public String getType() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public List<String> getSources() {
+      // TODO Auto-generated method stub
+      return null;
+    }
   }
   
   static class MockFactoryA implements SingleQueryNodeFactory {
@@ -704,6 +716,18 @@ public class TestExecutionGraph {
     public boolean joins() {
       // TODO Auto-generated method stub
       return false;
+    }
+
+    @Override
+    public String getType() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public List<String> getSources() {
+      // TODO Auto-generated method stub
+      return null;
     }
 
   }

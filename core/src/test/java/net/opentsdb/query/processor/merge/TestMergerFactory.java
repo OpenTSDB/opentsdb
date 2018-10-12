@@ -109,9 +109,9 @@ public class TestMergerFactory {
     
     final MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
-        .setId("Test")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Test")
         .build();
     final NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()

@@ -102,7 +102,7 @@ public class TestExpressionTimeSeries {
         .thenReturn(mock(TypedTimeSeriesIterator.class));
     
     JoinConfig jc = (JoinConfig) JoinConfig.newBuilder()
-        .setType(JoinType.INNER)
+        .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId("join")
         .build();

@@ -21,6 +21,7 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.reflect.TypeToken;
 
@@ -30,21 +31,28 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.utils.JSON;
 
 public class TestBaseQueryNodeConfigWithInterpolators {
 
   @Test
-  public void interpolatorConfigs() throws Exception {
+  public void builder() throws Exception {
     TestConfig node = (TestConfig) new TestConfig.Builder()
-        .setId("foo")
         .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
             .setDataType(NumericType.TYPE.toString())
             .build())
         .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
             .setDataType(AnnotationType.TYPE.toString())
             .build())
+        .setId("foo")
+        .setSources(Lists.newArrayList("s1", "s2"))
+        .setJoinType("datasource")
         .build();
     assertEquals("foo", node.getId());
+    assertEquals(2, node.getSources().size());
+    assertTrue(node.getSources().contains("s1"));
+    assertTrue(node.getSources().contains("s2"));
+    assertEquals("datasource", node.getType());
     assertEquals(2, node.interpolatorConfigs().size());
     assertTrue(node.interpolatorConfig(NumericType.TYPE) 
         instanceof TestInterpolatorConfig);
@@ -62,16 +70,68 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     
     try {
       new TestConfig.Builder()
-      .setId("foo")
-      .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
-          .setDataType(NumericType.TYPE.toString())
-          .build())
-      .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
-          .setDataType("nosuchtype")
-          .build())
-      .build();
+          .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+              .setDataType(NumericType.TYPE.toString())
+              .build())
+          .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+              .setDataType("nosuchtype")
+              .build())
+          .setId("foo")
+          .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    try {
+      new TestConfig.Builder()
+          .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+              .setDataType(NumericType.TYPE.toString())
+              .build())
+          .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+              .setDataType(AnnotationType.TYPE.toString())
+              .build())
+          .setId("")
+          .setSources(Lists.newArrayList("s1", "s2"))
+          .setJoinType("datasource")
+          .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new TestConfig.Builder()
+          .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+              .setDataType(NumericType.TYPE.toString())
+              .build())
+          .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+              .setDataType(AnnotationType.TYPE.toString())
+              .build())
+          //.setId("foo")
+          .setSources(Lists.newArrayList("s1", "s2"))
+          .setJoinType("datasource")
+          .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void serialize() throws Exception {
+    TestConfig node = (TestConfig) new TestConfig.Builder()
+        .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+            .setDataType(NumericType.TYPE.toString())
+            .build())
+        .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+            .setDataType(AnnotationType.TYPE.toString())
+            .build())
+        .setId("foo")
+        .setSources(Lists.newArrayList("s1", "s2"))
+        .setJoinType("datasource")
+        .build();
+    String json = JSON.serializeToString(node);
+    assertTrue(json.contains("\"id\":\"foo\""));
+    assertTrue(json.contains("\"type\":\"datasource\""));
+    assertTrue(json.contains("\"sources\":[\"s1\",\"s2\"]"));
+    assertTrue(json.contains("\"interpolatorConfigs\":["));
+    assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.annotation.AnnotationType\""));
+    assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\""));
   }
   
   static class TestConfig extends BaseQueryNodeConfigWithInterpolators {
@@ -83,6 +143,24 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     @Override
     public boolean pushDown() {
       return false;
+    }
+
+    @Override
+    public boolean joins() {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      // TODO Auto-generated method stub
+      return 0;
     }
     
     @Override
@@ -98,12 +176,6 @@ public class TestBaseQueryNodeConfigWithInterpolators {
         return new TestConfig(this);
       }
       
-    }
-
-    @Override
-    public boolean joins() {
-      // TODO Auto-generated method stub
-      return false;
     }
   }
   
@@ -134,7 +206,6 @@ public class TestBaseQueryNodeConfigWithInterpolators {
       return 0;
     }
 
-   
     @Override
     public TypeToken<? extends TimeSeriesDataType> type() {
       if (data_type.endsWith("NumericType")) {

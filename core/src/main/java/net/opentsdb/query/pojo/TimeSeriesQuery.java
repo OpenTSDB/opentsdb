@@ -723,7 +723,7 @@ public class TimeSeriesQuery extends Validatable
                 .setExpression(expression.getExpr())
                 //.setAs("") // TODO ??
                 .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                    .setType(JoinType.NATURAL)
+                    .setJoinType(JoinType.NATURAL)
                     .build())
                 .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
                     .setFillPolicy(FillPolicy.NONE) // TODO

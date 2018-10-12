@@ -53,6 +53,7 @@ public class TestTopNResult {
         .setAggregator("sum")
         .setCount(1)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
   }
@@ -82,6 +83,7 @@ public class TestTopNResult {
         .setAggregator("sum")
         .setCount(1)
         .setTop(false)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     topn = new TopNResult(node, result);
@@ -99,6 +101,7 @@ public class TestTopNResult {
         .setAggregator("sum")
         .setCount(2)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(
@@ -125,6 +128,7 @@ public class TestTopNResult {
         .setAggregator("sum")
         .setCount(2)
         .setTop(false)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     topn = new TopNResult(node, result);
@@ -143,6 +147,7 @@ public class TestTopNResult {
         .setAggregator("sum")
         .setCount(100)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(
@@ -171,6 +176,7 @@ public class TestTopNResult {
         .setAggregator("sum")
         .setCount(100)
         .setTop(true)
+        .setId("top")
         .build();
     when(node.config()).thenReturn(config);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(

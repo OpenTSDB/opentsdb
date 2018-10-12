@@ -110,9 +110,9 @@ public class TestGroupByFactory {
     final GroupByConfig config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("host")
-        .setId("Test")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setId("Test")
         .build();
     final NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()

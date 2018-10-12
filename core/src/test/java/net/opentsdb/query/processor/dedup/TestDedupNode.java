@@ -98,7 +98,9 @@ public class TestDedupNode {
     }});
 
     DedupNode dedupNode = new DedupNode(null, pipelineContext, null, 
-        DedupConfig.newBuilder().build());
+        (DedupConfig) DedupConfig.newBuilder()
+          .setId("dedupe")
+          .build());
     dedupNode.initialize(null);
 
     dedupNode.onNext(queryResult);
