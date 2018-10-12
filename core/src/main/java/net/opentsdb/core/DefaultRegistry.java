@@ -54,7 +54,7 @@ import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.hacluster.ClusterConfig;
+import net.opentsdb.query.hacluster.HAClusterConfig;
 import net.opentsdb.query.plan.DefaultQueryPlannerFactory;
 import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
 import net.opentsdb.query.plan.QueryPlannnerFactory;
@@ -93,7 +93,7 @@ public class DefaultRegistry implements Registry {
   private final Map<String, QueryExecutorFactory<?>> factories;
   
   /** The map of cluster configurations for multi-cluster queries. */
-  private final Map<String, ClusterConfig> clusters;
+  private final Map<String, HAClusterConfig> clusters;
     
   /** The map of serdes classes. */
   private final Map<String, TimeSeriesSerdes> serdes;
@@ -380,7 +380,7 @@ public class DefaultRegistry implements Registry {
    * @throws IllegalArgumentException if the cluster was null, it's ID was null
    * or empty, or the cluster already exists.
    */
-  public void registerClusterConfig(final ClusterConfig cluster) {
+  public void registerClusterConfig(final HAClusterConfig cluster) {
     if (cluster == null){
       throw new IllegalArgumentException("Cluster cannot be null.");
     }
@@ -399,7 +399,7 @@ public class DefaultRegistry implements Registry {
    * @param cluster A non-null and non-empty cluster ID.
    * @return The cluster config if present.
    */
-  public ClusterConfig getClusterConfig(final String cluster) {
+  public HAClusterConfig getClusterConfig(final String cluster) {
     if (Strings.isNullOrEmpty(cluster)) {
       throw new IllegalArgumentException("ID was null or empty.");
     }
@@ -610,14 +610,6 @@ public class DefaultRegistry implements Registry {
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
               "MetricShardingExecutor");
       registerFactory(executor_factory);
-
-//      ctor = StorageQueryExecutor.class.getConstructor(
-//              ExecutionGraphNode.class);
-//      executor_factory = 
-//          new DefaultQueryExecutorFactory<IteratorGroups>(
-//              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
-//                "StorageQueryExecutor");
-//      tsdb.getRegistry().registerFactory(executor_factory);
       
       ctor = MultiClusterQueryExecutor.class.getConstructor(
           ExecutionGraphNode.class);
@@ -634,37 +626,7 @@ public class DefaultRegistry implements Registry {
     }
     
     try {
-      // load default cluster BEFORE execution graphs as they may depend on
-      // cluster configs.
-      String clusters = tsdb.getConfig().getString(DEFAULT_CLUSTERS_KEY);
-      if (!Strings.isNullOrEmpty(clusters)) {
-        if (clusters.toLowerCase().endsWith(".json") ||
-            clusters.toLowerCase().endsWith(".conf")) {
-          clusters = Files.toString(new File(clusters), Const.UTF8_CHARSET);
-        }
-        // double check in case the file was empty.
-        if (!Strings.isNullOrEmpty(clusters)) {
-          final TypeReference<List<ClusterConfig>> typeref = 
-              new TypeReference<List<ClusterConfig>>() {};
-          final List<ClusterConfig> configs = 
-              (List<ClusterConfig>) JSON.parseToObject(clusters, typeref);
-          
-          // validation before adding them to the registry
-          final Set<String> ids = Sets.newHashSet();
-          for (final ClusterConfig cluster : configs) {
-            if (ids.contains(cluster.getId())) {
-              return Deferred.fromError(new IllegalArgumentException(
-                  "More than one cluster had the same ID: " + cluster));
-            }
-          }
-          
-          for (final ClusterConfig cluster : configs) {
-            deferreds.add(cluster.initialize(tsdb));
-            registerClusterConfig(cluster);
-          }
-        }
-      }
-      
+            
       // load default execution graphs
       String exec_graphs = tsdb.getConfig().getString(DEFAULT_GRAPHS_KEY);
       if (!Strings.isNullOrEmpty(exec_graphs)) {
