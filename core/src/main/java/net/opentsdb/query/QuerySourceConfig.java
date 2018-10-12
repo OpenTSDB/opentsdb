@@ -41,6 +41,9 @@ import net.opentsdb.query.filter.QueryFilter;
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = QuerySourceConfig.Builder.class)
 public class QuerySourceConfig extends BaseQueryNodeConfig {
+  /** The source provider ID. */
+  private final String source_id;
+  
   /** The original and complete time series query. */
   private TimeSeriesQuery query;
   
@@ -73,6 +76,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     if (builder.metric == null) {
       throw new IllegalArgumentException("Metric filter cannot be null.");
     }
+    source_id = builder.sourceId;
     query = builder.query;
     types = builder.types;
     metric = builder.metric;
@@ -80,6 +84,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     filter = builder.filter;
     fetch_last = builder.fetchLast;
     push_down_nodes = builder.push_down_nodes;
+  }
+  
+  /** @return The source ID. May be null in which case we use the default. */
+  public String getSourceId() {
+    return source_id;
   }
   
   /** @return The non-null query object. */
@@ -187,6 +196,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** @return A new builder. */
   public static Builder newBuilder(final QuerySourceConfig config) {
     return (Builder) new Builder()
+        .setSourceId(config.source_id)
         .setQuery(config.query)
         .setTypes(config.types != null ? Lists.newArrayList(config.types) : null)
         .setMetric(config.metric)
@@ -201,6 +211,8 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfig.Builder {
     @JsonProperty
+    private String sourceId;
+    @JsonProperty
     private TimeSeriesQuery query;
     @JsonProperty
     private List<String> types;
@@ -213,6 +225,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     @JsonProperty
     private boolean fetchLast;
     private List<ExecutionGraphNode> push_down_nodes;
+    
+    public Builder setSourceId(final String source_id) {
+      sourceId = source_id;
+      return this;
+    }
     
     /** 
      * @param query The non-null query to execute.

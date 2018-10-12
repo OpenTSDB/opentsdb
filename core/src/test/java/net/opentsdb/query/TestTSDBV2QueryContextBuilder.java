@@ -151,7 +151,7 @@ public class TestTSDBV2QueryContextBuilder {
                 .setFilter("web01")
                 .setType("literal_or")
                 .setTagk("host")))
-        .build().convert()
+        .build().convert(TSDB)
         .build();
     
     when(SINK_FACTORY.newSink(any(QueryContext.class), 

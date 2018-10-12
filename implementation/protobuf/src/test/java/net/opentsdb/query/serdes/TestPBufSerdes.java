@@ -103,7 +103,7 @@ public class TestPBufSerdes {
         .addMetric(Metric.newBuilder()
             .setId("m1")
             .setMetric("sys.cpu.user"))
-        .build().convert().build();
+        .build().convert(TSDB).build();
     
     when(context.query()).thenReturn(query);
     
@@ -224,7 +224,7 @@ public class TestPBufSerdes {
         .addMetric(Metric.newBuilder()
             .setId("m1")
             .setMetric("sys.cpu.user"))
-        .build().convert().build();
+        .build().convert(TSDB).build();
     when(context.query()).thenReturn(query);
     
     QueryResult result = mock(QueryResult.class);

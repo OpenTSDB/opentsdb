@@ -41,6 +41,7 @@ public class TestQuerySourceConfig {
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
     
     QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setSourceId("HBase")
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
@@ -48,6 +49,7 @@ public class TestQuerySourceConfig {
         .addPushDownNode(mock(ExecutionGraphNode.class))
         .setId("UT")
         .build();
+    assertEquals("HBase", qsc.getSourceId());
     assertSame(query, qsc.query());
     assertEquals("system.cpu.user", qsc.getMetric().getMetric());
     assertEquals("UT", qsc.getId());
@@ -68,6 +70,7 @@ public class TestQuerySourceConfig {
   public void builderClone() throws Exception {
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
     QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setSourceId("HBase")
         .setQuery(query)
         .setTypes(Lists.newArrayList("Numeric", "Annotation"))
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -79,6 +82,7 @@ public class TestQuerySourceConfig {
     
     QuerySourceConfig clone = QuerySourceConfig.newBuilder(qsc).build();
     assertNotSame(qsc, clone);
+    assertEquals("HBase", clone.getSourceId());
     assertSame(query, clone.query());
     assertNotSame(qsc.getTypes(), clone.getTypes());
     assertEquals(2, clone.getTypes().size());
@@ -93,6 +97,7 @@ public class TestQuerySourceConfig {
   public void serialize() throws Exception {
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
     QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+        .setSourceId("HBase")
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
@@ -116,7 +121,7 @@ public class TestQuerySourceConfig {
         .build();
     
     final String json = JSON.serializeToString(qsc);
-    System.out.println(json);
+    assertTrue(json.contains("\"sourceId\":\"HBase\""));
     assertTrue(json.contains("\"id\":\"UT\""));
     assertTrue(json.contains("\"metric\":{"));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -129,9 +134,9 @@ public class TestQuerySourceConfig {
   
   @Test
   public void parseConfig() throws Exception {
-    final String json = "{\"id\":\"UT\",\"metric\":{\"metric\":"
+    final String json = "{\"sourceId\":\"HBase\",\"id\":\"UT\",\"metric\":{\"metric\":"
         + "\"system.cpu.user\",\"type\":\"MetricLiteral\"},\"filterId\":"
-        + "\"f1\",\"fetchLast\":true,\"pushDownNodes\":[{\"id\":\"topn\","
+        + "\"f1\",\"filter\":null,\"fetchLast\":true,\"pushDownNodes\":[{\"id\":\"topn\","
         + "\"type\":\"topn\",\"config\":{\"id\":\"Toppy\",\"count\":10,"
         + "\"top\":true,\"infectiousNan\":true}}]}";
     
@@ -143,6 +148,7 @@ public class TestQuerySourceConfig {
     QuerySourceConfig config = (QuerySourceConfig) 
         new QueryDataSourceFactory().parseConfig(JSON.getMapper(), 
             tsdb, root);
+    assertEquals("HBase", config.getSourceId());
     assertEquals("UT", config.getId());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
     assertTrue(config.getMetric() instanceof MetricLiteralFilter);

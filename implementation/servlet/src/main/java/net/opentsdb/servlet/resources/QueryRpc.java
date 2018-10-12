@@ -278,7 +278,7 @@ final public class QueryRpc {
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
     // TODO - oh this is so ugly it isn't even funny.
-    final SemanticQuery q = query.convert().build();
+    final SemanticQuery q = query.convert(tsdb).build();
     SerdesOptions serdes = q.getSerdesConfigs().isEmpty() ? null :
       q.getSerdesConfigs().get(0);
     if (serdes == null) {

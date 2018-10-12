@@ -177,7 +177,7 @@ public class ExpressionRpc {
       }
     }
     
-    final SemanticQuery.Builder query = ts_query.convert();
+    final SemanticQuery.Builder query = ts_query.convert(tsdb);
     
     LOG.info("Executing new query=" + JSON.serializeToString(
         ImmutableMap.<String, Object>builder()

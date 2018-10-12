@@ -16,6 +16,7 @@ package net.opentsdb.query.pojo;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -43,6 +44,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 public class TestTimeSeriesQuery {
   
@@ -640,7 +642,7 @@ public class TestTimeSeriesQuery {
   @Test
   public void convert() throws Exception {
     SemanticQuery.Builder builder = 
-        JSON.parseToObject(json, TimeSeriesQuery.class).convert();
+        JSON.parseToObject(json, TimeSeriesQuery.class).convert(mock(TSDB.class));
     SemanticQuery query = builder.build();
     assertEquals(4, query.getExecutionGraph().getNodes().size());
     
