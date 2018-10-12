@@ -44,7 +44,7 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.hacluster.ClusterConfig;
+import net.opentsdb.query.hacluster.HAClusterConfig;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ DefaultRegistry.class, Executors.class })
@@ -188,9 +188,9 @@ public class TestRegistry {
 
   @Test
   public void clusterConfigs() throws Exception {
-    final ClusterConfig config_a = mock(ClusterConfig.class);
+    final HAClusterConfig config_a = mock(HAClusterConfig.class);
     when(config_a.getId()).thenReturn("config_a");
-    final ClusterConfig config_b = mock(ClusterConfig.class);
+    final HAClusterConfig config_b = mock(HAClusterConfig.class);
     when(config_b.getId()).thenReturn("config_b");
     final DefaultRegistry registry = new DefaultRegistry(tsdb);
     
