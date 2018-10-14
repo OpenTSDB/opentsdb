@@ -121,11 +121,11 @@ public class PluginsConfig extends Validatable {
   public static final Map<String, String> DEFAULT_IMPLEMENTATIONS = 
       Maps.newLinkedHashMap();
   static {
-    DEFAULT_IMPLEMENTATIONS.put(
-        "net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory", 
-        "net.opentsdb.storage.Tsdb1xHBaseFactory");
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
-        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
+//    DEFAULT_IMPLEMENTATIONS.put(
+//        "net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory", 
+//        "net.opentsdb.storage.Tsdb1xHBaseFactory");
+//    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
+//        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
         "net.opentsdb.query.interpolation.DefaultInterpolatorFactory");    
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 
