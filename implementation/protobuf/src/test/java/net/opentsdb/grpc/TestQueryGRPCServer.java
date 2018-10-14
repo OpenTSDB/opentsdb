@@ -37,6 +37,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.stumbleupon.async.Deferred;
 
@@ -55,8 +56,6 @@ import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFactory;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
@@ -165,18 +164,13 @@ public class TestQueryGRPCServer {
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("g1")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("DataSource")
-                .setConfig(QuerySourceConfig.newBuilder()
-                    .setMetric(MetricLiteralFilter.newBuilder()
-                        .setMetric("sys.cpu.user")
-                        .build())
-                    .setId("DataSource")
-                    .build())
-                .build())
-            .build())
+        .setExecutionGraph(Lists.newArrayList(
+            QuerySourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric("sys.cpu.user")
+                  .build())
+              .setId("DataSource")
+              .build()))
         .build();
     net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery pbuf = 
         net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery.newBuilder()
@@ -199,18 +193,13 @@ public class TestQueryGRPCServer {
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("g1")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("DataSource")
-                .setConfig(QuerySourceConfig.newBuilder()
-                    .setMetric(MetricLiteralFilter.newBuilder()
-                        .setMetric("sys.cpu.user")
-                        .build())
-                    .setId("DataSource")
-                    .build())
-                .build())
-            .build())
+        .setExecutionGraph(Lists.newArrayList(
+            QuerySourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric("sys.cpu.user")
+                  .build())
+              .setId("DataSource")
+              .build()))
         .build();
     net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery pbuf = 
         net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery.newBuilder()
@@ -234,18 +223,13 @@ public class TestQueryGRPCServer {
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("g1")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("DataSource")
-                .setConfig(QuerySourceConfig.newBuilder()
-                    .setMetric(MetricLiteralFilter.newBuilder()
-                        .setMetric("sys.cpu.user")
-                        .build())
-                    .setId("DataSource")
-                    .build())
-                .build())
-            .build())
+        .setExecutionGraph(Lists.newArrayList(
+            QuerySourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric("sys.cpu.user")
+                  .build())
+              .setId("DataSource")
+              .build()))
         .build();
     net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery pbuf = 
         net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery.newBuilder()

@@ -321,6 +321,10 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     @JsonProperty
     private String as;
     
+    Builder() {
+      setType(ExpressionFactory.ID);
+    }
+    
     public Builder setExpression(final String expression) {
       this.expression = expression;
       return this;

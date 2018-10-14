@@ -48,7 +48,7 @@ public class TestRateFactory {
     final RateFactory factory = new RateFactory();
     assertEquals(2, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals("rate", factory.id());
+    assertEquals(RateFactory.ID, factory.id());
   }
   
   @Test

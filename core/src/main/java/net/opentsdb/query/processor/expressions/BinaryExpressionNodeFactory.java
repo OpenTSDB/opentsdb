@@ -17,9 +17,6 @@ package net.opentsdb.query.processor.expressions;
 import java.util.Collection;
 import java.util.Map;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +36,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
@@ -52,11 +49,13 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  */
 public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
 
+  public static final String ID = "BinaryExpression";
+  
   /**
    * Required empty ctor.
    */
   public BinaryExpressionNodeFactory() {
-    super("binaryexpression");
+    super(ID);
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
         new NumericSummaryIteratorFactory());
@@ -181,8 +180,8 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
   @Override
   public void setupGraph(
       final TimeSeriesQuery query, 
-      final ExecutionGraphNode config,
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      final QueryNodeConfig config,
+      final QueryPlanner plan) {
     // nothing to do here.
   }
 

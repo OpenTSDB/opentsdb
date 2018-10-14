@@ -220,10 +220,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     return units;
   }
   
-  /**
-   * Converts the units to a 2x style parseable string.
-   * @return
-   */
+  /**  @returnConverts the units to a 2x style parseable string. */
   public String getInterval() {
     switch (units) {
     case NANOS:
@@ -297,22 +294,31 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof DownsampleConfig)) {
+      return false;
+    }
+    
+    return id.equals(((DownsampleConfig) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return 0;
+    return buildHashCode().asInt();
   }
   
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().newHasher()
-        .putInt(System.identityHashCode(this)) // TEMP!
+        .putString(id, Const.UTF8_CHARSET)
         .hash();
   }
   
@@ -330,7 +336,9 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         .setInfectiousNan(config.infectious_nan)
         .setInterval(config.interval)
         .setTimeZone(config.timezone.toString())
-        .setInterpolatorConfigs(Lists.newArrayList(config.interpolator_configs.values()))
+        .setInterpolatorConfigs(Lists.newArrayList(
+            config.interpolator_configs.values()))
+        .setSources(Lists.newArrayList(config.getSources()))
         .setId(config.id);
   }
   
@@ -352,6 +360,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     private String start;
     @JsonProperty
     private String end;
+    
+    Builder() {
+      setType(DownsampleFactory.ID);
+    }
     
     /**
      * @param id A non-null and on-empty Id for the group by function.
@@ -504,6 +516,5 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     
     return (DownsampleConfig) builder.build();
   }
-
 
 }

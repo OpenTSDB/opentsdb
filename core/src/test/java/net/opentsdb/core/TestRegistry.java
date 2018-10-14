@@ -34,7 +34,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
@@ -43,7 +42,6 @@ import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.hacluster.HAClusterConfig;
 
 @RunWith(PowerMockRunner.class)
@@ -79,67 +77,6 @@ public class TestRegistry {
     } catch (IllegalArgumentException e) { }
   }
   
-  @Test
-  public void executionGraphs() throws Exception {
-    final ExecutionGraph graph_a = mock(ExecutionGraph.class);
-    when(graph_a.getId()).thenReturn("graph_a");
-    final ExecutionGraph graph_b = mock(ExecutionGraph.class);
-    when(graph_b.getId()).thenReturn("graph_b");
-    final DefaultRegistry registry = new DefaultRegistry(tsdb);
-    
-    assertNull(registry.getDefaultExecutionGraph());
-    registry.registerExecutionGraph(graph_a, false);
-    
-    assertNull(registry.getDefaultExecutionGraph());
-    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
-    
-    registry.registerExecutionGraph(graph_b, true);
-    assertSame(graph_b, registry.getDefaultExecutionGraph());
-    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
-    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
-    
-    try {
-      registry.registerExecutionGraph(graph_a, false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    assertSame(graph_b, registry.getDefaultExecutionGraph());
-    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
-    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
-    
-    try {
-      registry.registerExecutionGraph(graph_a, true);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    assertSame(graph_b, registry.getDefaultExecutionGraph());
-    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
-    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
-    
-    try {
-      registry.registerExecutionGraph(graph_b, true);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    assertSame(graph_b, registry.getDefaultExecutionGraph());
-    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
-    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
-    
-    try {
-      registry.registerExecutionGraph(null, false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(graph_a.getId()).thenReturn(null);
-    try {
-      registry.registerExecutionGraph(graph_a, true);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(graph_a.getId()).thenReturn("");
-    try {
-      registry.registerExecutionGraph(graph_a, true);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-
   @Test
   public void factories() throws Exception {
     final QueryExecutorFactory<?> factory_a = mock(QueryExecutorFactory.class);

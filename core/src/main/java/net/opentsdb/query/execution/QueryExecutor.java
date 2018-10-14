@@ -30,8 +30,6 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Deferreds;
 
@@ -45,8 +43,6 @@ import net.opentsdb.utils.Deferreds;
  */
 public abstract class QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(QueryExecutor.class);
-
-  protected final ExecutionGraphNode node;
   
   /** Set to true when the upstream caller has marked this stream as completed 
    * (or cancelled) */
@@ -65,17 +61,13 @@ public abstract class QueryExecutor<T> {
    * @throws IllegalArgumentException if the node was null, no default config 
    * was present or the graph was null.
    */
-  public QueryExecutor(final ExecutionGraphNode node) {
-    if (node == null) {
-      throw new IllegalArgumentException("Node cannot be null.");
-    }
+  public QueryExecutor() {
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Default config cannot be null.");
 //    }
 //    if (node.graph() == null) {
 //      throw new IllegalStateException("Execution graph cannot be null.");
 //    }
-    this.node = node;
     completed = new AtomicBoolean();
     outstanding_executions = Sets.<QueryExecution<T>>newConcurrentHashSet();
   }
@@ -92,8 +84,7 @@ public abstract class QueryExecutor<T> {
    * @throws RemoteQueryExecutionException (in the deferred) if the remote call
    * failed.
    */
-  public abstract QueryExecution<T> executeQuery(final QueryContext context,
-                                                 final TimeSeriesQuery query,
+  public abstract QueryExecution<T> executeQuery(final TimeSeriesQuery query,
                                                  final Span upstream_span);
   
   /**
@@ -122,7 +113,7 @@ public abstract class QueryExecutor<T> {
   }
   
   public String id() {
-    return node.getId();
+    return null;
   }
   
   /**

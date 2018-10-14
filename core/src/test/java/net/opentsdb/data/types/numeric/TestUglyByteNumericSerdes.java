@@ -31,8 +31,6 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.iterators.IteratorStatus;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
 
 public class TestUglyByteNumericSerdes {
 

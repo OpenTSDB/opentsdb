@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
@@ -244,12 +245,21 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   @Override
   public boolean equals(Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof ExpressionParseNode)) {
+      return false;
+    }
+    
+    return id.equals(((ExpressionParseNode) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
     return buildHashCode().asInt();
   }
   
@@ -278,6 +288,15 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   @Override
   public String getId() {
     return id;
+  }
+  
+  void addSource(final String source) {
+    // NOTE: since it could be set to Collections.emptyList() we need 
+    // to store an actual list.
+    if (sources == null || sources.isEmpty()) {
+      sources = Lists.newArrayListWithExpectedSize(2);
+    }
+    sources.add(source);
   }
   
   /**
@@ -317,6 +336,10 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     private boolean not;
     @JsonProperty
     private ExpressionConfig expressionConfig;
+    
+    Builder() {
+      setType(BinaryExpressionNodeFactory.ID);
+    }
     
     public Builder setLeft(final Object left) {
       this.left = left;

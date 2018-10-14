@@ -49,7 +49,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
@@ -60,7 +59,6 @@ import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
@@ -72,78 +70,77 @@ import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ CachingQueryExecutor.class, ConvertedQueryResult.class })
-public class TestCachingQueryExecutor extends BaseExecutorTest {
-  private QueryExecutor<IteratorGroups> executor;
-  private MockDownstream<IteratorGroups> cache_execution;
+public class TestCachingQueryExecutor {
+
   private Configuration tsd_config;
   private Config config;
   private QueryCachePlugin plugin;
   private TimeSeriesSerdes serdes;
   private TimeSeriesCacheKeyGenerator key_generator;
   
-  @SuppressWarnings("unchecked")
-  @Before
-  public void beforeLocal() throws Exception {
-    node = mock(ExecutionGraphNode.class);
-    executor = mock(QueryExecutor.class);
-    plugin = mock(QueryCachePlugin.class);
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setKeyGeneratorId("MyKeyGen")
-        .setId("LocalCache")
-        .build();
-    serdes = mock(TimeSeriesSerdes.class);
-    
-    tsd_config = new Configuration(new String[] { 
-        "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
-    
-    when(tsdb.getConfig()).thenReturn(tsd_config);
-    key_generator = new DefaultTimeSeriesCacheKeyGenerator();
-    key_generator.initialize(tsdb).join();
-    
-    when(executor.close()).thenReturn(Deferred.fromResult(null));
-    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
-      .thenReturn(plugin);
-    when(registry.getDefaultPlugin(eq(QueryCachePlugin.class)))
-      .thenReturn(plugin);
-    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
-      .thenReturn(key_generator);
-    when(registry.getDefaultPlugin(eq(TimeSeriesCacheKeyGenerator.class)))
-    .thenReturn(key_generator);
-    when(registry.getSerdes(anyString()))
-      .thenAnswer(new Answer<TimeSeriesSerdes>() {
-      @Override
-      public TimeSeriesSerdes answer(
-          final InvocationOnMock invocation) throws Throwable {
-        return serdes;
-      }
-    });
-    when(registry.getDefaultPlugin(eq(TimeSeriesSerdes.class)))
-      .thenReturn(serdes);
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1h-ago")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder()
-            .setId("m1")
-            .setMetric("system.cpu.user"))
-        .build()
-        .convert(mock(TSDB.class)).build();
-    when(pcontext.query()).thenReturn(query);
-   // cache_execution = new MockDownstream<IteratorGroups>(query);
-    when(plugin.fetch(any(QueryContext.class), any(byte[].class), any(Span.class)))
-      .thenAnswer(new Answer<QueryExecution<IteratorGroups>>() {
-        @Override
-        public QueryExecution<IteratorGroups> answer(
-            final InvocationOnMock invocation) throws Throwable {
-          return cache_execution;
-        }
-      });
-//    when(serdes.serialize(any(QueryContext.class), 
-//        any(SerdesOptions.class), any(OutputStream.class), 
-//        any(QueryResult.class), any(Span.class)))
-//      .thenReturn(Deferred.fromResult(null));
-  }
+//  @SuppressWarnings("unchecked")
+//  @Before
+//  public void beforeLocal() throws Exception {
+//    node = mock(ExecutionGraphNode.class);
+//    executor = mock(QueryExecutor.class);
+//    plugin = mock(QueryCachePlugin.class);
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setKeyGeneratorId("MyKeyGen")
+//        .setId("LocalCache")
+//        .build();
+//    serdes = mock(TimeSeriesSerdes.class);
+//    
+//    tsd_config = new Configuration(new String[] { 
+//        "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
+//    
+//    when(tsdb.getConfig()).thenReturn(tsd_config);
+//    key_generator = new DefaultTimeSeriesCacheKeyGenerator();
+//    key_generator.initialize(tsdb).join();
+//    
+//    when(executor.close()).thenReturn(Deferred.fromResult(null));
+//    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+//      .thenReturn(plugin);
+//    when(registry.getDefaultPlugin(eq(QueryCachePlugin.class)))
+//      .thenReturn(plugin);
+//    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+//      .thenReturn(key_generator);
+//    when(registry.getDefaultPlugin(eq(TimeSeriesCacheKeyGenerator.class)))
+//    .thenReturn(key_generator);
+//    when(registry.getSerdes(anyString()))
+//      .thenAnswer(new Answer<TimeSeriesSerdes>() {
+//      @Override
+//      public TimeSeriesSerdes answer(
+//          final InvocationOnMock invocation) throws Throwable {
+//        return serdes;
+//      }
+//    });
+//    when(registry.getDefaultPlugin(eq(TimeSeriesSerdes.class)))
+//      .thenReturn(serdes);
+//    query = TimeSeriesQuery.newBuilder()
+//        .setTime(Timespan.newBuilder()
+//            .setStart("1h-ago")
+//            .setAggregator("sum"))
+//        .addMetric(Metric.newBuilder()
+//            .setId("m1")
+//            .setMetric("system.cpu.user"))
+//        .build()
+//        .convert(mock(TSDB.class)).build();
+//    when(pcontext.query()).thenReturn(query);
+//   // cache_execution = new MockDownstream<IteratorGroups>(query);
+//    when(plugin.fetch(any(QueryContext.class), any(byte[].class), any(Span.class)))
+//      .thenAnswer(new Answer<QueryExecution<IteratorGroups>>() {
+//        @Override
+//        public QueryExecution<IteratorGroups> answer(
+//            final InvocationOnMock invocation) throws Throwable {
+//          return cache_execution;
+//        }
+//      });
+////    when(serdes.serialize(any(QueryContext.class), 
+////        any(SerdesOptions.class), any(OutputStream.class), 
+////        any(QueryResult.class), any(Span.class)))
+////      .thenReturn(Deferred.fromResult(null));
+//  }
   
 //  @Test
 //  public void ctor() throws Exception {

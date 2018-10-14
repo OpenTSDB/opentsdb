@@ -14,8 +14,6 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -35,8 +33,8 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.processor.BaseMultiQueryNodeFactory;
+import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 
 /**
@@ -46,7 +44,7 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  * 
  * NOTE: This factory will not generate nodes. Instead it will mutate the
  * execution graph with {@link ExpressionParseNode} entries when 
- * {@link #setupGraph(TimeSeriesQuery, ExecutionGraphNode, DirectedAcyclicGraph)} 
+ * {@link #setupGraph(TimeSeriesQuery, QueryNodeConfig, DirectedAcyclicGraph)} 
  * is called.
  * 
  * TODO - we can walk the nodes and look for duplicates. It's a pain to
@@ -54,21 +52,15 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  * 
  * @since 3.0
  */
-public class ExpressionFactory extends BaseMultiQueryNodeFactory {
+public class ExpressionFactory extends BaseQueryNodeFactory {
+  
+  public static final String ID = "Expression";
   
   /**
    * Required empty ctor.
    */
   public ExpressionFactory() {
-    super("expression");
-  }
-
-  @Override
-  public Collection<QueryNode> newNodes(final QueryPipelineContext context, 
-                                        final String id,
-                                        final QueryNodeConfig config, 
-                                        final List<ExecutionGraphNode> nodes) {
-    return Collections.emptyList();
+    super(ID);
   }
   
   @Override
@@ -79,43 +71,37 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
   }
   
   @Override
-  public void setupGraph(
-      final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config, 
+                         final QueryPlanner plan) {
     
     // parse the expression
-    final ExpressionConfig c = (ExpressionConfig) config.getConfig();
+    final ExpressionConfig c = (ExpressionConfig) config;
     final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
     
-    final Map<String, ExecutionGraphNode> node_map = Maps.newHashMap();
-    for (final ExecutionGraphNode node: graph.vertexSet()) {
+    final Map<String, QueryNodeConfig> node_map = Maps.newHashMap();
+    for (final QueryNodeConfig node: plan.configGraph().vertexSet()) {
       node_map.put(node.getId(), node);
     }
     
-    final List<ExecutionGraphNode> new_nodes = 
+    final List<QueryNodeConfig> new_nodes = 
         Lists.newArrayListWithCapacity(configs.size());
     for (final ExpressionParseNode parse_node : configs) {
-      final ExecutionGraphNode.Builder builder = ExecutionGraphNode
-          .newBuilder()
-            .setConfig(parse_node)
-            .setId(parse_node.getId())
-            .setType("BinaryExpression");
       if (parse_node.getLeftType() == OperandType.SUB_EXP) {
-        builder.addSource((String) parse_node.getLeft());
+        parse_node.addSource((String) parse_node.getLeft());
       }
       if (parse_node.getRightType() == OperandType.SUB_EXP) {
-        builder.addSource((String) parse_node.getRight());
+        parse_node.addSource((String) parse_node.getRight());
       }
       
       // we may need to fix up variable names. Do so by searching 
       // recursively.
       String last_source = null;
       if (parse_node.getLeftType() == OperandType.VARIABLE) {
-        String ds = validate(parse_node, true, graph, config, 0);
+        String ds = validate(parse_node, true, plan, config, 0);
         if (ds != null) {
-          builder.addSource(ds);
+          parse_node.addSource(ds);
           last_source = ds;
         } else {
           throw new RuntimeException("WTF? No node for left?");
@@ -123,48 +109,48 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
       }
       
       if (parse_node.getRightType() == OperandType.VARIABLE) {
-        String ds = validate(parse_node, false, graph, config, 0);
+        String ds = validate(parse_node, false, plan, config, 0);
         if (ds != null) {
           // dedupe
           if (last_source == null || !last_source.equals(ds)) {
-            builder.addSource(ds);
+            parse_node.addSource(ds);
           }
         } else {
           throw new RuntimeException("WTF? No node for right?");
         }
       }
       
-      final ExecutionGraphNode new_node = builder.build();
-      new_nodes.add(new_node);
-      node_map.put(parse_node.getId(), new_node);
+      new_nodes.add(parse_node);
+      node_map.put(parse_node.getId(), parse_node);
     }
     
     // remove the old config and get the in and outgoing edges.
-    final List<ExecutionGraphNode> upstream = Lists.newArrayList();
-    for (final DefaultEdge up : graph.incomingEdgesOf(config)) {
-      final ExecutionGraphNode n = graph.getEdgeSource(up);
+    final List<QueryNodeConfig> upstream = Lists.newArrayList();
+    for (final DefaultEdge up : plan.configGraph().incomingEdgesOf(config)) {
+      final QueryNodeConfig n = plan.configGraph().getEdgeSource(up);
       upstream.add(n);
     }
-    for (final ExecutionGraphNode n : upstream) {
-      graph.removeEdge(n, config);
+    for (final QueryNodeConfig n : upstream) {
+      plan.configGraph().removeEdge(n, config);
     }
     
-    final List<ExecutionGraphNode> downstream = Lists.newArrayList();
-    for (final DefaultEdge down : graph.outgoingEdgesOf(config)) {
-      final ExecutionGraphNode n = graph.getEdgeTarget(down);
+    final List<QueryNodeConfig> downstream = Lists.newArrayList();
+    for (final DefaultEdge down : plan.configGraph().outgoingEdgesOf(config)) {
+      final QueryNodeConfig n = plan.configGraph().getEdgeTarget(down);
       downstream.add(n);
     }
-    for (final ExecutionGraphNode n : downstream) {
-      graph.removeEdge(config, n);
+    for (final QueryNodeConfig n : downstream) {
+      plan.configGraph().removeEdge(config, n);
     }
     
     // now yank ourselves out and link.
-    graph.removeVertex(config);
-    for (final ExecutionGraphNode node : new_nodes) {
-      graph.addVertex(node);
+    plan.configGraph().removeVertex(config);
+    System.out.println("REMOVED: " + config);
+    for (final QueryNodeConfig node : new_nodes) {
+      plan.configGraph().addVertex(node);
       for (final String source : node.getSources()) {
         try {
-          graph.addDagEdge(node, node_map.get(source));
+          plan.configGraph().addDagEdge(node, node_map.get(source));
         } catch (CycleFoundException e) {
           throw new IllegalStateException("Cylcle found when generating "
               + "sub expression graph.", e);
@@ -172,8 +158,8 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
       }
     }
     
-    for (final ExecutionGraphNode up : upstream) {
-      try {graph.addDagEdge(up, new_nodes.get(new_nodes.size() - 1));
+    for (final QueryNodeConfig up : upstream) {
+      try {plan.configGraph().addDagEdge(up, new_nodes.get(new_nodes.size() - 1));
       } catch (CycleFoundException e) {
         throw new IllegalStateException("Cylcle found when generating "
             + "sub expression graph.", e);
@@ -183,25 +169,25 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
   
   static String validate(final ExpressionParseNode node, 
                          final boolean left, 
-                         final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph, 
-                         final ExecutionGraphNode downstream, 
+                         final QueryPlanner plan,
+                         final QueryNodeConfig downstream, 
                          final int depth) {
     final String key = left ? (String) node.getLeft() : (String) node.getRight();
     if (depth > 0 && 
         !Strings.isNullOrEmpty(downstream.getType()) && 
         downstream.getType().toLowerCase().equals("expression")) {
       if (left && key.equals(downstream.getId())) {
-        if (downstream.getConfig() instanceof ExpressionConfig) {
-          node.setLeft(((ExpressionConfig) downstream.getConfig()).getAs());
+        if (downstream instanceof ExpressionConfig) {
+          node.setLeft(((ExpressionConfig) downstream).getAs());
         } else {
-          node.setLeft(((ExpressionParseNode) downstream.getConfig()).getAs());
+          node.setLeft(((ExpressionParseNode) downstream).getAs());
         }
         return downstream.getId();
       } else if (key.equals(downstream.getId())) {
-        if (downstream.getConfig() instanceof ExpressionConfig) {
-          node.setRight(((ExpressionConfig) downstream.getConfig()).getAs());
+        if (downstream instanceof ExpressionConfig) {
+          node.setRight(((ExpressionConfig) downstream).getAs());
         } else {
-          node.setRight(((ExpressionParseNode) downstream.getConfig()).getAs());
+          node.setRight(((ExpressionParseNode) downstream).getAs());
         }
         return downstream.getId();
       }
@@ -209,23 +195,23 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
         downstream.getType().toLowerCase().equals("datasource")) {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
-        node.setLeft(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric());
+        node.setLeft(((QuerySourceConfig) downstream).getMetric().getMetric());
         return downstream.getId();
       } else if (left && 
-          key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric())) {
+          key.equals(((QuerySourceConfig) downstream).getMetric().getMetric())) {
         return downstream.getId();
         // right
       } else if (key.equals(downstream.getId())) {
-        node.setRight(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric());
+        node.setRight(((QuerySourceConfig) downstream).getMetric().getMetric());
         return downstream.getId();
-      } else if (key.equals(((QuerySourceConfig) downstream.getConfig()).getMetric().getMetric())) {
+      } else if (key.equals(((QuerySourceConfig) downstream).getMetric().getMetric())) {
         return downstream.getId();
       }
     }
     
-    for (final DefaultEdge edge : graph.outgoingEdgesOf(downstream)) {
-      final ExecutionGraphNode graph_node = graph.getEdgeTarget(edge);
-      final String ds = validate(node, left, graph, graph_node, depth + 1);
+    for (final DefaultEdge edge : plan.configGraph().outgoingEdgesOf(downstream)) {
+      final QueryNodeConfig graph_node = plan.configGraph().getEdgeTarget(edge);
+      final String ds = validate(node, left, plan, graph_node, depth + 1);
       if (ds != null) {
         if (depth == 0) {
           return ds;
@@ -235,6 +221,21 @@ public class ExpressionFactory extends BaseMultiQueryNodeFactory {
     }
     
     return null;
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id) {
+    throw new UnsupportedOperationException("This node should have been "
+        + "removed from the graph.");
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id,
+                           final QueryNodeConfig config) {
+    throw new UnsupportedOperationException("This node should have been "
+        + "removed from the graph.");
   }
   
 }

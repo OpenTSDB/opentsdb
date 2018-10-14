@@ -115,7 +115,6 @@ public class PluginsConfig extends Validatable {
     DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.serdes.SerdesFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.QuerySinkFactory");
-    DEFAULT_TYPES.add("net.opentsdb.query.execution.QueryExecutorFactory");
     //DEFAULT_TYPES.add("net.opentsdb.storage.TimeSeriesDataStoreFactory");
   }
   
@@ -257,7 +256,8 @@ public class PluginsConfig extends Validatable {
    * <b>Warning:</b> The plugin MUST have been initialized prior to adding it
    * to the registry.
    * @param clazz The type of plugin to be stored.
-   * @param id An ID for the plugin (may be null if it's a default).
+   * @param id An ID for the plugin (may be null if it's a default). 
+   * Note that if the ID is not null or empty then we lower case it.
    * @param plugin A non-null and initialized plugin to register.
    * @throws IllegalArgumentException if the class or plugin was null or if
    * a plugin was already registered with the given ID. Also thrown if the
@@ -281,13 +281,15 @@ public class PluginsConfig extends Validatable {
       class_map = Maps.newHashMapWithExpectedSize(1);
       plugins.put(clazz, class_map);
     } else {
-      final TSDBPlugin extant = class_map.get(id);
+      final TSDBPlugin extant = class_map.get(Strings.isNullOrEmpty(id) ? 
+          null : id.toLowerCase());
       if (extant != null) {
         throw new IllegalArgumentException("Plugin with ID [" + id 
             + "] and class [" + clazz + "] already exists: " + extant);
       }
     }
-    class_map.put(id, plugin);
+    class_map.put(Strings.isNullOrEmpty(id) ? null : id.toLowerCase(), 
+        plugin);
   }
   
   /**
@@ -302,7 +304,8 @@ public class PluginsConfig extends Validatable {
   }
   
   /**
-   * Retrieves the plugin with the given class type and ID.
+   * Retrieves the plugin with the given class type and ID. Note that if
+   * the ID is not null or empty then we lower case it.
    * @param clazz The type of plugin to be fetched.
    * @param id An optional ID, may be null if the default is fetched.
    * @return An instantiated plugin if found, null if not.
@@ -317,7 +320,8 @@ public class PluginsConfig extends Validatable {
     if (class_map == null) {
       return null;
     }
-    return (T) class_map.get(id);
+    return (T) class_map.get(Strings.isNullOrEmpty(id) ? null : 
+      id.toLowerCase());
   }
   
   /**

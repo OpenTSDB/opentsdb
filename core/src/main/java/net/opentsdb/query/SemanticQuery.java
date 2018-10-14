@@ -27,8 +27,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
@@ -59,7 +57,7 @@ public class SemanticQuery implements TimeSeriesQuery {
   private final String time_zone;
   
   /** The non-null and non-empty execution graph to build the query from. */
-  private ExecutionGraph execution_graph;
+  private List<QueryNodeConfig> execution_graph;
   
   /** An optional map of filter IDs to the filters. */
   private Map<String, NamedFilter> filters;
@@ -109,11 +107,10 @@ public class SemanticQuery implements TimeSeriesQuery {
         Collections.emptyList() : builder.serdes_config;
     
     // set the query if needed
-    for (final ExecutionGraphNode node : execution_graph.getNodes()) {
-      if (node.getConfig() != null && 
-          node.getConfig() instanceof QuerySourceConfig &&
-          ((QuerySourceConfig) node.getConfig()).query() == null) {
-        ((QuerySourceConfig) node.getConfig()).setTimeSeriesQuery(this);
+    for (final QueryNodeConfig node : execution_graph) {
+      if (node instanceof QuerySourceConfig &&
+          ((QuerySourceConfig) node).query() == null) {
+        ((QuerySourceConfig) node).setTimeSeriesQuery(this);
       }
     }
   }
@@ -134,7 +131,7 @@ public class SemanticQuery implements TimeSeriesQuery {
   }
   
   @Override
-  public ExecutionGraph getExecutionGraph() {
+  public List<QueryNodeConfig> getExecutionGraph() {
     return execution_graph;
   }
   
@@ -197,7 +194,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     private String start;
     private String end;
     private String time_zone;
-    private ExecutionGraph execution_graph;
+    private List<QueryNodeConfig> execution_graph;
     private List<NamedFilter> filters;
     private QueryMode mode;
     private List<SerdesOptions> serdes_config;
@@ -217,8 +214,16 @@ public class SemanticQuery implements TimeSeriesQuery {
       return this;
     }
     
-    public Builder setExecutionGraph(final ExecutionGraph execution_graph) {
+    public Builder setExecutionGraph(final List<QueryNodeConfig> execution_graph) {
       this.execution_graph = execution_graph;
+      return this;
+    }
+    
+    public Builder addExecutionGraphNode(final QueryNodeConfig node) {
+      if (execution_graph == null) {
+        execution_graph = Lists.newArrayList();
+      }
+      execution_graph.add(node);
       return this;
     }
     
@@ -272,8 +277,28 @@ public class SemanticQuery implements TimeSeriesQuery {
     if (node == null) {
       throw new IllegalArgumentException("Need a graph!");
     }
-    builder.setExecutionGraph(ExecutionGraph.parse(
-        JSON.getMapper(), tsdb, node).build());
+    for (final JsonNode config : node) {
+      JsonNode temp = config.get("type");
+      QueryNodeFactory config_factory = null;
+      if (temp != null && !temp.isNull()) {
+        config_factory = tsdb.getRegistry()
+            .getQueryNodeFactory(temp.asText().toLowerCase());
+      } else {
+        temp = config.get("id");
+        if (temp != null && !temp.isNull()) {
+          config_factory = tsdb.getRegistry()
+              .getQueryNodeFactory(temp.asText().toLowerCase());
+        }
+      }
+      
+      if (config_factory == null) {
+        throw new IllegalArgumentException("Unable to find a config "
+            + "factory for type: " + temp == null ? "null" : temp.asText());
+      }
+      builder.addExecutionGraphNode(config_factory.parseConfig(
+          JSON.getMapper(), tsdb, config));
+    }
+    
     node = root.get("start");
     builder.setStart(node.asText());
     

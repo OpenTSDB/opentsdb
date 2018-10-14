@@ -39,8 +39,6 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -119,11 +117,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   @Override
   public QueryPipelineContext pipelineContext() {
     return this;
-  }
-  
-  @Override
-  public ExecutionGraph executionGraph() {
-    return context.query().getExecutionGraph();
   }
   
   @Override
@@ -413,9 +406,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + ".initializeGraph")
-        .withTag("graphId", 
-            context.query().getExecutionGraph().getId() == null ? 
-                "null" : context.query().getExecutionGraph().getId())
         .start();
     } else {
       child = null;
@@ -430,13 +420,13 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
           final QuerySinkFactory factory = context.tsdb().getRegistry()
               .getPlugin(QuerySinkFactory.class, config.getId());
           if (factory == null) {
-            throw new IllegalArgumentException("No sink factory found for " 
+            throw new IllegalArgumentException("No sink factory found for: " 
                 + config.getId());
           }
           
           final QuerySink sink = factory.newSink(context, config);
           if (sink == null) {
-            throw new IllegalArgumentException("Factory returned a null sink for " 
+            throw new IllegalArgumentException("Factory returned a null sink for: " 
                 + config.getId());
           }
           sinks.add(sink);

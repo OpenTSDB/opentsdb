@@ -37,8 +37,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
@@ -69,8 +67,8 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
    * was null or if the timeout was less than 1 millisecond.
    */
   @SuppressWarnings("unchecked")
-  public TimedQueryExecutor(final ExecutionGraphNode node) {
-    super(node);
+  public TimedQueryExecutor() {
+    super();
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Default config cannot be null.");
 //    }
@@ -93,8 +91,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final QueryContext context,
-                                        final TimeSeriesQuery query,
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
                                         final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution<T>(query, new QueryExecutionException(
@@ -102,9 +99,10 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
             500, query.getOrder()));
     }
     try {
-      final TimedQuery timed_query = new TimedQuery(context, query);
-      timed_query.execute(upstream_span);
-      return timed_query;
+//      final TimedQuery timed_query = new TimedQuery(context, query);
+//      timed_query.execute(upstream_span);
+//      return timed_query;
+      return null;
     } catch (Exception e) {
       return new FailedQueryExecution<T>(query, new QueryExecutionException(
           "Unexpected exception executing query: " + this, 
@@ -112,164 +110,164 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
   }
   
-  /** Class that wraps the response from the downstream query so that on
-   * callback, the timer task is cancelled. Also implements the timer task that
-   * will be called if query has indeed timed out. */
-  private class TimedQuery extends QueryExecution<T> implements TimerTask {
-    /** The timeout returned by the timer so we can cancel it. */
-    protected Timeout timer_timeout;
-    
-    /** The downstream execution to wait on (or cancel). */
-    protected QueryExecution<T> downstream;
-    
-    final QueryContext context;
-    /**
-     * Default ctor.
-     * @param query A non-null query.
-     */
-    public TimedQuery(final QueryContext context,final TimeSeriesQuery query) {
-      super(query);
-      this.context = context;
-      outstanding_executions.add(this);
-    }
-    
-    void execute(final Span upstream_span) {
-      if (context.getTracer() != null) {
-        setSpan(context, 
-            TimedQueryExecutor.this.getClass().getSimpleName(), 
-            upstream_span,
-            TsdbTrace.addTags(
-                "order", Integer.toString(query.getOrder()),
-                "query", JSON.serializeToString(query),
-                "startThread", Thread.currentThread().getName()));
-      }
-      
-      class ErrCB implements Callback<Object, Exception> {
-        @Override
-        public Object call(final Exception e) throws Exception {
-          try {
-            callback(e, 
-                TsdbTrace.exceptionTags(e),
-                TsdbTrace.exceptionAnnotation(e));
-          } catch (IllegalStateException ex) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Lost race condition calling back with an "
-                  + "exception: " + this);
-            }
-          } catch (Exception ex) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Unexpected exception sending exception upstream: " 
-                  + this, ex);
-            }
-          }
-          complete();
-          return null;
-        }
-      }
-
-      class SuccessCB implements Callback<Object, T> {
-        @Override
-        public Object call(final T obj) throws Exception {
-          complete();
-          callback(obj, TsdbTrace.successfulTags());
-          return null;
-        }
-      }
-      
-      // run it!
-      try {
-        final QueryExecutorConfig override = 
-            context.getConfigOverride(node.getId());
-        long timeout = default_timeout;
-        if (override != null) {
-//          if (override instanceof Config) {
-//            timeout = ((Config) override).timeout;
+//  /** Class that wraps the response from the downstream query so that on
+//   * callback, the timer task is cancelled. Also implements the timer task that
+//   * will be called if query has indeed timed out. */
+//  private class TimedQuery extends QueryExecution<T> implements TimerTask {
+//    /** The timeout returned by the timer so we can cancel it. */
+//    protected Timeout timer_timeout;
+//    
+//    /** The downstream execution to wait on (or cancel). */
+//    protected QueryExecution<T> downstream;
+//    
+//    final QueryContext context;
+//    /**
+//     * Default ctor.
+//     * @param query A non-null query.
+//     */
+//    public TimedQuery(final QueryContext context,final TimeSeriesQuery query) {
+//      super(query);
+//      this.context = context;
+//      outstanding_executions.add(this);
+//    }
+//    
+//    void execute(final Span upstream_span) {
+//      if (context.getTracer() != null) {
+//        setSpan(context, 
+//            TimedQueryExecutor.this.getClass().getSimpleName(), 
+//            upstream_span,
+//            TsdbTrace.addTags(
+//                "order", Integer.toString(query.getOrder()),
+//                "query", JSON.serializeToString(query),
+//                "startThread", Thread.currentThread().getName()));
+//      }
+//      
+//      class ErrCB implements Callback<Object, Exception> {
+//        @Override
+//        public Object call(final Exception e) throws Exception {
+//          try {
+//            callback(e, 
+//                TsdbTrace.exceptionTags(e),
+//                TsdbTrace.exceptionAnnotation(e));
+//          } catch (IllegalStateException ex) {
+//            if (LOG.isDebugEnabled()) {
+//              LOG.debug("Lost race condition calling back with an "
+//                  + "exception: " + this);
+//            }
+//          } catch (Exception ex) {
+//            if (LOG.isDebugEnabled()) {
+//              LOG.debug("Unexpected exception sending exception upstream: " 
+//                  + this, ex);
+//            }
 //          }
-        }
-        downstream = executor.executeQuery(context, query, upstream_span);
-        downstream.deferred()
-          .addCallback(new SuccessCB())
-          .addErrback(new ErrCB());
-        timer_timeout = context.getTimer()
-            .newTimeout(this, timeout, TimeUnit.MILLISECONDS);
-      } catch (Exception e) {
-        try {
-          final Exception ex = new QueryExecutionException(
-              "Unexpected exception executing query: " + this, 
-              500, query.getOrder(), e);
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-        } catch (IllegalStateException ex) {
-          // lost race, don't care.
-        } catch (Exception ex) {
-          LOG.warn("Unexpected exception calling back execution with an "
-              + "error: " + this, ex);
-        }
-        cancel();
-        complete();
-      }
-    }
-
-    @Override
-    public void run(final Timeout timeout) throws Exception {
-      if (completed.get()) {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Timeout executed after a successful execution: " + this);
-        }
-        return;
-      }
-      final Exception e = new QueryExecutionException(
-          "Timed executor timed out " + this, 408, query.getOrder());
-      try {
-        callback(e,
-            TsdbTrace.exceptionTags(e),
-            TsdbTrace.exceptionAnnotation(e));
-      } catch (IllegalStateException ex) {
-        // lost the race, don't care
-      } catch (Exception ex) {
-        LOG.warn("Unexpected exception calling back execution with a "
-            + "timeout: " + this, ex);
-      }
-      synchronized (this) {
-        timer_timeout = null;
-        cancel();
-        complete();
-      }
-    }
-
-    @Override
-    public void cancel() {
-      synchronized (this) {
-        if (downstream != null) {
-          downstream.cancel();
-        }
-        complete();
-        if (!completed.get()) {
-          try {
-            final Exception e = new QueryExecutionException(
-                "Query was cancelled upstream: " + this, 500, query.getOrder()); 
-            callback(e, TsdbTrace.canceledTags(e));
-          } catch (IllegalStateException ex) {
-            // lost the race, don't care
-          } catch (Exception ex) {
-            LOG.warn("Unexpected exception calling back execution with a "
-                + "cancelation: " + this, ex);
-          }
-        }
-      }
-    }
-    
-    /** If the timeout is not null, we cancel it. Also remove this from the
-     * outstanding queries set. */
-    private synchronized void complete() {
-      if (timer_timeout != null) {
-        timer_timeout.cancel();
-        timer_timeout = null;
-      }
-      outstanding_executions.remove(this);
-    }
-  }
+//          complete();
+//          return null;
+//        }
+//      }
+//
+//      class SuccessCB implements Callback<Object, T> {
+//        @Override
+//        public Object call(final T obj) throws Exception {
+//          complete();
+//          callback(obj, TsdbTrace.successfulTags());
+//          return null;
+//        }
+//      }
+//      
+//      // run it!
+//      try {
+//        final QueryExecutorConfig override = 
+//            context.getConfigOverride(node.getId());
+//        long timeout = default_timeout;
+//        if (override != null) {
+////          if (override instanceof Config) {
+////            timeout = ((Config) override).timeout;
+////          }
+//        }
+//        downstream = executor.executeQuery(context, query, upstream_span);
+//        downstream.deferred()
+//          .addCallback(new SuccessCB())
+//          .addErrback(new ErrCB());
+//        timer_timeout = context.getTimer()
+//            .newTimeout(this, timeout, TimeUnit.MILLISECONDS);
+//      } catch (Exception e) {
+//        try {
+//          final Exception ex = new QueryExecutionException(
+//              "Unexpected exception executing query: " + this, 
+//              500, query.getOrder(), e);
+//          callback(ex,
+//              TsdbTrace.exceptionTags(ex),
+//              TsdbTrace.exceptionAnnotation(ex));
+//        } catch (IllegalStateException ex) {
+//          // lost race, don't care.
+//        } catch (Exception ex) {
+//          LOG.warn("Unexpected exception calling back execution with an "
+//              + "error: " + this, ex);
+//        }
+//        cancel();
+//        complete();
+//      }
+//    }
+//
+//    @Override
+//    public void run(final Timeout timeout) throws Exception {
+//      if (completed.get()) {
+//        if (LOG.isDebugEnabled()) {
+//          LOG.debug("Timeout executed after a successful execution: " + this);
+//        }
+//        return;
+//      }
+//      final Exception e = new QueryExecutionException(
+//          "Timed executor timed out " + this, 408, query.getOrder());
+//      try {
+//        callback(e,
+//            TsdbTrace.exceptionTags(e),
+//            TsdbTrace.exceptionAnnotation(e));
+//      } catch (IllegalStateException ex) {
+//        // lost the race, don't care
+//      } catch (Exception ex) {
+//        LOG.warn("Unexpected exception calling back execution with a "
+//            + "timeout: " + this, ex);
+//      }
+//      synchronized (this) {
+//        timer_timeout = null;
+//        cancel();
+//        complete();
+//      }
+//    }
+//
+//    @Override
+//    public void cancel() {
+//      synchronized (this) {
+//        if (downstream != null) {
+//          downstream.cancel();
+//        }
+//        complete();
+//        if (!completed.get()) {
+//          try {
+//            final Exception e = new QueryExecutionException(
+//                "Query was cancelled upstream: " + this, 500, query.getOrder()); 
+//            callback(e, TsdbTrace.canceledTags(e));
+//          } catch (IllegalStateException ex) {
+//            // lost the race, don't care
+//          } catch (Exception ex) {
+//            LOG.warn("Unexpected exception calling back execution with a "
+//                + "cancelation: " + this, ex);
+//          }
+//        }
+//      }
+//    }
+//    
+//    /** If the timeout is not null, we cancel it. Also remove this from the
+//     * outstanding queries set. */
+//    private synchronized void complete() {
+//      if (timer_timeout != null) {
+//        timer_timeout.cancel();
+//        timer_timeout = null;
+//      }
+//      outstanding_executions.remove(this);
+//    }
+//  }
 
   /**
    * The config for this executor.

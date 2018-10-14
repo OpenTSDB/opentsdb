@@ -49,7 +49,6 @@ import net.opentsdb.core.PluginsConfig.PluginConfig;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
-import net.opentsdb.query.hacluster.ClusterConfigPlugin;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -514,12 +513,6 @@ public class TestPluginsConfig {
     assertSame(guava_plugin, config.getPlugin(
         QueryCachePlugin.class, "GuavaLRU"));
     
-    // empty ID, allowed for now
-    config.registerPlugin(QueryCachePlugin.class, "", 
-        guava_plugin);
-    assertSame(guava_plugin, config.getPlugin(
-        QueryCachePlugin.class, ""));
-    
     try {
       config.registerPlugin(null, "GuavaLRU", guava_plugin);
       fail("Expected IllegalArgumentException");
@@ -532,7 +525,7 @@ public class TestPluginsConfig {
     
     // wrong type
     try {
-      config.registerPlugin(ClusterConfigPlugin.class, null, guava_plugin);
+      config.registerPlugin(String.class, null, guava_plugin);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

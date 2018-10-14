@@ -29,17 +29,11 @@ import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.execution.MultiClusterQueryExecutor;
-import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.downsample.DownsampleConfig.Builder;
 import net.opentsdb.utils.DateTime;
 
 /**

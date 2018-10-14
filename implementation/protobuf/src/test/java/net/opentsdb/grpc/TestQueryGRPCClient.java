@@ -40,8 +40,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.utils.UnitTestException;
 
@@ -71,18 +69,13 @@ public class TestQueryGRPCClient {
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("g1")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("DataSource")
-                .setConfig(QuerySourceConfig.newBuilder()
-                    .setMetric(MetricLiteralFilter.newBuilder()
-                        .setMetric("sys.cpu.user")
-                        .build())
-                    .setId("DataSource")
-                    .build())
-                .build())
-            .build())
+        .setExecutionGraph(Lists.newArrayList(
+            QuerySourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric("sys.cpu.user")
+                  .build())
+              .setId("DataSource")
+              .build()))
         .build();
     
     QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()

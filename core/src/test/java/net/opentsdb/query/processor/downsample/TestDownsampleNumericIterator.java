@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Period;
+import java.util.Collections;
 
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
@@ -46,7 +47,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -3078,7 +3078,7 @@ public class TestDownsampleNumericIterator {
         .setMode(QueryMode.SINGLE)
         .setStart(start)
         .setEnd(end)
-        .setExecutionGraph(mock(ExecutionGraph.class))
+        .setExecutionGraph(Collections.emptyList())
         .build();
     when(pipeline_context.query()).thenReturn(query);
     

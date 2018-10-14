@@ -28,7 +28,6 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.processor.topn.TopNConfig;
@@ -40,21 +39,21 @@ public class TestQuerySourceConfig {
   public void builder() throws Exception {
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
     
-    QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setSourceId("HBase")
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
-        .addPushDownNode(mock(ExecutionGraphNode.class))
+        .addPushDownNode(mock(QueryNodeConfig.class))
         .setId("UT")
         .build();
-    assertEquals("HBase", qsc.getSourceId());
-    assertSame(query, qsc.query());
-    assertEquals("system.cpu.user", qsc.getMetric().getMetric());
-    assertEquals("UT", qsc.getId());
-    assertEquals(1, qsc.getPushDownNodes().size());
-    assertFalse(qsc.pushDown());
+    assertEquals("HBase", config.getSourceId());
+    assertSame(query, config.query());
+    assertEquals("system.cpu.user", config.getMetric().getMetric());
+    assertEquals("UT", config.getId());
+    assertEquals(1, config.getPushDownNodes().size());
+    assertFalse(config.pushDown());
     
     try {
       QuerySourceConfig.newBuilder()
@@ -69,34 +68,34 @@ public class TestQuerySourceConfig {
   @Test
   public void builderClone() throws Exception {
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
-    QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setSourceId("HBase")
         .setQuery(query)
         .setTypes(Lists.newArrayList("Numeric", "Annotation"))
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
-        .addPushDownNode(mock(ExecutionGraphNode.class))
+        .addPushDownNode(mock(QueryNodeConfig.class))
         .setId("UT")
         .build();
     
-    QuerySourceConfig clone = QuerySourceConfig.newBuilder(qsc).build();
-    assertNotSame(qsc, clone);
+    QuerySourceConfig clone = QuerySourceConfig.newBuilder(config).build();
+    assertNotSame(config, clone);
     assertEquals("HBase", clone.getSourceId());
     assertSame(query, clone.query());
-    assertNotSame(qsc.getTypes(), clone.getTypes());
+    assertNotSame(config.getTypes(), clone.getTypes());
     assertEquals(2, clone.getTypes().size());
     assertTrue(clone.getTypes().contains("Numeric"));
     assertTrue(clone.getTypes().contains("Annotation"));
-    assertSame(qsc.getMetric(), clone.getMetric());
+    assertSame(config.getMetric(), clone.getMetric());
     assertEquals("UT", clone.getId());
     assertNull(clone.getPushDownNodes());
   }
 
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
-    QuerySourceConfig qsc = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setSourceId("HBase")
         .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -108,19 +107,16 @@ public class TestQuerySourceConfig {
             .setTagKey("host")
             .build())
         .setFetchLast(true)
-        .addPushDownNode(ExecutionGraphNode.newBuilder()
-            .setId("topn")
-            .setConfig(TopNConfig.newBuilder()
-                .setTop(true)
-                .setCount(10)
-                .setInfectiousNan(true)
-                .setId("Toppy")
-                .build())
+        .addPushDownNode(TopNConfig.newBuilder()
+            .setTop(true)
+            .setCount(10)
+            .setInfectiousNan(true)
+            .setId("Toppy")
             .build())
         .setId("UT")
         .build();
     
-    final String json = JSON.serializeToString(qsc);
+    final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"sourceId\":\"HBase\""));
     assertTrue(json.contains("\"id\":\"UT\""));
     assertTrue(json.contains("\"metric\":{"));
@@ -129,31 +125,26 @@ public class TestQuerySourceConfig {
     assertTrue(json.contains("\"filterId\":\"f1\""));
     assertTrue(json.contains("\"fetchLast\":true"));
     assertTrue(json.contains("\"pushDownNodes\":["));
-    assertTrue(json.contains("\"id\":\"topn\""));
-  }
-  
-  @Test
-  public void parseConfig() throws Exception {
-    final String json = "{\"sourceId\":\"HBase\",\"id\":\"UT\",\"metric\":{\"metric\":"
-        + "\"system.cpu.user\",\"type\":\"MetricLiteral\"},\"filterId\":"
-        + "\"f1\",\"filter\":null,\"fetchLast\":true,\"pushDownNodes\":[{\"id\":\"topn\","
-        + "\"type\":\"topn\",\"config\":{\"id\":\"Toppy\",\"count\":10,"
-        + "\"top\":true,\"infectiousNan\":true}}]}";
+    assertTrue(json.contains("\"id\":\"Toppy\""));
+    assertTrue(json.contains("\"type\":\"TopN\""));
     
     MockTSDB tsdb = new MockTSDB();
     tsdb.registry = new DefaultRegistry(tsdb);
     ((DefaultRegistry) tsdb.registry).initialize(true);
     
     JsonNode root = JSON.getMapper().readTree(json);
-    QuerySourceConfig config = (QuerySourceConfig) 
+    config = (QuerySourceConfig) 
         new QueryDataSourceFactory().parseConfig(JSON.getMapper(), 
             tsdb, root);
+    
     assertEquals("HBase", config.getSourceId());
-    assertEquals("UT", config.getId());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
-    assertTrue(config.getMetric() instanceof MetricLiteralFilter);
-    assertEquals("f1", config.getFilterId());
+    assertEquals("UT", config.getId());
     assertEquals(1, config.getPushDownNodes().size());
-    assertEquals("topn", config.getPushDownNodes().get(0).getId());
+    assertTrue(config.getPushDownNodes().get(0) instanceof TopNConfig);
+    assertEquals("f1", config.getFilterId());
+    assertTrue(config.getFetchLast());
+    assertNull(config.filter()); // cause the ID is set. Bad.
   }
+  
 }

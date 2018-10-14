@@ -38,11 +38,10 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -645,7 +644,7 @@ public class TimeSeriesQuery extends Validatable
     
     Map<String, String> id_to_node_roots = Maps.newHashMap();
     
-    final List<ExecutionGraphNode> nodes = Lists.newArrayList();
+    final List<QueryNodeConfig> nodes = Lists.newArrayList();
     int metric_id = 1;
     for (final Metric metric : metrics) {
       
@@ -658,12 +657,7 @@ public class TimeSeriesQuery extends Validatable
       if (!Strings.isNullOrEmpty(metric.getFilter())) {
         source.setQueryFilter(filter_map.get(metric.getFilter()));
       }
-      
-      ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-          .setId(Strings.isNullOrEmpty(metric.getId()) ? "m" + metric_id++ : metric.getId())
-          .setType("DataSource")
-          .setConfig(source.build())
-          .build();
+      QueryNodeConfig node = source.build();
       nodes.add(node);
       
       final String interpolator;
@@ -696,7 +690,7 @@ public class TimeSeriesQuery extends Validatable
       
       final Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null 
           : getFilter(metric.getFilter());
-      ExecutionGraphNode gb = groupBy(metric, interpolator, downsampler, filter, node);
+      QueryNodeConfig gb = groupBy(metric, interpolator, downsampler, filter, node);
       if (gb != null) {
         nodes.add(gb);
         node = gb;
@@ -716,34 +710,26 @@ public class TimeSeriesQuery extends Validatable
         
         // TODO - figure out query tags to mimic 2.x
         // TODO - get fills from metrics
-        ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-            .setId(expression.getId())
-            .setType("Expression")
-            .setConfig(ExpressionConfig.newBuilder()
-                .setExpression(expression.getExpr())
-                //.setAs("") // TODO ??
-                .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                    .setJoinType(JoinType.NATURAL)
-                    .build())
-                .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-                    .setFillPolicy(FillPolicy.NONE) // TODO
-                    .setRealFillPolicy(FillWithRealPolicy.NONE)
-                    .setType("LERP")
-                    .setDataType(NumericType.TYPE.toString())
-                    .build())
-                .setId(expression.getId())
+        QueryNodeConfig node = ExpressionConfig.newBuilder()
+            .setExpression(expression.getExpr())
+            //.setAs("") // TODO ??
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setJoinType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                .setFillPolicy(FillPolicy.NONE) // TODO
+                .setRealFillPolicy(FillWithRealPolicy.NONE)
+                .setType("LERP")
+                .setDataType(NumericType.TYPE.toString())
                 .build())
             .setSources(vars)
+            .setId(expression.getId())
             .build();
         nodes.add(node);
       }
     }
     
-    builder.setExecutionGraph(ExecutionGraph.newBuilder()
-        .setId("TsdbQuery")
-        .setNodes(nodes)
-        .setId(name)
-        .build());
+    builder.setExecutionGraph(nodes);
     return builder;
   }
   
@@ -755,9 +741,9 @@ public class TimeSeriesQuery extends Validatable
    * @param downsampler The downsampler to pull config from.
    * @return An execution graph node.
    */
-  private ExecutionGraphNode downsampler(final Metric metric, 
-                                 final String interpolator, 
-                                 final Downsampler downsampler) {
+  private QueryNodeConfig downsampler(final Metric metric, 
+                                      final String interpolator, 
+                                      final Downsampler downsampler) {
     
     FillPolicy policy = downsampler.getFillPolicy().getPolicy();
     
@@ -771,17 +757,13 @@ public class TimeSeriesQuery extends Validatable
                   .setRealFillPolicy(FillWithRealPolicy.NONE)
                   .setType(interpolator)
                   .setDataType(NumericType.TYPE.toString())
-                  .build());
+                  .build())
+        .addSource(metric.getId());
     if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
       ds.setTimeZone(downsampler.getTimezone());
     }
         
-    return ExecutionGraphNode.newBuilder()
-        .setId(metric.getId() + "_Downsampler")
-        .setType("Downsample")
-        .setConfig(ds.build())
-        .addSource(metric.getId())
-        .build();
+    return ds.build();
   }
   
   /**
@@ -792,10 +774,10 @@ public class TimeSeriesQuery extends Validatable
    * @param tsdb The TSDB to pull configs from.
    * @return An execution graph node.
    */
-  private ExecutionGraphNode rate(final Metric metric, 
-                                  final RateOptions options, 
-                                  final ExecutionGraphNode parent,
-                                  final TSDB tsdb) {
+  private QueryNodeConfig rate(final Metric metric, 
+                               final RateOptions options, 
+                               final QueryNodeConfig parent,
+                               final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(RATE_1_TO_0_KEY)) {
       synchronized(tsdb.getConfig()) { 
         if (!tsdb.getConfig().hasProperty(RATE_1_TO_0_KEY)) {
@@ -809,25 +791,17 @@ public class TimeSeriesQuery extends Validatable
     
     if (options.getResetValue() == 1 && 
         tsdb.getConfig().getBoolean(RATE_1_TO_0_KEY)) {
-      return ExecutionGraphNode.newBuilder()
+      return RateOptions.newBuilder(metric.getRateOptions())
+          .setResetValue(0)
           .setId(metric.getId() + "_Rate")
-          .setType("Rate")
           .addSource(parent.getId())
-          .setConfig(RateOptions.newBuilder(metric.getRateOptions())
-            .setResetValue(0)
-            .setId(metric.getId() + "_Rate")
-            .build())
           .build();
     }
     
-    return ExecutionGraphNode.newBuilder()
-      .setId(metric.getId() + "_Rate")
-      .setType("Rate")
-      .addSource(parent.getId())
-      .setConfig(RateOptions.newBuilder(metric.getRateOptions())
+    return RateOptions.newBuilder(metric.getRateOptions())
         .setId(metric.getId() + "_Rate")
-        .build())
-      .build();
+        .addSource(parent.getId())
+        .build();
   }
   
   /**
@@ -840,11 +814,11 @@ public class TimeSeriesQuery extends Validatable
    * @param parent The parent graph node.
    * @return An execution graph node.
    */
-  private ExecutionGraphNode groupBy(final Metric metric, 
-                                     final String interpolator, 
-                                     final Downsampler downsampler, 
-                                     final Filter filter, 
-                                     final ExecutionGraphNode parent) {
+  private QueryNodeConfig groupBy(final Metric metric, 
+                                  final String interpolator, 
+                                  final Downsampler downsampler, 
+                                  final Filter filter, 
+                                  final QueryNodeConfig parent) {
     final String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
         metric.getAggregator().toLowerCase() : 
          time.getAggregator().toLowerCase();
@@ -870,14 +844,10 @@ public class TimeSeriesQuery extends Validatable
       }
       
       if (gb_config != null) {
-        gb_config.setTagKeys(join_keys);
-        gb_config.setAggregator(agg);
-        return ExecutionGraphNode.newBuilder()
-            .setId(metric.getId() + "_GroupBy")
-            .setType("GroupBy")
-            .addSource(parent.getId())
-            .setConfig(gb_config.build())
-            .build();
+        gb_config.setTagKeys(join_keys)
+                 .setAggregator(agg)
+                 .addSource(parent.getId());
+        return gb_config.build();
       }
     } else if (!agg.toLowerCase().equals("none")) {
       // we agg all 
@@ -892,14 +862,10 @@ public class TimeSeriesQuery extends Validatable
               .build())
           .setId(metric.getId() + "_GroupBy");
           
-      gb_config.setAggregator(agg);
+      gb_config.setAggregator(agg)
+               .addSource(parent.getId());
       
-      return ExecutionGraphNode.newBuilder()
-          .setId(metric.getId() + "_GroupBy")
-          .setType("GroupBy")
-          .addSource(parent.getId())
-          .setConfig(gb_config.build())
-          .build();
+      return gb_config.build();
     }
     
     return null;

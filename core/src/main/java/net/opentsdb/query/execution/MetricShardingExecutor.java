@@ -42,9 +42,6 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.plan.SplitMetricPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
@@ -72,7 +69,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       MetricShardingExecutor.class);
   
   /** How many queries to fire in parallel for the currently executing query. */
-  protected final int default_parallel_executors;
+  protected int default_parallel_executors;
   
   /** The data merger used to merge results. */
 //  private DataMerger<T> default_data_merger;
@@ -86,8 +83,8 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
    * @throws IllegalArgumentException if a config param was invalid.
    */
   @SuppressWarnings("unchecked")
-  public MetricShardingExecutor(final ExecutionGraphNode node) {
-    super(node);
+  public MetricShardingExecutor() {
+    super();
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Config cannot be null.");
 //    }
@@ -114,237 +111,237 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final QueryContext context,
-                                        final TimeSeriesQuery query,
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
                                         final Span upstream_span) {
-    final SplitMetricPlanner plan = new SplitMetricPlanner(query);
-    if (plan.getPlannedQuery().subQueries() == null || 
-        plan.getPlannedQuery().subQueries().isEmpty()) {
-      throw new IllegalArgumentException("Query didn't have any sub after "
-          + "planning: " + plan.getPlannedQuery());
-    }
-    final QuerySplitter executor = new QuerySplitter(context, plan.getPlannedQuery());
-    executor.executeQuery(upstream_span);
-    return executor;
+//    final SplitMetricPlanner plan = new SplitMetricPlanner(query);
+//    if (plan.getPlannedQuery().subQueries() == null || 
+//        plan.getPlannedQuery().subQueries().isEmpty()) {
+//      throw new IllegalArgumentException("Query didn't have any sub after "
+//          + "planning: " + plan.getPlannedQuery());
+//    }
+//    final QuerySplitter executor = new QuerySplitter(context, plan.getPlannedQuery());
+//    executor.executeQuery(upstream_span);
+//    return executor;
+    return null;
   }
 
-  /** The execution for a specific query that handles rotating through executors. */
-  private class QuerySplitter extends QueryExecution<T> {
-    final QueryContext context;
-    
-    /** The parent query to pull sub queries out of. */
-    private final TimeSeriesQuery query;
-    
-    /** The index of the next child query to fire off. */
-    private int splits_index;
-    
-    /** The list of outstanding executions so we can cancel them if needed. */
-    @VisibleForTesting
-    private final QueryExecution<T>[] executions;
-    
-    /**
-     * Default ctor.
-     * @param query A non-null query.
-     */
-    @SuppressWarnings("unchecked")
-    public QuerySplitter(final QueryContext context,final TimeSeriesQuery query) {
-      super(query);
-      this.context = context;
-      outstanding_executions.add(this);
-      this.query = query;
-      executions = new QueryExecution[query.subQueries().size()];
-    }
-    
-    QueryExecution<T> executeQuery(final Span upstream_span) {
-      if (context.getTracer() != null) {
-        setSpan(context, MetricShardingExecutor.this.getClass().getSimpleName(), 
-            upstream_span,
-            TsdbTrace.addTags(
-                "order", Integer.toString(query.getOrder()),
-                "query", JSON.serializeToString(query),
-                "startThread", Thread.currentThread().getName()));
-      }
-      
-      final int parallels;
-//      final Config override = (Config) context.getConfigOverride(
-//          node.getId());
-//      if (override != null && override.getParallelExecutors() > 0) {
-//        parallels = override.getParallelExecutors();
-//      } else {
-        parallels = default_parallel_executors;
+//  /** The execution for a specific query that handles rotating through executors. */
+//  private class QuerySplitter extends QueryExecution<T> {
+//    final QueryContext context;
+//    
+//    /** The parent query to pull sub queries out of. */
+//    private final TimeSeriesQuery query;
+//    
+//    /** The index of the next child query to fire off. */
+//    private int splits_index;
+//    
+//    /** The list of outstanding executions so we can cancel them if needed. */
+//    @VisibleForTesting
+//    private final QueryExecution<T>[] executions;
+//    
+//    /**
+//     * Default ctor.
+//     * @param query A non-null query.
+//     */
+//    @SuppressWarnings("unchecked")
+//    public QuerySplitter(final QueryContext context,final TimeSeriesQuery query) {
+//      super(query);
+//      this.context = context;
+//      outstanding_executions.add(this);
+//      this.query = query;
+//      executions = new QueryExecution[query.subQueries().size()];
+//    }
+//    
+//    QueryExecution<T> executeQuery(final Span upstream_span) {
+//      if (context.getTracer() != null) {
+//        setSpan(context, MetricShardingExecutor.this.getClass().getSimpleName(), 
+//            upstream_span,
+//            TsdbTrace.addTags(
+//                "order", Integer.toString(query.getOrder()),
+//                "query", JSON.serializeToString(query),
+//                "startThread", Thread.currentThread().getName()));
 //      }
-      
-      // locked here so that a query that returns BEFORE we fire the proper
-      // amount doesn't increment the index on us.
-      synchronized (this) {
-        for (int i = 0; i < executions.length && i < parallels; i++) {
-          if (!completed.get()) {
-            launchNext();
-          } else {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Possibly canceled or executed in a single thread. "
-                  + "Exiting initial launch path.");
-            }
-            return this;
-          }
-        }
-      }
-      return this;
-    }
-    
-    /**
-     * <b>WARNING:</b> Make sure to synchronize on *this* before executing to
-     * avoid a race.
-     */
-    private void launchNext() {
-      int idx = splits_index++;
-      final TimeSeriesQuery sub_query = query.subQueries().get(idx);
-      executions[idx] = (QueryExecution<T>) 
-          executor.executeQuery(context, sub_query, tracer_span);
-      executions[idx].deferred()
-                              .addCallback(new DataCB(idx))
-                              .addErrback(new ErrCB(idx));
-      if (idx + 1 >= query.subQueries().size()) {
-        groupEm();
-      }
-    }
-    
-    @Override
-    public void cancel() {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Cancelling query.");
-      }
-      if (!completed.get()) {
-        try {
-          final Exception e = new QueryExecutionCanceled(
-              "Query was cancelled upstream: " + this, 400, query.getOrder());
-          callback(e, TsdbTrace.canceledTags(e));
-        } catch (IllegalStateException e) {
-          // already called, don't care.
-        } catch (Exception e) {
-          LOG.warn("Exception thrown trying to callback on cancellation: " 
-              + this, e);
-        }
-      } else {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Canceling but already called completed.");
-        }
-      }
-      synchronized (this) {
-        outstanding_executions.remove(this);
-        // set to max to prevent anyone else running.
-        splits_index = query.subQueries().size(); 
-        for (final QueryExecution<T> execution : executions) {
-          if (execution != null) {
-            execution.cancel();
-          }
-        }
-      }
-    }
-  
-    /** Helper that groups the deferreds and adds the final callback. */
-    private void groupEm() {
-      final List<Deferred<T>> deferreds = 
-          Lists.<Deferred<T>>newArrayListWithExpectedSize(executions.length);
-      for (final QueryExecution<T> execution : executions) {
-        if (execution == null) {
-          continue;
-        }
-        deferreds.add(execution.deferred());
-      }
-      Deferred.group(deferreds).addCallback(new GroupCB());
-    }
-    
-    /** The final class that will be called if all is good */
-    class GroupCB implements Callback<Object, ArrayList<T>> {
-      @Override
-      public Object call(final ArrayList<T> data) throws Exception {
-        outstanding_executions.remove(QuerySplitter.this);
-        try {
-          // TODO - override
-//          callback(default_data_merger.merge(data, context, tracer_span),
-//              TsdbTrace.successfulTags());
-        } catch (IllegalStateException e) {
-          LOG.warn("Group callback tried to return results despite being "
-              + "called: " + this);
-        } catch (Exception e) {
-          try {
-            final QueryExecutionException ex = new QueryExecutionException(
-                "Unexpected exception", 500, query.getOrder(), e);
-            callback(ex, 
-                TsdbTrace.exceptionTags(ex),
-                TsdbTrace.exceptionAnnotation(ex));
-          } catch (IllegalStateException ex) {
-            // already called, it's ok.
-          } catch (Exception ex) {
-            LOG.warn("Failed callback: " + this, ex);
-          }
-        }
-        return null;
-      }
-    }
-    
-    /** Error catcher for each execution that will cancel the remaining 
-     * executions. */
-    class ErrCB implements Callback<Object, Exception> {
-      final int index;
-      ErrCB(final int index) {
-        this.index = index;
-      }
-      @Override
-      public Object call(final Exception ex) throws Exception {
-        if (!completed.get()) {
-          try {
-            callback(ex,
-                TsdbTrace.exceptionTags(ex),
-                TsdbTrace.exceptionAnnotation(ex));
-          } catch (IllegalStateException e) {
-            // already called, it's ok.
-          } catch (Exception e) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Unexected exception triggering callback on "
-                  + "exception: " + this, e);
-            }
-          }
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Exception on index " + index, ex);
-          }
-          cancel();
-        } else {
-          // cancels bubble up here so don't pollute the logs.
-        }
-        return ex;
-      }
-    }
-    
-    /** Called on success to trigger the next sub query. */
-    class DataCB implements Callback<T, T> {
-      final int index;
-      DataCB(final int index) {
-        this.index = index;
-      }
-      @Override
-      public T call(final T arg) throws Exception {
-        if (!completed.get()) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Received data on index " + index);
-          }
-          synchronized (QuerySplitter.this) {
-            if (splits_index < query.subQueries().size()) {
-              launchNext();
-            }
-          }
-        } else {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Successful response from index " + index 
-                + " but we've been canceled.");
-          }
-        }
-        return arg;
-      }
-    }
-    
-  }
+//      
+//      final int parallels;
+////      final Config override = (Config) context.getConfigOverride(
+////          node.getId());
+////      if (override != null && override.getParallelExecutors() > 0) {
+////        parallels = override.getParallelExecutors();
+////      } else {
+//        parallels = default_parallel_executors;
+////      }
+//      
+//      // locked here so that a query that returns BEFORE we fire the proper
+//      // amount doesn't increment the index on us.
+//      synchronized (this) {
+//        for (int i = 0; i < executions.length && i < parallels; i++) {
+//          if (!completed.get()) {
+//            launchNext();
+//          } else {
+//            if (LOG.isDebugEnabled()) {
+//              LOG.debug("Possibly canceled or executed in a single thread. "
+//                  + "Exiting initial launch path.");
+//            }
+//            return this;
+//          }
+//        }
+//      }
+//      return this;
+//    }
+//    
+//    /**
+//     * <b>WARNING:</b> Make sure to synchronize on *this* before executing to
+//     * avoid a race.
+//     */
+//    private void launchNext() {
+//      int idx = splits_index++;
+//      final TimeSeriesQuery sub_query = query.subQueries().get(idx);
+//      executions[idx] = (QueryExecution<T>) 
+//          executor.executeQuery(context, sub_query, tracer_span);
+//      executions[idx].deferred()
+//                              .addCallback(new DataCB(idx))
+//                              .addErrback(new ErrCB(idx));
+//      if (idx + 1 >= query.subQueries().size()) {
+//        groupEm();
+//      }
+//    }
+//    
+//    @Override
+//    public void cancel() {
+//      if (LOG.isDebugEnabled()) {
+//        LOG.debug("Cancelling query.");
+//      }
+//      if (!completed.get()) {
+//        try {
+//          final Exception e = new QueryExecutionCanceled(
+//              "Query was cancelled upstream: " + this, 400, query.getOrder());
+//          callback(e, TsdbTrace.canceledTags(e));
+//        } catch (IllegalStateException e) {
+//          // already called, don't care.
+//        } catch (Exception e) {
+//          LOG.warn("Exception thrown trying to callback on cancellation: " 
+//              + this, e);
+//        }
+//      } else {
+//        if (LOG.isDebugEnabled()) {
+//          LOG.debug("Canceling but already called completed.");
+//        }
+//      }
+//      synchronized (this) {
+//        outstanding_executions.remove(this);
+//        // set to max to prevent anyone else running.
+//        splits_index = query.subQueries().size(); 
+//        for (final QueryExecution<T> execution : executions) {
+//          if (execution != null) {
+//            execution.cancel();
+//          }
+//        }
+//      }
+//    }
+//  
+//    /** Helper that groups the deferreds and adds the final callback. */
+//    private void groupEm() {
+//      final List<Deferred<T>> deferreds = 
+//          Lists.<Deferred<T>>newArrayListWithExpectedSize(executions.length);
+//      for (final QueryExecution<T> execution : executions) {
+//        if (execution == null) {
+//          continue;
+//        }
+//        deferreds.add(execution.deferred());
+//      }
+//      Deferred.group(deferreds).addCallback(new GroupCB());
+//    }
+//    
+//    /** The final class that will be called if all is good */
+//    class GroupCB implements Callback<Object, ArrayList<T>> {
+//      @Override
+//      public Object call(final ArrayList<T> data) throws Exception {
+//        outstanding_executions.remove(QuerySplitter.this);
+//        try {
+//          // TODO - override
+////          callback(default_data_merger.merge(data, context, tracer_span),
+////              TsdbTrace.successfulTags());
+//        } catch (IllegalStateException e) {
+//          LOG.warn("Group callback tried to return results despite being "
+//              + "called: " + this);
+//        } catch (Exception e) {
+//          try {
+//            final QueryExecutionException ex = new QueryExecutionException(
+//                "Unexpected exception", 500, query.getOrder(), e);
+//            callback(ex, 
+//                TsdbTrace.exceptionTags(ex),
+//                TsdbTrace.exceptionAnnotation(ex));
+//          } catch (IllegalStateException ex) {
+//            // already called, it's ok.
+//          } catch (Exception ex) {
+//            LOG.warn("Failed callback: " + this, ex);
+//          }
+//        }
+//        return null;
+//      }
+//    }
+//    
+//    /** Error catcher for each execution that will cancel the remaining 
+//     * executions. */
+//    class ErrCB implements Callback<Object, Exception> {
+//      final int index;
+//      ErrCB(final int index) {
+//        this.index = index;
+//      }
+//      @Override
+//      public Object call(final Exception ex) throws Exception {
+//        if (!completed.get()) {
+//          try {
+//            callback(ex,
+//                TsdbTrace.exceptionTags(ex),
+//                TsdbTrace.exceptionAnnotation(ex));
+//          } catch (IllegalStateException e) {
+//            // already called, it's ok.
+//          } catch (Exception e) {
+//            if (LOG.isDebugEnabled()) {
+//              LOG.debug("Unexected exception triggering callback on "
+//                  + "exception: " + this, e);
+//            }
+//          }
+//          if (LOG.isDebugEnabled()) {
+//            LOG.debug("Exception on index " + index, ex);
+//          }
+//          cancel();
+//        } else {
+//          // cancels bubble up here so don't pollute the logs.
+//        }
+//        return ex;
+//      }
+//    }
+//    
+//    /** Called on success to trigger the next sub query. */
+//    class DataCB implements Callback<T, T> {
+//      final int index;
+//      DataCB(final int index) {
+//        this.index = index;
+//      }
+//      @Override
+//      public T call(final T arg) throws Exception {
+//        if (!completed.get()) {
+//          if (LOG.isDebugEnabled()) {
+//            LOG.debug("Received data on index " + index);
+//          }
+//          synchronized (QuerySplitter.this) {
+//            if (splits_index < query.subQueries().size()) {
+//              launchNext();
+//            }
+//          }
+//        } else {
+//          if (LOG.isDebugEnabled()) {
+//            LOG.debug("Successful response from index " + index 
+//                + " but we've been canceled.");
+//          }
+//        }
+//        return arg;
+//      }
+//    }
+//    
+//  }
     
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)

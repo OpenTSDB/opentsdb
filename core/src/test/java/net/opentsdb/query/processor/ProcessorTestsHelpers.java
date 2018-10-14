@@ -25,7 +25,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.query.context.QueryContext;
 
 /**
  * Helpers for testing out iterators.
@@ -464,65 +463,4 @@ public class ProcessorTestsHelpers {
     //b.data = data;
   }
 
-  /**
-   * Mock that overloads the init and callback methods so that we can inject
-   * or throw exceptions AND track the initialization order for proper testing.
-   */
-  public static class MockProcessor extends TimeSeriesProcessor {
-    int throw_exception; // 0 = nope, 1 = in init, 2 = in callback
-    final int id;
-    final IllegalStateException e;
-    
-    public MockProcessor(final int id, final IllegalStateException e) throws Exception {
-      this.id = id;
-      this.e = e;
-    }
-    
-    /** @param i 0 = nope, 1 = in init, 2 = in callback */
-    public void setThrowException(final int i) {
-      throw_exception = i;
-    }
-    
-    @Override
-    public Deferred<Object> initialize() {
-      if (throw_exception == 1) {
-        throw e;
-      }
-      if (e != null) {
-        init_deferred.callback(e);
-      } else {
-        init_deferred.callback(null);
-      }
-      return init_deferred;
-    }
-
-    @Override
-    public Callback<Deferred<Object>, Object> initializationCallback() {
-      class InitCB implements Callback<Deferred<Object>, Object> {
-        @Override
-        public Deferred<Object> call(final Object result_or_exception) 
-            throws Exception {
-          if (result_or_exception instanceof Exception) {
-            init_deferred.callback((Exception) result_or_exception);
-            return init_deferred;
-          }
-          if (throw_exception == 2) {
-            throw e;
-          }
-          return initialize();
-        }
-      }
-      return new InitCB();
-    }
-    
-    @Override
-    public String toString() {
-      return "[ID] " + id;
-    }
-
-    @Override
-    public TimeSeriesProcessor getClone(QueryContext context) {
-      return null;
-    }
-  }
 }

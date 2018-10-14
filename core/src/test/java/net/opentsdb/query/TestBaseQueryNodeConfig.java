@@ -33,7 +33,7 @@ public class TestBaseQueryNodeConfig {
     QueryNodeConfig config = new TestConfig.Builder()
         .setId("ut")
         .setSources(Lists.newArrayList("s1", "s2"))
-        .setJoinType("datasource")
+        .setType("datasource")
         .build();
     assertEquals("ut", config.getId());
     assertEquals(2, config.getSources().size());
@@ -68,7 +68,7 @@ public class TestBaseQueryNodeConfig {
     QueryNodeConfig config = new TestConfig.Builder()
         .setId("ut")
         .setSources(Lists.newArrayList("s1", "s2"))
-        .setJoinType("datasource")
+        .setType("datasource")
         .build();
     String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"ut\""));

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.grpc;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.UnsafeByteOperations;
 
 import io.grpc.stub.StreamObserver;
@@ -28,8 +29,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.JSON;
 
@@ -110,27 +109,16 @@ public class QueryGRPCClient extends AbstractQueryNode implements
   public void fetchNext(final Span span) {
     try {
       // build a new semantic query
-      ExecutionGraph.Builder graph_builder = ExecutionGraph.newBuilder()
-          .setId("grpc")
-          .addNode(ExecutionGraphNode.newBuilder()
-              .setId(config.getId())
-              .setType("DataSource")
-              .setConfig(config)
-              .build());
-      
-      // TODO - sources to link
-      if (config.getPushDownNodes() != null) {
-        for (final ExecutionGraphNode node : config.getPushDownNodes()) {
-          graph_builder.addNode(node);
-        }
-      }
-      
       SemanticQuery query = SemanticQuery.newBuilder()
           .setStart(config.query().getStart())
           .setEnd(config.query().getEnd())
           .setMode(config.query().getMode())
           .setTimeZone(config.query().getTimezone())
-          .setExecutionGraph(graph_builder.build())
+          .setExecutionGraph(
+              config.getPushDownNodes() == null || 
+              config.getPushDownNodes().isEmpty() ? 
+                  Lists.newArrayList(config) : 
+                    config.getPushDownNodes())
           .build();
       
       // TODO - tracing

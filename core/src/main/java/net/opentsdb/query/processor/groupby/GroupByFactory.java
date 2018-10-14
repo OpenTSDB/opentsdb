@@ -17,9 +17,6 @@ package net.opentsdb.query.processor.groupby;
 import java.util.Collection;
 import java.util.Map;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -38,7 +35,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
 /**
@@ -48,11 +45,14 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * @since 3.0
  */
 public class GroupByFactory extends BaseQueryNodeFactory {
+  
+  public static final String ID = "GroupBy";
+  
   /**
    * Default ctor. Registers the numeric iterator.
    */
   public GroupByFactory() {
-    super("groupby");
+    super(ID);
     registerIteratorFactory(NumericType.TYPE, 
         new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
@@ -85,10 +85,9 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public void setupGraph(
-      final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config, 
+                         final QueryPlanner plan) {
     // TODO Auto-generated method stub
   }
   

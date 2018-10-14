@@ -37,7 +37,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -52,12 +51,7 @@ import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.hacluster.HAClusterConfig;
-import net.opentsdb.query.plan.DefaultQueryPlannerFactory;
-import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
-import net.opentsdb.query.plan.QueryPlannnerFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -86,9 +80,6 @@ public class DefaultRegistry implements Registry {
   
   private final Map<TypeToken<? extends TimeSeriesDataType>, String> default_type_name_map;
   
-  /** The map of available executor graphs for query execution. */
-  private final Map<String, ExecutionGraph> executor_graphs;
-  
   /** The map of executor factories for use in constructing graphs. */
   private final Map<String, QueryExecutorFactory<?>> factories;
   
@@ -97,9 +88,6 @@ public class DefaultRegistry implements Registry {
     
   /** The map of serdes classes. */
   private final Map<String, TimeSeriesSerdes> serdes;
-  
-  /** The map of query plans. */
-  private final Map<String, QueryPlannnerFactory<?>> query_plans;
   
   private final Map<String, QueryNodeFactory> node_factories;
   
@@ -139,12 +127,9 @@ public class DefaultRegistry implements Registry {
     this.tsdb = tsdb;
     type_map = Maps.newHashMap();
     default_type_name_map = Maps.newHashMap();
-    executor_graphs = 
-        Maps.<String, ExecutionGraph>newHashMapWithExpectedSize(1);
     factories = Maps.newHashMapWithExpectedSize(1);
     clusters = Maps.newHashMapWithExpectedSize(1);
     serdes = Maps.newHashMapWithExpectedSize(1);
-    query_plans = Maps.newHashMapWithExpectedSize(1);
     node_factories = Maps.newHashMap();
     data_stores = Maps.newHashMap();
     write_stores = Maps.newHashMap();
@@ -188,68 +173,6 @@ public class DefaultRegistry implements Registry {
   /** @return The cleanup thread pool for post-query or other tasks. */
   public ExecutorService cleanupPool() {
     return cleanup_pool;
-  }
-  
-  /**
-   * Adds the executor graph to the registry.
-   * <b>WARNING:</b> Not thread safe.
-   * @param graph A non-null execution graph that has been initialized.
-   * @param is_default Whether or not the graph should be used as the default
-   * for queries.
-   * @throws IllegalArgumentException if the graph was null, it's ID was null or
-   * empty, or the graph was already present.
-   */
-  public void registerExecutionGraph(final ExecutionGraph graph,
-                                     final boolean is_default) {
-    if (graph == null) {
-      throw new IllegalArgumentException("Execution graph cannot be null.");
-    }
-    if (is_default) {
-      if (executor_graphs.get(null) != null) {
-        throw new IllegalArgumentException("Graph already exists for default: " 
-            + executor_graphs.get(null).getId());
-      }
-      if (executor_graphs.get(null) != null) {
-        throw new IllegalArgumentException("Default execution graph "
-            + "already exists.");
-      }
-      executor_graphs.put(null, graph);
-      LOG.info("Registered default execution graph: " + graph);
-    } else {
-      if (Strings.isNullOrEmpty(graph.getId())) {
-        throw new IllegalArgumentException("Execution graph returned a "
-            + "null or empty ID");
-      }
-    }
-    if (!Strings.isNullOrEmpty(graph.getId())) {
-      if (executor_graphs.get(graph.getId()) != null) {
-        throw new IllegalArgumentException("Graph already exists for ID: " 
-            + graph.getId());
-      }
-      executor_graphs.put(graph.getId(), graph);
-    }
-    LOG.info("Registered execution graph: " + 
-        (is_default ? "(default)" : graph.getId()));
-  }
-  
-  /**
-   * Fetches the default graph. May be null if no graphs have been set.
-   * @return An execution graph or null if no graph was set.
-   */
-  public ExecutionGraph getDefaultExecutionGraph() {
-    return getExecutionGraph(null);
-  }
-  
-  /**
-   * Fetches the execution graph if it exists.
-   * @param id A non-null and non-empty ID.
-   * @return The graph if present.
-   */
-  public ExecutionGraph getExecutionGraph(final String id) {
-    if (Strings.isNullOrEmpty(id)) {
-      return executor_graphs.get(null);
-    }
-    return executor_graphs.get(id);
   }
   
   @Override
@@ -329,27 +252,6 @@ public class DefaultRegistry implements Registry {
   }
   
   /**
-   * Registers a query plan factory.
-   * @param factory A non-null factory to register.
-   * @throws IllegalArgumentException if the factory was null, it's ID was null
-   * or empty, or the factory already exists.
-   */
-  public void registerFactory(final QueryPlannnerFactory<?> factory) {
-    if (factory == null) {
-      throw new IllegalArgumentException("Factory cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(factory.id())) {
-      throw new IllegalArgumentException("Factory ID was null or empty.");
-    }
-    if (query_plans.containsKey(factory.id())) {
-      throw new IllegalArgumentException("Factory already registered: " 
-          + factory.id());
-    }
-    query_plans.put(factory.id(), factory);
-    LOG.info("Registered query plan factory: " + factory.id());
-  }
-  
-  /**
    * Returns the factory for the given ID if present.
    * @param id A non-null and non-empty ID.
    * @return The factory if present.
@@ -359,18 +261,6 @@ public class DefaultRegistry implements Registry {
       throw new IllegalArgumentException("ID was null or empty.");
     }
     return factories.get(id);
-  }
-  
-  /**
-   * Returns the factory for a given ID if present.
-   * @param id A non-null and non-empty ID.
-   * @return The factory if present.
-   */
-  public QueryPlannnerFactory<?> getQueryPlanner(final String id) {
-    if (Strings.isNullOrEmpty(id)) {
-      throw new IllegalArgumentException("ID was null or empty.");
-    }
-    return query_plans.get(id);
   }
   
   /**
@@ -578,102 +468,6 @@ public class DefaultRegistry implements Registry {
         new DefaultTimeSeriesCacheKeyGenerator();
     deferreds.add(key_gen.initialize(tsdb));
     registerPlugin(TimeSeriesCacheKeyGenerator.class, null, key_gen);
-    
-    try {
-      Constructor<?> ctor = IteratorGroupsSlicePlanner.class
-          .getDeclaredConstructor(TimeSeriesQuery.class);
-      final QueryPlannnerFactory<?> planner_factory = 
-          new DefaultQueryPlannerFactory<IteratorGroups>(
-              (Constructor<QueryPlanner<?>>) ctor,
-              IteratorGroups.class,
-              "IteratorGroupsSlicePlanner");
-      registerFactory(planner_factory);
-      
-      // TODO - this can be done with reflection programmatically.
-      ctor = CachingQueryExecutor.class.getConstructor(ExecutionGraphNode.class);
-      QueryExecutorFactory<IteratorGroups> executor_factory =
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
-              "CachingQueryExecutor");
-      registerFactory(executor_factory);
-      
-      ctor = TimeSlicedCachingExecutor.class.getConstructor(ExecutionGraphNode.class);
-      executor_factory = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
-              "TimeSlicedCachingExecutor");
-      registerFactory(executor_factory);
-      
-      ctor = MetricShardingExecutor.class.getConstructor(ExecutionGraphNode.class);
-      executor_factory = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
-              "MetricShardingExecutor");
-      registerFactory(executor_factory);
-      
-      ctor = MultiClusterQueryExecutor.class.getConstructor(
-          ExecutionGraphNode.class);
-  executor_factory = 
-      new DefaultQueryExecutorFactory<IteratorGroups>(
-          (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
-            "MultiClusterQueryExecutor");
-  registerFactory(executor_factory);
-      
-    } catch (Exception e) {
-      LOG.error("Failed setting up one or more default executors or planners", e);
-      return Deferred.fromError(new RuntimeException(
-          "Unexpected exception initializing defaults", e));
-    }
-    
-    try {
-            
-      // load default execution graphs
-      String exec_graphs = tsdb.getConfig().getString(DEFAULT_GRAPHS_KEY);
-      if (!Strings.isNullOrEmpty(exec_graphs)) {
-        if (exec_graphs.toLowerCase().endsWith(".json") || 
-            exec_graphs.toLowerCase().endsWith(".conf")) {
-          exec_graphs = Files.toString(new File(exec_graphs), Const.UTF8_CHARSET);
-        }
-        // double check in case the file was empty.
-        if (!Strings.isNullOrEmpty(exec_graphs)){
-          final TypeReference<List<ExecutionGraph>> typeref = 
-              new TypeReference<List<ExecutionGraph>>() {};
-          final List<ExecutionGraph> graphs = 
-              (List<ExecutionGraph>) JSON.parseToObject(exec_graphs, typeref);
-          
-          // validation before adding them to the registry
-          final Set<String> ids = Sets.newHashSet();
-          boolean had_null = false;
-          for (final ExecutionGraph graph : graphs) {
-            if (Strings.isNullOrEmpty(graph.getId())) {
-              if (had_null) {
-                return Deferred.fromError(new IllegalArgumentException(
-                    "More than one graph was configured as the default. "
-                    + "There can be only one: " + graph));
-              }
-              had_null = true;
-            } else {
-              if (ids.contains(graph.getId())) {
-                return Deferred.fromError(new IllegalArgumentException(
-                    "More than one graph had the same ID: " + graph));
-              }
-              ids.add(graph.getId());
-            }
-          }
-          
-//          for (final ExecutionGraph graph : graphs) {
-//            deferreds.add(graph.initialize(tsdb));
-//            registerExecutionGraph(graph, 
-//                Strings.isNullOrEmpty(graph.getId()) ? true : false);
-//          }
-        }
-      }
-      
-    } catch (Exception e) {
-      LOG.error("Failed loading default execution graphs and cluster configs", e);
-      return Deferred.fromError(new RuntimeException("Unexpected exception "
-          + "initializing defaults", e));
-    }
     
     LOG.info("Completed initializing registry defaults.");
     return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);

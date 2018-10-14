@@ -30,6 +30,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.hbase.async.HBaseClient;
@@ -64,8 +65,6 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -113,11 +112,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
@@ -174,11 +169,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
@@ -687,11 +678,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -765,11 +752,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)

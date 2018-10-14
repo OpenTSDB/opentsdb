@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.DateTime;
@@ -102,8 +103,10 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
   
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return null;
+ // TODO Auto-generated method stub
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .hash();
   }
 
   @Override
@@ -113,15 +116,24 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof SlidingWindowConfig)) {
+      return false;
+    }
+    
+    return id.equals(((SlidingWindowConfig) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return 0;
+    return buildHashCode().asInt();
   }
   
   /** @return A new builder to work from. */
@@ -137,6 +149,10 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
     private String aggregator;
     @JsonProperty
     private boolean infectiousNan;
+    
+    Builder() {
+      setType(SlidingWindowFactory.ID);
+    }
     
     public Builder setWindowSize(final String window_size) {
       this.windowSize = window_size;

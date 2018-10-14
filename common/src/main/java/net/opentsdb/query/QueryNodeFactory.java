@@ -14,14 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.query.plan.QueryPlanner;
 
 /**
  * The factory used to generate a {@link QueryNode} for a new query execution.
@@ -29,7 +27,7 @@ import net.opentsdb.query.execution.graph.ExecutionGraphNode;
  * 
  * @since 3.0
  */
-public interface QueryNodeFactory {
+public interface QueryNodeFactory extends TSDBPlugin {
   
   /**
    * The descriptive ID of the factory used when parsing queries.
@@ -54,11 +52,33 @@ public interface QueryNodeFactory {
    * for multi-node factories.
    * @param query The non-null user given query.
    * @param config An optional user provided config for the node. 
-   * @param graph The non-null graph to mutate if necessary.
+   * @param planner The non-null query planner to mutate if necessary.
    */
   public void setupGraph(
       final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph);
+      final QueryNodeConfig config, 
+      final QueryPlanner planner);
+  
+  /**
+   * Instantiates a new node using the given context and the default
+   * configuration for this node.
+   * @param context A non-null query pipeline context.
+   * @param id An ID for this node.
+   * @return An instantiated node if successful.
+   */
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id);
+  
+  /**
+   * Instantiates a new node using the given context and config.
+   * @param context A non-null query pipeline context.
+   * @param id An ID for this node.
+   * @param config A query node config. May be null if the node does not
+   * require a configuration.
+   * @return An instantiated node if successful.
+   */
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id,
+                           final QueryNodeConfig config);
   
 }

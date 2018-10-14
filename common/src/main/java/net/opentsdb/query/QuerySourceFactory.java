@@ -17,9 +17,9 @@ package net.opentsdb.query;
 import net.opentsdb.data.TimeSeriesDataSource;
 
 /**
- * 
+ * TODO - may not need it after all.
  */
-public interface QuerySourceFactory extends SingleQueryNodeFactory {
+public interface QuerySourceFactory extends QueryNodeFactory {
 
   /**
    * Returns a new node given the context and config.
@@ -30,8 +30,5 @@ public interface QuerySourceFactory extends SingleQueryNodeFactory {
   public TimeSeriesDataSource newNode(final QueryPipelineContext context, 
                                       final String id,
                                       final QueryNodeConfig config);
-  
-  /** @return The ID of the factory. */
-  public String id();
   
 }

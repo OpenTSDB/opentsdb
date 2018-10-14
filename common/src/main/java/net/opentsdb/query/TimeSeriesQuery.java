@@ -19,7 +19,6 @@ import java.util.List;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -61,7 +60,7 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
   /** @return The non-null execution graph associated with this query.
    * Note that this is the user provided graph, not the graph actually
    * constructed. */
-  public ExecutionGraph getExecutionGraph();
+  public List<QueryNodeConfig> getExecutionGraph();
   
   /** @return The parsed start time of the query. */
   public TimeStamp startTime();

@@ -47,14 +47,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UnitTestException;
 
@@ -1215,155 +1215,155 @@ public class TestAbstractQueryPipelineContext {
     
   }
   
-  //sets up the following DAG:
-  // s1
-  ExecutionGraph graph1() {
-    return ExecutionGraph.newBuilder()
-        .setId("Graph1")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S1")
-          .setType("MockSourceFactory"))
-        .build();
-  }
-  
-  //sets up the following DAG:
-  // n1 --> s1
-  ExecutionGraph graph2() {
-    return ExecutionGraph.newBuilder()
-        .setId("Graph2")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N1")
-          .setType("MockFactoryA")
-          .addSource("S1"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S1")
-          .setType("MockSourceFactory"))
-        .build();
-  }
-  
-  //sets up the following DAG:
-  // n1 --> s1
-  //        ^
-  // n2 ----|
-  ExecutionGraph graph3() {
-    return ExecutionGraph.newBuilder()
-        .setId("Graph3")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N1")
-          .setType("MockFactoryA")
-          .addSource("S1"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N2")
-          .setType("MockFactoryB")
-          .addSource("S1"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S1")
-          .setType("MockSourceFactory"))
-        .build();
-  }
-  
-  //sets up the following DAG:
-  // n1 --> s1
-  //  |      
-  //  ----> s2
-  ExecutionGraph graph4() {
-    return ExecutionGraph.newBuilder()
-        .setId("Graph4")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N1")
-          .setType("MockFactoryA")
-          .addSource("S1")
-          .addSource("S2"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S1")
-          .setType("MockSourceFactory"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S2")
-          .setType("MockSourceFactory"))
-        .build();
-  }
-  
-  //sets up the following DAG:
-  // n1 --> n3 --> n4 --> s1
-  //        ^  |
-  // n2 ----|  |-> n5 --> s2
-  ExecutionGraph graph5() {
-    return ExecutionGraph.newBuilder()
-        .setId("Graph5")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N1")
-          .setType("MockFactoryA")
-          .addSource("N3"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N2")
-          .setType("MockFactoryA")
-          .addSource("N3"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N3")
-          .setType("MockFactoryB")
-          .addSource("N4")
-          .addSource("N5"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N4")
-          .setType("MockFactoryA")
-          .addSource("S1"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N5")
-          .setType("MockFactoryA")
-          .addSource("S2"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S1")
-          .setType("MockSourceFactory"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S2")
-          .setType("MockSourceFactory"))
-        .build();
-  }
-
-  // sets up the following DAG:
-  // n1 --> n3 --> s1
-  //        ^
-  // n2 ----|
-  ExecutionGraph graph6() {
-    return ExecutionGraph.newBuilder()
-        .setId("Graph6")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N1")
-          .setType("MockFactoryA")
-          .addSource("N3"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N2")
-          .setType("MockFactoryA")
-          .addSource("N3"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("N3")
-          .setType("MockFactoryB")
-          .addSource("S1"))
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setConfig(mockConfig())
-          .setId("S1")
-          .setType("MockSourceFactory"))
-        .build();
-  }
+//  //sets up the following DAG:
+//  // s1
+//  ExecutionGraph graph1() {
+//    return ExecutionGraph.newBuilder()
+//        .setId("Graph1")
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S1")
+//          .setType("MockSourceFactory"))
+//        .build();
+//  }
+//  
+//  //sets up the following DAG:
+//  // n1 --> s1
+//  ExecutionGraph graph2() {
+//    return ExecutionGraph.newBuilder()
+//        .setId("Graph2")
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N1")
+//          .setType("MockFactoryA")
+//          .addSource("S1"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S1")
+//          .setType("MockSourceFactory"))
+//        .build();
+//  }
+//  
+//  //sets up the following DAG:
+//  // n1 --> s1
+//  //        ^
+//  // n2 ----|
+//  ExecutionGraph graph3() {
+//    return ExecutionGraph.newBuilder()
+//        .setId("Graph3")
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N1")
+//          .setType("MockFactoryA")
+//          .addSource("S1"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N2")
+//          .setType("MockFactoryB")
+//          .addSource("S1"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S1")
+//          .setType("MockSourceFactory"))
+//        .build();
+//  }
+//  
+//  //sets up the following DAG:
+//  // n1 --> s1
+//  //  |      
+//  //  ----> s2
+//  ExecutionGraph graph4() {
+//    return ExecutionGraph.newBuilder()
+//        .setId("Graph4")
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N1")
+//          .setType("MockFactoryA")
+//          .addSource("S1")
+//          .addSource("S2"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S1")
+//          .setType("MockSourceFactory"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S2")
+//          .setType("MockSourceFactory"))
+//        .build();
+//  }
+//  
+//  //sets up the following DAG:
+//  // n1 --> n3 --> n4 --> s1
+//  //        ^  |
+//  // n2 ----|  |-> n5 --> s2
+//  ExecutionGraph graph5() {
+//    return ExecutionGraph.newBuilder()
+//        .setId("Graph5")
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N1")
+//          .setType("MockFactoryA")
+//          .addSource("N3"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N2")
+//          .setType("MockFactoryA")
+//          .addSource("N3"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N3")
+//          .setType("MockFactoryB")
+//          .addSource("N4")
+//          .addSource("N5"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N4")
+//          .setType("MockFactoryA")
+//          .addSource("S1"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N5")
+//          .setType("MockFactoryA")
+//          .addSource("S2"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S1")
+//          .setType("MockSourceFactory"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S2")
+//          .setType("MockSourceFactory"))
+//        .build();
+//  }
+//
+//  // sets up the following DAG:
+//  // n1 --> n3 --> s1
+//  //        ^
+//  // n2 ----|
+//  ExecutionGraph graph6() {
+//    return ExecutionGraph.newBuilder()
+//        .setId("Graph6")
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N1")
+//          .setType("MockFactoryA")
+//          .addSource("N3"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N2")
+//          .setType("MockFactoryA")
+//          .addSource("N3"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("N3")
+//          .setType("MockFactoryB")
+//          .addSource("S1"))
+//        .addNode(ExecutionGraphNode.newBuilder()
+//          .setConfig(mockConfig())
+//          .setId("S1")
+//          .setType("MockSourceFactory"))
+//        .build();
+//  }
 
   private Map<String, QueryNode> graphToMap(final AbstractQueryPipelineContext pipeline) {
     final Map<String, QueryNode> map = Maps.newHashMap();
@@ -1383,7 +1383,7 @@ public class TestAbstractQueryPipelineContext {
     return config;
   }
   
-  static class MockFactoryA implements SingleQueryNodeFactory {
+  static class MockFactoryA extends BaseTSDBPlugin implements QueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -1408,11 +1408,16 @@ public class TestAbstractQueryPipelineContext {
     }
     
     @Override
-    public void setupGraph(
-        final TimeSeriesQuery query, 
-        final ExecutionGraphNode config, 
-        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+    public void setupGraph(final TimeSeriesQuery query, 
+                           final QueryNodeConfig config, 
+                           final QueryPlanner plan) {
       // TODO Auto-generated method stub
+    }
+
+    @Override
+    public String version() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
   }
@@ -1452,7 +1457,7 @@ public class TestAbstractQueryPipelineContext {
     }
   }
   
-  static class MockFactoryB implements SingleQueryNodeFactory {
+  static class MockFactoryB extends BaseTSDBPlugin implements QueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -1477,13 +1482,17 @@ public class TestAbstractQueryPipelineContext {
     }
     
     @Override
-    public void setupGraph(
-        final TimeSeriesQuery query, 
-        final ExecutionGraphNode config, 
-        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+    public void setupGraph(final TimeSeriesQuery query, 
+                           final QueryNodeConfig config, 
+                           final QueryPlanner plan) {
       // TODO Auto-generated method stub
     }
-    
+
+    @Override
+    public String version() {
+      // TODO Auto-generated method stub
+      return null;
+    }
   }
   
   public static class MockNodeB extends AbstractQueryNode {
@@ -1521,7 +1530,7 @@ public class TestAbstractQueryPipelineContext {
     }
   }
 
-  static class MockSourceFactory implements SingleQueryNodeFactory {
+  static class MockSourceFactory extends BaseTSDBPlugin implements QueryNodeFactory {
 
     @Override
     public QueryNode newNode(QueryPipelineContext context, String id) {
@@ -1546,13 +1555,17 @@ public class TestAbstractQueryPipelineContext {
     }
     
     @Override
-    public void setupGraph(
-        final TimeSeriesQuery query, 
-        final ExecutionGraphNode config, 
-        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+    public void setupGraph(final TimeSeriesQuery query, 
+                           final QueryNodeConfig config, 
+                           final QueryPlanner plan) {
       // TODO Auto-generated method stub
     }
     
+    @Override
+    public String version() {
+      // TODO Auto-generated method stub
+      return null;
+    }
   }
   
   public static class MockSource extends AbstractQueryNode implements TimeSeriesDataSource {
@@ -1598,49 +1611,6 @@ public class TestAbstractQueryPipelineContext {
         throw new UnitTestException();
       }
     }
-  }
-
-  static class MultiMockFactory implements MultiQueryNodeFactory {
-
-    @Override
-    public String id() {
-      return "MultiMockFactory";
-    }
-
-    @Override
-    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
-        JsonNode node) {
-      return null;
-    }
-
-    @Override
-    public Collection<QueryNode> newNodes(QueryPipelineContext context,
-                                          String id, 
-                                          QueryNodeConfig config, 
-                                          List<ExecutionGraphNode> nodes) {
-      nodes.add(ExecutionGraphNode.newBuilder()
-          .addSource("S1")
-          .setType("multi")
-          .setId(id + "_A")
-          .build());
-      nodes.add(ExecutionGraphNode.newBuilder()
-          .addSource("S2")
-          .setType("multi")
-          .setId(id + "_B")
-          .build());
-      return Lists.newArrayList(
-          new MockNodeA(this, context, id + "_A", config),
-          new MockNodeA(this, context, id + "_B", config));
-    }
-    
-    @Override
-    public void setupGraph(
-        final TimeSeriesQuery query, 
-        final ExecutionGraphNode config, 
-        final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
-      // TODO Auto-generated method stub
-    }
-    
   }
   
 }

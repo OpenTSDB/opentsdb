@@ -24,6 +24,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,7 +37,6 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 
 public class TestSummarizer {
 
@@ -57,7 +58,7 @@ public class TestSummarizer {
         .setMode(QueryMode.SINGLE)
         .setStart("1970/01/01-00:00:01")
         .setEnd("1970/01/01-00:01:00")
-        .setExecutionGraph(mock(ExecutionGraph.class))
+        .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
     

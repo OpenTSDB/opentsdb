@@ -39,7 +39,8 @@ public class TestRateOptions {
         .build();
     String json = JSON.serializeToString(options);
     // defaults are empty
-    assertEquals("{\"sources\":[]}", json);
+    assertTrue(json.contains("\"sources\":[]"));
+    assertTrue(json.contains("\"type\":\"Rate\""));
     
     options = RateOptions.newBuilder()
         .setCounter(true)

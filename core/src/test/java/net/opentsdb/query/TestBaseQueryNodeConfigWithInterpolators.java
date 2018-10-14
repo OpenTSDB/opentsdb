@@ -46,7 +46,7 @@ public class TestBaseQueryNodeConfigWithInterpolators {
             .build())
         .setId("foo")
         .setSources(Lists.newArrayList("s1", "s2"))
-        .setJoinType("datasource")
+        .setType("datasource")
         .build();
     assertEquals("foo", node.getId());
     assertEquals(2, node.getSources().size());
@@ -91,7 +91,7 @@ public class TestBaseQueryNodeConfigWithInterpolators {
               .build())
           .setId("")
           .setSources(Lists.newArrayList("s1", "s2"))
-          .setJoinType("datasource")
+          .setType("datasource")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -106,7 +106,7 @@ public class TestBaseQueryNodeConfigWithInterpolators {
               .build())
           //.setId("foo")
           .setSources(Lists.newArrayList("s1", "s2"))
-          .setJoinType("datasource")
+          .setType("datasource")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -123,7 +123,7 @@ public class TestBaseQueryNodeConfigWithInterpolators {
             .build())
         .setId("foo")
         .setSources(Lists.newArrayList("s1", "s2"))
-        .setJoinType("datasource")
+        .setType("datasource")
         .build();
     String json = JSON.serializeToString(node);
     assertTrue(json.contains("\"id\":\"foo\""));

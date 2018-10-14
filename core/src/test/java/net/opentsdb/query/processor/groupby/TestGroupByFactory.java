@@ -67,7 +67,7 @@ public class TestGroupByFactory {
     final GroupByFactory factory = new GroupByFactory();
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals("groupby", factory.id());
+    assertEquals(GroupByFactory.ID, factory.id());
   }
   
   @Test
