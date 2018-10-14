@@ -15,13 +15,15 @@
 package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
@@ -32,6 +34,8 @@ import java.util.Map;
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
 import org.jgrapht.graph.DefaultEdge;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -52,18 +56,18 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
@@ -78,7 +82,7 @@ public class TestDownsampleFactory {
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertTrue(factory.types().contains(NumericSummaryType.TYPE));
-    assertEquals("downsample", factory.id());
+    assertEquals(DownsampleFactory.ID, factory.id());
   }
   
   @Test
@@ -169,7 +173,7 @@ public class TestDownsampleFactory {
         .setMode(QueryMode.SINGLE)
         .setStart("1970/01/01-00:00:01")
         .setEnd("1970/01/01-00:01:00")
-        .setExecutionGraph(mock(ExecutionGraph.class))
+        .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
     Downsample ds = new Downsample(factory, context, null, config);
@@ -289,36 +293,25 @@ public class TestDownsampleFactory {
         .setInterval("1m")
         .addInterpolatorConfig(numeric_config)
         .setId("downsample")
-        .build();
-    
-    ExecutionGraphNode node = ExecutionGraphNode.newBuilder()
-        .setId("downsample")
         .addSource("m1")
-        .setConfig(config)
         .build();
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(node)
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+    final List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        config,
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(numeric_config)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(numeric_config)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -327,55 +320,66 @@ public class TestDownsampleFactory {
         .setExecutionGraph(graph)
         .build();
     
+    QueryPlanner planner = mock(QueryPlanner.class);
     // gb -> ds -> metric
-    DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> dag = 
-        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
-    dag.addVertex(graph.getNodes().get(0));
-    dag.addVertex(graph.getNodes().get(1));
-    dag.addVertex(graph.getNodes().get(2));
+    DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> dag = 
+        new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
+    dag.addVertex(graph.get(0));
+    dag.addVertex(graph.get(1));
+    dag.addVertex(graph.get(2));
     
-    dag.addDagEdge(graph.getNodes().get(2), graph.getNodes().get(1));
-    dag.addDagEdge(graph.getNodes().get(1), graph.getNodes().get(0));
+    dag.addDagEdge(graph.get(2), graph.get(1));
+    dag.addDagEdge(graph.get(1), graph.get(0));
+    when(planner.configGraph()).thenReturn(dag);
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        graph.set(1, (QueryNodeConfig) invocation.getArguments()[1]);
+        return null;
+      }
+    }).when(planner)
+      .replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
     
     DownsampleFactory factory = new DownsampleFactory();
-    factory.setupGraph(query, node, dag);
+    factory.setupGraph(query, config, planner);
     
-    assertTrue(dag.containsVertex(graph.getNodes().get(0)));
-    assertFalse(dag.containsVertex(graph.getNodes().get(1)));
-    assertTrue(dag.containsVertex(graph.getNodes().get(2)));
+    assertTrue(dag.containsVertex(graph.get(0)));
+    assertTrue(dag.containsVertex(graph.get(1)));
+    assertTrue(dag.containsVertex(graph.get(2)));
     
-    ExecutionGraphNode new_node = 
-        dag.getEdgeTarget(dag.outgoingEdgesOf(graph.getNodes().get(2)).iterator().next());
+    QueryNodeConfig new_node = graph.get(1);
     assertEquals("downsample", new_node.getId());
     assertTrue(new_node.getSources().contains("m1"));
-    assertEquals(1514764800, ((DownsampleConfig) new_node.getConfig()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) new_node.getConfig()).endTime().epoch());
-    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).getAggregator());
-    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).getInterval());
+    assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
+    assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
+    assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
+    assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
+    verify(planner, times(1)).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
     
-    assertTrue(dag.containsEdge(new_node, graph.getNodes().get(0)));
+    assertTrue(dag.containsEdge(new_node, graph.get(0)));
     
     // ds -> metric
-    dag = 
-        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(DefaultEdge.class);
-    dag.addVertex(graph.getNodes().get(0));
-    dag.addVertex(graph.getNodes().get(1));
+    dag = new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(
+        DefaultEdge.class);
+    dag.addVertex(graph.get(0));
+    dag.addVertex(graph.get(1));
+    when(planner.configGraph()).thenReturn(dag);
     
-    dag.addDagEdge(graph.getNodes().get(1), graph.getNodes().get(0));
-    factory.setupGraph(query, node, dag);
+    dag.addDagEdge(graph.get(1), graph.get(0));
+    factory.setupGraph(query, config, planner);
     
-    assertTrue(dag.containsVertex(graph.getNodes().get(0)));
-    assertFalse(dag.containsVertex(graph.getNodes().get(1)));
+    assertTrue(dag.containsVertex(graph.get(0)));
+    assertTrue(dag.containsVertex(graph.get(1)));
     
-    new_node = 
-        dag.getEdgeSource(dag.incomingEdgesOf(graph.getNodes().get(0)).iterator().next());
+    new_node = dag.getEdgeSource(dag.incomingEdgesOf(
+        graph.get(0)).iterator().next());
     assertEquals("downsample", new_node.getId());
     assertTrue(new_node.getSources().contains("m1"));
-    assertEquals(1514764800, ((DownsampleConfig) new_node.getConfig()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) new_node.getConfig()).endTime().epoch());
-    assertEquals("sum", ((DownsampleConfig) new_node.getConfig()).getAggregator());
-    assertEquals("1m", ((DownsampleConfig) new_node.getConfig()).getInterval());
+    assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
+    assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
+    assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
+    assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
     
-    assertTrue(dag.containsEdge(new_node, graph.getNodes().get(0)));
+    assertTrue(dag.containsEdge(new_node, graph.get(0)));
   }
 }

@@ -125,22 +125,31 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof GroupByConfig)) {
+      return false;
+    }
+    
+    return id.equals(((GroupByConfig) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return 0;
+    return buildHashCode().asInt();
   }
   
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().newHasher()
-        .putInt(System.identityHashCode(this)) // TEMP!
+        .putString(id, Const.UTF8_CHARSET)
         .hash();
   }
   
@@ -167,6 +176,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     private boolean mergeIds;
     @JsonProperty
     private boolean fullMerge;
+    
+    Builder() {
+      setType(GroupByFactory.ID);
+    }
     
     /**
      * @param tag_keys A non-null and non-empty set of tag keys to replace any

@@ -44,7 +44,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -70,7 +69,7 @@ public class TestDownsample {
         .setMode(QueryMode.SINGLE)
         .setStart("1970/01/01-00:00:01")
         .setEnd("1970/01/01-00:01:00")
-        .setExecutionGraph(mock(ExecutionGraph.class))
+        .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
     NumericInterpolatorConfig numeric_config = 
@@ -176,7 +175,7 @@ public class TestDownsample {
         .setMode(QueryMode.SINGLE)
         .setStart("1970/01/01-00:00:01")
         .setEnd("1970/01/01-12:00:00")
-        .setExecutionGraph(mock(ExecutionGraph.class))
+        .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
     

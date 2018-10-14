@@ -14,22 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 /**
@@ -41,10 +37,8 @@ import net.opentsdb.storage.ReadableTimeSeriesDataStore;
  * 
  * @since 3.0
  */
-public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugin {
-  
-  /** The TSDB to pull the registry from. */
-  private TSDB tsdb;
+public class QueryDataSourceFactory extends BaseTSDBPlugin 
+    implements QueryNodeFactory {
   
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
@@ -56,16 +50,11 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
   public QueryNode newNode(final QueryPipelineContext context, 
                            final String id,
                            final QueryNodeConfig config) {
-//    final TimeSeriesDataStoreFactory factory = tsdb.getRegistry()
-//        .getDefaultPlugin(TimeSeriesDataStoreFactory.class);
-//      if (factory == null) {
-//        throw new RuntimeException("No factory!");
-//      }
-      
     final ReadableTimeSeriesDataStore store = ((DefaultRegistry) 
         tsdb.getRegistry()).getDefaultStore();
     if (store == null) {
-      throw new QueryExecutionException("Unable to get a data store!", 0);
+      throw new QueryExecutionException("Unable to get a data store "
+          + "for: " + id, 0);
     }
     return store.newNode(context, id, config);
   }
@@ -75,17 +64,6 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
     return "datasource";
   }
   
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    this.tsdb = tsdb;
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
   @Override
   public String version() {
     return "3.0.0";
@@ -167,8 +145,26 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
     n = node.get("pushDownNodes");
     if (n != null) {
       for (final JsonNode pushdown : n) {
-        builder.addPushDownNode(ExecutionGraphNode.parse(
-            mapper, tsdb, pushdown).build());
+        JsonNode temp = pushdown.get("type");
+        QueryNodeFactory config_factory = null;
+        if (temp != null && !temp.isNull()) {
+          config_factory = tsdb.getRegistry()
+              .getQueryNodeFactory(temp.asText());
+        } else {
+          temp = pushdown.get("id");
+          if (temp != null && !temp.isNull()) {
+            config_factory = tsdb.getRegistry()
+                .getQueryNodeFactory(temp.asText());
+          }
+        }
+        
+        if (config_factory == null) {
+          throw new IllegalArgumentException("Unable to find a config "
+              + "factory for type: " + (temp == null || temp.isNull() ? 
+                  "null" : temp.asText()));
+        }
+        builder.addPushDownNode(config_factory.parseConfig(
+            mapper, tsdb, pushdown));
       }
     }
     
@@ -178,8 +174,8 @@ public class QueryDataSourceFactory implements SingleQueryNodeFactory, TSDBPlugi
   @Override
   public void setupGraph(
       final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+      final QueryNodeConfig config, 
+      final QueryPlanner planner) {
     // TODO Auto-generated method stub
   }
   

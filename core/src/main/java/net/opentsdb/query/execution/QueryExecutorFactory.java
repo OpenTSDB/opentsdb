@@ -17,8 +17,6 @@ package net.opentsdb.query.execution;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
 /**
  * A factory used to generate a {@link QueryExecutor} for a new context. These
@@ -49,6 +47,6 @@ public abstract class QueryExecutorFactory<T> extends BaseTSDBPlugin {
    * null or empty.
    * @throws IllegalStateException if the instantiation failed.
    */
-  public abstract QueryExecutor<T> newExecutor(final ExecutionGraphNode node);
+  public abstract QueryExecutor<T> newExecutor();
 
 }

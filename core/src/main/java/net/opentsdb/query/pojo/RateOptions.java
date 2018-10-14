@@ -37,6 +37,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -408,6 +409,10 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     private String interval = DEFAULT_INTERVAL;
     @JsonProperty
     protected Map<String, String> overrides;
+    
+    Builder() {
+      setType(RateFactory.ID);
+    }
     
     public Builder setId(final String id) {
       this.id = id;

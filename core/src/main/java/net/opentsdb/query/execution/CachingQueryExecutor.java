@@ -56,8 +56,8 @@ import net.opentsdb.query.QuerySourceFactory;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
@@ -804,10 +804,9 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
   }
 
   @Override
-  public void setupGraph(
-      final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config, 
+                         final QueryPlanner plan) {
     // TODO Auto-generated method stub
   }
   

@@ -69,8 +69,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -131,11 +129,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
@@ -222,11 +216,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -325,11 +315,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -386,11 +372,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -459,11 +441,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(END_TS))
         .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
@@ -741,11 +719,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -1255,11 +1229,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setStart(Integer.toString(TS_SINGLE_SERIES))
         .setEnd(Integer.toString(TS_SINGLE_SERIES + 
             (TS_SINGLE_SERIES_COUNT * TS_SINGLE_SERIES_INTERVAL)))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -1292,11 +1262,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setStart(Integer.toString(TS_MULTI_SERIES_EX))
         .setEnd(Integer.toString(TS_MULTI_SERIES_EX + 
             (TS_MULTI_SERIES_EX_COUNT * TS_MULTI_SERIES_INTERVAL)))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)
@@ -1358,11 +1324,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
         .setQuery(query)

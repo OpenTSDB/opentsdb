@@ -17,13 +17,16 @@ package net.opentsdb.query.pojo;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
+import net.opentsdb.query.processor.expressions.ExpressionFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Before;
@@ -642,44 +645,46 @@ public class TestTimeSeriesQuery {
   @Test
   public void convert() throws Exception {
     SemanticQuery.Builder builder = 
-        JSON.parseToObject(json, TimeSeriesQuery.class).convert(mock(TSDB.class));
+        JSON.parseToObject(json, TimeSeriesQuery.class)
+        .convert(mock(TSDB.class));
     SemanticQuery query = builder.build();
-    assertEquals(4, query.getExecutionGraph().getNodes().size());
+    assertEquals(4, query.getExecutionGraph().size());
     
-    ExecutionGraphNode node = query.getExecutionGraph().getNodes().get(0);
-    assertEquals("e1", node.getId());
-    assertEquals("Expression", node.getType());
-    assertEquals(1, node.getSources().size());
-    assertTrue(node.getSources().contains("m1_GroupBy"));
-    ExpressionConfig ex_config = (ExpressionConfig) node.getConfig();
-    assertEquals("m1 * 1024", ex_config.getExpression());
-    
-    node = query.getExecutionGraph().getNodes().get(1);
+    QueryNodeConfig node = query.getExecutionGraph().get(0);
     assertEquals("m1", node.getId());
     assertEquals("DataSource", node.getType());
-    assertNull(node.getSources());
-    QuerySourceConfig ds = (QuerySourceConfig) node.getConfig();
+    assertTrue(node.getSources().isEmpty());
+    QuerySourceConfig ds = (QuerySourceConfig) node;
     assertEquals("YAMAS.cpu.idle", ds.getMetric().getMetric());
     assertNull(ds.getFilterId());
     
-    node = query.getExecutionGraph().getNodes().get(2);
-    assertEquals("m1_Downsampler", node.getId());
-    assertEquals("Downsample", node.getType());
+    node = query.getExecutionGraph().get(1);
+    assertEquals("downsample_m1", node.getId());
+    assertEquals(DownsampleFactory.ID, node.getType());
     assertEquals(1, node.getSources().size());
     assertTrue(node.getSources().contains("m1"));
-    DownsampleConfig dsc = (DownsampleConfig) node.getConfig();
+    DownsampleConfig dsc = (DownsampleConfig) node;
     assertEquals("15m", dsc.getInterval());
     assertEquals("avg", dsc.getAggregator());
     
-    node = query.getExecutionGraph().getNodes().get(3);
+    node = query.getExecutionGraph().get(2);
     assertEquals("m1_GroupBy", node.getId());
-    assertEquals("GroupBy", node.getType());
+    assertEquals(GroupByFactory.ID, node.getType());
     assertEquals(1, node.getSources().size());
-    assertTrue(node.getSources().contains("m1_Downsampler"));
-    GroupByConfig gb = (GroupByConfig) node.getConfig();
+    assertTrue(node.getSources().contains("downsample_m1"));
+    GroupByConfig gb = (GroupByConfig) node;
     assertEquals("sum", gb.getAggregator());
     assertEquals(1, gb.getTagKeys().size());
     assertTrue(gb.getTagKeys().contains("host"));
+    
+    node = query.getExecutionGraph().get(3);
+    assertEquals("e1", node.getId());
+    assertEquals(ExpressionFactory.ID, node.getType());
+    assertEquals(1, node.getSources().size());
+    assertTrue(node.getSources().contains("m1_GroupBy"));
+    ExpressionConfig ex_config = (ExpressionConfig) node;
+    assertEquals("m1 * 1024", ex_config.getExpression());
+    
   }
   
   private TimeSeriesQuery.Builder getDefaultQueryBuilder() {

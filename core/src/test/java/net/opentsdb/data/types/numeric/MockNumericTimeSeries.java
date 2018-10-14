@@ -29,7 +29,6 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.iterators.IteratorStatus;
 
 /**
  * Simple little class for mocking out a source.

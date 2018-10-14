@@ -22,7 +22,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
 /**
  * Simple {@link QueryExecutorFactory} that takes the ctor and config.
@@ -70,11 +69,11 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
       throw new IllegalArgumentException("Constructor can only have one type: " 
           + ctor.getParameterCount());
     }
-    if (ctor.getGenericParameterTypes()[0] != ExecutionGraphNode.class) {
-      throw new IllegalArgumentException("First constructor parameter must be "
-          + "a ExecutionGraphNode: " + 
-          ctor.getGenericParameterTypes()[0].getTypeName());
-    }
+//    if (ctor.getGenericParameterTypes()[0] != ExecutionGraphNode.class) {
+//      throw new IllegalArgumentException("First constructor parameter must be "
+//          + "a ExecutionGraphNode: " + 
+//          ctor.getGenericParameterTypes()[0].getTypeName());
+//    }
     if (Strings.isNullOrEmpty(id)) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -120,19 +119,20 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
    * @throws IllegalStateException if the instantiation failed.
    */
   @SuppressWarnings("unchecked")
-  public QueryExecutor<T> newExecutor(final ExecutionGraphNode node) {
-    if (node == null) {
-      throw new IllegalArgumentException("Node cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(node.getId())) {
-      throw new IllegalArgumentException("Node ID cannot be null.");
-    }
-    try {
-      return (QueryExecutor<T>) ctor.newInstance(node);
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to instaniate executor for: " 
-          + ctor, e);
-    }
+  public QueryExecutor<T> newExecutor() {
+//    if (node == null) {
+//      throw new IllegalArgumentException("Node cannot be null.");
+//    }
+//    if (Strings.isNullOrEmpty(node.getId())) {
+//      throw new IllegalArgumentException("Node ID cannot be null.");
+//    }
+//    try {
+//      return (QueryExecutor<T>) ctor.newInstance(node);
+//    } catch (Exception e) {
+//      throw new IllegalStateException("Failed to instaniate executor for: " 
+//          + ctor, e);
+//    }
+    return null;
   }
 
 }

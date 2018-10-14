@@ -24,7 +24,6 @@ import com.stumbleupon.async.Deferred;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
-import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
@@ -134,8 +133,8 @@ public abstract class QueryExecution<T> {
    * @throws IllegalArgumentException if the context was null or ID was null.
    * @throws IllegalStateException if the span was already set.
    */
-  protected void setSpan(final QueryContext context, final String id) {
-    setSpan(context, id, null, null);
+  protected void setSpan(final String id) {
+    setSpan(id, null, null);
   }
   
   /**
@@ -150,13 +149,12 @@ public abstract class QueryExecution<T> {
    * null.
    * @throws IllegalStateException if the span was already set.
    */
-  protected void setSpan(final QueryContext context, 
-                         final String id,
+  protected void setSpan(final String id,
                          final Span parent) {
     if (parent == null) {
       throw new IllegalArgumentException("Parent span cannot be null!");
     }
-    setSpan(context, id, parent, null);
+    setSpan(id, parent, null);
   }
 
   /**
@@ -169,10 +167,10 @@ public abstract class QueryExecution<T> {
    * @throws IllegalArgumentException if the context was null or ID was null.
    * @throws IllegalStateException if the span was already set.
    */
-  protected void setSpan(final QueryContext context, 
+  protected void setSpan(
                        final String id,
                        final Map<String, String> tracer_tags) {
-    setSpan(context, id, null, tracer_tags);
+    setSpan(id, null, tracer_tags);
   }
   
   /**
@@ -185,33 +183,30 @@ public abstract class QueryExecution<T> {
    * @throws IllegalArgumentException if the context was null or ID was null.
    * @throws IllegalStateException if the span was already set.
    */
-  protected void setSpan(final QueryContext context, 
+  protected void setSpan(
                          final String id,
                          final Span parent, 
                          final Map<String, String> tracer_tags) {
-    if (context == null) {
-      throw new IllegalArgumentException("Context cannot be null.");
-    }
     if (Strings.isNullOrEmpty(id)) {
       throw new IllegalArgumentException("Id cannot be null.");
     }
-    if (context.getTracer() == null) {
-      return;
+    if (true) {
+      return ;
     }
     if (tracer_span != null) {
       throw new IllegalStateException("Tracer span was already set.");
     }
     
-    final SpanBuilder builder = context.getTracer().buildSpan(id);
-    if (parent != null) {
-      builder.asChildOf(parent);
-    }
-    if (tracer_tags != null) {
-      for (final Entry<String, String> entry : tracer_tags.entrySet()) {
-        builder.withTag(entry.getKey(), entry.getValue());
-      }
-    }
-    tracer_span = builder.start();
+//    final SpanBuilder builder = context.getTracer().buildSpan(id);
+//    if (parent != null) {
+//      builder.asChildOf(parent);
+//    }
+//    if (tracer_tags != null) {
+//      for (final Entry<String, String> entry : tracer_tags.entrySet()) {
+//        builder.withTag(entry.getKey(), entry.getValue());
+//      }
+//    }
+//    tracer_span = builder.start();
   }
   
   /** @return The query associated with this execution. */

@@ -25,9 +25,12 @@ import static org.mockito.Mockito.when;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
+import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 import net.opentsdb.data.pbuf.NumericSegmentPB.NumericSegment;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
@@ -37,11 +40,10 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.serdes.SerdesOptions;
 
@@ -51,25 +53,19 @@ public class TestPBufNumericSerdesFactoryAndIterator {
   private SerdesOptions options;
   private QueryContext ctx;
   private QueryResult result;
-  private ExecutionGraph graph;
+  private List<QueryNodeConfig> graph;
   
   @Before
   public void before() throws Exception {
     options = mock(SerdesOptions.class);
     ctx = mock(QueryContext.class);
     
-    graph = ExecutionGraph.newBuilder()
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setId("m1")
-                .build())
+    graph = Lists.newArrayList(QuerySourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
             .build())
-        .build();
+        .setId("m1")
+        .build());
     
     query = SemanticQuery.newBuilder()
         .setStart("1525824000")

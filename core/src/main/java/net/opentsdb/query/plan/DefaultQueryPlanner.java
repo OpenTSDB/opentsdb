@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,18 +36,15 @@ import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.query.MultiQueryNodeFactory;
 import net.opentsdb.query.QueryDataSourceFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.SingleQueryNodeFactory;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
@@ -61,7 +57,7 @@ import net.opentsdb.utils.Deferreds;
  * 
  * @since 3.0
  */
-public class DefaultQueryPlanner {
+public class DefaultQueryPlanner implements QueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(
       DefaultQueryPlanner.class);
   
@@ -77,7 +73,7 @@ public class DefaultQueryPlanner {
   private final Map<String, String> sink_filter;
   
   /** The roots (sent to sinks) of the user given graph. */
-  private List<ExecutionGraphNode> roots;
+  private List<QueryNodeConfig> roots;
   
   /** The planned execution graph. */
   private DirectedAcyclicGraph<QueryNode, DefaultEdge> graph;
@@ -86,14 +82,14 @@ public class DefaultQueryPlanner {
   private List<TimeSeriesDataSource> data_sources;
   
   /** The configuration graph. */
-  private DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> config_graph;
+  private DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> config_graph;
   
   /** Map of the config IDs to nodes for use in linking and unit testing. */
   private final Map<String, QueryNode> nodes_map;
   
   /** The context node from the query pipeline context. All results pass
    * through this. */
-  private ExecutionGraphNode context_node;
+  private QueryNodeConfig context_node;
   
   /** The set of QueryResult objects we should see. */
   private Set<String> serialization_sources;
@@ -138,24 +134,20 @@ public class DefaultQueryPlanner {
    */
   @SuppressWarnings("unchecked")
   public Deferred<Void> plan(final Span span) {
-    final Map<String, ExecutionGraphNode> config_map = 
+    final Map<String, QueryNodeConfig> config_map = 
         Maps.newHashMapWithExpectedSize(
-            context.query().getExecutionGraph().getNodes().size());
+            context.query().getExecutionGraph().size());
     config_graph = 
-        new DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge>(
+        new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(
             DefaultEdge.class);
     
-    context_node = ExecutionGraphNode.newBuilder()
-          .setId("QueryContext")
-          .setConfig(context_sink_config)
-          .build();
+    context_node = context_sink_config;
     config_graph.addVertex(context_node);
     config_map.put("QueryContext", context_node);
     
     // the first step is to add the vertices to the graph and we'll stash
     // the nodes in a map by node ID so we can link them later.
-    for (final ExecutionGraphNode node : 
-      context.query().getExecutionGraph().getNodes()) {
+    for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
       if (config_map.putIfAbsent(node.getId(), node) != null) {
         throw new IllegalArgumentException("The node id \"" 
             + node.getId() + "\" appeared more than once in the "
@@ -165,8 +157,7 @@ public class DefaultQueryPlanner {
     }
     
     // now link em with the edges.
-    for (final ExecutionGraphNode node : 
-        context.query().getExecutionGraph().getNodes()) {
+    for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
       if (node.getSources() != null) {
         for (final String source : node.getSources()) {
           try {
@@ -187,18 +178,17 @@ public class DefaultQueryPlanner {
     
     // next we walk and let the factories update the graph as needed.
     // Note the clone to avoid concurrent modification of the graph.
-    DepthFirstIterator<ExecutionGraphNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<ExecutionGraphNode, DefaultEdge>(
-            (Graph<ExecutionGraphNode, DefaultEdge>) config_graph.clone());
-    final List<ExecutionGraphNode> source_nodes = Lists.newArrayList();
+    DepthFirstIterator<QueryNodeConfig, DefaultEdge> iterator = 
+        new DepthFirstIterator<QueryNodeConfig, DefaultEdge>(
+            (Graph<QueryNodeConfig, DefaultEdge>) config_graph.clone());
+    final List<QueryNodeConfig> source_nodes = Lists.newArrayList();
     while (iterator.hasNext()) {
-      final ExecutionGraphNode node = iterator.next();
-      if (node.getConfig() != null && 
-          node.getConfig() instanceof QuerySourceConfig) {
+      final QueryNodeConfig node = iterator.next();
+      if (node instanceof QuerySourceConfig) {
         source_nodes.add(node);
       }
       
-      if (node.getConfig() instanceof ContextNodeConfig) {
+      if (node instanceof ContextNodeConfig) {
         continue;
       }
       
@@ -216,8 +206,8 @@ public class DefaultQueryPlanner {
         }
       }
       
-      if (sink_filter.containsKey(node.getConfig().getId())) {
-        final String source = sink_filter.get(node.getConfig().getId());
+      if (sink_filter.containsKey(node.getId())) {
+        final String source = sink_filter.get(node.getId());
         if (source != null) {
           // TODO - make sure this links to the source, otherwise skip it.
           try {
@@ -226,7 +216,7 @@ public class DefaultQueryPlanner {
             throw new IllegalArgumentException(
                 "Invalid graph configuration", e);
           }
-          satisfied_filters.add(node.getConfig().getId());
+          satisfied_filters.add(node.getId());
         } else {
           // we want the link.
           try {
@@ -235,7 +225,7 @@ public class DefaultQueryPlanner {
             throw new IllegalArgumentException(
                 "Invalid graph configuration", e);
           }
-          satisfied_filters.add(node.getConfig().getId());
+          satisfied_filters.add(node.getId());
         }
       }
       
@@ -251,16 +241,14 @@ public class DefaultQueryPlanner {
         throw new IllegalArgumentException("No node factory found for: " 
             + factory_id);
       }
-      factory.setupGraph(context.query(), node, config_graph);
+      factory.setupGraph(context.query(), node, this);
       factory_cache.put(factory_id, factory);
     }
     
-    class MyCB implements Callback<Void, Void> {
+    class ConfigInitCB implements Callback<Void, Void> {
 
       @Override
-      public Void call(Void arg) throws Exception {
-
-        
+      public Void call(final Void ignored) throws Exception {
         // before doing any more work, make sure the the filters have been
         // satisfied.
         for (final String key : sink_filter.keySet()) {
@@ -270,7 +258,7 @@ public class DefaultQueryPlanner {
         }
         
         // next, push down by walking up from the data sources.
-        for (final ExecutionGraphNode node : source_nodes) {
+        for (final QueryNodeConfig node : source_nodes) {
           final QueryNodeFactory factory;
           if (!Strings.isNullOrEmpty(node.getType())) {
             factory = factory_cache.get(node.getType().toLowerCase());
@@ -284,10 +272,10 @@ public class DefaultQueryPlanner {
                 + "configuration " + node);
           }
           
-          final List<ExecutionGraphNode> push_downs = Lists.newArrayList();
+          final List<QueryNodeConfig> push_downs = Lists.newArrayList();
           for (final DefaultEdge edge : 
             Sets.newHashSet(config_graph.incomingEdgesOf(node))) {
-            final ExecutionGraphNode n = config_graph.getEdgeSource(edge);
+            final QueryNodeConfig n = config_graph.getEdgeSource(edge);
             
             // TODO - temp! Get named source.
             final TimeSeriesDataStoreFactory source_factory = 
@@ -311,13 +299,10 @@ public class DefaultQueryPlanner {
           if (!push_downs.isEmpty()) {
             // now dump the push downs into this node.
             final QuerySourceConfig new_config = QuerySourceConfig.newBuilder(
-                (QuerySourceConfig) node.getConfig())
+                (QuerySourceConfig) node)
                 .setPushDownNodes(push_downs)
                 .build();
-            final ExecutionGraphNode new_node = ExecutionGraphNode.newBuilder(node)
-                .setConfig(new_config)
-                .build();
-            ExecutionGraph.replace(node, new_node, config_graph);
+            replace(node, new_config);
           }
         }
         
@@ -332,10 +317,10 @@ public class DefaultQueryPlanner {
         nodes_map.put(context_sink_config.getId(), context_sink);
         
         final List<Long> constructed = Lists.newArrayList();
-        final BreadthFirstIterator<ExecutionGraphNode, DefaultEdge> bfi = 
-            new BreadthFirstIterator<ExecutionGraphNode, DefaultEdge>(config_graph);
+        final BreadthFirstIterator<QueryNodeConfig, DefaultEdge> bfi = 
+            new BreadthFirstIterator<QueryNodeConfig, DefaultEdge>(config_graph);
         while (bfi.hasNext()) {
-          final ExecutionGraphNode node = bfi.next();
+          final QueryNodeConfig node = bfi.next();
           if (config_graph.incomingEdgesOf(node).isEmpty()) {
             buildNodeGraph(context, node, constructed, nodes_map, factory_cache);
           }
@@ -366,15 +351,18 @@ public class DefaultQueryPlanner {
       
     }
     
-    List<Deferred<Void>> deferreds = Lists.newArrayListWithExpectedSize(source_nodes.size());
-    for (final ExecutionGraphNode c : source_nodes) {
+    final List<Deferred<Void>> deferreds = 
+        Lists.newArrayListWithExpectedSize(source_nodes.size());
+    for (final QueryNodeConfig c : source_nodes) {
       // TODO - do this async
-      if (((QuerySourceConfig) c.getConfig()).filter() != null) {
-        deferreds.add(((QuerySourceConfig) c.getConfig()).filter().initialize(span));
+      if (((QuerySourceConfig) c).filter() != null) {
+        deferreds.add(((QuerySourceConfig) c).filter().initialize(span));
       }
     }
     
-    return Deferred.group(deferreds).addCallback(Deferreds.VOID_GROUP_CB).addCallback(new MyCB());
+    return Deferred.group(deferreds)
+        .addCallback(Deferreds.VOID_GROUP_CB)
+        .addCallback(new ConfigInitCB());
   }
   
   /**
@@ -388,12 +376,12 @@ public class DefaultQueryPlanner {
    * @return An edge to link with if the previous node was pushed down.
    */
   private DefaultEdge pushDown(
-      final ExecutionGraphNode parent,
-      final ExecutionGraphNode source, 
+      final QueryNodeConfig parent,
+      final QueryNodeConfig source, 
       final TimeSeriesDataStoreFactory factory, 
-      final ExecutionGraphNode node,
-      final List<ExecutionGraphNode> push_downs) {
-    if (!factory.supportsPushdown(node.getConfig().getClass())) {
+      final QueryNodeConfig node,
+      final List<QueryNodeConfig> push_downs) {
+    if (!factory.supportsPushdown(node.getClass())) {
       if (!config_graph.containsEdge(node, parent)) {
         try {
           config_graph.addDagEdge(node, parent);
@@ -405,7 +393,7 @@ public class DefaultQueryPlanner {
       return null;
     }
     
-    if (!node.getConfig().pushDown()) {
+    if (!node.pushDown()) {
       // reached a node config that doesn't allow push downs.
       return null;
     }
@@ -416,9 +404,9 @@ public class DefaultQueryPlanner {
     final Set<DefaultEdge> incoming = config_graph.incomingEdgesOf(node);
     if (!incoming.isEmpty()) {
       List<DefaultEdge> removals = Lists.newArrayList();
-      List<ExecutionGraphNode> nodes = Lists.newArrayList();
+      List<QueryNodeConfig> nodes = Lists.newArrayList();
       for (final DefaultEdge edge : incoming) {
-        final ExecutionGraphNode n = config_graph.getEdgeSource(edge);
+        final QueryNodeConfig n = config_graph.getEdgeSource(edge);
         nodes.add(n);
         DefaultEdge e = pushDown(parent, node, factory, n, push_downs);
         if (e != null) {
@@ -432,7 +420,7 @@ public class DefaultQueryPlanner {
         }
       }
       
-      for (final ExecutionGraphNode n : nodes) {
+      for (final QueryNodeConfig n : nodes) {
         if (config_graph.outgoingEdgesOf(n).isEmpty()) {
           if (config_graph.removeVertex(n)) {
             push_downs.add(n);
@@ -464,7 +452,7 @@ public class DefaultQueryPlanner {
    */
   private QueryNode buildNodeGraph(
       final QueryPipelineContext context, 
-      final ExecutionGraphNode node, 
+      final QueryNodeConfig node, 
       final List<Long> constructed,
       final Map<String, QueryNode> nodes_map,
       final Map<String, QueryNodeFactory> factory_cache) {
@@ -485,7 +473,7 @@ public class DefaultQueryPlanner {
     }
     
     // special case, ug.
-    if (node.getConfig() instanceof ContextNodeConfig) {
+    if (node instanceof ContextNodeConfig) {
       for (final QueryNode source_node : sources) {
         try {
           graph.addDagEdge(context_sink, source_node);
@@ -518,65 +506,19 @@ public class DefaultQueryPlanner {
           + "configuration " + node);
     }
     
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("No node config for " 
-          + node.getId() + " or " + node.getType());
+    QueryNode query_node = factory.newNode(context, node.getId(), node);
+    if (query_node == null) {
+      throw new IllegalStateException("Factory returned a null "
+          + "instance for " + node);
     }
-    
-    QueryNode query_node = null;
-    final List<ExecutionGraphNode> configs = Lists.newArrayList(
-        context.query().getExecutionGraph().getNodes());
-    if (!(factory instanceof SingleQueryNodeFactory)) {
-      final Collection<QueryNode> query_nodes = 
-          ((MultiQueryNodeFactory) factory).newNodes(
-              context, node.getId(), node.getConfig(), configs);
-      if (query_nodes == null) {
-        throw new IllegalStateException("Factory returned a null list "
-            + "of nodes for " + node.getId());
-      }
-      
-      QueryNode last = null;
-      for (final QueryNode n : query_nodes) {
-        if (n == null) {
-          throw new IllegalStateException("Factory returned a null "
-              + "node for " + node.getId());
-        }
-        if (query_node == null) {
-          query_node = n;
-        }
-        last = n;
-        
-        graph.addVertex(n);
-        nodes_map.put(n.config().getId(), n);
-      }
-      
-      constructed.add(node.buildHashCode().asLong());
-      if (last != null) {
-        for (final QueryNode source : sources) {
-          try {
-            graph.addDagEdge(last, source);
-          } catch (CycleFoundException e) {
-            throw new IllegalArgumentException(
-                "Invalid graph configuration", e);
-          }
-        }
-      }
-    } else {
-      query_node = ((SingleQueryNodeFactory) factory)
-          .newNode(context, node.getId(), node.getConfig());
-      if (query_node == null) {
-        throw new IllegalStateException("Factory returned a null "
-            + "instance for " + node);
-      }
-      
-      graph.addVertex(query_node);
-      nodes_map.put(query_node.config().getId(), query_node);
-    }
+    graph.addVertex(query_node);
+    nodes_map.put(query_node.config().getId(), query_node);
     
     constructed.add(node.buildHashCode().asLong());
     
     for (final QueryNode source_node : sources) {
       try {
+        System.out.println("*         ADDING: " + query_node + "   To " + source_node);
         graph.addDagEdge(query_node, source_node);
       } catch (CycleFoundException e) {
         throw new IllegalArgumentException(
@@ -590,6 +532,10 @@ public class DefaultQueryPlanner {
   /** @return The non-null node graph. */
   public DirectedAcyclicGraph<QueryNode, DefaultEdge> graph() {
     return graph;
+  }
+  
+  public DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> configGraph() {
+    return config_graph;
   }
   
   /** @return The non-null data sources list. */
@@ -610,24 +556,24 @@ public class DefaultQueryPlanner {
    * @return A set of unique results we should see.
    */
   private Set<String> computeSerializationSources(
-      final ExecutionGraphNode node) {
-    if (node.getConfig() instanceof QuerySourceConfig ||
-        node.getConfig().joins()) {
-      return Sets.newHashSet(node.getConfig().getId());
+      final QueryNodeConfig node) {
+    if (node instanceof QuerySourceConfig ||
+        node.joins()) {
+      return Sets.newHashSet(node.getId());
     }
     
     final Set<String> ids = Sets.newHashSet();
     for (final DefaultEdge edge : config_graph.outgoingEdgesOf(node)) {
-      final ExecutionGraphNode downstream = config_graph.getEdgeTarget(edge);
+      final QueryNodeConfig downstream = config_graph.getEdgeTarget(edge);
       final Set<String> downstream_ids = computeSerializationSources(downstream);
       if (node == context_node) {
         // prepend
-        if (downstream.getConfig() instanceof QuerySourceConfig ||
-            downstream.getConfig().joins()) {
+        if (downstream instanceof QuerySourceConfig ||
+            downstream.joins()) {
           ids.addAll(downstream_ids);
         } else {
           for (final String id : downstream_ids) {
-            ids.add(downstream.getConfig().getId() + ":" + id);
+            ids.add(downstream.getId() + ":" + id);
           }
         }
       } else {
@@ -674,7 +620,9 @@ public class DefaultQueryPlanner {
     @Override
     public HashCode buildHashCode() {
       // TODO Auto-generated method stub
-      return null;
+      return Const.HASH_FUNCTION().newHasher()
+          .putInt(System.identityHashCode(this)) // TEMP!
+          .hash();
     }
 
     @Override
@@ -733,4 +681,53 @@ public class DefaultQueryPlanner {
 
     
   }
+
+  /**
+   * Helper to replace a node with a new one, moving edges.
+   * @param old_config The non-null old node that is present in the graph.
+   * @param new_config The non-null new node that is not present in the graph.
+   * @param graph The non-null graph to mutate.
+   */
+  public void replace(final QueryNodeConfig old_config,
+                      final QueryNodeConfig new_config) {
+    final List<QueryNodeConfig> upstream = Lists.newArrayList();
+    for (final DefaultEdge up : config_graph.incomingEdgesOf(old_config)) {
+      final QueryNodeConfig n = config_graph.getEdgeSource(up);
+      upstream.add(n);
+    }
+    for (final QueryNodeConfig n : upstream) {
+      config_graph.removeEdge(n, old_config);
+    }
+    
+    final List<QueryNodeConfig> downstream = Lists.newArrayList();
+    for (final DefaultEdge down : config_graph.outgoingEdgesOf(old_config)) {
+      final QueryNodeConfig n = config_graph.getEdgeTarget(down);
+      downstream.add(n);
+    }
+    for (final QueryNodeConfig n : downstream) {
+      config_graph.removeEdge(old_config, n);
+    }
+    
+    config_graph.removeVertex(old_config);
+    config_graph.addVertex(new_config);
+    
+    for (final QueryNodeConfig up : upstream) {
+      try {
+        config_graph.addDagEdge(up, new_config);
+      } catch (CycleFoundException e) {
+        throw new IllegalArgumentException("The factory created a cycle "
+            + "setting up the graph from config: " + old_config, e);
+      }
+    }
+    
+    for (final QueryNodeConfig down : downstream) {
+      try {
+        config_graph.addDagEdge(new_config, down);
+      } catch (CycleFoundException e) {
+        throw new IllegalArgumentException("The factory created a cycle "
+            + "setting up the graph from config: " + old_config, e);
+      }
+    }
+  }
+
 }

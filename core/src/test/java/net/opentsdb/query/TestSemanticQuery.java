@@ -18,16 +18,17 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.List;
+
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -49,18 +50,14 @@ public class TestSemanticQuery {
             .build())
         .setId("f1")
         .build();
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .build();
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -84,7 +81,7 @@ public class TestSemanticQuery {
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilter("f1")).getFilter());
     assertEquals("f1", query.getFilters().get(0).getId());
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
-    assertEquals(1, query.getExecutionGraph().getNodes().size());
+    assertEquals(1, query.getExecutionGraph().size());
     assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
     
     try {
@@ -141,31 +138,23 @@ public class TestSemanticQuery {
         .setId("f1")
         .build();
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("ds")
-            .setType("downsample")
-            .addSource("DataSource")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setId("foo")
-                .setInterval("15s")
-                .setStart("1514764800")
-                .setEnd("1514768400")
-                .addInterpolatorConfig(numeric_config)
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
                 .build())
-            .build())
-        .build();
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("1514764800")
+            .setEnd("1514768400")
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -188,13 +177,13 @@ public class TestSemanticQuery {
     assertTrue(json.contains("\"filter\":\"web01\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"timezone\":\"America/Denver\""));
-    assertTrue(json.contains("\"executionGraph\":{"));
-    assertTrue(json.contains("\"id\":\"g1\""));
-    assertTrue(json.contains("\"id\":\"DataSource\""));
+    assertTrue(json.contains("\"executionGraph\":["));
+    assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"type\":\"DataSource\""));
     assertTrue(json.contains("\"metric\":{"));
-    assertTrue(json.contains("\"id\":\"ds\""));
-    assertTrue(json.contains("\"sources\":[\"DataSource\"]"));
+    assertTrue(json.contains("\"id\":\"foo\""));
+    assertTrue(json.contains("\"type\":\"Downsample\""));
+    assertTrue(json.contains("\"sources\":[\"m1\"]"));
     assertTrue(json.contains("\"interval\":\"15s\""));
     assertTrue(json.contains("\"serdesConfigs\":["));
     assertTrue(json.contains("\"filter\":[\"ds\"]"));
@@ -215,7 +204,7 @@ public class TestSemanticQuery {
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilter("f1")).getFilter());
     assertEquals("f1", query.getFilters().get(0).getId());
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
-    assertEquals(2, query.getExecutionGraph().getNodes().size());
+    assertEquals(2, query.getExecutionGraph().size());
     assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
   }
   
@@ -236,31 +225,22 @@ public class TestSemanticQuery {
       .setId("f1")
         .build();
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-      .addNode(ExecutionGraphNode.newBuilder()
-          .setId("DataSource")
-          .setConfig(QuerySourceConfig.newBuilder()
-              .setMetric(MetricLiteralFilter.newBuilder()
-                  .setMetric("sys.cpu.user")
-                  .build())
-              .setFilterId("f1")
-              .setId("m1")
-              .build()))
-      .addNode(ExecutionGraphNode.newBuilder()
-          .setId("ds")
-          .setType("downsample")
-          .addSource("DataSource")
-          .setConfig(DownsampleConfig.newBuilder()
-              .setAggregator("sum")
-              .setId("foo")
-              .setInterval("15s")
-              .setStart("1514764800")
-              .setEnd("1514768400")
-                .addInterpolatorConfig(numeric_config)
-                .build())
-            .build())
-        .build();
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+          .setMetric(MetricLiteralFilter.newBuilder()
+              .setMetric("sys.cpu.user")
+              .build())
+          .setFilterId("f1")
+          .setId("m1")
+          .build(),
+     DownsampleConfig.newBuilder()
+          .setAggregator("sum")
+          .setId("foo")
+          .setInterval("15s")
+          .setStart("1514764800")
+          .setEnd("1514768400")
+            .addInterpolatorConfig(numeric_config)
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -274,30 +254,21 @@ public class TestSemanticQuery {
     assertSame(filter.getFilter(), query.getFilter("f1"));
     assertNull(query.getFilter("nosuchfilter"));
     
-    ExecutionGraph.newBuilder()
-      .setId("g1")
-      .addNode(ExecutionGraphNode.newBuilder()
-          .setId("DataSource")
-          .setConfig(QuerySourceConfig.newBuilder()
-              .setMetric(MetricLiteralFilter.newBuilder()
-                  .setMetric("sys.cpu.user")
-                  .build())
-              .setId("m1")
-              .build()))
-      .addNode(ExecutionGraphNode.newBuilder()
-          .setId("ds")
-          .setType("downsample")
-          .addSource("DataSource")
-          .setConfig(DownsampleConfig.newBuilder()
-              .setAggregator("sum")
-              .setId("foo")
-              .setInterval("15s")
-              .setStart("1514764800")
-              .setEnd("1514768400")
-                .addInterpolatorConfig(numeric_config)
-                .build())
-            .build())
-        .build();
+    graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+          .setMetric(MetricLiteralFilter.newBuilder()
+              .setMetric("sys.cpu.user")
+              .build())
+          .setId("m1")
+          .build(),
+     DownsampleConfig.newBuilder()
+          .setAggregator("sum")
+          .setId("foo")
+          .setInterval("15s")
+          .setStart("1514764800")
+          .setEnd("1514768400")
+            .addInterpolatorConfig(numeric_config)
+            .build());
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)

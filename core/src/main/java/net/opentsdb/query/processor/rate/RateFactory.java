@@ -17,9 +17,6 @@ package net.opentsdb.query.processor.rate;
 import java.util.Collection;
 import java.util.Map;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,7 +35,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
@@ -48,12 +45,14 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * @since 3.0
  */
 public class RateFactory extends BaseQueryNodeFactory {
-
+  
+  public static final String ID = "Rate";
+  
   /**
    * Default ctor.
    */
   public RateFactory() {
-    super("rate");
+    super(ID);
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericArrayType.TYPE, 
         new NumericArrayIteratorFactory());
@@ -88,10 +87,9 @@ public class RateFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public void setupGraph(
-      final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config, 
+                         final QueryPlanner plan) {
     // TODO Auto-generated method stub
   }
   

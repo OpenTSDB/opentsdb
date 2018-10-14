@@ -20,7 +20,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.stats.Span;
 
 /**
@@ -125,11 +124,6 @@ public interface QueryPipelineContext extends QueryNode {
    * @return A non-null list of one or more sinks.
    */
   public Collection<QuerySink> sinks();
-  
-  /**
-   * @return The execution graph associated with this pipeline.
-   */
-  public ExecutionGraph executionGraph();
   
   /**
    * Releases all resources held by the query graph.

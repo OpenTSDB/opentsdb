@@ -49,8 +49,6 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.hacluster.HAClusterConfig;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
@@ -103,8 +101,8 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
    * @throws IllegalArgumentException if a config param was invalid.
    */
   @SuppressWarnings("unchecked")
-  public MultiClusterQueryExecutor(final ExecutionGraphNode node) {
-    super(node);
+  public MultiClusterQueryExecutor() {
+    super();
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Config cannot be null.");
 //    }
@@ -151,8 +149,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
-  public QueryExecution<T> executeQuery(final QueryContext context,
-                                        final TimeSeriesQuery query, 
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
                                         final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution(query,

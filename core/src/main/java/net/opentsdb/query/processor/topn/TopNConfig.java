@@ -92,21 +92,32 @@ public class TopNConfig extends BaseQueryNodeConfig {
   }
   
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof TopNConfig)) {
+      return false;
+    }
+    
+    return id.equals(((TopNConfig) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return 0;
+    return buildHashCode().asInt();
   }
   
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().hashInt(System.identityHashCode(this));
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .hash();
   }
 
   @Override
@@ -130,6 +141,10 @@ public class TopNConfig extends BaseQueryNodeConfig {
     private String aggregator;
     @JsonProperty
     private boolean infectiousNan;
+    
+    Builder() {
+      setType(TopNFactory.ID);
+    }
     
     public Builder setCount(final int count) {
       this.count = count;

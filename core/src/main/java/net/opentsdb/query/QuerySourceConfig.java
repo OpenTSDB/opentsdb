@@ -27,7 +27,6 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 
@@ -38,7 +37,7 @@ import net.opentsdb.query.filter.QueryFilter;
  * 
  * @since 3.0
  */
-@JsonInclude(Include.NON_NULL)
+@JsonInclude(Include.NON_DEFAULT)
 @JsonDeserialize(builder = QuerySourceConfig.Builder.class)
 public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** The source provider ID. */
@@ -65,7 +64,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   private final boolean fetch_last;
   
   /** An optional list of nodes to push down to the driver. */
-  private final List<ExecutionGraphNode> push_down_nodes;
+  private final List<QueryNodeConfig> push_down_nodes;
   
   /**
    * Private ctor for the builder.
@@ -141,7 +140,7 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   }
   
   /** @return An optional list of push down nodes. May be null. */
-  public List<ExecutionGraphNode> getPushDownNodes() {
+  public List<QueryNodeConfig> getPushDownNodes() {
     return push_down_nodes;
   }
   
@@ -158,7 +157,17 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   @Override
   public boolean equals(final Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof QuerySourceConfig)) {
+      return false;
+    }
+    
+    return id.equals(((QuerySourceConfig) o).id);
   }
   
   @Override
@@ -182,8 +191,9 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   @Override
   public HashCode buildHashCode() {
     final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
-    hashes.add(Const.HASH_FUNCTION().newHasher().putString(id == null ? "null" : id, 
-        Const.UTF8_CHARSET).hash());
+    hashes.add(Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .hash());
     // TODO - implement in full
     return Hashing.combineOrdered(hashes);
   }
@@ -224,7 +234,11 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     private QueryFilter filter;
     @JsonProperty
     private boolean fetchLast;
-    private List<ExecutionGraphNode> push_down_nodes;
+    private List<QueryNodeConfig> push_down_nodes;
+    
+    Builder() {
+      setType("DataSource");
+    }
     
     public Builder setSourceId(final String source_id) {
       sourceId = source_id;
@@ -274,12 +288,12 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     }
     
     public Builder setPushDownNodes(
-        final List<ExecutionGraphNode> push_down_nodes) {
+        final List<QueryNodeConfig> push_down_nodes) {
       this.push_down_nodes = push_down_nodes;
       return this;
     }
     
-    public Builder addPushDownNode(final ExecutionGraphNode node) {
+    public Builder addPushDownNode(final QueryNodeConfig node) {
       if (push_down_nodes == null) {
         push_down_nodes = Lists.newArrayList();
       }

@@ -1,3 +1,17 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2018  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.query.processor.merge;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -44,19 +58,31 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
   
   @Override
   public HashCode buildHashCode() {
-    return Const.HASH_FUNCTION().hashInt(System.identityHashCode(this));
+    // TODO Auto-generated method stub
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .hash();
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof MergerConfig)) {
+      return false;
+    }
+    
+    return id.equals(((MergerConfig) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return 0;
+    return buildHashCode().asInt();
   }
   
   @Override
@@ -87,6 +113,10 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
     @JsonProperty
     private boolean infectious_nan;
     
+    Builder() {
+      setType(MergerFactory.ID);
+    }
+    
     /**
      * @param aggregator A non-null and non-empty aggregation function.
      * @return The builder.
@@ -105,7 +135,6 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
       this.infectious_nan = infectious_nan;
       return this;
     }
-    
     
     @Override
     public MergerConfig build() {

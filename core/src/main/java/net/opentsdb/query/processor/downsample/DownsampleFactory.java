@@ -15,13 +15,7 @@
 package net.opentsdb.query.processor.downsample;
 
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
-import org.jgrapht.graph.DefaultEdge;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,7 +25,6 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -42,8 +35,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
 /**
@@ -53,11 +45,13 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  */
 public class DownsampleFactory extends BaseQueryNodeFactory {
 
+  public static final String ID = "Downsample";
+  
   /**
    * Default ctor.
    */
   public DownsampleFactory() {
-    super("downsample");
+    super(ID);
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
         new NumericSummaryIteratorFactory());
@@ -90,22 +84,18 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public void setupGraph(
-      final TimeSeriesQuery query, 
-      final ExecutionGraphNode config, 
-      final DirectedAcyclicGraph<ExecutionGraphNode, DefaultEdge> graph) {
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config, 
+                         final QueryPlanner plan) {
     // For downsampling we need to set the config start and end times
     // to the query start and end times. The config will then align them.
     DownsampleConfig.Builder builder = DownsampleConfig
-        .newBuilder((DownsampleConfig) config.getConfig())
+        .newBuilder((DownsampleConfig) config)
         .setStart(query.getStart())
         .setEnd(query.getEnd())
         .setId(config.getId());
     
-    ExecutionGraphNode node = ExecutionGraphNode.newBuilder(config)
-        .setConfig(builder.build())
-        .build();
-    ExecutionGraph.replace(config, node, graph);
+    plan.replace(config, builder.build());
   }
   
   /**

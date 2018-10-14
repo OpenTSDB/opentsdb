@@ -67,7 +67,7 @@ public class TestMergerFactory {
     final MergerFactory factory = new MergerFactory();
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals("merger", factory.id());
+    assertEquals(MergerFactory.ID, factory.id());
   }
   
   @Test

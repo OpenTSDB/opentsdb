@@ -41,15 +41,10 @@ import com.stumbleupon.async.Deferred;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.plan.QueryPlannnerFactory;
-import net.opentsdb.query.plan.TimeSlicedQueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.stats.TsdbTrace;
@@ -118,8 +113,8 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
    * Default ctor.
    * @param node A non-null node with a default configuration.
    */
-  public TimeBasedRoutingExecutor(final ExecutionGraphNode node) {
-    super(node);
+  public TimeBasedRoutingExecutor() {
+    super();
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Default config cannot be null.");
 //    }
@@ -148,11 +143,10 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final QueryContext context,
-                                        final TimeSeriesQuery query, 
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
                                         final Span upstream_span) {
     final LocalExecution execution = 
-        new LocalExecution(context, query, upstream_span);
+        new LocalExecution(query, upstream_span);
     execution.execute();
     return execution;
   }
@@ -201,17 +195,11 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
    */
   class LocalExecution extends QueryExecution<T> {
     
-    /** The query context. */
-    private final QueryContext context;
-    
     /** The time ranges detected that we should use for the query. */
     private final List<TimeRange> ranges;
     
     /** Outstanding executions fired downstream. Used for cancelation. */
     private final QueryExecution<T>[] executions;
-    
-    /** The query planner used to merge tsd slices. */
-    private TimeSlicedQueryPlanner<T> planner;
     
     /**
      * Default ctor.
@@ -220,22 +208,10 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
      * @param upstream_span An optional upstream span for tracing.
      */
     @SuppressWarnings("unchecked")
-    public LocalExecution(final QueryContext context,
-                          final TimeSeriesQuery query,
+    public LocalExecution(final TimeSeriesQuery query,
                           final Span upstream_span) {
       super(query);
-      this.context = context;
       outstanding_executions.add(this);
-      
-      if (context.getTracer() != null) {
-        setSpan(context, 
-            TimeBasedRoutingExecutor.this.getClass().getSimpleName(),
-            upstream_span,
-            TsdbTrace.addTags(
-                "order", Integer.toString(query.getOrder()),
-                "query", JSON.serializeToString(query),
-                "startThread", Thread.currentThread().getName()));
-      }
       
       ranges = getSources(query);
       executions = ranges != null ? new QueryExecution[ranges.size()] : null;
@@ -243,151 +219,151 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
 
     @SuppressWarnings("unchecked")
     void execute() {
-      try {
-        if (ranges == null || ranges.isEmpty()) {
-          // ------------------------------------------------------------
-          // no ranges matched, e.g. maybe there's a short ttl
-          callback(new DefaultIteratorGroups(),
-              TsdbTrace.successfulTags("downstreams", "null"));
-          outstanding_executions.remove(LocalExecution.this);
-          return;
-        } else if (ranges.size() == 1) {
-          // ------------------------------------------------------------
-          // only querying a single host so foward and attach the callback
-          final QueryExecutor<T> downstream = 
-              executors.get(ranges.get(0).executorId);
-          if (downstream == null) {
-            final IllegalStateException ex = new IllegalStateException(
-                "No executor found for executor ID: " 
-                    + ranges.get(0).executorId);
-            callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-            outstanding_executions.remove(LocalExecution.this);
-            return;
-          }
-          
-          final QueryExecution<T> execution = 
-              downstream.executeQuery(context, query, tracer_span);
-          executions[0] = execution;
-          
-          /** The success callback that just passes results upstream and logs
-           * the span. */
-          class DSSuccessCB implements Callback<Object, T> {
-            @Override
-            public Object call(final T results) throws Exception {
-              callback(results, 
-                  TsdbTrace.successfulTags("downstreams", 
-                      ranges.get(0).executorId));
-              outstanding_executions.remove(LocalExecution.this);
-              return null;
-            }
-          }
-          
-          /** The error callback returning the exception upstream and completing 
-           * the span. */
-          class DSErrorCB implements Callback<Object, Exception> {
-            @Override
-            public Object call(final Exception e) throws Exception {
-              try {
-                callback(e, 
-                    TsdbTrace.exceptionTags(e),
-                    TsdbTrace.exceptionAnnotation(e));
-              } catch (IllegalStateException ex) { 
-                // Safe to ignore as it's already been called.
-              } catch (Exception ex) {
-                LOG.error("Unexpected exception when handling exception for " 
-                    + this, ex);
-              }
-              outstanding_executions.remove(LocalExecution.this);
-              return null;
-            }
-          }
-          
-          execution.deferred()
-            .addCallback(new DSSuccessCB())
-            .addErrback(new DSErrorCB());
-          return;
-        }
-        
-        // ------------------------------------------------------------
-        // fall through means we need to query 2 or more tsds.
-        final QueryExecutorConfig override = 
-            context.getConfigOverride(node.getId());
-        final Config config;
-//        if (override != null) {
-//          config = (Config) override;
-//        } else {
-//          config = (Config) node.getConfig();
+//      try {
+//        if (ranges == null || ranges.isEmpty()) {
+//          // ------------------------------------------------------------
+//          // no ranges matched, e.g. maybe there's a short ttl
+//          callback(new DefaultIteratorGroups(),
+//              TsdbTrace.successfulTags("downstreams", "null"));
+//          outstanding_executions.remove(LocalExecution.this);
+//          return;
+//        } else if (ranges.size() == 1) {
+//          // ------------------------------------------------------------
+//          // only querying a single host so foward and attach the callback
+//          final QueryExecutor<T> downstream = 
+//              executors.get(ranges.get(0).executorId);
+//          if (downstream == null) {
+//            final IllegalStateException ex = new IllegalStateException(
+//                "No executor found for executor ID: " 
+//                    + ranges.get(0).executorId);
+//            callback(ex,
+//              TsdbTrace.exceptionTags(ex),
+//              TsdbTrace.exceptionAnnotation(ex));
+//            outstanding_executions.remove(LocalExecution.this);
+//            return;
+//          }
+//          
+//          final QueryExecution<T> execution = 
+//              downstream.executeQuery(context, query, tracer_span);
+//          executions[0] = execution;
+//          
+//          /** The success callback that just passes results upstream and logs
+//           * the span. */
+//          class DSSuccessCB implements Callback<Object, T> {
+//            @Override
+//            public Object call(final T results) throws Exception {
+//              callback(results, 
+//                  TsdbTrace.successfulTags("downstreams", 
+//                      ranges.get(0).executorId));
+//              outstanding_executions.remove(LocalExecution.this);
+//              return null;
+//            }
+//          }
+//          
+//          /** The error callback returning the exception upstream and completing 
+//           * the span. */
+//          class DSErrorCB implements Callback<Object, Exception> {
+//            @Override
+//            public Object call(final Exception e) throws Exception {
+//              try {
+//                callback(e, 
+//                    TsdbTrace.exceptionTags(e),
+//                    TsdbTrace.exceptionAnnotation(e));
+//              } catch (IllegalStateException ex) { 
+//                // Safe to ignore as it's already been called.
+//              } catch (Exception ex) {
+//                LOG.error("Unexpected exception when handling exception for " 
+//                    + this, ex);
+//              }
+//              outstanding_executions.remove(LocalExecution.this);
+//              return null;
+//            }
+//          }
+//          
+//          execution.deferred()
+//            .addCallback(new DSSuccessCB())
+//            .addErrback(new DSErrorCB());
+//          return;
 //        }
-        
-//        final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
-//            ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
-        final String plan_id = null;
-        final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
-            .getQueryPlanner(plan_id);
-        if (plan_factory == null) {
-          throw new IllegalArgumentException("No such query plan factory: " 
-              );//+ config.getPlannerId());
-        }
-        final QueryPlanner<?> temp_planner = plan_factory.newPlanner(query);
-        if (temp_planner == null) {
-          throw new IllegalStateException("Plan factory returned a null planner: " 
-              + plan_factory);
-        }
-        if (!(temp_planner instanceof TimeSlicedQueryPlanner)) {
-          throw new IllegalStateException("Planner was of the wrong type: " 
-              + temp_planner.getClass().getCanonicalName() + " while it must be "
-                  + "a TimeSlicedQueryPlanner.");
-        }
-        planner = (TimeSlicedQueryPlanner<T>) temp_planner;
-        
-        int i = 0;
-        final List<Deferred<T>> deferreds = Lists.newArrayListWithCapacity(ranges.size());
-        for (final TimeRange range : ranges) {
-          final Timespan.Builder builder = Timespan.newBuilder(query.getTime());
-          if (query.getTime().endTime().msEpoch() <= range.start_long) {
-            builder.setEnd(Long.toString(query.getTime().endTime().msEpoch()));
-          } else {
-            builder.setEnd(range.start);
-          }
-          
-          if (query.getTime().startTime().msEpoch() > range.end_long) {
-            builder.setStart(Long.toString(query.getTime().startTime().msEpoch()));
-          } else {
-            builder.setStart(range.end);
-          }
-          
-          final QueryExecutor<T> executor = executors.get(range.executorId);
-          if (executor == null) {
-            // TODO - WTF!?!?!
-          }
-          
-          executions[i] = executor.executeQuery(context, 
-              TimeSeriesQuery.newBuilder(query)
-                .setTime(builder)
-                .build(), 
-              tracer_span);
-          deferreds.add(executions[i].deferred());
-          // TODO - fail-fast and/or/failover
-          i++;
-        }
-        
-        Deferred.group(deferreds)
-          .addCallback(new CompletedCB())
-          .addErrback(new ErrorCB());
-      } catch (Exception e) {
-        try {
-          callback(e, 
-              TsdbTrace.exceptionTags(e),
-              TsdbTrace.exceptionAnnotation(e));
-        } catch (IllegalStateException ex) { 
-          // Safe to ignore as it's already been called.
-        } catch (Exception ex) {
-          LOG.error("Unexpected exception when handling exception for " + this, ex);
-        }
-        outstanding_executions.remove(LocalExecution.this);
-      }
+//        
+//        // ------------------------------------------------------------
+//        // fall through means we need to query 2 or more tsds.
+//        final QueryExecutorConfig override = 
+//            context.getConfigOverride(node.getId());
+//        final Config config;
+////        if (override != null) {
+////          config = (Config) override;
+////        } else {
+////          config = (Config) node.getConfig();
+////        }
+//        
+////        final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
+////            ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
+//        final String plan_id = null;
+//        final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
+//            .getQueryPlanner(plan_id);
+//        if (plan_factory == null) {
+//          throw new IllegalArgumentException("No such query plan factory: " 
+//              );//+ config.getPlannerId());
+//        }
+//        final QueryPlanner<?> temp_planner = plan_factory.newPlanner(query);
+//        if (temp_planner == null) {
+//          throw new IllegalStateException("Plan factory returned a null planner: " 
+//              + plan_factory);
+//        }
+//        if (!(temp_planner instanceof TimeSlicedQueryPlanner)) {
+//          throw new IllegalStateException("Planner was of the wrong type: " 
+//              + temp_planner.getClass().getCanonicalName() + " while it must be "
+//                  + "a TimeSlicedQueryPlanner.");
+//        }
+//        planner = (TimeSlicedQueryPlanner<T>) temp_planner;
+//        
+//        int i = 0;
+//        final List<Deferred<T>> deferreds = Lists.newArrayListWithCapacity(ranges.size());
+//        for (final TimeRange range : ranges) {
+//          final Timespan.Builder builder = Timespan.newBuilder(query.getTime());
+//          if (query.getTime().endTime().msEpoch() <= range.start_long) {
+//            builder.setEnd(Long.toString(query.getTime().endTime().msEpoch()));
+//          } else {
+//            builder.setEnd(range.start);
+//          }
+//          
+//          if (query.getTime().startTime().msEpoch() > range.end_long) {
+//            builder.setStart(Long.toString(query.getTime().startTime().msEpoch()));
+//          } else {
+//            builder.setStart(range.end);
+//          }
+//          
+//          final QueryExecutor<T> executor = executors.get(range.executorId);
+//          if (executor == null) {
+//            // TODO - WTF!?!?!
+//          }
+//          
+//          executions[i] = executor.executeQuery(context, 
+//              TimeSeriesQuery.newBuilder(query)
+//                .setTime(builder)
+//                .build(), 
+//              tracer_span);
+//          deferreds.add(executions[i].deferred());
+//          // TODO - fail-fast and/or/failover
+//          i++;
+//        }
+//        
+//        Deferred.group(deferreds)
+//          .addCallback(new CompletedCB())
+//          .addErrback(new ErrorCB());
+//      } catch (Exception e) {
+//        try {
+//          callback(e, 
+//              TsdbTrace.exceptionTags(e),
+//              TsdbTrace.exceptionAnnotation(e));
+//        } catch (IllegalStateException ex) { 
+//          // Safe to ignore as it's already been called.
+//        } catch (Exception ex) {
+//          LOG.error("Unexpected exception when handling exception for " + this, ex);
+//        }
+//        outstanding_executions.remove(LocalExecution.this);
+//      }
     }
     
     /**
@@ -402,7 +378,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
           // Note: The merge expects series to be in ascending order but the
           // way we sort tsds is descending so we need to flip the order.
           Collections.reverse(results);
-          final T merged = planner.mergeSlicedResults(results);
+          //final T merged = planner.mergeSlicedResults(results);
           
           final StringBuilder buf = new StringBuilder();
           for (int i = 0; i < ranges.size(); i++) {
@@ -411,13 +387,13 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
             }
             buf.append(ranges.get(i).executorId);
           }
-          callback(merged,
-              TsdbTrace.successfulTags("downstreams", buf.toString()));
-        } catch (Exception e) {
+//          callback(merged,
+//              TsdbTrace.successfulTags("downstreams", buf.toString()));
+//        } catch (Exception e) {
           try {
-            callback(e, 
-                TsdbTrace.exceptionTags(e),
-                TsdbTrace.exceptionAnnotation(e));
+//            callback(e, 
+//                TsdbTrace.exceptionTags(e),
+//                TsdbTrace.exceptionAnnotation(e));
           } catch (IllegalStateException ex) { 
             // Safe to ignore as it's already been called.
           } catch (Exception ex) {

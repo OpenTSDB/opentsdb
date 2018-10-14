@@ -38,7 +38,7 @@ public class TestSummarizerFactory {
     assertTrue(factory.types().contains(NumericArrayType.TYPE));
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertTrue(factory.types().contains(NumericSummaryType.TYPE));
-    assertEquals("summarizer", factory.id());
+    assertEquals(SummarizerFactory.ID, factory.id());
   }
   
   @Test

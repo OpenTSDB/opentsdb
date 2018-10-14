@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -32,16 +33,17 @@ import net.opentsdb.configuration.Configuration;
  * 
  * @since 3.0
  */
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
 
   /** A unique name for this config. */
   protected final String id;
   
   /** The class of an {@link QueryNode} implementation. */
-  private final String type;
+  protected final String type;
   
   /** An optional list of downstream sources. */
-  private final List<String> sources;
+  protected List<String> sources;
   
   /** The optional map of overrides. */
   protected final Map<String, String> overrides;
@@ -212,7 +214,7 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
      * @param type The class of the implementation.
      * @return The builder.
      */
-    public Builder setJoinType(final String type) {
+    public Builder setType(final String type) {
       this.type = type;
       return this;
     }

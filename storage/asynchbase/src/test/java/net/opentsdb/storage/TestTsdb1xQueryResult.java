@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 
 import org.hbase.async.HBaseClient;
@@ -47,8 +48,6 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -81,11 +80,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
         .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(ExecutionGraph.newBuilder()
-            .setId("graph")
-            .addNode(ExecutionGraphNode.newBuilder()
-                .setId("datasource"))
-            .build())
+        .setExecutionGraph(Collections.emptyList())
         .build();
     
     source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()

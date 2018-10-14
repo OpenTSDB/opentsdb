@@ -49,8 +49,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
@@ -128,38 +126,28 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void oneMetricOneGraphNoPushdown() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("downsample")
-            .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
                 .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
-            .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -181,10 +169,10 @@ public class TestDefaultQueryPlanner {
     assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("gb")));
     assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("ds")));
     assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().containsEdge(planner.nodesMap().get("downsample"), 
+    assertTrue(planner.graph().containsEdge(planner.nodesMap().get("ds"), 
         planner.nodesMap().get("m1")));
     assertTrue(planner.graph().containsEdge(planner.nodesMap().get("gb"), 
-        planner.nodesMap().get("downsample")));
+        planner.nodesMap().get("ds")));
     
     assertEquals(1, planner.serializationSources().size());
     
@@ -222,38 +210,28 @@ public class TestDefaultQueryPlanner {
     when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
       .thenReturn(true);
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("downsample")
-            .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
                 .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
-            .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -294,8 +272,8 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(0), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("ds", source_config.getPushDownNodes().get(0).getId());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -315,29 +293,21 @@ public class TestDefaultQueryPlanner {
     when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
       .thenReturn(true);
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -372,7 +342,7 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(0), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     // no filter
@@ -390,29 +360,21 @@ public class TestDefaultQueryPlanner {
 
   @Test
   public void twoMetricsAlone() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -462,49 +424,36 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void twoMetricsOneGraphNoPushdown() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -566,49 +515,36 @@ public class TestDefaultQueryPlanner {
     when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
       .thenReturn(true);
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+       QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -645,14 +581,14 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(1), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     // no filter
@@ -673,60 +609,43 @@ public class TestDefaultQueryPlanner {
     when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
       .thenReturn(true);
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("downsample")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds1")
             .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("2m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("ds2")
-            .setType("downsample")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("2m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
-            .addSource("downsample")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds1")
             .addSource("ds2")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -763,15 +682,15 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(1), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("ds2", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
-    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("ds1", source_config.getPushDownNodes().get(0).getId());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -791,40 +710,29 @@ public class TestDefaultQueryPlanner {
     when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
       .thenReturn(true);
     
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+       DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -858,14 +766,14 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(1), node);
     QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
     source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
-    assertTrue(source_config.getPushDownNodes().get(0).getConfig() instanceof DownsampleConfig);
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     // no filter
@@ -883,71 +791,49 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void twoMetricsTwoGraphs() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("ds1")
-            .setType("downsample")
             .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("ds1")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("ds2")
-            .setType("downsample")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("ds2")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("gb1")
-            .setType("groupby")
             .addSource("ds1")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("gb2")
-            .setType("groupby")
             .addSource("ds2")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb2")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1014,49 +900,36 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void twoMetricsFilterGBandRaw() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1103,10 +976,10 @@ public class TestDefaultQueryPlanner {
     
     // TODO - watch this bit for ordering
     node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
+    assertSame(STORE_NODES.get(1), node);
     
     node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
+    assertSame(STORE_NODES.get(0), node);
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1123,61 +996,46 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void twoMetricsExpression() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("groupby")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("groupby")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+       ExpressionConfig.newBuilder()
+            .setExpression("sys.cpu.user + sys.cpu.sys")
+            .setAs("sys.tot")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setJoinType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
             .addSource("groupby")
-            .setConfig(ExpressionConfig.newBuilder()
-                .setExpression("sys.cpu.user + sys.cpu.sys")
-                .setAs("sys.tot")
-                .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                    .setJoinType(JoinType.NATURAL)
-                    .build())
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("expression")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1239,61 +1097,46 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void twoMetricsExpressionWithFilter() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
             .setId("m2")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m2")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
             .addSource("m2")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("groupby")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("groupby")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        ExpressionConfig.newBuilder()
+            .setExpression("sys.cpu.user + sys.cpu.sys")
+            .setAs("sys.tot")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setJoinType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("expression")
             .addSource("groupby")
-            .setConfig(ExpressionConfig.newBuilder()
-                .setExpression("sys.cpu.user + sys.cpu.sys")
-                .setAs("sys.tot")
-                .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-                    .setJoinType(JoinType.NATURAL)
-                    .build())
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("expression")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1335,10 +1178,10 @@ public class TestDefaultQueryPlanner {
     
     // TODO - watch this bit for ordering
     node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
+    assertSame(STORE_NODES.get(1), node);
     
     node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
+    assertSame(STORE_NODES.get(0), node);
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1355,39 +1198,28 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void cycleFound() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("m1")
-            .setType("DataSource")
-            .addSource("groupby")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("downsample")
-            .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
                 .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+       DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .addSource("groupby")
+            .build(),
+       GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1410,48 +1242,35 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void duplicateNodeIds() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.sys")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("downsample")
-            .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
                 .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1474,38 +1293,28 @@ public class TestDefaultQueryPlanner {
   
   @Test
   public void unsatisfiedFilter() throws Exception {
-    ExecutionGraph graph = ExecutionGraph.newBuilder()
-        .setId("g1")
-        .addNode(ExecutionGraphNode.newBuilder()
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        QuerySourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
             .setId("m1")
-            .setType("DataSource")
-            .setConfig(QuerySourceConfig.newBuilder()
-                .setMetric(MetricLiteralFilter.newBuilder()
-                    .setMetric("sys.cpu.user")
-                    .build())
-                .setFilterId("f1")
-                .setId("m1")
-                .build()))
-        .addNode(ExecutionGraphNode.newBuilder()
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
             .addSource("m1")
-            .setConfig(DownsampleConfig.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("downsample")
-                .build())
-            .build())
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setId("groupby")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
             .addSource("downsample")
-            .setConfig(GroupByConfig.newBuilder()
-                .setAggregator("sum")
-                .addTagKey("host")
-                .addInterpolatorConfig(NUMERIC_CONFIG)
-                .setId("gb")
-                .build()))
-        .build();
+            .build());
     
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
