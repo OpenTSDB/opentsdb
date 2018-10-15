@@ -1,3 +1,4 @@
+package net.opentsdb.query.hacluster;
 //// This file is part of OpenTSDB.
 //// Copyright (C) 2016  The OpenTSDB Authors.
 ////
