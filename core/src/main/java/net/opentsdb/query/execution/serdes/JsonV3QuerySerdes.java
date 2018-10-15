@@ -423,7 +423,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     if (result.timeSpecification() != null) {
       json.writeObjectFieldStart("NumericSummaryType");
       // just the values
-   // NOTE: This is assuming all values have the same summaries available.
+      // NOTE: This is assuming all values have the same summaries available.
       final List<Integer> summaries = Lists.newArrayList(
           ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable());
       json.writeArrayFieldStart("aggregations");

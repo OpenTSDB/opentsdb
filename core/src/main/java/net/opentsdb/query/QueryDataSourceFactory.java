@@ -40,6 +40,8 @@ import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 public class QueryDataSourceFactory extends BaseTSDBPlugin 
     implements QueryNodeFactory {
   
+  public static final String ID = "DataSource";
+  
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
                            final String id) {
@@ -61,7 +63,7 @@ public class QueryDataSourceFactory extends BaseTSDBPlugin
 
   @Override
   public String id() {
-    return "datasource";
+    return ID;
   }
   
   @Override
