@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.expressions;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -281,7 +282,27 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
       builder.setId(n.asText());
     }
     
-    // TODO - variable interpolators
+    n = node.get("variableInterpolators");
+    final Iterator<Entry<String, JsonNode>> iterator = n.fields();
+    while (iterator.hasNext()) {
+      final Entry<String, JsonNode> entry = iterator.next();
+      for (final JsonNode config : entry.getValue()) {
+        JsonNode type_json = config.get("type");
+        final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
+            QueryInterpolatorFactory.class, 
+            type_json == null ? null : type_json.asText());
+        if (factory == null) {
+          throw new IllegalArgumentException("Unable to find an "
+              + "interpolator factory for: " + 
+              type_json == null ? "default" :
+                type_json.asText());
+        }
+        
+        final QueryInterpolatorConfig interpolator_config = 
+            factory.parseConfig(mapper, tsdb, config);
+        builder.addVariableInterpolator(entry.getKey(), interpolator_config);
+      }
+    }
     
     n = node.get("interpolatorConfigs");
     for (final JsonNode config : n) {
@@ -299,6 +320,15 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
       final QueryInterpolatorConfig interpolator_config = 
           factory.parseConfig(mapper, tsdb, config);
       builder.addInterpolatorConfig(interpolator_config);
+    }
+    
+    n = node.get("sources");
+    if (n != null && !n.isNull()) {
+      try {
+        builder.setSources(mapper.treeToValue(n, List.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse json", e);
+      }
     }
     
     return (ExpressionConfig) builder.build();

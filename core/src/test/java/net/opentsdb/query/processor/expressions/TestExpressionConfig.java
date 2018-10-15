@@ -23,6 +23,10 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -368,7 +372,7 @@ public class TestExpressionConfig {
   }
   
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     NumericInterpolatorConfig numeric_config = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -388,6 +392,8 @@ public class TestExpressionConfig {
           .setAs("some.metric.name")
           .addInterpolatorConfig(numeric_config)
           .setId("e1")
+          .addSource("m1")
+          .addSource("m2")
           .build();
     
     final String json = JSON.serializeToString(config);
@@ -398,5 +404,26 @@ public class TestExpressionConfig {
     assertTrue(json.contains("\"join\":{"));
     assertTrue(json.contains("\"variableInterpolators\":{"));
     assertTrue(json.contains("\"interpolatorConfigs\":["));
+    assertTrue(json.contains("\"type\":\"Expression\""));
+    assertTrue(json.contains("\"sources\":[\"m1\",\"m2\"]"));
+    
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.registry = new DefaultRegistry(tsdb);
+    ((DefaultRegistry) tsdb.registry).initialize(true).join(1);
+    
+    JsonNode node = JSON.getMapper().readTree(json);
+    config = ExpressionConfig.parse(JSON.getMapper(), tsdb, node);
+    
+    assertEquals("e1", config.getId());
+    assertEquals(2, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals("m2", config.getSources().get(1));
+    assertEquals(ExpressionFactory.ID, config.getType());
+    assertEquals("some.metric.name", config.getAs());
+    assertEquals("a + b", config.getExpression());
+    assertEquals(JoinType.INNER, config.getJoin().getJoinType());
+    assertEquals("host", config.getJoin().getJoins().get("host"));
+    assertTrue(config.interpolatorConfig(NumericType.TYPE) instanceof NumericInterpolatorConfig);
+    assertTrue(config.getVariableInterpolators().get("a").get(0) instanceof NumericInterpolatorConfig);
   }
 }

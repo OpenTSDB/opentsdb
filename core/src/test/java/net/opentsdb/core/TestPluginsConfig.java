@@ -543,14 +543,6 @@ public class TestPluginsConfig {
   }
   
   @Test
-  public void initializeNoDefaultImplementationsFound() throws Exception {
-    try {
-      config.initialize(tsdb).join(1);
-      fail("Expected PluginLoadException");
-    } catch (PluginLoadException e) { }
-  }
-  
-  @Test
   public void initializeNullList() throws Exception {
     config.setLoadDefaultInstances(false);
     assertNull(config.initialize(tsdb).join(1));

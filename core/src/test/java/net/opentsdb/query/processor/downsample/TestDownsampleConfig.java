@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -26,6 +27,10 @@ import java.time.temporal.ChronoUnit;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -196,7 +201,7 @@ public class TestDownsampleConfig {
   }
 
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
@@ -205,6 +210,7 @@ public class TestDownsampleConfig {
         .setEnd("1514846902")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .addSource("m1")
         .build();
     final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"foo\""));
@@ -214,12 +220,46 @@ public class TestDownsampleConfig {
     assertTrue(json.contains("\"fill\":false"));
     assertTrue(json.contains("\"infectiousNan\":false"));
     assertTrue(json.contains("\"runAll\":false"));
-    
+    assertTrue(json.contains("\"type\":\"Downsample\""));
+    assertTrue(json.contains("\"sources\":[\"m1\"]"));
     assertTrue(json.contains("\"interpolatorConfigs\":["));
     assertTrue(json.contains("\"fillPolicy\":\"nan\""));
     assertTrue(json.contains("\"realFillPolicy\":\"PREFER_NEXT\""));
     assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\""));
     assertTrue(json.contains("\"defaultRealFillPolicy\":\"NEXT_ONLY\""));
     assertTrue(json.contains("\"expectedSummaries\":[0]"));
+    
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.registry = new DefaultRegistry(tsdb);
+    ((DefaultRegistry) tsdb.registry).initialize(true).join(1);
+    
+    JsonNode node = JSON.getMapper().readTree(json);
+    config = DownsampleConfig.parse(JSON.getMapper(), tsdb, node);
+    
+    assertEquals("sum", config.getAggregator());
+    assertEquals("foo", config.getId());
+    assertEquals(Duration.of(15, ChronoUnit.SECONDS), config.interval());
+    assertEquals(15, config.intervalPart());
+    assertFalse(config.getFill());
+    assertEquals(ZoneId.of("UTC"), config.timezone());
+    assertEquals(ChronoUnit.SECONDS, config.units());
+    assertFalse(config.getInfectiousNan());
+    assertEquals(15, config.intervalPart());
+    assertNull(config.startTime());
+    assertEquals(1, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals(DownsampleFactory.ID, config.getType());
+    assertEquals(FillPolicy.NOT_A_NUMBER, 
+        ((NumericInterpolatorConfig) config.interpolatorConfig(NumericType.TYPE))
+          .getFillPolicy());
+    assertEquals(FillWithRealPolicy.PREFER_NEXT, 
+        ((NumericInterpolatorConfig) config.interpolatorConfig(NumericType.TYPE))
+          .getRealFillPolicy());
+    assertEquals(FillPolicy.NOT_A_NUMBER, 
+        ((NumericSummaryInterpolatorConfig) config.interpolatorConfig(NumericSummaryType.TYPE))
+          .getDefaultFillPolicy());
+    assertEquals(FillWithRealPolicy.NEXT_ONLY, 
+        ((NumericSummaryInterpolatorConfig) config.interpolatorConfig(NumericSummaryType.TYPE))
+          .getDefaultRealFillPolicy());
   }
 }
