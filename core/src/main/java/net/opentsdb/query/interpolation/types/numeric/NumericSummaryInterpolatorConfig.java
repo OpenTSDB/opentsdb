@@ -21,6 +21,10 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.TreeMap;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -49,6 +53,8 @@ import net.opentsdb.utils.Comparators.MapComparator;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = NumericSummaryInterpolatorConfig.Builder.class)
 public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
 
   /** The default numeric fill policy. */
@@ -80,23 +86,23 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
    */
   NumericSummaryInterpolatorConfig(final Builder builder) {
     super(builder);
-    if (builder.fill_policy == null) {
+    if (builder.defaultFillPolicy == null) {
       throw new IllegalArgumentException("Default fill policy cannot be null.");
     }
-    if (builder.real_fill == null) {
+    if (builder.defaultRealFillPolicy == null) {
       throw new IllegalArgumentException("Default real fill policy cannot be null.");
     }
     if (!data_type.equals(NumericSummaryType.TYPE.toString())) {
       throw new IllegalArgumentException("Type must be " + NumericSummaryType.TYPE);
     }
-    fill_policy = builder.fill_policy;
-    real_fill = builder.real_fill;
-    summary_fill_policy_overrides = builder.summary_fill_policy_overrides;
-    summary_real_fill_overrides = builder.summary_real_fill_overrides;
+    fill_policy = builder.defaultFillPolicy;
+    real_fill = builder.defaultRealFillPolicy;
+    summary_fill_policy_overrides = builder.summaryFillPolicyOverrides;
+    summary_real_fill_overrides = builder.summaryRealFillOverrides;
     sync = builder.sync;
-    expected_summaries = builder.expected_summaries == null ? 
-        Collections.emptyList() : builder.expected_summaries;
-    component_agg = builder.component_agg;
+    expected_summaries = builder.expectedSummaries == null ? 
+        Collections.emptyList() : builder.expectedSummaries;
+    component_agg = builder.componentAgg;
   }
   
   /** @return The default numeric fill policy. */
@@ -291,20 +297,27 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
   }
   
   public static class Builder extends BaseInterpolatorConfig.Builder {
-    private FillPolicy fill_policy;
-    private FillWithRealPolicy real_fill;
-    private Map<Integer, FillPolicy> summary_fill_policy_overrides;
-    private Map<Integer, FillWithRealPolicy> summary_real_fill_overrides;
+    @JsonProperty
+    private FillPolicy defaultFillPolicy;
+    @JsonProperty
+    private FillWithRealPolicy defaultRealFillPolicy;
+    @JsonProperty
+    private Map<Integer, FillPolicy> summaryFillPolicyOverrides;
+    @JsonProperty
+    private Map<Integer, FillWithRealPolicy> summaryRealFillOverrides;
+    @JsonProperty
     private boolean sync;
-    private List<Integer> expected_summaries;
-    private NumericAggregator component_agg;
+    @JsonProperty
+    private List<Integer> expectedSummaries;
+    @JsonProperty
+    private NumericAggregator componentAgg;
     
     /**
      * @param fill_policy A non-null numeric fill policy.
      * @return The builder.
      */
     public Builder setDefaultFillPolicy(final FillPolicy fill_policy) {
-      this.fill_policy = fill_policy;
+      this.defaultFillPolicy = fill_policy;
       return this;
     }
     
@@ -313,7 +326,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      * @return The builder.
      */
     public Builder setDefaultRealFillPolicy(final FillWithRealPolicy real_fill) {
-      this.real_fill = real_fill;
+      this.defaultRealFillPolicy = real_fill;
       return this;
     }
     
@@ -324,7 +337,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      */
     public Builder setFillPolicyOverrides(
         final Map<Integer, FillPolicy> summary_fill_policy_overrides) {
-      this.summary_fill_policy_overrides = summary_fill_policy_overrides;
+      this.summaryFillPolicyOverrides = summary_fill_policy_overrides;
       return this;
     }
     
@@ -335,7 +348,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      */
     public Builder setRealFillPolicyOverrides(
         final Map<Integer, FillWithRealPolicy> summary_real_fill_overrides) {
-      this.summary_real_fill_overrides = summary_real_fill_overrides;
+      this.summaryRealFillOverrides = summary_real_fill_overrides;
       return this;
     }
     
@@ -351,10 +364,10 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
       if (fill_policy == null) {
         throw new IllegalArgumentException("Policy cannot be null.");
       }
-      if (summary_fill_policy_overrides == null) {
-        summary_fill_policy_overrides = Maps.newHashMapWithExpectedSize(1);
+      if (summaryFillPolicyOverrides == null) {
+        summaryFillPolicyOverrides = Maps.newHashMapWithExpectedSize(1);
       }
-      summary_fill_policy_overrides.put(summary, fill_policy);
+      summaryFillPolicyOverrides.put(summary, fill_policy);
       return this;
     }
     
@@ -367,10 +380,10 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      */
     public Builder addRealFillPolicyOverride(final int summary, 
                                              final FillWithRealPolicy fill_policy) {
-      if (summary_real_fill_overrides == null) {
-        summary_real_fill_overrides = Maps.newHashMapWithExpectedSize(1);
+      if (summaryRealFillOverrides == null) {
+        summaryRealFillOverrides = Maps.newHashMapWithExpectedSize(1);
       }
-      summary_real_fill_overrides.put(summary, fill_policy);
+      summaryRealFillOverrides.put(summary, fill_policy);
       return this;
     }
     
@@ -389,7 +402,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      */
     public Builder setExpectedSummaries(
         final List<Integer> expected_summaries) {
-      this.expected_summaries = expected_summaries;
+      this.expectedSummaries = expected_summaries;
       return this;
     }
     
@@ -398,10 +411,10 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      * @return The builder.
      */
     public Builder addExpectedSummary(final int summary) {
-      if (expected_summaries == null) {
-        expected_summaries = Lists.newArrayListWithExpectedSize(1);
+      if (expectedSummaries == null) {
+        expectedSummaries = Lists.newArrayListWithExpectedSize(1);
       }
-      expected_summaries.add(summary);
+      expectedSummaries.add(summary);
       return this;
     }
     
@@ -411,7 +424,7 @@ public class NumericSummaryInterpolatorConfig extends BaseInterpolatorConfig {
      */
     public Builder setComponentAggregator(
         final NumericAggregator component_agg) {
-      this.component_agg = component_agg;
+      this.componentAgg = component_agg;
       return this;
     }
     

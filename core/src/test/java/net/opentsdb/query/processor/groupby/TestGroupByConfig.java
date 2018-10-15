@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.groupby;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -152,11 +151,14 @@ public class TestGroupByConfig {
         .setFullMerge(true)
         .addInterpolatorConfig(numeric_config)
         .setId("GBy")
+        .addSource("m1")
         .build();
     
     final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"GBy\""));
     assertTrue(json.contains("\"aggregator\":\"sum\""));
+    assertTrue(json.contains("\"sources\":[\"m1\"]"));
+    assertTrue(json.contains("\"type\":\"GroupBy\""));
     assertTrue(json.contains("\"tagKeys\":["));
     assertTrue(json.contains("host"));
     assertTrue(json.contains("dc"));
@@ -173,6 +175,9 @@ public class TestGroupByConfig {
     
     assertEquals("sum", config.getAggregator());
     assertEquals("GBy", config.getId());
+    assertEquals(1, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals(GroupByFactory.ID, config.getType());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
     assertTrue(config.getFullMerge());

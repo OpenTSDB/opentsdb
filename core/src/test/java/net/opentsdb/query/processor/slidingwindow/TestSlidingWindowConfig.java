@@ -18,9 +18,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
 
 public class TestSlidingWindowConfig {
@@ -94,13 +98,14 @@ public class TestSlidingWindowConfig {
   }
 
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     SlidingWindowConfig config = 
         (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
         .setAggregator("sum")
         .setWindowSize("1m")
         .setInfectiousNan(true)
         .setId("myWindow")
+        .addSource("m1")
         .build();
     
     final String json = JSON.serializeToString(config);
@@ -108,6 +113,19 @@ public class TestSlidingWindowConfig {
     assertTrue(json.contains("\"aggregator\":\"sum\""));
     assertTrue(json.contains("\"windowSize\":\"1m\""));
     assertTrue(json.contains("\"infectiousNan\":true"));
+    assertTrue(json.contains("\"type\":\"SlidingWindow\""));
+    assertTrue(json.contains("\"sources\":[\"m1\"]"));
+    
+    JsonNode node = JSON.getMapper().readTree(json);
+    config = (SlidingWindowConfig) new SlidingWindowFactory()
+        .parseConfig(JSON.getMapper(), mock(TSDB.class), node);
+    assertEquals("myWindow", config.getId());
+    assertEquals("sum", config.getAggregator());
+    assertEquals("1m", config.getWindowSize());
+    assertTrue(config.getInfectiousNan());
+    assertEquals(1, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals(SlidingWindowFactory.ID, config.getType());
   }
   
 }

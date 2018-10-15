@@ -94,10 +94,13 @@ public class TestSummarizerConfig {
         .setSummaries(Lists.newArrayList("sum", "avg"))
         .setInfectiousNan(true)
         .setId("summarizer")
+        .addSource("m1")
         .build();
     String json = JSON.serializeToString(config);
     
     assertTrue(json.contains("\"id\":\"summarizer\""));
+    assertTrue(json.contains("\"type\":\"Summarizer\""));
+    assertTrue(json.contains("\"sources\":[\"m1\"]"));
     assertTrue(json.contains("\"summaries\":[\"sum\",\"avg\"]"));
     assertTrue(json.contains("\"infectiousNan\":true"));
     
@@ -109,5 +112,8 @@ public class TestSummarizerConfig {
     assertTrue(config.getSummaries().contains("avg"));
     assertTrue(config.getInfectiousNan());
     assertEquals("summarizer", config.getId());
+    assertEquals(1, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals(SummarizerFactory.ID, config.getType());
   }
 }

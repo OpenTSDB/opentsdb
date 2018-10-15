@@ -128,8 +128,8 @@ public class PluginsConfig extends Validatable {
 //        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
         "net.opentsdb.query.interpolation.DefaultInterpolatorFactory");    
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 
-        "net.opentsdb.stats.BraveTracer");
+//    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 
+//        "net.opentsdb.stats.BraveTracer");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.SerdesFactory", 
         "net.opentsdb.query.execution.serdes.JsonV2QuerySerdesFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.DatumIdValidator", 

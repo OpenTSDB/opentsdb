@@ -191,7 +191,8 @@ public class JoinConfig extends BaseQueryNodeConfig {
     private boolean explicitTags;
     
     protected Builder() {
-      id = "Join";
+      setId("Join");
+      setType("Join");
     }
     
     public Builder setJoinType(final JoinType type) {

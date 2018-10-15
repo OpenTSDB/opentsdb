@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -325,6 +326,15 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       final QueryInterpolatorConfig interpolator_config = 
           factory.parseConfig(mapper, tsdb, config);
       builder.addInterpolatorConfig(interpolator_config);
+    }
+    
+    n = node.get("sources");
+    if (n != null && !n.isNull()) {
+      try {
+        builder.setSources(mapper.treeToValue(n, List.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse json", e);
+      }
     }
     
     return (GroupByConfig) builder.build();

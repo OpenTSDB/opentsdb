@@ -77,6 +77,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     
     // parse the expression
     final ExpressionConfig c = (ExpressionConfig) config;
+    System.out.println("***** SRCS: " + c.getSources());
     final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
     
@@ -145,7 +146,6 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     
     // now yank ourselves out and link.
     plan.configGraph().removeVertex(config);
-    System.out.println("REMOVED: " + config);
     for (final QueryNodeConfig node : new_nodes) {
       plan.configGraph().addVertex(node);
       for (final String source : node.getSources()) {
@@ -173,9 +173,10 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
                          final QueryNodeConfig downstream, 
                          final int depth) {
     final String key = left ? (String) node.getLeft() : (String) node.getRight();
-    if (depth > 0 && 
-        !Strings.isNullOrEmpty(downstream.getType()) && 
-        downstream.getType().toLowerCase().equals("expression")) {
+    final String node_id = Strings.isNullOrEmpty(downstream.getType()) ? 
+        downstream.getId() : downstream.getType();
+        System.out.println("***** ID: " + node_id + " depth: " + depth + " Sources: " + downstream.getSources());
+    if (depth > 0 && node_id.toLowerCase().equals("expression")) {
       if (left && key.equals(downstream.getId())) {
         if (downstream instanceof ExpressionConfig) {
           node.setLeft(((ExpressionConfig) downstream).getAs());
@@ -191,8 +192,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
         }
         return downstream.getId();
       }
-    } else if (!Strings.isNullOrEmpty(downstream.getType()) && 
-        downstream.getType().toLowerCase().equals("datasource")) {
+    } else if (node_id.toLowerCase().equals("datasource")) {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
         node.setLeft(((QuerySourceConfig) downstream).getMetric().getMetric());

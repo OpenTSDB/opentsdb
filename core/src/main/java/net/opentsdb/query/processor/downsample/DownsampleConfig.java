@@ -17,11 +17,13 @@ package net.opentsdb.query.processor.downsample;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -501,17 +503,27 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       JsonNode type_json = config.get("type");
       final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
           QueryInterpolatorFactory.class, 
-          type_json == null ? "Default" : type_json.asText());
+          type_json == null || type_json.isNull() ? 
+              "Default" : type_json.asText());
       if (factory == null) {
         throw new IllegalArgumentException("Unable to find an "
             + "interpolator factory for: " + 
-            (type_json == null ? "default" :
+            (type_json == null || type_json.isNull() ? "default" :
              type_json.asText()));
       }
       
       final QueryInterpolatorConfig interpolator_config = 
           factory.parseConfig(mapper, tsdb, config);
       builder.addInterpolatorConfig(interpolator_config);
+    }
+    
+    n = node.get("sources");
+    if (n != null && !n.isNull()) {
+      try {
+        builder.setSources(mapper.treeToValue(n, List.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse json", e);
+      }
     }
     
     return (DownsampleConfig) builder.build();
