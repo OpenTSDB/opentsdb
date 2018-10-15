@@ -33,7 +33,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
 
-public class TestClusterConfig {
+public class TestHAClusterConfig {
   
   private NumericInterpolatorConfig numeric_config;
   
@@ -51,16 +51,16 @@ public class TestClusterConfig {
   @Test
   public void builder() throws Exception {
     HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
-        .setSources(Lists.newArrayList("colo1", "colo2"))
+        .setDataSources(Lists.newArrayList("colo1", "colo2"))
         .setMergeAggregator("sum")
         .setSecondaryTimeout("5s")
         .addInterpolatorConfig(numeric_config)
         .setId("ha")
         .build();
     
-    assertEquals(2, config.getSources().size());
-    assertTrue(config.getSources().contains("colo1"));
-    assertTrue(config.getSources().contains("colo2"));
+    assertEquals(2, config.getDataSources().size());
+    assertTrue(config.getDataSources().contains("colo1"));
+    assertTrue(config.getDataSources().contains("colo2"));
     assertEquals("sum", config.getMergeAggregator());
     assertEquals("5s", config.getSecondaryTimeout());
     assertEquals("ha", config.getId());
@@ -68,7 +68,7 @@ public class TestClusterConfig {
     
     try {
       HAClusterConfig.newBuilder()
-          .setSources(Lists.newArrayList())
+          .setDataSources(Lists.newArrayList())
           .setMergeAggregator("sum")
           .setSecondaryTimeout("5s")
           .addInterpolatorConfig(numeric_config)
@@ -90,7 +90,7 @@ public class TestClusterConfig {
     
     try {
       HAClusterConfig.newBuilder()
-          .setSources(Lists.newArrayList("colo1", "colo2"))
+          .setDataSources(Lists.newArrayList("colo1", "colo2"))
           .setMergeAggregator("")
           .setSecondaryTimeout("5s")
           .addInterpolatorConfig(numeric_config)
@@ -101,7 +101,7 @@ public class TestClusterConfig {
     
     try {
       HAClusterConfig.newBuilder()
-          .setSources(Lists.newArrayList("colo1", "colo2"))
+          .setDataSources(Lists.newArrayList("colo1", "colo2"))
           //.setMergeAggregator("sum")
           .setSecondaryTimeout("5s")
           .addInterpolatorConfig(numeric_config)
@@ -112,7 +112,7 @@ public class TestClusterConfig {
     
     try {
       HAClusterConfig.newBuilder()
-          .setSources(Lists.newArrayList("colo1", "colo2"))
+          .setDataSources(Lists.newArrayList("colo1", "colo2"))
           .setMergeAggregator("sum")
           .setSecondaryTimeout("notaduration")
           .addInterpolatorConfig(numeric_config)
@@ -125,7 +125,7 @@ public class TestClusterConfig {
   @Test
   public void serdes() throws Exception {
     HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
-        .setSources(Lists.newArrayList("colo1", "colo2"))
+        .setDataSources(Lists.newArrayList("colo1", "colo2"))
         .setMergeAggregator("sum")
         .setSecondaryTimeout("5s")
         .addInterpolatorConfig(numeric_config)
@@ -134,7 +134,7 @@ public class TestClusterConfig {
     
     String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"ha\""));
-    assertTrue(json.contains("\"sources\":[\"colo1\",\"colo2\"]"));
+    assertTrue(json.contains("\"dataSources\":[\"colo1\",\"colo2\"]"));
     assertTrue(json.contains("\"mergeAggregator\":\"sum\""));
     assertTrue(json.contains("\"secondaryTimeout\":\"5s\""));
     assertTrue(json.contains("\"interpolatorConfigs\":["));
@@ -145,9 +145,9 @@ public class TestClusterConfig {
     JsonNode node = JSON.getMapper().readTree(json);
     config = HAClusterConfig.parse(JSON.getMapper(), tsdb, node);
     
-    assertEquals(2, config.getSources().size());
-    assertTrue(config.getSources().contains("colo1"));
-    assertTrue(config.getSources().contains("colo2"));
+    assertEquals(2, config.getDataSources().size());
+    assertTrue(config.getDataSources().contains("colo1"));
+    assertTrue(config.getDataSources().contains("colo2"));
     assertEquals("sum", config.getMergeAggregator());
     assertEquals("5s", config.getSecondaryTimeout());
     assertEquals("ha", config.getId());

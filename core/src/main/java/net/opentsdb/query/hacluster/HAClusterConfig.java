@@ -48,7 +48,7 @@ import net.opentsdb.utils.DateTime;
 public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
   
   /** The non-null and non-empty list of sources to query. */
-  private final List<String> sources;
+  private final List<String> data_sources;
   
   /** The non-null and non-empty aggregator to use to merge results. */
   private final String merge_aggregator;
@@ -64,13 +64,13 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
    */
   protected HAClusterConfig(final Builder builder) {
     super(builder);
-    if (builder.sources == null || builder.sources.isEmpty()) {
+    if (builder.dataSources == null || builder.dataSources.isEmpty()) {
       throw new IllegalArgumentException("Must have at least one source.");
     }
     if (Strings.isNullOrEmpty(builder.mergeAggregator)) {
       throw new IllegalArgumentException("Merge aggregator cannot be null.");
     }
-    sources = builder.sources;
+    data_sources = builder.dataSources;
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
     
@@ -82,8 +82,8 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
 
   /** @return The non-null and non-empty list of sources to query. The
    * first entry is primary. */
-  public List<String> getSources() {
-    return sources;
+  public List<String> getDataSources() {
+    return data_sources;
   }
   
   /** @return The non-null and non-empty aggregator to use to merge results. */
@@ -99,7 +99,9 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().hashInt(System.identityHashCode(this));
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(id, Const.UTF8_CHARSET)
+        .hash();
   }
 
   @Override
@@ -121,13 +123,22 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
   @Override
   public boolean equals(Object o) {
     // TODO Auto-generated method stub
-    return false;
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof HAClusterConfig)) {
+      return false;
+    }
+    
+    return id.equals(((HAClusterConfig) o).id);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return System.identityHashCode(this);
+    return buildHashCode().asInt();
   }
   
   /** @return A new builder to construct a Cluster Config */
@@ -139,18 +150,18 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
     @JsonProperty
-    private List<String> sources;
+    private List<String> dataSources;
     @JsonProperty
     private String mergeAggregator;
     @JsonProperty
     private String secondaryTimeout;
     
     /**
-     * @param sources The list of sources to query from.
+     * @param data_sources The list of sources to query from.
      * @return The builder.
      */
-    public Builder setSources(final List<String> sources) {
-      this.sources = sources;
+    public Builder setDataSources(final List<String> data_sources) {
+      this.dataSources = data_sources;
       return this;
     }
     
@@ -185,10 +196,10 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
                                       final TSDB tsdb, 
                                       final JsonNode node) {
     Builder builder = new Builder();
-    JsonNode n = node.get("sources");
+    JsonNode n = node.get("dataSources");
     if (n != null) {
       try {
-        builder.setSources(mapper.treeToValue(n, List.class));
+        builder.setDataSources(mapper.treeToValue(n, List.class));
       } catch (JsonProcessingException e) {
         throw new IllegalArgumentException("Failed to parse json", e);
       }
