@@ -518,7 +518,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     for (final QueryNode source_node : sources) {
       try {
-        System.out.println("*         ADDING: " + query_node + "   To " + source_node);
         graph.addDagEdge(query_node, source_node);
       } catch (CycleFoundException e) {
         throw new IllegalArgumentException(
