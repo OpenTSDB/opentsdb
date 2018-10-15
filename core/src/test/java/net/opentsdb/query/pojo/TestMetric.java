@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
@@ -23,14 +25,26 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.BeforeClass;
+
 public class TestMetric {
+  
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
+  
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenMetricIsNull() throws Exception {
     String json = "{\"id\":\"1\",\"filter\":\"2\","
         + "\"timeOffset\":\"1h-ago\",\"aggregator\":\"sum\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -39,7 +53,7 @@ public class TestMetric {
         + "\"timeOffset\":\"1h-ago\",\"aggregator\":\"sum\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -48,7 +62,7 @@ public class TestMetric {
         + "\"timeOffset\":\"1h-ago\",\"aggregator\":\"sum\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
@@ -57,7 +71,7 @@ public class TestMetric {
         + "\"timeOffset\":\"1h-ago\",\"aggregator\":\"sum\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
@@ -66,7 +80,7 @@ public class TestMetric {
         + "\"timeOffset\":\"1h-ago\",\"aggregator\":\"sum\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
   
   @Test
@@ -75,7 +89,7 @@ public class TestMetric {
         + "\"timeOffset\":\"1h-ago\",\"aggregator\":\"sum\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
     Metric expectedMetric = Metric.newBuilder().setMetric("YAMAS.cpu.idle")
         .setId("e1").setFilter("f2").setTimeOffset("1h-ago")
         .setAggregator("sum")
@@ -113,7 +127,7 @@ public class TestMetric {
     String json = "{\"metric\":\"YAMAS.cpu.idle\",\"id\":\"1\",\"filter\":\"2\","
         + "\"timeOffset\":\"what?\"}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
@@ -121,7 +135,7 @@ public class TestMetric {
     String json = "{\"metric\":\"YAMAS.cpu.idle\",\"id\":\"1\",\"filter\":\"2\","
         + "\"fillPolicy\":{\"policy\":\"zero\",\"value\":42}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
-    metric.validate();
+    metric.validate(TSDB);
   }
 
   @Test

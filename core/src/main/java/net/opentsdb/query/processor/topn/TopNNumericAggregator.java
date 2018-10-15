@@ -20,10 +20,10 @@ import java.util.Optional;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
@@ -54,7 +54,15 @@ public class TopNNumericAggregator {
                         final TimeSeries source) {
     this.node = (TopN) node;
     this.series = source;
-    aggregator = Aggregators.get(((TopNConfig) node.config()).getAggregator());
+    NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+            ((TopNConfig) node.config()).getAggregator());
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No aggregator found for type: " 
+          + ((TopNConfig) node.config()).getAggregator());
+    }
+    aggregator = agg_factory.newAggregator(
+        ((TopNConfig) node.config()).getInfectiousNan());
   }
   
   /** @return Perform the aggregation. If no data is present, return null. */

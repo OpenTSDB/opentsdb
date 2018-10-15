@@ -14,8 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -26,21 +28,28 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class TestFilter {
-
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = mock(MockTSDB.class);
+  }
+  
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenIdIsNull() throws Exception {
     String json = "{\"id\":null}";
     Filter filter = JSON.parseToObject(json, Filter.class);
-    filter.validate();
+    filter.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validationBadId() throws Exception {
     String json = "{\"id\":\"bad.Id\",\"tags\":[]}";
     Filter filter = JSON.parseToObject(json, Filter.class);
-    filter.validate();
+    filter.validate(TSDB);
   }
   
   @Test
@@ -57,7 +66,7 @@ public class TestFilter {
         .setTags(Arrays.asList(tag)).setExplicitTags(true).build();
 
     Filter filter = JSON.parseToObject(json, Filter.class);
-    filter.validate();
+    filter.validate(TSDB);
     assertEquals(expectedFilter, filter);
   }
 
@@ -90,7 +99,7 @@ public class TestFilter {
         + "\"aggregation\":{\"tags\":[\"appid\"],\"aggregator\":\"sum\"}}";
 
     Filter filter = JSON.parseToObject(json, Filter.class);
-    filter.validate();
+    filter.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -99,7 +108,7 @@ public class TestFilter {
         + "\"filter\":\"*\",\"type\":\"iwildcard\",\"group_by\":false}],"
         + "\"aggregator\":\"what\"}";
     Filter filter = JSON.parseToObject(json, Filter.class);
-    filter.validate();
+    filter.validate(TSDB);
   }
 
   @Test

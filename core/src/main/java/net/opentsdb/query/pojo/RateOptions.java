@@ -35,6 +35,7 @@ import com.google.common.hash.HashCode;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.processor.rate.RateFactory;
@@ -206,7 +207,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   /** Validates the config
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (Strings.isNullOrEmpty(interval)) {
       throw new IllegalArgumentException("Interval cannot be null or empty.");
     }

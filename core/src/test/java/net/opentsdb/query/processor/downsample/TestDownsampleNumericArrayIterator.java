@@ -25,8 +25,11 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SecondTimeStamp;
@@ -38,6 +41,7 @@ import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -45,7 +49,8 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
 public class TestDownsampleNumericArrayIterator {
-
+  public static MockTSDB TSDB;
+  
   private NumericInterpolatorConfig numeric_config;
   private TimeSeries source;
   private DownsampleConfig config;
@@ -55,6 +60,13 @@ public class TestDownsampleNumericArrayIterator {
   private TimeSpecification time_spec;
   private TimeStamp start;
   
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
+  
   @Before
   public void before() throws Exception {
     node = mock(QueryNode.class);
@@ -62,6 +74,9 @@ public class TestDownsampleNumericArrayIterator {
     downstream = mock(QueryResult.class);
     time_spec = mock(TimeSpecification.class);
     start = mock(TimeStamp.class);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(TSDB);
+    when(node.pipelineContext()).thenReturn(context);
     
     when(downstream.timeSpecification()).thenReturn(time_spec);
     when(result.downstreamResult()).thenReturn(downstream);

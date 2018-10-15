@@ -18,19 +18,28 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
 
 public class TestRateOptions {
-
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = mock(MockTSDB.class);
+  }
+  
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenIntervalIsInvalid() throws Exception {
     RateOptions.newBuilder()
       .setInterval("")
     .build()
-    .validate();
+    .validate(TSDB);
   }
   
   @Test

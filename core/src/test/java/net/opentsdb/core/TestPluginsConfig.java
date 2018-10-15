@@ -218,7 +218,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -264,7 +264,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test
@@ -310,7 +310,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -356,7 +356,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -402,7 +402,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -449,7 +449,7 @@ public class TestPluginsConfig {
     
     config.setConfigs(configs);
     
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -494,7 +494,7 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.validate();
+    config.validate(tsdb);
   }
   
   @Test

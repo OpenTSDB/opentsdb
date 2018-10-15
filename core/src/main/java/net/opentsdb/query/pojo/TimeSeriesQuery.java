@@ -222,12 +222,12 @@ public class TimeSeriesQuery extends Validatable
   /** Validates the query
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (time == null) {
       throw new IllegalArgumentException("missing time");
     }
 
-    validatePOJO(time, "time");
+    validatePOJO(tsdb, time, "time");
 
     if (metrics == null || metrics.isEmpty()) {
       throw new IllegalArgumentException("missing or empty metrics");
@@ -264,14 +264,14 @@ public class TimeSeriesQuery extends Validatable
       }
     }
 
-    validateCollection(metrics, "metric");
+    validateCollection(tsdb, metrics, "metric");
 
     if (filters != null) {
-      validateCollection(filters, "filter");
+      validateCollection(tsdb, filters, "filter");
     }
 
     if (expressions != null) {
-      validateCollection(expressions, "expression");
+      validateCollection(tsdb, expressions, "expression");
     }
 
     validateFilters();
@@ -593,7 +593,7 @@ public class TimeSeriesQuery extends Validatable
    * @return A non-null builder if successful.
    */
   public SemanticQuery.Builder convert(final TSDB tsdb) {
-    validate();
+    validate(tsdb);
     
     final SemanticQuery.Builder builder = SemanticQuery.newBuilder()
         .setStart(time.getStart())

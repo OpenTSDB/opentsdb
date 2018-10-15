@@ -19,16 +19,28 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTSQuery {
 
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
+  
   @Test
   public void convertQuery() throws Exception {
     TSQuery ts_query = new TSQuery();
@@ -67,10 +79,10 @@ public class TestTSQuery {
         .build()));
     sub2.setRate(false);
     ts_query.setQueries(Lists.newArrayList(sub, sub2));
-    ts_query.validateAndSetQuery();
+    ts_query.validateAndSetQuery(TSDB);
     
-    TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
-    query.validate();
+    TimeSeriesQuery query = TSQuery.convertQuery(TSDB, ts_query);
+    query.validate(TSDB);
     assertEquals("1h-ago", query.getTime().getStart());
     assertEquals("5m-ago", query.getTime().getEnd());
     assertFalse(query.getTime().isRate());
@@ -143,10 +155,10 @@ public class TestTSQuery {
         .build()));
     sub2.setRate(false);
     ts_query.setQueries(Lists.newArrayList(sub, sub2));
-    ts_query.validateAndSetQuery();
+    ts_query.validateAndSetQuery(TSDB);
     
-    TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
-    query.validate();
+    TimeSeriesQuery query = TSQuery.convertQuery(TSDB, ts_query);
+    query.validate(TSDB);
     assertEquals("1h-ago", query.getTime().getStart());
     assertEquals("5m-ago", query.getTime().getEnd());
     assertFalse(query.getTime().isRate());

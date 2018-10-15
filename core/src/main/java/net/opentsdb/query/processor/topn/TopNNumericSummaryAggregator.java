@@ -20,11 +20,11 @@ import java.util.Optional;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -68,9 +68,23 @@ public class TopNNumericSummaryAggregator {
     this.node = (TopN) node;
     this.series = source;
     if (((TopNConfig) node.config()).getAggregator().toLowerCase().equals("count")) {
-      aggregator = Aggregators.get("sum");
+      NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+          .getRegistry().getPlugin(NumericAggregatorFactory.class, "sum");
+      if (agg_factory == null) {
+        throw new IllegalArgumentException("No aggregator found for type: " + "sum");
+      }
+      aggregator = agg_factory.newAggregator(
+          ((TopNConfig) node.config()).getInfectiousNan());
     } else {
-      aggregator = Aggregators.get(((TopNConfig) node.config()).getAggregator());
+      NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+          .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+              ((TopNConfig) node.config()).getAggregator());
+      if (agg_factory == null) {
+        throw new IllegalArgumentException("No aggregator found for type: " 
+            + ((TopNConfig) node.config()).getAggregator());
+      }
+      aggregator = agg_factory.newAggregator(
+          ((TopNConfig) node.config()).getInfectiousNan());
     }
     
     summary = result.rollupConfig().getIdForAggregator(
@@ -94,8 +108,8 @@ public class TopNNumericSummaryAggregator {
     }
     final Iterator<TimeSeriesValue<?>> iterator = optional.get();
     
-    long[] long_values = aggregator == Aggregators.AVG ? null : new long[16];
-    double[] double_values = aggregator == Aggregators.AVG ? new double[16] : null;
+    long[] long_values = sum_id >= 0 ? null : new long[16];
+    double[] double_values = sum_id >= 0 ? new double[16] : null;
     double[] counts = null;
     int idx = 0;
     int count_idx = 0;
@@ -109,7 +123,7 @@ public class TopNNumericSummaryAggregator {
       }
       
       NumericType v = value.value().value(summary);
-      if (aggregator == Aggregators.AVG && (v == null || count_idx > 0)) {
+      if (sum_id >= 0 && (v == null || count_idx > 0)) {
         final NumericType sum = value.value().value(sum_id);
         if (sum == null) {
           continue;
@@ -185,13 +199,12 @@ public class TopNNumericSummaryAggregator {
     final MutableNumericValue dp = new MutableNumericValue();
     if (count_idx > 0) {
       final MutableNumericValue sums = new MutableNumericValue();
-      Aggregators.SUM.run(double_values, 0, idx, 
+      aggregator.run(double_values, 0, idx, 
           ((TopNConfig) node.config()).getInfectiousNan(), sums);
       final MutableNumericValue count_sum = new MutableNumericValue();
-      Aggregators.SUM.run(counts, 0, count_idx, 
+      aggregator.run(counts, 0, count_idx, 
           ((TopNConfig) node.config()).getInfectiousNan(), count_sum);
       dp.resetValue(sums.toDouble() / count_sum.toDouble());
-      System.out.println("AVG: " + sums.toDouble() + "  "  + count_sum.toDouble());
     } else {
       if (long_values != null) {
         aggregator.run(long_values, 0, idx, dp);

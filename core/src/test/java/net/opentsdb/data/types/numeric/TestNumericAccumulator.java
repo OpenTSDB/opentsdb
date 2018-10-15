@@ -22,6 +22,8 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.exceptions.IllegalDataException;
 
 public class TestNumericAccumulator {
@@ -38,13 +40,14 @@ public class TestNumericAccumulator {
   
   @Test
   public void addAndRunLongs() throws Exception {
+    NumericAggregator aggregator = new SumFactory().newAggregator(false);
     NumericAccumulator acc = new NumericAccumulator();
     assertEquals(2, acc.long_values.length);
     assertNull(acc.double_values);
     assertTrue(acc.longs);
     assertEquals(0, acc.valueIndex());
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -54,7 +57,7 @@ public class TestNumericAccumulator {
     assertTrue(acc.longs);
     assertEquals(1, acc.valueIndex());
     assertEquals(42, acc.long_values[0]);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(42, acc.dp().value().longValue());
     
     acc.add(24);
@@ -64,7 +67,7 @@ public class TestNumericAccumulator {
     assertEquals(2, acc.valueIndex());
     assertEquals(42, acc.long_values[0]);
     assertEquals(24, acc.long_values[1]);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(66, acc.dp().value().longValue());
     
     // now it doubles
@@ -76,7 +79,7 @@ public class TestNumericAccumulator {
     assertEquals(42, acc.long_values[0]);
     assertEquals(24, acc.long_values[1]);
     assertEquals(1, acc.long_values[2]);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(67, acc.dp().value().longValue());
     
     acc.reset();
@@ -89,7 +92,7 @@ public class TestNumericAccumulator {
     assertEquals(24, acc.long_values[1]);
     assertEquals(1, acc.long_values[2]);
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -104,19 +107,20 @@ public class TestNumericAccumulator {
     assertEquals(0, acc.long_values[0]);
     assertEquals(1, acc.long_values[1]);
     assertEquals(2, acc.long_values[2]);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(524800, acc.dp().value().longValue());
   }
   
   @Test
   public void addAndRunDouble() throws Exception {
+    NumericAggregator aggregator = new SumFactory().newAggregator(false);
     NumericAccumulator acc = new NumericAccumulator();
     assertEquals(2, acc.long_values.length);
     assertNull(acc.double_values);
     assertTrue(acc.longs);
     assertEquals(0, acc.valueIndex());
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -126,7 +130,7 @@ public class TestNumericAccumulator {
     assertFalse(acc.longs);
     assertEquals(1, acc.valueIndex());
     assertEquals(42.5, acc.double_values[0], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(42.5, acc.dp().value().doubleValue(), 0.001);
     
     acc.add(24.5);
@@ -136,7 +140,7 @@ public class TestNumericAccumulator {
     assertEquals(2, acc.valueIndex());
     assertEquals(42.5, acc.double_values[0], 0.001);
     assertEquals(24.5, acc.double_values[1], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(67.0, acc.dp().value().doubleValue(), 0.001);
     
     // now it doubles
@@ -148,7 +152,7 @@ public class TestNumericAccumulator {
     assertEquals(42.5, acc.double_values[0], 0.001);
     assertEquals(24.5, acc.double_values[1], 0.001);
     assertEquals(1.5, acc.double_values[2], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(68.5, acc.dp().value().doubleValue(), 0.001);
     
     acc.reset();
@@ -161,7 +165,7 @@ public class TestNumericAccumulator {
     assertEquals(24.5, acc.double_values[1], 0.001);
     assertEquals(1.5, acc.double_values[2], 0.001);
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -176,19 +180,20 @@ public class TestNumericAccumulator {
     assertEquals(0, acc.double_values[0], 0.001);
     assertEquals(1, acc.double_values[1], 0.001);
     assertEquals(2, acc.double_values[2], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(524800, acc.dp().value().doubleValue(), 0.001);
   }
   
   @Test
   public void addAndRunDoubleWithNaNs() throws Exception {
+    NumericAggregator aggregator = new SumFactory().newAggregator(false);
     NumericAccumulator acc = new NumericAccumulator();
     assertEquals(2, acc.long_values.length);
     assertNull(acc.double_values);
     assertTrue(acc.longs);
     assertEquals(0, acc.valueIndex());
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -198,9 +203,9 @@ public class TestNumericAccumulator {
     assertFalse(acc.longs);
     assertEquals(1, acc.valueIndex());
     assertEquals(42.5, acc.double_values[0], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(42.5, acc.dp().value().doubleValue(), 0.001);
-    acc.run(Aggregators.SUM, true);
+    acc.run(aggregator, true);
     assertEquals(42.5, acc.dp().value().doubleValue(), 0.001);
     
     acc.add(Double.NaN);
@@ -210,9 +215,9 @@ public class TestNumericAccumulator {
     assertEquals(2, acc.valueIndex());
     assertEquals(42.5, acc.double_values[0], 0.001);
     assertTrue(Double.isNaN(acc.double_values[1]));
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(42.5, acc.dp().value().doubleValue(), 0.001);
-    acc.run(Aggregators.SUM, true);
+    acc.run(aggregator, true);
     assertTrue(Double.isNaN(acc.dp().value().doubleValue()));
     
     // now it doubles
@@ -224,9 +229,9 @@ public class TestNumericAccumulator {
     assertEquals(42.5, acc.double_values[0], 0.001);
     assertTrue(Double.isNaN(acc.double_values[1]));
     assertEquals(1.5, acc.double_values[2], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(44, acc.dp().value().doubleValue(), 0.001);
-    acc.run(Aggregators.SUM, true);
+    acc.run(aggregator, true);
     assertTrue(Double.isNaN(acc.dp().value().doubleValue()));
     
     acc.reset();
@@ -239,7 +244,7 @@ public class TestNumericAccumulator {
     assertTrue(Double.isNaN(acc.double_values[1]));
     assertEquals(1.5, acc.double_values[2], 0.001);
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -258,21 +263,22 @@ public class TestNumericAccumulator {
     assertTrue(Double.isNaN(acc.double_values[0]));
     assertEquals(1, acc.double_values[1], 0.001);
     assertEquals(2, acc.double_values[2], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(393216, acc.dp().value().doubleValue(), 0.001);
-    acc.run(Aggregators.SUM, true);
+    acc.run(aggregator, true);
     assertTrue(Double.isNaN(acc.dp().value().doubleValue()));
   }
   
   @Test
   public void addAndRunLongsThenDoubles() throws Exception {
+    NumericAggregator aggregator = new SumFactory().newAggregator(false);
     NumericAccumulator acc = new NumericAccumulator();
     assertEquals(2, acc.long_values.length);
     assertNull(acc.double_values);
     assertTrue(acc.longs);
     assertEquals(0, acc.valueIndex());
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -282,7 +288,7 @@ public class TestNumericAccumulator {
     assertTrue(acc.longs);
     assertEquals(1, acc.valueIndex());
     assertEquals(42, acc.long_values[0]);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(42, acc.dp().value().longValue());
     
     acc.add(24);
@@ -292,7 +298,7 @@ public class TestNumericAccumulator {
     assertEquals(2, acc.valueIndex());
     assertEquals(42, acc.long_values[0]);
     assertEquals(24, acc.long_values[1]);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(66, acc.dp().value().longValue());
     
     // now switch to doubles
@@ -304,7 +310,7 @@ public class TestNumericAccumulator {
     assertEquals(42, acc.double_values[0], 0.001);
     assertEquals(24, acc.double_values[1], 0.001);
     assertEquals(42.5, acc.double_values[2], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(108.5, acc.dp().value().doubleValue(), 0.001);
     
     acc.add(24.5);
@@ -316,7 +322,7 @@ public class TestNumericAccumulator {
     assertEquals(24, acc.double_values[1], 0.001);
     assertEquals(42.5, acc.double_values[2], 0.001);
     assertEquals(24.5, acc.double_values[3], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(133, acc.dp().value().doubleValue(), 0.001);
     
     // another long at the inflection point
@@ -330,7 +336,7 @@ public class TestNumericAccumulator {
     assertEquals(42.5, acc.double_values[2], 0.001);
     assertEquals(24.5, acc.double_values[3], 0.001);
     assertEquals(1, acc.double_values[4], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(134, acc.dp().value().doubleValue(), 0.001);
     
     // reset from this state
@@ -345,7 +351,7 @@ public class TestNumericAccumulator {
     assertEquals(24.5, acc.double_values[3], 0.001);
     assertEquals(1, acc.double_values[4], 0.001);
     try {
-      acc.run(Aggregators.SUM, false);
+      acc.run(aggregator, false);
       fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
@@ -360,7 +366,7 @@ public class TestNumericAccumulator {
     assertEquals(42.5, acc.double_values[2], 0.001);
     assertEquals(24.5, acc.double_values[3], 0.001);
     assertEquals(1, acc.double_values[4], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(1, acc.dp().value().longValue());
     
     acc.add(2.5);
@@ -375,7 +381,7 @@ public class TestNumericAccumulator {
     assertEquals(42.5, acc.double_values[2], 0.001);
     assertEquals(24.5, acc.double_values[3], 0.001);
     assertEquals(1, acc.double_values[4], 0.001);
-    acc.run(Aggregators.SUM, false);
+    acc.run(aggregator, false);
     assertEquals(3.5, acc.dp().value().doubleValue(), 0.001);
   }
 }

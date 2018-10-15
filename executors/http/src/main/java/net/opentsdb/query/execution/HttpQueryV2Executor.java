@@ -56,6 +56,7 @@ import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
@@ -673,12 +674,14 @@ public class HttpQueryV2Executor {
    * Converts the time series query into a {@link TSQuery}. Note that since 
    * TSQueries only dealt with metrics and basic aggregation, this method will
    * drop expressions and outputs. Only filters and metrics are passed through.
+   * @param tsdb A non-null TSDB to pull from.
    * @param query The source query.
    * @return A validated time series query.
    * @throws IllegalArgumentException if one or more of the query parameters
    * could not compile properly into a {@link TSQuery}.
    */
-  public static TSQuery convertQuery(final TimeSeriesQuery query) {
+  public static TSQuery convertQuery(final TSDB tsdb, 
+                                     final TimeSeriesQuery query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -763,7 +766,7 @@ public class HttpQueryV2Executor {
     }
   
     ts_query.setQueries(subs);
-    ts_query.validateAndSetQuery();
+    ts_query.validateAndSetQuery(tsdb);
     return ts_query;
   }
   

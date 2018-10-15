@@ -20,6 +20,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +42,8 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
@@ -74,6 +78,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
   @Before
   public void before() throws Exception {
     tsdb = new MockTSDB();
+    when(tsdb.registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenReturn(new SumFactory());
     context = mock(QueryPipelineContext.class);
     schema = schema();
     node = mock(QueryNode.class);

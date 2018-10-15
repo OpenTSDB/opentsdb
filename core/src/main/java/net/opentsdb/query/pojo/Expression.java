@@ -16,7 +16,6 @@ package net.opentsdb.query.pojo;
 
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -40,6 +39,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.pojo.Join.SetOperator;
 
 /**
@@ -143,7 +143,7 @@ public class Expression extends Validatable implements Comparable<Expression> {
   /** Validates the expression
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("missing or empty id");
     }

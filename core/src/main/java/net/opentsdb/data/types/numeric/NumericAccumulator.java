@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+
 /**
  * A class used to accumulate a series of numbers to pass to a
  * {@link NumericAggregator}. Arrays are maintained for longs and doubles.

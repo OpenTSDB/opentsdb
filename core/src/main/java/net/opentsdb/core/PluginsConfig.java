@@ -110,6 +110,7 @@ public class PluginsConfig extends Validatable {
     DEFAULT_TYPES.add("net.opentsdb.query.filter.QueryFilterFactory");
     DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
     DEFAULT_TYPES.add("net.opentsdb.query.interpolation.QueryInterpolatorFactory");
+    DEFAULT_TYPES.add("net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory");
     DEFAULT_TYPES.add("net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory");
     DEFAULT_TYPES.add("net.opentsdb.storage.DatumIdValidator");
     DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
@@ -721,7 +722,7 @@ public class PluginsConfig extends Validatable {
   }
   
   @Override
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (configs == null || configs.isEmpty()) {
       // no worries mate.
       return;

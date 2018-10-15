@@ -218,7 +218,7 @@ final public class QueryRpc {
         ts_query = JSON.parseToObject(request.getInputStream(), TSQuery.class);
       }
       // throws an exception if invalid.
-      ts_query.validateAndSetQuery();
+      ts_query.validateAndSetQuery(tsdb);
       request.setAttribute(V2_QUERY_KEY, ts_query);
     } catch (Exception e) {
       throw new QueryExecutionException("Invalid query", 400, e);
@@ -244,12 +244,12 @@ final public class QueryRpc {
       }
     }
     
-    final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
+    final TimeSeriesQuery query = TSQuery.convertQuery(tsdb, ts_query);
     if (query_span != null) {
       query_span.setTag("queryId", 
           Bytes.byteArrayToString(query.buildHashCode().asBytes()));
     }
-    query.validate();
+    query.validate(tsdb);
     if (convert_span != null) {
       convert_span.setSuccessTags()
                   .finish();

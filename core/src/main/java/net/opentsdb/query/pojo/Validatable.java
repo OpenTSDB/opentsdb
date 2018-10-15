@@ -17,27 +17,32 @@ package net.opentsdb.query.pojo;
 import java.util.Collection;
 import java.util.Iterator;
 
+import net.opentsdb.core.TSDB;
+
 /**
  * An interface for the pojos to implement to make sure all the bits of the 
  * expression queries are there
  * @since 2.3
  */
 public abstract class Validatable {
-  abstract public void validate();
+  
+  abstract public void validate(final TSDB tsdb);
 
   /**
    * Iterate through a field that is a collection of POJOs and validate each of
    * them. Inherit member POJO's error message.
+   * @param TSDB The non-null TSDB for validation.
    * @param collection the validatable POJO collection
    * @param name name of the field
    */
-  <T extends Validatable> void validateCollection(final Collection<T> collection,
+  <T extends Validatable> void validateCollection(final TSDB tsdb,
+                                                  final Collection<T> collection,
                                                   final String name) {
     Iterator<T> iterator = collection.iterator();
     int i = 0;
     while (iterator.hasNext()) {
       try {
-        iterator.next().validate();
+        iterator.next().validate(tsdb);
       } catch (final IllegalArgumentException e) {
         throw new IllegalArgumentException("Invalid " + name + 
             " at index " + i, e);
@@ -48,12 +53,15 @@ public abstract class Validatable {
 
   /**
    * Validate a single POJO validate
+   * @param TSDB The non-null TSDB for validation.
    * @param pojo The POJO object to validate
    * @param name name of the field
    */
-  <T extends Validatable> void validatePOJO(final T pojo, final String name) {
+  <T extends Validatable> void validatePOJO(final TSDB tsdb, 
+                                            final T pojo, 
+                                            final String name) {
     try {
-      pojo.validate();
+      pojo.validate(tsdb);
     } catch (final IllegalArgumentException e) {
       throw new IllegalArgumentException("Invalid " + name, e);
     }

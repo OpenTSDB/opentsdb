@@ -15,7 +15,6 @@
 package net.opentsdb.query.pojo;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -32,10 +31,11 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.SliceConfig;
 import net.opentsdb.utils.DateTime;
 
@@ -278,7 +278,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
   /** Validates the timespan
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (start == null || start.isEmpty()) {
       throw new IllegalArgumentException("missing or empty start");
     }
@@ -289,21 +289,21 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     }
     
     if (downsampler != null) {
-      downsampler.validate();
+      downsampler.validate(tsdb);
     }
     
     if (aggregator == null || aggregator.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty aggregator");
     }
     
-    try {
-      Aggregators.get(aggregator.toLowerCase());
-    } catch (final NoSuchElementException e) {
-      throw new IllegalArgumentException("Invalid aggregator");
+    if (!aggregator.toLowerCase().equals("none") && 
+        tsdb.getRegistry().getPlugin(NumericAggregatorFactory.class, 
+        aggregator) == null) {
+      throw new IllegalArgumentException("Invalid aggregator: " + aggregator);
     }
     
     if (rate_options != null) {
-      rate_options.validate();
+      rate_options.validate(tsdb);
     }
     
     if (!Strings.isNullOrEmpty(slice_config)) {

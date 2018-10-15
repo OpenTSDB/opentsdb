@@ -21,14 +21,15 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
 /**
@@ -39,6 +40,9 @@ import net.opentsdb.query.QueryResult;
  */
 public class SummarizerNumericIterator implements QueryIterator {
 
+  /** The node we belong to. */
+  private final QueryNode node;
+  
   /** The results we came from. */
   private final QueryResult result;
   
@@ -63,11 +67,14 @@ public class SummarizerNumericIterator implements QueryIterator {
   
   /**
    * The default ctor.
+   * @param node The non-null query node we belong to.
    * @param result The non-null results.
    * @param source The non-null source.
    */
-  SummarizerNumericIterator(final QueryResult result, 
+  SummarizerNumericIterator(final QueryNode node,
+                            final QueryResult result, 
                             final TimeSeries source) {
+    this.node = node;
     this.result = result;
     
     // pick one and only one
@@ -141,7 +148,14 @@ public class SummarizerNumericIterator implements QueryIterator {
     final MutableNumericValue number = new MutableNumericValue();
     for (final String summary : 
         ((SummarizerConfig) result.source().config()).getSummaries()) {
-      final NumericAggregator agg = Aggregators.get(summary);
+      NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+          .getRegistry().getPlugin(NumericAggregatorFactory.class, summary);
+      if (agg_factory == null) {
+        throw new IllegalArgumentException("No aggregator found for type: " 
+            + summary);
+      }
+      NumericAggregator agg = agg_factory.newAggregator(
+          ((SummarizerConfig) node.config()).getInfectiousNan());
       if (long_values != null) {
         agg.run(long_values, offset, idx, number);
       } else {

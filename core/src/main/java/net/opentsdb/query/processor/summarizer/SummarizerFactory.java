@@ -100,7 +100,8 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new SummarizerNumericIterator(result, sources.iterator().next());
+      return new SummarizerNumericIterator(node, result, 
+          sources.iterator().next());
     }
 
     @Override
@@ -108,7 +109,8 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new SummarizerNumericIterator(result, sources.values().iterator().next());
+      return new SummarizerNumericIterator(node, result, 
+          sources.values().iterator().next());
     }
 
     @Override

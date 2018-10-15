@@ -148,7 +148,7 @@ public class ExpressionRpc {
       ts_query = JSON.parseToObject(request.getInputStream(),
           net.opentsdb.query.pojo.TimeSeriesQuery.class);
       // throws an exception if invalid.
-      ts_query.validate();
+      ts_query.validate(tsdb);
     } catch (Exception e) {
       throw new QueryExecutionException("Invalid query", 400, e);
     }

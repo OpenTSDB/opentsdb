@@ -30,6 +30,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 
 import java.util.Collections;
 import java.util.List;
@@ -102,7 +103,7 @@ public class Filter extends Validatable implements Comparable<Filter> {
   /** Validates the filter set
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty id");
     }

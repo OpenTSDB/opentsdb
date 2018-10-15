@@ -47,7 +47,9 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -152,7 +154,10 @@ public class TestGroupByFactory {
       .thenReturn(new ArraySumFactory());
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
     interp_factory.initialize(tsdb).join();
-    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString())).thenReturn(interp_factory);
+    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
+      .thenReturn(interp_factory);
+    when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenReturn(new SumFactory());
     final GroupByFactory factory = new GroupByFactory();
     
     Iterator<TimeSeriesValue<?>> iterator = factory.newTypedIterator(

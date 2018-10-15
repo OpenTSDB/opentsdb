@@ -19,9 +19,9 @@ import java.util.TimeZone;
 
 import com.google.common.base.MoreObjects;
 
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.data.types.numeric.Aggregators;
-import net.opentsdb.data.types.numeric.NumericAggregator;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -77,38 +77,38 @@ public final class DownsamplingSpecification {
     //hist_agg = NO_HIST_AGG;
   }
 
-  /**
-   * Non-stringified, piecewise c-tor.
-   * @param interval The downsampling interval, in milliseconds.
-   * @param function The downsampling function.
-   * @param fill_policy The policy specifying how to deal with missing data.
-   * @throws IllegalArgumentException if any argument is invalid.
-   * @deprecated since 2.3
-   */
-  public DownsamplingSpecification(final long interval,
-      final NumericAggregator function, final FillPolicy fill_policy) {
-    if (null == function) {
-      throw new IllegalArgumentException("downsampling function cannot be null");
-    }
-    if (interval <= 0L) {
-      throw new IllegalArgumentException("interval not > 0: " + interval);
-    }
-    if (null == fill_policy) {
-      throw new IllegalArgumentException("fill policy cannot be null");
-    }
-    if (function == Aggregators.NONE) {
-      throw new IllegalArgumentException("cannot use the NONE "
-          + "aggregator for downsampling");
-    }
-
-    this.interval = interval;
-    this.function = function;
-    this.fill_policy = fill_policy;
-    string_interval = null;
-    use_calendar = false;
-    timezone = DateTime.timezones.get(DateTime.UTC_ID);
-    //hist_agg = NO_HIST_AGG;
-  }
+//  /**
+//   * Non-stringified, piecewise c-tor.
+//   * @param interval The downsampling interval, in milliseconds.
+//   * @param function The downsampling function.
+//   * @param fill_policy The policy specifying how to deal with missing data.
+//   * @throws IllegalArgumentException if any argument is invalid.
+//   * @deprecated since 2.3
+//   */
+//  public DownsamplingSpecification(final long interval,
+//      final NumericAggregator function, final FillPolicy fill_policy) {
+//    if (null == function) {
+//      throw new IllegalArgumentException("downsampling function cannot be null");
+//    }
+//    if (interval <= 0L) {
+//      throw new IllegalArgumentException("interval not > 0: " + interval);
+//    }
+//    if (null == fill_policy) {
+//      throw new IllegalArgumentException("fill policy cannot be null");
+//    }
+//    if (function == Aggregators.NONE) {
+//      throw new IllegalArgumentException("cannot use the NONE "
+//          + "aggregator for downsampling");
+//    }
+//
+//    this.interval = interval;
+//    this.function = function;
+//    this.fill_policy = fill_policy;
+//    string_interval = null;
+//    use_calendar = false;
+//    timezone = DateTime.timezones.get(DateTime.UTC_ID);
+//    //hist_agg = NO_HIST_AGG;
+//  }
 
   /**
    * C-tor for string representations.
@@ -116,10 +116,11 @@ public final class DownsamplingSpecification {
    * {@code interval-function[-fill_policy]}.
    * This ctor supports the "all" flag to downsample to a single value as well
    * as units suffixed with 'c' to use the calendar for downsample alignment.
+   * @param tsdb The non-null TSDB used for validation
    * @param specification String representation of a downsample specifier.
    * @throws IllegalArgumentException if the specification is null or invalid.
    */
-  public DownsamplingSpecification(final String specification) {
+  public DownsamplingSpecification(final TSDB tsdb, final String specification) {
     if (null == specification) {
       throw new IllegalArgumentException("Downsampling specifier cannot be " +
         "null");
@@ -163,16 +164,17 @@ public final class DownsamplingSpecification {
 //    }
     
     // FUNCTION.
-    try {
-      function = Aggregators.get(parts[1]);
-    } catch (final NoSuchElementException e) {
-      throw new IllegalArgumentException("No such downsampling function: " +
-        parts[1]);
-    }
-    if (function == Aggregators.NONE) {
+    if (parts[1].toLowerCase().equals("none")) {
       throw new IllegalArgumentException("cannot use the NONE "
           + "aggregator for downsampling");
     }
+    NumericAggregatorFactory agg_factory = tsdb.getRegistry()
+        .getPlugin(NumericAggregatorFactory.class, parts[1]);
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No such downsampling function: " +
+          parts[1]);
+    }
+    function = agg_factory.newAggregator(false);
 
     // FILL POLICY.
     if (3 == parts.length) {

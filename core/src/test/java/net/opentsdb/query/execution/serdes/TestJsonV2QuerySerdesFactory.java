@@ -19,6 +19,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,7 +29,10 @@ import java.io.OutputStream;
 
 import org.junit.Test;
 
+import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Metric;
@@ -48,6 +53,13 @@ public class TestJsonV2QuerySerdesFactory {
   @Test
   public void newInstance() throws Exception {
     QueryContext context = mock(QueryContext.class);
+    
+    TSDB tsdb = mock(TSDB.class);
+    Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    when(tsdb.getRegistry().getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenReturn(new SumFactory());
+    
     TimeSeriesQuery query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1486045800")
@@ -57,7 +69,7 @@ public class TestJsonV2QuerySerdesFactory {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert(mock(TSDB.class)).build();
+        .convert(tsdb).build();
     when(context.query()).thenReturn(query);
     
     JsonV2QuerySerdesFactory factory = new JsonV2QuerySerdesFactory();

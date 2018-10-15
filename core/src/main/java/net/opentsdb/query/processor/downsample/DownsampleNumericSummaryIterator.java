@@ -28,12 +28,12 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
@@ -101,7 +101,15 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     }
     this.result = (DownsampleResult) result;
     this.source = source;
-    aggregator = Aggregators.get(((DownsampleConfig) node.config()).getAggregator());
+    NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+            ((DownsampleConfig) node.config()).getAggregator());
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No aggregator found for type: " 
+          + ((DownsampleConfig) node.config()).getAggregator());
+    }
+    aggregator = agg_factory.newAggregator(
+        ((DownsampleConfig) node.config()).getInfectiousNan());
     config = (DownsampleConfig) node.config();
     
     QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericSummaryType.TYPE);
@@ -119,7 +127,11 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
         .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM);
+        .setComponentAggregator(
+            node.pipelineContext().tsdb()
+            .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+                "sum").newAggregator(
+                    ((DownsampleConfig) node.config()).getInfectiousNan()));
       } else {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
             DefaultRollupConfig.queryToRollupAggregation(config.getAggregator())));
