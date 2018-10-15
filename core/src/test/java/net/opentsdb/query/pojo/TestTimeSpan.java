@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
@@ -27,14 +29,26 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.junit.BeforeClass;
+
 public class TestTimeSpan {
+  
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
+  
   @Test(expected = IllegalArgumentException.class)
   public void startIsNull() {
     String json = "{\"start\":null,\"end\":\"2015/05/05\","
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\","
         + ",\"aggregator\":\"sum\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -43,7 +57,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\""
         + ",\"aggregator\":\"sum\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test 
@@ -52,7 +66,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\""
         + ",\"aggregator\":\"sum\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test
@@ -61,7 +75,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\""
         + ",\"aggregator\":\"sum\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -70,7 +84,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\","
         + "}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -79,7 +93,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\""
         + ",\"aggregator\":\"\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -88,7 +102,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\""
         + ",\"interpolation\":\"LERP\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -97,7 +111,7 @@ public class TestTimeSpan {
         + "\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\""
         + ",\"interpolation\":\"LERP\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -105,7 +119,7 @@ public class TestTimeSpan {
     String json = "{\"start\":\"1h-ago\",\"end\":\"2015/05/05\",\"timezone\":\"UTC\","
         + "\"downsampler\":\"xxx\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -115,7 +129,7 @@ public class TestTimeSpan {
         + "\"fillPolicy\":{\"policy\":\"nan\"}},\"aggregator\":\"sum\","
         + "\"sliceConfig\":\"1\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    timespan.validate();
+    timespan.validate(TSDB);
   }
   
   @Test
@@ -195,7 +209,7 @@ public class TestTimeSpan {
             .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
         .setRateOptions(RateOptions.newBuilder().setCounter(true))
         .build();
-    timespan.validate();
+    timespan.validate(TSDB);
     assertEquals(expected, timespan);
   }
 

@@ -21,10 +21,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -34,17 +37,26 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 
 public class TestSummarizerNumericIterator {
-
+  public static MockTSDB TSDB;
+  
   private QueryNode node;
   private QueryResult result;
   private SummarizerConfig config;
   private RollupConfig rollup_config;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -74,6 +86,9 @@ public class TestSummarizerNumericIterator {
     when(result.source()).thenReturn(node);
     when(result.rollupConfig()).thenReturn(rollup_config);
     when(node.config()).thenReturn(config);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    when(context.tsdb()).thenReturn(TSDB);
   }
   
   @Test
@@ -87,14 +102,14 @@ public class TestSummarizerNumericIterator {
         new MutableNumericValue(new SecondTimeStamp(60L), 24));
     
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     // empty
     series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")
         .build());
-    iterator = new SummarizerNumericIterator(result, series);
+    iterator = new SummarizerNumericIterator(node, result, series);
     assertFalse(iterator.hasNext());
   }
   
@@ -112,7 +127,7 @@ public class TestSummarizerNumericIterator {
     ((MockTimeSeries) series).addValue(
         new MutableNumericValue(new SecondTimeStamp(240L), 1));
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 
@@ -144,7 +159,7 @@ public class TestSummarizerNumericIterator {
     ((MockTimeSeries) series).addValue(
         new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 
@@ -176,7 +191,7 @@ public class TestSummarizerNumericIterator {
     ((MockTimeSeries) series).addValue(
         new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 
@@ -208,7 +223,7 @@ public class TestSummarizerNumericIterator {
     ((MockTimeSeries) series).addValue(
         new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 
@@ -218,7 +233,7 @@ public class TestSummarizerNumericIterator {
     NumericSummaryType summary = value.value();
     assertEquals(5, summary.summariesAvailable().size());
     assertEquals(43.7, summary.value(0).doubleValue(), 0.001);
-    assertEquals(4, summary.value(1).longValue());
+    assertEquals(2, summary.value(1).longValue());
     assertEquals(42.5, summary.value(2).doubleValue(), 0.001);
     assertEquals(1.2, summary.value(3).doubleValue(), 0.001);
     assertEquals(21.85, summary.value(5).doubleValue(), 0.001);
@@ -248,7 +263,7 @@ public class TestSummarizerNumericIterator {
     ((MockTimeSeries) series).addValue(
         new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 
@@ -276,7 +291,7 @@ public class TestSummarizerNumericIterator {
     ((NumericArrayTimeSeries) series).add(-8);
     ((NumericArrayTimeSeries) series).add(1);
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 
@@ -304,7 +319,7 @@ public class TestSummarizerNumericIterator {
     ((NumericArrayTimeSeries) series).add(-8.3);
     ((NumericArrayTimeSeries) series).add(1.2);
     SummarizerNumericIterator iterator = 
-        new SummarizerNumericIterator(result, series);
+        new SummarizerNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = 

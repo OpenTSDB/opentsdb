@@ -45,6 +45,8 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TagVFilter;
@@ -120,6 +122,14 @@ public class TestTSDBV2QueryContextBuilder {
         public QuerySinkFactory answer(InvocationOnMock invocation)
             throws Throwable {
           return SINK_FACTORY;
+        }
+      });
+    when(TSDB.registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenAnswer(new Answer<NumericAggregatorFactory>() {
+        @Override
+        public NumericAggregatorFactory answer(InvocationOnMock invocation)
+            throws Throwable {
+          return new SumFactory();
         }
       });
     

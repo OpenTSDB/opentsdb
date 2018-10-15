@@ -27,10 +27,10 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -53,7 +53,7 @@ public class TestNumericSummaryInterpolatorConfig {
           .build())
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
-      .setComponentAggregator(Aggregators.SUM)
+      .setComponentAggregator(new SumFactory().newAggregator(false))
       .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
@@ -67,7 +67,7 @@ public class TestNumericSummaryInterpolatorConfig {
     assertTrue(config.getExpectedSummaries().contains(0));
     assertTrue(config.getExpectedSummaries().contains(1));
     assertTrue(config.sync());
-    assertSame(Aggregators.SUM, config.componentAggregator());
+    assertSame(new SumFactory().newAggregator(false), config.componentAggregator());
     assertEquals("myId", config.getType());
     assertEquals(NumericSummaryType.TYPE, config.type());
     
@@ -80,7 +80,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .addExpectedSummary(0)
         .addExpectedSummary(1)
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
     assertEquals(FillPolicy.NOT_A_NUMBER, config.getDefaultFillPolicy());
@@ -93,7 +93,7 @@ public class TestNumericSummaryInterpolatorConfig {
     assertTrue(config.getExpectedSummaries().contains(0));
     assertTrue(config.getExpectedSummaries().contains(1));
     assertTrue(config.sync());
-    assertSame(Aggregators.SUM, config.componentAggregator());
+    assertSame(new SumFactory().newAggregator(false), config.componentAggregator());
     assertNull(config.getType());
     assertEquals(NumericSummaryType.TYPE, config.type());
     
@@ -157,7 +157,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .build())
     .setExpectedSummaries(Lists.newArrayList(0, 1, 2))
     .setSync(true)
-    .setComponentAggregator(Aggregators.SUM)
+    .setComponentAggregator(new SumFactory().newAggregator(false))
     .setDataType(NumericSummaryType.TYPE.toString())
     .build();
     
@@ -186,7 +186,7 @@ public class TestNumericSummaryInterpolatorConfig {
         .build())
     .setExpectedSummaries(Lists.newArrayList(0, 1, 2))
     .setSync(true)
-    .setComponentAggregator(Aggregators.SUM)
+    .setComponentAggregator(new SumFactory().newAggregator(false))
     .setDataType(NumericSummaryType.TYPE.toString())
     .build();
     
@@ -231,7 +231,7 @@ public class TestNumericSummaryInterpolatorConfig {
           .build())
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
-      .setComponentAggregator(Aggregators.SUM)
+      .setComponentAggregator(new SumFactory().newAggregator(false))
       .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
@@ -248,7 +248,7 @@ public class TestNumericSummaryInterpolatorConfig {
           .build())
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
-      .setComponentAggregator(Aggregators.SUM)
+      .setComponentAggregator(new SumFactory().newAggregator(false))
       .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
@@ -267,7 +267,7 @@ public class TestNumericSummaryInterpolatorConfig {
           .build())
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
-      .setComponentAggregator(Aggregators.SUM)
+      .setComponentAggregator(new SumFactory().newAggregator(false))
       .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
@@ -286,7 +286,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -305,7 +305,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -324,7 +324,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -343,7 +343,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -362,7 +362,7 @@ public class TestNumericSummaryInterpolatorConfig {
         //    .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -381,7 +381,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(1, 0)) // Diff order but ok!
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -400,7 +400,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 2)) // <-- DIFF
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -419,7 +419,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0)) // <-- DIFF
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -438,7 +438,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         //.setSync(true) 
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("myId")
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -457,7 +457,7 @@ public class TestNumericSummaryInterpolatorConfig {
             .build())
         .setExpectedSummaries(Lists.newArrayList(0, 1))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM)
+        .setComponentAggregator(new SumFactory().newAggregator(false))
         .setType("other") // <--DIFF
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -480,7 +480,7 @@ public class TestNumericSummaryInterpolatorConfig {
           .build())
       .setExpectedSummaries(Lists.newArrayList(0, 1))
       .setSync(true)
-      .setComponentAggregator(Aggregators.SUM)
+      .setComponentAggregator(new SumFactory().newAggregator(false))
       .setType("myId")
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();

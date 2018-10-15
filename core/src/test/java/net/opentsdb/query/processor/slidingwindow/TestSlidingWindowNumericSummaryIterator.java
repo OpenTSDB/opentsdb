@@ -21,10 +21,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -38,12 +41,21 @@ import net.opentsdb.query.SemanticQuery;
 
 public class TestSlidingWindowNumericSummaryIterator {
 
+  public static MockTSDB TSDB;
+  
   private SemanticQuery query;
   private QueryPipelineContext context;
   private QueryResult result;
   private SlidingWindow node;
   private SlidingWindowConfig config;
   private TimeSeriesStringId id;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -63,6 +75,7 @@ public class TestSlidingWindowNumericSummaryIterator {
     
     when(node.pipelineContext()).thenReturn(context);
     when(context.query()).thenReturn(query);
+    when(context.tsdb()).thenReturn(TSDB);
     
     when(query.startTime()).thenReturn(new SecondTimeStamp(60L * 5));
     when(node.config()).thenReturn(config);
@@ -903,44 +916,4 @@ public class TestSlidingWindowNumericSummaryIterator {
     assertFalse(iterator.hasNext());
   }
   
-  @Test
-  public void foo() throws Exception {
-    MockTimeSeries ts = new MockTimeSeries(id);
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 0))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 1))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 2))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 3))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 4))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    // start of query
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 5))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 6))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 7))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    ts.addValue(MutableNumericSummaryValue.newBuilder()
-        .setTimeStamp(new SecondTimeStamp(60L * 8))
-        .addValue(0, 2L).addValue(2, 1L).build());
-    
-    SlidingWindowNumericSummaryIterator iterator = 
-        new SlidingWindowNumericSummaryIterator(node, result, Lists.newArrayList(ts));
-    System.out.println(iterator.hasNext());
-    while(iterator.hasNext()) {
-      NumericSummaryType value = (NumericSummaryType) iterator.next();
-      System.out.println(value);
-    }
-  }
 }

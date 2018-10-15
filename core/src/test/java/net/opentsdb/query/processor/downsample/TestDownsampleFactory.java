@@ -53,6 +53,8 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -164,6 +166,8 @@ public class TestDownsampleFactory {
     qif.initialize(tsdb);
     when(tsdb.registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
       .thenReturn(qif);
+    when(tsdb.registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenReturn(new SumFactory());
     
     TimeSeriesDataSource downstream = mock(TimeSeriesDataSource.class);
     when(context.downstreamSources(any(QueryNode.class)))

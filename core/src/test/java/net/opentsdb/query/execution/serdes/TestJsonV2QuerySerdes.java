@@ -19,6 +19,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,6 +40,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -52,6 +55,8 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -64,6 +69,7 @@ import net.opentsdb.utils.UnitTestException;
 
 public class TestJsonV2QuerySerdes {
 
+  private TSDB tsdb;
   private QueryContext context;
   private QueryResult result;
   private TimeSeriesQuery query;
@@ -76,6 +82,12 @@ public class TestJsonV2QuerySerdes {
   
   @Before
   public void before() throws Exception {
+    tsdb = mock(TSDB.class);
+    Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    when(tsdb.getRegistry().getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenReturn(new SumFactory());
+    
     context = mock(QueryContext.class);
     result = mock(QueryResult.class);
     store = mock(ReadableTimeSeriesDataStore.class);
@@ -88,7 +100,7 @@ public class TestJsonV2QuerySerdes {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert(mock(TSDB.class)).build();
+        .convert(tsdb).build();
     when(context.query()).thenReturn(query);
     
     id1 = BaseTimeSeriesStringId.newBuilder()
@@ -191,7 +203,7 @@ public class TestJsonV2QuerySerdes {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert(mock(TSDB.class)).build();
+        .convert(tsdb).build();
     when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -225,7 +237,7 @@ public class TestJsonV2QuerySerdes {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert(mock(TSDB.class)).build();
+        .convert(tsdb).build();
     when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -258,7 +270,7 @@ public class TestJsonV2QuerySerdes {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert(mock(TSDB.class)).build();
+        .convert(tsdb).build();
     when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -281,7 +293,7 @@ public class TestJsonV2QuerySerdes {
             .setId("m1")
             .setMetric("sys.cpu.user"))
         .build()
-        .convert(mock(TSDB.class)).build();
+        .convert(tsdb).build();
     when(context.query()).thenReturn(query);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();

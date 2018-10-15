@@ -17,15 +17,13 @@ package net.opentsdb.query.processor.merge;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -39,8 +37,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -48,11 +44,14 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
 
 public class TestMergerNumericSummaryIterator {
+  public static MockTSDB TSDB;
+  
   private MergerConfig config;
   private QueryNode node;
   private QueryContext query_context;
@@ -66,6 +65,13 @@ public class TestMergerNumericSummaryIterator {
   private QueryResult result;
   
   private static final long BASE_TIME = 1356998400000L;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -794,13 +800,7 @@ public class TestMergerNumericSummaryIterator {
     when(node.pipelineContext()).thenReturn(pipeline_context);
     final QueryPipelineContext context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
-    final TSDB tsdb = mock(TSDB.class);
-    when(context.tsdb()).thenReturn(tsdb);
-    final Registry registry = mock(Registry.class);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
-    interp_factory.initialize(tsdb).join();
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
+    when(context.tsdb()).thenReturn(TSDB);
   }
   
   void print(final TimeSeriesValue<NumericSummaryType> tsv) {

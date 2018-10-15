@@ -31,13 +31,13 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryType;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -110,7 +110,15 @@ public class SlidingWindowNumericSummaryIterator implements QueryIterator,
                                              final Collection<TimeSeries> sources) {
     next_ts = new MillisecondTimeStamp(0);
     this.node = (SlidingWindow) node;
-    aggregator = Aggregators.get(((SlidingWindowConfig) node.config()).getAggregator());
+    NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+            ((SlidingWindowConfig) node.config()).getAggregator());
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No aggregator found for type: " 
+          + ((SlidingWindowConfig) node.config()).getAggregator());
+    }
+    aggregator = agg_factory.newAggregator(
+        ((SlidingWindowConfig) node.config()).getInfectiousNan());
     dp = new MutableNumericSummaryValue();
     final Optional<TypedTimeSeriesIterator> opt = 
         sources.iterator().next().iterator(NumericSummaryType.TYPE);

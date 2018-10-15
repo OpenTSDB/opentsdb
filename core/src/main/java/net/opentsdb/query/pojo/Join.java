@@ -33,6 +33,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 
 /**
  * Pojo builder class used for serdes of the join component of a query
@@ -174,7 +175,7 @@ public class Join extends Validatable implements Comparable<Join> {
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
   @Override
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (operator == null) {
       throw new IllegalArgumentException("Missing join operator");
     }

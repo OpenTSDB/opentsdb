@@ -21,9 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.data.types.numeric.Aggregators;
-import net.opentsdb.data.types.numeric.NumericAggregator;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.utils.ByteSet;
@@ -215,16 +215,18 @@ public final class TSSubQuery {
    * by the {@link TSQuery} object the sub query is assigned to.
    * @throws IllegalArgumentException if something is wrong with the query
    */
-  public void validateAndSetQuery() {
+  public void validateAndSetQuery(final TSDB tsdb) {
     if (aggregator == null || aggregator.isEmpty()) {
       throw new IllegalArgumentException("Missing the aggregation function");
     }
-    try {
-      agg = Aggregators.get(aggregator);
-    } catch (NoSuchElementException nse) {
-      throw new IllegalArgumentException(
-          "No such aggregation function: " + aggregator);
+    
+    NumericAggregatorFactory agg_factory = tsdb.getRegistry()
+        .getPlugin(NumericAggregatorFactory.class, aggregator);
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No such aggregation function: " 
+          + aggregator);
     }
+    agg = agg_factory.newAggregator(false);
     
     // we must have at least one TSUID OR a metric
     if ((tsuids == null || tsuids.isEmpty()) && 
@@ -263,9 +265,9 @@ public final class TSSubQuery {
     }
 
     // only support NONE and SUM 
-    if (agg != null && agg != Aggregators.NONE && agg != Aggregators.SUM) {
-      throw new IllegalArgumentException("Only NONE or SUM aggregation function supported for histogram query");
-    }
+//    if (agg != null && agg != Aggregators.NONE && agg != Aggregators.SUM) {
+//      throw new IllegalArgumentException("Only NONE or SUM aggregation function supported for histogram query");
+//    }
     
     // only support SUM in downsampling
 //    if (DownsamplingSpecification.NO_DOWNSAMPLER != downsample_specifier && 
@@ -288,12 +290,12 @@ public final class TSSubQuery {
     return this.agg;
   }
   
-  /** @return the parsed downsampler aggregation function
-   * @deprecated use {@code downsamplingSpecification()} instead */
-  public Aggregator downsampler() {
-    //return downsample_specifier.getFunction();
-    return null;
-  }
+//  /** @return the parsed downsampler aggregation function
+//   * @deprecated use {@code downsamplingSpecification()} instead */
+//  public Aggregator downsampler() {
+//    //return downsample_specifier.getFunction();
+//    return null;
+//  }
   
   /** @return the parsed downsample interval in seconds
    * @deprecated use {@code downsamplingSpecification()} instead */

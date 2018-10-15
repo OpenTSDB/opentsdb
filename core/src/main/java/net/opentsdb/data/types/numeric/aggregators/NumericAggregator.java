@@ -12,9 +12,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.data.types.numeric;
+package net.opentsdb.data.types.numeric.aggregators;
 
 import net.opentsdb.data.Aggregator;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.data.types.numeric.NumericType;
 
 /**
  * An interface for numeric aggregators. Uses arrays of primitives in order to

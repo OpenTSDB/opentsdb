@@ -27,6 +27,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 
 /**
  * Pojo builder class used for serdes of the output component of a query
@@ -85,7 +86,7 @@ public class Output extends Validatable implements Comparable<Output> {
   /** Validates the output
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  @Override public void validate() { 
+  @Override public void validate(final TSDB tsdb) { 
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("missing or empty id");
     }

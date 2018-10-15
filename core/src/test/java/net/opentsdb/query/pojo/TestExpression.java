@@ -14,9 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.utils.JSON;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
@@ -25,43 +27,52 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.Map;
 
 public class TestExpression {
+
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = mock(MockTSDB.class);
+  }
+  
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenIdIsNull() throws Exception {
     String json = "{\"expr\":\"a + b + c\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenIdIsEmpty() throws Exception {
     String json = "{\"expr\":\"a + b + c\",\"id\":\"\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenIdIsInvalid() throws Exception {
     String json = "{\"expr\":\"a + b + c\",\"id\":\"system.busy\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenExprIsNull() throws Exception {
     String json = "{\"id\":\"1\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenExprIsEmpty() throws Exception {
     String json = "{\"id\":\"1\",\"expr\":\"\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -69,14 +80,14 @@ public class TestExpression {
     String json = "{\"expr\":\"a + b + c\",\"id\":\"system.busy\","
         + "\"join\":{\"operator\":\"nosuchjoin\"}}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
   }
   
   @Test
   public void deserialize() throws Exception {
     String json = "{\"id\":\"e\",\"expr\":\"a + b + c\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
     Expression expected = Expression.newBuilder().setId("e")
         .setExpression("a + b + c").setJoin(
             Join.newBuilder()
@@ -87,7 +98,7 @@ public class TestExpression {
     json = "{\"id\":\"e\",\"expr\":\"a + b + c\","
         + "\"join\":{\"operator\":\"INTERSECTION\"}}";
     expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
     expected = Expression.newBuilder().setId("e")
         .setExpression("a + b + c")
         .setJoin(
@@ -101,7 +112,7 @@ public class TestExpression {
         + "{\"policy\":\"scalar\",\"value\":42},\"fillPolicies\":"
         + "{\"a\":{\"policy\":\"NAN\"}, \"b\":{\"policy\":\"NAN\"}}}";
     expression = JSON.parseToObject(json, Expression.class);
-    expression.validate();
+    expression.validate(TSDB);
     
     expected = Expression.newBuilder().setId("e")
         .setExpression("a + b + c")

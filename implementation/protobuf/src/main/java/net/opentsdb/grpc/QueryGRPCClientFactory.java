@@ -178,7 +178,7 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
     }
   }
   
-  QueryRpcBetaStub stub() {
+  public QueryRpcBetaStub stub() {
     return stub;
   }
 }

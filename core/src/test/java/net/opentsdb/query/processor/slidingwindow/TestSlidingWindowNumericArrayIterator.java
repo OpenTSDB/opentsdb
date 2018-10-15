@@ -24,10 +24,13 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -44,6 +47,8 @@ import net.opentsdb.query.SemanticQuery;
 
 public class TestSlidingWindowNumericArrayIterator {
 
+  public static MockTSDB TSDB;
+  
   private SemanticQuery query;
   private QueryPipelineContext context;
   private QueryResult result;
@@ -52,6 +57,13 @@ public class TestSlidingWindowNumericArrayIterator {
   private SlidingWindowConfig config;
   private TimeSeriesStringId id;
   private TimeSeries source;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -72,6 +84,7 @@ public class TestSlidingWindowNumericArrayIterator {
     
     when(node.pipelineContext()).thenReturn(context);
     when(context.query()).thenReturn(query);
+    when(context.tsdb()).thenReturn(TSDB);
     
     when(query.startTime()).thenReturn(new SecondTimeStamp(0));
     when(node.config()).thenReturn(config);

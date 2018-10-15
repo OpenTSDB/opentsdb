@@ -28,29 +28,42 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 
 public class TestTopNNumericSummaryAggregator {
+  
+  public static MockTSDB TSDB;
 
   private TopN node;
   private TopNConfig config;
   private QueryResult result;
   private TimeSeries source;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -80,6 +93,9 @@ public class TestTopNNumericSummaryAggregator {
             .build())
         .build();
     when(result.rollupConfig()).thenReturn(rollup_config);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    when(context.tsdb()).thenReturn(TSDB);
   }
   
   @Test
@@ -99,8 +115,8 @@ public class TestTopNNumericSummaryAggregator {
     when(node.config()).thenReturn(config);
     try {
       new TopNNumericSummaryAggregator(node, result, source);
-      fail("Expected NoSuchElementException");
-    } catch (NoSuchElementException e) { }
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
   
   @Test

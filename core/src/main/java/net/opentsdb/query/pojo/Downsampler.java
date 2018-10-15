@@ -32,8 +32,9 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -101,7 +102,7 @@ public class Downsampler extends Validatable implements Comparable<Downsampler> 
   /** Validates the downsampler
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
-  public void validate() {
+  public void validate(final TSDB tsdb) {
     if (interval == null || interval.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty interval");
     }
@@ -110,10 +111,9 @@ public class Downsampler extends Validatable implements Comparable<Downsampler> 
     if (aggregator == null || aggregator.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty aggregator");
     }
-    try {
-      Aggregators.get(aggregator.toLowerCase());
-    } catch (final NoSuchElementException e) {
-      throw new IllegalArgumentException("Invalid aggregator");
+    if (tsdb.getRegistry().getPlugin(NumericAggregatorFactory.class, 
+        aggregator.toLowerCase()) == null) {
+      throw new IllegalArgumentException("Invalid aggregator: " + aggregator);
     }
     
     if (fill_policy != null) {

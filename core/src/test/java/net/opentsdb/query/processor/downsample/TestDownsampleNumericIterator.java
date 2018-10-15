@@ -20,15 +20,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Period;
 import java.util.Collections;
 
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -47,13 +46,12 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -61,6 +59,8 @@ import com.google.common.collect.Lists;
 @SuppressWarnings("unchecked")
 public class TestDownsampleNumericIterator {
 
+  public static MockTSDB TSDB;
+  
   private NumericInterpolatorConfig numeric_config;
   private TimeSeries source;
   private DownsampleConfig config;
@@ -77,6 +77,13 @@ public class TestDownsampleNumericIterator {
   final static String FJ = "Pacific/Fiji";
   // Tue, 15 Dec 2015 04:02:25.123 UTC
   final static long DST_TS = 1450137600000L;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+  }
   
   @Before
   public void before() throws Exception {
@@ -3062,13 +3069,8 @@ public class TestDownsampleNumericIterator {
     pipeline_context = mock(QueryPipelineContext.class);
     when(pipeline_context.queryContext()).thenReturn(query_context);
     when(node.pipelineContext()).thenReturn(pipeline_context);
-    final TSDB tsdb = mock(TSDB.class);
-    when(pipeline_context.tsdb()).thenReturn(tsdb);
-    final Registry registry = mock(Registry.class);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
-    interp_factory.initialize(tsdb).join();
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
+    
+    when(pipeline_context.tsdb()).thenReturn(TSDB);
     
     TimeSeriesDataSource downstream = mock(TimeSeriesDataSource.class);
     when(pipeline_context.downstreamSources(any(QueryNode.class)))

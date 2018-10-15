@@ -22,6 +22,7 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.DownsamplingSpecification;
 import net.opentsdb.query.pojo.Filter;
@@ -167,7 +168,7 @@ public final class TSQuery {
    * sets the {@link TSSubQuery} fields necessary for execution.
    * @throws IllegalArgumentException if something is wrong with the query
    */
-  public void validateAndSetQuery() {
+  public void validateAndSetQuery(final TSDB tsdb) {
     if (start == null || start.isEmpty()) {
       throw new IllegalArgumentException("Missing start time");
     }
@@ -191,7 +192,7 @@ public final class TSQuery {
     // validate queries
     int i = 0;
     for (TSSubQuery sub : queries) {
-      sub.validateAndSetQuery();
+      sub.validateAndSetQuery(tsdb);
 //      final DownsamplingSpecification ds = sub.downsamplingSpecification();
 //      if (ds != null && timezone != null && !timezone.isEmpty() && 
 //          ds != DownsamplingSpecification.NO_DOWNSAMPLER) {
@@ -487,7 +488,7 @@ public final class TSQuery {
    * @param query A non-null and pre-validated TSQuery. 
    * @return A TimeSeriesQuery to pass downstream.
    */
-  public static TimeSeriesQuery convertQuery(final TSQuery query) {
+  public static TimeSeriesQuery convertQuery(final TSDB tsdb, final TSQuery query) {
     final TimeSeriesQuery.Builder q = TimeSeriesQuery.newBuilder();
     
     final Timespan.Builder time = Timespan.newBuilder()
@@ -507,7 +508,7 @@ public final class TSQuery {
           .setAggregator(sub.getAggregator());
       if (sub.getDownsample() != null) {
         final DownsamplingSpecification spec = 
-            new DownsamplingSpecification(sub.getDownsample());
+            new DownsamplingSpecification(tsdb, sub.getDownsample());
         final Downsampler.Builder builder = Downsampler.newBuilder()
             .setAggregator(spec.getFunction().toString())
             .setInterval(spec.getStringInterval());

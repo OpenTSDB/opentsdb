@@ -27,12 +27,12 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
@@ -119,8 +119,15 @@ public class MergerNumericSummaryIterator implements QueryIterator,
     dp = new MutableNumericSummaryValue();
     next_ts.setMax();
     config = (MergerConfig) node.config();
-    // TODO - better way of supporting aggregators
-    aggregator = Aggregators.get(config.getAggregator());
+    NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+            ((MergerConfig) node.config()).getAggregator());
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No aggregator found for type: " 
+          + ((MergerConfig) node.config()).getAggregator());
+    }
+    aggregator = agg_factory.newAggregator(
+        ((MergerConfig) node.config()).getInfectiousNan());
     interpolators = new QueryInterpolator[sources.size()];
     
     QueryInterpolatorConfig interpolator_config = 

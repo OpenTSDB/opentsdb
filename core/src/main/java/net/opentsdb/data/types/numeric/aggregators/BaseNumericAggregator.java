@@ -12,9 +12,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.data.types.numeric;
+package net.opentsdb.data.types.numeric.aggregators;
 
 import com.google.common.base.Strings;
+
+import net.opentsdb.data.types.numeric.NumericType;
 
 /**
  * A base implementation for numeric iterators that stores the name as well as

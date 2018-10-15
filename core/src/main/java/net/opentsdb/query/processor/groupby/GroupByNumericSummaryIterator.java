@@ -28,12 +28,12 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
@@ -127,8 +127,15 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     }
     dp = new MutableNumericSummaryValue();
     next_ts.setMax();
-    // TODO - better way of supporting aggregators
-    aggregator = Aggregators.get(((GroupByConfig) node.config()).getAggregator());
+    NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+            ((GroupByConfig) node.config()).getAggregator());
+    if (agg_factory == null) {
+      throw new IllegalArgumentException("No aggregator found for type: " 
+          + ((GroupByConfig) node.config()).getAggregator());
+    }
+    aggregator = agg_factory.newAggregator(
+        ((GroupByConfig) node.config()).getInfectiousNan());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     interpolators = new QueryInterpolator[sources.size()];
     
@@ -147,7 +154,9 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
         .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
         .setSync(true)
-        .setComponentAggregator(Aggregators.SUM);
+        .setComponentAggregator(node.pipelineContext().tsdb()
+            .getRegistry().getPlugin(NumericAggregatorFactory.class, "sum")
+            .newAggregator(((GroupByConfig) node.config()).getInfectiousNan()));
       } else {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
             DefaultRollupConfig.queryToRollupAggregation(

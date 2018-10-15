@@ -14,8 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QuerySourceConfig;
@@ -51,7 +51,7 @@ import static org.mockito.Mockito.mock;
 
 public class TestTimeSeriesQuery {
   
-  private static Configuration configuration;
+  public static MockTSDB TSDB;
   
   private Timespan time;
   private Filter filter;
@@ -107,11 +107,14 @@ public class TestTimeSeriesQuery {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    configuration = UnitTestConfiguration.getConfiguration();
-    configuration.register("tsd.query.test1", 42, false, "UT");
-    configuration.register("tsd.query.test2", true, false, "UT");
-    configuration.register("tsd.query.test3", "Tyrell", false, "UT");
-    configuration.register("tsd.query.test4", null, false, "UT");
+    TSDB = new MockTSDB();
+    TSDB.registry = new DefaultRegistry(TSDB);
+    ((DefaultRegistry) TSDB.registry).initialize(true);
+    
+    TSDB.config.register("tsd.query.test1", 42, false, "UT");
+    TSDB.config.register("tsd.query.test2", true, false, "UT");
+    TSDB.config.register("tsd.query.test3", "Tyrell", false, "UT");
+    TSDB.config.register("tsd.query.test4", null, false, "UT");
   }
   
   @Before
@@ -138,27 +141,27 @@ public class TestTimeSeriesQuery {
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenTimeIsNull() throws Exception {
     TimeSeriesQuery query = getDefaultQueryBuilder().setTime((Timespan) null).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void invalidTime() throws Exception {
     Timespan invalidTime = Timespan.newBuilder().build();
     TimeSeriesQuery query = getDefaultQueryBuilder().setTime(invalidTime).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void metricsIsNull() throws Exception {
     TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(null).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void metricsIsEmpty() throws Exception {
     TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(
         Collections.<Metric>emptyList()).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -166,7 +169,7 @@ public class TestTimeSeriesQuery {
     Metric invalidMetric = Metric.newBuilder().build();
     TimeSeriesQuery query = getDefaultQueryBuilder()
         .setMetrics(Arrays.asList(invalidMetric)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -174,7 +177,7 @@ public class TestTimeSeriesQuery {
     Filter invalidFilter = Filter.newBuilder().build();
     TimeSeriesQuery query = getDefaultQueryBuilder()
         .setFilters(Arrays.asList(invalidFilter)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -182,7 +185,7 @@ public class TestTimeSeriesQuery {
     Expression invalidExpression = Expression.newBuilder().build();
     TimeSeriesQuery query = getDefaultQueryBuilder()
         .setExpressions(Arrays.asList(invalidExpression)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -191,13 +194,13 @@ public class TestTimeSeriesQuery {
         .setId("m2").setFilter("f2").setTimeOffset("0").build();
     TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(
         Arrays.asList(invalid_metric, metric)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test
   public void deserialize() throws Exception {
     TimeSeriesQuery query = JSON.parseToObject(json, TimeSeriesQuery.class);
-    query.validate();
+    query.validate(TSDB);
     TimeSeriesQuery expected = TimeSeriesQuery.newBuilder().setExpressions(Arrays.asList(expression))
         .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
         .setTime(time).setOutputs(Arrays.asList(output)).build();
@@ -208,21 +211,21 @@ public class TestTimeSeriesQuery {
   public void duplicatedFilterId() throws Exception {
     TimeSeriesQuery query = getDefaultQueryBuilder().setFilters(
         Arrays.asList(filter, filter)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void duplicatedExpressionId() throws Exception {
     TimeSeriesQuery query = getDefaultQueryBuilder().setExpressions(
         Arrays.asList(expression, expression)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void duplicatedMetricId() throws Exception {
     TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(
         Arrays.asList(metric, metric)).build();
-    query.validate();
+    query.validate(TSDB);
   }
 
   @Test
@@ -584,9 +587,9 @@ public class TestTimeSeriesQuery {
         .addConfig("tsd.query.test6", "foo")
         .build();
     
-    assertEquals("foo", query.getString(configuration, "tsd.query.test6"));
-    assertEquals("Tyrell", query.getString(configuration, "tsd.query.test3"));
-    assertNull(query.getString(configuration, "tsd.query.test7"));
+    assertEquals("foo", query.getString(TSDB.config, "tsd.query.test6"));
+    assertEquals("Tyrell", query.getString(TSDB.config, "tsd.query.test3"));
+    assertNull(query.getString(TSDB.config, "tsd.query.test7"));
   }
   
   @Test
@@ -600,10 +603,10 @@ public class TestTimeSeriesQuery {
         .addConfig("tsd.query.test6", "24")
         .build();
     
-    assertEquals(24, query.getInt(configuration, "tsd.query.test6"));
-    assertEquals(42, query.getInt(configuration, "tsd.query.test1"));
+    assertEquals(24, query.getInt(TSDB.config, "tsd.query.test6"));
+    assertEquals(42, query.getInt(TSDB.config, "tsd.query.test1"));
     try {
-      query.getInt(configuration, "tsd.query.test7");
+      query.getInt(TSDB.config, "tsd.query.test7");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -619,10 +622,10 @@ public class TestTimeSeriesQuery {
         .addConfig("tsd.query.test6", "yes")
         .build();
     
-    assertTrue(query.getBoolean(configuration, "tsd.query.test6"));
-    assertTrue(query.getBoolean(configuration, "tsd.query.test2"));
+    assertTrue(query.getBoolean(TSDB.config, "tsd.query.test6"));
+    assertTrue(query.getBoolean(TSDB.config, "tsd.query.test2"));
     try {
-      query.getBoolean(configuration, "tsd.query.test7");
+      query.getBoolean(TSDB.config, "tsd.query.test7");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -646,7 +649,7 @@ public class TestTimeSeriesQuery {
   public void convert() throws Exception {
     SemanticQuery.Builder builder = 
         JSON.parseToObject(json, TimeSeriesQuery.class)
-        .convert(mock(TSDB.class));
+        .convert(TSDB);
     SemanticQuery query = builder.build();
     assertEquals(4, query.getExecutionGraph().size());
     

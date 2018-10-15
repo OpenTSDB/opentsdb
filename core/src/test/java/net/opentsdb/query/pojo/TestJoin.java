@@ -19,18 +19,27 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.utils.JSON;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
 public class TestJoin {
-
+  public static MockTSDB TSDB;
+  
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = mock(MockTSDB.class);
+  }
+  
   @Test
   public void deserialize() throws Exception {
     final String json = "{\"operator\":\"union\",\"tags\":[\"host\",\"datacenter\"]}";
@@ -55,35 +64,35 @@ public class TestJoin {
   public void validationErrorWhenOperatorIsNull() throws Exception {
     final String json = "{\"operator\":null}";
     final Join join = JSON.parseToObject(json, Join.class);
-    join.validate();
+    join.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenOperatorIsEmpty() throws Exception {
     final String json = "{\"operator\":\"\"}";
     final Join join = JSON.parseToObject(json, Join.class);
-    join.validate();
+    join.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenOperatorIsInvalid() throws Exception {
     final String json = "{\"operator\":\"nosuchop\"}";
     final Join join = JSON.parseToObject(json, Join.class);
-    join.validate();
+    join.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
   public void validationNullTag() throws Exception {
     final String json = "{\"operator\":\"intersection\",\"tags\":[null]}";
     final Join join = JSON.parseToObject(json, Join.class);
-    join.validate();
+    join.validate(TSDB);
   }
   
   @Test(expected = IllegalArgumentException.class)
   public void validationEmptyTag() throws Exception {
     final String json = "{\"operator\":\"intersection\",\"tags\":[\"\"]}";
     final Join join = JSON.parseToObject(json, Join.class);
-    join.validate();
+    join.validate(TSDB);
   }
   
   @Test

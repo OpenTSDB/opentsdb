@@ -25,11 +25,10 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
-import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -90,8 +89,15 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     this.node = node;
     this.result = (DownsampleResult) result;
     
-    // TODO - better way of supporting aggregators
-    aggregator = Aggregators.get(((DownsampleConfig) node.config()).getAggregator());
+    NumericAggregatorFactory factory = node.pipelineContext().tsdb()
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+            ((DownsampleConfig) node.config()).getAggregator());
+    if (factory == null) {
+      throw new IllegalArgumentException("No aggregator found for type: " 
+          + ((DownsampleConfig) node.config()).getAggregator());
+    }
+    aggregator = factory.newAggregator(
+        ((DownsampleConfig) node.config()).getInfectiousNan());
     final Optional<TypedTimeSeriesIterator> optional = 
         source.iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {

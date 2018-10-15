@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +45,8 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -102,7 +105,10 @@ public class TestGroupByTimeSeries {
     when(tsdb.getRegistry()).thenReturn(registry);
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
     interp_factory.initialize(tsdb).join();
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
+    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
+      .thenReturn(interp_factory);
+    when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+      .thenReturn(new SumFactory());
     
     when(node.factory()).thenReturn(factory);
     when(node.config()).thenReturn(config);
