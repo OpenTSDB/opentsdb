@@ -867,6 +867,10 @@ public class PluginsConfig extends Validatable {
     }
   }
   
+  Map<Class<?>, Map<String, TSDBPlugin>> plugins() {
+    return Collections.unmodifiableMap(plugins);
+  }
+  
   /**
    * A single plugin configuration.
    */

@@ -17,6 +17,7 @@ package net.opentsdb.core;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -168,6 +169,16 @@ public class DefaultRegistry implements Registry {
     }
     
     return loadPlugins().addCallbackDeferring(new LoadedCB());
+  }
+  
+  @Override
+  public Map<String, TypeToken<? extends TimeSeriesDataType>> typeMap() {
+    return Collections.unmodifiableMap(type_map);
+  }
+  
+  @Override
+  public Map<TypeToken<? extends TimeSeriesDataType>, String> defaultTypeNameMap() {
+    return Collections.unmodifiableMap(default_type_name_map);
   }
   
   /** @return The cleanup thread pool for post-query or other tasks. */
@@ -342,6 +353,11 @@ public class DefaultRegistry implements Registry {
     return plugins.getPlugin(clazz, id);
   }
   
+  @Override
+  public Map<Class<?>, Map<String, TSDBPlugin>> plugins() {
+    return plugins.plugins();
+  }
+  
   /**
    * Registers a shared object in the concurrent map if the object was not
    * present. If an object was already present, the existing object is returned.
@@ -372,6 +388,11 @@ public class DefaultRegistry implements Registry {
       throw new IllegalArgumentException("ID cannot be null or empty.");
     }
     return shared_objects.get(id);
+  }
+  
+  @Override
+  public Map<String, Object> sharedObjects() {
+    return Collections.unmodifiableMap(shared_objects);
   }
   
   public TimeSeriesSerdes getSerdes(final String id) {
