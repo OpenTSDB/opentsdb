@@ -31,6 +31,7 @@ import net.opentsdb.servlet.resources.JMXResource;
 import net.opentsdb.servlet.resources.PutDataPointRpc;
 import net.opentsdb.servlet.resources.QueryRpc;
 import net.opentsdb.servlet.resources.RawQueryRpc;
+import net.opentsdb.servlet.resources.RegistryRpc;
 
 @ApplicationPath("/")
 public class OpenTSDBApplication extends ResourceConfig {
@@ -73,6 +74,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       register(RawQueryRpc.class);
       register(PutDataPointRpc.class);
       register(JMXResource.class);
+      register(RegistryRpc.class);
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
       

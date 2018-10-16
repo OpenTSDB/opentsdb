@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import com.google.common.reflect.TypeToken;
@@ -74,6 +75,9 @@ public interface Registry {
    */
   public <T> T getPlugin(final Class<T> clazz, final String id);
 
+  /** @return An umodifiable map of registered plugins. */
+  public Map<Class<?>, Map<String, TSDBPlugin>> plugins();
+  
   /**
    * Registers a shared object in the concurrent map if the object was not
    * present. If an object was already present, the existing object is returned.
@@ -92,6 +96,9 @@ public interface Registry {
    * @return The object if present, null if not.
    */
   public Object getSharedObject(final String id);
+  
+  /** @return An unmodifiable map of shared objects. */
+  public Map<String, Object> sharedObjects();
   
   /**
    * Registers a query node factory using the name as the ID.
@@ -151,6 +158,12 @@ public interface Registry {
    * null if the type is not.
    */
   public String getDefaultTypeName(final TypeToken<? extends TimeSeriesDataType> type);
+  
+  /** @return An unmodifiable map of registered names pointing to types. */
+  public Map<String, TypeToken<? extends TimeSeriesDataType>> typeMap();
+  
+  /** @return An unmodifiable map of data type to default names. */
+  public Map<TypeToken<? extends TimeSeriesDataType>, String> defaultTypeNameMap();
   
   public ReadableTimeSeriesDataStore getDefaultStore();
   
