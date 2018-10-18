@@ -61,7 +61,6 @@ import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import io.undertow.server.HttpHandler;
-import io.undertow.server.handlers.PathHandler;
 import io.undertow.server.handlers.encoding.EncodingHandler;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
@@ -98,6 +97,8 @@ public class TSDMain {
   public static final String TLS_CERT_KEY = "tsd.network.tls.certificate";
   public static final String TLS_KEY_KEY = "tsd.network.tls.key";
   public static final String TLS_CA_KEY = "tsd.network.tls.ca";
+  public static final String CORS_PATTERN_KEY = "tsd.http.request.cors.pattern";
+  public static final String CORS_HEADERS_KEY = "tsd.http.request.cors.headers";
   
   private static CertificateFactory factory;
   
@@ -161,6 +162,19 @@ public class TSDMain {
     config.register(TLS_CA_KEY, null, false,
         "An optional location to a PEM formatted file containing CA "
         + "certificates.");
+    config.register(CORS_PATTERN_KEY, null, false, "A comma separated list "
+        + "of domain names to allow access to OpenTSDB when the Origin "
+        + "header is specified by the client. If empty, CORS requests "
+        + "are passed through without validation. The list may not "
+        + "contain the public wildcard * and specific domains at the "
+        + "same time.");
+    config.register(CORS_HEADERS_KEY, "Authorization, Content-Type, "
+        + "Accept, Origin, User-Agent, DNT, Cache-Control, "
+        + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since", 
+        false, 
+        "A comma separated list of headers sent to clients when "
+        + "executing a CORs request. The literal value of this option "
+        + "will be passed to clients.");
     
     int port = config.getInt(HTTP_PORT_KEY);
     int ssl_port = config.getInt(TLS_PORT_KEY);
@@ -229,15 +243,24 @@ public class TSDMain {
     manager.deploy();
     
     try {
-      final PathHandler path = Handlers.path(Handlers.redirect(root))
+      HttpHandler handler = Handlers.path(Handlers.redirect(root))
               .addPrefixPath(root, manager.start());
       
-      final HttpHandler encoding_handler= new EncodingHandler.Builder()
+      if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CORS_PATTERN_KEY))) {
+        handler = new com.stijndewitt.undertow.cors.Filter(handler);
+        ((com.stijndewitt.undertow.cors.Filter) handler).setUrlPattern(
+            tsdb.getConfig().getString(CORS_PATTERN_KEY));
+        ((com.stijndewitt.undertow.cors.Filter) handler).setAllowHeaders(
+            tsdb.getConfig().getString(CORS_HEADERS_KEY));
+      }
+      
+      // support compression!
+      handler = new EncodingHandler.Builder()
           .build(null)
-          .wrap(path);
+          .wrap(handler);
       
       final Builder builder = Undertow.builder()
-          .setHandler(encoding_handler);
+          .setHandler(handler);
       if (port > 0) {
         builder.addHttpListener(port, bind);
       }
