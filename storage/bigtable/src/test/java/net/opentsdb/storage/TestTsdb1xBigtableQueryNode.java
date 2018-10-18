@@ -124,7 +124,8 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .setId("m1")
         .build();
     
-    when(meta_schema.runQuery(any(TimeSeriesDataSourceConfig.class), any(Span.class)))
+    when(meta_schema.runQuery(any(QueryPipelineContext.class), 
+        any(TimeSeriesDataSourceConfig.class), any(Span.class)))
       .thenReturn(meta_deferred);
     
     PowerMockito.whenNew(Tsdb1xBigtableQueryResult.class).withAnyArguments()
@@ -345,7 +346,8 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
     assertTrue(node.initializing.get());
     PowerMockito.verifyNew(Tsdb1xBigtableQueryResult.class, never())
       .withArguments(anyLong(), any(Tsdb1xBigtableQueryNode.class), any(Schema.class));
-    verify(meta_schema, times(1)).runQuery(any(TimeSeriesDataSourceConfig.class), any(Span.class));
+    verify(meta_schema, times(1)).runQuery(any(QueryPipelineContext.class), 
+        any(TimeSeriesDataSourceConfig.class), any(Span.class));
     
     try {
       node.fetchNext(null);
@@ -386,7 +388,8 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
     assertFalse(node.initialized.get());
     PowerMockito.verifyNew(Tsdb1xBigtableQueryResult.class, never())
       .withArguments(anyLong(), any(Tsdb1xBigtableQueryNode.class), any(Schema.class));
-    verify(meta_schema, times(1)).runQuery(any(TimeSeriesDataSourceConfig.class), any(Span.class));
+    verify(meta_schema, times(1)).runQuery(any(QueryPipelineContext.class), 
+        any(TimeSeriesDataSourceConfig.class), any(Span.class));
   }
 
   @Test

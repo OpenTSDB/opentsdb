@@ -439,7 +439,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   @VisibleForTesting
   void setup(final Span span) {
     if (parent.schema().metaSchema() != null) {
-      parent.schema().metaSchema().runQuery(config, span)
+      parent.schema().metaSchema().runQuery(context, config, span)
           .addCallback(new MetaCB(span))
           .addErrback(new MetaErrorCB(span));
     } else {
