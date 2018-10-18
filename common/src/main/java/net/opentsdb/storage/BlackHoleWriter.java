@@ -20,8 +20,8 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.stats.Span;
@@ -31,10 +31,12 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class BlackHoleWriter implements WritableTimeSeriesDataStore,
-                                        WritableTimeSeriesDataStoreFactory, 
-                                        TSDBPlugin {
+public class BlackHoleWriter extends BaseTSDBPlugin implements 
+    WritableTimeSeriesDataStore,
+    WritableTimeSeriesDataStoreFactory {
 
+  public static final String TYPE = "BlackHoleWriter";
+  
   /**
    * Default ctor.
    */
@@ -43,20 +45,10 @@ public class BlackHoleWriter implements WritableTimeSeriesDataStore,
   }
   
   @Override
-  public String id() {
-    return "BlackHoleWriter";
+  public String type() {
+    return TYPE;
   }
-
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";
@@ -79,7 +71,6 @@ public class BlackHoleWriter implements WritableTimeSeriesDataStore,
     }
     return Deferred.fromResult(list);
   }
-
   
   @Override
   public WritableTimeSeriesDataStore newStoreInstance(TSDB tsdb, String id) {

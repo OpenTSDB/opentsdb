@@ -56,7 +56,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
@@ -220,9 +220,9 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
   
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
                            final QueryNodeConfig config) {
-    return new Tsdb1xBigtableQueryNode(this, context, id, (QuerySourceConfig) config);
+    return new Tsdb1xBigtableQueryNode(this, context, 
+        (TimeSeriesDataSourceConfig) config);
   }
 
   @Override

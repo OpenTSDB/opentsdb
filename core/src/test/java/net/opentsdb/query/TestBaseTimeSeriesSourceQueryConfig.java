@@ -26,22 +26,19 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.processor.topn.TopNConfig;
 import net.opentsdb.utils.JSON;
 
-public class TestQuerySourceConfig {
+public class TestBaseTimeSeriesSourceQueryConfig {
 
   @Test
   public void builder() throws Exception {
-    final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
-    
-    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    UTConfig config = (UTConfig) UTConfig.newBuilder()
         .setSourceId("HBase")
-        .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
@@ -49,15 +46,13 @@ public class TestQuerySourceConfig {
         .setId("UT")
         .build();
     assertEquals("HBase", config.getSourceId());
-    assertSame(query, config.query());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
     assertEquals("UT", config.getId());
     assertEquals(1, config.getPushDownNodes().size());
     assertFalse(config.pushDown());
     
     try {
-      QuerySourceConfig.newBuilder()
-        .setQuery(query)
+      UTConfig.newBuilder()
         //.setMetric("system.cpu.user")
         .setId("UT")
         .build();
@@ -67,10 +62,8 @@ public class TestQuerySourceConfig {
   
   @Test
   public void builderClone() throws Exception {
-    final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
-    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    UTConfig config = (UTConfig) UTConfig.newBuilder()
         .setSourceId("HBase")
-        .setQuery(query)
         .setTypes(Lists.newArrayList("Numeric", "Annotation"))
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
@@ -79,10 +72,10 @@ public class TestQuerySourceConfig {
         .setId("UT")
         .build();
     
-    QuerySourceConfig clone = QuerySourceConfig.newBuilder(config).build();
+    UTConfig.Builder builder = UTConfig.newBuilder();
+    UTConfig clone = (UTConfig) UTConfig.newBuilder(config, builder).build();
     assertNotSame(config, clone);
     assertEquals("HBase", clone.getSourceId());
-    assertSame(query, clone.query());
     assertNotSame(config.getTypes(), clone.getTypes());
     assertEquals(2, clone.getTypes().size());
     assertTrue(clone.getTypes().contains("Numeric"));
@@ -94,10 +87,8 @@ public class TestQuerySourceConfig {
 
   @Test
   public void serdes() throws Exception {
-    final TimeSeriesQuery query = mock(TimeSeriesQuery.class);
-    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    UTConfig config = (UTConfig) UTConfig.newBuilder()
         .setSourceId("HBase")
-        .setQuery(query)
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
@@ -128,14 +119,11 @@ public class TestQuerySourceConfig {
     assertTrue(json.contains("\"id\":\"Toppy\""));
     assertTrue(json.contains("\"type\":\"TopN\""));
     
-    MockTSDB tsdb = new MockTSDB();
-    tsdb.registry = new DefaultRegistry(tsdb);
-    ((DefaultRegistry) tsdb.registry).initialize(true);
-    
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode root = JSON.getMapper().readTree(json);
-    config = (QuerySourceConfig) 
-        new QueryDataSourceFactory().parseConfig(JSON.getMapper(), 
-            tsdb, root);
+    UTConfig.Builder builder = UTConfig.newBuilder();
+    BaseTimeSeriesDataSourceConfig.parseConfig(JSON.getMapper(), 
+            tsdb, root, builder);
     
     assertEquals("HBase", config.getSourceId());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
@@ -144,7 +132,32 @@ public class TestQuerySourceConfig {
     assertTrue(config.getPushDownNodes().get(0) instanceof TopNConfig);
     assertEquals("f1", config.getFilterId());
     assertTrue(config.getFetchLast());
-    assertNull(config.filter()); // cause the ID is set. Bad.
+    assertEquals("web01", ((TagValueLiteralOrFilter) config.getFilter()).getFilter());
   }
   
+  static class UTConfig extends BaseTimeSeriesDataSourceConfig {
+
+    protected UTConfig(Builder builder) {
+      super(builder);
+    }
+    
+    @Override
+    public TimeSeriesDataSourceConfig.Builder getBuilder() {
+      return null;
+    }
+    
+    static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    static class Builder extends BaseTimeSeriesDataSourceConfig.Builder {
+
+      @Override
+      public TimeSeriesDataSourceConfig build() {
+        return new UTConfig(this);
+      }
+      
+    }
+
+  }
 }

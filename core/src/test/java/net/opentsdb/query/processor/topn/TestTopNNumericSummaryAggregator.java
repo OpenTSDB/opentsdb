@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.junit.Before;
@@ -35,8 +34,8 @@ import org.mockito.stubbing.Answer;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -60,9 +59,7 @@ public class TestTopNNumericSummaryAggregator {
   
   @BeforeClass
   public static void beforeClass() {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
   }
   
   @Before

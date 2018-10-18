@@ -35,8 +35,8 @@ public class TestMedian {
   @Test
   public void factory() throws Exception {
     NumericAggregatorFactory factory = new MedianFactory();
-    assertEquals(MedianFactory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
+    assertEquals(MedianFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

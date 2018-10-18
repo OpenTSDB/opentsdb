@@ -44,9 +44,10 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -67,14 +68,14 @@ public class TestTsdb1xQueryResult extends UTBase {
  
   private Tsdb1xQueryNode node;
   private Schema schema; 
-  private QuerySourceConfig source_config;
+  private TimeSeriesDataSourceConfig source_config;
   private DefaultRollupConfig rollup_config;
   private SemanticQuery query;
   
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    schema = spy(new Schema(tsdb, null));
+    schema = spy(new Schema(schema_factory, tsdb, null));
 
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -83,8 +84,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -92,6 +92,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .build();
     final QueryPipelineContext context = mock(QueryPipelineContext.class);
     when(context.tsdb()).thenReturn(tsdb);
+    when(context.query()).thenReturn(query);
     when(node.pipelineContext()).thenReturn(context);
     when(node.fetchDataType(any(byte.class))).thenReturn(true);
     when(node.schema()).thenReturn(schema);

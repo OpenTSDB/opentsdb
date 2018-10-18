@@ -101,7 +101,7 @@ public class TestRedisQueryCache {
   @Test
   public void initialize() throws Exception {
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
         any(JedisPoolConfig.class), eq("localhost"), eq(Protocol.DEFAULT_PORT));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
@@ -118,7 +118,7 @@ public class TestRedisQueryCache {
   public void initializeShared() throws Exception {
     config_map.put("redis.query.cache.shared_object", "RedisCache");
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
         any(JedisPoolConfig.class), eq("localhost"), eq(Protocol.DEFAULT_PORT));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
@@ -137,7 +137,7 @@ public class TestRedisQueryCache {
     when(registry.getSharedObject("RedisCache")).thenReturn(connection_pool);
     
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
         any(JedisPoolConfig.class), eq("localhost"), eq(Protocol.DEFAULT_PORT));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
@@ -153,7 +153,7 @@ public class TestRedisQueryCache {
     when(registry.getSharedObject("RedisCache")).thenReturn(tsdb);
     
     final RedisQueryCache cache = new RedisQueryCache();
-    cache.initialize(tsdb).join(1);
+    cache.initialize(tsdb, null).join(1);
   }
   
   @Test
@@ -164,7 +164,7 @@ public class TestRedisQueryCache {
       .thenReturn(extant);
     
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
         any(JedisPoolConfig.class), eq("localhost"), eq(Protocol.DEFAULT_PORT));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
@@ -181,7 +181,7 @@ public class TestRedisQueryCache {
     config_map.put("redis.query.cache.wait_time", "60000");
     
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
         any(JedisPoolConfig.class), eq("localhost"), eq(Protocol.DEFAULT_PORT));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
@@ -196,7 +196,7 @@ public class TestRedisQueryCache {
     config_map.put("redis.query.cache.hosts", "redis.mysite.com:2424");
     
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
         any(JedisPoolConfig.class), eq("redis.mysite.com"), eq(2424));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
@@ -213,7 +213,7 @@ public class TestRedisQueryCache {
     config_map.put("redis.query.cache.auth", "foobar");
     
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisPool.class, never()).withArguments(
         any(JedisPoolConfig.class), anyString(), eq(Protocol.DEFAULT_PORT));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
@@ -229,25 +229,25 @@ public class TestRedisQueryCache {
   @Test (expected = IllegalArgumentException.class)
   public void initializeNullHosts() throws Exception {
     config_map.put("redis.query.cache.hosts", null);
-    new RedisQueryCache().initialize(tsdb).join(1);
+    new RedisQueryCache().initialize(tsdb, null).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeEmptyHost() throws Exception {
     config_map.put("redis.query.cache.hosts", "");
-    new RedisQueryCache().initialize(tsdb).join(1);
+    new RedisQueryCache().initialize(tsdb, null).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeBadHostPort() throws Exception {
     config_map.put("redis.query.cache.hosts", "localhost:notanum");
-    new RedisQueryCache().initialize(tsdb).join(1);
+    new RedisQueryCache().initialize(tsdb, null).join(1);
   }
   
   @Test
   public void shutdown() throws Exception {
     final RedisQueryCache cache = new RedisQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     assertNull(cache.shutdown().join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
         any(JedisPoolConfig.class), anyString(), anyInt());
@@ -266,7 +266,7 @@ public class TestRedisQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
 
     cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(1)).getResource();
@@ -320,7 +320,7 @@ public class TestRedisQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
 
     cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(1)).getResource();
@@ -394,7 +394,7 @@ public class TestRedisQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    cache.initialize(tsdb).join(1);
+    cache.initialize(tsdb, null).join(1);
     
     exec = cache.fetch(context, key, null);
     assertNull(exec.deferred().join(1));
@@ -434,7 +434,7 @@ public class TestRedisQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    cache.initialize(tsdb).join(1);
+    cache.initialize(tsdb, null).join(1);
     
     exec = cache.fetch(context, keys, null);
     byte[][] response = exec.deferred().join(1);

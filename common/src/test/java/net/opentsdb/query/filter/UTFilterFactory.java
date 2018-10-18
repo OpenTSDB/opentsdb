@@ -19,10 +19,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.Span;
 
-public class UTFilterFactory implements QueryFilterFactory {
+public class UTFilterFactory extends BaseTSDBPlugin implements 
+    QueryFilterFactory {
 
   static class UTQueryFilter implements QueryFilter {
     public String type;
@@ -65,23 +67,13 @@ public class UTFilterFactory implements QueryFilterFactory {
   }
 
   @Override
-  public String id() {
-    return "UTFilter";
-  }
-
-  @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
   public String version() {
     return "3.0.0";
+  }
+
+  @Override
+  public String type() {
+    return "UTQueryFilter";
   }
   
 }

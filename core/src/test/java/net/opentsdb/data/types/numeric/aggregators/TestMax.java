@@ -41,8 +41,8 @@ public class TestMax {
     when(tsdb.getRegistry()).thenReturn(registry);
     
     NumericAggregatorFactory factory = new MaxFactory();
-    assertEquals(MaxFactory.ID, factory.id());
-    assertNull(factory.initialize(tsdb).join());
+    assertNull(factory.initialize(tsdb, null).join());
+    assertEquals(MaxFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

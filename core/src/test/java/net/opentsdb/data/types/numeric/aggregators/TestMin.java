@@ -41,8 +41,8 @@ public class TestMin {
     when(tsdb.getRegistry()).thenReturn(registry);
     
     NumericAggregatorFactory factory = new MinFactory();
-    assertEquals(MinFactory.ID, factory.id());
-    assertNull(factory.initialize(tsdb).join());
+    assertNull(factory.initialize(tsdb, null).join());
+    assertEquals(MinFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

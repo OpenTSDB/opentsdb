@@ -53,6 +53,12 @@
           <artifactId>undertow-servlet</artifactId>
           <version>${undertow.version}</version>
         </dependency>
+        
+        <dependency>
+          <groupId>com.stijndewitt.undertow.cors</groupId>
+          <artifactId>undertow-cors-filter</artifactId>
+          <version>0.4.0</version>
+        </dependency>
  
       </dependencies>
     </dependencyManagement>
@@ -91,6 +97,11 @@
       <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>com.stijndewitt.undertow.cors</groupId>
+        <artifactId>undertow-cors-filter</artifactId>
       </dependency>
     
       <!-- TESTING Deps. -->

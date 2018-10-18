@@ -44,8 +44,8 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
@@ -95,7 +95,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   protected final Tsdb1xQueryNode node;
   
   /** The query config from the node. */
-  protected final QuerySourceConfig source_config;
+  protected final TimeSeriesDataSourceConfig source_config;
   
   /** The list of TSUIDs to work one. */
   protected final List<byte[]> tsuids;
@@ -165,7 +165,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
    * @throws IllegalArgumentException if the params were null or empty.
    */
   public Tsdb1xMultiGet(final Tsdb1xQueryNode node, 
-                        final QuerySourceConfig source_config, 
+                        final TimeSeriesDataSourceConfig source_config, 
                         final List<byte[]> tsuids) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
@@ -366,8 +366,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     }
     if (ts != null && (reversed ? 
-        ts.compare(Op.LT, ((SemanticQuery) source_config.query()).startTime()) : 
-        ts.compare(Op.GT, ((SemanticQuery) source_config.query()).endTime()))) {
+        ts.compare(Op.LT, ((SemanticQuery) node.pipelineContext().query()).startTime()) : 
+        ts.compare(Op.GT, ((SemanticQuery) node.pipelineContext().query()).endTime()))) {
       // DONE with query!
       return true;
     }
@@ -389,8 +389,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         }
       }
       if (reversed ? 
-          ts.compare(Op.LT, ((SemanticQuery) source_config.query()).startTime()) : 
-          ts.compare(Op.GT, ((SemanticQuery) source_config.query()).endTime())) {
+          ts.compare(Op.LT, ((SemanticQuery) node.pipelineContext().query()).startTime()) : 
+          ts.compare(Op.GT, ((SemanticQuery) node.pipelineContext().query()).endTime())) {
         // DONE with query!
         return true;
       }
@@ -719,16 +719,16 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? ((SemanticQuery) source_config.query()).endTime().epoch() + 1 : 
-              ((SemanticQuery) source_config.query()).startTime().epoch() - 1), interval) * 1000L);      
+            (reversed ? node.pipelineContext().query().endTime().epoch() + 1 : 
+              node.pipelineContext().query().startTime().epoch() - 1), interval) * 1000L);      
       } else {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? ((SemanticQuery) source_config.query()).endTime().epoch() : 
-              ((SemanticQuery) source_config.query()).startTime().epoch()), interval) * 1000L);
+            (reversed ? node.pipelineContext().query().endTime().epoch() : 
+              node.pipelineContext().query().startTime().epoch()), interval) * 1000L);
       }
     } else {
-      long ts = reversed ? ((SemanticQuery) source_config.query()).endTime().epoch() : 
-        ((SemanticQuery) source_config.query()).startTime().epoch();
+      long ts = reversed ? node.pipelineContext().query().endTime().epoch() : 
+        node.pipelineContext().query().startTime().epoch();
       if (node.downsampleConfig() != null) {
         final long interval = DateTime.parseDuration(
             node.downsampleConfig().getInterval());

@@ -14,13 +14,29 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.List;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.stats.Span;
 
 /**
  * Simple little factory that returns a {@link MockDataStore}.
@@ -28,25 +44,39 @@ import net.opentsdb.query.QueryNodeConfig;
  * @since 3.0
  */
 public class MockDataStoreFactory extends BaseTSDBPlugin 
-                                  implements TimeSeriesDataStoreFactory {
+                                  implements TimeSeriesDataSourceFactory {
 
+  public static final String TYPE = "MockDataStore";
+  
   /** The data store. */
-  private volatile MockDataStore mds;
+  private MockDataStore mds;
   
   @Override
-  public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
-    // DCLP for the singleton.
-    if (mds == null) {
-      synchronized (this) {
-        if (mds == null) {
-          mds = new MockDataStore(tsdb, id);
-        }
-      }
-    }
-    
-    return mds;
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
   }
- 
+
+  @Override
+  public void setupGraph(TimeSeriesQuery query, QueryNodeConfig config,
+      QueryPlanner planner) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context) {
+    throw new UnsupportedOperationException("No default configs for "
+        + "MockDataStore.");
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final QueryNodeConfig config) {
+    return mds.new LocalNode(context, (BaseTimeSeriesDataSourceConfig) config);
+  }
+  
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;
@@ -60,13 +90,41 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   }
   
   @Override
-  public String id() {
-    return "MockDataStoreFactory";
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    mds = new MockDataStore(tsdb, this.id);
+    return Deferred.fromResult(null);
   }
 
   @Override
   public String version() {
     // TODO Implement
     return "3.0.0";
+  }
+  
+  @Override
+  public Deferred<TimeSeriesStringId> resolveByteId(
+      final TimeSeriesByteId id, 
+      final Span span) {
+    return Deferred.fromError(new UnsupportedOperationException());
+  }
+  
+  @Override
+  public Deferred<List<byte[]>> encodeJoinKeys(
+      final List<String> join_keys, 
+      final Span span) {
+    return Deferred.fromError(new UnsupportedOperationException());
+  }
+  
+  @Override
+  public Deferred<List<byte[]>> encodeJoinMetrics(
+      final List<String> join_metrics, 
+      final Span span) {
+    return Deferred.fromError(new UnsupportedOperationException());
   }
 }

@@ -55,7 +55,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.rollup.RollupInterval;
@@ -76,15 +76,15 @@ public class TestTsdb1xBigtableScanner extends UTBase {
   private Tsdb1xBigtableQueryResult results;
   private Schema schema; 
   private QueryContext context;
-  private QuerySourceConfig config;
+  private BaseTimeSeriesDataSourceConfig config;
   
   @Before
   public void before() throws Exception {
     results = mock(Tsdb1xBigtableQueryResult.class);
     node = mock(Tsdb1xBigtableQueryNode.class);
     owner = mock(Tsdb1xBigtableScanners.class);
-    schema = spy(new Schema(tsdb, null));
-    config = mock(QuerySourceConfig.class);
+    schema = spy(new Schema(schema_factory, tsdb, null));
+    config = mock(BaseTimeSeriesDataSourceConfig.class);
     when(owner.node()).thenReturn(node);
     when(node.parent()).thenReturn(data_store);
     when(node.config()).thenReturn(config);
@@ -123,7 +123,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
    ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     Tsdb1xBigtableScanner scanner = new Tsdb1xBigtableScanner(owner, bt_scanner, 0, null);
@@ -195,7 +195,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     Tsdb1xBigtableScanner scanner = new Tsdb1xBigtableScanner(owner, bt_scanner, 0, null);
@@ -223,7 +223,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     Tsdb1xBigtableScanner scanner = new Tsdb1xBigtableScanner(owner, bt_scanner, 0, null);
@@ -251,7 +251,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.MULTI_SERIES_EX, METRIC_BYTES);
     Tsdb1xBigtableScanner scanner = new Tsdb1xBigtableScanner(owner, bt_scanner, 0, null);
@@ -279,7 +279,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -308,7 +308,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -350,7 +350,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -393,7 +393,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -435,7 +435,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -473,7 +473,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -511,7 +511,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -552,7 +552,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -626,7 +626,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
           .setTagKey(TAGK_STRING)
           .build();
   when(owner.filterDuringScan()).thenReturn(true);
-  when(config.filter()).thenReturn(filter);
+  when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(4);
@@ -1024,7 +1024,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(2);
@@ -1093,7 +1093,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(6);
@@ -1165,7 +1165,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(6);
@@ -1236,7 +1236,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
             .setTagKey(TAGK_STRING)
             .build();
     when(owner.filterDuringScan()).thenReturn(true);
-    when(config.filter()).thenReturn(filter);
+    when(config.getFilter()).thenReturn(filter);
     
     ResultScanner<FlatRow> bt_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     when(owner.rowsPerScan()).thenReturn(6);

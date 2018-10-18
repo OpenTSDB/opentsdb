@@ -35,9 +35,8 @@ public class TopN extends AbstractQueryNode {
   
   public TopN(final QueryNodeFactory factory, 
               final QueryPipelineContext context,
-              final String id,
               final TopNConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     this.config = config;
   }
 

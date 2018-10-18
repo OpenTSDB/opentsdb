@@ -20,8 +20,10 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -49,13 +51,13 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  */
 public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
 
-  public static final String ID = "BinaryExpression";
+  public static final String TYPE = "BinaryExpression";
   
   /**
    * Required empty ctor.
    */
   public BinaryExpressionNodeFactory() {
-    super(ID);
+    super();
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
         new NumericSummaryIteratorFactory());
@@ -64,17 +66,26 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id) {
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("Default configs are not "
         + "allowed for Binary Expressions.");
   }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
                            final QueryNodeConfig config) {
-    return new BinaryExpressionNode(this, context, id, (ExpressionParseNode) config);
+    return new BinaryExpressionNode(this, context, (ExpressionParseNode) config);
   }
 
   @Override

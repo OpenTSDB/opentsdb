@@ -19,8 +19,11 @@ import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.apache.commons.math3.util.ResizableDoubleArray;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.exceptions.IllegalDataException;
 
@@ -28,7 +31,7 @@ public class PercentilesFactories {
 
   public static class P999Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "P999";
+    public static final String TYPE = "P999";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -36,8 +39,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -49,7 +58,7 @@ public class PercentilesFactories {
   
   public static class P99Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "P99";
+    public static final String TYPE = "P99";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -57,8 +66,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -70,7 +85,7 @@ public class PercentilesFactories {
   
   public static class P95Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "P95";
+    public static final String TYPE = "P95";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -78,8 +93,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -91,7 +112,7 @@ public class PercentilesFactories {
   
   public static class P90Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "P90";
+    public static final String TYPE = "P90";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -99,8 +120,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -112,7 +139,7 @@ public class PercentilesFactories {
   
   public static class P75Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "P75";
+    public static final String TYPE = "P75";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -120,8 +147,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -133,7 +166,7 @@ public class PercentilesFactories {
   
   public static class P50Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "P50";
+    public static final String TYPE = "P50";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -141,8 +174,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -154,7 +193,7 @@ public class PercentilesFactories {
   
   public static class EP999R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP999R3";
+    public static final String TYPE = "EP999R3";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -162,8 +201,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -175,7 +220,7 @@ public class PercentilesFactories {
   
   public static class EP99R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP99R3";
+    public static final String TYPE = "EP99R3";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -183,8 +228,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -196,7 +247,7 @@ public class PercentilesFactories {
   
   public static class EP95R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP95R3";
+    public static final String TYPE = "EP95R3";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -204,8 +255,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -217,7 +274,7 @@ public class PercentilesFactories {
   
   public static class EP90R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP90R3";
+    public static final String TYPE = "EP90R3";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -225,8 +282,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -238,7 +301,7 @@ public class PercentilesFactories {
   
   public static class EP75R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP75R3";
+    public static final String TYPE = "EP75R3";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -246,8 +309,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -259,7 +328,7 @@ public class PercentilesFactories {
   
   public static class EP50R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP50R3";
+    public static final String TYPE = "EP50R3";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -267,8 +336,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -280,7 +355,7 @@ public class PercentilesFactories {
   
   public static class EP999R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP999R7";
+    public static final String TYPE = "EP999R7";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -288,8 +363,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -301,7 +382,7 @@ public class PercentilesFactories {
   
   public static class EP99R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP99R7";
+    public static final String TYPE = "EP99R7";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -309,8 +390,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -322,7 +409,7 @@ public class PercentilesFactories {
   
   public static class EP95R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP95R7";
+    public static final String TYPE = "EP95R7";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -330,8 +417,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -343,7 +436,7 @@ public class PercentilesFactories {
   
   public static class EP90R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP90R7";
+    public static final String TYPE = "EP90R7";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -351,8 +444,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -364,7 +463,7 @@ public class PercentilesFactories {
   
   public static class EP75R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP75R7";
+    public static final String TYPE = "EP75R7";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -372,8 +471,14 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
+    }
+    
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
     }
 
     @Override
@@ -385,7 +490,7 @@ public class PercentilesFactories {
   
   public static class EP50R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
-    public static final String ID = "EP50R7";
+    public static final String TYPE = "EP50R7";
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -393,10 +498,16 @@ public class PercentilesFactories {
     }
 
     @Override
-    public String id() {
-      return ID;
+    public String type() {
+      return TYPE;
     }
 
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
+    }
+    
     @Override
     public String version() {
       return "3.0.0";

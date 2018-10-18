@@ -77,7 +77,7 @@ public class TestTsdb1xHBaseFactory {
     assertNull(factory.default_client);
     assertTrue(factory.clients.isEmpty());
     
-    factory.initialize(tsdb).join();
+    factory.initialize(tsdb, null).join();
     assertSame(tsdb, factory.tsdb());
     assertNull(factory.default_client);
     assertTrue(factory.clients.isEmpty());

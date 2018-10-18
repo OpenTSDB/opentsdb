@@ -42,14 +42,12 @@ public class Merger extends AbstractQueryNode {
    * Default ctor.
    * @param factory The factory we came from.
    * @param context The non-null context.
-   * @param id The ID of this node.
    * @param config The non-null config.
    */
   public Merger(final QueryNodeFactory factory, 
                 final QueryPipelineContext context,
-                final String id, 
                 final MergerConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Merger config cannot be null.");
     }

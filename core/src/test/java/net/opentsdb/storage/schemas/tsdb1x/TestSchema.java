@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
@@ -73,6 +74,8 @@ public class TestSchema extends SchemaBase {
   
   public static final String TESTID = "UT";
   
+  private SchemaFactory factory = mock(SchemaFactory.class);
+  
   @Test
   public void ctorDefault() throws Exception {
     Schema schema = schema();
@@ -105,7 +108,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.register("tsd.storage.salt.buckets", 16, false, "UT");
     tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
     
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = new Schema(factory, tsdb, null);
     assertEquals(4, schema.metricWidth());
     assertEquals(5, schema.tagkWidth());
     assertEquals(6, schema.tagvWidth());
@@ -140,7 +143,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.register("tsd.storage." + TESTID + ".salt.width", 1, false, "UT");
     tsdb.config.register("tsd.storage." + TESTID + ".data.store", TESTID, false, "UT");
     
-    Schema schema = new Schema(tsdb, TESTID);
+    Schema schema = new Schema(factory, tsdb, TESTID);
     assertEquals(4, schema.metricWidth());
     assertEquals(5, schema.tagkWidth());
     assertEquals(6, schema.tagvWidth());
@@ -158,7 +161,7 @@ public class TestSchema extends SchemaBase {
     MockTSDB tsdb = new MockTSDB();
     tsdb.config.register("tsd.storage.data.store", "NOTTHERE", false, "UT");
     try {
-      new Schema(tsdb, null);
+      new Schema(factory, tsdb, null);
       fail("Expected ConfigurationException");
     } catch (ConfigurationException e) { }
   }
@@ -172,7 +175,7 @@ public class TestSchema extends SchemaBase {
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenReturn(null);
     try {
-      new Schema(tsdb, null);
+      new Schema(factory, tsdb, null);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
@@ -186,7 +189,7 @@ public class TestSchema extends SchemaBase {
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenThrow(new UnitTestException());
     try {
-      new Schema(tsdb, null);
+      new Schema(factory, tsdb, null);
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
   }
@@ -542,7 +545,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.register("tsd.storage.salt.buckets", 16, false, "UT");
     tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
     
-    schema = new Schema(tsdb, null);
+    schema = new Schema(factory, tsdb, null);
     
     row = new byte[schema.saltWidth() + schema.metricWidth() 
                    + Schema.TIMESTAMP_BYTES + schema.tagkWidth() 
@@ -576,7 +579,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.register("tsd.storage.salt.buckets", 20, false, "UT");
     tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
     
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = new Schema(factory, tsdb, null);
     
     byte[] key = new byte[] { 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
         0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
@@ -605,7 +608,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.override("tsd.storage.salt.buckets", 20);
     tsdb.config.override("tsd.storage.salt.width", 1);
     
-    schema = new Schema(tsdb, null);
+    schema = new Schema(factory, tsdb, null);
     
     key = new byte[] { 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
         0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
@@ -635,7 +638,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.override("tsd.storage.salt.buckets", 20);
     tsdb.config.override("tsd.storage.salt.width", 1);
     
-    schema = new Schema(tsdb, null);
+    schema = new Schema(factory, tsdb, null);
     
     key = new byte[] { 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
         0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
@@ -674,7 +677,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.register("tsd.storage.salt.buckets", 20, false, "UT");
     tsdb.config.register("tsd.storage.salt.width", 3, false, "UT");
     
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = new Schema(factory, tsdb, null);
     
     byte[] key = new byte[] { 0, 0, 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
         0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
@@ -709,7 +712,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.override("tsd.storage.salt.buckets", 20);
     tsdb.config.override("tsd.storage.salt.width", 3);
     
-    schema = new Schema(tsdb, null);
+    schema = new Schema(factory, tsdb, null);
     
     key = new byte[] { 0, 0, 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
         0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
@@ -745,7 +748,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.override("tsd.storage.salt.buckets", 20);
     tsdb.config.override("tsd.storage.salt.width", 3);
     
-    schema = new Schema(tsdb, null);
+    schema = new Schema(factory, tsdb, null);
     
     key = new byte[] { 0, 0, 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
         0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
@@ -776,7 +779,8 @@ public class TestSchema extends SchemaBase {
   @Test
   public void resolveByteId() throws Exception {
     Schema schema = schema();
-    TimeSeriesByteId id = BaseTimeSeriesByteId.newBuilder(schema)
+    Whitebox.setInternalState(factory, "schema", schema);
+    TimeSeriesByteId id = BaseTimeSeriesByteId.newBuilder(factory)
         .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
         .setMetric(METRIC_BYTES)
         .addTags(TAGK_BYTES, TAGV_BYTES)
@@ -794,7 +798,7 @@ public class TestSchema extends SchemaBase {
     assertEquals("B", newid.disjointTags().get(0));
     
     // skip metric
-    id = BaseTimeSeriesByteId.newBuilder(schema)
+    id = BaseTimeSeriesByteId.newBuilder(factory)
         .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
         .setMetric("MyMetric".getBytes(Const.UTF8_CHARSET))
         .addTags(TAGK_BYTES, TAGV_BYTES)
@@ -813,7 +817,7 @@ public class TestSchema extends SchemaBase {
     assertEquals("B", newid.disjointTags().get(0));
     
     // exception
-    id = BaseTimeSeriesByteId.newBuilder(schema)
+    id = BaseTimeSeriesByteId.newBuilder(factory)
         .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
         .setMetric(METRIC_BYTES_EX)
         .addTags(TAGK_BYTES, TAGV_BYTES)
@@ -1010,7 +1014,7 @@ public class TestSchema extends SchemaBase {
     tsdb.config.register("tsd.storage.salt.buckets", 250, false, "UT"); // high to ensure salting
     tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
     
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = new Schema(factory, tsdb, null);
     
     MutableNumericValue value = 
         new MutableNumericValue(new MillisecondTimeStamp(1262305800000L), 42);

@@ -200,7 +200,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       throw new IllegalArgumentException("The given node wasn't in this graph: " 
           + node);
     }
-    if (node.config() instanceof QuerySourceConfig ||
+    if (node.config() instanceof TimeSeriesDataSourceConfig ||
         node.config().joins()) {
       return Sets.newHashSet(node.config().getId());
     }
@@ -525,7 +525,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     
     @Override
     public void close() {
-      if (result.source().config() instanceof QuerySourceConfig ||
+      if (result.source().config() instanceof TimeSeriesDataSourceConfig ||
           result.source().config().joins()) {
         countdowns.get(result.dataSource()).decrementAndGet();
       } else {

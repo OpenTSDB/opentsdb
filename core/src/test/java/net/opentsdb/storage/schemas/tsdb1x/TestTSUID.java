@@ -102,7 +102,7 @@ public class TestTSUID extends SchemaBase {
     assertTrue(tsuid.aggregatedTags().isEmpty());
     assertTrue(tsuid.disjointTags().isEmpty());
     assertEquals(Const.TS_BYTE_ID, tsuid.type());
-    assertSame(schema, tsuid.dataStore());
+    assertSame(factory, tsuid.dataStore());
     
     assertNull(tsuid.uids);
     ByteSet uids = tsuid.uniqueIds();

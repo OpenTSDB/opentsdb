@@ -25,8 +25,8 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -407,9 +407,7 @@ public class TestExpressionConfig {
     assertTrue(json.contains("\"type\":\"Expression\""));
     assertTrue(json.contains("\"sources\":[\"m1\",\"m2\"]"));
     
-    MockTSDB tsdb = new MockTSDB();
-    tsdb.registry = new DefaultRegistry(tsdb);
-    ((DefaultRegistry) tsdb.registry).initialize(true).join(1);
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     
     JsonNode node = JSON.getMapper().readTree(json);
     config = ExpressionConfig.parse(JSON.getMapper(), tsdb, node);
@@ -418,7 +416,7 @@ public class TestExpressionConfig {
     assertEquals(2, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals("m2", config.getSources().get(1));
-    assertEquals(ExpressionFactory.ID, config.getType());
+    assertEquals(ExpressionFactory.TYPE, config.getType());
     assertEquals("some.metric.name", config.getAs());
     assertEquals("a + b", config.getExpression());
     assertEquals(JoinType.INNER, config.getJoin().getJoinType());

@@ -16,6 +16,7 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -27,20 +28,23 @@ import net.opentsdb.core.TSDB;
  */
 public class ArrayMaxFactory extends BaseArrayFactory {
 
+  public static final String TYPE = "Max";
+  
   @Override
   public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
     return new ArrayMax(infectious_nan);
   }
 
   @Override
-  public String id() {
-    return "max";
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
-        "mimmax", this);
+        "MimMax", this);
     return Deferred.fromResult(null);
   }
   

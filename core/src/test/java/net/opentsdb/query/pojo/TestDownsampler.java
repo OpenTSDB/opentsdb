@@ -20,8 +20,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.BeforeClass;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.utils.JSON;
 
@@ -33,9 +33,7 @@ public class TestDownsampler {
   
   @BeforeClass
   public static void beforeClass() {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
   }
   
   @Test(expected = IllegalArgumentException.class)

@@ -48,7 +48,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -81,9 +81,6 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   /** A reference to the parent of this node. */
   protected final Tsdb1xBigtableDataStore parent;
   
-  /** The name of this node. */
-  protected final String id;
-  
   /** The pipeline context. */
   protected final QueryPipelineContext context;
   
@@ -97,7 +94,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   protected Collection<TimeSeriesDataSource> downstream_sources;
   
   /** The query source config. */
-  protected final QuerySourceConfig config;
+  protected final TimeSeriesDataSourceConfig config;
   
   /** The sequence ID counter. */
   protected final AtomicLong sequence_id;
@@ -141,13 +138,11 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
    * Default ctor.
    * @param factory The Tsdb1xBigtableDataStore that instantiated this node.
    * @param context A non-null query pipeline context.
-   * @param id An ID for the node.
    * @param config A non-null config.
    */
   public Tsdb1xBigtableQueryNode(final Tsdb1xBigtableDataStore parent, 
                          final QueryPipelineContext context,
-                         final String id,
-                         final QuerySourceConfig config) {
+                         final TimeSeriesDataSourceConfig config) {
     if (parent == null) {
       throw new IllegalArgumentException("Parent cannot be null.");
     }
@@ -163,7 +158,6 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
     }
     this.parent = parent;
     this.context = context;
-    this.id = id;
     this.config = config;
     
     sequence_id = new AtomicLong();
@@ -393,11 +387,6 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
     }
   }
   
-  @Override
-  public int hashCode() {
-    return (getClass().getCanonicalName() + id).hashCode();
-  }
-
   /** @return The parent for this node. */
   Tsdb1xBigtableDataStore parent() {
     return parent;

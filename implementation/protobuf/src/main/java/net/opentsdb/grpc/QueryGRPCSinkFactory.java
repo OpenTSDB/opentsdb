@@ -34,7 +34,7 @@ import net.opentsdb.query.QuerySinkFactory;
 public class QueryGRPCSinkFactory extends BaseTSDBPlugin 
     implements QuerySinkFactory {
 
-  public static final String ID = "TSDBGRPCSink";
+  public static final String TYPE = "TSDBGRPCSink";
   
   @Override
   public QuerySink newSink(final QueryContext context, 
@@ -43,15 +43,14 @@ public class QueryGRPCSinkFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
   }
 
   @Override
   public String version() {
     return "3.0.0";
   }
-
   
   @Override
   public QuerySinkConfig parseConfig(final ObjectMapper mapper, 

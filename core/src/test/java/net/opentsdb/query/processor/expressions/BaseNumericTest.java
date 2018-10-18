@@ -87,7 +87,7 @@ public class BaseNumericTest {
     final Registry registry = mock(Registry.class);
     when(TSDB.getRegistry()).thenReturn(registry);
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
-    interp_factory.initialize(TSDB).join();
+    interp_factory.initialize(TSDB, null).join();
     when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
     
     LEFT_ID = BaseTimeSeriesStringId.newBuilder()

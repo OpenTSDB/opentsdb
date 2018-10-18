@@ -42,6 +42,7 @@ import com.stumbleupon.async.TimeoutException;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -56,13 +57,12 @@ import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.storage.MockDataStore;
 import net.opentsdb.storage.MockDataStoreFactory;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ TSDBV2QueryContextBuilder.class })
 public class TestTSDBV2QueryContextBuilder {
   private static MockDataStoreFactory STORE_FACTORY;
-  private static QueryDataSourceFactory SOURCE_FACTORY;
+  private static TimeSeriesDataSourceFactory SOURCE_FACTORY;
   private static QuerySinkFactory SINK_FACTORY;
   private static MockTSDB TSDB;
   private QuerySink sink;
@@ -78,21 +78,19 @@ public class TestTSDBV2QueryContextBuilder {
     TSDB.config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
     
     QueryNodeFactory factory = mock(QueryNodeFactory.class);
-    when(factory.newNode(any(QueryPipelineContext.class), anyString()))
+    when(factory.newNode(any(QueryPipelineContext.class)))
       .thenAnswer(new Answer<QueryNode>() {
         @Override
         public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          return new PassThrough(factory, null, 
-              (String) invocation.getArguments()[1]);
+          return new PassThrough(factory, null);
         }
       });
-    when(factory.newNode(any(QueryPipelineContext.class), anyString(), any(QueryNodeConfig.class)))
+    when(factory.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
       .thenAnswer(new Answer<QueryNode>() {
         @Override
         public QueryNode answer(InvocationOnMock invocation) throws Throwable {
           return new PassThrough(factory, 
-              (QueryPipelineContext) invocation.getArguments()[0], 
-              (String) invocation.getArguments()[1]);
+              (QueryPipelineContext) invocation.getArguments()[0]);
         }
       });
     when(TSDB.registry.getQueryNodeFactory(anyString()))
@@ -108,10 +106,10 @@ public class TestTSDBV2QueryContextBuilder {
           return factory;
         }
       });
-    when(TSDB.registry.getDefaultPlugin(TimeSeriesDataStoreFactory.class))
-      .thenAnswer(new Answer<TimeSeriesDataStoreFactory>() {
+    when(TSDB.registry.getPlugin(TimeSeriesDataSourceFactory.class, null))
+      .thenAnswer(new Answer<TimeSeriesDataSourceFactory>() {
         @Override
-        public TimeSeriesDataStoreFactory answer(InvocationOnMock invocation)
+        public TimeSeriesDataSourceFactory answer(InvocationOnMock invocation)
             throws Throwable {
           return STORE_FACTORY;
         }
@@ -133,10 +131,7 @@ public class TestTSDBV2QueryContextBuilder {
         }
       });
     
-    when(((DefaultRegistry) TSDB.registry).getDefaultStore())
-      .thenReturn(new MockDataStore(TSDB, null));
-    SOURCE_FACTORY = new QueryDataSourceFactory();
-    SOURCE_FACTORY.initialize(TSDB).join();
+    STORE_FACTORY.initialize(TSDB, null).join();
   }
   
   @Before
@@ -1173,9 +1168,8 @@ public class TestTSDBV2QueryContextBuilder {
   static class PassThrough extends AbstractQueryNode {
 
     public PassThrough(final QueryNodeFactory factory, 
-                       final QueryPipelineContext context,
-                       final String id) {
-      super(factory, context, id);
+                       final QueryPipelineContext context) {
+      super(factory, context);
     }
 
     @Override

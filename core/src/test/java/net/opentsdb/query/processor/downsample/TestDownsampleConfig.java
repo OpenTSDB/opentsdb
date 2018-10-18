@@ -29,8 +29,8 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -229,9 +229,7 @@ public class TestDownsampleConfig {
     assertTrue(json.contains("\"defaultRealFillPolicy\":\"NEXT_ONLY\""));
     assertTrue(json.contains("\"expectedSummaries\":[0]"));
     
-    MockTSDB tsdb = new MockTSDB();
-    tsdb.registry = new DefaultRegistry(tsdb);
-    ((DefaultRegistry) tsdb.registry).initialize(true).join(1);
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     
     JsonNode node = JSON.getMapper().readTree(json);
     config = DownsampleConfig.parse(JSON.getMapper(), tsdb, node);
@@ -248,7 +246,7 @@ public class TestDownsampleConfig {
     assertNull(config.startTime());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
-    assertEquals(DownsampleFactory.ID, config.getType());
+    assertEquals(DownsampleFactory.TYPE, config.getType());
     assertEquals(FillPolicy.NOT_A_NUMBER, 
         ((NumericInterpolatorConfig) config.interpolatorConfig(NumericType.TYPE))
           .getFillPolicy());

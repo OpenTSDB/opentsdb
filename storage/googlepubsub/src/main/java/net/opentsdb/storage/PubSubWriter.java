@@ -38,8 +38,8 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.query.serdes.TimeSeriesDataSerdes;
@@ -53,8 +53,11 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class PubSubWriter implements WritableTimeSeriesDataStore, TSDBPlugin {
+public class PubSubWriter extends BaseTSDBPlugin implements 
+    WritableTimeSeriesDataStore {
   protected static final Logger LOG = LoggerFactory.getLogger(PubSubWriter.class);
+  
+  public static final String TYPE = "GooglePubSubWriter";
   
   /** Configuration keys. */
   public static final String PROJECT_NAME_KEY = "google.pubsub.publisher.project.id";
@@ -213,12 +216,13 @@ public class PubSubWriter implements WritableTimeSeriesDataStore, TSDBPlugin {
   }
 
   @Override
-  public String id() {
-    return "GooglePubSub";
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     registerConfigs(tsdb);
     final String project_id = tsdb.getConfig().getString(PROJECT_NAME_KEY);
     if (Strings.isNullOrEmpty(project_id)) {

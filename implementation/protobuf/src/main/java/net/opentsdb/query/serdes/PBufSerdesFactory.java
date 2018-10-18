@@ -45,7 +45,7 @@ public class PBufSerdesFactory extends BaseTSDBPlugin implements SerdesFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       PBufSerdesFactory.class);
   
-  public static final String ID = "PBufSerdes";
+  public static final String TYPE = "PBufSerdes";
   
   /** The map of types. */
   private final Map<TypeToken<?>, PBufIteratorSerdes> types;
@@ -60,8 +60,8 @@ public class PBufSerdesFactory extends BaseTSDBPlugin implements SerdesFactory {
   }
   
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
   }
   
   /**

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,67 +12,42 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.storage;
+package net.opentsdb.data;
 
 import java.util.List;
 
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.query.QueryNode;
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.stats.Span;
 
 /**
- * The class for reading or writing time series data to a local data store. 
- * <p>
- * This class is generally meant to implement a time series storage schema on
- * either:
- * <ul>
- * <li>A local system such as using flat files or an LSM implementation on the
- * local disk using something like RocksDB or LevelDB.<li>
- * <li>A remote distributed store such as HBase, Bigtable or Cassandra.<li>
- * </ul>
- *
- * TODO - more complete calls and documentation
+ * A data source factory that returns query nodes for a query execution
+ * plan. This could return data from a local store or make remote calls.
  * 
  * @since 3.0
  */
-public interface ReadableTimeSeriesDataStore {
+public interface TimeSeriesDataSourceFactory extends TSDBPlugin, 
+                                                     QueryNodeFactory{
+
+  /**
+   * The type of {@link TimeSeriesId}s returned from this store by default.
+   * Byte IDs may need to be decoded.
+   * @return A non-null type token.
+   */
+  public TypeToken<? extends TimeSeriesId> idType();
   
   /**
-   * Instantiates a new node using the given context and the default
-   * configuration for this node.
-   * @param context A non-null query pipeline context.
-   * @param id An ID for this node.
-   * @return An instantiated node if successful.
+   * Whether or not the store supports pushing down the operation into
+   * it's driver.
+   * @param operation The operation we want to push down.
+   * @return True if pushdown is supported, false if not.
    */
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id);
-  
-  /**
-   * Instantiates a new node using the given context and config.
-   * @param context A non-null query pipeline context.
-   * @param id An ID for this node.
-   * @param config A query node config. May be null if the node does not
-   * require a configuration.
-   * @return An instantiated node if successful.
-   */
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
-                           final QueryNodeConfig config);
-  
-  /**
-   * The descriptive ID of the factory used when parsing queries.
-   * @return A non-null unique ID of the factory.
-   */
-  public String id();
-  
-  /** @return A class to use for serdes for configuring nodes of this
-   * type. */
-  public Class<? extends QueryNodeConfig> nodeConfigClass();
+  public boolean supportsPushdown(
+      final Class<? extends QueryNodeConfig> operation);
   
   /**
    * For stores that are able to encode time series IDs, this method should
@@ -112,9 +87,4 @@ public interface ReadableTimeSeriesDataStore {
       final List<String> join_metrics, 
       final Span span);
   
-  /**
-   * Releases resources held by the store. 
-   * @return A deferred resolving to null. 
-   */
-  public Deferred<Object> shutdown();
 }

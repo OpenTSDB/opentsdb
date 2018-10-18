@@ -26,12 +26,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
@@ -54,13 +55,24 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  */
 public class ExpressionFactory extends BaseQueryNodeFactory {
   
-  public static final String ID = "Expression";
+  public static final String TYPE = "Expression";
   
   /**
    * Required empty ctor.
    */
   public ExpressionFactory() {
-    super(ID);
+    super();
+  }
+  
+  @Override
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
   }
   
   @Override
@@ -192,19 +204,19 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
         }
         return downstream.getId();
       }
-    } else if (node_id.toLowerCase().equals("datasource")) {
+    } else if (downstream instanceof TimeSeriesDataSourceConfig) {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
-        node.setLeft(((QuerySourceConfig) downstream).getMetric().getMetric());
+        node.setLeft(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric());
         return downstream.getId();
       } else if (left && 
-          key.equals(((QuerySourceConfig) downstream).getMetric().getMetric())) {
+          key.equals(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric())) {
         return downstream.getId();
         // right
       } else if (key.equals(downstream.getId())) {
-        node.setRight(((QuerySourceConfig) downstream).getMetric().getMetric());
+        node.setRight(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric());
         return downstream.getId();
-      } else if (key.equals(((QuerySourceConfig) downstream).getMetric().getMetric())) {
+      } else if (key.equals(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric())) {
         return downstream.getId();
       }
     }
@@ -224,15 +236,13 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id) {
+  public QueryNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("This node should have been "
         + "removed from the graph.");
   }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
                            final QueryNodeConfig config) {
     throw new UnsupportedOperationException("This node should have been "
         + "removed from the graph.");

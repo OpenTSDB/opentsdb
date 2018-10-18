@@ -116,7 +116,7 @@ public class SummarizerConfig extends BaseQueryNodeConfig {
     protected List<String> summaries;
     
     Builder() {
-      setType(SummarizerFactory.ID);
+      setType(SummarizerFactory.TYPE);
     }
     
     public Builder setSummaries(final List<String> summaries) {

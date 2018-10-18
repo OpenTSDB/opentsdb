@@ -51,9 +51,12 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
     implements RPCServer {
   private static final Logger LOG = LoggerFactory.getLogger(QueryGRPCServer.class);
   
+  public static final String TYPE = "GRPCQueryServer";
   public static final String CERTIFICATE_KEY = "grpc.server.tls.certificate";
   public static final String KEY_KEY = "grpc.server.tls.key";
   public static final String PORT_KEY = "grpc.server.port";
+  
+  private String id;
   
   /** The TSDB to which we belong. */
   private TSDB tsdb;
@@ -81,7 +84,7 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
     try {
       final SemanticQuery semantic_query = query_builder
           .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
-              .setId(PBufSerdesFactory.ID)
+              .setId(PBufSerdesFactory.TYPE)
               .build())
           .build();
       final SemanticQueryContext context = (SemanticQueryContext) 
@@ -91,7 +94,7 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
               .addSink(GRPCSinkConfig.newBuilder()
                   .setObserver(observer)
                   .setOptions(JsonV2QuerySerdesOptions.newBuilder()
-                    .setId(PBufSerdesFactory.ID)
+                    .setId(PBufSerdesFactory.TYPE)
                     .build())
                   .build())
               .build();
@@ -105,12 +108,18 @@ public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
 
   @Override
   public String id() {
-    return "QueryGRPCServer";
+    return id;
+  }
+  
+  @Override
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     
     // TODO - more config options
     registerConfig(tsdb);

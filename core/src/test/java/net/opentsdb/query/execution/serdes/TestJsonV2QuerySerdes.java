@@ -47,6 +47,7 @@ import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSpecification;
@@ -64,7 +65,6 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.query.serdes.SerdesOptions;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestJsonV2QuerySerdes {
@@ -77,7 +77,7 @@ public class TestJsonV2QuerySerdes {
   private TimeSeriesId id1;
   private TimeSeries ts2;
   private TimeSeriesId id2;
-  private ReadableTimeSeriesDataStore store;
+  private TimeSeriesDataSourceFactory store;
   private JsonV2QuerySerdesOptions options;
   
   @Before
@@ -90,7 +90,7 @@ public class TestJsonV2QuerySerdes {
     
     context = mock(QueryContext.class);
     result = mock(QueryResult.class);
-    store = mock(ReadableTimeSeriesDataStore.class);
+    store = mock(TimeSeriesDataSourceFactory.class);
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1486045800")

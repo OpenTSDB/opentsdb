@@ -26,6 +26,7 @@ import com.google.common.hash.HashCode;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.NamedFilter;
@@ -105,14 +106,6 @@ public class SemanticQuery implements TimeSeriesQuery {
     mode = builder.mode;
     serdes_options = builder.serdes_config == null ? 
         Collections.emptyList() : builder.serdes_config;
-    
-    // set the query if needed
-    for (final QueryNodeConfig node : execution_graph) {
-      if (node instanceof QuerySourceConfig &&
-          ((QuerySourceConfig) node).query() == null) {
-        ((QuerySourceConfig) node).setTimeSeriesQuery(this);
-      }
-    }
   }
 
   @Override
@@ -278,22 +271,40 @@ public class SemanticQuery implements TimeSeriesQuery {
       throw new IllegalArgumentException("Need a graph!");
     }
     for (final JsonNode config : node) {
-      JsonNode temp = config.get("type");
       QueryNodeFactory config_factory = null;
+      JsonNode temp = config.get("sourceId");
       if (temp != null && !temp.isNull()) {
         config_factory = tsdb.getRegistry()
-            .getQueryNodeFactory(temp.asText().toLowerCase());
+            .getQueryNodeFactory(temp.asText());
       } else {
-        temp = config.get("id");
+        temp = config.get("type");
         if (temp != null && !temp.isNull()) {
           config_factory = tsdb.getRegistry()
-              .getQueryNodeFactory(temp.asText().toLowerCase());
+              .getQueryNodeFactory(temp.asText());
+          // could be default data source so lets double check that.
+          if (temp.asText().toLowerCase()
+              .equals(TimeSeriesDataSourceConfig.DEFAULT.toLowerCase())) {
+            config_factory = tsdb.getRegistry()
+                .getDefaultPlugin(TimeSeriesDataSourceFactory.class);
+          }
+        } else {
+          temp = config.get("id");
+          if (temp != null && !temp.isNull()) {
+            config_factory = tsdb.getRegistry()
+                .getQueryNodeFactory(temp.asText());
+            // could be default data source so lets double check that.
+            if (temp.asText().toLowerCase()
+                .equals(TimeSeriesDataSourceConfig.DEFAULT.toLowerCase())) {
+              config_factory = tsdb.getRegistry()
+                  .getDefaultPlugin(TimeSeriesDataSourceFactory.class);
+            }
+          }
         }
       }
       
       if (config_factory == null) {
         throw new IllegalArgumentException("Unable to find a config "
-            + "factory for type: " + temp == null ? "null" : temp.asText());
+            + "factory for type: " + (temp == null ? "null" : temp.asText()));
       }
       builder.addExecutionGraphNode(config_factory.parseConfig(
           JSON.getMapper(), tsdb, config));

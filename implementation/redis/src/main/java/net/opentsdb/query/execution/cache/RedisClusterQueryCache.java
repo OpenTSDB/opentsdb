@@ -26,8 +26,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.Span;
@@ -42,10 +42,13 @@ import redis.clients.jedis.JedisCluster;
  * 
  * @since 3.0
  */
-public class RedisClusterQueryCache implements QueryCachePlugin, TSDBPlugin {
+public class RedisClusterQueryCache extends BaseTSDBPlugin 
+    implements QueryCachePlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisClusterQueryCache.class);
 
+  public static final String TYPE = "RedisCluterQueryCache";
+  
   /** Configuration keys. */
   public static final String HOSTS_KEY = "redis.query.cache.hosts";
   public static final String SHARED_OBJECT_KEY = 
@@ -64,7 +67,8 @@ public class RedisClusterQueryCache implements QueryCachePlugin, TSDBPlugin {
   private JedisCluster cluster;
   
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
     // Two or more implementations may be in play so check first
     if (!tsdb.getConfig().hasProperty(HOSTS_KEY)) {
@@ -392,8 +396,8 @@ public class RedisClusterQueryCache implements QueryCachePlugin, TSDBPlugin {
   }
 
   @Override
-  public String id() {
-    return getClass().getName();
+  public String type() {
+    return TYPE;
   }
 
   @Override

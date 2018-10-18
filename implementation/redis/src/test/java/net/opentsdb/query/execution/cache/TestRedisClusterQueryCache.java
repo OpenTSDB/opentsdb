@@ -104,7 +104,7 @@ public class TestRedisClusterQueryCache {
   @Test
   public void initialize() throws Exception {
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
     verify(cluster, never()).close();
     assertEquals(2, nodes.size());
@@ -119,7 +119,7 @@ public class TestRedisClusterQueryCache {
   public void initializeShared() throws Exception {
     config_map.put("redis.query.cache.shared_object", "RedisCache");
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
     verify(cluster, never()).close();
     assertEquals(2, nodes.size());
@@ -136,7 +136,7 @@ public class TestRedisClusterQueryCache {
     when(registry.getSharedObject("RedisCache")).thenReturn(cluster);
     
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisCluster.class, never()).withArguments(anySet());
     verify(cluster, never()).close();
     assertNull(nodes);
@@ -149,7 +149,7 @@ public class TestRedisClusterQueryCache {
     when(registry.getSharedObject("RedisCache")).thenReturn(tsdb);
     
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
-    cache.initialize(tsdb).join(1);
+    cache.initialize(tsdb, null).join(1);
   }
   
   @Test
@@ -160,7 +160,7 @@ public class TestRedisClusterQueryCache {
       .thenReturn(extant);
     
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
     verify(cluster, times(1)).close();
     assertEquals(2, nodes.size());
@@ -175,25 +175,25 @@ public class TestRedisClusterQueryCache {
   @Test (expected = IllegalArgumentException.class)
   public void initializeNullHosts() throws Exception {
     config_map.put("redis.query.cache.hosts", null);
-    new RedisClusterQueryCache().initialize(tsdb).join(1);
+    new RedisClusterQueryCache().initialize(tsdb, null).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeEmptyHost() throws Exception {
     config_map.put("redis.query.cache.hosts", "");
-    new RedisClusterQueryCache().initialize(tsdb).join(1);
+    new RedisClusterQueryCache().initialize(tsdb, null).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeBadHostPort() throws Exception {
     config_map.put("redis.query.cache.hosts", "localhost:notanum");
-    new RedisClusterQueryCache().initialize(tsdb).join(1);
+    new RedisClusterQueryCache().initialize(tsdb, null).join(1);
   }
   
   @Test
   public void shutdown() throws Exception {
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
     assertNull(cache.shutdown().join(1));
     PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
     verify(cluster, times(1)).close();
@@ -211,7 +211,7 @@ public class TestRedisClusterQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
 
     cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
     verify(cluster, times(1)).set(key, data, RedisClusterQueryCache.NX, 
@@ -259,7 +259,7 @@ public class TestRedisClusterQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    assertNull(cache.initialize(tsdb).join(1));
+    assertNull(cache.initialize(tsdb, null).join(1));
 
     cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
     verify(cluster, times(1)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
@@ -327,7 +327,7 @@ public class TestRedisClusterQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    cache.initialize(tsdb).join(1);
+    cache.initialize(tsdb, null).join(1);
     
     exec = cache.fetch(context, key, null);
     assertNull(exec.deferred().join(1));
@@ -367,7 +367,7 @@ public class TestRedisClusterQueryCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    cache.initialize(tsdb).join(1);
+    cache.initialize(tsdb, null).join(1);
     
     exec = cache.fetch(context, keys, null);
     byte[][] response = exec.deferred().join(1);

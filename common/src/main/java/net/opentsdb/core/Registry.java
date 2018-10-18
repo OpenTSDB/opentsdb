@@ -24,7 +24,6 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 /**
  * A shared location for registering context, mergers, plugins, etc.
@@ -164,10 +163,6 @@ public interface Registry {
   
   /** @return An unmodifiable map of data type to default names. */
   public Map<TypeToken<? extends TimeSeriesDataType>, String> defaultTypeNameMap();
-  
-  public ReadableTimeSeriesDataStore getDefaultStore();
-  
-  public ReadableTimeSeriesDataStore getStore(final String id);
   
   /** @return Package private shutdown returning the deferred to wait on. */
   public Deferred<Object> shutdown();

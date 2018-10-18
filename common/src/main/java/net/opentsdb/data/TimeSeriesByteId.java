@@ -17,7 +17,6 @@ import java.util.List;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -37,7 +36,7 @@ public interface TimeSeriesByteId extends TimeSeriesId,
    * 
    * @return A non-null data store.
    */
-  public ReadableTimeSeriesDataStore dataStore();
+  public TimeSeriesDataSourceFactory dataStore();
   
   /**
    * A simple id for identifying the time series. The alias may be null or

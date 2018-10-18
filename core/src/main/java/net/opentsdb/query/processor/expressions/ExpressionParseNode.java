@@ -338,7 +338,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     private ExpressionConfig expressionConfig;
     
     Builder() {
-      setType(BinaryExpressionNodeFactory.ID);
+      setType(BinaryExpressionNodeFactory.TYPE);
     }
     
     public Builder setLeft(final Object left) {

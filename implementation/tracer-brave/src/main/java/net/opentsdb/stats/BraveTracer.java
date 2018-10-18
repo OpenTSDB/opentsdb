@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationCallback;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.BraveTrace.BraveTraceBuilder;
 import zipkin.Span;
@@ -40,8 +41,10 @@ import zipkin.reporter.okhttp3.OkHttpSender;
  * 
  * @since 3.0
  */
-public class BraveTracer implements Tracer {
+public class BraveTracer extends BaseTSDBPlugin implements Tracer {
   private static final Logger LOG = LoggerFactory.getLogger(BraveTracer.class);
+  
+  public static final String TYPE = "BraveTracer";
   
   /** Configuration keys. */
   public static final String SERVICE_NAME_KEY = "tsdb.tracer.service_name";
@@ -60,7 +63,8 @@ public class BraveTracer implements Tracer {
   private volatile AsyncReporter<zipkin.Span> zipkin_reporter;
   
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
@@ -105,8 +109,8 @@ public class BraveTracer implements Tracer {
   }
   
   @Override
-  public String id() {
-    return "Brave Tracer";
+  public String type() {
+    return TYPE;
   }
 
   @Override

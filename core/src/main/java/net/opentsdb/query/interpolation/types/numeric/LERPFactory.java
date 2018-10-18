@@ -18,6 +18,7 @@ import java.lang.reflect.Constructor;
 import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
@@ -33,23 +34,21 @@ import net.opentsdb.utils.Pair;
  */
 public class LERPFactory extends BaseQueryIntperolatorFactory {
 
+  static final String TYPE = "LERP";
+  
   @Override
-  public String id() {
-    return "LERP";
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     register(NumericType.TYPE, NumericLERP.class, 
         new NumericInterpolatorParser());
     return Deferred.fromResult(null);
   }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";

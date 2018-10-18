@@ -21,7 +21,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,12 +40,14 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -61,14 +62,12 @@ import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.groupby.GroupBy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 public class TestDefaultQueryPlanner {
 
   private static MockTSDB TSDB;
-  private static TimeSeriesDataStoreFactory STORE_FACTORY;
-  private static ReadableTimeSeriesDataStore STORE;
+  private static TimeSeriesDataSourceFactory STORE_FACTORY;
+  private static TimeSeriesDataSource STORE;
   private static NumericInterpolatorConfig NUMERIC_CONFIG;
   private static QueryNode SINK;
   private static List<TimeSeriesDataSource> STORE_NODES;
@@ -78,25 +77,22 @@ public class TestDefaultQueryPlanner {
   @BeforeClass
   public static void beforeClass() throws Exception {
     TSDB = new MockTSDB();
-    STORE_FACTORY = mock(TimeSeriesDataStoreFactory.class);
-    STORE = mock(ReadableTimeSeriesDataStore.class);
+    STORE_FACTORY = mock(TimeSeriesDataSourceFactory.class);
     SINK = mock(QueryNode.class);
     STORE_NODES = Lists.newArrayList();
     
     TSDB.registry = new DefaultRegistry(TSDB);
     ((DefaultRegistry) TSDB.registry).initialize(true);
     ((DefaultRegistry) TSDB.registry).registerPlugin(
-        TimeSeriesDataStoreFactory.class, null, (TSDBPlugin) STORE_FACTORY);
-    ((DefaultRegistry) TSDB.registry).registerReadStore(STORE, null);
+        TimeSeriesDataSourceFactory.class, null, (TSDBPlugin) STORE_FACTORY);
     
-    when(STORE_FACTORY.newInstance(TSDB, null)).thenReturn(STORE);
-    when(STORE.newNode(any(QueryPipelineContext.class), anyString(), 
+    when(STORE_FACTORY.newNode(any(QueryPipelineContext.class), 
         any(QueryNodeConfig.class)))
       .thenAnswer(new Answer<QueryNode>() {
         @Override
         public QueryNode answer(InvocationOnMock invocation) throws Throwable {
           final TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
-          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[2]);
+          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
           STORE_NODES.add(node);
           return node;
         }
@@ -118,6 +114,7 @@ public class TestDefaultQueryPlanner {
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
     when(context.tsdb()).thenReturn(TSDB);
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
     
     STORE_NODES.clear();
     when(STORE_FACTORY.supportsPushdown(any(Class.class)))
@@ -127,7 +124,7 @@ public class TestDefaultQueryPlanner {
   @Test
   public void oneMetricOneGraphNoPushdown() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -211,7 +208,7 @@ public class TestDefaultQueryPlanner {
       .thenReturn(true);
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -270,7 +267,7 @@ public class TestDefaultQueryPlanner {
 
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
-    QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
+    DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("ds", source_config.getPushDownNodes().get(0).getId());
@@ -294,7 +291,7 @@ public class TestDefaultQueryPlanner {
       .thenReturn(true);
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -340,7 +337,7 @@ public class TestDefaultQueryPlanner {
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
-    QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
+    DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
@@ -361,14 +358,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void twoMetricsAlone() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -425,14 +422,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void twoMetricsOneGraphNoPushdown() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -516,14 +513,14 @@ public class TestDefaultQueryPlanner {
       .thenReturn(true);
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-       QuerySourceConfig.newBuilder()
+       DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -579,14 +576,14 @@ public class TestDefaultQueryPlanner {
     // TODO - watch this bit for ordering
     node = iterator.next();
     assertSame(STORE_NODES.get(1), node);
-    QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
+    DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
-    source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
+    source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
@@ -610,14 +607,14 @@ public class TestDefaultQueryPlanner {
       .thenReturn(true);
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -680,14 +677,14 @@ public class TestDefaultQueryPlanner {
     // TODO - watch this bit for ordering
     node = iterator.next();
     assertSame(STORE_NODES.get(1), node);
-    QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
+    DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("ds2", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
-    source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
+    source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("ds1", source_config.getPushDownNodes().get(0).getId());
@@ -711,14 +708,14 @@ public class TestDefaultQueryPlanner {
       .thenReturn(true);
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -764,14 +761,14 @@ public class TestDefaultQueryPlanner {
     // TODO - watch this bit for ordering
     node = iterator.next();
     assertSame(STORE_NODES.get(1), node);
-    QuerySourceConfig source_config = (QuerySourceConfig) STORE_NODES.get(1).config();
+    DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
     node = iterator.next();
     assertSame(STORE_NODES.get(0), node);
-    source_config = (QuerySourceConfig) STORE_NODES.get(0).config();
+    source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
@@ -792,14 +789,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void twoMetricsTwoGraphs() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -901,14 +898,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void twoMetricsFilterGBandRaw() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -997,14 +994,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void twoMetricsExpression() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -1098,14 +1095,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void twoMetricsExpressionWithFilter() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -1199,7 +1196,7 @@ public class TestDefaultQueryPlanner {
   @Test
   public void cycleFound() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -1243,14 +1240,14 @@ public class TestDefaultQueryPlanner {
   @Test
   public void duplicateNodeIds() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
             .setFilterId("f1")
             .setId("m1")
             .build(),
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.sys")
                 .build())
@@ -1294,7 +1291,7 @@ public class TestDefaultQueryPlanner {
   @Test
   public void unsatisfiedFilter() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())

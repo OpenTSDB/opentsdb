@@ -14,22 +14,31 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.util.Map;
+import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
+import net.opentsdb.uid.UniqueIdType;
 
 /**
  * Simple singleton factory that implements a default and named schemas
@@ -38,73 +47,16 @@ import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
  * @since 3.0
  */
 public class SchemaFactory extends BaseTSDBPlugin 
-                           implements TimeSeriesDataStoreFactory,
+                           implements TimeSeriesDataSourceFactory,
                                       WritableTimeSeriesDataStoreFactory {
-
-  /** The default schema. */
-  protected volatile Schema default_schema;
+  public static final String TYPE = "Tsdb1xSchemaFactory";
   
-  /** A map of non-default schemas. */
-  protected Map<String, Schema> schemas = Maps.newConcurrentMap();
+  /** The default schema. */
+  protected Schema schema;
   
   @Override
-  public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, final String id) {
-    // DCLP on the default.
-    if (Strings.isNullOrEmpty(id)) {
-      if (default_schema == null) {      
-        synchronized (this) {
-          if (default_schema == null) {
-            default_schema = new Schema(tsdb, null);
-            try {
-              ((DefaultRegistry) tsdb.getRegistry()).registerReadStore(default_schema, null);
-              ((DefaultRegistry) tsdb.getRegistry()).registerWriteStore(default_schema, null);
-            } catch (Exception e) {
-              e.printStackTrace();
-            }
-          }
-        }
-      }
-      
-      return default_schema;
-    }
-    
-    Schema schema = schemas.get(id);
-    if (schema == null) {
-      synchronized (this) {
-        schema = schemas.get(id);
-        if (schema == null) {
-          schema = new Schema(tsdb, id);
-          schemas.put(id, schema);
-        }
-      }
-    }
-    return schema;
-  }
-
-  public WritableTimeSeriesDataStore newStoreInstance(final TSDB tsdb, final String id) {
-    // DCLP on the default.
-    if (Strings.isNullOrEmpty(id)) {
-      if (default_schema == null) {      
-        synchronized (this) {
-          if (default_schema == null) {
-            default_schema = new Schema(tsdb, null);
-          }
-        }
-      }
-      
-      return default_schema;
-    }
-    
-    Schema schema = schemas.get(id);
-    if (schema == null) {
-      synchronized (this) {
-        schema = schemas.get(id);
-        if (schema == null) {
-          schema = new Schema(tsdb, id);
-          schemas.put(id, schema);
-        }
-      }
-    }
+  public WritableTimeSeriesDataStore newStoreInstance(final TSDB tsdb, 
+                                                      final String id) {
     return schema;
   }
   
@@ -121,8 +73,15 @@ public class SchemaFactory extends BaseTSDBPlugin
   }
   
   @Override
-  public String id() {
-    return "Tsdb1xSchemaFactory";
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    schema = new Schema(this, tsdb, id);
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
+  public String type() {
+    return TYPE;
   }
 
   @Override
@@ -131,4 +90,49 @@ public class SchemaFactory extends BaseTSDBPlugin
     return "3.0.0";
   }
 
+  @Override
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
+  }
+
+  @Override
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config,
+                         final QueryPlanner planner) {
+    // TODO Auto-generated method stub
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context,
+                           final QueryNodeConfig config) {
+    return schema.dataStore().newNode(context, config);
+  }
+
+  @Override
+  public Deferred<TimeSeriesStringId> resolveByteId(
+      final TimeSeriesByteId id, 
+      final Span span) {
+    return schema.resolveByteId(id, span);
+  }
+  
+  @Override
+  public Deferred<List<byte[]>> encodeJoinKeys(
+      final List<String> join_keys, 
+      final Span span) {
+    return schema.getIds(UniqueIdType.TAGK, join_keys, span);
+  }
+  
+  @Override
+  public Deferred<List<byte[]>> encodeJoinMetrics(
+      final List<String> join_metrics, 
+      final Span span) {
+    return schema.getIds(UniqueIdType.METRIC, join_metrics, span);
+  }
 }

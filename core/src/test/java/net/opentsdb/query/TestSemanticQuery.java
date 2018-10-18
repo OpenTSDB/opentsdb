@@ -27,6 +27,8 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
@@ -37,6 +39,7 @@ import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.utils.JSON;
 
 public class TestSemanticQuery {
@@ -51,7 +54,7 @@ public class TestSemanticQuery {
         .setId("f1")
         .build();
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -139,7 +142,7 @@ public class TestSemanticQuery {
         .build();
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -179,7 +182,7 @@ public class TestSemanticQuery {
     assertTrue(json.contains("\"timezone\":\"America/Denver\""));
     assertTrue(json.contains("\"executionGraph\":["));
     assertTrue(json.contains("\"id\":\"m1\""));
-    assertTrue(json.contains("\"type\":\"DataSource\""));
+    //assertTrue(json.contains("\"type\":\"" + DefaultTimeSeriesDataSourceConfig.TYPE + "\""));
     assertTrue(json.contains("\"metric\":{"));
     assertTrue(json.contains("\"id\":\"foo\""));
     assertTrue(json.contains("\"type\":\"Downsample\""));
@@ -191,6 +194,10 @@ public class TestSemanticQuery {
     MockTSDB tsdb = new MockTSDB();
     tsdb.registry = new DefaultRegistry(tsdb);
     ((DefaultRegistry) tsdb.registry).initialize(true);
+    MockDataStoreFactory factory = new MockDataStoreFactory();
+    factory.initialize(tsdb, null);
+    tsdb.registry.registerPlugin(TimeSeriesDataSourceFactory.class, 
+        null, factory);
     
     JsonNode node = JSON.getMapper().readTree(json);
     query = SemanticQuery.parse(tsdb, node).build();
@@ -226,7 +233,7 @@ public class TestSemanticQuery {
         .build();
     
     List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
           .setMetric(MetricLiteralFilter.newBuilder()
               .setMetric("sys.cpu.user")
               .build())
@@ -255,7 +262,7 @@ public class TestSemanticQuery {
     assertNull(query.getFilter("nosuchfilter"));
     
     graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
           .setMetric(MetricLiteralFilter.newBuilder()
               .setMetric("sys.cpu.user")
               .build())

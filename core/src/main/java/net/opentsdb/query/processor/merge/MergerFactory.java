@@ -20,8 +20,10 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -47,13 +49,13 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  */
 public class MergerFactory extends BaseQueryNodeFactory {
   
-  public static final String ID = "Merger";
+  public static final String TYPE = "Merger";
   
   /**
    * Default ctor. Registers the numeric iterator.
    */
   public MergerFactory() {
-    super(ID);
+    super();
     registerIteratorFactory(NumericType.TYPE, 
         new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
@@ -63,19 +65,28 @@ public class MergerFactory extends BaseQueryNodeFactory {
   }
   
   @Override
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
   public QueryNode newNode(final QueryPipelineContext context,
-                           final String id,
                            final QueryNodeConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new Merger(this, context, id, (MergerConfig) config);
+    return new Merger(this, context, (MergerConfig) config);
   }
   
   @Override
-  public QueryNode newNode(QueryPipelineContext context, String id) {
-    // TODO Auto-generated method stub
-    return null;
+  public QueryNode newNode(final QueryPipelineContext context) {
+    throw new UnsupportedOperationException();
   }
   
   @Override

@@ -56,7 +56,7 @@ public class TestRedisClusterKeyGenerator {
   @Test
   public void generate() throws Exception {
     final RedisClusterKeyGenerator generator = new RedisClusterKeyGenerator();
-    generator.initialize(tsdb).join(1);
+    generator.initialize(tsdb, null).join(1);
     
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -101,7 +101,7 @@ public class TestRedisClusterKeyGenerator {
   @Test
   public void generateMulti() throws Exception {
     final RedisClusterKeyGenerator generator = new RedisClusterKeyGenerator();
-    generator.initialize(tsdb).join(1);
+    generator.initialize(tsdb, null).join(1);
     
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()

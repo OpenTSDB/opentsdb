@@ -35,8 +35,8 @@ public class TestFirst {
   @Test
   public void factory() throws Exception {
     NumericAggregatorFactory factory = new FirstFactory();
-    assertEquals(FirstFactory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
+    assertEquals(FirstFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

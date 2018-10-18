@@ -17,8 +17,10 @@ package net.opentsdb.query.filter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 
 /**
@@ -26,7 +28,8 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class TagValueRegexFactory implements QueryFilterFactory {
+public class TagValueRegexFactory extends BaseTSDBPlugin
+    implements QueryFilterFactory {
 
   static final String TYPE = "TagValueRegex";
   
@@ -49,20 +52,16 @@ public class TagValueRegexFactory implements QueryFilterFactory {
   }
 
   @Override
-  public String id() {
+  public String type() {
     return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     return Deferred.fromResult(null);
   }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";

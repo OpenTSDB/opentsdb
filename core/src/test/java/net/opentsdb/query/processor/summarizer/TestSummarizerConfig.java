@@ -114,6 +114,6 @@ public class TestSummarizerConfig {
     assertEquals("summarizer", config.getId());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
-    assertEquals(SummarizerFactory.ID, config.getType());
+    assertEquals(SummarizerFactory.TYPE, config.getType());
   }
 }

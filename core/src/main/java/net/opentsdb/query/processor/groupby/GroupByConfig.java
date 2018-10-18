@@ -179,7 +179,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     private boolean fullMerge;
     
     Builder() {
-      setType(GroupByFactory.ID);
+      setType(GroupByFactory.TYPE);
     }
     
     /**
@@ -320,7 +320,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       if (factory == null) {
         throw new IllegalArgumentException("Unable to find an "
             + "interpolator factory for: " + 
-            (type_json == null ? "default" : type_json.asText()));
+            (type_json == null ? null : type_json.asText()));
       }
       
       final QueryInterpolatorConfig interpolator_config = 

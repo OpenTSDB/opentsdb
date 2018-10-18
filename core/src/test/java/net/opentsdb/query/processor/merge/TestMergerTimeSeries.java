@@ -102,7 +102,7 @@ public class TestMergerTimeSeries {
     final Registry registry = mock(Registry.class);
     when(tsdb.getRegistry()).thenReturn(registry);
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
-    interp_factory.initialize(tsdb).join();
+    interp_factory.initialize(tsdb, null).join();
     when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
       .thenReturn(interp_factory);
     when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))

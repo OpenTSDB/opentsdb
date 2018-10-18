@@ -47,7 +47,6 @@ import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
@@ -71,7 +70,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
@@ -88,7 +87,7 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeSeriesDataStore {
+public class MockDataStore implements WritableTimeSeriesDataStore {
   private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
   
   public static final long ROW_WIDTH = 3600000;
@@ -113,6 +112,10 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
   public MockDataStore(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
     this.id = id;
+    
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Intantiating mock data store with ID: " + this.id + "@" + System.identityHashCode(this));
+    }
     
     database = Maps.newHashMap();
     generateMockData();
@@ -164,38 +167,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
   }
   
-  @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final String id,
-                           final QueryNodeConfig config) {
-    return new LocalNode(context, id, (QuerySourceConfig) config);
-  }
-  
-  @Override
-  public QueryNode newNode(QueryPipelineContext context, String id) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
-  public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, final Span span) {
-    return Deferred.fromResult(null);
-  }
-  
-  @Override
-  public Deferred<Object> shutdown() {
-    if (thread_pool != null) {
-      thread_pool.shutdownNow();
-    }
-    return Deferred.fromResult(null);
-  }
-  
   public Deferred<WriteStatus> write(final AuthState state, final TimeSeriesDatum datum, final Span span) {
     MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
     if (data_span == null) {
@@ -222,11 +193,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
       states.add(WriteStatus.OK);
     }
     return Deferred.fromResult(states);
-  }
-  
-  @Override
-  public String id() {
-    return "MockDataStore";
   }
   
   class MockSpan {
@@ -402,13 +368,12 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
   class LocalNode extends AbstractQueryNode implements TimeSeriesDataSource {
     private AtomicInteger sequence_id = new AtomicInteger();
     private AtomicBoolean completed = new AtomicBoolean();
-    private QuerySourceConfig config;
+    private BaseTimeSeriesDataSourceConfig config;
     private final net.opentsdb.stats.Span trace_span;
     
     public LocalNode(final QueryPipelineContext context,
-                     final String id,
-                     final QuerySourceConfig config) {
-      super(null, context, id);
+                     final BaseTimeSeriesDataSourceConfig config) {
+      super(null, context);
       this.config = config;
       if (context.queryContext().stats() != null && 
           context.queryContext().stats().trace() != null) {
@@ -491,10 +456,11 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     public QueryNodeConfig config() {
       return config;
     }
+    
   }
   
   class LocalResult implements QueryResult, Runnable {
-    final QuerySourceConfig config;
+    final BaseTimeSeriesDataSourceConfig config;
     final SemanticQuery query;
     final QueryPipelineContext context;
     final LocalNode pipeline;
@@ -504,7 +470,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     
     LocalResult(final QueryPipelineContext context, 
                 final LocalNode pipeline, 
-                final QuerySourceConfig config, 
+                final BaseTimeSeriesDataSourceConfig config, 
                 final long sequence_id,
                 final net.opentsdb.stats.Span trace_span) {
       this.context = context;
@@ -563,15 +529,14 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
             query.endTime().msEpoch() : 
               query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Running the filter: " + config.filter());
+        
+        QueryFilter filter = config.getFilter();
+        if (filter == null && !Strings.isNullOrEmpty(config.getFilterId())) {
+          filter = context.query().getFilter(config.getFilterId());
         }
         
-        final QueryFilter filter;
-        if (config.filter() != null) {
-          filter = config.filter();
-        } else {
-          filter = null;
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Running the filter: " + filter);
         }
         
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : database.entrySet()) {
@@ -616,7 +581,7 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
         }
         
         if (LOG.isDebugEnabled()) {
-          LOG.debug("DONE with filtering. " + pipeline + "  Results: " 
+          LOG.debug("[" + MockDataStore.this.id + "@" + System.identityHashCode(MockDataStore.this) + "] DONE with filtering. " + pipeline + "  Results: " 
               + matched_series.size());
         }
         if (pipeline.completed.get()) {
@@ -782,19 +747,6 @@ public class MockDataStore implements ReadableTimeSeriesDataStore, WritableTimeS
     }
   }
   
-  @Override
-  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id,
-                                                    final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException());
-  }
-
-  @Override
-  public Deferred<List<byte[]>> encodeJoinMetrics(List<String> join_metrics,
-      Span span) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
   class LastTimeSeries implements TimeSeries {
     SemanticQuery query;
     MockRow row;

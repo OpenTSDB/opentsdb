@@ -97,7 +97,7 @@ public class TestDedupNode {
         add(series);
     }});
 
-    DedupNode dedupNode = new DedupNode(null, pipelineContext, null, 
+    DedupNode dedupNode = new DedupNode(null, pipelineContext, 
         (DedupConfig) DedupConfig.newBuilder()
           .setId("dedupe")
           .build());

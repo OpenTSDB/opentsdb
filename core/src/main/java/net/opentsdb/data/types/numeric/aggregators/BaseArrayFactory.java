@@ -14,27 +14,16 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.BaseTSDBPlugin;
 
 /**
  * Simple base to implement the plugin.
  * 
  * @since 3.0
  */
-public abstract class BaseArrayFactory implements NumericArrayAggregatorFactory {
-
-  @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+public abstract class BaseArrayFactory extends BaseTSDBPlugin implements 
+    NumericArrayAggregatorFactory {
+  
   @Override
   public String version() {
     return "3.0.0";

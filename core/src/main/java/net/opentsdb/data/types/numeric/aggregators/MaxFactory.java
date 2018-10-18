@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -29,7 +30,7 @@ import net.opentsdb.exceptions.IllegalDataException;
 public class MaxFactory extends BaseTSDBPlugin implements 
     NumericAggregatorFactory {
 
-  public static final String ID = "max";
+  public static final String TYPE = "Max";
   
   @Override
   public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -37,8 +38,8 @@ public class MaxFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
   }
 
   @Override
@@ -47,9 +48,12 @@ public class MaxFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
+  public Deferred<Object> initialize(TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    MaxFactory mimmax = new MaxFactory();
+    mimmax.id = "MimMax";
     tsdb.getRegistry().registerPlugin(NumericAggregatorFactory.class, 
-        "mimmax", this);
+        mimmax.id(), mimmax);
     return Deferred.fromResult(null);
   }
   
@@ -103,5 +107,5 @@ public class MaxFactory extends BaseTSDBPlugin implements
     }
     
   }
-  private static final NumericAggregator AGGREGATOR = new Max(ID);
+  private static final NumericAggregator AGGREGATOR = new Max(TYPE);
 }

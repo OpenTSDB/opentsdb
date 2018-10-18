@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
@@ -47,7 +47,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 public class TestTimeSeriesQuery {
   
@@ -107,9 +106,7 @@ public class TestTimeSeriesQuery {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
     
     TSDB.config.register("tsd.query.test1", 42, false, "UT");
     TSDB.config.register("tsd.query.test2", true, false, "UT");
@@ -655,15 +652,15 @@ public class TestTimeSeriesQuery {
     
     QueryNodeConfig node = query.getExecutionGraph().get(0);
     assertEquals("m1", node.getId());
-    assertEquals("DataSource", node.getType());
+    assertEquals(TimeSeriesDataSourceConfig.DEFAULT, node.getType());
     assertTrue(node.getSources().isEmpty());
-    QuerySourceConfig ds = (QuerySourceConfig) node;
+    BaseTimeSeriesDataSourceConfig ds = (BaseTimeSeriesDataSourceConfig) node;
     assertEquals("YAMAS.cpu.idle", ds.getMetric().getMetric());
     assertNull(ds.getFilterId());
     
     node = query.getExecutionGraph().get(1);
     assertEquals("downsample_m1", node.getId());
-    assertEquals(DownsampleFactory.ID, node.getType());
+    assertEquals(DownsampleFactory.TYPE, node.getType());
     assertEquals(1, node.getSources().size());
     assertTrue(node.getSources().contains("m1"));
     DownsampleConfig dsc = (DownsampleConfig) node;
@@ -672,7 +669,7 @@ public class TestTimeSeriesQuery {
     
     node = query.getExecutionGraph().get(2);
     assertEquals("m1_GroupBy", node.getId());
-    assertEquals(GroupByFactory.ID, node.getType());
+    assertEquals(GroupByFactory.TYPE, node.getType());
     assertEquals(1, node.getSources().size());
     assertTrue(node.getSources().contains("downsample_m1"));
     GroupByConfig gb = (GroupByConfig) node;
@@ -682,7 +679,7 @@ public class TestTimeSeriesQuery {
     
     node = query.getExecutionGraph().get(3);
     assertEquals("e1", node.getId());
-    assertEquals(ExpressionFactory.ID, node.getType());
+    assertEquals(ExpressionFactory.TYPE, node.getType());
     assertEquals(1, node.getSources().size());
     assertTrue(node.getSources().contains("m1_GroupBy"));
     ExpressionConfig ex_config = (ExpressionConfig) node;

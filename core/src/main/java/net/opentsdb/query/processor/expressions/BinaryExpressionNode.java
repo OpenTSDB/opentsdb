@@ -75,14 +75,12 @@ public class BinaryExpressionNode extends AbstractQueryNode {
    * Default ctor.
    * @param factory The factory we came from.
    * @param context The non-null context.
-   * @param id The ID of this node.
    * @param expression_config The non-null sub-expression config.
    */
   public BinaryExpressionNode(final QueryNodeFactory factory,
                               final QueryPipelineContext context, 
-                              final String id,
                               final ExpressionParseNode expression_config) {
-    super(factory, context, id);
+    super(factory, context);
     if (expression_config == null) {
       throw new IllegalArgumentException("Expression config cannot be null.");
     }

@@ -60,9 +60,8 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.IncomingDataPoint;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -390,10 +389,9 @@ public class PutDataPointRpc {
       
     }
     
-    TimeSeriesDataStoreFactory f = tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataStoreFactory.class);
-    ReadableTimeSeriesDataStore fs = f.newInstance(tsdb, null);
-    
-    WritableTimeSeriesDataStore store = (WritableTimeSeriesDataStore) fs;
+    WritableTimeSeriesDataStoreFactory f = tsdb.getRegistry()
+        .getDefaultPlugin(WritableTimeSeriesDataStoreFactory.class);
+    WritableTimeSeriesDataStore store = f.newStoreInstance(tsdb, null);
     
     for (final IncomingDataPoint dp : dps) {
       store.write(null, TimeSeriesDatum.wrap(new IDWrapper(dp), new ValueWrapper(dp)), null);

@@ -16,6 +16,7 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -27,20 +28,23 @@ import net.opentsdb.core.TSDB;
  */
 public class ArraySumFactory extends BaseArrayFactory {
 
+  public static final String TYPE = "Sum";
+  
   @Override
   public NumericArrayAggregator newAggregator(boolean infectious_nan) {
     return new ArraySum(infectious_nan);
   }
   
   @Override
-  public String id() {
-    return "sum";
+  public String type() {
+    return TYPE;
   }
   
   @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
-        "zimsum", this);
+        "ZimSum", this);
     return Deferred.fromResult(null);
   }
   

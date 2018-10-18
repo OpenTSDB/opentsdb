@@ -151,7 +151,7 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
     private boolean infectiousNan;
     
     Builder() {
-      setType(SlidingWindowFactory.ID);
+      setType(SlidingWindowFactory.TYPE);
     }
     
     public Builder setWindowSize(final String window_size) {

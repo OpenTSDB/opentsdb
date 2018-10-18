@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheStats;
@@ -30,9 +31,9 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.Span;
@@ -75,7 +76,9 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class GuavaLRUCache implements QueryCachePlugin, TimerTask, TSDBPlugin {
+public class GuavaLRUCache extends BaseTSDBPlugin implements 
+    QueryCachePlugin, TimerTask {
+  public static final String TYPE = GuavaLRUCache.class.getSimpleName().toString();
   private static final Logger LOG = LoggerFactory.getLogger(GuavaLRUCache.class);
   
   /** The default size limit in bytes. 128MB. */
@@ -113,7 +116,8 @@ public class GuavaLRUCache implements QueryCachePlugin, TimerTask, TSDBPlugin {
   }
   
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     try {
       if (tsdb.getConfig().hasProperty("tsd.executor.plugin.guava.limit.objects")) {
         max_objects = tsdb.getConfig().getInt(
@@ -394,8 +398,8 @@ public class GuavaLRUCache implements QueryCachePlugin, TimerTask, TSDBPlugin {
   }
 
   @Override
-  public String id() {
-    return "GuavaLRUCache";
+  public String type() {
+    return TYPE;
   }
 
   @Override
@@ -514,12 +518,6 @@ public class GuavaLRUCache implements QueryCachePlugin, TimerTask, TSDBPlugin {
     tsdb.getMaintenanceTimer().newTimeout(this, 
         tsdb.getConfig().getInt(DefaultTSDB.MAINT_TIMER_KEY), 
         TimeUnit.MILLISECONDS);
-  }
-
-  
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
   }
   
 }

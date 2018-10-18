@@ -14,9 +14,7 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.BaseTSDBPlugin;
 
 /**
  * A default implementation of the stats collector that simply ignores
@@ -25,23 +23,16 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class BlackholeStatsCollector implements StatsCollector {
+public class BlackholeStatsCollector extends BaseTSDBPlugin implements 
+    StatsCollector {
 
+  public static final String TYPE = "BlackholeStatsCollector";
+  
   @Override
-  public String id() {
-    return "BlackholeStatsCollector";
+  public String type() {
+    return TYPE;
   }
-
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";

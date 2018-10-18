@@ -42,7 +42,7 @@ public class TestDefaultInterpolatorFactory {
     DefaultInterpolatorFactory factory = new DefaultInterpolatorFactory();
     assertTrue(factory.types.isEmpty());
     
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
     assertEquals(2, factory.types.size());
     
     assertEquals(2, factory.parsers.size());

@@ -14,9 +14,7 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.BaseTSDBPlugin;
 
 /**
  * When a tracing plugin is not loaded, this class should be passed
@@ -25,8 +23,11 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class BlackholeTracer implements Tracer, Trace, Span, Span.SpanBuilder {
+public class BlackholeTracer extends BaseTSDBPlugin implements 
+    Tracer, Trace, Span, Span.SpanBuilder {
 
+  public static final String TYPE = "BlackholeTracer";
+  
   @Override
   public void finish() { }
 
@@ -133,22 +134,12 @@ public class BlackholeTracer implements Tracer, Trace, Span, Span.SpanBuilder {
   public Span firstSpan() {
     return this;
   }
-
+  
   @Override
-  public String id() {
-    return "BlackholeTracer";
+  public String type() {
+    return TYPE;
   }
-
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";

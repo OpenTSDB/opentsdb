@@ -125,7 +125,7 @@ public class TestSlidingWindowConfig {
     assertTrue(config.getInfectiousNan());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
-    assertEquals(SlidingWindowFactory.ID, config.getType());
+    assertEquals(SlidingWindowFactory.TYPE, config.getType());
   }
   
 }

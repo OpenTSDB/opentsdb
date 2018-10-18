@@ -29,10 +29,10 @@ import com.stumbleupon.async.Deferred;
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -173,7 +173,7 @@ public class ByteIdOverride implements TimeSeriesByteId {
   }
 
   @Override
-  public ReadableTimeSeriesDataStore dataStore() {
+  public TimeSeriesDataSourceFactory dataStore() {
     return id.dataStore();
   }
 

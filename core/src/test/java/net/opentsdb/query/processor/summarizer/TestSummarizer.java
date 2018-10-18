@@ -72,26 +72,26 @@ public class TestSummarizer {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    Summarizer ds = new Summarizer(factory, context, null, config);
+    Summarizer ds = new Summarizer(factory, context, config);
     ds.initialize(null);
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
     
     try {
-      new Summarizer(factory, null, null, config);
+      new Summarizer(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Summarizer(factory, context, null, null);
+      new Summarizer(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    Summarizer ds = new Summarizer(factory, context, null, config);
+    Summarizer ds = new Summarizer(factory, context, config);
     ds.initialize(null);
     
     ds.onComplete(null, 42, 42);
@@ -105,7 +105,7 @@ public class TestSummarizer {
   
   @Test
   public void onNext() throws Exception {
-    Summarizer ds = new Summarizer(factory, context, null, config);
+    Summarizer ds = new Summarizer(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
     
     ds.initialize(null);
@@ -121,7 +121,7 @@ public class TestSummarizer {
   
   @Test
   public void onError() throws Exception {
-    Summarizer ds = new Summarizer(factory, context, null, config);
+    Summarizer ds = new Summarizer(factory, context, config);
     ds.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

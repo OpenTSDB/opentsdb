@@ -23,13 +23,13 @@ import com.stumbleupon.async.Callback;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 /**
  * Performs the time series grouping aggregation by sorting time series according
@@ -52,14 +52,12 @@ public class GroupBy extends AbstractQueryNode {
    * Default ctor.
    * @param factory The non-null factory for generating iterators.
    * @param context The non-null pipeline context we belong to.
-   * @param id An ID for the node.
    * @param config A non-null group by config to configure the iterators with.
    */
   public GroupBy(final QueryNodeFactory factory, 
                  final QueryPipelineContext context, 
-                 final String id,
                  final GroupByConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Group By config cannot be null.");
     }
@@ -104,7 +102,7 @@ public class GroupBy extends AbstractQueryNode {
       
       final Iterator<TimeSeries> iterator = next.timeSeries().iterator();
       if (iterator.hasNext()) {
-        final ReadableTimeSeriesDataStore store = ((TimeSeriesByteId) 
+        final TimeSeriesDataSourceFactory store = ((TimeSeriesByteId) 
             iterator.next().id()).dataStore();
         if (store == null) {
           throw new RuntimeException("The data store was null for a byte series!");

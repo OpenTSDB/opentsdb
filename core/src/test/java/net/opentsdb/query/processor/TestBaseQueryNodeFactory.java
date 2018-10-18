@@ -29,15 +29,15 @@ import java.util.Map;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -56,18 +56,12 @@ public class TestBaseQueryNodeFactory {
 
   @Test
   public void ctor() throws Exception {
-    QueryNodeFactory factory = new MockNodeFactory("Mock!");
+    QueryNodeFactory factory = new MockNodeFactory();
+    assertNull(factory.id());
+    assertEquals(MockNodeFactory.TYPE, factory.type());
+    
+    factory.initialize(mock(TSDB.class), "Mock!");
     assertEquals("Mock!", factory.id());
-    
-    try {
-      new MockNodeFactory(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new MockNodeFactory("");
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
   }
   
   @Test
@@ -75,7 +69,7 @@ public class TestBaseQueryNodeFactory {
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
     QueryIteratorFactory mock2 = mock(QueryIteratorFactory.class);
     
-    MockNodeFactory factory = new MockNodeFactory("Mock!");
+    MockNodeFactory factory = new MockNodeFactory();
     factory.registerIteratorFactory(NumericType.TYPE, mock1);
     
     assertEquals(1, factory.types().size());
@@ -112,7 +106,7 @@ public class TestBaseQueryNodeFactory {
         anyCollection(), any(TypeToken.class)))
       .thenReturn(iterator);
     QueryNode node = mock(QueryNode.class);
-    MockNodeFactory factory = new MockNodeFactory("Mock!");
+    MockNodeFactory factory = new MockNodeFactory();
     
     assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,
         Lists.newArrayList(mock(TimeSeries.class))));
@@ -157,7 +151,7 @@ public class TestBaseQueryNodeFactory {
         anyMap(), any(TypeToken.class)))
       .thenReturn(iterator);
     QueryNode node = mock(QueryNode.class);
-    MockNodeFactory factory = new MockNodeFactory("Mock!");
+    MockNodeFactory factory = new MockNodeFactory();
     
     assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,sources));
     
@@ -190,19 +184,16 @@ public class TestBaseQueryNodeFactory {
   /** Mock class to test the abstract. */
   class MockNodeFactory extends BaseQueryNodeFactory {
 
-    public MockNodeFactory(final String id) {
-      super(id);
-    }
-
+    public static final String TYPE = "MockNodeFactory";
+    
     @Override
     public QueryNode newNode(final QueryPipelineContext context,
-                             final String id,
                              final QueryNodeConfig config) {
       return mock(QueryNode.class);
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id) {
+    public QueryNode newNode(QueryPipelineContext context) {
       // TODO Auto-generated method stub
       return null;
     }
@@ -219,6 +210,17 @@ public class TestBaseQueryNodeFactory {
         final QueryNodeConfig config, 
         final QueryPlanner plan) {
       // TODO Auto-generated method stub
+    }
+
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+      return Deferred.fromResult(null);
+    }
+
+    @Override
+    public String type() {
+      return TYPE;
     }
   }
 }

@@ -41,8 +41,8 @@ public class TestSum {
     when(tsdb.getRegistry()).thenReturn(registry);
     
     NumericAggregatorFactory factory = new SumFactory();
-    assertEquals(SumFactory.ID, factory.id());
-    assertNull(factory.initialize(tsdb).join());
+    assertNull(factory.initialize(tsdb, null).join());
+    assertEquals(SumFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

@@ -65,12 +65,12 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.QuerySourceConfig.Builder;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.ChainFilter;
@@ -103,7 +103,7 @@ import net.opentsdb.utils.UnitTestException;
 public class TestTsdb1xScanners extends UTBase {
 
   private Tsdb1xQueryNode node;
-  private QuerySourceConfig source_config;
+  private TimeSeriesDataSourceConfig source_config;
   private DefaultRollupConfig rollup_config;
   private QueryPipelineContext context;
   private SemanticQuery query;
@@ -132,8 +132,7 @@ public class TestTsdb1xScanners extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -150,6 +149,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
+    when(context.query()).thenReturn(query);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
   }
@@ -196,8 +196,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -298,8 +298,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setEnd(Integer.toString(END_TS + 3600))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -318,8 +318,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -338,8 +338,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setEnd(Integer.toString(END_TS + 3600))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -404,8 +404,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setEnd(Integer.toString(END_TS + 3600))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -577,33 +577,34 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     setConfig(true, null, false);
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(ExplicitTagsFilter.newBuilder()
+                .setFilter(ChainFilter.newBuilder()
+                  .addFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setTagKey(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .build())
+                  .addFilter(TagValueWildcardFilter.newBuilder()
+                      .setTagKey(TAGK_B_STRING)
+                      .setFilter("*")
+                     .build())
+                  .build())
+                .build())
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(ExplicitTagsFilter.newBuilder()
-                    .setFilter(ChainFilter.newBuilder()
-                      .addFilter(TagValueLiteralOrFilter.newBuilder()
-                        .setTagKey(TAGK_STRING)
-                        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                        .build())
-                      .addFilter(TagValueWildcardFilter.newBuilder()
-                          .setTagKey(TAGK_B_STRING)
-                          .setFilter("*")
-                         .build())
-                      .build())
-                    .build())
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1163,33 +1164,34 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     setConfig(true, "sum", false);
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(ExplicitTagsFilter.newBuilder()
+                .setFilter(ChainFilter.newBuilder()
+                  .addFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setTagKey(TAGK_STRING)
+                    .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                    .build())
+                  .addFilter(TagValueWildcardFilter.newBuilder()
+                      .setTagKey(TAGK_B_STRING)
+                      .setFilter("*")
+                     .build())
+                  .build())
+                .build())
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(ExplicitTagsFilter.newBuilder()
-                    .setFilter(ChainFilter.newBuilder()
-                      .addFilter(TagValueLiteralOrFilter.newBuilder()
-                        .setTagKey(TAGK_STRING)
-                        .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
-                        .build())
-                      .addFilter(TagValueWildcardFilter.newBuilder()
-                          .setTagKey(TAGK_B_STRING)
-                          .setFilter("*")
-                         .build())
-                      .build())
-                    .build())
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1268,23 +1270,23 @@ public class TestTsdb1xScanners extends UTBase {
               .setFilter("*")
              .build())
           .build();
-        
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1317,22 +1319,22 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1366,22 +1368,22 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1414,22 +1416,22 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1457,22 +1459,22 @@ public class TestTsdb1xScanners extends UTBase {
         .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
         .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1523,22 +1525,22 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1722,22 +1724,22 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1774,22 +1776,22 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .addFilter(DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build())
+        .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId("f1")
-        .setQuery(SemanticQuery.newBuilder()
-            .setMode(QueryMode.SINGLE)
-            .setStart(Integer.toString(START_TS))
-            .setEnd(Integer.toString(END_TS))
-            .setExecutionGraph(Collections.emptyList())
-            .addFilter(DefaultNamedFilter.newBuilder()
-                .setId("f1")
-                .setFilter(filter)
-                .build())
-            .build())
         .setId("m1")
         .build();
     
@@ -1870,8 +1872,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void initializeNSUNMetric() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(NSUN_METRIC)
             .build())
@@ -2365,6 +2366,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     when(client.newScanner(any(byte[].class))).thenReturn(mock(Scanner.class));
     context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
     when(node.pipelineContext()).thenReturn(context);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
@@ -2430,13 +2432,15 @@ public class TestTsdb1xScanners extends UTBase {
           .setFilter(filter)
           .build());
     }
+    query = query_builder.build();
+    when(context.query()).thenReturn(query);
     
-    QuerySourceConfig.Builder builder = (Builder) QuerySourceConfig.newBuilder()
+    DefaultTimeSeriesDataSourceConfig.Builder builder = 
+        (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId(filter != null ? "f1" : null)
-        .setQuery(query_builder.build())
         .setId("m1");
     if (pre_agg) {
       builder.addOverride(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true");

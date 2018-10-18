@@ -19,6 +19,7 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationCallback;
@@ -48,6 +49,10 @@ import net.opentsdb.utils.DateTime;
  */
 public class DefaultTimeSeriesCacheKeyGenerator 
   extends TimeSeriesCacheKeyGenerator implements ConfigurationCallback<Object> {
+  
+  public static final String TYPE = 
+      DefaultTimeSeriesCacheKeyGenerator.class.getSimpleName().toString();
+  
   private static final Logger LOG = LoggerFactory.getLogger(
       DefaultTimeSeriesCacheKeyGenerator.class);
   
@@ -94,7 +99,8 @@ public class DefaultTimeSeriesCacheKeyGenerator
   protected volatile long step_interval;
     
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     if (!tsdb.getConfig().hasProperty(EXPIRATION_KEY)) {
       tsdb.getConfig().register(EXPIRATION_KEY, DEFAULT_EXPIRATION, true,
           "The default expiration time for cache entries in milliseconds.");
@@ -269,8 +275,8 @@ public class DefaultTimeSeriesCacheKeyGenerator
   }
 
   @Override
-  public String id() {
-    return "DefaultTimeSeriesCacheKeyGenerator";
+  public String type() {
+    return TYPE;
   }
 
   @Override

@@ -16,6 +16,7 @@ package net.opentsdb.query.execution;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -41,9 +42,12 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseQueryNodeConfig;
@@ -77,7 +81,8 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
+public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceFactory {
+  public static final String TYPE = CachingQueryExecutor.class.getSimpleName().toString();
   private static final Logger LOG = LoggerFactory.getLogger(
       CachingQueryExecutor.class);
   
@@ -127,22 +132,15 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id) {
+  public QueryNode newNode(final QueryPipelineContext context) {
     // TODO pull the default config from some place
     throw new UnsupportedOperationException("Not implemented yet");
   }
   
-//  @Override
-//  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-//    return Config.class;
-//  }
-  
   @Override
   public TimeSeriesDataSource newNode(final QueryPipelineContext context,
-                                      final String id,
                                       final QueryNodeConfig config) {
-    return new LocalExecution(context, id, config);
+    return new LocalExecution(context, config);
   }
   
   /** Local execution class. */
@@ -169,10 +167,9 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
      * @param context The query context.
      * @param QueryNodeConfig The config for the node.
      */
-    public LocalExecution(final QueryPipelineContext context, 
-                          final String id,
+    public LocalExecution(final QueryPipelineContext context,
                           final QueryNodeConfig config) {
-      super(CachingQueryExecutor.this, context, id);
+      super(CachingQueryExecutor.this, context);
       complete = new AtomicBoolean();
 
       key = null; /*key_generator.generate(context.query(), 
@@ -527,11 +524,18 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
         }
       }
     }
+  
   }
   
   @Override
-  public String id() {
-    return getClass().getSimpleName();
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
   }
   
   @JsonInclude(Include.NON_NULL)
@@ -810,21 +814,8 @@ public class CachingQueryExecutor implements QuerySourceFactory, TSDBPlugin {
     // TODO Auto-generated method stub
   }
   
-  @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
-    // TODO Auto-generated method stub
-    return Deferred.fromResult(null);
-  }
-  
-   @Override
-  public Deferred<Object> shutdown() {
-    // TODO Auto-generated method stub
-    return Deferred.fromResult(null);
-  }
-   
    @Override
   public String version() {
-    // TODO Auto-generated method stub
-    return null;
+    return "3.0.0";
   }
 }

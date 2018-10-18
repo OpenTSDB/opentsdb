@@ -25,8 +25,8 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.Span;
@@ -43,9 +43,12 @@ import redis.clients.jedis.Protocol;
  * 
  * @since 3.0
  */
-public class RedisQueryCache implements QueryCachePlugin, TSDBPlugin {
+public class RedisQueryCache extends BaseTSDBPlugin 
+    implements QueryCachePlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisQueryCache.class);
+  
+  public static final String TYPE = "RedisQueryCache";
   
   /** Configuration keys. */
   public static final String HOSTS_KEY = "redis.query.cache.hosts";
@@ -77,7 +80,8 @@ public class RedisQueryCache implements QueryCachePlugin, TSDBPlugin {
   private JedisPoolConfig config;
   
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
     
     // Two or more implementations may be in play so check first
@@ -431,8 +435,8 @@ public class RedisQueryCache implements QueryCachePlugin, TSDBPlugin {
   }
 
   @Override
-  public String id() {
-    return getClass().getName();
+  public String type() {
+    return TYPE;
   }
 
   @Override

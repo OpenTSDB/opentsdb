@@ -16,7 +16,7 @@ package net.opentsdb.meta;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -36,7 +36,7 @@ public interface MetaDataStorageSchema {
    * a result with the exception set.
    */
   public Deferred<MetaDataStorageResult> runQuery(
-      final QuerySourceConfig config,
+      final TimeSeriesDataSourceConfig config,
       final Span span);
 
 }

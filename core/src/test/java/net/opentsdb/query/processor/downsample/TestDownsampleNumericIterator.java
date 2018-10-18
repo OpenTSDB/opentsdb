@@ -26,8 +26,8 @@ import static org.mockito.Mockito.when;
 import java.time.Period;
 import java.util.Collections;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -80,9 +80,7 @@ public class TestDownsampleNumericIterator {
   
   @BeforeClass
   public static void beforeClass() {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
   }
   
   @Before
@@ -3084,7 +3082,7 @@ public class TestDownsampleNumericIterator {
         .build();
     when(pipeline_context.query()).thenReturn(query);
     
-    Downsample ds = new Downsample(null, pipeline_context, null, config);
+    Downsample ds = new Downsample(null, pipeline_context, config);
     ds.initialize(null);
     final QueryResult result = mock(Downsample.DownsampleResult.class);
     return ds.new DownsampleResult(result);

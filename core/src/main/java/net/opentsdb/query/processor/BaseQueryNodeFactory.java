@@ -21,13 +21,12 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -42,11 +41,9 @@ import net.opentsdb.query.QueryResult;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlugin {
+public abstract class BaseQueryNodeFactory extends BaseTSDBPlugin 
+    implements ProcessorFactory {
   private final Logger LOG = LoggerFactory.getLogger(getClass());
-  
-  /** The ID of this node factory. */
-  protected final String id;
   
   /** The map of iterator factories keyed on type. */
   protected final Map<TypeToken<? extends TimeSeriesDataType>, 
@@ -54,20 +51,9 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
   
   /**
    * Default ctor.
-   * @param id A non-null and non-empty ID for the factory.
-   * @throws BaseQueryNodeFactory if the ID was null or empty.
    */
-  public BaseQueryNodeFactory(final String id) {
-    if (Strings.isNullOrEmpty(id)) {
-      throw new IllegalArgumentException("ID cannot be null or empty.");
-    }
-    this.id = id;
+  public BaseQueryNodeFactory() {
     iterator_factories = Maps.newHashMapWithExpectedSize(3);
-  }
-  
-  @Override
-  public String id() {
-    return id;
   }
   
   @Override
@@ -142,15 +128,9 @@ public abstract class BaseQueryNodeFactory implements ProcessorFactory, TSDBPlug
     return factory.newIterator(node, result, sources, type);
   }
 
+  // Force implementation.
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-  
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
+  public abstract Deferred<Object> initialize(final TSDB tsdb, final String id);
   
   @Override
   public String version() {

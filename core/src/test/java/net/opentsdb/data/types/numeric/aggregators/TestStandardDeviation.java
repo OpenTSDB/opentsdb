@@ -19,12 +19,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.Random;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -52,9 +54,12 @@ public class TestStandardDeviation {
   
   @Test
   public void factory() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
     NumericAggregatorFactory factory = new StandardDeviationFactory();
-    assertEquals(StandardDeviationFactory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(tsdb, null).join());
+    assertEquals(StandardDeviationFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

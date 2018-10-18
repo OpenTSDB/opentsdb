@@ -27,7 +27,6 @@ import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -71,7 +70,7 @@ public class MergedTimeSeriesId {
     protected byte[] metric;
     protected boolean full_merge;
     protected TypeToken<? extends TimeSeriesId> type;
-    protected ReadableTimeSeriesDataStore data_store;
+    protected TimeSeriesDataSourceFactory data_store;
     
     /**
      * Sets the alias override to the given string or null.

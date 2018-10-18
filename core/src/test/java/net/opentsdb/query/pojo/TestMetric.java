@@ -14,8 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
@@ -33,9 +33,7 @@ public class TestMetric {
   
   @BeforeClass
   public static void beforeClass() {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
   }
   
   @Test(expected = IllegalArgumentException.class)

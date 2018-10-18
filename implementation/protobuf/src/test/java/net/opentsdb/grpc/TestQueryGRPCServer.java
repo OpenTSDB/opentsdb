@@ -48,10 +48,10 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.pbuf.QueryResultPB;
-import net.opentsdb.query.QueryDataSourceFactory;
 import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.QueryContext;
@@ -62,6 +62,7 @@ import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.stats.Span;
+import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.UnitTestException;
 
@@ -82,8 +83,8 @@ public class TestQueryGRPCServer {
   @BeforeClass
   public static void beforeClasss() {
     TSDB = new MockTSDB();
-    when(TSDB.registry.getQueryNodeFactory("datasource"))
-      .thenReturn(new QueryDataSourceFactory());
+    when(TSDB.registry.getDefaultPlugin(TimeSeriesDataSourceFactory.class))
+      .thenReturn(new MockDataStoreFactory());
     when(TSDB.registry.getPlugin(QueryFilterFactory.class, "MetricLiteral"))
       .thenReturn(new MetricLiteralFactory());
   }
@@ -128,21 +129,21 @@ public class TestQueryGRPCServer {
         return Deferred.fromResult(null);
       }
     });
-    when(TSDB.getRegistry().getPlugin(SerdesFactory.class, PBufSerdesFactory.ID))
+    when(TSDB.getRegistry().getPlugin(SerdesFactory.class, PBufSerdesFactory.TYPE))
       .thenReturn(new PBufSerdesFactory());
   }
   
   @Test
   public void initialize() throws Exception {
     QueryGRPCServer rpc = new QueryGRPCServer();
-    assertNull(rpc.initialize(TSDB).join(1));
+    assertNull(rpc.initialize(TSDB, null).join(1));
     
     verify(server, times(1)).start();
     
     when(server.start()).thenThrow(new UnitTestException());
     rpc = new QueryGRPCServer();
     try {
-      rpc.initialize(TSDB).join(1);
+      rpc.initialize(TSDB, null).join(1);
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
   }
@@ -150,7 +151,7 @@ public class TestQueryGRPCServer {
   @Test
   public void shutdown() throws Exception {
     QueryGRPCServer rpc = new QueryGRPCServer();
-    assertNull(rpc.initialize(TSDB).join(1));
+    assertNull(rpc.initialize(TSDB, null).join(1));
     
     assertNull(rpc.shutdown().join(1));
     verify(server, times(1)).shutdown();
@@ -159,19 +160,20 @@ public class TestQueryGRPCServer {
   @Test
   public void remoteQuery() throws Exception {
     QueryGRPCServer rpc = new QueryGRPCServer();
-    assertNull(rpc.initialize(TSDB).join(1));
+    assertNull(rpc.initialize(TSDB, null).join(1));
     
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
         .setExecutionGraph(Lists.newArrayList(
-            QuerySourceConfig.newBuilder()
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
               .setMetric(MetricLiteralFilter.newBuilder()
                   .setMetric("sys.cpu.user")
                   .build())
               .setId("DataSource")
               .build()))
         .build();
+    when(context.query()).thenReturn(q);
     net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery pbuf = 
         net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery.newBuilder()
         .setQuery(ByteString.copyFrom(JSON.serializeToBytes(q)))
@@ -188,19 +190,20 @@ public class TestQueryGRPCServer {
   @Test
   public void remoteQueryFetchException() throws Exception {
     QueryGRPCServer rpc = new QueryGRPCServer();
-    assertNull(rpc.initialize(TSDB).join(1));
+    assertNull(rpc.initialize(TSDB, null).join(1));
     
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
         .setExecutionGraph(Lists.newArrayList(
-            QuerySourceConfig.newBuilder()
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
               .setMetric(MetricLiteralFilter.newBuilder()
                   .setMetric("sys.cpu.user")
                   .build())
               .setId("DataSource")
               .build()))
         .build();
+    when(context.query()).thenReturn(q);
     net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery pbuf = 
         net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery.newBuilder()
         .setQuery(ByteString.copyFrom(JSON.serializeToBytes(q)))
@@ -218,19 +221,20 @@ public class TestQueryGRPCServer {
   @Test
   public void remoteQuerySinkOK() throws Exception {
     QueryGRPCServer rpc = new QueryGRPCServer();
-    assertNull(rpc.initialize(TSDB).join(1));
+    assertNull(rpc.initialize(TSDB, null).join(1));
     
     SemanticQuery q = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
         .setExecutionGraph(Lists.newArrayList(
-            QuerySourceConfig.newBuilder()
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
               .setMetric(MetricLiteralFilter.newBuilder()
                   .setMetric("sys.cpu.user")
                   .build())
               .setId("DataSource")
               .build()))
         .build();
+    when(context.query()).thenReturn(q);
     net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery pbuf = 
         net.opentsdb.data.pbuf.TimeSeriesQueryPB.TimeSeriesQuery.newBuilder()
         .setQuery(ByteString.copyFrom(JSON.serializeToBytes(q)))
