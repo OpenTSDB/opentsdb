@@ -17,6 +17,8 @@ package net.opentsdb.servlet.sinks;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
@@ -33,11 +35,17 @@ import net.opentsdb.query.QuerySinkFactory;
 public class ServletSinkFactory extends BaseTSDBPlugin 
     implements QuerySinkFactory {
 
-  public static final String ID = "TSDBServletSink";
+  public static final String TYPE = "TSDBServletSink";
   
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
   }
 
   @Override

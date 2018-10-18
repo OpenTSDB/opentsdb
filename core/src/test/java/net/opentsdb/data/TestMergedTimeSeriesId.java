@@ -25,7 +25,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 public class TestMergedTimeSeriesId {
   private static final byte[] BYTES_1 = "Tyrell".getBytes();
@@ -44,11 +43,11 @@ public class TestMergedTimeSeriesId {
   private static final byte[] METRIC = "ice.dragon".getBytes();
   private static final byte[] METRIC_ALT = "ice.dragon".getBytes();
   
-  private ReadableTimeSeriesDataStore data_store;
+  private TimeSeriesDataSourceFactory data_store;
   
   @Before
   public void before() throws Exception {
-    data_store = mock(ReadableTimeSeriesDataStore.class);
+    data_store = mock(TimeSeriesDataSourceFactory.class);
   }
   
   @Test
@@ -143,7 +142,7 @@ public class TestMergedTimeSeriesId {
       assertEquals(2, builder.ids.size());
       assertEquals(Const.TS_BYTE_ID, builder.type);
       
-      d = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+      d = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
           .setNamespace(BYTES_2_ALT)
           .setMetric(METRIC)
           .build();

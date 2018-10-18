@@ -26,7 +26,7 @@ import org.junit.Test;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 
 public class TestBaseIdOverride {
   
@@ -35,7 +35,7 @@ public class TestBaseIdOverride {
   @BeforeClass
   public static void beforeClass() throws Exception {
     BASE = BaseTimeSeriesByteId
-        .newBuilder(mock(ReadableTimeSeriesDataStore.class))
+        .newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias("orig".getBytes())
         .setNamespace("ns".getBytes())
         .setMetric("metric".getBytes())
@@ -85,7 +85,7 @@ public class TestBaseIdOverride {
     
     // this is ok, metric is overidden.
     TimeSeriesByteId base2 = BaseTimeSeriesByteId
-        .newBuilder(mock(ReadableTimeSeriesDataStore.class))
+        .newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias("orig".getBytes())
         .setNamespace("ns".getBytes())
         .setMetric("metric2".getBytes()) // <-- DIFF
@@ -100,7 +100,7 @@ public class TestBaseIdOverride {
     assertEquals(0, id1.compareTo(id2));
     
     base2 = BaseTimeSeriesByteId
-        .newBuilder(mock(ReadableTimeSeriesDataStore.class))
+        .newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias("orig".getBytes())
         .setNamespace("ns".getBytes())
         .setMetric("metric".getBytes())

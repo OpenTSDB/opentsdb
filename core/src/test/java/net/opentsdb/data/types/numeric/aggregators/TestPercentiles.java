@@ -16,8 +16,6 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import org.junit.Assert;
@@ -26,23 +24,21 @@ import org.junit.Test;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.aggregators.LastFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.exceptions.IllegalDataException;
 
 public class TestPercentiles {
   
   @Test
   public void factory() throws Exception {
     NumericAggregatorFactory factory = new PercentilesFactories.P999Factory();
-    assertEquals(PercentilesFactories.P999Factory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
+    assertEquals(PercentilesFactories.P999Factory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
     
     factory = new PercentilesFactories.EP50R3Factory();
-    assertEquals(PercentilesFactories.EP50R3Factory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
+    assertEquals(PercentilesFactories.EP50R3Factory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

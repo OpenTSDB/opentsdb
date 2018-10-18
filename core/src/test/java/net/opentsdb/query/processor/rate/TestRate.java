@@ -57,26 +57,26 @@ public class TestRate {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    Rate ds = new Rate(factory, context, null, config);
+    Rate ds = new Rate(factory, context, config);
     ds.initialize(null);
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
     
     try {
-      new Rate(factory, null, null, config);
+      new Rate(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Rate(factory, context, null, null);
+      new Rate(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    Rate ds = new Rate(factory, context, null, config);
+    Rate ds = new Rate(factory, context, config);
     ds.initialize(null);
     
     ds.onComplete(null, 42, 42);
@@ -90,7 +90,7 @@ public class TestRate {
   
   @Test
   public void onNext() throws Exception {
-    Rate ds = new Rate(factory, context, null, config);
+    Rate ds = new Rate(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
     
     ds.initialize(null);
@@ -106,7 +106,7 @@ public class TestRate {
   
   @Test
   public void onError() throws Exception {
-    Rate ds = new Rate(factory, context, null, config);
+    Rate ds = new Rate(factory, context, config);
     ds.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

@@ -32,8 +32,8 @@ public class TestCount {
   @Test
   public void factory() throws Exception {
     NumericAggregatorFactory factory = new CountFactory();
-    assertEquals(CountFactory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
+    assertEquals(CountFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

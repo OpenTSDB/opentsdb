@@ -30,10 +30,9 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -81,7 +80,7 @@ public class TestExpressionFactory {
         new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
     
     List<QueryNodeConfig> query = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
           .setMetric(MetricLiteralFilter.newBuilder()
               .setMetric("sys.cpu.user")
               .build())
@@ -134,7 +133,7 @@ public class TestExpressionFactory {
     DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> graph =
         new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
     
-    QueryNodeConfig m1 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())
@@ -197,14 +196,14 @@ public class TestExpressionFactory {
     DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> graph =
         new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
     
-    QueryNodeConfig m1 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())
         .setFilterId("f1")
         .setId("m1")
         .build();
-    QueryNodeConfig m2 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.sys")
             .build())
@@ -271,14 +270,14 @@ public class TestExpressionFactory {
     DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> graph =
         new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
     
-    QueryNodeConfig m1 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())
         .setFilterId("f1")
         .setId("m1")
         .build();
-    QueryNodeConfig m2 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.sys")
             .build())
@@ -344,21 +343,21 @@ public class TestExpressionFactory {
     DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> graph =
         new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
     
-    QueryNodeConfig m1 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())
         .setFilterId("f1")
         .setId("m1")
         .build();
-    QueryNodeConfig m2 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.sys")
             .build())
         .setFilterId("f1")
         .setId("m2")
         .build();
-    QueryNodeConfig m3 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.idle")
             .build())
@@ -448,21 +447,21 @@ public class TestExpressionFactory {
     DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> graph =
         new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
     
-    QueryNodeConfig m1 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())
         .setFilterId("f1")
         .setId("m1")
         .build();
-    QueryNodeConfig m2 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.sys")
             .build())
         .setFilterId("f1")
         .setId("m2")
         .build();
-    QueryNodeConfig m3 = QuerySourceConfig.newBuilder()
+    QueryNodeConfig m3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.idle")
             .build())

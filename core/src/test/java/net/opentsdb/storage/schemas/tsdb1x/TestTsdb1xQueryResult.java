@@ -44,9 +44,11 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -72,7 +74,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
   private MockTSDB tsdb;
   private QueryNode node;
   private QueryPipelineContext context;
-  private QuerySourceConfig source_config;
+  private TimeSeriesDataSourceConfig source_config;
   private Schema schema;
   
   @Before
@@ -83,25 +85,28 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     context = mock(QueryPipelineContext.class);
     schema = schema();
     node = mock(QueryNode.class);
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setQuery(TimeSeriesQuery.newBuilder()
-          .setTime(Timespan.newBuilder()
-              .setStart(Integer.toString(START_TS))
-              .setEnd(Integer.toString(END_TS))
-              .setAggregator("avg"))
-          .addMetric(Metric.newBuilder()
-              .setId("m1")
-              .setMetric(METRIC_STRING))
-          .build()
-          .convert(tsdb).build())
         .setId("m1")
         .build();
     when(node.config()).thenReturn(source_config);
     when(node.pipelineContext()).thenReturn(context);
     when(context.tsdb()).thenReturn(tsdb);
+    
+    SemanticQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric(METRIC_STRING))
+        .build()
+        .convert(tsdb)
+        .build();
+    when(context.query()).thenReturn(query);
     
     tsdb.config.register(Schema.QUERY_BYTE_LIMIT_KEY, 
         Schema.QUERY_BYTE_LIMIT_DEFAULT, false, "UT");
@@ -130,25 +135,28 @@ public class TestTsdb1xQueryResult extends SchemaBase {
   
   @Test
   public void ctorOverrides() throws Exception {
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setQuery(TimeSeriesQuery.newBuilder()
-          .setTime(Timespan.newBuilder()
-              .setStart(Integer.toString(START_TS))
-              .setEnd(Integer.toString(END_TS))
-              .setAggregator("avg"))
-          .addMetric(Metric.newBuilder()
-              .setId("m1")
-              .setMetric(METRIC_STRING))
-          .build()
-          .convert(tsdb).build())
         .addOverride(Schema.QUERY_BYTE_LIMIT_KEY, "42")
         .addOverride(Schema.QUERY_DP_LIMIT_KEY, "24")
         .setId("m1")
         .build();
     when(node.config()).thenReturn(source_config);
+    
+    SemanticQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric(METRIC_STRING))
+        .build()
+        .convert(tsdb)
+        .build();
+    when(context.query()).thenReturn(query);
     
     Tsdb1xQueryResult result = new Tsdb1xQueryResult(9, node, schema);
     assertEquals(9, result.sequenceId());
@@ -389,25 +397,28 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     // not full
     assertTrue(result.resultIsFullErrorMessage().contains("data points"));
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .setQuery(TimeSeriesQuery.newBuilder()
-          .setTime(Timespan.newBuilder()
-              .setStart(Integer.toString(START_TS))
-              .setEnd(Integer.toString(END_TS))
-              .setAggregator("avg"))
-          .addMetric(Metric.newBuilder()
-              .setId("m1")
-              .setMetric(METRIC_STRING))
-          .build()
-          .convert(tsdb).build())
         .addOverride(Schema.QUERY_BYTE_LIMIT_KEY, "42")
         .addOverride(Schema.QUERY_DP_LIMIT_KEY, "24")
         .setId("m1")
         .build();
     when(node.config()).thenReturn(source_config);
+    
+    SemanticQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric(METRIC_STRING))
+        .build()
+        .convert(tsdb)
+        .build();
+    when(context.query()).thenReturn(query);
     
     // byte limit
     result = new Tsdb1xQueryResult(9, node, schema);

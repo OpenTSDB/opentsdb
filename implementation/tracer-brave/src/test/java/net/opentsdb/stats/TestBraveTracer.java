@@ -97,7 +97,7 @@ public class TestBraveTracer {
     config_map.put(BraveTracer.ENDPOINT_KEY, (String) null);
     
     BraveTracer plugin = new BraveTracer();
-    assertNull(plugin.initialize(tsdb).join());
+    assertNull(plugin.initialize(tsdb, null).join());
     PowerMockito.verifyStatic(never());
     OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans");
     verify(reporter_builder, never()).build();
@@ -107,7 +107,7 @@ public class TestBraveTracer {
   @Test
   public void initializeWithReporting() throws Exception {
     BraveTracer plugin = new BraveTracer();
-    assertNull(plugin.initialize(tsdb).join());
+    assertNull(plugin.initialize(tsdb, null).join());
     PowerMockito.verifyStatic(times(1));
     OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans");
     verify(reporter_builder, times(1)).build();
@@ -117,7 +117,7 @@ public class TestBraveTracer {
   @Test
   public void initializeNullTSD() throws Exception {
     try {
-      new BraveTracer().initialize(null);
+      new BraveTracer().initialize(null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -126,7 +126,7 @@ public class TestBraveTracer {
   public void initializeNoServiceName() throws Exception {
     config_map.put("tsdb.tracer.service_name", null);
     try {
-      new BraveTracer().initialize(tsdb);
+      new BraveTracer().initialize(tsdb, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -135,7 +135,7 @@ public class TestBraveTracer {
   public void initializeEmptyServiceName() throws Exception {
     config_map.put("tsdb.tracer.service_name", "");
     try {
-      new BraveTracer().initialize(tsdb);
+      new BraveTracer().initialize(tsdb, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { } 
   }
@@ -146,7 +146,7 @@ public class TestBraveTracer {
     when(OkHttpSender.create(anyString()))
       .thenThrow(new IllegalArgumentException("Boo!"));
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb);
+    plugin.initialize(tsdb, null);
     assertNull(plugin.sender());
     assertNull(plugin.reporter());
   }
@@ -154,7 +154,7 @@ public class TestBraveTracer {
   @Test
   public void newTraceReportAndDebug() throws Exception {
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb).join();
+    plugin.initialize(tsdb, null).join();
     
     Trace new_trace = plugin.newTrace(true, true);
     verify(tracer_builder, times(1)).setIs128(true);
@@ -167,7 +167,7 @@ public class TestBraveTracer {
   @Test
   public void newTraceReportAndDebugNamed() throws Exception {
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb).join();
+    plugin.initialize(tsdb, null).join();
     
     Trace new_trace = plugin.newTrace(true, true, "Boo!");
     verify(tracer_builder, times(1)).setIs128(true);
@@ -180,7 +180,7 @@ public class TestBraveTracer {
   @Test
   public void newTraceNoReportAndNoDebug() throws Exception {
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb).join();
+    plugin.initialize(tsdb, null).join();
     
     Trace new_trace = plugin.newTrace(false, false);
     verify(tracer_builder, times(1)).setIs128(true);
@@ -193,7 +193,7 @@ public class TestBraveTracer {
   @Test
   public void newTraceErrors() throws Exception {
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb).join();
+    plugin.initialize(tsdb, null).join();
     
     try {
       plugin.newTrace(false, false, null);
@@ -209,7 +209,7 @@ public class TestBraveTracer {
   @Test
   public void shutdown() throws Exception {
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb).join();
+    plugin.initialize(tsdb, null).join();
     
     assertNull(plugin.shutdown().join());
     verify(reporter, times(1)).flush();
@@ -222,6 +222,6 @@ public class TestBraveTracer {
     // no problems if reporting isn't configured.
     config_map.put("tracer.brave.zipkin.endpoint", null);
     BraveTracer plugin = new BraveTracer();
-    plugin.initialize(tsdb).join();
+    plugin.initialize(tsdb, null).join();
   }
 }

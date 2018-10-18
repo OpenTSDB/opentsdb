@@ -55,6 +55,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaBase;
+import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
 import net.opentsdb.uid.LRUUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -146,6 +147,7 @@ public class UTBase {
   protected static UniqueIdFactory uid_factory;
   protected static UniqueIdStore uid_store;
   
+  protected static SchemaFactory schema_factory;
   protected static Schema schema;
   
   protected static MockTrace trace;
@@ -221,7 +223,8 @@ public class UTBase {
           }
         });
     
-    schema = spy(new Schema(tsdb, null));
+    schema_factory = mock(SchemaFactory.class);
+    schema = spy(new Schema(schema_factory, tsdb, null));
     when(data_store.schema()).thenReturn(schema);
     
     storage = new MockBigtable(session, executor, client, bulk_mutator);

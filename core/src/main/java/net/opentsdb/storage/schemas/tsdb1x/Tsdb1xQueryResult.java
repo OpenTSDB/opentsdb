@@ -28,7 +28,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.rollup.RollupConfig;
 
 /**
@@ -75,7 +74,7 @@ public class Tsdb1xQueryResult implements QueryResult {
   protected volatile ChronoUnit resolution;
   
   /**
-   * Default ctor. The node is expected to have a {@link QuerySourceConfig}
+   * Default ctor. The node is expected to have a {@link BaseTimeSeriesDataSourceConfig}
    * configuration that will give us a {@link Configuration} config to
    * use when determining the byte and dp limits.
    * @param sequence_id The sequence ID.

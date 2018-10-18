@@ -63,14 +63,12 @@ public class Downsample extends AbstractQueryNode {
    * Default ctor.
    * @param factory A non-null {@link DownsampleFactory}.
    * @param context A non-null context.
-   * @param id An ID for the node.
    * @param config A non-null {@link DownsampleConfig}.
    */
   public Downsample(final QueryNodeFactory factory, 
                     final QueryPipelineContext context,
-                    final String id,
                     final DownsampleConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null.");
     }

@@ -83,7 +83,7 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
   }
   
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     try {
       if (!Strings.isNullOrEmpty(id)) {
         ((DefaultRegistry) tsdb.getRegistry()).registerFactory(this);
@@ -100,12 +100,12 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
   }
   
   /** @return The ID of the executor instantiated by this factory. */
-  public String id() {
+  public String type() {
     return id;
   }
   
   /** @return The type of executor instantiated. */
-  public TypeToken<?> type() {
+  public TypeToken<?> executorType() {
     return type;
   }
   
@@ -133,6 +133,11 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
 //          + ctor, e);
 //    }
     return null;
+  }
+
+  @Override
+  public String id() {
+    return id;
   }
 
 }

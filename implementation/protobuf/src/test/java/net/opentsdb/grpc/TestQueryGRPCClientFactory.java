@@ -42,7 +42,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.utils.UnitTestException;
@@ -79,13 +79,13 @@ public class TestQueryGRPCClientFactory {
   @Test
   public void initialize() throws Exception {
     QueryGRPCClientFactory factory = new QueryGRPCClientFactory();
-    assertNull(factory.initialize(TSDB).join(1));
+    assertNull(factory.initialize(TSDB, null).join(1));
     assertNotNull(factory.stub());
     
     when(channel_builder.build()).thenThrow(new UnitTestException());
     factory = new QueryGRPCClientFactory();
     try {
-      factory.initialize(TSDB).join(1);
+      factory.initialize(TSDB, null).join(1);
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
   }
@@ -93,7 +93,7 @@ public class TestQueryGRPCClientFactory {
   @Test
   public void shutdown() throws Exception {
     QueryGRPCClientFactory factory = new QueryGRPCClientFactory();
-    assertNull(factory.initialize(TSDB).join(1));
+    assertNull(factory.initialize(TSDB, null).join(1));
     
     assertNull(factory.shutdown().join(1));
     verify(channel, times(1)).shutdownNow();
@@ -115,6 +115,6 @@ public class TestQueryGRPCClientFactory {
       .thenReturn(node);
     
     assertSame(node, factory.newNode(mock(QueryPipelineContext.class), 
-        "foo", mock(QuerySourceConfig.class)));
+        mock(BaseTimeSeriesDataSourceConfig.class)));
   }
 }

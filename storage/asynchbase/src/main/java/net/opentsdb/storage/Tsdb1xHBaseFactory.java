@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
@@ -35,7 +36,9 @@ import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseFactory implements Tsdb1xDataStoreFactory {
+public class Tsdb1xHBaseFactory extends BaseTSDBPlugin implements Tsdb1xDataStoreFactory {
+  
+  public static final String TYPE = "Tsdb1xHBase";
   
   /** A TSD to pull config data from. */
   private TSDB tsdb;
@@ -47,12 +50,13 @@ public class Tsdb1xHBaseFactory implements Tsdb1xDataStoreFactory {
   protected Map<String, Tsdb1xHBaseDataStore> clients = Maps.newConcurrentMap();
   
   @Override
-  public String id() {
-    return "Tsdb1xHBaseFactory";
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
     return Deferred.fromResult(null);
   }

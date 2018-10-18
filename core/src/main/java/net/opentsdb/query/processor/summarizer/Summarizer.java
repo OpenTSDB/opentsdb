@@ -40,14 +40,12 @@ public class Summarizer extends AbstractQueryNode {
    * Default ctor.
    * @param factory The non-null factory we spawned from.
    * @param context The non-null context.
-   * @param id The optional ID for this node.
    * @param config The non-null config.
    */
   public Summarizer(final QueryNodeFactory factory, 
                     final QueryPipelineContext context,
-                    final String id, 
                     final QueryNodeConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }

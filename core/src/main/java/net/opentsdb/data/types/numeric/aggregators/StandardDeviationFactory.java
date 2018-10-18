@@ -14,7 +14,11 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.exceptions.IllegalDataException;
 
@@ -32,7 +36,7 @@ import net.opentsdb.exceptions.IllegalDataException;
 public class StandardDeviationFactory extends BaseTSDBPlugin implements 
     NumericAggregatorFactory {
 
-  public static final String ID = "dev";
+  public static final String TYPE = "Dev";
   
   @Override
   public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -40,8 +44,18 @@ public class StandardDeviationFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    tsdb.getRegistry().registerPlugin(NumericAggregatorFactory.class, 
+        "StDev", this);
+    tsdb.getRegistry().registerPlugin(NumericAggregatorFactory.class, 
+        "StandardDeviation", this);
+    return Deferred.fromResult(null);
   }
 
   @Override
@@ -124,5 +138,5 @@ public class StandardDeviationFactory extends BaseTSDBPlugin implements
     }
     
   }
-  private static final NumericAggregator AGGREGATOR = new StdDev(ID);
+  private static final NumericAggregator AGGREGATOR = new StdDev(TYPE);
 }

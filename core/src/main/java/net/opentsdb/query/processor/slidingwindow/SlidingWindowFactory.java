@@ -20,8 +20,10 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -46,13 +48,13 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  */
 public class SlidingWindowFactory extends BaseQueryNodeFactory {
 
-  public static final String ID = "SlidingWindow";
+  public static final String TYPE = "SlidingWindow";
   
   /**
    * Default plugin ctor.
    */
   public SlidingWindowFactory() {
-    super(ID);
+    super();
     registerIteratorFactory(NumericType.TYPE, 
         new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
@@ -61,29 +63,26 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
         new NumericArrayIteratorFactory());
   }
   
-  /**
-   * Optional ctor.
-   * @param id A non-null and non-empty ID.
-   */
-  public SlidingWindowFactory(final String id) {
-    super(id);
-    registerIteratorFactory(NumericType.TYPE, 
-        new NumericIteratorFactory());
-    registerIteratorFactory(NumericSummaryType.TYPE, 
-        new NumericSummaryIteratorFactory());
+  @Override
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context) {
+    return new SlidingWindow(this, context, null);
   }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id) {
-    return new SlidingWindow(this, context, id, null);
-  }
-
-  @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
                            final QueryNodeConfig config) {
-    return new SlidingWindow(this, context, id, (SlidingWindowConfig) config);
+    return new SlidingWindow(this, context, (SlidingWindowConfig) config);
   }
   
   @Override

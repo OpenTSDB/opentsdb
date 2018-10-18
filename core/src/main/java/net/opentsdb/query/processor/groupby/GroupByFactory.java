@@ -19,8 +19,10 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -46,13 +48,13 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  */
 public class GroupByFactory extends BaseQueryNodeFactory {
   
-  public static final String ID = "GroupBy";
+  public static final String TYPE = "GroupBy";
   
   /**
    * Default ctor. Registers the numeric iterator.
    */
   public GroupByFactory() {
-    super(ID);
+    super();
     registerIteratorFactory(NumericType.TYPE, 
         new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
@@ -62,19 +64,28 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   }
   
   @Override
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
   public QueryNode newNode(final QueryPipelineContext context,
-                           final String id,
                            final QueryNodeConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new GroupBy(this, context, id, (GroupByConfig) config);
+    return new GroupBy(this, context, (GroupByConfig) config);
   }
   
   @Override
-  public QueryNode newNode(QueryPipelineContext context, String id) {
-    // TODO Auto-generated method stub
-    return null;
+  public QueryNode newNode(final QueryPipelineContext context) {
+    throw new UnsupportedOperationException();
   }
   
   @Override

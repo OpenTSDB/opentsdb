@@ -38,8 +38,10 @@ import net.opentsdb.grpc.QueryRpcBetaGrpc.QueryRpcBetaStub;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.utils.UnitTestException;
 
@@ -70,23 +72,23 @@ public class TestQueryGRPCClient {
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
         .setExecutionGraph(Lists.newArrayList(
-            QuerySourceConfig.newBuilder()
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
               .setMetric(MetricLiteralFilter.newBuilder()
                   .setMetric("sys.cpu.user")
                   .build())
               .setId("DataSource")
               .build()))
         .build();
-    
-    QuerySourceConfig config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
+    when(context.query()).thenReturn(q);
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())
-        .setQuery(q)
         .setId("DataSource")
         .build();
     
-    QueryGRPCClient node = new QueryGRPCClient(factory, context, null, config);
+    QueryGRPCClient node = new QueryGRPCClient(factory, context, config);
     node.initialize(null);
     node.fetchNext(null);
     verify(stub, times(1)).remoteQuery(any(TimeSeriesQueryPB.TimeSeriesQuery.class), 
@@ -100,7 +102,7 @@ public class TestQueryGRPCClient {
     .remoteQuery(any(TimeSeriesQueryPB.TimeSeriesQuery.class), 
       any(StreamObserver.class));
     
-    node = new QueryGRPCClient(factory, context, null, config);
+    node = new QueryGRPCClient(factory, context, config);
     node.initialize(null);
     node.fetchNext(null);
     verify(upstream, never()).onNext(any(net.opentsdb.query.QueryResult.class));
@@ -110,8 +112,8 @@ public class TestQueryGRPCClient {
   
   @Test
   public void onComplete() throws Exception {
-    QuerySourceConfig config = mock(QuerySourceConfig.class);
-    QueryGRPCClient node = new QueryGRPCClient(factory, context, null, config);
+    BaseTimeSeriesDataSourceConfig config = mock(BaseTimeSeriesDataSourceConfig.class);
+    QueryGRPCClient node = new QueryGRPCClient(factory, context, config);
     node.initialize(null);
     verify(upstream, never()).onNext(any(net.opentsdb.query.QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
@@ -125,8 +127,8 @@ public class TestQueryGRPCClient {
   
   @Test
   public void onNextPbuf() throws Exception {
-    QuerySourceConfig config = mock(QuerySourceConfig.class);
-    QueryGRPCClient node = new QueryGRPCClient(factory, context, null, config);
+    BaseTimeSeriesDataSourceConfig config = mock(BaseTimeSeriesDataSourceConfig.class);
+    QueryGRPCClient node = new QueryGRPCClient(factory, context, config);
     node.initialize(null);
     verify(upstream, never()).onNext(any(net.opentsdb.query.QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
@@ -140,8 +142,8 @@ public class TestQueryGRPCClient {
   
   @Test
   public void onError() throws Exception {
-    QuerySourceConfig config = mock(QuerySourceConfig.class);
-    QueryGRPCClient node = new QueryGRPCClient(factory, context, null, config);
+    BaseTimeSeriesDataSourceConfig config = mock(BaseTimeSeriesDataSourceConfig.class);
+    QueryGRPCClient node = new QueryGRPCClient(factory, context, config);
     node.initialize(null);
     verify(upstream, never()).onNext(any(net.opentsdb.query.QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));

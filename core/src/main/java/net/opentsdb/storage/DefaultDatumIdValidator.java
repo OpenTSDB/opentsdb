@@ -18,11 +18,12 @@ import java.util.Map.Entry;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 
@@ -44,7 +45,11 @@ import net.opentsdb.data.TimeSeriesDatumStringId;
  * 
  * @since 3.0
  */
-public class DefaultDatumIdValidator implements DatumIdValidator, TSDBPlugin {
+public class DefaultDatumIdValidator extends BaseTSDBPlugin 
+    implements DatumIdValidator {
+  
+  public static final String TYPE = 
+      DefaultDatumIdValidator.class.getSimpleName().toString();
 
   public static final String METRIC_UTF_KEY = "tsdb.validator.id.metric.utf8";
   public static final String TAGK_UTF_KEY = "tsdb.validator.id.tagk.utf8";
@@ -160,12 +165,13 @@ public class DefaultDatumIdValidator implements DatumIdValidator, TSDBPlugin {
   }
 
   @Override
-  public String id() {
-    return "DefaultIdValidator";
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     registerConfigs(tsdb);
     
     // now set our local vars

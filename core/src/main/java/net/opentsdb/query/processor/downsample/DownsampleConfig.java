@@ -364,7 +364,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     private String end;
     
     Builder() {
-      setType(DownsampleFactory.ID);
+      setType(DownsampleFactory.TYPE);
     }
     
     /**
@@ -504,11 +504,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
           QueryInterpolatorFactory.class, 
           type_json == null || type_json.isNull() ? 
-              "Default" : type_json.asText());
+             null : type_json.asText());
       if (factory == null) {
         throw new IllegalArgumentException("Unable to find an "
             + "interpolator factory for: " + 
-            (type_json == null || type_json.isNull() ? "default" :
+            (type_json == null || type_json.isNull() ? "Default" :
              type_json.asText()));
       }
       

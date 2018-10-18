@@ -48,7 +48,7 @@ public class TestDefaultDatumIdValidator {
   @Test
   public void init() throws Exception {
     DefaultDatumIdValidator validator = new DefaultDatumIdValidator();
-    validator.initialize(tsdb);
+    validator.initialize(tsdb, null);
     
     assertFalse(validator.metric_utf8);
     assertFalse(validator.tagk_utf8);
@@ -90,7 +90,7 @@ public class TestDefaultDatumIdValidator {
     tsdb.config.override(DefaultDatumIdValidator.TAGK_SPECIAL_KEY, "$%");
     tsdb.config.override(DefaultDatumIdValidator.TAGV_SPECIAL_KEY, "^&*");
     
-    validator.initialize(tsdb);
+    validator.initialize(tsdb, null);
     
     assertTrue(validator.metric_utf8);
     assertTrue(validator.tagk_utf8);
@@ -117,7 +117,7 @@ public class TestDefaultDatumIdValidator {
     validator.registerConfigs(tsdb);
     tsdb.config.override(DefaultDatumIdValidator.TAGV_SPECIAL_KEY, "(),");
     tsdb.config.override(DefaultDatumIdValidator.TAGV_UTF_KEY, "false");
-    validator.initialize(tsdb);
+    validator.initialize(tsdb, null);
     
     String string = "my.String_is_good/42";
     assertNull(validator.validateASCIIString(Type.METRIC, string));
@@ -174,7 +174,7 @@ public class TestDefaultDatumIdValidator {
   @Test
   public void validateUTFString() throws Exception {
     DefaultDatumIdValidator validator = new DefaultDatumIdValidator();
-    validator.initialize(tsdb);
+    validator.initialize(tsdb, null);
     
     // http://www.columbia.edu/~fdc/utf8/
     String string = "私はガラスを食べられます。それは私を傷つけません";
@@ -202,7 +202,7 @@ public class TestDefaultDatumIdValidator {
     tsdb.config.override(DefaultDatumIdValidator.METRIC_LENGTH_KEY, "16");
     tsdb.config.override(DefaultDatumIdValidator.TAGK_LENGTH_KEY, "16");
     tsdb.config.override(DefaultDatumIdValidator.TAGV_LENGTH_KEY, "128");
-    validator.initialize(tsdb);
+    validator.initialize(tsdb, null);
     
     TimeSeriesDatumId id = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric("sys.cpu.user")
@@ -259,7 +259,7 @@ public class TestDefaultDatumIdValidator {
     tsdb.config.override(DefaultDatumIdValidator.METRIC_LENGTH_KEY, "0");
     tsdb.config.override(DefaultDatumIdValidator.TAGK_LENGTH_KEY, "16");
     tsdb.config.override(DefaultDatumIdValidator.TAGV_LENGTH_KEY, "128");
-    validator.initialize(tsdb);
+    validator.initialize(tsdb, null);
     
     id = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric("sys.cpu.user.andmore.bits.and.bobs")

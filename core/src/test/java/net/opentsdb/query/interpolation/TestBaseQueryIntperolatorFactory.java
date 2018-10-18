@@ -115,10 +115,10 @@ public class TestBaseQueryIntperolatorFactory {
   static class TestFactory extends BaseQueryIntperolatorFactory {
 
     @Override
-    public String id() { return "myid"; }
+    public String type() { return "myid"; }
 
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       return Deferred.fromResult(null);
     }
 

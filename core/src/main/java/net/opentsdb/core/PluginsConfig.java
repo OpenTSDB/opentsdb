@@ -39,8 +39,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.pojo.Validatable;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.utils.Deferreds;
@@ -106,7 +104,7 @@ public class PluginsConfig extends Validatable {
   
   public static final List<String> DEFAULT_TYPES = Lists.newArrayList();
   static {
-    DEFAULT_TYPES.add("net.opentsdb.query.QueryNodeFactory");
+    DEFAULT_TYPES.add("net.opentsdb.query.processor.ProcessorFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.filter.QueryFilterFactory");
     DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
     DEFAULT_TYPES.add("net.opentsdb.query.interpolation.QueryInterpolatorFactory");
@@ -116,21 +114,13 @@ public class PluginsConfig extends Validatable {
     DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.serdes.SerdesFactory");
     DEFAULT_TYPES.add("net.opentsdb.query.QuerySinkFactory");
-    //DEFAULT_TYPES.add("net.opentsdb.storage.TimeSeriesDataStoreFactory");
   }
   
   public static final Map<String, String> DEFAULT_IMPLEMENTATIONS = 
       Maps.newLinkedHashMap();
   static {
-//    DEFAULT_IMPLEMENTATIONS.put(
-//        "net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory", 
-//        "net.opentsdb.storage.Tsdb1xHBaseFactory");
-//    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
-//        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
         "net.opentsdb.query.interpolation.DefaultInterpolatorFactory");    
-//    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 
-//        "net.opentsdb.stats.BraveTracer");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.SerdesFactory", 
         "net.opentsdb.query.execution.serdes.JsonV2QuerySerdesFactory");
     DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.DatumIdValidator", 
@@ -478,37 +468,30 @@ public class PluginsConfig extends Validatable {
                         plugin_config.instantiated_plugin).newStoreInstance(tsdb, id);
                     ((DefaultRegistry) tsdb.getRegistry()).registerWriteStore(store, id);
                   }
-
-                  if (plugin_config.instantiated_plugin instanceof TimeSeriesDataStoreFactory &&
-                      ((DefaultRegistry) tsdb.getRegistry()).getStore(id) == null) {
-                    ReadableTimeSeriesDataStore store = ((TimeSeriesDataStoreFactory)
-                        plugin_config.instantiated_plugin).newInstance(tsdb, id);
-                    ((DefaultRegistry) tsdb.getRegistry()).registerReadStore(store, id);
-                  }
                   return null;
                 }
               }
               
               if (downstream != null) {
-                if (plugin_config.instantiated_plugin instanceof WritableTimeSeriesDataStoreFactory ||
-                    plugin_config.instantiated_plugin instanceof TimeSeriesDataStoreFactory) {
-                  plugin.initialize(tsdb)
+                if (plugin_config.instantiated_plugin instanceof 
+                        WritableTimeSeriesDataStoreFactory) {
+                  plugin.initialize(tsdb, plugin_config.getId())
                     .addCallback(new DataStoreCB())
                     .addCallback(downstream)
                     .addErrback(new ErrorCB(index, downstream));
                 } else {
-                  plugin.initialize(tsdb)
+                  plugin.initialize(tsdb, plugin_config.getId())
                     .addCallback(downstream)
                     .addErrback(new ErrorCB(index, downstream));
                 }
               } else {
-                if (plugin_config.instantiated_plugin instanceof WritableTimeSeriesDataStoreFactory ||
-                    plugin_config.instantiated_plugin instanceof TimeSeriesDataStoreFactory) {
-                  plugin.initialize(tsdb)
+                if (plugin_config.instantiated_plugin instanceof 
+                        WritableTimeSeriesDataStoreFactory) {
+                  plugin.initialize(tsdb, plugin_config.getId())
                     .addCallback(new DataStoreCB())
                     .addErrback(new ErrorCB(-1, null));
                 } else {
-                  plugin.initialize(tsdb)
+                  plugin.initialize(tsdb, plugin_config.getId())
                   .addErrback(new ErrorCB(-1, null));
                 }
               }
@@ -529,7 +512,7 @@ public class PluginsConfig extends Validatable {
                 final List<Deferred<Object>> deferreds = 
                     Lists.newArrayListWithCapacity(plugins.size());
                 for (final TSDBPlugin plugin : plugins) {
-                  deferreds.add(plugin.initialize(tsdb));
+                  deferreds.add(plugin.initialize(tsdb, plugin_config.getId()));
                   final PluginConfig.Builder builder = PluginConfig.newBuilder()
                        .setPlugin(plugin.getClass().getCanonicalName())
                        .setType(type.getCanonicalName());
@@ -798,6 +781,13 @@ public class PluginsConfig extends Validatable {
       registerPlugin(config.clazz, 
           config.instantiated_plugin.getClass().getCanonicalName(), 
           config.instantiated_plugin);
+      if (!Strings.isNullOrEmpty(config.instantiated_plugin.id()) &&
+          !config.instantiated_plugin.id().equals(config.getId()) &&
+          getPlugin(config.clazz, config.instantiated_plugin.id()) == null) {
+        registerPlugin(config.clazz, 
+            config.instantiated_plugin.id(), 
+            config.instantiated_plugin);
+      }
     } else {
       if (!config.getIsDefault()) {
         // see if the plugin has already been registered.
@@ -814,6 +804,13 @@ public class PluginsConfig extends Validatable {
       registerPlugin(config.clazz, 
           config.getIsDefault() ? null : config.getId(), 
           config.instantiated_plugin);
+      if (!Strings.isNullOrEmpty(config.instantiated_plugin.id()) &&
+          !config.instantiated_plugin.id().equals(config.getId()) &&
+          getPlugin(config.clazz, config.instantiated_plugin.id()) == null) {
+        registerPlugin(config.clazz, 
+            config.instantiated_plugin.id(), 
+            config.instantiated_plugin);
+      }
     }
     instantiated_plugins.add(config.instantiated_plugin);
     LOG.info("Registered plugin " + config);

@@ -19,6 +19,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
@@ -27,20 +30,24 @@ import io.grpc.DecompressorRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.opentsdb.common.Const;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.grpc.QueryRpcBetaGrpc.QueryRpcBetaStub;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 /**
  * A factory for instantiating GRPC clients.
@@ -49,10 +56,12 @@ import net.opentsdb.storage.TimeSeriesDataStoreFactory;
  * 
  * @since 3.0
  */
-public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory, 
-                                               ReadableTimeSeriesDataStore {
+public class QueryGRPCClientFactory extends BaseTSDBPlugin 
+    implements TimeSeriesDataSourceFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       QueryGRPCClientFactory.class);
+  
+  public static final String TYPE = "GRPCQueryClient";
   
   public static final String PORT_KEY = "grpc.client.port";
   public static final String HOST_KEY = "grpc.client.host";
@@ -67,12 +76,13 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
   private ManagedChannel channel;
   
   @Override
-  public String id() {
-    return "GRPCClient";
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     registerConfig(tsdb);
     try {
       channel = ManagedChannelBuilder
@@ -107,13 +117,7 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
   public String version() {
     return "3.0.0";
   }
-
-  @Override
-  public ReadableTimeSeriesDataStore newInstance(final TSDB tsdb, 
-                                                 final String id) {
-    return this;
-  }
-
+  
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;
@@ -129,23 +133,16 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id) {
+  public QueryNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("Need a config.");
   }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
                            final QueryNodeConfig config) {
-    return new QueryGRPCClient(this, context, id, (QuerySourceConfig) config);
+    return new QueryGRPCClient(this, context, (TimeSeriesDataSourceConfig) config);
   }
-
-  @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    return QuerySourceConfig.class;
-  }
-
+  
   @Override
   public Deferred<TimeSeriesStringId> resolveByteId(
       final TimeSeriesByteId id,
@@ -180,5 +177,20 @@ public class QueryGRPCClientFactory implements TimeSeriesDataStoreFactory,
   
   public QueryRpcBetaStub stub() {
     return stub;
+  }
+
+  
+  @Override
+  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+                                     final TSDB tsdb,
+                                     final JsonNode node) {
+    return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
+  }
+
+  @Override
+  public void setupGraph(final TimeSeriesQuery query, 
+                         final QueryNodeConfig config,
+                         final QueryPlanner planner) {
+    // no-op
   }
 }

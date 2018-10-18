@@ -46,6 +46,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
@@ -59,7 +60,6 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestBinaryExpressionNode {
@@ -116,7 +116,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void ctor() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expressionConfig());
     assertTrue(node.need_two_sources);
@@ -133,8 +133,7 @@ public class TestBinaryExpressionNode {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+    node = new BinaryExpressionNode(factory, context, expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expressionConfig());
     assertTrue(node.need_two_sources);
@@ -151,8 +150,7 @@ public class TestBinaryExpressionNode {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+    node = new BinaryExpressionNode(factory, context, expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expressionConfig());
     assertFalse(node.need_two_sources);
@@ -160,14 +158,12 @@ public class TestBinaryExpressionNode {
     assertNotNull(node.joiner());
     
     try {
-      new BinaryExpressionNode(
-          factory, null, "a+b", expression_config);
+      new BinaryExpressionNode(factory, null, expression_config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new BinaryExpressionNode(
-          factory, context, "a+b", null);
+      new BinaryExpressionNode(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -175,7 +171,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onComplete() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     node.onComplete(null, 42, 42);
@@ -190,7 +186,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onError() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     final UnitTestException ex = new UnitTestException();
@@ -207,7 +203,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextStringDouble() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -235,7 +231,7 @@ public class TestBinaryExpressionNode {
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -248,7 +244,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteDouble() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -267,7 +263,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -338,7 +334,7 @@ public class TestBinaryExpressionNode {
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+sub", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -357,7 +353,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -428,7 +424,7 @@ public class TestBinaryExpressionNode {
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+sub", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -447,7 +443,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -503,7 +499,7 @@ public class TestBinaryExpressionNode {
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -515,7 +511,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -582,7 +578,7 @@ public class TestBinaryExpressionNode {
         .build();
     
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -594,7 +590,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -651,7 +647,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteMetricException() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -670,7 +666,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -716,7 +712,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteTagException() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -735,7 +731,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -791,7 +787,7 @@ public class TestBinaryExpressionNode {
   @Test
   public void onNextByteNullTag() throws Exception {
     BinaryExpressionNode node = new BinaryExpressionNode(
-        factory, context, "a+b", expression_config);
+        factory, context, expression_config);
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
@@ -810,7 +806,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    ReadableTimeSeriesDataStore store = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {

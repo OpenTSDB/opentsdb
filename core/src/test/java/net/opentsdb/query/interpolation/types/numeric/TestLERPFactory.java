@@ -38,7 +38,7 @@ public class TestLERPFactory {
     
     assertTrue(factory.types().isEmpty());
     
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
     assertEquals(1, factory.types().size());
     
     TimeSeries time_series = mock(TimeSeries.class);

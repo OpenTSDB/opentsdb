@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -29,7 +30,7 @@ import net.opentsdb.exceptions.IllegalDataException;
 public class MinFactory extends BaseTSDBPlugin implements 
     NumericAggregatorFactory {
 
-  public static final String ID = "min";
+  public static final String TYPE = "Min";
   
   @Override
   public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -37,8 +38,8 @@ public class MinFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
   }
 
   @Override
@@ -47,9 +48,10 @@ public class MinFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     tsdb.getRegistry().registerPlugin(NumericAggregatorFactory.class, 
-        "mimmin", this);
+        "MimMin", this);
     return Deferred.fromResult(null);
   }
   
@@ -103,5 +105,5 @@ public class MinFactory extends BaseTSDBPlugin implements
     }
     
   }
-  private static final NumericAggregator AGGREGATOR = new Min(ID);
+  private static final NumericAggregator AGGREGATOR = new Min(TYPE);
 }

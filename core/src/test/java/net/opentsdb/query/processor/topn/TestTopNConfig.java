@@ -69,7 +69,7 @@ public class TestTopNConfig {
     assertEquals("Toppy", config.getId());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
-    assertEquals(TopNFactory.ID, config.getType());
+    assertEquals(TopNFactory.TYPE, config.getType());
   }
   
 }

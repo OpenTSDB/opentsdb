@@ -41,8 +41,9 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.FilterUtils;
+import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
@@ -839,9 +840,24 @@ public class Tsdb1xScanner {
       } else {
         grand_child = child;
       }
-
-      if (FilterUtils.matchesTags(
-          ((QuerySourceConfig) owner.node().config()).filter(), id.tags())) {
+      
+      QueryFilter filter = ((TimeSeriesDataSourceConfig) 
+          owner.node().config()).getFilter();
+      if (filter == null) {
+        filter = owner.node().pipelineContext().query().getFilter(
+            ((TimeSeriesDataSourceConfig) owner.node().config()).getFilterId());
+      }
+      if (filter == null) {
+        final IllegalStateException ex = new IllegalStateException(
+            "No filter found when resolving filter IDs?");
+        if (child != null) {
+          child.setErrorTags(ex)
+               .finish();
+        }
+        deferred.callback(ex);
+      }
+      
+      if (FilterUtils.matchesTags(filter, id.tags())) {
         synchronized (keepers) {
           keepers.add(hash);
         }

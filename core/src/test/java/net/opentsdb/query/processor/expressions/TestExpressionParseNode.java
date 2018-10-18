@@ -50,7 +50,7 @@ public class TestExpressionParseNode {
   public void deserialize() throws Exception {
     DefaultInterpolatorFactory factory = new DefaultInterpolatorFactory();
     MockTSDB tsdb = new MockTSDB();
-    factory.initialize(tsdb).join();
+    factory.initialize(tsdb, null).join();
     when(tsdb.getRegistry().getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
       .thenReturn(factory);
     when(tsdb.getRegistry().getType(anyString())).thenAnswer(new Answer<TypeToken<?>>() {

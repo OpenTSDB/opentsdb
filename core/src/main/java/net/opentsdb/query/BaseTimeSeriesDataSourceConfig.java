@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
@@ -27,8 +29,10 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.QueryFilterFactory;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
@@ -38,13 +42,11 @@ import net.opentsdb.query.filter.QueryFilter;
  * @since 3.0
  */
 @JsonInclude(Include.NON_DEFAULT)
-@JsonDeserialize(builder = QuerySourceConfig.Builder.class)
-public class QuerySourceConfig extends BaseQueryNodeConfig {
+@JsonDeserialize(builder = BaseTimeSeriesDataSourceConfig.Builder.class)
+public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig 
+    implements TimeSeriesDataSourceConfig {
   /** The source provider ID. */
   private final String source_id;
-  
-  /** The original and complete time series query. */
-  private TimeSeriesQuery query;
   
   // TODO - time offsets for period over period
   
@@ -70,13 +72,12 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
    * Private ctor for the builder.
    * @param builder The non-null builder.
    */
-  protected QuerySourceConfig(final Builder builder) {
+  protected BaseTimeSeriesDataSourceConfig(final Builder builder) {
     super(builder);
     if (builder.metric == null) {
       throw new IllegalArgumentException("Metric filter cannot be null.");
     }
     source_id = builder.sourceId;
-    query = builder.query;
     types = builder.types;
     metric = builder.metric;
     filter_id = builder.filterId;
@@ -88,16 +89,6 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** @return The source ID. May be null in which case we use the default. */
   public String getSourceId() {
     return source_id;
-  }
-  
-  /** @return The non-null query object. */
-  public TimeSeriesQuery query() {
-    return query;
-  }
-  
-  /** @param query A non-null query to replace the existing query. */
-  public void setTimeSeriesQuery(final TimeSeriesQuery query) {
-    this.query = query;
   }
   
   /** @return A list of data types to filter on. If null or empty, fetch
@@ -119,19 +110,6 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   /** @return The local filter if set, null if not. */
   public QueryFilter getFilter() {
     return filter;
-  }
-  
-  /** @return Returns either the filter linked by {@link #getFilterId()} 
-   * or the local filter. If no filter is associated with the config,
-   * it returns null. */
-  public QueryFilter filter() {
-    if (Strings.isNullOrEmpty(filter_id)) {
-      return filter;
-    }
-    if (query == null) {
-      return null;
-    }
-    return query.getFilter(filter_id);
   }
   
   /** @return Whether or not to fetch just the last (latest) value. */
@@ -163,22 +141,22 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     if (o == this) {
       return true;
     }
-    if (!(o instanceof QuerySourceConfig)) {
+    if (!(o instanceof BaseTimeSeriesDataSourceConfig)) {
       return false;
     }
     
-    return id.equals(((QuerySourceConfig) o).id);
+    return id.equals(((BaseTimeSeriesDataSourceConfig) o).id);
   }
   
   @Override
   public int compareTo(final QueryNodeConfig o) {
-    if (!(o instanceof QuerySourceConfig)) {
+    if (!(o instanceof BaseTimeSeriesDataSourceConfig)) {
       return -1;
     }
     
     // TODO - implement
     return ComparisonChain.start()
-        .compare(id, ((QuerySourceConfig) o).id, Ordering.natural().nullsFirst())
+        .compare(id, ((BaseTimeSeriesDataSourceConfig) o).id, Ordering.natural().nullsFirst())
         
         .result();
   }
@@ -199,31 +177,126 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
   }
   
   /** @return A new builder. */
-  public static Builder newBuilder() {
-    return new Builder();
-  }
-  
-  /** @return A new builder. */
-  public static Builder newBuilder(final QuerySourceConfig config) {
-    return (Builder) new Builder()
-        .setSourceId(config.source_id)
-        .setQuery(config.query)
-        .setTypes(config.types != null ? Lists.newArrayList(config.types) : null)
-        .setMetric(config.metric)
-        .setFilterId(config.filter_id)
-        .setQueryFilter(config.filter)
-        .setFetchLast(config.fetch_last)
+  public static Builder newBuilder(final TimeSeriesDataSourceConfig config,
+                                   final Builder builder) {
+    return (Builder) builder
+        .setSourceId(config.getSourceId())
+        .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
+        .setMetric(config.getMetric())
+        .setFilterId(config.getFilterId())
+        .setQueryFilter(config.getFilter())
+        .setFetchLast(config.getFetchLast())
         // TODO - overrides if we keep em.
-        .setId(config.id);
+        .setSources(config.getSources())
+        .setType(config.getType())
+        .setId(config.getId());
     // Skipp push down nodes.
   }
 
+  public static void parseConfig(final ObjectMapper mapper, 
+                                 final TSDB tsdb, 
+                                 final JsonNode node,
+                                 final Builder builder) {
+    // TODO - types
+    JsonNode n = node.get("sourceId");
+    if (n != null && !n.isNull()) {
+      builder.setSourceId(n.asText());
+    }
+    
+    n = node.get("metric");
+    if (n == null) {
+      throw new IllegalArgumentException("Missing the metric field.");
+    }
+    JsonNode type_node = n.get("type");
+    if (type_node == null) {
+      throw new IllegalArgumentException("Missing the metric type field.");
+    }
+    String type = type_node.asText();
+    if (Strings.isNullOrEmpty(type)) {
+      throw new IllegalArgumentException("Metric type field cannot be null or empty.");
+    }
+    QueryFilterFactory factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
+    if (factory == null) {
+      throw new IllegalArgumentException("No query filter factory found for: " + type);
+    }
+    QueryFilter filter = factory.parse(tsdb, mapper, n);
+    if (filter == null || !(filter instanceof MetricFilter)) {
+      throw new IllegalArgumentException("Metric query filter was not "
+          + "an instanceof MetricFilter: " + filter.getClass());
+    }
+    builder.setMetric((MetricFilter) filter);
+    
+    n = node.get("id");
+    if (n == null || Strings.isNullOrEmpty(n.asText())) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
+    builder.setId(n.asText());
+    
+    n = node.get("fetchLast");
+    if (n != null) {
+      builder.setFetchLast(n.asBoolean());
+    }
+    
+    n = node.get("filterId");
+    if (n != null && !Strings.isNullOrEmpty(n.asText())) {
+      builder.setFilterId(n.asText());
+    } else {
+      n = node.get("filter");
+      if (n != null && !n.isNull()) {
+        type_node = n.get("type");
+        if (type_node == null) {
+          throw new IllegalArgumentException("Missing the filter type field.");
+        }
+        
+        type = type_node.asText();
+        if (Strings.isNullOrEmpty(type)) {
+          throw new IllegalArgumentException("Filter type field cannot be null or empty.");
+        }
+        
+        factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
+        if (factory == null) {
+          throw new IllegalArgumentException("No query filter factory found for: " + type);
+        }
+        filter = factory.parse(tsdb, mapper, n);
+        if (filter == null) {
+          throw new IllegalArgumentException("Unable to parse filter config.");
+        }
+        builder.setQueryFilter(filter);
+      }
+    }
+    
+    n = node.get("pushDownNodes");
+    if (n != null) {
+      for (final JsonNode pushdown : n) {
+        JsonNode temp = pushdown.get("type");
+        QueryNodeFactory config_factory = null;
+        if (temp != null && !temp.isNull()) {
+          config_factory = tsdb.getRegistry()
+              .getQueryNodeFactory(temp.asText());
+        } else {
+          temp = pushdown.get("id");
+          if (temp != null && !temp.isNull()) {
+            config_factory = tsdb.getRegistry()
+                .getQueryNodeFactory(temp.asText());
+          }
+        }
+        
+        if (config_factory == null) {
+          throw new IllegalArgumentException("Unable to find a config "
+              + "factory for type: " + (temp == null || temp.isNull() ? 
+                  "null" : temp.asText()));
+        }
+        builder.addPushDownNode(config_factory.parseConfig(
+            mapper, tsdb, pushdown));
+      }
+    }
+  }
+  
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static abstract class Builder extends BaseQueryNodeConfig.Builder
+    implements TimeSeriesDataSourceConfig.Builder {
     @JsonProperty
     private String sourceId;
-    @JsonProperty
-    private TimeSeriesQuery query;
     @JsonProperty
     private List<String> types;
     @JsonProperty
@@ -236,21 +309,12 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
     private boolean fetchLast;
     private List<QueryNodeConfig> push_down_nodes;
     
-    Builder() {
-      setType("DataSource");
+    protected Builder() {
+      setType(TimeSeriesDataSourceConfig.DEFAULT);
     }
     
     public Builder setSourceId(final String source_id) {
       sourceId = source_id;
-      return this;
-    }
-    
-    /** 
-     * @param query The non-null query to execute.
-     * @return The builder. 
-     */
-    public Builder setQuery(final TimeSeriesQuery query) {
-      this.query = query;
       return this;
     }
     
@@ -301,9 +365,8 @@ public class QuerySourceConfig extends BaseQueryNodeConfig {
       return this;
     }
     
-    public QuerySourceConfig build() {
-      return new QuerySourceConfig(this);
-    }
+    public abstract TimeSeriesDataSourceConfig build();
+    
   }
 
 }

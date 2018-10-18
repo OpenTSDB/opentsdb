@@ -139,7 +139,8 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     interpolators = new QueryInterpolator[sources.size()];
     
-    QueryInterpolatorConfig interpolator_config = ((GroupByConfig) node.config()).interpolatorConfig(NumericSummaryType.TYPE);
+    QueryInterpolatorConfig interpolator_config = 
+        ((GroupByConfig) node.config()).interpolatorConfig(NumericSummaryType.TYPE);
     if (interpolator_config == null) {
       interpolator_config = ((GroupByConfig) node.config()).interpolatorConfig(NumericType.TYPE);
       if (interpolator_config == null) {
@@ -150,7 +151,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
           NumericSummaryInterpolatorConfig.newBuilder()
           .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
           .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
-      if (((GroupByConfig) node.config()).getAggregator().equals("avg")) {
+      if (((GroupByConfig) node.config()).getAggregator().toLowerCase().equals("avg")) {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
         .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
         .setSync(true)
@@ -258,7 +259,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
       }
     }
     
-    if (aggregator.name().equals("avg") && 
+    if (aggregator.name().toLowerCase().equals("avg") && 
         !config.getExpectedSummaries().contains(avg_id)) {
       for (final Entry<Integer, NumericAccumulator> entry : accumulators.entrySet()) {
         final NumericAccumulator accumulator = entry.getValue();

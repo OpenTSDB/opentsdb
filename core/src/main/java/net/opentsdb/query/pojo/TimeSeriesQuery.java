@@ -39,7 +39,7 @@ import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.ChainFilter;
@@ -648,8 +648,8 @@ public class TimeSeriesQuery extends Validatable
     int metric_id = 1;
     for (final Metric metric : metrics) {
       
-      QuerySourceConfig.Builder source = 
-          (QuerySourceConfig.Builder) QuerySourceConfig.newBuilder()
+      DefaultTimeSeriesDataSourceConfig.Builder source = 
+          (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
       .setMetric(MetricLiteralFilter.newBuilder()
           .setMetric(metric.getMetric())
           .build())

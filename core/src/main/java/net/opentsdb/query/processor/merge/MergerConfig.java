@@ -114,7 +114,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
     private boolean infectious_nan;
     
     Builder() {
-      setType(MergerFactory.ID);
+      setType(MergerFactory.TYPE);
     }
     
     /**

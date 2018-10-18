@@ -43,13 +43,11 @@ import org.powermock.reflect.Whitebox;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.PluginsConfig.PluginConfig;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
@@ -67,7 +65,6 @@ import net.opentsdb.utils.PluginLoader;
 public class TestPluginsConfig {
   private static int ORDER = 0;
   private MockTSDB tsdb;
-  private Configuration tsd_config;
   private PluginsConfig config;
   
   @Before
@@ -80,8 +77,8 @@ public class TestPluginsConfig {
     
     when(tsdb.getRegistry().getDefaultPlugin(WritableTimeSeriesDataStoreFactory.class))
       .thenReturn((WritableTimeSeriesDataStoreFactory) mock(SchemaFactory.class));
-    when(tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataStoreFactory.class))
-      .thenReturn((TimeSeriesDataStoreFactory) mock(SchemaFactory.class));
+    when(tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataSourceFactory.class))
+      .thenReturn((TimeSeriesDataSourceFactory) mock(SchemaFactory.class));
     Schema schema = mock(Schema.class);
     PowerMockito.whenNew(Schema.class).withAnyArguments().thenReturn(schema);
   }
@@ -1395,7 +1392,7 @@ public class TestPluginsConfig {
     public int order = -1;
     
     @Override
-    public String id() {
+    public String type() {
       return "MockA";
     }
 
@@ -1405,7 +1402,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       order = ORDER++;
       return Deferred.fromResult(null);
     }
@@ -1421,7 +1418,7 @@ public class TestPluginsConfig {
     public int order = -1;
     
     @Override
-    public String id() {
+    public String type() {
       return "MockB";
     }
 
@@ -1431,7 +1428,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       order = ORDER++;
       return Deferred.fromError(new UnsupportedOperationException("Boo!"));
     }
@@ -1451,7 +1448,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public String id() {
+    public String type() {
       return "MockC";
     }
 
@@ -1461,7 +1458,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       order = ORDER++;
       return Deferred.fromResult(null);
     }
@@ -1473,7 +1470,7 @@ public class TestPluginsConfig {
     public int order = -1;
     
     @Override
-    public String id() {
+    public String type() {
       return "MockPluginCleanA";
     }
 
@@ -1483,7 +1480,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       order = ORDER++;
       return Deferred.fromResult(null);
     }
@@ -1500,7 +1497,7 @@ public class TestPluginsConfig {
     public int shutdown_count = 0;
     
     @Override
-    public String id() {
+    public String type() {
       return "MockPluginCleanB";
     }
 
@@ -1510,7 +1507,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       order = ORDER++;
       return Deferred.fromResult(null);
     }
@@ -1527,7 +1524,7 @@ public class TestPluginsConfig {
     public int order = -1;
     
     @Override
-    public String id() {
+    public String type() {
       return "MockPluginCleanC";
     }
 
@@ -1537,7 +1534,7 @@ public class TestPluginsConfig {
     }
     
     @Override
-    public Deferred<Object> initialize(final TSDB tsdb) {
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
       order = ORDER++;
       return Deferred.fromResult(null);
     }

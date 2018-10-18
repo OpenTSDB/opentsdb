@@ -1386,18 +1386,18 @@ public class TestAbstractQueryPipelineContext {
   static class MockFactoryA extends BaseTSDBPlugin implements QueryNodeFactory {
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id) {
-      return newNode(context, id, null);
+    public QueryNode newNode(QueryPipelineContext context) {
+      return newNode(context, null);
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id,
+    public QueryNode newNode(QueryPipelineContext context,
         QueryNodeConfig config) {
-      return new MockNodeA(this, context, id, config);
+      return new MockNodeA(this, context, config);
     }
 
     @Override
-    public String id() {
+    public String type() {
       return "MockFactoryA";
     }
 
@@ -1427,8 +1427,8 @@ public class TestAbstractQueryPipelineContext {
     QueryNodeConfig config;
     
     public MockNodeA(QueryNodeFactory factory, QueryPipelineContext context,
-        String id, QueryNodeConfig config) {
-      super(factory, context, id);
+        QueryNodeConfig config) {
+      super(factory, context);
       this.config = config;
     }
 
@@ -1460,18 +1460,18 @@ public class TestAbstractQueryPipelineContext {
   static class MockFactoryB extends BaseTSDBPlugin implements QueryNodeFactory {
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id) {
-      return newNode(context, id, null);
+    public QueryNode newNode(QueryPipelineContext context) {
+      return newNode(context, null);
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id,
+    public QueryNode newNode(QueryPipelineContext context,
         QueryNodeConfig config) {
-      return new MockNodeB(this, context, id, config);
+      return new MockNodeB(this, context, config);
     }
 
     @Override
-    public String id() {
+    public String type() {
       return "MockFactoryB";
     }
 
@@ -1500,8 +1500,8 @@ public class TestAbstractQueryPipelineContext {
     QueryNodeConfig config;
     
     public MockNodeB(QueryNodeFactory factory, QueryPipelineContext context,
-        String id, QueryNodeConfig config) {
-      super(factory, context, id);
+        QueryNodeConfig config) {
+      super(factory, context);
       this.config = config;
     }
 
@@ -1533,18 +1533,18 @@ public class TestAbstractQueryPipelineContext {
   static class MockSourceFactory extends BaseTSDBPlugin implements QueryNodeFactory {
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id) {
-      return newNode(context, id, null);
+    public QueryNode newNode(QueryPipelineContext context) {
+      return newNode(context, null);
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context, String id,
+    public QueryNode newNode(QueryPipelineContext context,
         QueryNodeConfig config) {
-      return new MockSource(this, context, id, config);
+      return new MockSource(this, context, config);
     }
 
     @Override
-    public String id() {
+    public String type() {
       return "MockSourceFactory";
     }
 
@@ -1575,8 +1575,8 @@ public class TestAbstractQueryPipelineContext {
     boolean throw_on_next;
     
     public MockSource(QueryNodeFactory factory, QueryPipelineContext context,
-        String id, QueryNodeConfig config) {
-      super(factory, context, id);
+        QueryNodeConfig config) {
+      super(factory, context);
       this.config = config;
     }
 

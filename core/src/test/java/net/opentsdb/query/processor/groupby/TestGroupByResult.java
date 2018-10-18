@@ -32,6 +32,7 @@ import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
@@ -42,7 +43,6 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 public class TestGroupByResult {
   
@@ -526,7 +526,7 @@ public class TestGroupByResult {
   }
   
   private void setupBytes() {
-    final ReadableTimeSeriesDataStore data_store = mock(ReadableTimeSeriesDataStore.class);
+    final TimeSeriesDataSourceFactory data_store = mock(TimeSeriesDataSourceFactory.class);
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
         .addTagKey("dc")

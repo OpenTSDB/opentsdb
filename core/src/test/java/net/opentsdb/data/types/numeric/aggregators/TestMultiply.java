@@ -35,8 +35,8 @@ public class TestMultiply {
   @Test
   public void factory() throws Exception {
     NumericAggregatorFactory factory = new MultiplyFactory();
-    assertEquals(MultiplyFactory.ID, factory.id());
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
+    assertEquals(MultiplyFactory.TYPE, factory.id());
     assertNull(factory.shutdown().join());
   }
   

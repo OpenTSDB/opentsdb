@@ -69,7 +69,8 @@ public class TestMergerFactory {
     final MergerFactory factory = new MergerFactory();
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals(MergerFactory.ID, factory.id());
+    factory.initialize(mock(TSDB.class), null).join(1);
+    assertEquals(MergerFactory.TYPE, factory.id());
   }
   
   @Test
@@ -151,7 +152,7 @@ public class TestMergerFactory {
     when(registry.getPlugin(eq(NumericArrayAggregatorFactory.class), anyString()))
       .thenReturn(new ArraySumFactory());
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
-    interp_factory.initialize(tsdb).join();
+    interp_factory.initialize(tsdb, null).join();
     when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
       .thenReturn(interp_factory);
     when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))

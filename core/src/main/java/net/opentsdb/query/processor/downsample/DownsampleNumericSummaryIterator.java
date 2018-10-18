@@ -123,7 +123,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
           NumericSummaryInterpolatorConfig.newBuilder()
           .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
           .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
-      if (config.getAggregator().equals("avg")) {
+      if (config.getAggregator().toLowerCase().equals("avg")) {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
         .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
         .setSync(true)
@@ -383,7 +383,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         }
       }
       
-      if (aggregator.name().equals("avg")) {
+      if (aggregator.name().toLowerCase().equals("avg")) {
         for (final Entry<Integer, NumericAccumulator> entry : 
             accumulators.entrySet()) {
           final NumericAccumulator accumulator = entry.getValue();

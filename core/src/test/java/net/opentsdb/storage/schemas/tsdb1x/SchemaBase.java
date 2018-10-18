@@ -108,6 +108,7 @@ public class SchemaBase {
   public static UniqueId tag_values;
   public static MockTrace trace;
   public static DatumIdValidator id_validator;
+  public static SchemaFactory factory;
   
   protected FakeTaskTimer timer;
   protected Map<String, String> tags;
@@ -115,6 +116,7 @@ public class SchemaBase {
   @BeforeClass
   public static void beforeClass() throws Exception {
     tsdb = new MockTSDB();
+    factory = mock(SchemaFactory.class);
     store_factory = mock(Tsdb1xDataStoreFactory.class);
     store = mock(Tsdb1xDataStore.class);
     uid_store = spy(new MockUIDStore(Const.ISO_8859_CHARSET));
@@ -202,7 +204,7 @@ public class SchemaBase {
     metrics.dropCaches(null);
     tag_names.dropCaches(null);
     tag_values.dropCaches(null);
-    return new Schema(tsdb, null);
+    return new Schema(factory, tsdb, null);
   }
   
   /** Sets the UID widths and salt back to their defaults. */

@@ -227,7 +227,7 @@ public class ExpressionRpc {
             .setQuerySpan(query_span)
             .build())
         .addSink(ServletSinkConfig.newBuilder()
-            .setId(ServletSinkFactory.ID)
+            .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)
             .setResponse(response)
             .setAsync(async)

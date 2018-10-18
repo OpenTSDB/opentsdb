@@ -58,7 +58,7 @@ public class TestGuavaLRUCache {
   @Test
   public void initialize() throws Exception {
     GuavaLRUCache cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(GuavaLRUCache.DEFAULT_SIZE_LIMIT, cache.sizeLimit());
     assertEquals(GuavaLRUCache.DEFAULT_MAX_OBJECTS, cache.maxObjects());
     assertEquals(0, cache.bytesStored());
@@ -66,7 +66,7 @@ public class TestGuavaLRUCache {
     
     config.register("tsd.executor.plugin.guava.limit.objects", 42, false, "UT");
     cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(GuavaLRUCache.DEFAULT_SIZE_LIMIT, cache.sizeLimit());
     assertEquals(42, cache.maxObjects());
     assertEquals(0, cache.bytesStored());
@@ -74,7 +74,7 @@ public class TestGuavaLRUCache {
     
     config.register("tsd.executor.plugin.guava.limit.bytes", 16, false, "UT");
     cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(16, cache.sizeLimit());
     assertEquals(42, cache.maxObjects());
     assertEquals(0, cache.bytesStored());
@@ -84,7 +84,7 @@ public class TestGuavaLRUCache {
   @Test
   public void cacheAndFetchSingleEntry() throws Exception {
     final GuavaLRUCache cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(0, cache.cache().size());
     
     cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
@@ -150,7 +150,7 @@ public class TestGuavaLRUCache {
   @Test
   public void cacheAndFetchSingleEntryExpired() throws Exception {
     final GuavaLRUCache cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(0, cache.cache().size());
     
     PowerMockito.mockStatic(DateTime.class);
@@ -197,7 +197,7 @@ public class TestGuavaLRUCache {
   @Test
   public void cacheAndFetchMultiEntry() throws Exception {
     final GuavaLRUCache cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(0, cache.cache().size());
     
     byte[][] keys = new byte[][] {
@@ -277,7 +277,7 @@ public class TestGuavaLRUCache {
   @Test
   public void cacheAndFetchMultiEntryExpired() throws Exception {
     final GuavaLRUCache cache = new GuavaLRUCache();
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     assertEquals(0, cache.cache().size());
     
     PowerMockito.mockStatic(DateTime.class);
@@ -381,7 +381,7 @@ public class TestGuavaLRUCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     
     try {
       cache.cache(null, new byte[] { 0, 0, 1 }, 60000, TimeUnit.MILLISECONDS, span);
@@ -462,7 +462,7 @@ public class TestGuavaLRUCache {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
-    cache.initialize(tsdb).join();
+    cache.initialize(tsdb, null).join();
     
     try {
       cache.fetch(context, (byte[]) null, span).deferred().join();

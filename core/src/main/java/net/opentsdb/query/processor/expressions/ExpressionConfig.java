@@ -352,7 +352,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     private String as;
     
     Builder() {
-      setType(ExpressionFactory.ID);
+      setType(ExpressionFactory.TYPE);
     }
     
     public Builder setExpression(final String expression) {

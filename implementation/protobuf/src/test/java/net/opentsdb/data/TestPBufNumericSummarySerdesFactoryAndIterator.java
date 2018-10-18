@@ -42,7 +42,7 @@ import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -60,7 +60,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     options = mock(SerdesOptions.class);
     ctx = mock(QueryContext.class);
     
-    graph = Lists.newArrayList(QuerySourceConfig.newBuilder()
+    graph = Lists.newArrayList(DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
             .build())

@@ -31,12 +31,18 @@ import org.junit.BeforeClass;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.MockTrace;
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaBase;
+import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
 import net.opentsdb.uid.LRUUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -127,6 +133,7 @@ public class UTBase {
   protected static UniqueIdStore uid_store;
   
   protected static Schema schema;
+  protected static SchemaFactory schema_factory;
   
   protected static MockTrace trace;
   
@@ -170,7 +177,8 @@ public class UTBase {
           }
         });
     
-    schema = spy(new Schema(tsdb, null));
+    schema_factory = mock(SchemaFactory.class);
+    schema = spy(new Schema(schema_factory, tsdb, null));
     when(data_store.schema()).thenReturn(schema);
     
     storage = new MockBase(client, true, true, true, true);

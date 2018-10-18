@@ -26,8 +26,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -47,7 +47,6 @@ public class TestGroupByConfig {
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
       .setDataType(NumericType.TYPE.toString())
-      .setType("Default")
       .build();
     
     summary_config = 
@@ -56,7 +55,6 @@ public class TestGroupByConfig {
       .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
       .addExpectedSummary(0)
       .setDataType(NumericSummaryType.TYPE.toString())
-      .setType("Default")
       .build();
   }
   
@@ -167,9 +165,7 @@ public class TestGroupByConfig {
     assertTrue(json.contains("\"infectiousNan\":false"));
     assertTrue(json.contains("\"interpolatorConfigs\":["));
     
-    MockTSDB tsdb = new MockTSDB();
-    tsdb.registry = new DefaultRegistry(tsdb);
-    ((DefaultRegistry) tsdb.registry).initialize(true);
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode node = JSON.getMapper().readTree(json);
     config = GroupByConfig.parse(JSON.getMapper(), tsdb, node);
     
@@ -177,7 +173,7 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
-    assertEquals(GroupByFactory.ID, config.getType());
+    assertEquals(GroupByFactory.TYPE, config.getType());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
     assertTrue(config.getFullMerge());

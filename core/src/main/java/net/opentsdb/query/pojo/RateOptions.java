@@ -412,7 +412,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     protected Map<String, String> overrides;
     
     Builder() {
-      setType(RateFactory.ID);
+      setType(RateFactory.TYPE);
     }
     
     public Builder setId(final String id) {

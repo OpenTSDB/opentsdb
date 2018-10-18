@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,17 +26,26 @@ public abstract class BaseTSDBPlugin implements TSDBPlugin {
   /** The TSDB to which this plugin belongs. */
   protected TSDB tsdb;
   
+  /** The ID assigned during the {@link #initialize(TSDB, String)} call. */
+  protected String id;
+  
   /**
    * Ctor without any arguments is required for instantiating plugins.
    */
   protected BaseTSDBPlugin() { }
   
   @Override
-  public abstract String id();
+  public abstract String type();
   
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public String id() {
+    return id;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
+    this.id = id;
     return Deferred.fromResult(null);
   }
   

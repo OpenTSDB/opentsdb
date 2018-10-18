@@ -30,6 +30,7 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -48,7 +49,8 @@ public class TestRateFactory {
     final RateFactory factory = new RateFactory();
     assertEquals(2, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals(RateFactory.ID, factory.id());
+    factory.initialize(mock(TSDB.class), null).join(1);
+    assertEquals(RateFactory.TYPE, factory.id());
   }
   
   @Test

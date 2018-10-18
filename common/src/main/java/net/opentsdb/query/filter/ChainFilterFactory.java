@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.filter.ChainFilter.Builder;
@@ -30,15 +31,22 @@ import net.opentsdb.query.filter.ChainFilter.FilterOp;
  * 
  * @since 3.0
  */
-public class ChainFilterFactory implements QueryFilterFactory {
+public class ChainFilterFactory extends BaseTSDBPlugin implements 
+    QueryFilterFactory {
 
-  static final String TYPE = "Chain";
+  public static final String TYPE = "Chain";
   
   @Override
   public String getType() {
     return TYPE;
   }
 
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
   @Override
   public QueryFilter parse(final TSDB tsdb, 
                            final ObjectMapper mapper, 
@@ -85,20 +93,10 @@ public class ChainFilterFactory implements QueryFilterFactory {
   }
 
   @Override
-  public String id() {
-    return "Chain";
+  public String type() {
+    return TYPE;
   }
-
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";

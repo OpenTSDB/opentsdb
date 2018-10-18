@@ -56,9 +56,8 @@ public class Rate extends AbstractQueryNode {
   
   public Rate(final QueryNodeFactory factory, 
               final QueryPipelineContext context, 
-              final String id,
               final RateOptions config) {
-    super(factory, context, id);
+    super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null.");
     }

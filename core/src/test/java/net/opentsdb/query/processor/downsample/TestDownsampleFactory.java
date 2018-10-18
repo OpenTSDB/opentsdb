@@ -55,13 +55,13 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -84,7 +84,7 @@ public class TestDownsampleFactory {
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertTrue(factory.types().contains(NumericSummaryType.TYPE));
-    assertEquals(DownsampleFactory.ID, factory.id());
+    assertEquals(DownsampleFactory.TYPE, factory.type());
   }
   
   @Test
@@ -163,7 +163,7 @@ public class TestDownsampleFactory {
     final MockTSDB tsdb = new MockTSDB();
     when(context.tsdb()).thenReturn(tsdb);
     final QueryInterpolatorFactory qif = new DefaultInterpolatorFactory();
-    qif.initialize(tsdb);
+    qif.initialize(tsdb, null);
     when(tsdb.registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
       .thenReturn(qif);
     when(tsdb.registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
@@ -180,7 +180,7 @@ public class TestDownsampleFactory {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     DownsampleResult dr = ds.new DownsampleResult(result);
     
@@ -301,7 +301,7 @@ public class TestDownsampleFactory {
         .build();
     
     final List<QueryNodeConfig> graph = Lists.newArrayList(
-        QuerySourceConfig.newBuilder()
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())

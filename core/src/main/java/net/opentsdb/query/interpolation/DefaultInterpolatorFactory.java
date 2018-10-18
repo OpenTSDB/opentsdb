@@ -35,12 +35,13 @@ import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolator
 public class DefaultInterpolatorFactory extends BaseQueryIntperolatorFactory {
 
   @Override
-  public String id() {
-    return "Default";
+  public String type() {
+    return null;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = id;
     // Add defaults for the built-in types
     register(NumericType.TYPE, NumericInterpolator.class, 
         new NumericInterpolatorParser());
@@ -48,12 +49,7 @@ public class DefaultInterpolatorFactory extends BaseQueryIntperolatorFactory {
         new NumericSummaryInterpolatorParser());
     return Deferred.fromResult(null);
   }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
+  
   @Override
   public String version() {
     return "3.0.0";

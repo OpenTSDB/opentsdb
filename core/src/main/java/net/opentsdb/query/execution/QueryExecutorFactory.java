@@ -36,7 +36,7 @@ public abstract class QueryExecutorFactory<T> extends BaseTSDBPlugin {
   public abstract String id();
   
   /** @return The type of executor instantiated. */
-  public abstract TypeToken<?> type();
+  public abstract TypeToken<?> executorType();
   
   /**
    * Returns a new instance of the executor using the config from the

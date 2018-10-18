@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -38,7 +39,8 @@ public class TestSummarizerFactory {
     assertTrue(factory.types().contains(NumericArrayType.TYPE));
     assertTrue(factory.types().contains(NumericType.TYPE));
     assertTrue(factory.types().contains(NumericSummaryType.TYPE));
-    assertEquals(SummarizerFactory.ID, factory.id());
+    factory.initialize(mock(TSDB.class), null).join(1);
+    assertEquals(SummarizerFactory.TYPE, factory.id());
   }
   
   @Test
@@ -57,7 +59,7 @@ public class TestSummarizerFactory {
     
     SummarizerFactory factory = new SummarizerFactory();
     
-    QueryNode summarizer = factory.newNode(context, "", config);
+    QueryNode summarizer = factory.newNode(context, config);
     assertTrue(summarizer instanceof Summarizer);
   }
 }

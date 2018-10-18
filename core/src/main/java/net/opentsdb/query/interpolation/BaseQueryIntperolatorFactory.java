@@ -28,8 +28,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -44,8 +44,8 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryIntperolatorFactory implements 
-    QueryInterpolatorFactory, TSDBPlugin {
+public abstract class BaseQueryIntperolatorFactory extends BaseTSDBPlugin 
+    implements QueryInterpolatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseQueryIntperolatorFactory.class);
   

@@ -59,11 +59,12 @@ import com.google.common.primitives.Bytes;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -91,7 +92,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   public static final TimeStamp BASE_TS = new MillisecondTimeStamp(0L);
   
   public Tsdb1xQueryNode node;
-  public QuerySourceConfig source_config;
+  public TimeSeriesDataSourceConfig source_config;
   public DefaultRollupConfig rollup_config;
   public QueryPipelineContext context;
   public List<byte[]> tsuids;
@@ -126,14 +127,13 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setId("m1")
         .build();
-    
+    when(context.query()).thenReturn(query);
     when(data_store.dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)).thenReturn("Rollup_Fallback");
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY)).thenReturn(2);
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY)).thenReturn(4);
@@ -211,8 +211,7 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -222,6 +221,7 @@ public class TestTsdb1xMultiGet extends UTBase {
         .addOverride(Schema.QUERY_REVERSE_KEY, "true")
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     assertSame(node, mget.node);
@@ -300,14 +300,14 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .addOverride(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     assertTrue(mget.rollups_enabled);
@@ -348,13 +348,13 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     mget = new Tsdb1xMultiGet(node, source_config, tsuids);
@@ -404,13 +404,13 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     assertEquals(END_TS - 900, mget.timestamp.epoch());
@@ -438,6 +438,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   public void ctorTimedSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     when(node.parent()).thenReturn(data_store);
+    when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(false);
     when(schema.saltWidth()).thenReturn(1);
@@ -459,6 +460,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   public void ctorTimelessSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     when(node.parent()).thenReturn(data_store);
+    when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(true);
     when(schema.saltWidth()).thenReturn(1);
@@ -681,14 +683,14 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .addOverride(Schema.QUERY_REVERSE_KEY, "true")
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     assertEquals(END_TS - 900, mget.timestamp.epoch());
@@ -846,6 +848,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // salting
     node = mock(Tsdb1xQueryNode.class);
     when(node.parent()).thenReturn(data_store);
+    when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
@@ -874,6 +877,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   public void nextBatchTimedSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     when(node.parent()).thenReturn(data_store);
+    when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(false);
     when(schema.saltWidth()).thenReturn(1);
@@ -903,6 +907,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   public void nextBatchTimelessSalt() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     when(node.parent()).thenReturn(data_store);
+    when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(true);
     when(schema.saltWidth()).thenReturn(1);
@@ -1225,14 +1230,14 @@ public class TestTsdb1xMultiGet extends UTBase {
             (TS_SINGLE_SERIES_COUNT * TS_SINGLE_SERIES_INTERVAL)))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .addOverride(Schema.QUERY_REVERSE_KEY, "true")
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -1258,13 +1263,13 @@ public class TestTsdb1xMultiGet extends UTBase {
             (TS_MULTI_SERIES_EX_COUNT * TS_MULTI_SERIES_INTERVAL)))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -1319,13 +1324,13 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setEnd(Integer.toString(END_TS))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    source_config = (QuerySourceConfig) QuerySourceConfig.newBuilder()
-        .setQuery(query)
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
         .addOverride(Schema.QUERY_REVERSE_KEY, reversed ? "true" : "false")
         .setId("m1")
         .build();
+    when(context.query()).thenReturn(query);
   }
 }

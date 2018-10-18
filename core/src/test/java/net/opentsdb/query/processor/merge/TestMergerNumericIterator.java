@@ -25,7 +25,6 @@ import static org.mockito.Mockito.when;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
@@ -37,8 +36,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -71,9 +70,7 @@ public class TestMergerNumericIterator {
   
   @BeforeClass
   public static void beforeClass() {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
   }
   
   @Before

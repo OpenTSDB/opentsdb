@@ -1,11 +1,33 @@
+//This file is part of OpenTSDB.
+//Copyright (C) 2017-2018  The OpenTSDB Authors.
+//
+//This program is free software: you can redistribute it and/or modify it
+//under the terms of the GNU Lesser General Public License as published by
+//the Free Software Foundation, either version 2.1 of the License, or (at your
+//option) any later version.  This program is distributed in the hope that it
+//will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+//of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+//General Public License for more details.  You should have received a copy
+//of the GNU Lesser General Public License along with this program.  If not,
+//see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
 import com.stumbleupon.async.Deferred;
 
 public interface TSDBPlugin {
+  
   /**
-   * An ID for the plugin in case multiple plugins of the same class are 
-   * loaded.
+   * The unique build time name of the plugin, e.g. "Aggregator" or 
+   * "Serializer".
+   *  
+   * @return A non-null string.
+   */
+  public String type();
+  
+  /**
+   * An unique runtime Id for the plugin given at load time by the 
+   * plugin config. If the plugin is a default, the value will be 
+   * "Default".
    * 
    * @return A non-null string ID.
    */
@@ -29,6 +51,7 @@ public interface TSDBPlugin {
    * If it can't startup for another reason, return an Exception in the deferred.
    * 
    * @param tsdb The parent TSDB object.
+   * @param id The ID of the object. If null we assume "Default".
    * @return A non-null deferred for the TSDB to wait on to confirm 
    * initialization. The deferred should resolve to a {@code null} on successful 
    * init or an exception on failure.
@@ -36,7 +59,7 @@ public interface TSDBPlugin {
    * @throws IllegalArgumentException if required configuration parameters are
    * missing.
    */
-  public Deferred<Object> initialize(final TSDB tsdb);
+  public Deferred<Object> initialize(final TSDB tsdb, final String id);
   
   /**
    * Called to gracefully shutdown the plugin. Implementations should close

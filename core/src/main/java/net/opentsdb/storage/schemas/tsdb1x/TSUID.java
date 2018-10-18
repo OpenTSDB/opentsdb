@@ -30,10 +30,10 @@ import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteSet;
@@ -324,8 +324,8 @@ public class TSUID implements TimeSeriesByteId {
   }
 
   @Override
-  public ReadableTimeSeriesDataStore dataStore() {
-    return schema;
+  public TimeSeriesDataSourceFactory dataStore() {
+    return schema.factory;
   }
 
   @Override

@@ -17,10 +17,16 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+
+import java.util.List;
+
+import static org.mockito.Mockito.verify;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -31,81 +37,92 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.collect.Lists;
+
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.stats.Span;
+import net.opentsdb.uid.UniqueIdType;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ SchemaFactory.class })
 public class TestSchemaFactory extends SchemaBase {
 
   private TSDB tsdb;
+  private Tsdb1xDataStore store;
+  private QueryNode node;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
+    store = mock(Tsdb1xDataStore.class);
+    node = mock(QueryNode.class);
+    
+    when(store.newNode(any(QueryPipelineContext.class), 
+        any(QueryNodeConfig.class)))
+      .thenReturn(node);
+    
     PowerMockito.whenNew(Schema.class).withAnyArguments()
       .thenAnswer(new Answer<Schema>() {
       @Override
       public Schema answer(InvocationOnMock invocation) throws Throwable {
         final Schema schema = mock(Schema.class);
-        final String id = (String) invocation.getArguments()[1];
-        when(schema.id()).thenReturn(id);
+        when(schema.dataStore()).thenReturn(store);
         return schema;
       }
     });
   }
   
   @Test
-  public void newInstanceDefault() throws Exception {
+  public void ctor() throws Exception {
     SchemaFactory factory = new SchemaFactory();
-    assertNull(factory.default_schema);
-    assertTrue(factory.schemas.isEmpty());
+    assertNull(factory.id());
+    assertEquals(SchemaFactory.TYPE, factory.type());
+    PowerMockito.verifyNew(Schema.class, never());
     
-    ReadableTimeSeriesDataStore store = factory.newInstance(tsdb, null);
-    assertSame(store, factory.default_schema);
-    assertTrue(factory.schemas.isEmpty());
-    assertNull(store.id());
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, (String) null);
-    
-    store = factory.newInstance(tsdb, null);
-    assertSame(store, factory.default_schema);
-    assertTrue(factory.schemas.isEmpty());
-    assertNull(store.id());
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, (String) null);
-    
-    store = factory.newInstance(tsdb, null);
-    assertSame(store, factory.default_schema);
-    assertTrue(factory.schemas.isEmpty());
-    assertNull(store.id());
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, (String) null);
+    assertNull(factory.initialize(tsdb, null).join(1));
+    PowerMockito.verifyNew(Schema.class);
   }
   
   @Test
-  public void newInstanceWithID() throws Exception {
+  public void newNode() throws Exception {
     SchemaFactory factory = new SchemaFactory();
-    assertNull(factory.default_schema);
-    assertTrue(factory.schemas.isEmpty());
+    factory.initialize(tsdb, null).join(1);
     
-    ReadableTimeSeriesDataStore store = factory.newInstance(tsdb, "id1");
-    assertNull(factory.default_schema);
-    assertEquals(1, factory.schemas.size());
-    assertSame(store, factory.schemas.get("id1"));
-    assertEquals("id1", store.id());
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, "id1");
+    assertSame(node, factory.newNode(mock(QueryPipelineContext.class), 
+        mock(QueryNodeConfig.class)));
+  }
+  
+  @Test
+  public void resolveByteId() throws Exception {
+    SchemaFactory factory = new SchemaFactory();
+    factory.initialize(tsdb, null).join(1);
     
-    store = factory.newInstance(tsdb, "id1");
-    assertNull(factory.default_schema);
-    assertEquals(1, factory.schemas.size());
-    assertSame(store, factory.schemas.get("id1"));
-    assertEquals("id1", store.id());
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, "id1");
+    factory.resolveByteId(mock(TimeSeriesByteId.class), null);
+    verify(factory.schema, times(1)).resolveByteId(
+        any(TimeSeriesByteId.class), any(Span.class));
+  }
+  
+  @Test
+  public void encodeJoinKeys() throws Exception {
+    SchemaFactory factory = new SchemaFactory();
+    factory.initialize(tsdb, null).join(1);
     
-    store = factory.newInstance(tsdb, "id2");
-    assertNull(factory.default_schema);
-    assertEquals(2, factory.schemas.size());
-    assertSame(store, factory.schemas.get("id2"));
-    assertEquals("id2", store.id());
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, "id1");
-    PowerMockito.verifyNew(Schema.class, times(1)).withArguments(tsdb, "id2");
+    factory.encodeJoinKeys(Lists.newArrayList(), null);
+    verify(factory.schema, times(1)).getIds(
+        eq(UniqueIdType.TAGK), any(List.class), any(Span.class));
+  }
+  
+  @Test
+  public void encodeJoinMetrics() throws Exception {
+    SchemaFactory factory = new SchemaFactory();
+    factory.initialize(tsdb, null).join(1);
+    
+    factory.encodeJoinMetrics(Lists.newArrayList(), null);
+    verify(factory.schema, times(1)).getIds(
+        eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
   }
 }

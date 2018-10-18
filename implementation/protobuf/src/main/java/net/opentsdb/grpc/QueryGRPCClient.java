@@ -27,8 +27,8 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.JSON;
 
@@ -41,8 +41,11 @@ public class QueryGRPCClient extends AbstractQueryNode implements
     TimeSeriesDataSource, 
     StreamObserver<QueryResultPB.QueryResult> {
 
+  /** The context. */
+  private final QueryPipelineContext context;
+  
   /** The query source config. */
-  private final QuerySourceConfig config;
+  private final TimeSeriesDataSourceConfig config;
   
   /** The factory we came from. */
   private final QueryGRPCClientFactory factory;
@@ -51,14 +54,13 @@ public class QueryGRPCClient extends AbstractQueryNode implements
    * Default ctor.
    * @param factory The non-null factory we came from.
    * @param context The non-null context we're a part of.
-   * @param id An optional ID.
    * @param config The non-null config to parse and send over GRPC.
    */
   public QueryGRPCClient(final QueryGRPCClientFactory factory, 
                          final QueryPipelineContext context,
-                         final String id, 
-                         final QuerySourceConfig config) {
-    super(null, context, id);
+                         final TimeSeriesDataSourceConfig config) {
+    super(null, context);
+    this.context = context;
     this.factory = factory;
     this.config = config;
   }
@@ -110,10 +112,10 @@ public class QueryGRPCClient extends AbstractQueryNode implements
     try {
       // build a new semantic query
       SemanticQuery query = SemanticQuery.newBuilder()
-          .setStart(config.query().getStart())
-          .setEnd(config.query().getEnd())
-          .setMode(config.query().getMode())
-          .setTimeZone(config.query().getTimezone())
+          .setStart(context.query().getStart())
+          .setEnd(context.query().getEnd())
+          .setMode(context.query().getMode())
+          .setTimeZone(context.query().getTimezone())
           .setExecutionGraph(
               config.getPushDownNodes() == null || 
               config.getPushDownNodes().isEmpty() ? 

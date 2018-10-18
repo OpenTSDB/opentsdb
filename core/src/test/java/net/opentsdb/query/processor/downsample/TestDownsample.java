@@ -98,26 +98,26 @@ public class TestDownsample {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
     
     try {
-      new Downsample(factory, null, null, config);
+      new Downsample(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Downsample(factory, context, null, null);
+      new Downsample(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     
     ds.onComplete(null, 42, 42);
@@ -131,7 +131,7 @@ public class TestDownsample {
   
   @Test
   public void onNext() throws Exception {
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
     
     ds.initialize(null);
@@ -147,7 +147,7 @@ public class TestDownsample {
   
   @Test
   public void onError() throws Exception {
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
@@ -165,7 +165,7 @@ public class TestDownsample {
   public void downsampleResultResolution() throws Exception {
     QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     
     DownsampleResult dr = ds.new DownsampleResult(result);
@@ -193,7 +193,7 @@ public class TestDownsample {
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    ds = new Downsample(factory, context, null, config);
+    ds = new Downsample(factory, context, config);
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.SECONDS, dr.resolution());
@@ -208,7 +208,7 @@ public class TestDownsample {
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    ds = new Downsample(factory, context, null, config);
+    ds = new Downsample(factory, context, config);
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.MILLIS, dr.resolution());
@@ -223,7 +223,7 @@ public class TestDownsample {
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    ds = new Downsample(factory, context, null, config);
+    ds = new Downsample(factory, context, config);
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
@@ -238,7 +238,7 @@ public class TestDownsample {
         .addInterpolatorConfig(numeric_config)
         .build();
     
-    ds = new Downsample(factory, context, null, config);
+    ds = new Downsample(factory, context, config);
     ds.initialize(null);
     dr = ds.new DownsampleResult(result);
     assertEquals(ChronoUnit.NANOS, dr.resolution());
@@ -251,7 +251,7 @@ public class TestDownsample {
   public void downsampleResultUpdateTimestamp() throws Exception {
     QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     
     DownsampleResult dr = ds.new DownsampleResult(result);
@@ -282,7 +282,7 @@ public class TestDownsample {
   public void downsampleResultNextTimestamp() throws Exception {
     QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
-    Downsample ds = new Downsample(factory, context, null, config);
+    Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
     
     DownsampleResult dr = ds.new DownsampleResult(result);

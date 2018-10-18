@@ -39,8 +39,7 @@ import com.stumbleupon.async.Callback;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
@@ -95,7 +94,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
   protected final Tsdb1xQueryNode node;
   
   /** The data source config. */
-  protected final QuerySourceConfig source_config;
+  protected final TimeSeriesDataSourceConfig source_config;
   
   /** Search the query on pre-aggregated table directly instead of post fetch 
    * aggregation. */
@@ -165,7 +164,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
    * @throws IllegalArgumentException if the node or query were null.
    */
   public Tsdb1xScanners(final Tsdb1xQueryNode node, 
-                        final QuerySourceConfig source_config) {
+                        final TimeSeriesDataSourceConfig source_config) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -408,7 +407,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
   byte[] setStartKey(final byte[] metric, 
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
-    long start = ((SemanticQuery) source_config.query()).startTime().epoch();
+    long start = node.pipelineContext().query().startTime().epoch();
     
     final Collection<QueryNode> rates = 
         node.pipelineContext().upstreamOfType(node, Rate.class);
@@ -462,7 +461,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
-    long end = ((SemanticQuery) source_config.query()).endTime().epoch();
+    long end = node.pipelineContext().query().endTime().epoch();
     
     if (rollup_interval != null) {
       // TODO - need rollup end time here
@@ -569,27 +568,16 @@ public class Tsdb1xScanners implements HBaseExecutor {
           return null;
         }
         
-        if (!Strings.isNullOrEmpty(source_config.getFilterId())) {
-          final QueryFilter filter;
-          if (source_config.query() instanceof SemanticQuery) {
-            filter = ((SemanticQuery) source_config.query())
-                .getFilter(source_config.getFilterId());
-          } else {
-            throw new UnsupportedOperationException("We don't support " 
-                + source_config.query().getClass() + " yet");
-          }
-          if (filter == null) {
-            throw new IllegalStateException("No filter was found for: " 
-                + source_config.getFilterId());
-          }
-          
+        QueryFilter filter = source_config.getFilter();
+        if (filter == null && 
+            !Strings.isNullOrEmpty(source_config.getFilterId())) {
+          filter = node.pipelineContext().query()
+              .getFilter(source_config.getFilterId());
+        }
+        
+        if (filter != null) {
           filter_cb = new FilterCB(metric, child);
           node.schema().resolveUids(filter, child)
-            .addCallback(filter_cb)
-            .addErrback(new ErrorCB());
-        } else if (source_config.filter() != null) {
-          filter_cb = new FilterCB(metric, child);
-          node.schema().resolveUids(source_config.filter(), child)
             .addCallback(filter_cb)
             .addErrback(new ErrorCB());
         } else {

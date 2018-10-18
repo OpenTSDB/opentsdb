@@ -14,7 +14,11 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.exceptions.IllegalDataException;
 
@@ -26,7 +30,7 @@ import net.opentsdb.exceptions.IllegalDataException;
 public class LastFactory extends BaseTSDBPlugin implements 
     NumericAggregatorFactory {
 
-  public static final String ID = "last";
+  public static final String TYPE = "Last";
   
   @Override
   public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -34,10 +38,16 @@ public class LastFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
   }
 
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
   @Override
   public String version() {
     return "3.0.0";
@@ -80,5 +90,5 @@ public class LastFactory extends BaseTSDBPlugin implements
     }
     
   }
-  private static final NumericAggregator AGGREGATOR = new Last(ID);
+  private static final NumericAggregator AGGREGATOR = new Last(TYPE);
 }

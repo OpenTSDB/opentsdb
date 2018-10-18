@@ -49,9 +49,6 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.meta.MetaDataStorageSchema;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -61,7 +58,6 @@ import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.storage.DatumIdValidator;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -83,8 +79,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Schema implements ReadableTimeSeriesDataStore, 
-                               WritableTimeSeriesDataStore {
+public class Schema implements WritableTimeSeriesDataStore {
 
   public static final byte APPENDS_PREFIX = 5;
   
@@ -131,7 +126,10 @@ public class Schema implements ReadableTimeSeriesDataStore,
   
   protected DatumIdValidator id_validator;
   
-  public Schema(final TSDB tsdb, final String id) {
+  protected SchemaFactory factory;
+  
+  public Schema(final SchemaFactory factory, final TSDB tsdb, final String id) {
+    this.factory = factory;
     this.tsdb = tsdb;
     this.id = id;
     setConfig();
@@ -276,39 +274,6 @@ public class Schema implements ReadableTimeSeriesDataStore,
     
     id_validator = tsdb.getRegistry().getDefaultPlugin(
         DatumIdValidator.class);
-  }
-  
-  @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final String id,
-                           final QueryNodeConfig config) {
-    return data_store.newNode(context, id, config);
-  }
-
-  @Override
-  public QueryNode newNode(QueryPipelineContext context, String id) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public Class<? extends QueryNodeConfig> nodeConfigClass() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
-  public Deferred<List<byte[]>> encodeJoinKeys(
-      final List<String> join_keys, 
-      final Span span) {
-    return getIds(UniqueIdType.TAGK, join_keys, span);
-  }
-  
-  @Override
-  public Deferred<List<byte[]>> encodeJoinMetrics(
-      final List<String> join_metrics,
-      final Span span) {
-    return getIds(UniqueIdType.METRIC, join_metrics, span);
   }
   
   @Override
@@ -590,11 +555,6 @@ public class Schema implements ReadableTimeSeriesDataStore,
     default:
       throw new IllegalArgumentException("Unsupported type: " + type);
     }
-  }
-
-  @Override
-  public String id() {
-    return id;
   }
   
   /** @return The number of buckets to spread data into. */
@@ -1086,7 +1046,6 @@ public class Schema implements ReadableTimeSeriesDataStore,
     return tag_values;
   }
   
-  @Override
   public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
                                                     final Span span) {
     final Span child;
@@ -1247,11 +1206,6 @@ public class Schema implements ReadableTimeSeriesDataStore,
     } catch (Exception e) {
       return Deferred.fromError(e);
     }
-  }
-
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
   }
   
 }

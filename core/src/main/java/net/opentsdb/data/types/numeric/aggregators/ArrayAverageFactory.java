@@ -16,6 +16,11 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
+
 /**
  * Computes the average across the array. Returns a double array always.
  * 
@@ -23,9 +28,11 @@ import java.util.Arrays;
  */
 public class ArrayAverageFactory extends BaseArrayFactory {
 
+  public static final String TYPE = "Avg";
+  
   @Override
-  public String id() {
-    return "avg";
+  public String type() {
+    return TYPE;
   }
   
   @Override
@@ -33,6 +40,14 @@ public class ArrayAverageFactory extends BaseArrayFactory {
     return new ArrayAverage(infectious_nan);
   }
 
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
+        "average", this);
+    return Deferred.fromResult(null);
+  }
+  
   public static class ArrayAverage extends BaseArrayAggregator {
 
     protected int[] counts;

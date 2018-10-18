@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -30,11 +31,11 @@ import net.opentsdb.exceptions.IllegalDataException;
 public class SumFactory extends BaseTSDBPlugin implements 
     NumericAggregatorFactory {
 
-  public static final String ID = "sum";
+  public static final String TYPE = "Sum";
   
   @Override
-  public String id() {
-    return ID;
+  public String type() {
+    return TYPE;
   }
 
   @Override
@@ -43,9 +44,10 @@ public class SumFactory extends BaseTSDBPlugin implements
   }
 
   @Override
-  public Deferred<Object> initialize(TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     tsdb.getRegistry().registerPlugin(NumericAggregatorFactory.class, 
-        "zimsum", this);
+        "ZimSum", this);
     return Deferred.fromResult(null);
   }
   
@@ -104,5 +106,5 @@ public class SumFactory extends BaseTSDBPlugin implements
       }
     }
   }
-  private static final Sum AGGREGATOR = new Sum(ID);
+  private static final Sum AGGREGATOR = new Sum(TYPE);
 }

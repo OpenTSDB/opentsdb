@@ -52,9 +52,8 @@ public class DedupNode extends AbstractQueryNode {
 
   public DedupNode(final QueryNodeFactory factory,
                    final QueryPipelineContext context,
-                   final String id,
                    final DedupConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     this.config = config;
   }
 

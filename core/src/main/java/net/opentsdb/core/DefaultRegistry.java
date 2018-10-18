@@ -16,49 +16,33 @@ package net.opentsdb.core;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.processor.ProcessorFactory;
 import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.execution.CachingQueryExecutor;
-import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
-import net.opentsdb.query.execution.MetricShardingExecutor;
-import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
-import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.hacluster.HAClusterConfig;
-import net.opentsdb.query.hacluster.MultiClusterQueryExecutor;
-import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
-import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -91,8 +75,6 @@ public class DefaultRegistry implements Registry {
   private final Map<String, TimeSeriesSerdes> serdes;
   
   private final Map<String, QueryNodeFactory> node_factories;
-  
-  private final Map<String, ReadableTimeSeriesDataStore> data_stores;
   
   private final Map<String, WritableTimeSeriesDataStore> write_stores;
   
@@ -132,7 +114,6 @@ public class DefaultRegistry implements Registry {
     clusters = Maps.newHashMapWithExpectedSize(1);
     serdes = Maps.newHashMapWithExpectedSize(1);
     node_factories = Maps.newHashMap();
-    data_stores = Maps.newHashMap();
     write_stores = Maps.newHashMap();
     shared_objects = Maps.newConcurrentMap();
     cleanup_pool = Executors.newFixedThreadPool(1);
@@ -197,9 +178,12 @@ public class DefaultRegistry implements Registry {
     if (factory != null) {
       return factory;
     }
-    final QueryNodeFactory plugin = plugins.getPlugin(QueryNodeFactory.class, id);
+    QueryNodeFactory plugin = plugins.getPlugin(ProcessorFactory.class, id);
     if (plugin == null) {
-      return null;
+      plugin = plugins.getPlugin(TimeSeriesDataSourceFactory.class, id);
+      if (plugin == null) {
+        return null;
+      }
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug("Caching QueryNodeFactory " + plugin + " with ID: " + id);
@@ -207,21 +191,6 @@ public class DefaultRegistry implements Registry {
     factory = (QueryNodeFactory) plugin;
     node_factories.put(id, factory);
     return factory;
-  }
-  
-  public void registerReadStore(final ReadableTimeSeriesDataStore store, 
-      final String id) {
-    if (data_stores.putIfAbsent(id, store) != null) {
-      throw new IllegalArgumentException("A store with the ID already exists.");
-    }
-  }
-  
-  public ReadableTimeSeriesDataStore getDefaultStore() {
-    return data_stores.get(null);
-  }
-  
-  public ReadableTimeSeriesDataStore getStore(final String id) {
-    return data_stores.get(id);
   }
   
   public void registerWriteStore(final WritableTimeSeriesDataStore store, 
@@ -479,19 +448,7 @@ public class DefaultRegistry implements Registry {
   /** Sets up default objects in the registry. */
   @SuppressWarnings("unchecked")
   private Deferred<Object> initDefaults() {
-    if (true) {
-      return Deferred.fromResult(null);
-    }
-    
-    List<Deferred<Object>> deferreds = Lists.newArrayList();
-    
-    final TimeSeriesCacheKeyGenerator key_gen = 
-        new DefaultTimeSeriesCacheKeyGenerator();
-    deferreds.add(key_gen.initialize(tsdb));
-    registerPlugin(TimeSeriesCacheKeyGenerator.class, null, key_gen);
-    
-    LOG.info("Completed initializing registry defaults.");
-    return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
+    return Deferred.fromResult(null);
   }
 
   @Override

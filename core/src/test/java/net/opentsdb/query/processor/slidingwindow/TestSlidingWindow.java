@@ -59,26 +59,26 @@ public class TestSlidingWindow {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    SlidingWindow sl = new SlidingWindow(factory, context, null, config);
+    SlidingWindow sl = new SlidingWindow(factory, context, config);
     sl.initialize(null);
     assertSame(config, sl.config());
     verify(context, times(1)).upstream(sl);
     verify(context, times(1)).downstream(sl);
     
     try {
-      new SlidingWindow(factory, null, null, config);
+      new SlidingWindow(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new SlidingWindow(factory, context, null, null);
+      new SlidingWindow(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    SlidingWindow sl = new SlidingWindow(factory, context, null, config);
+    SlidingWindow sl = new SlidingWindow(factory, context, config);
     sl.initialize(null);
     
     sl.onComplete(null, 42, 42);
@@ -94,7 +94,7 @@ public class TestSlidingWindow {
   public void onNext() throws Exception {
     final QueryResult results = mock(QueryResult.class);
     
-    SlidingWindow sl = new SlidingWindow(factory, context, null, config);
+    SlidingWindow sl = new SlidingWindow(factory, context, config);
     sl.initialize(null);
     
     sl.onNext(results);
@@ -111,7 +111,7 @@ public class TestSlidingWindow {
   
   @Test
   public void onError() throws Exception {
-    SlidingWindow sl = new SlidingWindow(factory, context, null, config);
+    SlidingWindow sl = new SlidingWindow(factory, context, config);
     sl.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

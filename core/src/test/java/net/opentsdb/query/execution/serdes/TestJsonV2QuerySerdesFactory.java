@@ -45,7 +45,7 @@ public class TestJsonV2QuerySerdesFactory {
   @Test
   public void plugin() throws Exception {
     JsonV2QuerySerdesFactory factory = new JsonV2QuerySerdesFactory();
-    assertNull(factory.initialize(mock(TSDB.class)).join());
+    assertNull(factory.initialize(mock(TSDB.class), null).join());
     assertNull(factory.shutdown().join());
     assertEquals("JsonV2QuerySerdes", factory.id());
   }

@@ -26,8 +26,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -52,9 +52,7 @@ public class TestSlidingWindowNumericSummaryIterator {
   
   @BeforeClass
   public static void beforeClass() {
-    TSDB = new MockTSDB();
-    TSDB.registry = new DefaultRegistry(TSDB);
-    ((DefaultRegistry) TSDB.registry).initialize(true);
+    TSDB = MockTSDBDefault.getMockTSDB();
   }
   
   @Before

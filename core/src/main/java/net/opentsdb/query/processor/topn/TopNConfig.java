@@ -143,7 +143,7 @@ public class TopNConfig extends BaseQueryNodeConfig {
     private boolean infectiousNan;
     
     Builder() {
-      setType(TopNFactory.ID);
+      setType(TopNFactory.TYPE);
     }
     
     public Builder setCount(final int count) {

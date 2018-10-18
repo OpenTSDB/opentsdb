@@ -102,7 +102,7 @@ public class TestPubSubWriter {
     tsdb.config.override(PubSubWriter.TOPIC_KEY, "Test");
     tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
     
-    assertNull(writer.initialize(tsdb).join());
+    assertNull(writer.initialize(tsdb, null).join());
     assertSame(publisher, writer.publisher);
     assertSame(serdes, writer.serdes);
     assertEquals("Test", writer.topic.getTopic());
@@ -112,14 +112,14 @@ public class TestPubSubWriter {
     try {
       tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, null);
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, "");
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -127,14 +127,14 @@ public class TestPubSubWriter {
     try {
       tsdb.config.override(PubSubWriter.TOPIC_KEY, null);
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       tsdb.config.override(PubSubWriter.TOPIC_KEY, "");
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -142,14 +142,14 @@ public class TestPubSubWriter {
     try {
       tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, null);
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "");
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
@@ -159,7 +159,7 @@ public class TestPubSubWriter {
       .thenReturn(null);
     try {
       writer = new PubSubWriter();
-      writer.initialize(tsdb).join();
+      writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -171,7 +171,7 @@ public class TestPubSubWriter {
     tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, "MyProject");
     tsdb.config.override(PubSubWriter.TOPIC_KEY, "Test");
     tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
-    writer.initialize(tsdb);
+    writer.initialize(tsdb, null);
     
     TimeSeriesDatum datum = mock(TimeSeriesDatum.class);
     doAnswer(new Answer<ApiFuture<String>>() {
@@ -238,7 +238,7 @@ public class TestPubSubWriter {
     tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, "MyProject");
     tsdb.config.override(PubSubWriter.TOPIC_KEY, "Test");
     tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
-    writer.initialize(tsdb);
+    writer.initialize(tsdb, null);
     
     TimeSeriesSharedTagsAndTimeData data = mock(TimeSeriesSharedTagsAndTimeData.class);
     when(data.size()).thenReturn(4);

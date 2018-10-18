@@ -69,7 +69,8 @@ public class TestGroupByFactory {
     final GroupByFactory factory = new GroupByFactory();
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals(GroupByFactory.ID, factory.id());
+    factory.initialize(mock(TSDB.class), null).join(1);
+    assertEquals(GroupByFactory.TYPE, factory.id());
   }
   
   @Test
@@ -153,7 +154,7 @@ public class TestGroupByFactory {
     when(registry.getPlugin(eq(NumericArrayAggregatorFactory.class), anyString()))
       .thenReturn(new ArraySumFactory());
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
-    interp_factory.initialize(tsdb).join();
+    interp_factory.initialize(tsdb, null).join();
     when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
       .thenReturn(interp_factory);
     when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))

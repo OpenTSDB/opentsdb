@@ -20,11 +20,12 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Map.Entry;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.PBufTimeSeriesDatum;
 import net.opentsdb.data.PBufTimeSeriesDatumId;
 import net.opentsdb.data.PBufTimeSeriesSharedTagsAndTimeData;
@@ -44,8 +45,11 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class PBufDataSerdes implements TimeSeriesDataSerdes, TSDBPlugin  {
+public class PBufDataSerdes extends BaseTSDBPlugin implements 
+    TimeSeriesDataSerdes  {
 
+  public static final String TYPE = "PBufDataSerdes";
+  
   /** The non-null factory for datum. */
   protected final PBufDataSerdesFactory factory;
   
@@ -241,12 +245,13 @@ public class PBufDataSerdes implements TimeSeriesDataSerdes, TSDBPlugin  {
   }
 
   @Override
-  public String id() {
-    return getClass().getSimpleName();
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     return Deferred.fromResult(null);
   }
 

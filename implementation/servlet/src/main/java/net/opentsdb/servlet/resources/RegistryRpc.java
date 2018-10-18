@@ -28,7 +28,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Strings;
@@ -121,14 +120,17 @@ public class RegistryRpc {
       
       for (final Entry<Class<?>, Map<String, TSDBPlugin>> entry : 
         plugins.entrySet()) {
-        if (!pattern.matcher(entry.getKey().getCanonicalName().toString().toLowerCase()).matches()) {
+        if (!pattern.matcher(entry.getKey().getCanonicalName()
+            .toString().toLowerCase()).matches()) {
           continue;
         }
         
         json.writeObjectFieldStart(entry.getKey().getCanonicalName());
         for (final Entry<String, TSDBPlugin> plugin : entry.getValue().entrySet()) {
-          json.writeObjectFieldStart(plugin.getKey() == null ? "Default" : plugin.getKey());
+          json.writeObjectFieldStart(plugin.getKey() == null ? 
+              "Default" : plugin.getKey());
           json.writeStringField("id", plugin.getValue().id());
+          json.writeStringField("type", plugin.getValue().type());
           json.writeStringField("version", plugin.getValue().version());
           json.writeStringField("info", "");
           json.writeStringField("class", 
@@ -142,8 +144,10 @@ public class RegistryRpc {
           plugins.entrySet()) {
         json.writeObjectFieldStart(entry.getKey().getCanonicalName());
         for (final Entry<String, TSDBPlugin> plugin : entry.getValue().entrySet()) {
-          json.writeObjectFieldStart(plugin.getKey() == null ? "Default" : plugin.getKey());
+          json.writeObjectFieldStart(plugin.getKey() == null ? 
+              "Default" : plugin.getKey());
           json.writeStringField("id", plugin.getValue().id());
+          json.writeStringField("type", plugin.getValue().type());
           json.writeStringField("version", plugin.getValue().version());
           json.writeStringField("info", "");
           json.writeStringField("class", 

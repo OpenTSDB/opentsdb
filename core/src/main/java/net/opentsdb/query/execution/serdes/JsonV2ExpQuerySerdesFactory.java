@@ -20,6 +20,8 @@ import java.io.OutputStream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
@@ -36,10 +38,11 @@ import net.opentsdb.query.serdes.TimeSeriesSerdes;
  */
 public class JsonV2ExpQuerySerdesFactory extends BaseTSDBPlugin 
     implements SerdesFactory {
+  public static final String TYPE = "JsonV2ExpQuerySerdes";
   
   @Override
-  public String id() {
-    return "JsonV2ExpQuerySerdes";
+  public String type() {
+    return TYPE;
   }
 
   @Override
@@ -71,6 +74,12 @@ public class JsonV2ExpQuerySerdesFactory extends BaseTSDBPlugin
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to parse config.");
     }
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
   }
   
 }

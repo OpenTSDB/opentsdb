@@ -37,8 +37,8 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationException;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.stats.Span;
 
 /**
@@ -46,9 +46,11 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class ESClusterClient implements ESClient, TSDBPlugin {
+public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
   private static final Logger LOG = LoggerFactory.getLogger(
       ESClusterClient.class);
+  
+  public static final String TYPE = "ESClusterClient";
   
   public static final String HOSTS_KEY = "es.hosts";
   public static final String QUERY_TIMEOUT_KEY = "es.client.timeout.query";
@@ -68,12 +70,13 @@ public class ESClusterClient implements ESClient, TSDBPlugin {
   protected RestHighLevelClient client;
   
   @Override
-  public String id() {
-    return getClass().getSimpleName();
+  public String type() {
+    return TYPE;
   }
 
   @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
     registerConfigs(tsdb);
     

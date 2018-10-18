@@ -88,26 +88,26 @@ public class TestMerger {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    Merger merger = new Merger(factory, context, null, config);
+    Merger merger = new Merger(factory, context, config);
     merger.initialize(null);
     assertSame(config, merger.config());
     verify(context, times(1)).upstream(merger);
     verify(context, times(1)).downstream(merger);
     
     try {
-      new Merger(factory, null, null, config);
+      new Merger(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Merger(factory, context, null, null);
+      new Merger(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    Merger merger = new Merger(factory, context, null, config);
+    Merger merger = new Merger(factory, context, config);
     merger.initialize(null);
     
     merger.onComplete(null, 42, 42);
@@ -144,7 +144,7 @@ public class TestMerger {
     when(context.downstreamSourcesIds(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList("m1", "m2"));
     
-    Merger merger = new Merger(factory, context, null, config);
+    Merger merger = new Merger(factory, context, config);
     merger.initialize(null);
     
     merger.onNext(r1);
@@ -156,7 +156,7 @@ public class TestMerger {
   
   @Test
   public void onError() throws Exception {
-    Merger merger = new Merger(factory, context, null, config);
+    Merger merger = new Merger(factory, context, config);
     merger.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

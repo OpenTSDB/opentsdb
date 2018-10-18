@@ -27,7 +27,6 @@ import com.stumbleupon.async.Deferred;
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -42,7 +41,7 @@ import net.opentsdb.utils.Bytes.ByteMap;
 public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   
   /** The data store used to resolve the encoded ID to strings. */
-  protected final ReadableTimeSeriesDataStore data_store; 
+  protected final TimeSeriesDataSourceFactory data_store; 
   
   /** Whether or not the byte arrays are specially encoded values. */
   protected boolean encoded;
@@ -132,7 +131,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   }
 
   @Override
-  public ReadableTimeSeriesDataStore dataStore() {
+  public TimeSeriesDataSourceFactory dataStore() {
     return data_store;
   }
   
@@ -312,12 +311,12 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
    * @return A new builder.
    * @throws IllegalArgumentException if the data store was null.
    */
-  public static Builder newBuilder(final ReadableTimeSeriesDataStore data_store) {
+  public static Builder newBuilder(final TimeSeriesDataSourceFactory data_store) {
     return new Builder(data_store);
   }
   
   public static final class Builder {
-    protected final ReadableTimeSeriesDataStore data_store;
+    protected final TimeSeriesDataSourceFactory data_store;
     protected boolean encoded;
     protected byte[] alias;
     protected byte[] namespace;
@@ -332,7 +331,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
      * Default private ctor.
      * @param data_store A non-null store.
      */
-    private Builder(final ReadableTimeSeriesDataStore data_store) {
+    private Builder(final TimeSeriesDataSourceFactory data_store) {
       if (data_store == null) {
         throw new IllegalArgumentException("Storage schema cannot be null.");
       }

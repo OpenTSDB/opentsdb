@@ -85,7 +85,7 @@ public class TestESClusterClient {
     tsdb.config.override(ESClusterClient.HOSTS_KEY, "https://localhost:4242");
     
     ESClusterClient es = new ESClusterClient();
-    assertNull(es.initialize(tsdb).join());
+    assertNull(es.initialize(tsdb, null).join());
     assertSame(client, es.client);
   }
   
@@ -97,7 +97,7 @@ public class TestESClusterClient {
     tsdb.config.override(ESClusterClient.HOSTS_KEY, "http://localhost:9300");
     
     ESClusterClient es = new ESClusterClient();
-    assertNull(es.initialize(tsdb).join());
+    assertNull(es.initialize(tsdb, null).join());
     assertSame(client, es.client);
   }
   
@@ -107,7 +107,7 @@ public class TestESClusterClient {
     
     ESClusterClient es = new ESClusterClient();
     try {
-      es.initialize(tsdb).join();
+      es.initialize(tsdb, null).join();
       fail("Expected ConfigurationException");
     } catch (ConfigurationException e) { }
   }
@@ -118,7 +118,7 @@ public class TestESClusterClient {
     
     ESClusterClient es = new ESClusterClient();
     try {
-      es.initialize(tsdb).join();
+      es.initialize(tsdb, null).join();
       fail("Expected ConfigurationException");
     } catch (ConfigurationException e) { }
   }
@@ -128,7 +128,7 @@ public class TestESClusterClient {
     tsdb.config.override(ESClusterClient.HOSTS_KEY, "http://localhost");
     
     ESClusterClient es = new ESClusterClient();
-    assertNull(es.initialize(tsdb).join());
+    assertNull(es.initialize(tsdb, null).join());
     assertSame(client, es.client);
   }
   
@@ -148,7 +148,7 @@ public class TestESClusterClient {
   public void runQuery() throws Exception {
     tsdb.config.override(ESClusterClient.HOSTS_KEY, "http://localhost");
     ESClusterClient es = new ESClusterClient();
-    assertNull(es.initialize(tsdb).join());
+    assertNull(es.initialize(tsdb, null).join());
     
     QueryBuilder query = mock(QueryBuilder.class);
     // TODO - fix these, something's wrong with the mocking.

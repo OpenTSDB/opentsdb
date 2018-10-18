@@ -116,7 +116,7 @@ public class QueryGRPCSink implements QuerySink {
     
     @Override
     public String getId() {
-      return QueryGRPCSinkFactory.ID;
+      return QueryGRPCSinkFactory.TYPE;
     }
 
     @Override

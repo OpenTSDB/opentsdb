@@ -59,14 +59,12 @@ public class SlidingWindow extends AbstractQueryNode {
    * Default ctor.
    * @param factory The non-null parent factory.
    * @param context The non-null context.
-   * @param id An optional ID.
    * @param config The non-null config.
    */
   public SlidingWindow(final QueryNodeFactory factory, 
                        final QueryPipelineContext context,
-                       final String id,
                        final SlidingWindowConfig config) {
-    super(factory, context, id);
+    super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }

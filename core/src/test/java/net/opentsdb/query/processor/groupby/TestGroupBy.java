@@ -48,6 +48,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryUpstreamException;
@@ -60,7 +61,6 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)
@@ -106,26 +106,26 @@ public class TestGroupBy {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     assertSame(config, gb.config());
     verify(context, times(1)).upstream(gb);
     verify(context, times(1)).downstream(gb);
     
     try {
-      new GroupBy(factory, null, null, config);
+      new GroupBy(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupBy(factory, context, null, null);
+      new GroupBy(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     
     gb.onComplete(null, 42, 42);
@@ -144,7 +144,7 @@ public class TestGroupBy {
       .thenReturn(gb_results);
     final QueryResult results = mock(QueryResult.class);
     
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     
     gb.onNext(results);
@@ -172,7 +172,7 @@ public class TestGroupBy {
       }
     });
     TimeSeries ts = mock(TimeSeries.class);
-    ReadableTimeSeriesDataStore datastore = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory datastore = mock(TimeSeriesDataSourceFactory.class);
     TimeSeriesByteId id =  BaseTimeSeriesByteId.newBuilder(datastore)
         .setMetric(new byte[] { 0, 0, 1 })
         .addTags(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 })
@@ -184,7 +184,7 @@ public class TestGroupBy {
     when(datastore.encodeJoinKeys(any(List.class), any(Span.class)))
       .thenReturn(deferred);
     
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     assertNull(config.getEncodedTagKeys());
     
@@ -213,7 +213,7 @@ public class TestGroupBy {
       }
     });
     TimeSeries ts = mock(TimeSeries.class);
-    ReadableTimeSeriesDataStore datastore = mock(ReadableTimeSeriesDataStore.class);
+    TimeSeriesDataSourceFactory datastore = mock(TimeSeriesDataSourceFactory.class);
     TimeSeriesByteId id =  BaseTimeSeriesByteId.newBuilder(datastore)
         .setMetric(new byte[] { 0, 0, 1 })
         .addTags(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 })
@@ -225,7 +225,7 @@ public class TestGroupBy {
     when(datastore.encodeJoinKeys(any(List.class), any(Span.class)))
       .thenReturn(deferred);
     
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     assertNull(config.getEncodedTagKeys());
     
@@ -255,7 +255,7 @@ public class TestGroupBy {
    
     when(results.timeSeries()).thenReturn(Lists.newArrayList());
     
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     assertNull(config.getEncodedTagKeys());
     
@@ -266,7 +266,7 @@ public class TestGroupBy {
   
   @Test
   public void onError() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, null, config);
+    GroupBy gb = new GroupBy(factory, context, config);
     gb.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

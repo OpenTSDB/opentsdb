@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -44,7 +45,6 @@ public class TestHAClusterConfig {
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
       .setDataType(NumericType.TYPE.toString())
-      .setType("Default")
       .build();
   }
   
@@ -139,9 +139,7 @@ public class TestHAClusterConfig {
     assertTrue(json.contains("\"secondaryTimeout\":\"5s\""));
     assertTrue(json.contains("\"interpolatorConfigs\":["));
     
-    MockTSDB tsdb = new MockTSDB();
-    tsdb.registry = new DefaultRegistry(tsdb);
-    ((DefaultRegistry) tsdb.registry).initialize(true);
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode node = JSON.getMapper().readTree(json);
     config = HAClusterConfig.parse(JSON.getMapper(), tsdb, node);
     

@@ -17,6 +17,8 @@ package net.opentsdb.query.processor.topn;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
@@ -33,7 +35,7 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  */
 public class TopNFactory extends BaseQueryNodeFactory {
 
-  public static final String ID = "TopN";
+  public static final String TYPE = "TopN";
   
   public static TopNConfig DEFAULT;
   static {
@@ -48,28 +50,29 @@ public class TopNFactory extends BaseQueryNodeFactory {
    * Plugin ctor.
    */
   public TopNFactory() {
-    super(ID);
-  }
-  
-  /**
-   * Named factory ctor.
-   * @param id A non-null name.
-   */
-  public TopNFactory(final String id) {
-    super(id);
+    super();
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id) {
-    return new TopN(this, context, id, DEFAULT);
+  public String type() {
+    return TYPE;
+  }
+  
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context) {
+    return new TopN(this, context, DEFAULT);
   }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
-                           final String id,
                            final QueryNodeConfig config) {
-    return new TopN(this, context, id, (TopNConfig) config);
+    return new TopN(this, context, (TopNConfig) config);
   }
   
   @Override

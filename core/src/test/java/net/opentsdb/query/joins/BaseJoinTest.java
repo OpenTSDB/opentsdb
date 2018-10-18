@@ -31,10 +31,10 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
-import net.opentsdb.storage.ReadableTimeSeriesDataStore;
 
 public class BaseJoinTest {
   protected static final String ID = "UT";
@@ -157,7 +157,7 @@ public class BaseJoinTest {
         .addAggregatedTag("host")
         .build();
     
-    TAGLESS_BYTE = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    TAGLESS_BYTE = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -174,7 +174,7 @@ public class BaseJoinTest {
         .addTags("role", "db")
         .build();
     
-    MANY_TAGS_BYTE = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    MANY_TAGS_BYTE = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -203,7 +203,7 @@ public class BaseJoinTest {
         .addDisjointTag("role")
         .build();
     
-    TAG_PROMOTION_L_BYTE = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    TAG_PROMOTION_L_BYTE = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -212,7 +212,7 @@ public class BaseJoinTest {
         .addDisjointTag(DC)
         .build();
     
-    TAG_PROMOTION_R_BYTE = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    TAG_PROMOTION_R_BYTE = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -508,14 +508,14 @@ public class BaseJoinTest {
   }
   
   protected void setByteIds() throws Exception {
-    l1_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l1_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB01)
         .build();
     when(L_1.id()).thenReturn(l1_id);
-    r1_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r1_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -523,7 +523,7 @@ public class BaseJoinTest {
         .build();
     when(R_1.id()).thenReturn(r1_id);
     
-    l2_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l2_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -531,7 +531,7 @@ public class BaseJoinTest {
         .build();
     when(L_2.id()).thenReturn(l2_id);
     
-    r3_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r3_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -539,14 +539,14 @@ public class BaseJoinTest {
         .build();
     when(R_3.id()).thenReturn(r3_id);
     
-    l4_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l4_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
         .addTags(HOST, WEB04)
         .build();
     when(L_4.id()).thenReturn(l4_id);
-    r4a_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r4a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -554,7 +554,7 @@ public class BaseJoinTest {
         .addTags(OWNER, TYRION)
         .build();
     when(R_4A.id()).thenReturn(r4a_id);
-    r4b_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r4b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -563,7 +563,7 @@ public class BaseJoinTest {
         .build();
     when(R_4B.id()).thenReturn(r4b_id);
     
-    l5a_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l5a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -571,7 +571,7 @@ public class BaseJoinTest {
         .addTags(OWNER, TYRION)
         .build();
     when(L_5A.id()).thenReturn(l5a_id);
-    l5b_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l5b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -579,7 +579,7 @@ public class BaseJoinTest {
         .addTags(OWNER, CERSEI)
         .build();
     when(L_5B.id()).thenReturn(l5b_id);
-    r5_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r5_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -587,7 +587,7 @@ public class BaseJoinTest {
         .build();
     when(R_5.id()).thenReturn(r5_id);
     
-    l6a_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l6a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -595,7 +595,7 @@ public class BaseJoinTest {
         .addTags(OWNER, TYRION)
         .build();
     when(L_6A.id()).thenReturn(l6a_id);
-    l6b_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    l6b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_L_BYTES)
@@ -603,7 +603,7 @@ public class BaseJoinTest {
         .addTags(OWNER, CERSEI)
         .build();
     when(L_6B.id()).thenReturn(l6b_id);
-    r6a_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r6a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
@@ -611,7 +611,7 @@ public class BaseJoinTest {
         .addTags(OWNER, TYRION)
         .build();
     when(R_6A.id()).thenReturn(r6a_id);
-    r6b_id = BaseTimeSeriesByteId.newBuilder(mock(ReadableTimeSeriesDataStore.class))
+    r6b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
         .setMetric(METRIC_R_BYTES)
