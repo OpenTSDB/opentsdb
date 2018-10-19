@@ -252,6 +252,8 @@ public class TSDMain {
             tsdb.getConfig().getString(CORS_PATTERN_KEY));
         ((com.stijndewitt.undertow.cors.Filter) handler).setAllowHeaders(
             tsdb.getConfig().getString(CORS_HEADERS_KEY));
+        ((com.stijndewitt.undertow.cors.Filter) handler)
+          .setPolicyClass("com.stijndewitt.undertow.cors.AllowAll");
       }
       
       // support compression!
