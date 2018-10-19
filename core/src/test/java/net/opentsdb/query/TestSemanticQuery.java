@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 
 import java.util.List;
 
+import net.opentsdb.utils.DateTime;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -98,12 +99,12 @@ public class TestSemanticQuery {
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    
+
     try {
       SemanticQuery.newBuilder()
           .setMode(QueryMode.SINGLE)
-          //.setStart("1514764800")
-          .setEnd("1514768400")
+  //        .setStart("1514764800")
+  //        .setEnd("1514768400")
           .setTimeZone("America/Denver")
           .addFilter(filter)
           .setExecutionGraph(graph)
@@ -122,6 +123,135 @@ public class TestSemanticQuery {
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void timestampPermutations() throws Exception {
+
+    NamedFilter filter = DefaultNamedFilter.newBuilder()
+        .setFilter(TagValueLiteralOrFilter.newBuilder()
+            .setFilter("web01")
+            .setTagKey("host")
+            .build())
+        .setId("f1")
+        .build();
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build());
+
+    SemanticQuery endTimeAfterCurrentTimeAndNoStartTime = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("")
+        .setEnd("9999999999")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
+        .build();
+
+    assertEquals(null, endTimeAfterCurrentTimeAndNoStartTime.getStart());
+    assertTrue(1000000000 < endTimeAfterCurrentTimeAndNoStartTime.startTime().epoch() && endTimeAfterCurrentTimeAndNoStartTime.startTime().epoch() < 9999999999L);
+    assertEquals("9999999999", endTimeAfterCurrentTimeAndNoStartTime.getEnd());
+    assertEquals(9999999999L, endTimeAfterCurrentTimeAndNoStartTime.endTime().epoch());
+
+    SemanticQuery endTimeBeforeCurrentTimeAndNoStartTime = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("")
+        .setEnd("1000000000")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
+        .build();
+
+    assertEquals(null, endTimeBeforeCurrentTimeAndNoStartTime.getStart());
+    assertEquals(1000000000, endTimeBeforeCurrentTimeAndNoStartTime.startTime().epoch());
+    assertEquals("1000000000", endTimeBeforeCurrentTimeAndNoStartTime.getEnd());
+    assertTrue(1000000000 < endTimeBeforeCurrentTimeAndNoStartTime.endTime().epoch() && endTimeBeforeCurrentTimeAndNoStartTime.endTime().epoch() < 9999999999L);
+
+    SemanticQuery noEndTimeAndStartTimeAfterCurrentTime = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("9999999999")
+        .setEnd("")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
+        .build();
+
+    assertEquals("9999999999", noEndTimeAndStartTimeAfterCurrentTime.getStart());
+    assertTrue(1000000000 < noEndTimeAndStartTimeAfterCurrentTime.startTime().epoch() && noEndTimeAndStartTimeAfterCurrentTime.startTime().epoch() < 9999999999L);
+    assertEquals(null, noEndTimeAndStartTimeAfterCurrentTime.getEnd());
+    assertEquals(9999999999L, noEndTimeAndStartTimeAfterCurrentTime.endTime().epoch());
+
+    SemanticQuery noEndTimeAndStartTimeBeforeCurrentTime = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1000000000")
+        .setEnd("")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
+        .build();
+
+    assertEquals("1000000000", noEndTimeAndStartTimeBeforeCurrentTime.getStart());
+    assertEquals(1000000000, noEndTimeAndStartTimeBeforeCurrentTime.startTime().epoch());
+    assertEquals(null, noEndTimeAndStartTimeBeforeCurrentTime.getEnd());
+    assertTrue(1000000000 < noEndTimeAndStartTimeBeforeCurrentTime.endTime().epoch() && noEndTimeAndStartTimeBeforeCurrentTime.endTime().epoch() < 9999999999L);
+
+    SemanticQuery EndTimeBeforeStartTime = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("2000000000")
+        .setEnd("1000000000")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
+        .build();
+
+    assertEquals("2000000000", EndTimeBeforeStartTime.getStart());
+    assertEquals(1000000000, EndTimeBeforeStartTime.startTime().epoch());
+    assertEquals("1000000000", EndTimeBeforeStartTime.getEnd());
+    assertEquals(2000000000, EndTimeBeforeStartTime.endTime().epoch());
+
+    SemanticQuery StartTimeBeforeEndTime = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1000000000")
+        .setEnd("2000000000")
+        .setTimeZone("America/Denver")
+        .addFilter(filter)
+        .setExecutionGraph(graph)
+        .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+            .addFilter("ds")
+            .setId("serdes")
+            .build())
+        .build();
+
+    assertEquals("1000000000", StartTimeBeforeEndTime.getStart());
+    assertEquals(1000000000, StartTimeBeforeEndTime.startTime().epoch());
+    assertEquals("2000000000", StartTimeBeforeEndTime.getEnd());
+    assertEquals(2000000000, StartTimeBeforeEndTime.endTime().epoch());
+
   }
   
   @Test

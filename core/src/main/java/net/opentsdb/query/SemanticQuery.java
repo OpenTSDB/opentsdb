@@ -70,20 +70,56 @@ public class SemanticQuery implements TimeSeriesQuery {
   private List<SerdesOptions> serdes_options;
   
   SemanticQuery(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.start)) {
+    if (Strings.isNullOrEmpty(builder.start) && Strings.isNullOrEmpty(builder.end)) {
       throw new IllegalArgumentException("Start time is required.");
     }
-    start = builder.start;
-    start_ts = new MillisecondTimeStamp(
-        DateTime.parseDateTimeString(start, builder.time_zone));
+
+    if (Strings.isNullOrEmpty(builder.start)) {
+      start = null;
+    } else {
+      start = builder.start;
+    }
+
     if (Strings.isNullOrEmpty(builder.end)) {
       end = null;
-      end_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
     } else {
       end = builder.end;
-      end_ts = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(end, builder.time_zone));
     }
+
+    // we have end time, but no start time
+    if (Strings.isNullOrEmpty(builder.start) && !Strings.isNullOrEmpty(builder.end)) { 
+
+      // is end time before or after current time?
+      if (DateTime.parseDateTimeString(end, builder.time_zone) > DateTime.currentTimeMillis()) {
+        end_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(end, builder.time_zone));
+        start_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
+      } else {
+        start_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(end, builder.time_zone));
+        end_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
+      }
+
+    // we have start time, but no end time
+    } else if (!Strings.isNullOrEmpty(builder.start) && Strings.isNullOrEmpty(builder.end)) {
+
+      // is start time before or after current time?
+      if (DateTime.parseDateTimeString(start, builder.time_zone) > DateTime.currentTimeMillis()) {
+        end_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(start, builder.time_zone));
+        start_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
+      } else {
+        start_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(start, builder.time_zone));
+        end_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
+      }
+
+    } else if (DateTime.parseDateTimeString(start, builder.time_zone) > 
+      DateTime.parseDateTimeString(end, builder.time_zone)) { // start after end
+        start_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(end, builder.time_zone));
+        end_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(start, builder.time_zone));
+
+    } else { // regular input
+      start_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(start, builder.time_zone));
+      end_ts = new MillisecondTimeStamp(DateTime.parseDateTimeString(end, builder.time_zone));
+    }
+
     time_zone = builder.time_zone;
     
     // TODO need checks here
