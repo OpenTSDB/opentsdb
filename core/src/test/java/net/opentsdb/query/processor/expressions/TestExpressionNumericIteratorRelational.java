@@ -57,7 +57,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
   }
   
   @Test
@@ -106,7 +106,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -131,7 +131,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -156,7 +156,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -181,7 +181,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -206,7 +206,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -246,7 +246,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     // EQ
     ExpressionNumericIterator iterator = 
@@ -281,7 +281,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -307,7 +307,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -333,7 +333,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -359,7 +359,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -385,7 +385,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -447,7 +447,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -472,7 +472,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -497,7 +497,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -522,7 +522,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -547,7 +547,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -587,7 +587,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     // EQ
     ExpressionNumericIterator iterator = 
@@ -622,7 +622,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -648,7 +648,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -674,7 +674,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -700,7 +700,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -726,7 +726,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setNot(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -787,7 +787,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -812,7 +812,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -837,7 +837,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -862,7 +862,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -887,7 +887,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -948,7 +948,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -973,7 +973,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -998,7 +998,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1023,7 +1023,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1048,7 +1048,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1110,7 +1110,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1136,7 +1136,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1162,7 +1162,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1188,7 +1188,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1214,7 +1214,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1246,7 +1246,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
       .addInterpolatorConfig(numeric_config)
       .setId("e1")
       .build();
-    when(node.config()).thenReturn(exp_config);
+    when(node.expressionConfig()).thenReturn(exp_config);
     
     left = new NumericMillisecondShard(LEFT_ID, 
         new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
@@ -1291,7 +1291,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1316,7 +1316,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1341,7 +1341,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1366,7 +1366,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1391,7 +1391,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1428,7 +1428,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -1459,7 +1459,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1483,7 +1483,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1507,7 +1507,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1531,7 +1531,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1555,7 +1555,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1591,7 +1591,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -1622,7 +1622,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
             .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1646,7 +1646,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
             .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1670,7 +1670,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1694,7 +1694,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1718,7 +1718,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -1750,7 +1750,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -1781,7 +1781,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1805,7 +1805,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1829,7 +1829,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1853,7 +1853,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1877,7 +1877,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1901,7 +1901,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -1930,7 +1930,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1954,7 +1954,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -1978,7 +1978,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -2002,7 +2002,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -2026,7 +2026,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -2058,7 +2058,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -2089,7 +2089,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
             .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2113,7 +2113,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
             .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2137,7 +2137,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2161,7 +2161,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2185,7 +2185,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2209,7 +2209,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -2238,7 +2238,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
             .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2262,7 +2262,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
             .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2286,7 +2286,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2310,7 +2310,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2334,7 +2334,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
@@ -2366,7 +2366,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -2405,7 +2405,7 @@ public class TestExpressionNumericIteratorRelational extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 

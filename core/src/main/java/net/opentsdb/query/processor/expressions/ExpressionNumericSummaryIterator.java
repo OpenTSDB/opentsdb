@@ -75,23 +75,23 @@ public class ExpressionNumericSummaryIterator extends
       left_interpolator = null;
     } else {
       QueryInterpolatorConfig interpolator_config = 
-          ((ExpressionConfig) node.config()).interpolatorConfig(
+          ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
               NumericSummaryType.TYPE, 
-              (String) this.node.expressionConfig().getLeft());
+              (String) ((ExpressionParseNode) this.node.config()).getLeft());
       if (interpolator_config == null) {
         interpolator_config = 
-            ((ExpressionConfig) node.config())
+            ((BinaryExpressionNode) node).expressionConfig()
               .interpolatorConfig(NumericSummaryType.TYPE);
       }
       // still null, then we fail over to NumericType
       if (interpolator_config == null) {
         interpolator_config = 
-            ((ExpressionConfig) node.config()).interpolatorConfig(
+            ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
                 NumericType.TYPE, 
-                  (String) this.node.expressionConfig().getLeft());
+                  (String) ((ExpressionParseNode) this.node.config()).getLeft());
         if (interpolator_config == null) {
           interpolator_config = 
-              ((ExpressionConfig) node.config())
+              ((BinaryExpressionNode) node).expressionConfig()
                 .interpolatorConfig(NumericType.TYPE);
         }
         
@@ -140,23 +140,23 @@ public class ExpressionNumericSummaryIterator extends
       right_interpolator = null;
     } else {
       QueryInterpolatorConfig interpolator_config = 
-          ((ExpressionConfig) node.config()).interpolatorConfig(
+          ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
               NumericSummaryType.TYPE, 
-              (String) this.node.expressionConfig().getRight());
+              (String) ((ExpressionParseNode) this.node.config()).getRight());
       if (interpolator_config == null) {
         interpolator_config = 
-            ((ExpressionConfig) node.config())
+            ((BinaryExpressionNode) node).expressionConfig()
               .interpolatorConfig(NumericSummaryType.TYPE);
       }
       // still null, then we fail over to NumericType
       if (interpolator_config == null) {
         interpolator_config = 
-            ((ExpressionConfig) node.config()).interpolatorConfig(
+            ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
                 NumericType.TYPE, 
-                  (String) this.node.expressionConfig().getRight());
+                  (String) ((ExpressionParseNode) this.node.config()).getRight());
         if (interpolator_config == null) {
           interpolator_config = 
-              ((ExpressionConfig) node.config())
+              ((BinaryExpressionNode) node).expressionConfig()
                 .interpolatorConfig(NumericType.TYPE);
         }
         
@@ -272,7 +272,7 @@ public class ExpressionNumericSummaryIterator extends
           right_literal : right.value(summary);
       
       final NumericType result;
-      switch (node.expressionConfig().getOperator()) {
+      switch (((ExpressionParseNode) node.config()).getOperator()) {
       // logical
       case OR:
       case AND:
@@ -304,7 +304,7 @@ public class ExpressionNumericSummaryIterator extends
       default:
         throw new QueryDownstreamException("Expression iterator was "
             + "told to handle the unexpected operator: " 
-            + node.expressionConfig().getOperator());
+            + ((ExpressionParseNode) node.config()).getOperator());
       }
       
       if (result != null) {

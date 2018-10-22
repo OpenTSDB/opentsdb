@@ -70,38 +70,40 @@ public class ExpressionResult implements QueryResult {
    */
   void join() {
     final Iterable<Pair<TimeSeries, TimeSeries>> joins;
-    if ((node.expressionConfig().getLeftType() == OperandType.SUB_EXP || 
-        node.expressionConfig().getLeftType() == OperandType.VARIABLE) &&
-        (node.expressionConfig().getRightType() == OperandType.SUB_EXP || 
-        node.expressionConfig().getRightType() == OperandType.VARIABLE)) {
+    final ExpressionParseNode config = (ExpressionParseNode) node.config();
+    
+    if ((config.getLeftType() == OperandType.SUB_EXP || 
+        config.getLeftType() == OperandType.VARIABLE) &&
+        (config.getRightType() == OperandType.SUB_EXP || 
+        config.getRightType() == OperandType.VARIABLE)) {
       final boolean use_alias = 
-          node.expressionConfig().getLeftType() != OperandType.VARIABLE ||
-              node.expressionConfig().getRightType() != OperandType.VARIABLE;
+          config.getLeftType() != OperandType.VARIABLE ||
+              config.getRightType() != OperandType.VARIABLE;
       joins = node.joiner().join(results, 
           node.leftMetric() != null ? node.leftMetric() : 
-            ((String) node.expressionConfig().getLeft()).getBytes(Const.UTF8_CHARSET), 
+            ((String) config.getLeft()).getBytes(Const.UTF8_CHARSET), 
           node.rightMetric() != null ? node.rightMetric() : 
-            ((String) node.expressionConfig().getRight()).getBytes(Const.UTF8_CHARSET),
+            ((String) config.getRight()).getBytes(Const.UTF8_CHARSET),
           use_alias);
-    } else if (node.expressionConfig().getLeftType() == OperandType.SUB_EXP || 
-        node.expressionConfig().getLeftType() == OperandType.VARIABLE) {
+    } else if (config.getLeftType() == OperandType.SUB_EXP || 
+        config.getLeftType() == OperandType.VARIABLE) {
       final boolean use_alias = 
-          node.expressionConfig().getLeftType() != OperandType.VARIABLE;
+          config.getLeftType() != OperandType.VARIABLE;
       // left
       joins = node.joiner().join(
           results, 
           node.leftMetric() != null ? node.leftMetric() : 
-            ((String) node.expressionConfig().getLeft()).getBytes(Const.UTF8_CHARSET), 
+            ((String) config.getLeft()).getBytes(Const.UTF8_CHARSET), 
           true,
           use_alias);
     } else {
       final boolean use_alias = 
-          node.expressionConfig().getRightType() != OperandType.VARIABLE;
+          config.getRightType() != OperandType.VARIABLE;
       // right
       joins = node.joiner().join(
           results, 
           node.rightMetric() != null ? node.rightMetric() :
-            ((String)  node.expressionConfig().getRight()).getBytes(Const.UTF8_CHARSET), 
+            ((String)  config.getRight()).getBytes(Const.UTF8_CHARSET), 
           false, 
           use_alias);
     }
@@ -114,8 +116,7 @@ public class ExpressionResult implements QueryResult {
   
   @Override
   public TimeSpecification timeSpecification() {
-    // TODO Auto-generated method stub
-    return null;
+    return results.get(0).timeSpecification();
   }
 
   @Override
@@ -125,8 +126,7 @@ public class ExpressionResult implements QueryResult {
 
   @Override
   public long sequenceId() {
-    // TODO Auto-generated method stub
-    return 0;
+    return results.get(0).sequenceId();
   }
 
   @Override
@@ -146,8 +146,7 @@ public class ExpressionResult implements QueryResult {
 
   @Override
   public ChronoUnit resolution() {
-    // TODO Auto-generated method stub
-    return ChronoUnit.SECONDS;
+    return results.get(0).resolution();
   }
 
   @Override

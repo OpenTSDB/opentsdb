@@ -118,7 +118,7 @@ public class TestBinaryExpressionNode {
     BinaryExpressionNode node = new BinaryExpressionNode(
         factory, context, expression_config);
     assertSame(config, node.config);
-    assertSame(expression_config, node.expressionConfig());
+    assertSame(expression_config, node.config());
     assertTrue(node.need_two_sources);
     assertNotNull(node.result);
     assertNotNull(node.joiner());
@@ -135,7 +135,7 @@ public class TestBinaryExpressionNode {
         .build();
     node = new BinaryExpressionNode(factory, context, expression_config);
     assertSame(config, node.config);
-    assertSame(expression_config, node.expressionConfig());
+    assertSame(expression_config, node.expression_config);
     assertTrue(node.need_two_sources);
     assertNotNull(node.result);
     assertNotNull(node.joiner());
@@ -152,7 +152,7 @@ public class TestBinaryExpressionNode {
         .build();
     node = new BinaryExpressionNode(factory, context, expression_config);
     assertSame(config, node.config);
-    assertSame(expression_config, node.expressionConfig());
+    assertSame(expression_config, node.expression_config);
     assertFalse(node.need_two_sources);
     assertNotNull(node.result);
     assertNotNull(node.joiner());

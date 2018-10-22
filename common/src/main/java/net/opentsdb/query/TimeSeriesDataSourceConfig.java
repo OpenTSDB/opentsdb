@@ -58,7 +58,7 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
   /**
    * A base builder interface for data source configs.
    */
-  public static interface Builder {
+  public static interface Builder extends QueryNodeConfig.Builder {
     public Builder setSourceId(final String source_id);
     
     public Builder setTypes(final List<String> types);

@@ -36,8 +36,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -1368,7 +1366,7 @@ public class TestAbstractQueryPipelineContext {
   private Map<String, QueryNode> graphToMap(final AbstractQueryPipelineContext pipeline) {
     final Map<String, QueryNode> map = Maps.newHashMap();
     final Iterator<QueryNode> iterator = 
-        pipeline.plan().graph().vertexSet().iterator();
+        pipeline.plan().graph().nodes().iterator();
     while (iterator.hasNext()) {
       final QueryNode node = iterator.next();
       map.put(node.config().getId(), node);

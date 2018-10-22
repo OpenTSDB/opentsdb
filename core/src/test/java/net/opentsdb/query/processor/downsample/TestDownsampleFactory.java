@@ -31,14 +31,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.MutableGraph;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -283,8 +283,7 @@ public class TestDownsampleFactory {
   }
 
   @Test
-  public void setupGraph() throws Exception {
-    
+  public void setupGraph() throws Exception {  
     NumericInterpolatorConfig numeric_config = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -326,14 +325,10 @@ public class TestDownsampleFactory {
     
     QueryPlanner planner = mock(QueryPlanner.class);
     // gb -> ds -> metric
-    DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> dag = 
-        new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(DefaultEdge.class);
-    dag.addVertex(graph.get(0));
-    dag.addVertex(graph.get(1));
-    dag.addVertex(graph.get(2));
-    
-    dag.addDagEdge(graph.get(2), graph.get(1));
-    dag.addDagEdge(graph.get(1), graph.get(0));
+    MutableGraph<QueryNodeConfig> dag = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    dag.putEdge(graph.get(2), graph.get(1));
+    dag.putEdge(graph.get(1), graph.get(0));
     when(planner.configGraph()).thenReturn(dag);
     doAnswer(new Answer<Void>() {
       @Override
@@ -347,10 +342,6 @@ public class TestDownsampleFactory {
     DownsampleFactory factory = new DownsampleFactory();
     factory.setupGraph(query, config, planner);
     
-    assertTrue(dag.containsVertex(graph.get(0)));
-    assertTrue(dag.containsVertex(graph.get(1)));
-    assertTrue(dag.containsVertex(graph.get(2)));
-    
     QueryNodeConfig new_node = graph.get(1);
     assertEquals("downsample", new_node.getId());
     assertTrue(new_node.getSources().contains("m1"));
@@ -360,23 +351,16 @@ public class TestDownsampleFactory {
     assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
     verify(planner, times(1)).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
     
-    assertTrue(dag.containsEdge(new_node, graph.get(0)));
+    assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
     
     // ds -> metric
-    dag = new DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge>(
-        DefaultEdge.class);
-    dag.addVertex(graph.get(0));
-    dag.addVertex(graph.get(1));
+    dag = GraphBuilder.directed().allowsSelfLoops(false).build();
     when(planner.configGraph()).thenReturn(dag);
     
-    dag.addDagEdge(graph.get(1), graph.get(0));
+    dag.putEdge(graph.get(1), graph.get(0));
     factory.setupGraph(query, config, planner);
     
-    assertTrue(dag.containsVertex(graph.get(0)));
-    assertTrue(dag.containsVertex(graph.get(1)));
-    
-    new_node = dag.getEdgeSource(dag.incomingEdgesOf(
-        graph.get(0)).iterator().next());
+    new_node = dag.predecessors(graph.get(0)).iterator().next();
     assertEquals("downsample", new_node.getId());
     assertTrue(new_node.getSources().contains("m1"));
     assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
@@ -384,6 +368,6 @@ public class TestDownsampleFactory {
     assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
     assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
     
-    assertTrue(dag.containsEdge(new_node, graph.get(0)));
+    assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
   }
 }

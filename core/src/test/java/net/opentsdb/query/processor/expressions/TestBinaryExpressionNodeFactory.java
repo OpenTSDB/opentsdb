@@ -92,7 +92,8 @@ public class TestBinaryExpressionNodeFactory {
     QueryNode new_node = factory.newNode(CONTEXT,
         (QueryNodeConfig) expression_config);
     assertTrue(new_node instanceof BinaryExpressionNode);
-    assertSame(config, new_node.config());
+    assertSame(expression_config, new_node.config());
+    assertSame(config, ((BinaryExpressionNode) new_node).expressionConfig());
   }
   
 }

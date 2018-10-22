@@ -132,8 +132,8 @@ public class BaseNumericSummaryTest {
         .build();
     
     when(node.pipelineContext()).thenReturn(CONTEXT);
-    when(node.config()).thenReturn(CONFIG);
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(CONFIG);
     when(node.joiner()).thenReturn(JOINER);
   }
 

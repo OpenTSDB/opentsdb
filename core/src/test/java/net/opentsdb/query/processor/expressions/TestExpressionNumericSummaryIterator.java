@@ -73,7 +73,7 @@ public class TestExpressionNumericSummaryIterator
       //.addInterpolatorConfig(NUMERIC_SUMMARY_CONFIG) // doh!
       .setId("e1")
       .build();
-    when(node.config()).thenReturn(config);
+    when(node.expressionConfig()).thenReturn(config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -98,7 +98,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     try {
       new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -147,7 +147,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -187,7 +187,7 @@ public class TestExpressionNumericSummaryIterator
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -224,7 +224,7 @@ public class TestExpressionNumericSummaryIterator
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -288,7 +288,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -353,7 +353,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -395,7 +395,7 @@ public class TestExpressionNumericSummaryIterator
       .addInterpolatorConfig(numeric_config)
       .setId("e1")
       .build();
-    when(node.config()).thenReturn(exp_config);
+    when(node.expressionConfig()).thenReturn(exp_config);
     
     setupData(new double[] { 1.1, -1, 2.66 }, new long[] { 1, -1, 2 }, 
               new double[] { 4.5, 10.75, 8.9 }, new long[] { 1, 2, 2 }, false);
@@ -433,7 +433,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -475,7 +475,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -509,7 +509,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -551,7 +551,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -585,7 +585,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -623,7 +623,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -658,7 +658,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -696,7 +696,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -730,7 +730,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -768,7 +768,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -804,7 +804,7 @@ public class TestExpressionNumericSummaryIterator
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 

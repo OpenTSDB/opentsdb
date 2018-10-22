@@ -112,4 +112,53 @@ public interface QueryNodeConfig extends Comparable<QueryNodeConfig> {
    * @return True if the key is present, false if not.
    */
   public boolean hasKey(final String key);
+
+  /**
+   * The interface for a QueryNodeConfig builder implementation.
+   */
+  public static interface Builder {
+    
+    /**
+     * @param id A non-null and non-empty unique Id for the node in query. 
+     * @return The builder.
+     */
+    public Builder setId(final String id);
+    
+    /**
+     * @param type The class or type of the implementation if not set
+     * in the ID.
+     * @return The builder.
+     */
+    public Builder setType(final String type);
+    
+    /**
+     * @param sources An optional list of sources consisting of the IDs 
+     * of a nodes in the graph.
+     * @return The builder.
+     */
+    public Builder setSources(final List<String> sources);
+    
+    /**
+     * @param source A source to pull from for this node.
+     * @return The builder.
+     */
+    public Builder addSource(final String source);
+    
+    /**
+     * @param overrides An override map to replace the existing map.
+     * @return The builder.
+     */
+    public Builder setOverrides(final Map<String, String> overrides);
+    
+    /**
+     * @param key An override key to store in the override map.
+     * @param value A value to store, overwriting existing values.
+     * @return The builder.
+     */
+    public Builder addOverride(final String key, final String value);
+  
+    /** @return The non-null config instance. */
+    public QueryNodeConfig build();
+  }
+  
 }

@@ -106,7 +106,7 @@ public class ExpressionTimeSeries implements TimeSeries {
     // TODO - handle other types, e.g. bools if we add em.
     // Otherwise we just drop the data since we don't have a type join.
     id = node.joiner().joinIds(left, right, 
-        ((ExpressionConfig) node.config()).getAs());
+        ((ExpressionParseNode) node.config()).getAs());
   }
   
   @Override

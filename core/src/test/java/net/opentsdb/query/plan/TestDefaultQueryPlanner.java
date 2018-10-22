@@ -25,9 +25,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Set;
 
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.traverse.DepthFirstIterator;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -35,6 +34,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
@@ -92,6 +92,7 @@ public class TestDefaultQueryPlanner {
         @Override
         public QueryNode answer(InvocationOnMock invocation) throws Throwable {
           final TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
+          when(node.initialize(null)).thenReturn(Deferred.fromResult(null));
           when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
           STORE_NODES.add(node);
           return node;
@@ -119,6 +120,51 @@ public class TestDefaultQueryPlanner {
     STORE_NODES.clear();
     when(STORE_FACTORY.supportsPushdown(any(Class.class)))
       .thenReturn(false);
+  }
+  
+  @Test
+  public void oneMetricAlone() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertSame(STORE_NODES.get(0), planner.sources().get(0));
+    assertEquals(2, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    
+    assertEquals(1, planner.serializationSources().size());
+    
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(1, planner.serializationSources().size());
   }
   
   @Test
@@ -162,33 +208,33 @@ public class TestDefaultQueryPlanner {
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
-    assertEquals(4, planner.graph().vertexSet().size());
-    assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("gb")));
-    assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("ds")));
-    assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().containsEdge(planner.nodesMap().get("ds"), 
+    assertEquals(4, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("gb")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("ds")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("ds"), 
         planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().containsEdge(planner.nodesMap().get("gb"), 
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("gb"), 
         planner.nodesMap().get("ds")));
     
     assertEquals(1, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-    
-    node = iterator.next();
-    assertTrue(node instanceof Downsample);
-    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-    
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
-    
+//    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
+//        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
+//    QueryNode node = iterator.next();
+//    assertSame(SINK, node);
+//    
+//    node = iterator.next();
+//    assertTrue(node instanceof GroupBy);
+//    
+//    node = iterator.next();
+//    assertTrue(node instanceof Downsample);
+//    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
+//    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
+//    
+//    node = iterator.next();
+//    assertSame(STORE_NODES.get(0), node);
+//    
     // no filter
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -246,26 +292,13 @@ public class TestDefaultQueryPlanner {
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
-    assertEquals(3, planner.graph().vertexSet().size());
-    assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("gb")));
-    assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("ds")));
-    assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("m1")));
-    assertFalse(planner.graph().containsEdge(planner.nodesMap().get("downsample"), 
-        planner.nodesMap().get("m1"))); // pushed
-    assertFalse(planner.graph().containsEdge(planner.nodesMap().get("gb"), 
-        planner.nodesMap().get("downsample")));
+    assertEquals(3, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("gb")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-
-    node = iterator.next();
+    QueryNode node = planner.nodesMap().get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -322,20 +355,13 @@ public class TestDefaultQueryPlanner {
     
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
-    assertEquals(2, planner.graph().vertexSet().size());
-    assertFalse(planner.graph().containsEdge(SINK, planner.nodesMap().get("downsample")));
-    assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("m1")));
-    assertFalse(planner.graph().containsEdge(planner.nodesMap().get("downsample"), 
-        planner.nodesMap().get("m1")));
+    assertEquals(2, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
     
-    node = iterator.next();
+    QueryNode node = planner.nodesMap().get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -391,20 +417,9 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(3, planner.graph().vertexSet().size());
+    assertEquals(3, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
-    
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
-    
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -470,29 +485,14 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(5, planner.graph().vertexSet().size());
+    assertEquals(5, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-    
-    node = iterator.next();
+    QueryNode node = planner.nodesMap().get("downsample");
     assertTrue(node instanceof Downsample);
     assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
     assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-    
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
-    
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -561,28 +561,19 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(4, planner.graph().vertexSet().size());
+    assertEquals(4, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
+    QueryNode node = planner.nodesMap().get("m1");
+    assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
+    node = planner.nodesMap().get("m2");
+    assertSame(STORE_NODES.get(1), node);
     source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
@@ -662,28 +653,19 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(4, planner.graph().vertexSet().size());
+    assertEquals(4, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
+    QueryNode node = planner.nodesMap().get("m1");
+    assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("ds2", source_config.getPushDownNodes().get(0).getId());
     
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
+    node = planner.nodesMap().get("m2");
+    assertSame(STORE_NODES.get(1), node);
     source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
@@ -749,25 +731,19 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(3, planner.graph().vertexSet().size());
+    assertEquals(3, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
+    QueryNode node = planner.nodesMap().get("m1");
+    assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
+    node = planner.nodesMap().get("m2");
+    assertSame(STORE_NODES.get(1), node);
     source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
@@ -850,37 +826,9 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(7, planner.graph().vertexSet().size());
+    assertEquals(7, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
-    
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-    
-    node = iterator.next();
-    assertTrue(node instanceof Downsample);
-    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-    
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-    
-    node = iterator.next();
-    assertTrue(node instanceof Downsample);
-    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-    
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -946,38 +894,18 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(5, planner.graph().vertexSet().size());
+    assertEquals(5, planner.graph().nodes().size());
     
-    assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("gb")));
-    assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().containsEdge(SINK, planner.nodesMap().get("m2")));
-    assertTrue(planner.graph().containsEdge(planner.nodesMap().get("downsample"), 
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m2")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("downsample"), 
         planner.nodesMap().get("m2")));
-    assertTrue(planner.graph().containsEdge(planner.nodesMap().get("gb"), 
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("gb"), 
         planner.nodesMap().get("downsample")));
 
     assertEquals(4, planner.serializationSources().size());
-    
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-    
-    node = iterator.next();
-    assertTrue(node instanceof Downsample);
-    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-    
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
-    
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
-    
+   
     // no filter
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1052,32 +980,9 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(6, planner.graph().vertexSet().size());
+    assertEquals(6, planner.graph().nodes().size());
 
     assertEquals(1, planner.serializationSources().size());
-    
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
-    
-    node = iterator.next();
-    assertTrue(node instanceof BinaryExpressionNode);
-    
-    node = iterator.next();
-    assertTrue(node instanceof GroupBy);
-    
-    node = iterator.next();
-    assertTrue(node instanceof Downsample);
-    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-    
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
-    
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1153,32 +1058,209 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(6, planner.graph().vertexSet().size());
+    assertEquals(6, planner.graph().nodes().size());
 
     assertEquals(3, planner.serializationSources().size());
     
-    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-    QueryNode node = iterator.next();
-    assertSame(SINK, node);
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(1, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void twoMetricsBranchExpression() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample_m1")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("groupby_m1")
+            .addSource("downsample_m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample_m2")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("groupby_m2")
+            .addSource("downsample_m2")
+            .build(),
+       ExpressionConfig.newBuilder()
+            .setExpression("sys.cpu.user + sys.cpu.sys")
+            .setAs("sys.tot")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setJoinType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
+            .addSource("groupby_m1")
+            .addSource("groupby_m2")
+            .build());
     
-    node = iterator.next();
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("expression")))
+        .build();
+    
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(2, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertEquals(8, planner.graph().nodes().size());
+
+    assertEquals(1, planner.serializationSources().size());
+    
+    QueryNode node = planner.nodesMap().get("expression");
+    Set<QueryNode> nodes = planner.graph().successors(node);
     assertTrue(node instanceof BinaryExpressionNode);
-    
-    node = iterator.next();
+    assertEquals(2, nodes.size());
+    node = nodes.iterator().next();
     assertTrue(node instanceof GroupBy);
     
-    node = iterator.next();
-    assertTrue(node instanceof Downsample);
-    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(1, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void twoMetricsBranchExpressionWithscalar() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample_m1")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("groupby_m1")
+            .addSource("downsample_m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample_m2")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("groupby_m2")
+            .addSource("downsample_m2")
+            .build(),
+       ExpressionConfig.newBuilder()
+            .setExpression("(sys.cpu.user + sys.cpu.sys) * 2")
+            .setAs("sys.tot")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setJoinType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
+            .addSource("groupby_m1")
+            .addSource("groupby_m2")
+            .build());
     
-    // TODO - watch this bit for ordering
-    node = iterator.next();
-    assertSame(STORE_NODES.get(1), node);
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("expression")))
+        .build();
     
-    node = iterator.next();
-    assertSame(STORE_NODES.get(0), node);
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(2, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertEquals(9, planner.graph().nodes().size());
+
+    assertEquals(1, planner.serializationSources().size());
+    
+    QueryNode node = planner.nodesMap().get("expression");
+    Set<QueryNode> nodes = planner.graph().successors(node);
+    assertTrue(node instanceof BinaryExpressionNode);
+    assertEquals(1, nodes.size());
+    node = nodes.iterator().next();
+    assertTrue(node instanceof BinaryExpressionNode);
+    nodes = planner.graph().successors(node);
+    assertEquals(2, nodes.size());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1208,7 +1290,7 @@ public class TestDefaultQueryPlanner {
             .setInterval("1m")
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .setId("downsample")
-            .addSource("groupby")
+            .addSource("gb")
             .build(),
        GroupByConfig.newBuilder()
             .setAggregator("sum")
@@ -1337,4 +1419,5 @@ public class TestDefaultQueryPlanner {
     when(config.getFilter()).thenReturn(filter);
     return config;
   }
+
 }

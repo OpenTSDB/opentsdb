@@ -283,10 +283,32 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
     n = node.get("variableInterpolators");
-    final Iterator<Entry<String, JsonNode>> iterator = n.fields();
-    while (iterator.hasNext()) {
-      final Entry<String, JsonNode> entry = iterator.next();
-      for (final JsonNode config : entry.getValue()) {
+    if (n != null && !n.isNull()) {
+      final Iterator<Entry<String, JsonNode>> iterator = n.fields();
+      while (iterator.hasNext()) {
+        final Entry<String, JsonNode> entry = iterator.next();
+        for (final JsonNode config : entry.getValue()) {
+          JsonNode type_json = config.get("type");
+          final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
+              QueryInterpolatorFactory.class, 
+              type_json == null ? null : type_json.asText());
+          if (factory == null) {
+            throw new IllegalArgumentException("Unable to find an "
+                + "interpolator factory for: " + 
+                type_json == null ? "default" :
+                  type_json.asText());
+          }
+          
+          final QueryInterpolatorConfig interpolator_config = 
+              factory.parseConfig(mapper, tsdb, config);
+          builder.addVariableInterpolator(entry.getKey(), interpolator_config);
+        }
+      }
+    }
+    
+    n = node.get("interpolatorConfigs");
+    if (n != null && !n.isNull()) {
+      for (final JsonNode config : n) {
         JsonNode type_json = config.get("type");
         final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
             QueryInterpolatorFactory.class, 
@@ -300,26 +322,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
         
         final QueryInterpolatorConfig interpolator_config = 
             factory.parseConfig(mapper, tsdb, config);
-        builder.addVariableInterpolator(entry.getKey(), interpolator_config);
+        builder.addInterpolatorConfig(interpolator_config);
       }
-    }
-    
-    n = node.get("interpolatorConfigs");
-    for (final JsonNode config : n) {
-      JsonNode type_json = config.get("type");
-      final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
-          QueryInterpolatorFactory.class, 
-          type_json == null ? null : type_json.asText());
-      if (factory == null) {
-        throw new IllegalArgumentException("Unable to find an "
-            + "interpolator factory for: " + 
-            type_json == null ? "default" :
-              type_json.asText());
-      }
-      
-      final QueryInterpolatorConfig interpolator_config = 
-          factory.parseConfig(mapper, tsdb, config);
-      builder.addInterpolatorConfig(interpolator_config);
     }
     
     n = node.get("sources");

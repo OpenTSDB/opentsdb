@@ -97,7 +97,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
 
   @Override
   public QueryNodeConfig config() {
-    return config;
+    return expression_config;
   }
 
   @Override
@@ -235,8 +235,8 @@ public class BinaryExpressionNode extends AbstractQueryNode {
     }
   }
   
-  ExpressionParseNode expressionConfig() {
-    return expression_config;
+  ExpressionConfig expressionConfig() {
+    return config;
   }
   
   Joiner joiner() {

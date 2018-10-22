@@ -90,7 +90,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -136,7 +136,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -170,7 +170,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -237,7 +237,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -283,7 +283,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -317,7 +317,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -384,7 +384,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -451,7 +451,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -519,7 +519,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -557,7 +557,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
       .addInterpolatorConfig(numeric_config)
       .setId("e1")
       .build();
-    when(node.config()).thenReturn(exp_config);
+    when(node.expressionConfig()).thenReturn(exp_config);
     
     left = new NumericMillisecondShard(LEFT_ID, 
         new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
@@ -602,7 +602,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -645,7 +645,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -676,7 +676,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -718,7 +718,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -749,7 +749,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -787,7 +787,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -819,7 +819,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -857,7 +857,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -888,7 +888,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -926,7 +926,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
@@ -965,7 +965,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
