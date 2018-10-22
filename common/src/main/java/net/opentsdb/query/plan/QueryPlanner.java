@@ -14,9 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.graph.DefaultEdge;
-
+import com.google.common.graph.MutableGraph;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.query.QueryNode;
@@ -50,11 +48,11 @@ public interface QueryPlanner {
   
   /** @return The non-null and non-empty query node graph post 
    * {@link #plan(Span)}. */
-  public DirectedAcyclicGraph<QueryNode, DefaultEdge> graph();
+  public MutableGraph<QueryNode> graph();
   
   /** @return The non-null and non-empty config graph post 
    * {@link #plan(Span)}. */
-  public DirectedAcyclicGraph<QueryNodeConfig, DefaultEdge> configGraph();
+  public MutableGraph<QueryNodeConfig> configGraph();
   
   /** @return The non-null query context that owns this plan. */
   public QueryPipelineContext context();

@@ -79,21 +79,21 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
                          final Map<String, TimeSeries> sources) {
     next_ts.setMax();
     this.node = (BinaryExpressionNode) node;
-    infectious_nan = ((ExpressionConfig) node.config()).getInfectiousNan();
+    infectious_nan = this.node.expressionConfig().getInfectiousNan();
     value = new MutableNumericType();
     
     if (sources.get(ExpressionTimeSeries.LEFT_KEY) == null) {
       left_literal = buildLiteral(
-          this.node.expressionConfig().getLeft(), 
-          this.node.expressionConfig().getLeftType());
+          ((ExpressionParseNode) this.node.config()).getLeft(), 
+          ((ExpressionParseNode) this.node.config()).getLeftType());
     } else {
       left_literal = null;
     }
     
     if (sources.get(ExpressionTimeSeries.RIGHT_KEY) == null) {
       right_literal = buildLiteral(
-          this.node.expressionConfig().getRight(), 
-          this.node.expressionConfig().getRightType());
+          ((ExpressionParseNode) this.node.config()).getRight(), 
+          ((ExpressionParseNode) this.node.config()).getRightType());
     } else {
       right_literal = null;
     }
@@ -170,44 +170,44 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     }
     
     if (left.isInteger() && right.isInteger()) {
-      switch (node.expressionConfig().getOperator()) {
+      switch (((ExpressionParseNode) node.config()).getOperator()) {
       case EQ:
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(left.longValue() == right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() == right.longValue() ? 1L : 0L);
         }
         break;
       case NE:
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(left.longValue() != right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() != right.longValue() ? 1L : 0L);
         }
         break;
       case LT:
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(left.longValue() < right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() < right.longValue() ? 1L : 0L);
         }
         break;
       case GT:
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(left.longValue() > right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() > right.longValue() ? 1L : 0L);
         }
         break;
       case LE:
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(left.longValue() <= right.longValue() ? 0L : 1L);
         } else {
           value.set(left.longValue() <= right.longValue() ? 1L : 0L);
         }
         break;
       case GE:
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(left.longValue() >= right.longValue() ? 0L : 1L); 
         } else {
           value.set(left.longValue() >= right.longValue() ? 1L : 0L);          
@@ -216,7 +216,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       default:
         throw new QueryDownstreamException("Relational iterator was "
             + "told to handle the unexpected operator: " 
-            + node.expressionConfig().getOperator());
+            + ((ExpressionParseNode) node.config()).getOperator());
       }
     } else {
       if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble())) &&
@@ -224,44 +224,44 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         value.set(Double.NaN);
       } else {
         // let the ieee 754 standard handle NaNs
-        switch (node.expressionConfig().getOperator()) {
+        switch (((ExpressionParseNode) node.config()).getOperator()) {
         case EQ:
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(left.toDouble() == right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() == right.toDouble() ? 1L : 0L);
           }
           break;
         case NE:
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(left.toDouble() != right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() != right.toDouble() ? 1L : 0L);
           }
           break;
         case LT:
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(left.toDouble() < right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() < right.toDouble() ? 1L : 0L);
           }
           break;
         case GT:
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(left.toDouble() > right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() > right.toDouble() ? 1L : 0L);
           }
           break;
         case LE:
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(left.toDouble() <= right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() <= right.toDouble() ? 1L : 0L);
           }
           break;
         case GE:
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(left.toDouble() >= right.toDouble() ? 0L : 1L);
           } else {
             value.set(left.toDouble() >= right.toDouble() ? 1L : 0L);
@@ -270,7 +270,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         default:
           throw new QueryDownstreamException("Relational iterator was "
               + "told to handle the unexpected operator: " 
-              + node.expressionConfig().getOperator());
+              + ((ExpressionParseNode) node.config()).getOperator());
         }
       }
     }
@@ -291,16 +291,16 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @return The {@link #value}.
    */
   NumericType logical(final NumericType left, final NumericType right) {
-    switch (node.expressionConfig().getOperator()) {
+    switch (((ExpressionParseNode) node.config()).getOperator()) {
     case OR:
       if (left == null) {
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(isTrue(right) ? 0 : 1);
         } else {
           value.set(isTrue(right) ? 1 : 0);
         }
       } else if (right == null) {
-        if (node.expressionConfig().getNot()) {
+        if (((ExpressionParseNode) node.config()).getNot()) {
           value.set(isTrue(left) ? 0 : 1);
         } else {
           value.set(isTrue(left) ? 1 : 0);
@@ -309,9 +309,9 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         if (!left.isInteger() && !right.isInteger() && 
             Double.isNaN(left.doubleValue()) && 
             Double.isNaN(right.doubleValue())) {
-          value.set(node.expressionConfig().getNot() ? 0L : 1L);
+          value.set(((ExpressionParseNode) node.config()).getNot() ? 0L : 1L);
         } else {
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(isTrue(left) || isTrue(right) ? 0 : 1);
           } else {
             value.set(isTrue(left) || isTrue(right) ? 1 : 0);
@@ -321,14 +321,14 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       break;
     case AND:
       if (left == null || right == null) {
-        value.set(node.expressionConfig().getNot() ? 1L : 0L);
+        value.set(((ExpressionParseNode) node.config()).getNot() ? 1L : 0L);
       } else {
         if (!left.isInteger() && !right.isInteger() && 
             Double.isNaN(left.doubleValue()) && 
             Double.isNaN(right.doubleValue())) {
-          value.set(node.expressionConfig().getNot() ? 0L : 1L);
+          value.set(((ExpressionParseNode) node.config()).getNot() ? 0L : 1L);
         } else {
-          if (node.expressionConfig().getNot()) {
+          if (((ExpressionParseNode) node.config()).getNot()) {
             value.set(isTrue(left) && isTrue(right) ? 0 : 1);
           } else {
             value.set(isTrue(left) && isTrue(right) ? 1 : 0);
@@ -339,7 +339,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     default:
       throw new QueryDownstreamException("Logical iterator was "
           + "told to handle the unexpected operator: " 
-          + node.expressionConfig().getOperator());
+          + ((ExpressionParseNode) node.config()).getOperator());
     }
     
     return value;
@@ -366,14 +366,14 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     
     if (left.isInteger() && right.isInteger()) {
       // TOOD - overflow
-      if (node.expressionConfig().getOperator() == ExpressionOp.SUBTRACT) {
-        if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getOperator() == ExpressionOp.SUBTRACT) {
+        if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.longValue() - right.longValue())); 
         } else {
           value.set(left.longValue() - right.longValue());  
         }
       } else {
-        if (node.expressionConfig().getNegate()) {
+        if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.longValue() + right.longValue()));
         } else {
           value.set(left.longValue() + right.longValue());
@@ -385,21 +385,21 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
             (Double.isNaN(left.toDouble()) && Double.isNaN(right.toDouble()))) {
           value.set(Double.NaN);
         } else if (Double.isNaN(left.toDouble())) {
-          value.set(node.expressionConfig().getNegate() ? 
+          value.set(((ExpressionParseNode) node.config()).getNegate() ? 
               -right.toDouble() : right.toDouble());
         } else {
-          value.set(node.expressionConfig().getNegate() ? 
+          value.set(((ExpressionParseNode) node.config()).getNegate() ? 
               -left.toDouble() : left.toDouble());
         }
       } else {
-        if (node.expressionConfig().getOperator() == ExpressionOp.SUBTRACT) {
-          if (node.expressionConfig().getNegate()) {
+        if (((ExpressionParseNode) node.config()).getOperator() == ExpressionOp.SUBTRACT) {
+          if (((ExpressionParseNode) node.config()).getNegate()) {
             value.set(-(left.toDouble() - right.toDouble())); 
           } else {
             value.set(left.toDouble() - right.toDouble());
           }
         } else {
-          if (node.expressionConfig().getNegate()) {
+          if (((ExpressionParseNode) node.config()).getNegate()) {
             value.set(-(left.toDouble() + right.toDouble())); 
           } else {
             value.set(left.toDouble() + right.toDouble());
@@ -437,7 +437,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       if (right.longValue() == 0) {
         value.set(0L);
       } else {
-        if (node.expressionConfig().getNegate()) {
+        if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.longValue() / right.longValue()));
         } else {
           value.set(left.longValue() / right.longValue());
@@ -455,7 +455,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         if (Math.abs(0.0 - right.toDouble()) <= EPSILON) {
           value.set(0.0);
         } else {
-          if (node.expressionConfig().getNegate()) {
+          if (((ExpressionParseNode) node.config()).getNegate()) {
             value.set(-(left.toDouble() / right.toDouble())); 
           } else {
             value.set(left.toDouble() / right.toDouble());
@@ -490,7 +490,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     
     if (left.isInteger() && right.isInteger()) {
       // TOOD - overflow
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         value.set(-(left.longValue() * right.longValue())); 
       } else {
         value.set(left.longValue() * right.longValue());
@@ -504,7 +504,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
           value.set(0.0);
         }
       } else {
-        if (node.expressionConfig().getNegate()) {
+        if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.toDouble() * right.toDouble())); 
         } else {
           value.set(left.toDouble() * right.toDouble());
@@ -538,7 +538,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       if (right.longValue() == 0) {
         value.set(0L);
       } else {
-        if (node.expressionConfig().getNegate()) {
+        if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.longValue() % right.longValue())); 
         } else {
           value.set(left.longValue() % right.longValue());
@@ -553,7 +553,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
           value.set(0.0);
         }
       } else {
-        if (node.expressionConfig().getNegate()) {
+        if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.toDouble() % right.toDouble())); 
         } else {
           value.set(left.toDouble() % right.toDouble());

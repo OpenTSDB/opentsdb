@@ -440,9 +440,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         long ts = (options != null && options.getMsResolution()) 
             ? value.timestamp().msEpoch() 
             : value.timestamp().msEpoch() / 1000;
-        final String ts_string = Long.toString(ts);
         if (value.value() == null) {
-          json.writeNullField(ts_string);
+          json.writeNull();
         } else {
           final NumericSummaryType v = ((TimeSeriesValue<NumericSummaryType>) value).value();
           json.writeStartArray();
@@ -516,7 +515,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       }
     }
     json.writeEndArray();
-    
     json.writeEndObject();
   }
   

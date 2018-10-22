@@ -17,15 +17,12 @@ package net.opentsdb.query.processor.expressions;
 import java.util.List;
 import java.util.Map;
 
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
-import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
-import org.jgrapht.graph.DefaultEdge;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.graph.Graphs;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -36,6 +33,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode.Builder;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 
 /**
@@ -86,35 +84,35 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
   public void setupGraph(final TimeSeriesQuery query, 
                          final QueryNodeConfig config, 
                          final QueryPlanner plan) {
-    
     // parse the expression
     final ExpressionConfig c = (ExpressionConfig) config;
-    System.out.println("***** SRCS: " + c.getSources());
     final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
     
     final Map<String, QueryNodeConfig> node_map = Maps.newHashMap();
-    for (final QueryNodeConfig node: plan.configGraph().vertexSet()) {
+    for (final QueryNodeConfig node: plan.configGraph().nodes()) {
       node_map.put(node.getId(), node);
     }
     
     final List<QueryNodeConfig> new_nodes = 
         Lists.newArrayListWithCapacity(configs.size());
     for (final ExpressionParseNode parse_node : configs) {
+      ExpressionParseNode.Builder builder = (Builder) parse_node.getBuilder()
+          .setSources(Lists.newArrayList());
       if (parse_node.getLeftType() == OperandType.SUB_EXP) {
-        parse_node.addSource((String) parse_node.getLeft());
+        builder.addSource((String) parse_node.getLeft());
       }
       if (parse_node.getRightType() == OperandType.SUB_EXP) {
-        parse_node.addSource((String) parse_node.getRight());
+        builder.addSource((String) parse_node.getRight());
       }
       
       // we may need to fix up variable names. Do so by searching 
       // recursively.
       String last_source = null;
       if (parse_node.getLeftType() == OperandType.VARIABLE) {
-        String ds = validate(parse_node, true, plan, config, 0);
+        String ds = validate(builder, true, plan, config, 0);
         if (ds != null) {
-          parse_node.addSource(ds);
+          builder.addSource(ds);
           last_source = ds;
         } else {
           throw new RuntimeException("WTF? No node for left?");
@@ -122,25 +120,26 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
       }
       
       if (parse_node.getRightType() == OperandType.VARIABLE) {
-        String ds = validate(parse_node, false, plan, config, 0);
+        String ds = validate(builder, false, plan, config, 0);
         if (ds != null) {
           // dedupe
           if (last_source == null || !last_source.equals(ds)) {
-            parse_node.addSource(ds);
+            builder.addSource(ds);
           }
         } else {
           throw new RuntimeException("WTF? No node for right?");
         }
       }
-      
-      new_nodes.add(parse_node);
-      node_map.put(parse_node.getId(), parse_node);
+      final ExpressionParseNode rebuilt = 
+          (ExpressionParseNode) builder.build();
+      new_nodes.add(rebuilt);
+      node_map.put(rebuilt.getId(), rebuilt);
     }
+    configs.clear();
     
     // remove the old config and get the in and outgoing edges.
     final List<QueryNodeConfig> upstream = Lists.newArrayList();
-    for (final DefaultEdge up : plan.configGraph().incomingEdgesOf(config)) {
-      final QueryNodeConfig n = plan.configGraph().getEdgeSource(up);
+    for (final QueryNodeConfig n : plan.configGraph().predecessors(config)) {
       upstream.add(n);
     }
     for (final QueryNodeConfig n : upstream) {
@@ -148,8 +147,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     }
     
     final List<QueryNodeConfig> downstream = Lists.newArrayList();
-    for (final DefaultEdge down : plan.configGraph().outgoingEdgesOf(config)) {
-      final QueryNodeConfig n = plan.configGraph().getEdgeTarget(down);
+    for (final QueryNodeConfig n : plan.configGraph().successors(config)) {
       downstream.add(n);
     }
     for (final QueryNodeConfig n : downstream) {
@@ -157,73 +155,78 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     }
     
     // now yank ourselves out and link.
-    plan.configGraph().removeVertex(config);
+    plan.configGraph().removeNode(config);
     for (final QueryNodeConfig node : new_nodes) {
-      plan.configGraph().addVertex(node);
+      
       for (final String source : node.getSources()) {
-        try {
-          plan.configGraph().addDagEdge(node, node_map.get(source));
-        } catch (CycleFoundException e) {
+        plan.configGraph().putEdge(node, node_map.get(source));
+        if (Graphs.hasCycle(plan.configGraph())) {
           throw new IllegalStateException("Cylcle found when generating "
-              + "sub expression graph.", e);
+              + "sub expression graph for " + node.getId() + " => " 
+              + node_map.get(source).getId());
         }
       }
     }
     
     for (final QueryNodeConfig up : upstream) {
-      try {plan.configGraph().addDagEdge(up, new_nodes.get(new_nodes.size() - 1));
-      } catch (CycleFoundException e) {
+      //try {
+      plan.configGraph().putEdge(up, new_nodes.get(new_nodes.size() - 1));
+      if (Graphs.hasCycle(plan.configGraph())) {
         throw new IllegalStateException("Cylcle found when generating "
-            + "sub expression graph.", e);
+            + "sub expression graph for " + up.getId() + " => " 
+            +new_nodes.get(new_nodes.size() - 1).getId());
       }
     }
   }
   
-  static String validate(final ExpressionParseNode node, 
+  static String validate(final ExpressionParseNode.Builder builder, 
                          final boolean left, 
                          final QueryPlanner plan,
                          final QueryNodeConfig downstream, 
                          final int depth) {
-    final String key = left ? (String) node.getLeft() : (String) node.getRight();
+    final String key = left ? (String) builder.left() : (String) builder.right();
     final String node_id = Strings.isNullOrEmpty(downstream.getType()) ? 
         downstream.getId() : downstream.getType();
-        System.out.println("***** ID: " + node_id + " depth: " + depth + " Sources: " + downstream.getSources());
     if (depth > 0 && node_id.toLowerCase().equals("expression")) {
       if (left && key.equals(downstream.getId())) {
         if (downstream instanceof ExpressionConfig) {
-          node.setLeft(((ExpressionConfig) downstream).getAs());
+          builder.setLeft(((ExpressionConfig) downstream).getAs());
         } else {
-          node.setLeft(((ExpressionParseNode) downstream).getAs());
+          builder.setLeft(((ExpressionParseNode) downstream).getAs());
         }
         return downstream.getId();
       } else if (key.equals(downstream.getId())) {
         if (downstream instanceof ExpressionConfig) {
-          node.setRight(((ExpressionConfig) downstream).getAs());
+          builder.setRight(((ExpressionConfig) downstream).getAs());
         } else {
-          node.setRight(((ExpressionParseNode) downstream).getAs());
+          builder.setRight(((ExpressionParseNode) downstream).getAs());
         }
         return downstream.getId();
       }
     } else if (downstream instanceof TimeSeriesDataSourceConfig) {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
-        node.setLeft(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric());
+        builder.setLeft(((TimeSeriesDataSourceConfig) downstream)
+            .getMetric().getMetric());
         return downstream.getId();
       } else if (left && 
-          key.equals(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric())) {
+          key.equals(((TimeSeriesDataSourceConfig) downstream)
+              .getMetric().getMetric())) {
         return downstream.getId();
         // right
       } else if (key.equals(downstream.getId())) {
-        node.setRight(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric());
+        builder.setRight(((TimeSeriesDataSourceConfig) downstream)
+            .getMetric().getMetric());
         return downstream.getId();
-      } else if (key.equals(((TimeSeriesDataSourceConfig) downstream).getMetric().getMetric())) {
+      } else if (key.equals(((TimeSeriesDataSourceConfig) downstream)
+          .getMetric().getMetric())) {
         return downstream.getId();
       }
     }
     
-    for (final DefaultEdge edge : plan.configGraph().outgoingEdgesOf(downstream)) {
-      final QueryNodeConfig graph_node = plan.configGraph().getEdgeTarget(edge);
-      final String ds = validate(node, left, plan, graph_node, depth + 1);
+    for (final QueryNodeConfig graph_node : 
+        plan.configGraph().successors(downstream)) {
+      final String ds = validate(builder, left, plan, graph_node, depth + 1);
       if (ds != null) {
         if (depth == 0) {
           return ds;

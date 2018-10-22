@@ -93,7 +93,7 @@ public class TestExpressionResult {
         .build();
     
     when(node.config()).thenReturn(config);
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     when(node.joiner()).thenReturn(joiner);
   }
   
@@ -131,7 +131,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -152,7 +152,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -173,7 +173,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -194,7 +194,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -215,7 +215,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -236,7 +236,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -257,7 +257,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -300,7 +300,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -321,7 +321,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -342,7 +342,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -363,7 +363,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -384,7 +384,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -405,7 +405,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();
@@ -426,7 +426,7 @@ public class TestExpressionResult {
         .setExpressionConfig(config)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     result = new ExpressionResult(node);
     result.join();

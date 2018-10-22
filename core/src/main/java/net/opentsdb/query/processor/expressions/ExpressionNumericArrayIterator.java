@@ -103,7 +103,7 @@ public class ExpressionNumericArrayIterator extends
     }
     next_ts.update(left != null ? left_value.timestamp() : right_value.timestamp());
     
-    switch (node.expressionConfig().getOperator()) {
+    switch (((ExpressionParseNode) node.config()).getOperator()) {
     // logical
     case OR:
       runOr(left_value, right_value);
@@ -149,7 +149,7 @@ public class ExpressionNumericArrayIterator extends
     default:
       throw new QueryDownstreamException("Expression iterator was "
           + "told to handle the unexpected operator: " 
-          + node.expressionConfig().getOperator());
+          + ((ExpressionParseNode) node.config()).getOperator());
     }
     
     return this;
@@ -215,7 +215,7 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > 0 || 
@@ -235,7 +235,7 @@ public class ExpressionNumericArrayIterator extends
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
@@ -283,7 +283,7 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > 0 && 
@@ -303,7 +303,7 @@ public class ExpressionNumericArrayIterator extends
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
@@ -351,7 +351,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] == right[right_idx++] ? 0 : 1;
@@ -368,7 +368,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] == right[right_idx++] ? 0 : 1;
@@ -402,7 +402,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] != right[right_idx++] ? 0 : 1;
@@ -419,7 +419,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] != right[right_idx++] ? 0 : 1;
@@ -454,7 +454,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] <= right[right_idx++] ? 0 : 1;
@@ -471,7 +471,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] <= right[right_idx++] ? 0 : 1;
@@ -506,7 +506,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] >= right[right_idx++] ? 0 : 1;
@@ -523,7 +523,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] >= right[right_idx++] ? 0 : 1;
@@ -557,7 +557,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] < right[right_idx++] ? 0 : 1;
@@ -574,7 +574,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] < right[right_idx++] ? 0 : 1;
@@ -608,7 +608,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > right[right_idx++] ? 0 : 1;
@@ -625,7 +625,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
-      if (node.expressionConfig().getNot()) {
+      if (((ExpressionParseNode) node.config()).getNot()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > right[right_idx++] ? 0 : 1;
@@ -662,7 +662,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
 
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = -(left[left_idx] + right[right_idx++]);
@@ -680,7 +680,7 @@ public class ExpressionNumericArrayIterator extends
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
@@ -734,7 +734,7 @@ public class ExpressionNumericArrayIterator extends
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
 
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = -(left[left_idx] - right[right_idx++]);
@@ -751,7 +751,7 @@ public class ExpressionNumericArrayIterator extends
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
@@ -805,7 +805,7 @@ public class ExpressionNumericArrayIterator extends
         convert(left_value.value().longArray()) : left_value.value().doubleArray();
     double[] right = right_value.value().isInteger() ?
         convert(right_value.value().longArray()) : right_value.value().doubleArray();
-    if (node.expressionConfig().getNegate()) {
+    if (((ExpressionParseNode) node.config()).getNegate()) {
       for (int left_idx = left_value.value().offset(); 
             left_idx < left_value.value().end(); left_idx++) {
         if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
@@ -866,7 +866,7 @@ public class ExpressionNumericArrayIterator extends
       long[] right = right_value.value().longArray();
 
       // TODO - deal with overflow
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
             left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = -(left[left_idx] * right[right_idx++]);
@@ -883,7 +883,7 @@ public class ExpressionNumericArrayIterator extends
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
@@ -937,7 +937,7 @@ public class ExpressionNumericArrayIterator extends
       long[] right = right_value.value().longArray();
 
       // TODO - deal with overflow
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
             left_idx < left_value.value().end(); left_idx++) {
           if (right[right_idx] == 0) {
@@ -964,7 +964,7 @@ public class ExpressionNumericArrayIterator extends
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (node.expressionConfig().getNegate()) {
+      if (((ExpressionParseNode) node.config()).getNegate()) {
         for (int left_idx = left_value.value().offset(); 
               left_idx < left_value.value().end(); left_idx++) {
           if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {

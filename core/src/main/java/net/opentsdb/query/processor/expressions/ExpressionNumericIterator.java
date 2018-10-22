@@ -63,12 +63,12 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       left_interpolator = null;
     } else {
       QueryInterpolatorConfig interpolator_config = 
-          ((ExpressionConfig) node.config()).interpolatorConfig(
+          ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
               NumericType.TYPE, 
-              (String) this.node.expressionConfig().getLeft());
+              (String) ((ExpressionParseNode) node.config()).getLeft());
       if (interpolator_config == null) {
         interpolator_config = 
-            ((ExpressionConfig) node.config())
+            ((BinaryExpressionNode) node).expressionConfig()
               .interpolatorConfig(NumericType.TYPE);
       }
       
@@ -95,11 +95,11 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       right_interpolator = null;
     } else {
       QueryInterpolatorConfig interpolator_config = 
-          ((ExpressionConfig) node.config()).interpolatorConfig(
+          ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
               NumericType.TYPE, 
-              (String) this.node.expressionConfig().getRight());
+              (String) ((ExpressionParseNode) node.config()).getRight());
       if (interpolator_config == null) {
-        interpolator_config = ((ExpressionConfig) node.config())
+        interpolator_config = ((BinaryExpressionNode) node).expressionConfig()
             .interpolatorConfig(NumericType.TYPE);
       }
       
@@ -176,7 +176,7 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
     }
     
     final NumericType result;
-    switch (node.expressionConfig().getOperator()) {
+    switch (((ExpressionParseNode) node.config()).getOperator()) {
     // logical
     case OR:
     case AND:
@@ -208,7 +208,7 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
     default:
       throw new QueryDownstreamException("Expression iterator was "
           + "told to handle the unexpected operator: " 
-          + node.expressionConfig().getOperator());
+          + ((ExpressionParseNode) node.config()).getOperator());
     }
     
     if (result == null) {

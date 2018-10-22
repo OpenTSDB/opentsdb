@@ -51,7 +51,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 public class TestExpressionTimeSeries {
 
   private BinaryExpressionNode node;
-  private ExpressionConfig config;
+  private ExpressionParseNode config;
   private QueryResult result;
   private Joiner joiner;
   private TimeSeries left;
@@ -114,11 +114,9 @@ public class TestExpressionTimeSeries {
       .setDataType(NumericType.TYPE.toString())
       .build();
     
-    config = (ExpressionConfig) ExpressionConfig.newBuilder()
-        .setExpression("metric.a + metric.b")
-        .setJoinConfig(jc)
+    config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setExpressionConfig(mock(ExpressionConfig.class))
         .setAs("e1")
-        .addInterpolatorConfig(numeric_config)
         .setId("e1")
         .build();
     when(node.config()).thenReturn(config);

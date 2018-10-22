@@ -142,9 +142,13 @@ public class ExpressionParser extends DefaultErrorStrategy
           + "expression from '" + config.getExpression() + "'");
     }
     
+    int last = nodes.size() - 1;
     // reset the ID on the last node as it's the root
-    nodes.get(nodes.size() - 1).overrideId(config.getId());
-    nodes.get(nodes.size() - 1).overrideAs(config.getAs());
+    nodes.set(last, (ExpressionParseNode) nodes.get(last)
+        .getBuilder()
+          .setAs(config.getAs())
+          .setId(config.getId())
+          .build());
     return nodes;
   }
   
@@ -330,7 +334,9 @@ public class ExpressionParser extends DefaultErrorStrategy
         .setExpressionOp(op);
     setBranch(builder, left, true);
     setBranch(builder, right, false);
-    builder.setId(config.getId() + "_SubExp#" + cntr++);
+    final String id = config.getId() + "_SubExp#" + cntr++;
+    builder.setId(id);
+    builder.setAs(id);
     final ExpressionParseNode config = (ExpressionParseNode) builder.build();
     nodes.add(config);
     return config;

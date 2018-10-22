@@ -190,7 +190,7 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
   
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static abstract class Builder {
+  public static abstract class Builder implements QueryNodeConfig.Builder {
 
     @JsonProperty
     protected String id;

@@ -78,7 +78,7 @@ public class TestBaseExpressionNumericIterator extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = 
         new MockIterator(node, RESULT, 
@@ -101,7 +101,7 @@ public class TestBaseExpressionNumericIterator extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = 
         new MockIterator(node, RESULT, 
@@ -124,7 +124,7 @@ public class TestBaseExpressionNumericIterator extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     iterator = 
         new MockIterator(node, RESULT, 
             (Map) ImmutableMap.builder()

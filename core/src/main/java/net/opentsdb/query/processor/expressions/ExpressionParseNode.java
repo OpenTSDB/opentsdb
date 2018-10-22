@@ -202,16 +202,6 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     return not;
   }
   
-  /** @param id The new id to set. */
-  public void setLeft(final String id) {
-    left = id;
-  }
-  
-  /** @param id The new id to set. */
-  public void setRight(final String id) {
-    right = id;
-  }
-  
   /** @return The original expressionConfig. */
   public ExpressionConfig getExpressionConfig() {
     return expression_config;
@@ -290,29 +280,19 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     return id;
   }
   
-  void addSource(final String source) {
-    // NOTE: since it could be set to Collections.emptyList() we need 
-    // to store an actual list.
-    if (sources == null || sources.isEmpty()) {
-      sources = Lists.newArrayListWithExpectedSize(2);
-    }
-    sources.add(source);
-  }
-  
-  /**
-   * Package private method to override the ID
-   * @param id A non-null ID to set.
-   */
-  void overrideId(final String id) {
-    this.id = id;
-  }
-  
-  /**
-   * Package private method to override the as string.
-   * @param as The non-null as string to set for the new metric.
-   */
-  void overrideAs(final String as) {
-    this.as = as;
+  public Builder getBuilder() {
+    return (Builder) new Builder()
+        .setExpressionConfig(expression_config)
+        .setExpressionOp(op)
+        .setLeft(left)
+        .setLeftType(left_type)
+        .setRight(right)
+        .setRightType(right_type)
+        .setNegate(negate)
+        .setNot(not)
+        .setAs(as)
+        .setSources(Lists.newArrayList(sources))
+        .setId(id);
   }
   
   static Builder newBuilder() {
@@ -336,6 +316,8 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     private boolean not;
     @JsonProperty
     private ExpressionConfig expressionConfig;
+    @JsonProperty
+    private String as;
     
     Builder() {
       setType(BinaryExpressionNodeFactory.TYPE);
@@ -379,6 +361,19 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     public Builder setExpressionConfig(final ExpressionConfig expression_config) {
       this.expressionConfig = expression_config;
       return this;
+    }
+    
+    public Builder setAs(final String as) {
+      this.as = as;
+      return this;
+    }
+    
+    public Object left() {
+      return left;
+    }
+    
+    public Object right() {
+      return right;
     }
     
     @Override

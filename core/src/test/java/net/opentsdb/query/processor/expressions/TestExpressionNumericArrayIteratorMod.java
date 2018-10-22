@@ -54,7 +54,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
   }
   
   @Test
@@ -112,7 +112,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -186,7 +186,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setNegate(true)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -320,7 +320,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -359,8 +359,8 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -395,7 +395,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -422,7 +422,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericArrayIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -455,7 +455,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -482,7 +482,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     iterator = new ExpressionNumericArrayIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
@@ -515,7 +515,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -550,7 +550,7 @@ public class TestExpressionNumericArrayIteratorMod extends BaseNumericTest {
         .setExpressionConfig(CONFIG)
         .setId("expression")
         .build();
-    when(node.expressionConfig()).thenReturn(expression_config);
+    when(node.config()).thenReturn(expression_config);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
