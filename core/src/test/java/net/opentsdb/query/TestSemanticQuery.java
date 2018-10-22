@@ -158,11 +158,9 @@ public class TestSemanticQuery {
         .build();
 
     assertEquals(null, endTimeAfterCurrentTimeAndNoStartTime.getStart());
-    assertEquals(DateTime.currentTimeMillis() / 1000, endTimeAfterCurrentTimeAndNoStartTime.startTime().epoch());
+    assertTrue(1000000000 < endTimeAfterCurrentTimeAndNoStartTime.startTime().epoch() && endTimeAfterCurrentTimeAndNoStartTime.startTime().epoch() < 9999999999L);
     assertEquals("9999999999", endTimeAfterCurrentTimeAndNoStartTime.getEnd());
     assertEquals(9999999999L, endTimeAfterCurrentTimeAndNoStartTime.endTime().epoch());
-
-
 
     SemanticQuery endTimeBeforeCurrentTimeAndNoStartTime = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -180,7 +178,7 @@ public class TestSemanticQuery {
     assertEquals(null, endTimeBeforeCurrentTimeAndNoStartTime.getStart());
     assertEquals(1000000000, endTimeBeforeCurrentTimeAndNoStartTime.startTime().epoch());
     assertEquals("1000000000", endTimeBeforeCurrentTimeAndNoStartTime.getEnd());
-    assertEquals(DateTime.currentTimeMillis() / 1000, endTimeBeforeCurrentTimeAndNoStartTime.endTime().epoch());
+    assertTrue(1000000000 < endTimeBeforeCurrentTimeAndNoStartTime.endTime().epoch() && endTimeBeforeCurrentTimeAndNoStartTime.endTime().epoch() < 9999999999L);
 
     SemanticQuery noEndTimeAndStartTimeAfterCurrentTime = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -196,7 +194,7 @@ public class TestSemanticQuery {
         .build();
 
     assertEquals("9999999999", noEndTimeAndStartTimeAfterCurrentTime.getStart());
-    assertEquals(DateTime.currentTimeMillis() / 1000, noEndTimeAndStartTimeAfterCurrentTime.startTime().epoch());
+    assertTrue(1000000000 < noEndTimeAndStartTimeAfterCurrentTime.startTime().epoch() && noEndTimeAndStartTimeAfterCurrentTime.startTime().epoch() < 9999999999L);
     assertEquals(null, noEndTimeAndStartTimeAfterCurrentTime.getEnd());
     assertEquals(9999999999L, noEndTimeAndStartTimeAfterCurrentTime.endTime().epoch());
 
@@ -216,7 +214,7 @@ public class TestSemanticQuery {
     assertEquals("1000000000", noEndTimeAndStartTimeBeforeCurrentTime.getStart());
     assertEquals(1000000000, noEndTimeAndStartTimeBeforeCurrentTime.startTime().epoch());
     assertEquals(null, noEndTimeAndStartTimeBeforeCurrentTime.getEnd());
-    assertEquals(DateTime.currentTimeMillis() / 1000, noEndTimeAndStartTimeBeforeCurrentTime.endTime().epoch());
+    assertTrue(1000000000 < noEndTimeAndStartTimeBeforeCurrentTime.endTime().epoch() && noEndTimeAndStartTimeBeforeCurrentTime.endTime().epoch() < 9999999999L);
 
     SemanticQuery EndTimeBeforeStartTime = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
