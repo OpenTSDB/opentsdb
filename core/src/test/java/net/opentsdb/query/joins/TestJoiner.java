@@ -523,6 +523,41 @@ public class TestJoiner extends BaseJoinTest {
   }
   
   @Test
+  public void hashStringIdNaturalNoAliasOrNamespace() throws Exception {
+    l1_id = BaseTimeSeriesStringId.newBuilder()
+        //.setAlias(ALIAS_L)
+        //.setNamespace(NAMESPACE)
+        .setMetric(METRIC_L)
+        .addTags("host", "web01")
+        .build();
+    when(L_1.id()).thenReturn(l1_id);
+    r1_id = BaseTimeSeriesStringId.newBuilder()
+        //.setAlias(ALIAS_R)
+        //.setNamespace(NAMESPACE)
+        .setMetric(METRIC_R)
+        .addTags("host", "web01")
+        .build();
+    when(R_1.id()).thenReturn(r1_id);
+    
+    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
+        .setJoinType(JoinType.NATURAL)
+        .setId(ID)
+        .build();
+    
+    Joiner joiner = new Joiner(config);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
+        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    
+    long hash = set.left_map.keys()[0];
+    assertEquals(1, set.left_map.size());
+    assertSame(L_1, set.left_map.get(hash).get(0));
+    assertEquals(1, set.right_map.size());
+    assertSame(R_1, set.right_map.get(hash).get(0));
+  }
+  
+  @Test
   public void hashStringIdCrossNoTags() throws Exception {
     setStringIds();
     
@@ -1139,6 +1174,41 @@ public class TestJoiner extends BaseJoinTest {
     
     assertNull(set.left_map);
     assertNull(set.right_map);
+  }
+  
+  @Test
+  public void hashByteIdNaturalNoAliasOrNamespace() throws Exception {
+    l1_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        //.setAlias(ALIAS_L_BYTES)
+        //.setNamespace(NAMESPACE_BYTES)
+        .setMetric(METRIC_L_BYTES)
+        .addTags(HOST, WEB01)
+        .build();
+    when(L_1.id()).thenReturn(l1_id);
+    r1_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        //.setAlias(ALIAS_R_BYTES)
+        //.setNamespace(NAMESPACE_BYTES)
+        .setMetric(METRIC_R_BYTES)
+        .addTags(HOST, WEB01)
+        .build();
+    when(R_1.id()).thenReturn(r1_id);
+    
+    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
+        .setJoinType(JoinType.NATURAL)
+        .setId(ID)
+        .build();
+    
+    Joiner joiner = new Joiner(config);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
+        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
+    joiner.hashByteId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    
+    long hash = set.left_map.keys()[0];
+    assertEquals(1, set.left_map.size());
+    assertSame(L_1, set.left_map.get(hash).get(0));
+    assertEquals(1, set.right_map.size());
+    assertSame(R_1, set.right_map.get(hash).get(0));
   }
   
   @Test
