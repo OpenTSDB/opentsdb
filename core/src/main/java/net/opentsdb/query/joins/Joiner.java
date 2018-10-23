@@ -16,6 +16,7 @@ package net.opentsdb.query.joins;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -530,23 +531,24 @@ public class Joiner {
     
     final ByteSet agg_tags = new ByteSet();
     final ByteSet disj_tags = new ByteSet();
+    
     agg_tags.addAll(left.aggregatedTags());
     final Iterator<byte[]> it = agg_tags.iterator();
     while (it.hasNext()) {
       final byte[] tag = it.next();
-      if (!right.aggregatedTags().contains(tag)) {
+      if (!contains(tag, right.aggregatedTags())) {
         it.remove();
         disj_tags.add(tag);
       }
     }
     for (final byte[] tag : right.disjointTags()) {
-      if (agg_tags.contains(tag)) {
+      if (contains(tag, agg_tags)) {
         agg_tags.remove(tag);
         disj_tags.add(tag);
       }
     }
     for (final byte[] tag: right.aggregatedTags()) {
-      if (!agg_tags.contains(tag) && !left.tags().containsKey(tag)) {
+      if (!contains(tag, agg_tags) && !left.tags().containsKey(tag)) {
         agg_tags.remove(tag);
         disj_tags.add(tag);
       }
@@ -555,16 +557,16 @@ public class Joiner {
     disj_tags.addAll(right.disjointTags());
     
     for (final Entry<byte[], byte[]> entry : left.tags().entrySet()) {
-      if (disj_tags.contains(entry.getKey())) {
+      if (contains(entry.getKey(), disj_tags)) {
         continue;
       }
-      if (agg_tags.contains(entry.getKey())) {
+      if (contains(entry.getKey(), agg_tags)) {
         continue;
       }
       final byte[] tagv = right.tags().get(entry.getKey());
       if (tagv == null) {
         agg_tags.add(entry.getKey());
-      } else if (entry.getValue().equals(tagv)) {
+      } else if (Bytes.memcmp(entry.getValue(), tagv) == 0) {
         builder.addTags(entry.getKey(), tagv);
       } else {
         // promote to agg tags
@@ -574,16 +576,16 @@ public class Joiner {
     
     // right side now
     for (final Entry<byte[], byte[]> entry : right.tags().entrySet()) {
-      if (disj_tags.contains(entry.getKey())) {
+      if (contains(entry.getKey(), disj_tags)) {
         continue;
       }
-      if (agg_tags.contains(entry.getKey())) {
+      if (contains(entry.getKey(), agg_tags)) {
         continue;
       }
       final byte[] tagv = left.tags().get(entry.getKey());
       if (tagv == null) {
         disj_tags.add(entry.getKey());
-      } else if (entry.getValue().equals(tagv)) {
+      } else if (Bytes.memcmp(entry.getValue(), tagv) == 0) {
         // skip, already added.
       } else {
         // promote to agg tags
@@ -758,5 +760,14 @@ public class Joiner {
     } catch (IOException e) {
       throw new QueryExecutionException("Unexpected exception joining results", 0, e);
     }
+  }
+  
+  static boolean contains(final byte[] tag, final Collection<byte[]> tags) {
+    for (final byte[] wanted : tags) {
+      if (Bytes.memcmp(wanted, tag) == 0) {
+        return true;
+      }
+    }
+    return false;
   }
 }

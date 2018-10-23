@@ -1482,7 +1482,7 @@ public class TestJoiner extends BaseJoinTest {
     assertArrayEquals(WEB04, id.tags().get(HOST));
     assertTrue(id.aggregatedTags().isEmpty());
     assertEquals(1, id.disjointTags().size());
-    assertTrue(id.disjointTags().contains(OWNER));
+    assertTrue(Joiner.contains(OWNER, id.disjointTags()));
     
     // tagless promote
     TimeSeries ts = mock(TimeSeries.class);
