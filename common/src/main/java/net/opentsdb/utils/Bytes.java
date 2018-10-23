@@ -712,8 +712,26 @@ public final class Bytes {
   public static final class ByteMap<V> extends TreeMap<byte[], V>
     implements Iterable<Map.Entry<byte[], V>> {
 
+    /**
+     * Default ctor.
+     */
     public ByteMap() {
       super(MEMCMP);
+    }
+    
+    /**
+     * Copy constructor. NOTE: Copies references, not the values of the
+     * byte arrays. So if an underlying array changes it's values, then
+     * the copy will be mutated as well.
+     * @param other Another non-null object to copy from.
+     */
+    public ByteMap(final Iterable<Entry<byte[], V>> other) {
+      super(MEMCMP);
+      final Iterator<Entry<byte[], V>> iterator = other.iterator();
+      while (iterator.hasNext()) {
+        final Entry<byte[], V> entry = iterator.next();
+        put(entry.getKey(), entry.getValue());
+      }
     }
 
     /** Returns an iterator that goes through all the entries in this map.  */

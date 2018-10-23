@@ -17,7 +17,9 @@ package net.opentsdb.query.joins;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.junit.BeforeClass;
 import org.mockito.invocation.InvocationOnMock;
@@ -31,6 +33,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.QueryResult;
@@ -521,7 +524,7 @@ public class BaseJoinTest {
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB01)
         .build();
-    when(R_1.id()).thenReturn(r1_id);
+    when(R_1.id()).thenReturn(clone(r1_id));
     
     l2_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
@@ -537,7 +540,7 @@ public class BaseJoinTest {
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB03)
         .build();
-    when(R_3.id()).thenReturn(r3_id);
+    when(R_3.id()).thenReturn(clone(r3_id));
     
     l4_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
@@ -553,7 +556,7 @@ public class BaseJoinTest {
         .addTags(HOST, WEB04)
         .addTags(OWNER, TYRION)
         .build();
-    when(R_4A.id()).thenReturn(r4a_id);
+    when(R_4A.id()).thenReturn(clone(r4a_id));
     r4b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
@@ -561,7 +564,7 @@ public class BaseJoinTest {
         .addTags(HOST, WEB04)
         .addTags(OWNER, CERSEI)
         .build();
-    when(R_4B.id()).thenReturn(r4b_id);
+    when(R_4B.id()).thenReturn(clone(r4b_id));
     
     l5a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
@@ -585,7 +588,7 @@ public class BaseJoinTest {
         .setMetric(METRIC_R_BYTES)
         .addTags(HOST, WEB05)
         .build();
-    when(R_5.id()).thenReturn(r5_id);
+    when(R_5.id()).thenReturn(clone(r5_id));
     
     l6a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_L_BYTES)
@@ -610,7 +613,7 @@ public class BaseJoinTest {
         .addTags(HOST, WEB06)
         .addTags(OWNER, TYRION)
         .build();
-    when(R_6A.id()).thenReturn(r6a_id);
+    when(R_6A.id()).thenReturn(clone(r6a_id));
     r6b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
         .setAlias(ALIAS_R_BYTES)
         .setNamespace(NAMESPACE_BYTES)
@@ -618,7 +621,48 @@ public class BaseJoinTest {
         .addTags(HOST, WEB06)
         .addTags(OWNER, CERSEI)
         .build();
-    when(R_6B.id()).thenReturn(r6b_id);
+    when(R_6B.id()).thenReturn(clone(r6b_id));
+  }
+  
+  protected static TimeSeriesId clone(final TimeSeriesId id) {
+    if (id instanceof TimeSeriesByteId) {
+      BaseTimeSeriesByteId.Builder builder = 
+          BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class));
+      final TimeSeriesByteId byte_id = (TimeSeriesByteId) id;
+      if (byte_id.alias() != null) {
+        builder.setAlias(Arrays.copyOf(byte_id.alias(), byte_id.alias().length));
+      }
+      
+      if (byte_id.namespace() != null) {
+        builder.setNamespace(Arrays.copyOf(byte_id.namespace(), byte_id.namespace().length));
+      }
+      
+      if (byte_id.metric() != null) {
+        builder.setMetric(Arrays.copyOf(byte_id.metric(), byte_id.metric().length));
+      }
+      
+      for (final Entry<byte[], byte[]> entry : byte_id.tags().entrySet()) {
+        builder.addTags(Arrays.copyOf(entry.getKey(), entry.getKey().length), 
+            Arrays.copyOf(entry.getValue(), entry.getValue().length));
+      }
+      
+      for (final byte[] tag : byte_id.aggregatedTags()) {
+        builder.addAggregatedTag(Arrays.copyOf(tag, tag.length));
+      }
+      
+      for (final byte[] tag : byte_id.disjointTags()) {
+        builder.addDisjointTag(Arrays.copyOf(tag, tag.length));
+      }
+      
+      for (final byte[] tsuid : byte_id.uniqueIds()) {
+        builder.addUniqueId(Arrays.copyOf(tsuid, tsuid.length));
+      }
+      
+      return builder.build();
+    }
+    
+    // TODO strings
+    throw new UnsupportedOperationException();
   }
   
   static class UTBaseHashedJoinSet extends BaseHashedJoinSet {
