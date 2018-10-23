@@ -150,8 +150,8 @@ public class Joiner {
                   id.namespace(), id.alias());
             }
             
-            if (Bytes.memcmp(local_key, left_key) != 0 && 
-                Bytes.memcmp(local_key, right_key) != 0) {
+            if (Bytes.memcmpMaybeNull(local_key, left_key) != 0 && 
+                Bytes.memcmpMaybeNull(local_key, right_key) != 0) {
               // we didn't match on the alias so try the metric.
               if (id.namespace() == null || id.namespace().length < 1) {
                 key = id.metric();
@@ -171,8 +171,8 @@ public class Joiner {
             }
           }
           
-          if (Bytes.memcmp(key, left_key) != 0 && 
-              Bytes.memcmp(key, right_key) != 0) {
+          if (Bytes.memcmpMaybeNull(key, left_key) != 0 && 
+              Bytes.memcmpMaybeNull(key, right_key) != 0) {
             // TODO - log ejection
             continue;
           }
@@ -185,7 +185,8 @@ public class Joiner {
             final String local_key = Strings.isNullOrEmpty(id.namespace()) ? 
                 id.alias() :
                   id.namespace() + id.alias();
-            byte[] key_in_bytes = local_key.getBytes(Const.UTF8_CHARSET);
+            byte[] key_in_bytes = local_key != null ? 
+                local_key.getBytes(Const.UTF8_CHARSET) : new byte[0];
             if (Bytes.memcmp(key_in_bytes, left_key) != 0 && 
                 Bytes.memcmp(key_in_bytes, right_key) != 0) {
               // we didn't match on the alias so try the metric.
