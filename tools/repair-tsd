@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+from subprocess import Popen, PIPE, TimeoutExpired
+from random import shuffle
+import time
+import argparse
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+import logging
+import pprint
+
+log = logging.getLogger("tsd-repair")
+log.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+logformat = '%(asctime)s %(name)s %(levelname)s %(message)s'
+formatter = logging.Formatter(logformat)
+ch.setFormatter(formatter)
+log.addHandler(ch)
+
+
+def get_metrics():
+    """
+    Collect all metrics from OpenTSDB
+
+    :returns: all metrics
+    :rtype: list
+    """
+    proc = Popen('/usr/share/opentsdb/bin/tsdb uid grep metrics ".*"',
+                 shell=True, stdout=PIPE, stderr=PIPE)
+    results = proc.communicate()
+    metrics = [m.split(" ")[1].strip(":")
+               for m in results[0].decode().split("\n") if m]
+    metrics = [m for m in metrics if m and m != "\x00"]
+    shuffle(metrics)
+    log.info("There are {} metrics to process".format(len(metrics)))
+    return metrics
+
+
+def process_metrics(metrics, time_range, timeout):
+    """
+    Run fsck on a list of metrics over a time range
+    """
+    failed_metrics = []
+    base = "sudo -u opentsdb /usr/share/opentsdb/bin/tsdb fsck"
+    cmd = "{} {}h-ago sum".format(base, time_range)
+    for index, metric in enumerate(metrics):
+        log.info("Repairing {} ({} of {})".format(metric,
+                                                  index + 1,
+                                                  len(metrics)))
+        fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
+        metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
+        try:
+            results, err = metricproc.communicate(timeout=timeout)
+        except TimeoutExpired:
+            log.warning("{} failed to complete in window".format(metric))
+            failed_metrics.append(metric)
+        except Exception as e:
+            log.error("General exception processing {} :: {}".format(metric,
+                                                                     e))
+        else:
+            results = [r for r in results.decode().split("\n") if r][-26:]
+            final_results = []
+            for r in results:
+                line = r.split(" ")[6:]
+                try:
+                    if int(line[-1]) != 0:
+                        final_results.append(" ".join(line))
+                except Exception:
+                    final_results.append(" ".join(line))
+            result_str = "\n".join(final_results)
+            log.info("{} results:\n{}".format(metric,
+                                              result_str))
+        log.debug("Waiting 10 seconds to give HBase a break...")
+        time.sleep(10)
+    return failed_metrics
+
+
+def cli_opts():
+    parser = ArgumentParser(description="Repair all OpenTSDB metrics",
+                            formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--debug", action="store_true", default=False,
+                        help="Show debug information")
+    parser.add_argument("--time-range", default="730",
+                        help="How many hours of time we collect to repair")
+    parser.add_argument("--timeout", default="360",
+                        help="How many seconds we allow each fsck to run")
+    parser.add_argument("--retries", default="1",
+                        help="How many times we should try failed metrics")
+    return parser.parse_args()
+
+
+def main():
+    args = cli_opts()
+    if args.debug:
+        log.setLevel(logging.DEBUG)
+    try:
+        time_range = int(args.time_range)
+    except Exception as e:
+        log.error("Invalid time range {} :: {}".format(args.time_range, e))
+    try:
+        retries = int(args.retries)
+    except Exception as e:
+        log.error("Invalid retry number {} :: {}".format(args.retries, e))
+    try:
+        timeout = int(args.timeout)
+    except Exception as e:
+        log.error("Invalid timeout {} :: {}".format(args.timeout, e))
+
+    warn = "You have set a timeout of {} seconds.".format(timeout)
+    warn += " All individual metric repairs are allowed to run"
+    warn += " that long. Please don't cancel a repair while it"
+    warn += " is running!"
+    log.warning(warn)
+    metrics = get_metrics()
+    failed = process_metrics(metrics, time_range, timeout)
+
+    for x in range(0, retries):
+        if not failed:
+            continue
+        log.info("{} metrics failed".format(len(failed)))
+        failed_str = "\n".join(failed)
+        log.debug("failed metrics:\n{}".format(pprint.pformat(failed_str)))
+        log.info("Re-trying with failed metrics only...")
+        failed = process_metrics(failed, time_range, timeout)
+    log.info("After {} repair runs:".format(retries+1))
+    log.info("{} un-repaired metrics".format(len(failed)))
+
+
+if __name__ == "__main__":
+    main()
