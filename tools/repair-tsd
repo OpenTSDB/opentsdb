@@ -83,6 +83,7 @@ class TSDRepair(object):
                 self.log.info("{} results:\n{}".format(metric, result_str))
             self.log.debug("Waiting 10 seconds to give HBase a break...")
             time.sleep(10)
+        self.log.info("{} metrics failed".format(len(failed_metrics)))
         self.metrics = failed_metrics
 
 
@@ -131,7 +132,6 @@ def main():
     for x in range(0, retries):
         if not repair_tool.metrics:
             continue
-        log.info("{} metrics failed".format(len(repair_tool.metrics)))
         failed_str = "\n".join(repair_tool.metrics)
         log.debug("failed metrics:\n{}".format(pprint.pformat(failed_str)))
         log.info("Re-trying with failed metrics only...")
