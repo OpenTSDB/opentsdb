@@ -16,25 +16,19 @@ package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
@@ -45,48 +39,6 @@ import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
 import net.opentsdb.utils.JSON;
 
 public class TestExpressionParseNode {
-
-  @Test
-  public void deserialize() throws Exception {
-    DefaultInterpolatorFactory factory = new DefaultInterpolatorFactory();
-    MockTSDB tsdb = new MockTSDB();
-    factory.initialize(tsdb, null).join();
-    when(tsdb.getRegistry().getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
-      .thenReturn(factory);
-    when(tsdb.getRegistry().getType(anyString())).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return NumericType.TYPE;
-      }
-    });
-    
-    final String json = "{\"id\":\"exp\",\"left\":\"a\",\"right\":\"42\","
-        + "\"negate\":false,\"not\":true,\"leftType\":\"VARIABLE\","
-        + "\"rightType\":\"LITERAL_NUMERIC\",\"operator\":\"MOD\","
-        + "\"expressionConfig\":{\"id\":\"e1\",\"expression\":\"a + 42\","
-        + "\"as\":\"some.metric.name\",\"join\":{\"id\":\"jc\","
-        + "\"joinType\":\"INNER\",\"joins\":{\"host\":\"host\"},"
-        + "\"explicitTags\":false},\"variableInterpolators\":{\"a\":["
-        + "{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"PREFER_NEXT\","
-        + "\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\"}]},"
-        + "\"infectiousNan\":false,\"interpolatorConfigs\":"
-        + "[{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"PREFER_NEXT\","
-        + "\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\"}]}}\n";
-    
-    JsonNode jn = JSON.getMapper().readTree(json);
-    ExpressionParseNode node = (ExpressionParseNode) 
-        new BinaryExpressionNodeFactory()
-          .parseConfig(JSON.getMapper(), tsdb, jn);
-    
-    assertEquals("a", node.getLeft());
-    assertEquals(OperandType.VARIABLE, node.getLeftType());
-    assertEquals(42, ((NumericLiteral) node.getRight()).longValue());
-    assertEquals(OperandType.LITERAL_NUMERIC, node.getRightType());
-    assertEquals(ExpressionOp.MOD, node.getOperator());
-    assertFalse(node.getNegate());
-    assertTrue(node.getNot());
-    assertEquals("a + 42", node.getExpressionConfig().getExpression());
-  }
   
   @Test
   public void expressionOp() throws Exception {
@@ -171,7 +123,7 @@ public class TestExpressionParseNode {
   }
 
   @Test
-  public void serialize() throws Exception {
+  public void serdes() throws Exception {
     NumericInterpolatorConfig numeric_config = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -196,22 +148,46 @@ public class TestExpressionParseNode {
     ExpressionParseNode node = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId("m1")
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MOD)
         .setExpressionConfig(config)
+        .setAs("foo")
+        .setNot(true)
         .setId("expression")
         .build();
     
     final String json = JSON.serializeToString(node);
+    System.out.println(json);
     assertTrue(json.contains("\"left\":\"a\""));
     assertTrue(json.contains("\"right\":\"42\""));
-    assertTrue(json.contains("\"negate\":false,\"not\""));
-    assertTrue(json.contains("\"not\":false"));
+    assertTrue(json.contains("\"negate\":false"));
+    assertTrue(json.contains("\"not\":true"));
     assertTrue(json.contains("\"leftType\":\"VARIABLE\""));
     assertTrue(json.contains("\"rightType\":\"LITERAL_NUMERIC\""));
     assertTrue(json.contains("\"operator\":\"MOD\""));
     assertTrue(json.contains("\"expressionConfig\":{"));
     assertTrue(json.contains("\"expression\":\"a + 42\""));
+    assertTrue(json.contains("\"leftId\":\"m1\""));
+    assertFalse(json.contains("\"rightId\":"));
+    assertTrue(json.contains("\"as\":\"foo\""));
+    
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
+    JsonNode jn = JSON.getMapper().readTree(json);
+    node = (ExpressionParseNode) new BinaryExpressionNodeFactory()
+          .parseConfig(JSON.getMapper(), tsdb, jn);
+    
+    assertEquals("a", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("m1", node.getLeftId());
+    assertEquals(42, ((NumericLiteral) node.getRight()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, node.getRightType());
+    assertNull(node.getRightId());
+    assertEquals(ExpressionOp.MOD, node.getOperator());
+    assertFalse(node.getNegate());
+    assertTrue(node.getNot());
+    assertEquals("a + 42", node.getExpressionConfig().getExpression());
+    assertEquals("foo", node.getAs());
   }
 }

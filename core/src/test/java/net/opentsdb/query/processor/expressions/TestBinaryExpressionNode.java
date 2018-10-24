@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -49,6 +48,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -119,7 +119,7 @@ public class TestBinaryExpressionNode {
         factory, context, expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.config());
-    assertTrue(node.need_two_sources);
+    assertEquals(2, node.results.size());
     assertNotNull(node.result);
     assertNotNull(node.joiner());
     
@@ -136,15 +136,18 @@ public class TestBinaryExpressionNode {
     node = new BinaryExpressionNode(factory, context, expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expression_config);
-    assertTrue(node.need_two_sources);
+    assertEquals(2, node.results.size());
     assertNotNull(node.result);
     assertNotNull(node.joiner());
+    assertEquals(2, node.results.size());
+    assertTrue(node.results.containsKey("a"));
+    assertTrue(node.results.containsKey("SubExp#1"));
     
     // one needed
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
-        .setRight("42#1")
+        .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -153,9 +156,11 @@ public class TestBinaryExpressionNode {
     node = new BinaryExpressionNode(factory, context, expression_config);
     assertSame(config, node.config);
     assertSame(expression_config, node.expression_config);
-    assertFalse(node.need_two_sources);
+    assertEquals(1, node.results.size());
     assertNotNull(node.result);
     assertNotNull(node.joiner());
+    assertEquals(1, node.results.size());
+    assertTrue(node.results.containsKey("a"));
     
     try {
       new BinaryExpressionNode(factory, null, expression_config);
@@ -207,10 +212,12 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("b");
     
     node.onNext(r1);
-    assertEquals(1, ((ExpressionResult) node.result).results.size());
+    assertEquals(0, ((ExpressionResult) node.result).results.size());
     verify(upstream, never()).onNext(any(QueryResult.class));
     
     node.onNext(r2);
@@ -235,6 +242,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     
     node.onNext(r1);
     assertEquals(1, ((ExpressionResult) node.result).results.size());
@@ -248,7 +256,9 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("b");
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -314,7 +324,7 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertEquals(1, ((ExpressionResult) node.result).results.size());
+    assertEquals(0, ((ExpressionResult) node.result).results.size());
     
     node.onNext(r2);
     assertEquals(2, ((ExpressionResult) node.result).results.size());
@@ -337,8 +347,16 @@ public class TestBinaryExpressionNode {
         factory, context, expression_config);
     node.initialize(null);
     
+    QueryNode n2 = mock(QueryNode.class);
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(n2.config()).thenReturn(c2);
+    when(c2.getId()).thenReturn("sub");
+    
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("ignored");
+    when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -404,7 +422,7 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertEquals(1, ((ExpressionResult) node.result).results.size());
+    assertEquals(0, ((ExpressionResult) node.result).results.size());
     
     node.onNext(r2);
     assertEquals(2, ((ExpressionResult) node.result).results.size());
@@ -427,8 +445,22 @@ public class TestBinaryExpressionNode {
         factory, context, expression_config);
     node.initialize(null);
     
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(n1.config()).thenReturn(c1);
+    when(c1.getId()).thenReturn("sub1");
+    
+    QueryNode n2 = mock(QueryNode.class);
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(n2.config()).thenReturn(c2);
+    when(c2.getId()).thenReturn("sub2");
+    
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("ignore");
+    when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("ignore");
+    when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -479,7 +511,7 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertEquals(1, ((ExpressionResult) node.result).results.size());
+    assertEquals(0, ((ExpressionResult) node.result).results.size());
     
     node.onNext(r2);
     assertEquals(2, ((ExpressionResult) node.result).results.size());
@@ -503,6 +535,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("b");
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -582,6 +615,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -651,7 +685,9 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("b");
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -716,7 +752,9 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("b");
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -791,7 +829,9 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
     QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn("b");
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {

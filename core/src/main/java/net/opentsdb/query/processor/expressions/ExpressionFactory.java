@@ -97,7 +97,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     final List<QueryNodeConfig> new_nodes = 
         Lists.newArrayListWithCapacity(configs.size());
     for (final ExpressionParseNode parse_node : configs) {
-      ExpressionParseNode.Builder builder = (Builder) parse_node.getBuilder()
+      ExpressionParseNode.Builder builder = (Builder) parse_node.toBuilder()
           .setSources(Lists.newArrayList());
       if (parse_node.getLeftType() == OperandType.SUB_EXP) {
         builder.addSource((String) parse_node.getLeft());
@@ -207,19 +207,23 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
       if (left && key.equals(downstream.getId())) {
         // TODO - cleanup the filter checks as it may be a regex or something else!!!
         builder.setLeft(((TimeSeriesDataSourceConfig) downstream)
-            .getMetric().getMetric());
+                 .getMetric().getMetric())
+               .setLeftId(downstream.getId());
         return downstream.getId();
       } else if (left && 
           key.equals(((TimeSeriesDataSourceConfig) downstream)
               .getMetric().getMetric())) {
+        builder.setLeftId(downstream.getId());
         return downstream.getId();
         // right
       } else if (key.equals(downstream.getId())) {
         builder.setRight(((TimeSeriesDataSourceConfig) downstream)
-            .getMetric().getMetric());
+                 .getMetric().getMetric())
+               .setRightId(downstream.getId());
         return downstream.getId();
       } else if (key.equals(((TimeSeriesDataSourceConfig) downstream)
           .getMetric().getMetric())) {
+        builder.setRightId(downstream.getId());
         return downstream.getId();
       }
     }
