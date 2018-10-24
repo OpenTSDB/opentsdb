@@ -15,9 +15,11 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.common.Const;
@@ -61,7 +63,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
   
   /** Whether or not we need two sources or if we're operating on a 
    * source and a literal. */
-  protected final boolean need_two_sources;
+  protected final Map<String, QueryResult> results;
   
   /** The result to populate and return. */
   protected ExpressionResult result;
@@ -87,11 +89,23 @@ public class BinaryExpressionNode extends AbstractQueryNode {
     this.expression_config = expression_config;
     config = expression_config.getExpressionConfig();
     result = new ExpressionResult(this);
-    need_two_sources = 
-        (expression_config.getLeftType() == OperandType.SUB_EXP || 
-         expression_config.getLeftType() == OperandType.VARIABLE) &&
-        (expression_config.getRightType() == OperandType.SUB_EXP || 
-         expression_config.getRightType() == OperandType.VARIABLE);
+    results = Maps.newLinkedHashMapWithExpectedSize(2);
+    if (expression_config.getLeftType() == OperandType.SUB_EXP || 
+        expression_config.getLeftType() == OperandType.VARIABLE) {
+      if (expression_config.getLeftId() == null) {
+        results.put((String) expression_config.getLeft(), null);
+      } else {
+        results.put(expression_config.getLeftId(), null);
+      }
+    }
+    if (expression_config.getRightType() == OperandType.SUB_EXP || 
+         expression_config.getRightType() == OperandType.VARIABLE) {
+      if (expression_config.getRightId() == null) {
+        results.put((String) expression_config.getRight(), null);
+      } else {
+        results.put(expression_config.getRightId(), null);
+      }
+    }
     joiner = new Joiner(config.getJoin());
   }
 
@@ -108,11 +122,20 @@ public class BinaryExpressionNode extends AbstractQueryNode {
   
   @Override
   public void onNext(final QueryResult next) {
-    // TODO - track the source properly
+    if (results.containsKey(next.dataSource())) {
+      synchronized (this) {
+        results.put(next.dataSource(), next);
+      }
+    } else if (results.containsKey(next.source().config().getId())) {
+      synchronized (this) {
+        results.put(next.source().config().getId(), next);
+      }
+    } else {
+      return;
+    }
     
     // NOTE: There is a race condition here where two results may resolve
     // the IDs. That's ok though.
-    
     class ErrorCB implements Callback<Object, Exception> {
       @Override
       public Object call(final Exception ex) throws Exception {
@@ -151,6 +174,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
           if (expression_config.getRightType() == OperandType.VARIABLE) {
             right_metric = uids.get(idx);
           }
+          
           resolved_metrics = true;
           // fall through to the next step
           onNext(next);
@@ -211,26 +235,26 @@ public class BinaryExpressionNode extends AbstractQueryNode {
       return;
     }
     
-    // TODO - super brittle and poor code here in that we're assuming 
-    // two downstream sources will give us two results or if we only
-    // need one that the given result contains what we need.
-    if (!need_two_sources) {
-      result.add(next);
+    // see if all the results are in.
+    int received = 0;
+    synchronized (this) {
+      for (final QueryResult result : results.values()) {
+        if (result != null) {
+          received++;
+        }
+      }
+    }
+    
+    if (received == results.size()) {
+      for (final QueryResult r : results.values()) {
+        result.add(r);
+      }
+      
       result.join();
       try {
         sendUpstream(result);
       } catch (Exception e) {
         sendUpstream(e);
-      }
-    } else {
-      result.add(next);
-      if (result.results.size() == 2) {
-        result.join();
-        try {
-          sendUpstream(result);
-        } catch (Exception e) {
-          sendUpstream(e);
-        }
       }
     }
   }

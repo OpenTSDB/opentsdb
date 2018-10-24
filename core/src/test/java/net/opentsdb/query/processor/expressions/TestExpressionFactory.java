@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -117,9 +118,11 @@ public class TestExpressionFactory {
     ExpressionParseNode p1 = (ExpressionParseNode) b1;
     assertEquals("expression", p1.getId());
     assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1", p1.getLeftId());
     assertEquals(OperandType.VARIABLE, p1.getLeftType());
     assertEquals(42, ((NumericLiteral) p1.getRight()).longValue());
     assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertNull(p1.getRightId());
     assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
   
@@ -174,9 +177,11 @@ public class TestExpressionFactory {
     ExpressionParseNode p1 = (ExpressionParseNode) b1;
     assertEquals("expression", p1.getId());
     assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1", p1.getLeftId());
     assertEquals(OperandType.VARIABLE, p1.getLeftType());
     assertEquals(42, ((NumericLiteral) p1.getRight()).longValue());
     assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertNull(p1.getRightId());
     assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
   
@@ -241,8 +246,10 @@ public class TestExpressionFactory {
     ExpressionParseNode p1 = (ExpressionParseNode) b1;
     assertEquals("expression", p1.getId());
     assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1", p1.getLeftId());
     assertEquals(OperandType.VARIABLE, p1.getLeftType());
     assertEquals("sys.cpu.sys", p1.getRight());
+    assertEquals("m2", p1.getRightId());
     assertEquals(OperandType.VARIABLE, p1.getRightType());
     assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
@@ -308,8 +315,10 @@ public class TestExpressionFactory {
     ExpressionParseNode p1 = (ExpressionParseNode) b1;
     assertEquals("expression", p1.getId());
     assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1", p1.getLeftId());
     assertEquals(OperandType.VARIABLE, p1.getLeftType());
     assertEquals("sys.cpu.sys", p1.getRight());
+    assertEquals("m2", p1.getRightId());
     assertEquals(OperandType.VARIABLE, p1.getRightType());
     assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
@@ -387,8 +396,10 @@ public class TestExpressionFactory {
         ExpressionParseNode p1 = (ExpressionParseNode) binary;
         assertEquals("expression_SubExp#0", p1.getId());
         assertEquals("sys.cpu.user", p1.getLeft());
+        assertEquals("m1", p1.getLeftId());
         assertEquals(OperandType.VARIABLE, p1.getLeftType());
         assertEquals("sys.cpu.sys", p1.getRight());
+        assertEquals("m2", p1.getRightId());
         assertEquals(OperandType.VARIABLE, p1.getRightType());
         assertEquals(ExpressionOp.ADD, p1.getOperator());
         
@@ -398,8 +409,10 @@ public class TestExpressionFactory {
         ExpressionParseNode p1 = (ExpressionParseNode) binary;
         assertEquals("expression", p1.getId());
         assertEquals("expression_SubExp#0", p1.getLeft());
+        assertEquals("expression_SubExp#0", p1.getLeftId());
         assertEquals(OperandType.SUB_EXP, p1.getLeftType());
         assertEquals("sys.cpu.idle", p1.getRight());
+        assertEquals("m3", p1.getRightId());
         assertEquals(OperandType.VARIABLE, p1.getRightType());
         assertEquals(ExpressionOp.ADD, p1.getOperator());
         
@@ -481,8 +494,10 @@ public class TestExpressionFactory {
         ExpressionParseNode p1 = (ExpressionParseNode) binary;
         assertEquals("expression_SubExp#0", p1.getId());
         assertEquals("sys.cpu.user", p1.getLeft());
+        assertEquals("m1", p1.getLeftId());
         assertEquals(OperandType.VARIABLE, p1.getLeftType());
         assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertNull(p1.getRightId());
         assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
         assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
         
@@ -494,8 +509,10 @@ public class TestExpressionFactory {
         ExpressionParseNode p1 = (ExpressionParseNode) binary;
         assertEquals("expression_SubExp#1", p1.getId());
         assertEquals("sys.cpu.sys", p1.getLeft());
+        assertEquals("m2", p1.getLeftId());
         assertEquals(OperandType.VARIABLE, p1.getLeftType());
         assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertNull(p1.getRightId());
         assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
         assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
         
@@ -508,8 +525,10 @@ public class TestExpressionFactory {
         p1 = (ExpressionParseNode) b2;
         assertEquals("expression_SubExp#2", p1.getId());
         assertEquals("expression_SubExp#0", p1.getLeft());
+        assertEquals("expression_SubExp#0", p1.getLeftId());
         assertEquals(OperandType.SUB_EXP, p1.getLeftType());
         assertEquals("expression_SubExp#1", p1.getRight());
+        assertEquals("expression_SubExp#1", p1.getRightId());
         assertEquals(OperandType.SUB_EXP, p1.getRightType());
         assertEquals(ExpressionOp.ADD, p1.getOperator());
         
@@ -519,8 +538,10 @@ public class TestExpressionFactory {
         ExpressionParseNode p1 = (ExpressionParseNode) binary;
         assertEquals("expression_SubExp#3", p1.getId());
         assertEquals("sys.cpu.idle", p1.getLeft());
+        assertEquals("m3", p1.getLeftId());
         assertEquals(OperandType.VARIABLE, p1.getLeftType());
         assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertNull(p1.getRightId());
         assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
         assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
         
@@ -535,8 +556,10 @@ public class TestExpressionFactory {
         p1 = (ExpressionParseNode) b2;
         assertEquals("expression", p1.getId());
         assertEquals("expression_SubExp#2", p1.getLeft());
+        assertEquals("expression_SubExp#2", p1.getLeftId());
         assertEquals(OperandType.SUB_EXP, p1.getLeftType());
         assertEquals("expression_SubExp#3", p1.getRight());
+        assertEquals("expression_SubExp#3", p1.getRightId());
         assertEquals(OperandType.SUB_EXP, p1.getRightType());
         assertEquals(ExpressionOp.ADD, p1.getOperator());
         

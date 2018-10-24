@@ -92,7 +92,7 @@ public class ExpressionParser extends DefaultErrorStrategy
   private int cntr = 0;
   
   /** The list of nodes generated after parsing. */
-  private final List<ExpressionParseNode> nodes;
+  private final List<ExpressionParseNode.Builder> nodes;
   
   /** The set of variables extracted when parsing the expression. */
   private final Set<String> variables;
@@ -142,14 +142,18 @@ public class ExpressionParser extends DefaultErrorStrategy
           + "expression from '" + config.getExpression() + "'");
     }
     
+    final List<ExpressionParseNode> final_nodes = 
+        Lists.newArrayListWithExpectedSize(nodes.size());
+    for (int i = 0; i < nodes.size() - 1; i++) {
+      final_nodes.add((ExpressionParseNode) nodes.get(i).build());
+    }
     int last = nodes.size() - 1;
     // reset the ID on the last node as it's the root
-    nodes.set(last, (ExpressionParseNode) nodes.get(last)
-        .getBuilder()
+    final_nodes.add((ExpressionParseNode) nodes.get(last)
           .setAs(config.getAs())
           .setId(config.getId())
           .build());
-    return nodes;
+    return final_nodes;
   }
   
   /**
@@ -337,9 +341,8 @@ public class ExpressionParser extends DefaultErrorStrategy
     final String id = config.getId() + "_SubExp#" + cntr++;
     builder.setId(id);
     builder.setAs(id);
-    final ExpressionParseNode config = (ExpressionParseNode) builder.build();
-    nodes.add(config);
-    return config;
+    nodes.add(builder);
+    return builder;
   }
   
   /**
@@ -365,22 +368,26 @@ public class ExpressionParser extends DefaultErrorStrategy
         builder.setRight(obj)
                .setRightType(OperandType.LITERAL_NUMERIC);
       }
-    } else if (obj instanceof ExpressionParseNode) {
+    } else if (obj instanceof ExpressionParseNode.Builder) {
       if (is_left) {
-        builder.setLeft(((ExpressionParseNode) obj).getId())
-               .setLeftType(OperandType.SUB_EXP);
+        builder.setLeft(((ExpressionParseNode.Builder) obj).id())
+               .setLeftType(OperandType.SUB_EXP)
+               .setLeftId(((ExpressionParseNode.Builder) obj).id());
       } else {
-        builder.setRight(((ExpressionParseNode) obj).getId())
-               .setRightType(OperandType.SUB_EXP);
+        builder.setRight(((ExpressionParseNode.Builder) obj).id())
+               .setRightType(OperandType.SUB_EXP)
+               .setRightId(((ExpressionParseNode.Builder) obj).id());
       }
     } else if (obj instanceof String) {
       // handle the funky "escape keywords" case. e.g. "sys.'if'.out"
       if (is_left) {
         builder.setLeft((String) obj)
-               .setLeftType(OperandType.VARIABLE);
+               .setLeftType(OperandType.VARIABLE)
+               .setLeftId((String) obj);
       } else {
         builder.setRight((String) obj)
-               .setRightType(OperandType.VARIABLE);
+               .setRightType(OperandType.VARIABLE)
+               .setRightId((String) obj);
       }
     } else {
       throw new RuntimeException("NEED TO HANDLE: " + obj.getClass());
@@ -498,8 +505,8 @@ public class ExpressionParser extends DefaultErrorStrategy
   @Override
   public Object visitLogical_expr_not_rule(Logical_expr_not_ruleContext ctx) {
     final Object child = ctx.getChild(1).accept(this);
-    if (child instanceof ExpressionParseNode) {
-      ((ExpressionParseNode) child).setNot(true);
+    if (child instanceof ExpressionParseNode.Builder) {
+      ((ExpressionParseNode.Builder) child).setNot(true);
     } else {
       throw new RuntimeException("Response from the child of the not "
           + "was a " + child.getClass());
@@ -528,8 +535,8 @@ public class ExpressionParser extends DefaultErrorStrategy
   @Override
   public Object visitMinus_metric_rule(Minus_metric_ruleContext ctx) {
     final Object child = ctx.getChild(1).accept(this);
-    if (child instanceof ExpressionParseNode) {
-      ((ExpressionParseNode) child).setNegate(true);
+    if (child instanceof ExpressionParseNode.Builder) {
+      ((ExpressionParseNode.Builder) child).setNegate(true);
     } else {
       throw new ParseCancellationException("Response from the child of "
           + "the minus cannot be a metric.");
