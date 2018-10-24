@@ -220,44 +220,6 @@ def process_metrics(metric_list, threads):
     failed_metrics = threads.map(process_metric, metric_list)
     failed_metrics = [m for m in failed_metrics if m]
     return failed_metrics
-=======
-    def process_metrics(self):
-        """
-        Run fsck on a list of metrics over a time range
-        """
-        failed_metrics = []
-        base = "{} fsck".format(self.tsd_path)
-        if self.use_sudo:
-            base = "sudo -u {} {}".format(self.sudo_user, base)
-        cmd = "{} {}h-ago sum".format(base, self.time_range)
-        for index, metric in enumerate(self.metrics):
-            self.log.info("Repairing {} ({} of {})".format(metric, index + 1, len(self.metrics)))
-            fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
-            metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
-            try:
-                results, err = metricproc.communicate(timeout=self.timeout)
-            except TimeoutExpired:
-                self.log.warning("{} failed to complete in window".format(metric))
-                failed_metrics.append(metric)
-            except Exception as e:
-                self.log.error("General exception processing {} :: {}".format(metric,
-                                                                              e))
-            else:
-                results = [r for r in results.decode().split("\n") if r][-26:]
-                final_results = []
-                for r in results:
-                    line = r.split(" ")[6:]
-                    try:
-                        if int(line[-1]) != 0:
-                            final_results.append(" ".join(line))
-                    except Exception:
-                        final_results.append(" ".join(line))
-                result_str = "\n".join(final_results)
-                self.log.info("{} results:\n{}".format(metric, result_str))
-            self.log.debug("Waiting 10 seconds to give HBase a break...")
-            time.sleep(10)
-        self.metrics = failed_metrics
->>>>>>> 0e8b947b... store as object
 
 
 def cli_opts():
@@ -273,7 +235,6 @@ def cli_opts():
                         help="How many times we should try failed metrics")
     parser.add_argument("--tsd-path", default="/usr/share/opentsdb/bin/tsdb",
                         help="Path to the OpenTSDB CLI binary")
-<<<<<<< HEAD
     parser.add_argument("--cfg-path", default="/etc/opentsdb/opentsdb.conf",
                         help="Path to OpenTSDB config")
     parser.add_argument("--store-path", default="/tmp/opentsdb-fsck.list",
@@ -289,10 +250,6 @@ def cli_opts():
                         help="Mix up incoming metric order")
     parser.add_argument("--threads", default="{}".format(int(cpu_count() / 2)),
                         help="Total number of metrics to process at once")
-=======
-    parser.add_argument("--use-sudo", action="store_true",
-                        default=False, help="Whether to switch user when running repairs")
->>>>>>> 0e8b947b... store as object
     parser.add_argument("--sudo-user", default="opentsdb",
                         help="User to switch to...")
     return parser.parse_args()
