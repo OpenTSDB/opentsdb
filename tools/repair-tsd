@@ -231,12 +231,8 @@ def cli_opts():
                         help="How many hours of time we collect to repair")
     parser.add_argument("--time-chunk", default="60",
                         help="How many minutes of data to scan per chunk")
-    parser.add_argument("--retries", default="1",
-                        help="How many times we should try failed metrics")
-    parser.add_argument("--tsd-path", default="/usr/share/opentsdb/bin/tsdb",
-                        help="Path to the OpenTSDB CLI binary")
-    parser.add_argument("--cfg-path", default="/etc/opentsdb/opentsdb.conf",
-                        help="Path to OpenTSDB config")
+    parser.add_argument("--timeout", default="420",
+                        help="How many seconds we allow each fsck to run")
     parser.add_argument("--store-path", default="/tmp/opentsdb-fsck.list",
                         help="Path to OpenTSDB config")
     parser.add_argument("--use-sudo", action="store_true",
