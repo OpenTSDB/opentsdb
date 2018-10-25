@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from subprocess import Popen, PIPE, TimeoutExpired
+from subprocess import Popen, PIPE, TimeoutExpired, check_output
 from random import shuffle
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -21,6 +21,7 @@ class TSDRepair(object):
         self.timeout = args.get("timeout", 360)
         self.time_range = args.get("time_range", 26280)
         self.tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
+        self.cfg_path = args.get("cfg_path", "/etc/opentsdb/opentsdb.conf")
         self.use_sudo = args.get("use_sudo", False)
         self.sudo_user = args.get("sudo_user", "opentsdb")
         self.log = logging.getLogger("repair-tsd.class")
@@ -54,11 +55,21 @@ class TSDRepair(object):
         """
         failed_metrics = []
         base = "{} fsck".format(self.tsd_path)
+        check_cmd = "{} uid metrics".format(self.tsd_path)
         if self.use_sudo:
             base = "sudo -u {} {}".format(self.sudo_user, base)
+            check_cmd = "sudo -u {} {}".format(self.sudo_user, check_cmd)
         cmd = "{} {}h-ago sum".format(base, self.time_range)
         for index, metric in enumerate(self.metrics):
-            self.log.info("Repairing {} ({} of {})".format(metric, index + 1, len(self.metrics)))
+            try:
+                check_output("{} {}".format(check_cmd, metric), shell=True)
+            except Exception:
+                log.warning("{} doesn't actually exist! Skipping...".format(metric))
+                continue
+            self.log.info("Repairing {} ({} of {}) ({} failed)".format(metric,
+                                                                       index + 1,
+                                                                       len(self.metrics),
+                                                                       len(failed_metrics)))
             fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
             metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
             try:
@@ -79,13 +90,13 @@ class TSDRepair(object):
                             final_results.append(" ".join(line))
                     except Exception:
                         final_results.append(" ".join(line))
+                runtime = final_results.pop(-1)
                 result_str = "\n".join(final_results)
-                self.log.info("{} results:\n{}".format(metric, result_str))
-            self.log.debug("Waiting 10 seconds to give HBase a break...")
-            time.sleep(10)
+                self.log.debug("{} results:\n{}".format(metric, result_str))
+                self.log.info("{}: {}".format(metric, runtime))
+            # self.log.debug("Waiting 5 seconds to give HBase a break...")
+            # time.sleep(5)
         self.log.info("{} metrics failed".format(len(failed_metrics)))
-        failed_str = "\n".join(failed_metrics)
-        log.debug("failed metrics:\n{}".format(pprint.pformat(failed_str)))
         self.metrics = failed_metrics
 
 
@@ -96,12 +107,14 @@ def cli_opts():
                         help="Show debug information")
     parser.add_argument("--time-range", default="730",
                         help="How many hours of time we collect to repair")
-    parser.add_argument("--timeout", default="360",
+    parser.add_argument("--timeout", default="420",
                         help="How many seconds we allow each fsck to run")
     parser.add_argument("--retries", default="1",
                         help="How many times we should try failed metrics")
     parser.add_argument("--tsd-path", default="/usr/share/opentsdb/bin/tsdb",
                         help="Path to the OpenTSDB CLI binary")
+    parser.add_argument("--cfg-path", default="/etc/opentsdb/opentsdb.conf",
+                        help="Path to OpenTSDB config")
     parser.add_argument("--use-sudo", action="store_true",
                         default=False, help="Whether to switch user when running repairs")
     parser.add_argument("--sudo-user", default="opentsdb",
@@ -128,12 +141,14 @@ def main():
 
     repair_tool = TSDRepair({"timeout": timeout, "time_range": time_range,
                              "use_sudo": args.use_sudo, "sudo_user": args.sudo_user,
-                             "tsd_path": args.tsd_path})
+                             "tsd_path": args.tsd_path, "cfg_path": args.cfg_path})
     repair_tool.process_metrics()
 
     for x in range(0, retries):
         if not repair_tool.metrics:
             continue
+        failed_str = "\n".join(repair_tool.metrics)
+        log.debug("failed metrics:\n{}".format(pprint.pformat(failed_str)))
         log.info("Re-trying with failed metrics only...")
         repair_tool.process_metrics()
     log.info("After {} repair runs:".format(retries+1))
