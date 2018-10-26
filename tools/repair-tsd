@@ -19,6 +19,7 @@ log.addHandler(ch)
 class TSDRepair(object):
     def __init__(self, args):
         self.timeout = args.get("timeout", 360)
+        self.retries = args.get("retries", 1)
         self.time_range = args.get("time_range", 26280)
         self.tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
         self.cfg_path = args.get("cfg_path", "/etc/opentsdb/opentsdb.conf")
@@ -30,7 +31,6 @@ class TSDRepair(object):
         warn += " that long. Please don't cancel a repair while it"
         warn += " is running!"
         self.log.warning(warn)
-        self.metrics = self._get_metrics()
 
     def _get_metrics(self):
         """
@@ -39,7 +39,7 @@ class TSDRepair(object):
         :returns: all metrics
         :rtype: list
         """
-        proc = Popen('{} uid grep metrics ".*"'.format(self.tsd_path),
+        proc = Popen('{} uid --config={} grep metrics ".*"'.format(self.tsd_path, self.cfg_path),
                      shell=True, stdout=PIPE, stderr=PIPE)
         results = proc.communicate()
         metrics = [m.split(" ")[1].strip(":")
@@ -53,14 +53,15 @@ class TSDRepair(object):
         """
         Run fsck on a list of metrics over a time range
         """
-        failed_metrics = []
-        base = "{} fsck".format(self.tsd_path)
-        check_cmd = "{} uid metrics".format(self.tsd_path)
+        failed_metrics = 0
+        base = "{} fsck --config={}".format(self.tsd_path, self.cfg_path)
+        check_cmd = "{} uid --config={} metrics".format(self.tsd_path, self.cfg_path)
         if self.use_sudo:
             base = "sudo -u {} {}".format(self.sudo_user, base)
             check_cmd = "sudo -u {} {}".format(self.sudo_user, check_cmd)
         cmd = "{} {}h-ago sum".format(base, self.time_range)
-        for index, metric in enumerate(self.metrics):
+        metrics = self._get_metrics()
+        for index, metric in enumerate(metrics):
             try:
                 check_output("{} {}".format(check_cmd, metric), shell=True)
             except Exception:
@@ -68,36 +69,39 @@ class TSDRepair(object):
                 continue
             self.log.info("Repairing {} ({} of {}) ({} failed)".format(metric,
                                                                        index + 1,
-                                                                       len(self.metrics),
-                                                                       len(failed_metrics)))
-            fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
-            metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
-            try:
-                results, err = metricproc.communicate(timeout=self.timeout)
-            except TimeoutExpired:
-                self.log.warning("{} failed to complete in window".format(metric))
-                failed_metrics.append(metric)
-            except Exception as e:
-                self.log.error("General exception processing {} :: {}".format(metric,
+                                                                       len(metrics),
+                                                                       failed_metrics))
+            for x in range(0, self.retries + 1):
+                fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
+                metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
+                try:
+                    results, err = metricproc.communicate(timeout=self.timeout)
+                except TimeoutExpired:
+                    self.log.warning("{} failed to complete in window".format(metric))
+                    continue
+                except Exception as e:
+                    self.log.error("General exception processing {} :: {}".format(metric,
                                                                               e))
-            else:
-                results = [r for r in results.decode().split("\n") if r][-26:]
-                final_results = []
-                for r in results:
-                    line = r.split(" ")[6:]
-                    try:
-                        if int(line[-1]) != 0:
+                else:
+                    results = [r for r in results.decode().split("\n") if r][-26:]
+                    final_results = []
+                    for r in results:
+                        line = r.split(" ")[6:]
+                        try:
+                            if int(line[-1]) != 0:
+                                final_results.append(" ".join(line))
+                        except Exception:
                             final_results.append(" ".join(line))
-                    except Exception:
-                        final_results.append(" ".join(line))
-                runtime = final_results.pop(-1)
-                result_str = "\n".join(final_results)
-                self.log.debug("{} results:\n{}".format(metric, result_str))
-                self.log.info("{}: {}".format(metric, runtime))
+                    runtime = final_results.pop(-1)
+                    result_str = "\n".join(final_results)
+                    self.log.debug("{} results:\n{}".format(metric, result_str))
+                    self.log.info("{}: {}".format(metric, runtime))
+                    break
+            else:
+                failed_metrics += 1
             # self.log.debug("Waiting 5 seconds to give HBase a break...")
             # time.sleep(5)
-        self.log.info("{} metrics failed".format(len(failed_metrics)))
-        self.metrics = failed_metrics
+        self.log.info("{} metrics failed".format(failed_metrics))
 
 
 def cli_opts():
@@ -141,18 +145,11 @@ def main():
 
     repair_tool = TSDRepair({"timeout": timeout, "time_range": time_range,
                              "use_sudo": args.use_sudo, "sudo_user": args.sudo_user,
-                             "tsd_path": args.tsd_path, "cfg_path": args.cfg_path})
+                             "tsd_path": args.tsd_path, "cfg_path": args.cfg_path,
+                             "retries": retries})
     repair_tool.process_metrics()
 
-    for x in range(0, retries):
-        if not repair_tool.metrics:
-            continue
-        failed_str = "\n".join(repair_tool.metrics)
-        log.debug("failed metrics:\n{}".format(pprint.pformat(failed_str)))
-        log.info("Re-trying with failed metrics only...")
-        repair_tool.process_metrics()
-    log.info("After {} repair runs:".format(retries+1))
-    log.info("{} un-repaired metrics".format(len(repair_tool.metrics)))
+    repair_tool.process_metrics()
 
 
 if __name__ == "__main__":
