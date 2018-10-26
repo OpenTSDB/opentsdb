@@ -53,7 +53,7 @@ class TSDRepair(object):
         """
         Run fsck on a list of metrics over a time range
         """
-        failed_metrics = 0
+        failed_metrics = []
         base = "{} fsck --config={}".format(self.tsd_path, self.cfg_path)
         check_cmd = "{} uid --config={} metrics".format(self.tsd_path, self.cfg_path)
         if self.use_sudo:
@@ -70,14 +70,14 @@ class TSDRepair(object):
             self.log.info("Repairing {} ({} of {}) ({} failed)".format(metric,
                                                                        index + 1,
                                                                        len(metrics),
-                                                                       failed_metrics))
+                                                                       len(failed_metrics)))
             for x in range(0, self.retries + 1):
                 fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
                 metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
                 try:
                     results, err = metricproc.communicate(timeout=self.timeout)
                 except TimeoutExpired:
-                    self.log.warning("{} failed to complete in window".format(metric))
+                    self.log.debug("{} failed to complete in window (run {})".format(metric, x + 1))
                     continue
                 except Exception as e:
                     self.log.error("General exception processing {} :: {}".format(metric,
@@ -98,10 +98,10 @@ class TSDRepair(object):
                     self.log.info("{}: {}".format(metric, runtime))
                     break
             else:
-                failed_metrics += 1
-            # self.log.debug("Waiting 5 seconds to give HBase a break...")
-            # time.sleep(5)
-        self.log.info("{} metrics failed".format(failed_metrics))
+                self.log.error("Failed to completely repair {}".format(metric))
+                failed_metrics.append(metric)
+        self.log.info("Failed metrics: {}".format(failed_metrics))
+        return failed_metrics
 
 
 def cli_opts():
