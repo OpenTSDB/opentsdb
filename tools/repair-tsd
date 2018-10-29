@@ -98,7 +98,7 @@ class TSDRepair(object):
                 return []
         else:
             self.log.error("Failed to completely repair {}".format(metric))
-            return metric
+            return [metric]
 
     def process_metrics(self):
         """
@@ -117,11 +117,11 @@ class TSDRepair(object):
                                                                        len(metrics),
                                                                        len(failed_metrics)))
             start_time = time.time()
-            failed_metrics.append(self._repair_metric(metric, "1h-ago", 1))
+            failed_metrics.extend(self._repair_metric(metric, "1h-ago", 1))
             for x in range(2, self.time_range + 1):
-                failed_metrics.append(self._repair_metric(metric, "{}h-ago {}h-ago".format(x, x - 1), x))
+                failed_metrics.extend(self._repair_metric(metric, "{}h-ago {}h-ago".format(x, x - 1), x))
             runtime = time.time() - start_time
-            self.log.info("{} took {} seconds to complete".format(metric, runtime))
+            self.log.info("{} took {} seconds to complete".format(metric, int(runtime)))
         self.log.info("Failed metrics: {}".format(failed_metrics))
         return failed_metrics
 
