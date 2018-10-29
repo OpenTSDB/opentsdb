@@ -115,18 +115,19 @@ class TSDRepair(object):
         """
         failed_metrics = []
         metrics = self._get_metrics()
+        multiplier = int(60 / self.time_chunk)
+        chunk_count = self.time_range * multiplier
         for index, metric in enumerate(metrics):
             try:
                 check_output("{} {}".format(self.check_cmd, metric), shell=True)
             except Exception:
                 log.warning("{} doesn't actually exist! Skipping...".format(metric))
                 continue
-            self.log.info("Repairing {} ({} of {}) ({} failed)".format(metric,
-                                                                       index + 1,
-                                                                       len(metrics),
-                                                                       len(failed_metrics)))
+            logline = "{} ({} of {})".format(metric, index + 1, len(metrics))
+            logline += " ({} failed) in {} chunks".format(len(failed_metrics),
+                                                              chunk_count)
+            self.log.info(logline)
             start_time = time.time()
-            multiplier = int(60 / self.time_chunk)
             for x in range(1, (self.time_range * multiplier) + 1):
                 failed_metrics.extend(self._repair_metric(metric, x))
             runtime = time.time() - start_time
