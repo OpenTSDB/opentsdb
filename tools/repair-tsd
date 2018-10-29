@@ -24,6 +24,7 @@ class TSDRepair(object):
         time limit per metric chunk...
         """
         self.timeout = 58 * 60
+        self.time_chunk = 30
         self.retries = args.get("retries", 1)
         self.time_range = args.get("time_range", 48)
         self.tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
@@ -59,8 +60,13 @@ class TSDRepair(object):
         self.log.info("There are {} metrics to process".format(len(metrics)))
         return metrics
 
-    def _repair_metric(self, metric, timestr, chunk):
+    def _repair_metric(self, metric, chunk):
         self.log.debug("Running chunk {} for {}".format(chunk, metric))
+        if chunk < 2:
+            timestr = "{}m-ago".format(self.time_chunk)
+        else:
+            timestr = "{}m-ago {}m-ago".format((chunk + 1) * self.time_chunk,
+                                               chunk * self.time_chunk)
         cmd = "{} {} sum".format(self.base, timestr)
         for x in range(0, self.retries + 1):
             self.log.debug("Repair try {} for {}".format(x + 1, timestr))
@@ -120,9 +126,9 @@ class TSDRepair(object):
                                                                        len(metrics),
                                                                        len(failed_metrics)))
             start_time = time.time()
-            failed_metrics.extend(self._repair_metric(metric, "1h-ago", 1))
-            for x in range(2, self.time_range + 1):
-                failed_metrics.extend(self._repair_metric(metric, "{}h-ago {}h-ago".format(x, x - 1), x))
+            multiplier = int(60 / self.time_chunk)
+            for x in range(1, (self.time_range * multiplier) + 1):
+                failed_metrics.extend(self._repair_metric(metric, x))
             runtime = time.time() - start_time
             self.log.info("{} took {} seconds to complete".format(metric, int(runtime)))
         self.log.info("Failed metrics: {}".format(failed_metrics))
