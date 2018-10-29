@@ -18,15 +18,12 @@ log.addHandler(ch)
 
 class TSDRepair(object):
     def __init__(self, args):
-        """
-        We'll magic number the timeout because we know each individual chunk should take
-        less than one hour to complete. So 58 minutes * 60 seconds per minute is our
-        time limit per metric chunk...
-        """
-        self.timeout = 58 * 60
-        self.time_chunk = 30
+        self.time_chunk = args.get("time_chunk", 15)
+        self.timeout = int(self.time_chunk * 60)
         self.retries = args.get("retries", 1)
+        self.multiplier = int(60 / self.time_chunk)
         self.time_range = args.get("time_range", 48)
+        self.chunk_count = self.time_range * self.multiplier
         self.tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
         self.cfg_path = args.get("cfg_path", "/etc/opentsdb/opentsdb.conf")
         self.use_sudo = args.get("use_sudo", False)
@@ -50,8 +47,9 @@ class TSDRepair(object):
         :returns: all metrics
         :rtype: list
         """
-        proc = Popen('{} uid --config={} grep metrics ".*"'.format(self.tsd_path, self.cfg_path),
-                     shell=True, stdout=PIPE, stderr=PIPE)
+        cmd = '{} uid --config={} grep metrics ".*"'.format(self.tsd_path,
+                                                            self.cfg_path)
+        proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
         results = proc.communicate()
         metrics = [m.split(" ")[1].strip(":")
                    for m in results[0].decode().split("\n") if m]
@@ -68,19 +66,19 @@ class TSDRepair(object):
             timestr = "{}m-ago {}m-ago".format((chunk + 1) * self.time_chunk,
                                                chunk * self.time_chunk)
         cmd = "{} {} sum".format(self.base, timestr)
-        for x in range(0, self.retries + 1):
-            self.log.debug("Repair try {} for {}".format(x + 1, timestr))
+        for x in range(1, self.retries + 2):
+            self.log.debug("Repair try {} for {}".format(x, timestr))
             fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
             self.log.debug("Full command: {}".format(fullcmd))
             metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
             try:
                 results, err = metricproc.communicate(timeout=self.timeout)
             except TimeoutExpired:
-                self.log.debug("{} failed to complete in window (run {})".format(metric, x + 1))
+                self.log.debug("{} failed to complete in window (run {})".format(metric, x))
                 continue
             except Exception as e:
-                self.log.error("General exception processing {} :: {}".format(metric,
-                                                                              e))
+                self.log.error("General exception {} :: {}".format(metric,
+                                                                   e))
             else:
                 results = [r for r in results.decode().split("\n") if r][-26:]
                 final_results = []
@@ -93,17 +91,10 @@ class TSDRepair(object):
                             final_results.append(" ".join(line))
                     except Exception:
                         final_results.append(" ".join(line))
-                # We'll always show the run time, so separate that from the other lines
-                try:
-                    runtime = int(final_results.pop(-1).split()[3].strip('[]'))
-                except Exception:
-                    self.log.error("Bad runtime results for {} :: {}".format(metric, final_results))
                 result_str = "\n".join(final_results)
+                if self.chunk_count % chunk == 0:
+                    self.log.info("Completed {} chunks (of {}) for {}".format(chunk, self.chunk_count, metric))
                 self.log.debug("{} results:\n{}".format(metric, result_str))
-                if runtime > 30:
-                    self.log.info("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
-                else:
-                    self.log.debug("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
                 return []
         else:
             self.log.error("Failed to completely repair {}".format(metric))
@@ -115,23 +106,23 @@ class TSDRepair(object):
         """
         failed_metrics = []
         metrics = self._get_metrics()
-        multiplier = int(60 / self.time_chunk)
-        chunk_count = self.time_range * multiplier
         for index, metric in enumerate(metrics):
             try:
-                check_output("{} {}".format(self.check_cmd, metric), shell=True)
+                check_output("{} {}".format(self.check_cmd, metric),
+                             shell=True)
             except Exception:
-                log.warning("{} doesn't actually exist! Skipping...".format(metric))
+                log.warning("{} doesn't exist! Skipping...".format(metric))
                 continue
             logline = "{} ({} of {})".format(metric, index + 1, len(metrics))
             logline += " ({} failed) in {} chunks".format(len(failed_metrics),
-                                                              chunk_count)
+                                                              self.chunk_count)
             self.log.info(logline)
             start_time = time.time()
-            for x in range(1, (self.time_range * multiplier) + 1):
-                failed_metrics.extend(self._repair_metric(metric, x))
+            failed_metrics = [self._repair_metric(metric, x)
+                              for x in range(1, self.chunk_count + 1)]
             runtime = time.time() - start_time
-            self.log.info("{} took {} seconds to complete".format(metric, int(runtime)))
+            self.log.info("{} repair took {} seconds".format(metric,
+                                                             int(runtime)))
         self.log.info("Failed metrics: {}".format(failed_metrics))
         return failed_metrics
 
@@ -143,6 +134,8 @@ def cli_opts():
                         help="Show debug information")
     parser.add_argument("--time-range", default="48",
                         help="How many hours of time we collect to repair")
+    parser.add_argument("--time-chunk", default="15",
+                        help="How many minutes of data we should scan at a time")
     parser.add_argument("--retries", default="1",
                         help="How many times we should try failed metrics")
     parser.add_argument("--tsd-path", default="/usr/share/opentsdb/bin/tsdb",
@@ -168,13 +161,21 @@ def main():
         retries = int(args.retries)
     except Exception as e:
         log.error("Invalid retry number {} :: {}".format(args.retries, e))
+    try:
+        time_chunk = int(args.time_chunk)
+        if 60 % time_chunk != 0:
+            raise ArithmeticError
+    except Exception as e:
+        log.error("Invalid time chunk {} :: {}".format(args.retries, e))
 
-    repair_tool = TSDRepair({"time_range": time_range, "use_sudo": args.use_sudo,
+    repair_tool = TSDRepair({"time_range": time_range,
+                             "use_sudo": args.use_sudo,
                              "sudo_user": args.sudo_user,
-                             "tsd_path": args.tsd_path, "cfg_path": args.cfg_path,
+                             "time_chunk": time_chunk,
+                             "tsd_path": args.tsd_path,
+                             "cfg_path": args.cfg_path,
                              "retries": retries})
     repair_tool.process_metrics()
-
     repair_tool.process_metrics()
 
 
