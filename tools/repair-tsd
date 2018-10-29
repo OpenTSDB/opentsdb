@@ -18,7 +18,12 @@ log.addHandler(ch)
 
 class TSDRepair(object):
     def __init__(self, args):
-        self.timeout = args.get("timeout", 900)
+        """
+        We'll magic number the timeout because we know each individual chunk should take
+        less than one hour to complete. So 58 minutes * 60 seconds per minute is our
+        time limit per metric chunk...
+        """
+        self.timeout = 58 * 60
         self.retries = args.get("retries", 1)
         self.time_range = args.get("time_range", 48)
         self.tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
@@ -89,18 +94,17 @@ class TSDRepair(object):
                     self.log.error("Bad runtime results for {} :: {}".format(metric, final_results))
                 result_str = "\n".join(final_results)
                 self.log.debug("{} results:\n{}".format(metric, result_str))
-                self.log.info("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
-                return [], runtime
+                self.log.debug("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
+                return []
         else:
             self.log.error("Failed to completely repair {}".format(metric))
-            return metric, 0
+            return metric
 
     def process_metrics(self):
         """
         Run fsck on a list of metrics over a time range
         """
         failed_metrics = []
-        timer = 0
         metrics = self._get_metrics()
         for index, metric in enumerate(metrics):
             try:
@@ -112,15 +116,12 @@ class TSDRepair(object):
                                                                        index + 1,
                                                                        len(metrics),
                                                                        len(failed_metrics)))
-            failed, count = self._repair_metric(metric, "1h-ago", 1)
-            failed_metrics.append(failed)
-            timer += count
-            for x in range(2, self.time_range):
-                failed, count = self._repair_metric(metric, "{}h-ago {}h-ago".format(x, x - 1), x)
-                failed_metrics.append(failed)
-                timer += count
-            self.log.info("{} took {} seconds to complete".format(metric, timer))
-            exit(1)
+            start_time = time.time()
+            failed_metrics.append(self._repair_metric(metric, "1h-ago", 1))
+            for x in range(2, self.time_range + 1):
+                failed_metrics.append(self._repair_metric(metric, "{}h-ago {}h-ago".format(x, x - 1), x))
+            runtime = time.time() - start_time
+            self.log.info("{} took {} seconds to complete".format(metric, runtime))
         self.log.info("Failed metrics: {}".format(failed_metrics))
         return failed_metrics
 
@@ -132,8 +133,6 @@ def cli_opts():
                         help="Show debug information")
     parser.add_argument("--time-range", default="48",
                         help="How many hours of time we collect to repair")
-    parser.add_argument("--timeout", default="900",
-                        help="How many seconds we allow each fsck to run")
     parser.add_argument("--retries", default="1",
                         help="How many times we should try failed metrics")
     parser.add_argument("--tsd-path", default="/usr/share/opentsdb/bin/tsdb",
@@ -159,13 +158,9 @@ def main():
         retries = int(args.retries)
     except Exception as e:
         log.error("Invalid retry number {} :: {}".format(args.retries, e))
-    try:
-        timeout = int(args.timeout)
-    except Exception as e:
-        log.error("Invalid timeout {} :: {}".format(args.timeout, e))
 
-    repair_tool = TSDRepair({"timeout": timeout, "time_range": time_range,
-                             "use_sudo": args.use_sudo, "sudo_user": args.sudo_user,
+    repair_tool = TSDRepair({"time_range": time_range, "use_sudo": args.use_sudo,
+                             "sudo_user": args.sudo_user,
                              "tsd_path": args.tsd_path, "cfg_path": args.cfg_path,
                              "retries": retries})
     repair_tool.process_metrics()
