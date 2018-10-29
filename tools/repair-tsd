@@ -18,14 +18,19 @@ log.addHandler(ch)
 
 class TSDRepair(object):
     def __init__(self, args):
-        self.timeout = args.get("timeout", 360)
+        self.timeout = args.get("timeout", 900)
         self.retries = args.get("retries", 1)
-        self.time_range = args.get("time_range", 26280)
+        self.time_range = args.get("time_range", 48)
         self.tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
         self.cfg_path = args.get("cfg_path", "/etc/opentsdb/opentsdb.conf")
         self.use_sudo = args.get("use_sudo", False)
         self.sudo_user = args.get("sudo_user", "opentsdb")
-        self.log = logging.getLogger("repair-tsd.class")
+        self.log = logging.getLogger("repair-tsd")
+        self.base = "{} fsck --config={}".format(self.tsd_path, self.cfg_path)
+        self.check_cmd = "{} uid --config={} metrics".format(self.tsd_path, self.cfg_path)
+        if self.use_sudo:
+            self.base = "sudo -u {} {}".format(self.sudo_user, self.base)
+            self.check_cmd = "sudo -u {} {}".format(self.sudo_user, self.check_cmd)
         warn = "You have set a timeout of {} seconds.".format(self.timeout)
         warn += " All individual metric repairs are allowed to run"
         warn += " that long. Please don't cancel a repair while it"
@@ -49,21 +54,57 @@ class TSDRepair(object):
         self.log.info("There are {} metrics to process".format(len(metrics)))
         return metrics
 
+    def _repair_metric(self, metric, timestr, chunk):
+        self.log.debug("Running chunk {} for {}".format(chunk, metric))
+        cmd = "{} {} sum".format(self.base, timestr)
+        for x in range(0, self.retries + 1):
+            self.log.debug("Repair try {} for {}".format(x + 1, timestr))
+            fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
+            self.log.debug("Full command: {}".format(fullcmd))
+            metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
+            try:
+                results, err = metricproc.communicate(timeout=self.timeout)
+            except TimeoutExpired:
+                self.log.debug("{} failed to complete in window (run {})".format(metric, x + 1))
+                continue
+            except Exception as e:
+                self.log.error("General exception processing {} :: {}".format(metric,
+                                                                              e))
+            else:
+                results = [r for r in results.decode().split("\n") if r][-26:]
+                final_results = []
+                # We'll only collect results that are non-0, since we're not super interested in stuff that didn't change
+                for r in results:
+                    # Strip the timestamp from the log line
+                    line = r.split(" ")[6:]
+                    try:
+                        if int(line[-1]) != 0:
+                            final_results.append(" ".join(line))
+                    except Exception:
+                        final_results.append(" ".join(line))
+                # We'll always show the run time, so separate that from the other lines
+                try:
+                    runtime = int(final_results.pop(-1).split()[3].strip('[]'))
+                except Exception:
+                    self.log.error("Bad runtime results for {} :: {}".format(metric, final_results))
+                result_str = "\n".join(final_results)
+                self.log.debug("{} results:\n{}".format(metric, result_str))
+                self.log.info("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
+                return [], runtime
+        else:
+            self.log.error("Failed to completely repair {}".format(metric))
+            return metric, 0
+
     def process_metrics(self):
         """
         Run fsck on a list of metrics over a time range
         """
         failed_metrics = []
-        base = "{} fsck --config={}".format(self.tsd_path, self.cfg_path)
-        check_cmd = "{} uid --config={} metrics".format(self.tsd_path, self.cfg_path)
-        if self.use_sudo:
-            base = "sudo -u {} {}".format(self.sudo_user, base)
-            check_cmd = "sudo -u {} {}".format(self.sudo_user, check_cmd)
-        cmd = "{} {}h-ago sum".format(base, self.time_range)
+        timer = 0
         metrics = self._get_metrics()
         for index, metric in enumerate(metrics):
             try:
-                check_output("{} {}".format(check_cmd, metric), shell=True)
+                check_output("{} {}".format(self.check_cmd, metric), shell=True)
             except Exception:
                 log.warning("{} doesn't actually exist! Skipping...".format(metric))
                 continue
@@ -71,35 +112,15 @@ class TSDRepair(object):
                                                                        index + 1,
                                                                        len(metrics),
                                                                        len(failed_metrics)))
-            for x in range(0, self.retries + 1):
-                fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
-                metricproc = Popen(fullcmd, shell=True, stdout=PIPE, stderr=PIPE)
-                try:
-                    results, err = metricproc.communicate(timeout=self.timeout)
-                except TimeoutExpired:
-                    self.log.debug("{} failed to complete in window (run {})".format(metric, x + 1))
-                    continue
-                except Exception as e:
-                    self.log.error("General exception processing {} :: {}".format(metric,
-                                                                              e))
-                else:
-                    results = [r for r in results.decode().split("\n") if r][-26:]
-                    final_results = []
-                    for r in results:
-                        line = r.split(" ")[6:]
-                        try:
-                            if int(line[-1]) != 0:
-                                final_results.append(" ".join(line))
-                        except Exception:
-                            final_results.append(" ".join(line))
-                    runtime = final_results.pop(-1)
-                    result_str = "\n".join(final_results)
-                    self.log.debug("{} results:\n{}".format(metric, result_str))
-                    self.log.info("{}: {}".format(metric, runtime))
-                    break
-            else:
-                self.log.error("Failed to completely repair {}".format(metric))
-                failed_metrics.append(metric)
+            failed, count = self._repair_metric(metric, "1h-ago", 1)
+            failed_metrics.append(failed)
+            timer += count
+            for x in range(2, self.time_range):
+                failed, count = self._repair_metric(metric, "{}h-ago {}h-ago".format(x, x - 1), x)
+                failed_metrics.append(failed)
+                timer += count
+            self.log.info("{} took {} seconds to complete".format(metric, timer))
+            exit(1)
         self.log.info("Failed metrics: {}".format(failed_metrics))
         return failed_metrics
 
@@ -109,9 +130,9 @@ def cli_opts():
                             formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Show debug information")
-    parser.add_argument("--time-range", default="730",
+    parser.add_argument("--time-range", default="48",
                         help="How many hours of time we collect to repair")
-    parser.add_argument("--timeout", default="420",
+    parser.add_argument("--timeout", default="900",
                         help="How many seconds we allow each fsck to run")
     parser.add_argument("--retries", default="1",
                         help="How many times we should try failed metrics")
