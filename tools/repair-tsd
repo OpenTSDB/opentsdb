@@ -94,7 +94,10 @@ class TSDRepair(object):
                     self.log.error("Bad runtime results for {} :: {}".format(metric, final_results))
                 result_str = "\n".join(final_results)
                 self.log.debug("{} results:\n{}".format(metric, result_str))
-                self.log.debug("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
+                if runtime > 30:
+                    self.log.info("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
+                else:
+                    self.log.debug("{} (chunk {}): completed in {} seconds".format(metric, chunk, runtime))
                 return []
         else:
             self.log.error("Failed to completely repair {}".format(metric))
