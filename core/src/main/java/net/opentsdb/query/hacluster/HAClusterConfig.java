@@ -76,9 +76,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
    */
   protected HAClusterConfig(final Builder builder) {
     super(builder);
-    if (Strings.isNullOrEmpty(builder.mergeAggregator)) {
-      throw new IllegalArgumentException("Merge aggregator cannot be null.");
-    }
     data_sources = builder.dataSources == null ? 
         Collections.emptyList() : builder.dataSources;
     data_source_configs = builder.dataSourceConfigs == null ?
