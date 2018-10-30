@@ -182,14 +182,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (node.config() instanceof TimeSeriesDataSourceConfig ||
-        node.config().joins()) {
-      return Sets.newHashSet(node.config().getId());
-    }
     
-    final Set<String> ids = Sets.newHashSet();
-    for (final QueryNode downstream : plan.graph().successors(node)) {
-      ids.addAll(downstreamSourcesIds(downstream));
+    Collection<TimeSeriesDataSource> downstreams = downstreamSources(node);
+    final Set<String> ids = Sets.newHashSetWithExpectedSize(downstreams.size());
+    for (final QueryNode downstream : downstreams) {
+      ids.add(downstream.config().getId());
     }
     return ids;
   }

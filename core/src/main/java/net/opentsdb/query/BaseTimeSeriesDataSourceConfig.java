@@ -12,6 +12,7 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -83,7 +84,8 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     filter_id = builder.filterId;
     filter = builder.filter;
     fetch_last = builder.fetchLast;
-    push_down_nodes = builder.push_down_nodes;
+    push_down_nodes = builder.push_down_nodes == null ? 
+        Collections.emptyList() : builder.push_down_nodes;
   }
   
   /** @return The source ID. May be null in which case we use the default. */
@@ -179,7 +181,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   /** @return A new builder. */
   public static Builder newBuilder(final TimeSeriesDataSourceConfig config,
                                    final Builder builder) {
-    return (Builder) builder
+    builder
         .setSourceId(config.getSourceId())
         .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
         .setMetric(config.getMetric())
@@ -187,10 +189,13 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         .setQueryFilter(config.getFilter())
         .setFetchLast(config.getFetchLast())
         // TODO - overrides if we keep em.
-        .setSources(config.getSources())
         .setType(config.getType())
         .setId(config.getId());
+    if (!config.getSources().isEmpty()) {
+      builder.setSources(Lists.newArrayList(config.getSources()));
+    }
     // Skipp push down nodes.
+    return (Builder) builder;
   }
 
   public static void parseConfig(final ObjectMapper mapper, 
@@ -296,18 +301,18 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   public static abstract class Builder extends BaseQueryNodeConfig.Builder
     implements TimeSeriesDataSourceConfig.Builder {
     @JsonProperty
-    private String sourceId;
+    protected String sourceId;
     @JsonProperty
-    private List<String> types;
+    protected List<String> types;
     @JsonProperty
-    private MetricFilter metric;
+    protected MetricFilter metric;
     @JsonProperty
-    private String filterId;
+    protected String filterId;
     @JsonProperty
-    private QueryFilter filter;
+    protected QueryFilter filter;
     @JsonProperty
-    private boolean fetchLast;
-    private List<QueryNodeConfig> push_down_nodes;
+    protected boolean fetchLast;
+    protected List<QueryNodeConfig> push_down_nodes;
     
     protected Builder() {
       setType(TimeSeriesDataSourceConfig.DEFAULT);

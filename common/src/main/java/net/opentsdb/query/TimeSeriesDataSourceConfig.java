@@ -51,10 +51,6 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
   /** @return An optional list of push down nodes. May be null. */
   public List<QueryNodeConfig> getPushDownNodes();
   
-  /** @return A non-null clone of the current config as a builder
-   * that can be modified. */
-  public Builder getBuilder();
-  
   /**
    * A base builder interface for data source configs.
    */
@@ -77,6 +73,10 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
         final List<QueryNodeConfig> push_down_nodes);
     
     public Builder addPushDownNode(final QueryNodeConfig node);
+    
+    public String id();
+    
+    public String sourceId();
     
     public TimeSeriesDataSourceConfig build();
     

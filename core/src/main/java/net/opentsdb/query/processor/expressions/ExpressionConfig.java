@@ -154,6 +154,12 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
+  public Builder toBuilder() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
     return false;

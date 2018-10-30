@@ -260,4 +260,32 @@ public class TestDownsampleConfig {
         ((NumericSummaryInterpolatorConfig) config.interpolatorConfig(NumericSummaryType.TYPE))
           .getDefaultRealFillPolicy());
   }
+
+  @Test
+  public void toBuilder() throws Exception {
+    DownsampleConfig original = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("15s")
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    
+    DownsampleConfig config = (DownsampleConfig) original.toBuilder().build();
+    assertEquals("sum", config.getAggregator());
+    assertEquals("foo", config.getId());
+    assertEquals(Duration.of(15, ChronoUnit.SECONDS), config.interval());
+    assertEquals(15, config.intervalPart());
+    assertFalse(config.getFill());
+    assertEquals(ZoneId.of("UTC"), config.timezone());
+    assertEquals(ChronoUnit.SECONDS, config.units());
+    assertFalse(config.getInfectiousNan());
+    assertEquals(15, config.intervalPart());
+    // snap forward
+    assertEquals(1514843310, config.startTime().epoch());
+    assertEquals(1514846895, config.endTime().epoch());
+    
+  }
 }

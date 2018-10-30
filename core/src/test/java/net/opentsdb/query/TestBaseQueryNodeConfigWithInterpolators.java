@@ -141,6 +141,12 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     }
 
     @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    @Override
     public boolean pushDown() {
       return false;
     }
@@ -177,6 +183,8 @@ public class TestBaseQueryNodeConfigWithInterpolators {
       }
       
     }
+
+
   }
   
   static class TestInterpolatorConfig extends BaseInterpolatorConfig {

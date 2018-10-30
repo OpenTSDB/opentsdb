@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -26,14 +27,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -45,16 +46,27 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = HAClusterConfig.Builder.class)
-public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
+public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   
   /** The non-null and non-empty list of sources to query. */
   private final List<String> data_sources;
+  
+  /** A list of custom, fully defined data sources. */
+  private final List<TimeSeriesDataSourceConfig> data_source_configs;
   
   /** The non-null and non-empty aggregator to use to merge results. */
   private final String merge_aggregator;
   
   /** An optional timeout for the secondary (etc) sources. */
   private final String secondary_timeout;
+  
+  /** An optional timeout for the primary source when a secondary
+   * returns first. */
+  private final String primary_timeout;
+  
+  /** A flag indicating whether this config has gone through the planner
+   * setup step or not. */
+  private final boolean has_been_setup;
   
   /**
    * Default ctor.
@@ -64,26 +76,36 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
    */
   protected HAClusterConfig(final Builder builder) {
     super(builder);
-    if (builder.dataSources == null || builder.dataSources.isEmpty()) {
-      throw new IllegalArgumentException("Must have at least one source.");
-    }
     if (Strings.isNullOrEmpty(builder.mergeAggregator)) {
       throw new IllegalArgumentException("Merge aggregator cannot be null.");
     }
-    data_sources = builder.dataSources;
+    data_sources = builder.dataSources == null ? 
+        Collections.emptyList() : builder.dataSources;
+    data_source_configs = builder.dataSourceConfigs == null ?
+        Collections.emptyList() : builder.dataSourceConfigs;
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
+    primary_timeout = builder.primaryTimeout;
+    has_been_setup = builder.hasBeenSetup;
     
-    // validate the timeout
+    // validate the timeouts
     if (!Strings.isNullOrEmpty(secondary_timeout)) {
       DateTime.parseDuration(secondary_timeout);
     }
+    if (!Strings.isNullOrEmpty(primary_timeout)) {
+      DateTime.parseDuration(primary_timeout);
+    }
   }
 
-  /** @return The non-null and non-empty list of sources to query. The
-   * first entry is primary. */
+  /** @return The non-null list of sources to query. The first entry is 
+   * primary. */
   public List<String> getDataSources() {
     return data_sources;
+  }
+  
+  /** @return The non-null list of data source config overrides. */
+  public List<TimeSeriesDataSourceConfig> getDataSourceConfigs() {
+    return data_source_configs;
   }
   
   /** @return The non-null and non-empty aggregator to use to merge results. */
@@ -94,6 +116,18 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
   /** @return An optional timeout for the secondary (etc) sources. */
   public String getSecondaryTimeout() {
     return secondary_timeout;
+  }
+  
+  /** @return An optional timeout for the primary when a secondary 
+   * responds first. */
+  public String getPrimaryTimeout() {
+    return primary_timeout;
+  }
+  
+  /** @return Whether or not this node has gone through the planner setup
+   * step. */
+  public boolean getHasBeenSetup() {
+    return has_been_setup;
   }
   
   @Override
@@ -111,6 +145,8 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
 
   @Override
   public boolean joins() {
+    // NOTE: We purposely leave this false so that we don't treat it
+    // as a source.
     return false;
   }
 
@@ -141,6 +177,22 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
     return buildHashCode().asInt();
   }
   
+  @Override
+  public Builder toBuilder() {
+    final Builder builder = new Builder()
+        .setMergeAggregator(merge_aggregator)
+        .setSecondaryTimeout(secondary_timeout)
+        .setPrimaryTimeout(primary_timeout)
+        .setHasBeenSetup(has_been_setup);
+    if (!data_sources.isEmpty()) {
+      builder.setDataSources(Lists.newArrayList(data_sources));
+    }
+    if (!data_source_configs.isEmpty()) {
+      builder.setDataSourceConfigs(Lists.newArrayList(data_source_configs));
+    }
+    return (Builder) BaseTimeSeriesDataSourceConfig.newBuilder(this, builder);
+  }
+  
   /** @return A new builder to construct a Cluster Config */
   public static Builder newBuilder() {
     return new Builder();
@@ -148,13 +200,23 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
   
   /** The builder class for cluster configs. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder {
     @JsonProperty
     private List<String> dataSources;
+    @JsonProperty
+    private List<TimeSeriesDataSourceConfig> dataSourceConfigs;
     @JsonProperty
     private String mergeAggregator;
     @JsonProperty
     private String secondaryTimeout;
+    @JsonProperty
+    private String primaryTimeout;
+    @JsonProperty
+    private boolean hasBeenSetup;
+    
+    Builder() {
+      setType("HAClusterConfig");
+    }
     
     /**
      * @param data_sources The list of sources to query from.
@@ -162,6 +224,28 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
      */
     public Builder setDataSources(final List<String> data_sources) {
       this.dataSources = data_sources;
+      return this;
+    }
+    
+    public Builder addDataSource(final String source) {
+      if (dataSources == null) {
+        dataSources = Lists.newArrayList();
+      }
+      dataSources.add(source);
+      return this;
+    }
+    
+    public Builder setDataSourceConfigs(
+        final List<TimeSeriesDataSourceConfig> data_source_configs) {
+      dataSourceConfigs = data_source_configs;
+      return this;
+    }
+    
+    public Builder addDataSourceConfig(final TimeSeriesDataSourceConfig config) {
+      if (dataSourceConfigs == null) {
+        dataSourceConfigs = Lists.newArrayList();
+      }
+      dataSourceConfigs.add(config);
       return this;
     }
     
@@ -185,17 +269,53 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
       return this;
     }
     
+    /**
+     * @param primary_timeout The amount of time to wait after a
+     * secondary response comes in before returning data. E.g. "5s".
+     * @return The builder.
+     */
+    public Builder setPrimaryTimeout(final String primary_timeout) {
+      primaryTimeout = primary_timeout;
+      return this;
+    }
+    
+    public Builder setHasBeenSetup(final boolean has_been_setup) {
+      hasBeenSetup = has_been_setup;
+      return this;
+    }
+    
+    public List<String> dataSources() {
+      return dataSources == null ? Collections.emptyList() : dataSources;
+    }
+    
+    public List<TimeSeriesDataSourceConfig> dataSourceConfigs() {
+      return dataSourceConfigs == null ? Collections.emptyList() : dataSourceConfigs;
+    }
+
+    @Override
+    public String id() {
+      return id;
+    }
+
+    @Override
+    public String sourceId() {
+      return sourceId;
+    }
+    
     /** @return The instantiated ClusterConfig on success or exceptions on 
      * failure. */
     public HAClusterConfig build() {
       return new HAClusterConfig(this);
     }
+
   }
   
   public static HAClusterConfig parse(final ObjectMapper mapper,
                                       final TSDB tsdb, 
                                       final JsonNode node) {
     Builder builder = new Builder();
+    BaseTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node, builder);
+    
     JsonNode n = node.get("dataSources");
     if (n != null) {
       try {
@@ -220,24 +340,12 @@ public class HAClusterConfig extends BaseQueryNodeConfigWithInterpolators {
       builder.setSecondaryTimeout(n.asText());
     }
     
-    n = node.get("interpolatorConfigs");
-    for (final JsonNode config : n) {
-      JsonNode type_json = config.get("type");
-      final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
-          QueryInterpolatorFactory.class, 
-          type_json == null ? null : type_json.asText());
-      if (factory == null) {
-        throw new IllegalArgumentException("Unable to find an "
-            + "interpolator factory for: " + 
-            (type_json == null ? "default" :
-             type_json.asText()));
-      }
-      
-      final QueryInterpolatorConfig interpolator_config = 
-          factory.parseConfig(mapper, tsdb, config);
-      builder.addInterpolatorConfig(interpolator_config);
+    n = node.get("primaryTimeout");
+    if (n != null) {
+      builder.setPrimaryTimeout(n.asText());
     }
     
     return (HAClusterConfig) builder.build();
   }
+  
 }

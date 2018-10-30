@@ -182,4 +182,24 @@ public class TestGroupByConfig {
     assertTrue(config.interpolatorConfigs().get(NumericType.TYPE) 
         instanceof NumericInterpolatorConfig);
   }
+
+  @Test
+  public void toBuilder() throws Exception {
+    GroupByConfig source = (GroupByConfig) GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .setTagKeys(Sets.newHashSet("host"))
+        .addTagKey("dc")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .setId("GBy")
+        .build();
+    
+    GroupByConfig config = source.toBuilder().build();
+    assertEquals("sum", config.getAggregator());
+    assertEquals("GBy", config.getId());
+    assertTrue(config.getTagKeys().contains("host"));
+    assertTrue(config.getTagKeys().contains("dc"));
+    assertSame(numeric_config, config.interpolatorConfigs().get(NumericType.TYPE));
+  }
+
 }

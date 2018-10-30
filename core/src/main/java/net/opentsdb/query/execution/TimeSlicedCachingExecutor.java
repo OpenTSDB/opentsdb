@@ -47,6 +47,7 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.execution.MetricShardingExecutor.Config.Builder;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -678,6 +679,12 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     /** @return Whether or not to bypass the cache query and write. */
     public boolean getBypass() {
       return bypass;
+    }
+    
+    @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
     @Override

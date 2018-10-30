@@ -55,6 +55,7 @@ import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.stats.MockStats;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.MockDataStore;
 import net.opentsdb.storage.MockDataStoreFactory;
 
@@ -63,6 +64,7 @@ import net.opentsdb.storage.MockDataStoreFactory;
 public class TestTSDBV2QueryContextBuilder {
   private static MockDataStoreFactory STORE_FACTORY;
   private static TimeSeriesDataSourceFactory SOURCE_FACTORY;
+  private static QueryNode SOURCE;
   private static QuerySinkFactory SINK_FACTORY;
   private static MockTSDB TSDB;
   private QuerySink sink;
@@ -74,8 +76,23 @@ public class TestTSDBV2QueryContextBuilder {
     TSDB = new MockTSDB();
     TSDB.registry = mock(DefaultRegistry.class);
     STORE_FACTORY = new MockDataStoreFactory();
+    SOURCE_FACTORY = mock(TimeSeriesDataSourceFactory.class);
+    SOURCE = mock(QueryNode.class);
     SINK_FACTORY = mock(QuerySinkFactory.class);
     TSDB.config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
+    
+    when(SOURCE_FACTORY.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
+      .thenReturn(SOURCE);
+    QueryNodeConfig source_config = mock(QueryNodeConfig.class);
+    when(SOURCE.config()).thenReturn(source_config);
+    when(SOURCE.initialize(any(Span.class))).thenAnswer(new Answer<Deferred<Void>>() {
+      @Override
+      public Deferred<Void> answer(InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromResult(null);
+      }
+    });
+    when(source_config.getId()).thenReturn("MOCK");
     
     QueryNodeFactory factory = mock(QueryNodeFactory.class);
     when(factory.newNode(any(QueryPipelineContext.class)))
@@ -99,7 +116,8 @@ public class TestTSDBV2QueryContextBuilder {
         public QueryNodeFactory answer(InvocationOnMock invocation)
             throws Throwable {
           String id = (String) invocation.getArguments()[0];
-          if (id.toLowerCase().equals("datasource")) {
+          System.out.println("  ID::::: " + id);
+          if (id == null || id.toLowerCase().equals("datasource")) {
             return SOURCE_FACTORY;
           }
           
@@ -193,9 +211,9 @@ public class TestTSDBV2QueryContextBuilder {
     assertEquals(QueryMode.SINGLE, context.mode());
     assertSame(sink, context.sinks().iterator().next());
     assertSame(stats, context.stats());
-    assertEquals(3, tracer.spans.size());
+    assertEquals(2, tracer.spans.size());
     context.close();
-    assertEquals(5, tracer.spans.size());
+    assertEquals(3, tracer.spans.size());
   }
   
   @Test

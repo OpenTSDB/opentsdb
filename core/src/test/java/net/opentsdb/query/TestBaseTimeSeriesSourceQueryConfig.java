@@ -15,7 +15,6 @@ package net.opentsdb.query;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -82,7 +81,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(clone.getTypes().contains("Annotation"));
     assertSame(config.getMetric(), clone.getMetric());
     assertEquals("UT", clone.getId());
-    assertNull(clone.getPushDownNodes());
+    assertTrue(clone.getPushDownNodes().isEmpty());
   }
 
   @Test
@@ -142,7 +141,8 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     }
     
     @Override
-    public TimeSeriesDataSourceConfig.Builder getBuilder() {
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
       return null;
     }
     
@@ -156,8 +156,22 @@ public class TestBaseTimeSeriesSourceQueryConfig {
       public TimeSeriesDataSourceConfig build() {
         return new UTConfig(this);
       }
+
+      
+      @Override
+      public String id() {
+        // TODO Auto-generated method stub
+        return null;
+      }
+
+      @Override
+      public String sourceId() {
+        // TODO Auto-generated method stub
+        return null;
+      }
       
     }
 
+    
   }
 }

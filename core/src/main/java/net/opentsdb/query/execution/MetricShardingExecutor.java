@@ -385,6 +385,12 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       // TODO Auto-generated method stub
       return null;
     }
+   
+    @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
     /** @return A new builder. */
     public static Builder newBuilder() {
@@ -476,6 +482,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         return new Config(this);
       }
     }
+
     
   }
 }

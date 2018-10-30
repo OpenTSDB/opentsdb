@@ -668,6 +668,12 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
           .compareTrueFirst(use_timestamps, (((Config) config).use_timestamps))
           .result();
     }
+
+    @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
     /** @return A new builder. */
     public static Builder newBuilder() {
@@ -780,6 +786,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
       }
       
     }
+
     
   }
   

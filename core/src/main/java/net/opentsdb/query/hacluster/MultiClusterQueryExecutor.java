@@ -707,5 +707,11 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       }
     }
 
+    @Override
+    public net.opentsdb.query.QueryNodeConfig.Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
   }
 }

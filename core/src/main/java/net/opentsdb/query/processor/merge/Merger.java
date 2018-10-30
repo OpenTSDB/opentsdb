@@ -79,22 +79,13 @@ public class Merger extends AbstractQueryNode {
   @Override
   public void onNext(final QueryResult next) {
     synchronized (results) {
-      if (next.dataSource().equals(next.source().config().getId())) {
-        Boolean extant = results.get(next.dataSource());
-        if (extant == null) {
-          return;
-        }
-        if (extant) {
-          throw new IllegalStateException("Already got a result for: " + next.dataSource());
-        }
+      Boolean extant = results.get(next.dataSource());
+      if (extant && extant != null) {
+        throw new IllegalStateException("Already got a result for: " + next.dataSource());
+      } else if (extant != null) {
         results.put(next.dataSource(), true);
       } else {
-        final String id = next.source().config().getId() + ":" + next.dataSource();
-        Boolean extant = results.get(id);
-        if (extant) {
-          throw new IllegalStateException("Already got a result for: " + id);
-        }
-        results.put(id, true);
+        return;
       }
       
       if (result == null) {
