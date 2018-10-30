@@ -34,11 +34,6 @@ class TSDRepair(object):
         if self.use_sudo:
             self.base = "sudo -u {} {}".format(self.sudo_user, self.base)
             self.check_cmd = "sudo -u {} {}".format(self.sudo_user, self.check_cmd)
-        warn = "You have set a timeout of {} seconds.".format(self.timeout)
-        warn += " All individual metric repairs are allowed to run"
-        warn += " that long. Please don't cancel a repair while it"
-        warn += " is running!"
-        self.log.warning(warn)
 
     def _get_metrics(self):
         """
@@ -47,18 +42,28 @@ class TSDRepair(object):
         :returns: all metrics
         :rtype: list
         """
+        try:
+            self.store_path = args.get('store_path', '/tmp/opentsdb.list')
+            with open(self.store_path, 'r') as f_in:
+                finished_metrics = [m for m in f_in.read().split('\n') if m]
+        except Exception:
+            finished_metrics = []
         cmd = '{} uid --config={} grep metrics ".*"'.format(self.tsd_path,
                                                             self.cfg_path)
         proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
         results = proc.communicate()
         metrics = [m.split(" ")[1].strip(":")
                    for m in results[0].decode().split("\n") if m]
-        metrics = [m for m in metrics if m and m != "\x00"]
+        metrics = [m for m in metrics if m and m != "\x00" and
+                   m not in finished_metrics]
         shuffle(metrics)
         self.log.info("There are {} metrics to process".format(len(metrics)))
         return metrics
 
-    def _repair_metric(self, metric, chunk):
+    def _repair_metric_chunk(self, metric, chunk):
+        """
+        Repair one 'chunk' of data for a metric
+        """
         self.log.debug("Running chunk {} for {}".format(chunk, metric))
         if chunk < 2:
             timestr = "{}m-ago".format(self.time_chunk)
@@ -66,6 +71,9 @@ class TSDRepair(object):
             timestr = "{}m-ago {}m-ago".format((chunk + 1) * self.time_chunk,
                                                chunk * self.time_chunk)
         cmd = "{} {} sum".format(self.base, timestr)
+        """
+        Even though we're chunking, it's worth trying things more than once
+        """
         for x in range(1, self.retries + 2):
             self.log.debug("Repair try {} for {}".format(x, timestr))
             fullcmd = "{} {} --fix-all --compact".format(cmd, metric)
@@ -77,12 +85,15 @@ class TSDRepair(object):
                 self.log.debug("{} failed to complete in window (run {})".format(metric, x))
                 continue
             except Exception as e:
-                self.log.error("General exception {} :: {}".format(metric,
+                self.log.error("{} general exception :: {}".format(metric,
                                                                    e))
             else:
                 results = [r for r in results.decode().split("\n") if r][-26:]
                 final_results = []
-                # We'll only collect results that are non-0, since we're not super interested in stuff that didn't change
+                """
+                We'll only collect results that are non-0
+                since we're not super interested in stuff that didn't change.
+                """
                 for r in results:
                     # Strip the timestamp from the log line
                     line = r.split(" ")[6:]
@@ -92,13 +103,20 @@ class TSDRepair(object):
                     except Exception:
                         final_results.append(" ".join(line))
                 result_str = "\n".join(final_results)
-                if self.chunk_count % chunk == 0:
-                    self.log.info("Completed {} chunks (of {}) for {}".format(chunk, self.chunk_count, metric))
                 self.log.debug("{} results:\n{}".format(metric, result_str))
-                return []
+                if chunk % 20 == 0:
+                    self.log.info("Chunk {} of {} finished".format(chunk, self.chunk_count))
+                else:
+                    self.log.debug("Chunk {} of {} finished".format(chunk, self.chunk_count))
+                try:
+                    with open(self.store_path, 'a') as f_out:
+                        f_out.write("{}\n".format(metric))
+                except Exception:
+                    pass
+                return None
         else:
             self.log.error("Failed to completely repair {}".format(metric))
-            return [metric]
+            return metric
 
     def process_metrics(self):
         """
@@ -118,8 +136,10 @@ class TSDRepair(object):
                                                               self.chunk_count)
             self.log.info(logline)
             start_time = time.time()
-            failed_metrics = [self._repair_metric(metric, x)
+            start_time_min = int(start_time//60 * 60)
+            failed_metrics = [self._repair_metric_chunk(metric, x)
                               for x in range(1, self.chunk_count + 1)]
+            failed_metrics = [m for m in failed_metrics if m]
             runtime = time.time() - start_time
             self.log.info("{} repair took {} seconds".format(metric,
                                                              int(runtime)))
@@ -135,15 +155,18 @@ def cli_opts():
     parser.add_argument("--time-range", default="48",
                         help="How many hours of time we collect to repair")
     parser.add_argument("--time-chunk", default="15",
-                        help="How many minutes of data we should scan at a time")
+                        help="How many minutes of data to scan per chunk")
     parser.add_argument("--retries", default="1",
                         help="How many times we should try failed metrics")
     parser.add_argument("--tsd-path", default="/usr/share/opentsdb/bin/tsdb",
                         help="Path to the OpenTSDB CLI binary")
     parser.add_argument("--cfg-path", default="/etc/opentsdb/opentsdb.conf",
                         help="Path to OpenTSDB config")
+    parser.add_argument("--store-path", default="/opentsdb-fsck.list",
+                        help="Path to OpenTSDB config")
     parser.add_argument("--use-sudo", action="store_true",
-                        default=False, help="Whether to switch user when running repairs")
+                        default=False,
+                        help="switch user when running repairs?")
     parser.add_argument("--sudo-user", default="opentsdb",
                         help="User to switch to...")
     return parser.parse_args()
@@ -174,8 +197,8 @@ def main():
                              "time_chunk": time_chunk,
                              "tsd_path": args.tsd_path,
                              "cfg_path": args.cfg_path,
+                             "store_path": args.store_path,
                              "retries": retries})
-    repair_tool.process_metrics()
     repair_tool.process_metrics()
 
 
