@@ -77,9 +77,9 @@ import net.opentsdb.utils.JSON;
  * 
  * @param <T>
  */
-public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
+public class HAClusterFactory<T> extends QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(
-      MultiClusterQueryExecutor.class);
+      HAClusterFactory.class);
 
   /** The data merger used to merge results. */
 //  private DataMerger<T> default_data_merger;
@@ -103,7 +103,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
    * @throws IllegalArgumentException if a config param was invalid.
    */
   @SuppressWarnings("unchecked")
-  public MultiClusterQueryExecutor() {
+  public HAClusterFactory() {
     super();
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Config cannot be null.");
