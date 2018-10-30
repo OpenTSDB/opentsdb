@@ -44,6 +44,7 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.execution.MetricShardingExecutor.Config.Builder;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
@@ -509,6 +510,12 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
     /** @return The planner ID. */
     public String getPlannerId() {
       return planner_id;
+    }
+    
+    @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
     @Override

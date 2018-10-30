@@ -49,6 +49,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -67,7 +68,6 @@ public class TestDefaultQueryPlanner {
 
   private static MockTSDB TSDB;
   private static TimeSeriesDataSourceFactory STORE_FACTORY;
-  private static TimeSeriesDataSource STORE;
   private static NumericInterpolatorConfig NUMERIC_CONFIG;
   private static QueryNode SINK;
   private static List<TimeSeriesDataSource> STORE_NODES;
@@ -149,8 +149,8 @@ public class TestDefaultQueryPlanner {
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(2, planner.graph().nodes().size());
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
     
@@ -209,13 +209,13 @@ public class TestDefaultQueryPlanner {
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(4, planner.graph().nodes().size());
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("gb")));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("ds")));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("ds"), 
-        planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("gb"), 
-        planner.nodesMap().get("ds")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("ds")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("ds"), 
+        planner.nodes_map.get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("gb"), 
+        planner.nodes_map.get("ds")));
     
     assertEquals(1, planner.serializationSources().size());
     
@@ -293,12 +293,12 @@ public class TestDefaultQueryPlanner {
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(3, planner.graph().nodes().size());
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("gb")));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("m1");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -356,12 +356,12 @@ public class TestDefaultQueryPlanner {
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(2, planner.graph().nodes().size());
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
     
     
-    QueryNode node = planner.nodesMap().get("m1");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -489,7 +489,7 @@ public class TestDefaultQueryPlanner {
 
     assertEquals(2, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("downsample");
+    QueryNode node = planner.nodes_map.get("downsample");
     assertTrue(node instanceof Downsample);
     assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
     assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
@@ -565,14 +565,14 @@ public class TestDefaultQueryPlanner {
 
     assertEquals(2, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("m1");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
-    node = planner.nodesMap().get("m2");
+    node = planner.nodes_map.get("m2");
     assertSame(STORE_NODES.get(1), node);
     source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -657,14 +657,14 @@ public class TestDefaultQueryPlanner {
 
     assertEquals(2, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("m1");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("ds2", source_config.getPushDownNodes().get(0).getId());
     
-    node = planner.nodesMap().get("m2");
+    node = planner.nodes_map.get("m2");
     assertSame(STORE_NODES.get(1), node);
     source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -735,14 +735,14 @@ public class TestDefaultQueryPlanner {
 
     assertEquals(2, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("m1");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(1).config();
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
-    node = planner.nodesMap().get("m2");
+    node = planner.nodes_map.get("m2");
     assertSame(STORE_NODES.get(1), node);
     source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -896,13 +896,13 @@ public class TestDefaultQueryPlanner {
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
     assertEquals(5, planner.graph().nodes().size());
     
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("gb")));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodesMap().get("m2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("downsample"), 
-        planner.nodesMap().get("m2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodesMap().get("gb"), 
-        planner.nodesMap().get("downsample")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m2")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("downsample"), 
+        planner.nodes_map.get("m2")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("gb"), 
+        planner.nodes_map.get("downsample")));
 
     assertEquals(4, planner.serializationSources().size());
    
@@ -1154,7 +1154,7 @@ public class TestDefaultQueryPlanner {
 
     assertEquals(1, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("expression");
+    QueryNode node = planner.nodes_map.get("expression");
     Set<QueryNode> nodes = planner.graph().successors(node);
     assertTrue(node instanceof BinaryExpressionNode);
     assertEquals(2, nodes.size());
@@ -1253,7 +1253,7 @@ public class TestDefaultQueryPlanner {
 
     assertEquals(1, planner.serializationSources().size());
     
-    QueryNode node = planner.nodesMap().get("expression");
+    QueryNode node = planner.nodes_map.get("expression");
     Set<QueryNode> nodes = planner.graph().successors(node);
     assertTrue(node instanceof BinaryExpressionNode);
     assertEquals(1, nodes.size());
@@ -1412,6 +1412,153 @@ public class TestDefaultQueryPlanner {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     assertNull(planner.graph());
+  }
+  
+  @Test
+  public void replace() throws Exception {
+    when(context.query()).thenReturn(mock(SemanticQuery.class));
+    QueryNodeConfig u1 = mock(QueryNodeConfig.class);
+    QueryNodeConfig n = mock(QueryNodeConfig.class);
+    QueryNodeConfig d1 = mock(QueryNodeConfig.class);
+    QueryNodeConfig r = mock(QueryNodeConfig.class);
+    
+    // middle
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(u1, n);
+    planner.addEdge(n, d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertTrue(planner.configGraph().hasEdgeConnecting(n, d1));
+    planner.replace(n, r);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, r));
+    assertTrue(planner.configGraph().hasEdgeConnecting(r, d1));
+    
+    // sink
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(n, d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(n, d1));
+    planner.replace(n, r);
+    assertTrue(planner.configGraph().hasEdgeConnecting(r, d1));
+    
+    // root
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(u1, n);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    planner.replace(n, r);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, r));
+    
+    // non-source with source
+    r = mock(TimeSeriesDataSourceConfig.class);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(n, d1);
+    assertTrue(planner.source_nodes.isEmpty());
+    planner.replace(n, r);
+    assertTrue(planner.source_nodes.contains(r));
+    
+    // source with source
+    n = mock(TimeSeriesDataSourceConfig.class);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(n, d1);
+    assertTrue(planner.source_nodes.contains(n));
+    planner.replace(n, r);
+    assertTrue(planner.source_nodes.contains(r));
+    assertFalse(planner.source_nodes.contains(n));
+    
+    // source with non-source
+    r = mock(QueryNodeConfig.class);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(n, d1);
+    assertTrue(planner.source_nodes.contains(n));
+    planner.replace(n, r);
+    assertFalse(planner.source_nodes.contains(r));
+    assertFalse(planner.source_nodes.contains(n));
+  }
+
+  @Test
+  public void addEdge() throws Exception {
+    when(context.query()).thenReturn(mock(SemanticQuery.class));
+    QueryNodeConfig u1 = mock(QueryNodeConfig.class);
+    QueryNodeConfig n = mock(QueryNodeConfig.class);
+    QueryNodeConfig d1 = mock(QueryNodeConfig.class);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(u1, n);
+    planner.addEdge(n, d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertTrue(planner.configGraph().hasEdgeConnecting(n, d1));
+    
+    // cycle
+    try {
+      planner.addEdge(d1, u1);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // from source
+    u1 = mock(TimeSeriesDataSourceConfig.class);
+    d1 = mock(TimeSeriesDataSourceConfig.class);
+    planner = new DefaultQueryPlanner(context, SINK);
+    assertTrue(planner.source_nodes.isEmpty());
+    planner.addEdge(u1, n);
+    assertEquals(1, planner.source_nodes.size());
+    assertTrue(planner.source_nodes.contains(u1));
+    
+    // to source
+    planner.addEdge(n, d1);
+    assertEquals(2, planner.source_nodes.size());
+    assertTrue(planner.source_nodes.contains(u1));
+    assertTrue(planner.source_nodes.contains(d1));
+  }
+  
+  @Test
+  public void removeEdge() throws Exception {
+    when(context.query()).thenReturn(mock(SemanticQuery.class));
+    QueryNodeConfig u1 = mock(QueryNodeConfig.class);
+    QueryNodeConfig n = mock(QueryNodeConfig.class);
+    QueryNodeConfig d1 = mock(QueryNodeConfig.class);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(u1, n);
+    planner.addEdge(n, d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertTrue(planner.configGraph().hasEdgeConnecting(n, d1));
+    
+    planner.removeEdge(n, d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertFalse(planner.configGraph().hasEdgeConnecting(n, d1));
+    assertTrue(planner.configGraph().nodes().contains(u1));
+    assertTrue(planner.configGraph().nodes().contains(n));
+    assertFalse(planner.configGraph().nodes().contains(d1));
+    
+    planner.removeEdge(u1, n);
+    assertFalse(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertFalse(planner.configGraph().hasEdgeConnecting(n, d1));
+    assertFalse(planner.configGraph().nodes().contains(u1));
+    assertFalse(planner.configGraph().nodes().contains(n));
+    assertFalse(planner.configGraph().nodes().contains(d1));
+  }
+  
+  @Test
+  public void removeNode() throws Exception {
+    when(context.query()).thenReturn(mock(SemanticQuery.class));
+    QueryNodeConfig u1 = mock(QueryNodeConfig.class);
+    QueryNodeConfig n = mock(QueryNodeConfig.class);
+    QueryNodeConfig d1 = mock(QueryNodeConfig.class);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.addEdge(u1, n);
+    planner.addEdge(n, d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertTrue(planner.configGraph().hasEdgeConnecting(n, d1));
+    
+    planner.removeNode(d1);
+    assertTrue(planner.configGraph().hasEdgeConnecting(u1, n));
+    assertFalse(planner.configGraph().hasEdgeConnecting(n, d1));
+    assertTrue(planner.configGraph().nodes().contains(u1));
+    assertTrue(planner.configGraph().nodes().contains(n));
+    assertFalse(planner.configGraph().nodes().contains(d1));
   }
   
   private SerdesOptions serdesConfigs(final List<String> filter) {

@@ -280,6 +280,21 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
+  public Builder toBuilder() {
+    return (Builder) new Builder()
+        .setInterval(interval)
+        .setTimeZone(timezone.toString())
+        .setAggregator(aggregator)
+        .setInfectiousNan(infectious_nan)
+        .setRunAll(run_all)
+        .setFill(fill)
+        .setStart(start)
+        .setEnd(end)
+        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+        .setId(id);
+  }
+  
+  @Override
   public boolean pushDown() {
     return true;
   }

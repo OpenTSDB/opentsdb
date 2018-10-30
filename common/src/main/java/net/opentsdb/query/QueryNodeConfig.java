@@ -113,6 +113,9 @@ public interface QueryNodeConfig extends Comparable<QueryNodeConfig> {
    */
   public boolean hasKey(final String key);
 
+  /** @return The config specific builder populated from this config. */
+  public Builder toBuilder();
+  
   /**
    * The interface for a QueryNodeConfig builder implementation.
    */

@@ -109,6 +109,18 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
+  public Builder toBuilder() {
+    return (Builder) new Builder()
+        .setTagKeys(Sets.newHashSet(tag_keys))
+        .setAggregator(aggregator)
+        .setInfectiousNan(infectious_nan)
+        .setMergeIds(merge_ids)
+        .setFullMerge(full_merge)
+        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+        .setId(id);
+  }
+  
+  @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
     return false;

@@ -179,6 +179,12 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   }
   
   @Override
+  public Builder toBuilder() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
     return false;
@@ -391,7 +397,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
-  public static final class Builder {
+  public static final class Builder implements QueryNodeConfig.Builder {
     @JsonProperty
     private String id;
     @JsonProperty

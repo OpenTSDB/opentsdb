@@ -60,6 +60,12 @@ public class SummarizerConfig extends BaseQueryNodeConfig {
   }
   
   @Override
+  public Builder toBuilder() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
   public int compareTo(QueryNodeConfig o) {
     // TODO Auto-generated method stub
     return 0;

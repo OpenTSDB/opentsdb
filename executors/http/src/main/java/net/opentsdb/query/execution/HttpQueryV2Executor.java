@@ -882,6 +882,12 @@ public class HttpQueryV2Executor {
       // TODO Auto-generated method stub
       return false;
     }
+
+    @Override
+    public net.opentsdb.query.QueryNodeConfig.Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
   }
 }

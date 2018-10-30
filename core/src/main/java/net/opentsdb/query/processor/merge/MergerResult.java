@@ -122,7 +122,7 @@ public class MergerResult implements QueryResult {
 
   @Override
   public String dataSource() {
-    return next.get(0).dataSource();
+    return node.config().getId();
   }
   
   @Override

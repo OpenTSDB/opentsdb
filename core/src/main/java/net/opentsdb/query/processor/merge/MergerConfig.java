@@ -57,6 +57,12 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
+  public Builder toBuilder() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().newHasher()

@@ -37,6 +37,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.execution.MetricShardingExecutor.Config.Builder;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
@@ -290,6 +291,12 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     /** @return The timeout in milliseconds. */ 
     public long getTimeout() {
       return timeout;
+    }
+    
+    @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
     @Override

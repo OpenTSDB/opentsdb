@@ -106,6 +106,9 @@ public abstract class BaseQueryNodeConfigWithInterpolators extends
      */
     public Builder addInterpolatorConfig(
           final QueryInterpolatorConfig interpolator_config) {
+      if (interpolator_config == null) {
+        throw new IllegalArgumentException("Config cannot be null.");
+      }
       if (interpolatorConfigs == null) {
         interpolatorConfigs = Lists.newArrayList();
       }

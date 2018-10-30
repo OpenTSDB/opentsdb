@@ -21,11 +21,11 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.graph.EndpointPair;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.Graphs;
 import com.google.common.graph.MutableGraph;
@@ -59,37 +59,40 @@ public class DefaultQueryPlanner implements QueryPlanner {
       DefaultQueryPlanner.class);
   
   /** The context we belong to. We get the query here. */
-  private final QueryPipelineContext context;
+  protected final QueryPipelineContext context;
 
   /** The pass-through context sink node. */
-  private final QueryNode context_sink;
+  protected final QueryNode context_sink;
   
   /** A reference to the sink config. */
-  private final ContextNodeConfig context_sink_config;
+  protected final ContextNodeConfig context_sink_config;
   
-  private final Map<String, String> sink_filter;
+  protected final Map<String, String> sink_filter;
   
   /** The roots (sent to sinks) of the user given graph. */
-  private List<QueryNodeConfig> roots;
+  protected List<QueryNodeConfig> roots;
   
   /** The planned execution graph. */
-  private MutableGraph<QueryNode> graph;
+  protected MutableGraph<QueryNode> graph;
   
   /** The list of data sources we're fetching from. */
-  private List<TimeSeriesDataSource> data_sources;
+  protected List<TimeSeriesDataSource> data_sources;
+  
+  /** The set of data source config nodes. */
+  protected final Set<QueryNodeConfig> source_nodes;
   
   /** The configuration graph. */
-  private MutableGraph<QueryNodeConfig> config_graph;
+  protected MutableGraph<QueryNodeConfig> config_graph;
   
   /** Map of the config IDs to nodes for use in linking and unit testing. */
-  private final Map<String, QueryNode> nodes_map;
+  protected final Map<String, QueryNode> nodes_map;
   
   /** The context node from the query pipeline context. All results pass
    * through this. */
-  private QueryNodeConfig context_node;
+  protected QueryNodeConfig context_node;
   
   /** The set of QueryResult objects we should see. */
-  private Set<String> serialization_sources;
+  protected Set<String> serialization_sources;
   
   /**
    * Default ctor.
@@ -105,6 +108,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
     data_sources = Lists.newArrayList();
     nodes_map = Maps.newHashMap();
     context_sink_config = new ContextNodeConfig();
+    source_nodes = Sets.newHashSet();
+    config_graph = GraphBuilder.directed()
+        .allowsSelfLoops(false)
+        .build();
     
     if (context.query().getSerdesConfigs() != null) {
       for (final SerdesOptions config : context.query().getSerdesConfigs()) {
@@ -133,10 +140,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
     final Map<String, QueryNodeConfig> config_map = 
         Maps.newHashMapWithExpectedSize(
             context.query().getExecutionGraph().size());
-    config_graph = GraphBuilder.directed()
-        .allowsSelfLoops(false)
-        .build();
-    
     context_node = context_sink_config;
     config_graph.addNode(context_node);
     config_map.put("QueryContext", context_node);
@@ -153,7 +156,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
     
     // now link em with the edges.
-    final List<QueryNodeConfig> source_nodes = Lists.newArrayList();
     for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
       if (node instanceof TimeSeriesDataSourceConfig) {
         source_nodes.add(node);
@@ -176,11 +178,17 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // next we walk and let the factories update the graph as needed.
     // Note the clone to avoid concurrent modification of the graph.
     Set<QueryNodeConfig> already_setup = Sets.newHashSet();
-    for (final QueryNodeConfig node : source_nodes) {
-      boolean modified = true;
-      while (modified) {
+    boolean modified = true;
+    while (modified) {
+      if (source_nodes.isEmpty()) {
+        break;
+      }
+      for (final QueryNodeConfig node : source_nodes) {
         modified = recursiveSetup(node, already_setup, factory_cache, 
             satisfied_filters);
+        if (modified) {
+          break;
+        }
       }
     }
     
@@ -197,24 +205,26 @@ public class DefaultQueryPlanner implements QueryPlanner {
         }
         
         // next, push down by walking up from the data sources.
-        for (final QueryNodeConfig node : source_nodes) {
+        final List<QueryNodeConfig> copy = Lists.newArrayList(source_nodes);
+        for (final QueryNodeConfig node : copy) {
           final QueryNodeFactory factory;
           if (node instanceof TimeSeriesDataSourceConfig) {
-            factory = factory_cache.get( 
+            final String source_id =  
                 Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
-                  .getSourceId()) ? null : 
-                    ((TimeSeriesDataSourceConfig) node)
-                      .getSourceId().toLowerCase());
-            } else if (!Strings.isNullOrEmpty(node.getType())) {
-            factory = factory_cache.get(node.getType().toLowerCase());
+                    .getSourceId()) ? null : 
+                      ((TimeSeriesDataSourceConfig) node)
+                        .getSourceId().toLowerCase();
+            factory = getFactory(source_id, factory_cache);
+          } else if (!Strings.isNullOrEmpty(node.getType())) {
+            factory = getFactory(node.getType().toLowerCase(), factory_cache);
           } else {
-            factory = factory_cache.get(node.getId().toLowerCase());
+            factory = getFactory(node.getId().toLowerCase(), factory_cache);
           }
           
           // TODO - cleanup the source factories. ugg!!!
           if (factory == null || !(factory instanceof TimeSeriesDataSourceFactory)) {
             throw new IllegalArgumentException("No node factory found for "
-                + "configuration " + node);
+                + "configuration " + node + "  Factory=" + factory);
           }
           
           final List<QueryNodeConfig> push_downs = Lists.newArrayList();
@@ -240,7 +250,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
           if (!push_downs.isEmpty()) {
             // now dump the push downs into this node.
             final TimeSeriesDataSourceConfig new_config = 
-                ((TimeSeriesDataSourceConfig) node).getBuilder()
+                ((TimeSeriesDataSourceConfig.Builder) node.toBuilder())
                 .setPushDownNodes(push_downs)
                 .build();
             replace(node, new_config);
@@ -273,6 +283,15 @@ public class DefaultQueryPlanner implements QueryPlanner {
         return recursiveInit(context_sink, initialized, span);
       }
       
+    }
+    
+    // one more iteration to make sure we capture all the source nodes
+    // from the graph setup.
+    source_nodes.clear();
+    for (final QueryNodeConfig node : config_graph.nodes()) {
+      if (node instanceof TimeSeriesDataSourceConfig) {
+        source_nodes.add(node);
+      }
     }
     
     final List<Deferred<Void>> deferreds = 
@@ -349,8 +368,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
             .getSourceId()) ? null : 
               ((TimeSeriesDataSourceConfig) node)
               .getSourceId().toLowerCase();
-        final TimeSeriesDataSourceFactory factory = context.tsdb().getRegistry()
-            .getPlugin(TimeSeriesDataSourceFactory.class, factory_id);
+        final TimeSeriesDataSourceFactory factory = 
+            (TimeSeriesDataSourceFactory) getFactory(factory_id, factory_cache);
         if (factory == null) {
           throw new IllegalArgumentException("No data source factory found for: " 
               + factory_id);
@@ -364,8 +383,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
           factory_id = node.getId().toLowerCase();
         }
         
-        final QueryNodeFactory factory = context.tsdb().getRegistry()
-            .getQueryNodeFactory(factory_id);
+        final QueryNodeFactory factory = getFactory(factory_id, factory_cache);
         if (factory == null) {
           throw new IllegalArgumentException("No node factory found for: " 
               + factory_id);
@@ -427,7 +445,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
     
     return Deferred.group(deferreds)
-        .addBoth(Deferreds.VOID_GROUP_CB)
+        .addCallback(Deferreds.VOID_GROUP_CB)
         .addCallbackDeferring(new InitCB());
   }
   
@@ -542,31 +560,16 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     QueryNodeFactory factory;
     if (node instanceof TimeSeriesDataSourceConfig) {
-      factory = factory_cache.get(
+      factory = getFactory(
           Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
-            .getSourceId()) ? null : 
-              ((TimeSeriesDataSourceConfig) node)
-              .getSourceId().toLowerCase());
-      if (factory == null) {
-        // last chance
-        factory = context.tsdb().getRegistry()
-            .getQueryNodeFactory(((TimeSeriesDataSourceConfig) node)
-                .getSourceId().toLowerCase());
-      }
+              .getSourceId()) ? null : 
+                ((TimeSeriesDataSourceConfig) node)
+                .getSourceId().toLowerCase(),
+          factory_cache);
     } else if (!Strings.isNullOrEmpty(node.getType())) {
-      factory = factory_cache.get(node.getType().toLowerCase());
-      if (factory == null) {
-        // last chance
-        factory = context.tsdb().getRegistry()
-            .getQueryNodeFactory(node.getType().toLowerCase());
-      }
+      factory = getFactory(node.getType().toLowerCase(), factory_cache);
     } else {
-      factory = factory_cache.get(node.getId().toLowerCase());
-      if (factory == null) {
-        // last chance
-        factory = context.tsdb().getRegistry()
-            .getQueryNodeFactory(node.getId().toLowerCase());
-      }
+      factory = getFactory(node.getId().toLowerCase(), factory_cache);
     }
     if (factory == null) {
       throw new IllegalArgumentException("No node factory found for "
@@ -587,11 +590,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
     
     for (final QueryNode source_node : sources) {
-      //try {
-        graph.putEdge(query_node, source_node);
-        if (Graphs.hasCycle(graph)) {
-          throw new IllegalArgumentException("WTF??");
-        }
+      graph.putEdge(query_node, source_node);
+      if (Graphs.hasCycle(graph)) {
+        throw new IllegalArgumentException("WTF??");
+      }
     }
     
     return query_node;
@@ -619,6 +621,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /** @return The non-null list of result IDs to watch for. */
   public Set<String> serializationSources() {
     return serialization_sources;
+  }
+  
+  @Override
+  public QueryNode nodeForId(final String id) {
+    return nodes_map.get(id);
   }
   
   /**
@@ -653,11 +660,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
     }
     return ids;
-  }
-  
-  @VisibleForTesting
-  Map<String, QueryNode> nodesMap() {
-    return nodes_map;
   }
   
   /**
@@ -751,6 +753,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
       return false;
     }
 
+    @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
   }
 
   /**
@@ -780,6 +787,15 @@ public class DefaultQueryPlanner implements QueryPlanner {
     config_graph.removeNode(old_config);
     config_graph.addNode(new_config);
     
+    if (old_config instanceof TimeSeriesDataSourceConfig && 
+        source_nodes.contains(old_config)) {
+      source_nodes.remove(old_config);
+    }
+    
+    if (new_config instanceof TimeSeriesDataSourceConfig) {
+      source_nodes.add(new_config);
+    }
+    
     for (final QueryNodeConfig up : upstream) {
       config_graph.putEdge(up, new_config);
       if (Graphs.hasCycle(config_graph)) {
@@ -797,4 +813,91 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
   }
 
+  @Override
+  public boolean addEdge(final QueryNodeConfig from, 
+                        final QueryNodeConfig to) {
+    final boolean added = config_graph.putEdge(from, to);
+    if (Graphs.hasCycle(config_graph)) {
+      throw new IllegalArgumentException("Cycle found linking node " 
+          + from.getId() + " to " + to.getId()); 
+    }
+    
+    if (from instanceof TimeSeriesDataSourceConfig) {
+      source_nodes.add(from);
+    }
+    if (to instanceof TimeSeriesDataSourceConfig) {
+      source_nodes.add(to);
+    }
+    return added;
+  }
+
+  @Override
+  public boolean removeEdge(final QueryNodeConfig from, 
+                            final QueryNodeConfig to) {
+    if (config_graph.removeEdge(from, to)) {
+      if (config_graph.predecessors(from).isEmpty() && 
+          config_graph.successors(from).isEmpty()) {
+        config_graph.removeNode(from);
+        if (from instanceof TimeSeriesDataSourceConfig) {
+          source_nodes.remove(from);
+        }
+      }
+      
+      if (config_graph.predecessors(to).isEmpty() && 
+          config_graph.successors(to).isEmpty()) {
+        config_graph.removeNode(to);
+        if (to instanceof TimeSeriesDataSourceConfig) {
+          source_nodes.remove(to);
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  @Override
+  public boolean removeNode(final QueryNodeConfig config) {
+    if (config_graph.removeNode(config)) {
+      if (config instanceof TimeSeriesDataSourceConfig) {
+        source_nodes.remove(config);
+      }
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Helper to get the factory from the cache or registry.
+   * @param key The key, may be null for the default.
+   * @param factory_cache A non-null factory cache.
+   * @return
+   */
+  QueryNodeFactory getFactory(final String key, 
+                              final Map<String, QueryNodeFactory> factory_cache) {
+    QueryNodeFactory factory = factory_cache.get(key);
+    if (factory != null) {
+      return factory;
+    }
+    factory = context.tsdb().getRegistry().getQueryNodeFactory(key);
+    if (factory != null) {
+      factory_cache.put(key, factory);
+    }
+    return factory;
+  }
+  
+  /**
+   * Helper for UTs and debugging to print the graph.
+   */
+  public void printConfigGraph() {
+    System.out.println(" ------------------------- ");
+    for (final QueryNodeConfig node : config_graph.nodes()) {
+      System.out.println("[V] " + node.getId() + " (" + node.getClass().getSimpleName() + ")");
+    }
+    System.out.println();
+    for (final EndpointPair<QueryNodeConfig> pair : config_graph.edges()) {
+      System.out.println("[E] " + pair.nodeU().getId() + " => " + pair.nodeV().getId());
+    }
+    System.out.println(" ------------------------- ");
+  }
+  
 }

@@ -32,7 +32,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
   }
   
   @Override
-  public Builder getBuilder() {
+  public Builder toBuilder() {
     return (Builder) newBuilder(this, new Builder());
   }
   
@@ -51,6 +51,16 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
   
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder {
+    
+    @Override
+    public String id() {
+      return id;
+    }
+    
+    @Override
+    public String sourceId() {
+      return sourceId;
+    }
     
     @Override
     public TimeSeriesDataSourceConfig build() {

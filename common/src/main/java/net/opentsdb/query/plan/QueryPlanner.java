@@ -46,6 +46,39 @@ public interface QueryPlanner {
   public void replace(final QueryNodeConfig old_config,
       final QueryNodeConfig new_config);
   
+  /**
+   * Adds the nodes to the graph (if not already present)  and creates 
+   * an edge linking them. Adds data sources to the source nodes list.
+   * @param from A non-null node as the predecessor.
+   * @param to A non-null node as the successor.
+   * @return True if the edge was added, false if the edge was already 
+   * present.
+   * @throws IllegalArgumentException if the edge would create a cycle.
+   */
+  public boolean addEdge(final QueryNodeConfig from, 
+                        final QueryNodeConfig to);
+  
+  /**
+   * Removes the edge from the graph. If predecessors and successors for 
+   * either node is empty, that node will be removed from the graph. If
+   * the edge is not present. Removes data sources from the source nodes
+   * list.
+   * @param from A non-null predecessor.
+   * @param to A non-null successor.
+   * @return True if the edge was present and removed, false if the edge
+   * was not present.
+   */
+  public boolean removeEdge(final QueryNodeConfig from,
+                            final QueryNodeConfig to);
+  
+  /**
+   * Removes the node and all edges linked to that node from the graph.
+   * Removes data sources from the source nodes list.
+   * @param config A non-null config node.
+   * @return True if the node was present and removed, false if not.
+   */
+  public boolean removeNode(final QueryNodeConfig config);
+  
   /** @return The non-null and non-empty query node graph post 
    * {@link #plan(Span)}. */
   public MutableGraph<QueryNode> graph();
@@ -56,4 +89,12 @@ public interface QueryPlanner {
   
   /** @return The non-null query context that owns this plan. */
   public QueryPipelineContext context();
+  
+  /**
+   * Helper function for fetching a node by ID, mostly for UTs.
+   * @param id A non-null and non-empty ID.
+   * @return The node if found, null if not.
+   */
+  public QueryNode nodeForId(final String id);
+  
 }

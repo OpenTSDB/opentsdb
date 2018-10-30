@@ -84,6 +84,12 @@ public class TestBaseQueryNodeConfig {
     }
 
     @Override
+    public Builder toBuilder() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    @Override
     public HashCode buildHashCode() {
       // TODO Auto-generated method stub
       return null;
@@ -127,5 +133,7 @@ public class TestBaseQueryNodeConfig {
       }
       
     }
+
+    
   }
 }
