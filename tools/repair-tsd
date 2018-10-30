@@ -82,7 +82,7 @@ class TSDRepair(object):
             try:
                 results, err = metricproc.communicate(timeout=self.timeout)
             except TimeoutExpired:
-                self.log.debug("{} failed to complete in window (run {})".format(metric, x))
+                self.log.warning("{} failed to complete in window (run {})".format(metric, x))
                 continue
             except Exception as e:
                 self.log.error("{} general exception :: {}".format(metric,
