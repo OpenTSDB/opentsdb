@@ -31,6 +31,7 @@ class TSDRepair(object):
         self.log = logging.getLogger("repair-tsd")
         self.base = "{} fsck --config={}".format(self.tsd_path, self.cfg_path)
         self.check_cmd = "{} uid --config={} metrics".format(self.tsd_path, self.cfg_path)
+        self.store_path = args.get('store_path', '/tmp/opentsdb.list')
         if self.use_sudo:
             self.base = "sudo -u {} {}".format(self.sudo_user, self.base)
             self.check_cmd = "sudo -u {} {}".format(self.sudo_user, self.check_cmd)
@@ -43,7 +44,6 @@ class TSDRepair(object):
         :rtype: list
         """
         try:
-            self.store_path = args.get('store_path', '/tmp/opentsdb.list')
             with open(self.store_path, 'r') as f_in:
                 finished_metrics = [m for m in f_in.read().split('\n') if m]
         except Exception:
@@ -108,11 +108,6 @@ class TSDRepair(object):
                     self.log.info("Chunk {} of {} finished".format(chunk, self.chunk_count))
                 else:
                     self.log.debug("Chunk {} of {} finished".format(chunk, self.chunk_count))
-                try:
-                    with open(self.store_path, 'a') as f_out:
-                        f_out.write("{}\n".format(metric))
-                except Exception:
-                    pass
                 return None
         else:
             self.log.error("Failed to completely repair {}".format(metric))
@@ -137,8 +132,17 @@ class TSDRepair(object):
             self.log.info(logline)
             start_time = time.time()
             start_time_min = int(start_time//60 * 60)
-            failed_metrics = [self._repair_metric_chunk(metric, x)
-                              for x in range(1, self.chunk_count + 1)]
+            for x in range(1, self.chunk_count + 1):
+                failed = self._repair_metric_chunk(metric, x)
+                if failed:
+                    failed_metrics.append(failed)
+                    break
+            else:
+                try:
+                    with open(self.store_path, 'a') as f_out:
+                        f_out.write("{}\n".format(metric))
+                except Exception:
+                    pass
             failed_metrics = [m for m in failed_metrics if m]
             runtime = time.time() - start_time
             self.log.info("{} repair took {} seconds".format(metric,
@@ -162,7 +166,7 @@ def cli_opts():
                         help="Path to the OpenTSDB CLI binary")
     parser.add_argument("--cfg-path", default="/etc/opentsdb/opentsdb.conf",
                         help="Path to OpenTSDB config")
-    parser.add_argument("--store-path", default="/opentsdb-fsck.list",
+    parser.add_argument("--store-path", default="/tmp/opentsdb-fsck.list",
                         help="Path to OpenTSDB config")
     parser.add_argument("--use-sudo", action="store_true",
                         default=False,
