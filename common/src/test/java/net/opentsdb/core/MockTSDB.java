@@ -14,10 +14,20 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.collect.Lists;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -35,14 +45,28 @@ public class MockTSDB implements TSDB {
   public UnitTestConfiguration config;
   public Registry registry;
   public BlackholeStatsCollector stats;
-  public FakeTaskTimer timer;
+  public FakeTaskTimer maint_timer;
+  public FakeTaskTimer query_timer;
+  public ExecutorService query_pool;
+  public List<Runnable> runnables;
   
   public MockTSDB() {
     config = (UnitTestConfiguration) UnitTestConfiguration.getConfiguration();
     registry = mock(Registry.class);
     stats = new BlackholeStatsCollector();
-    timer = new FakeTaskTimer();
-    timer.multi_task = true;
+    maint_timer = spy(new FakeTaskTimer());
+    maint_timer.multi_task = true;
+    query_timer = spy(new FakeTaskTimer());
+    query_timer.multi_task = true;
+    query_pool = mock(ExecutorService.class);
+    runnables = Lists.newArrayList();
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        runnables.add((Runnable) invocation.getArguments()[0]);
+        return null;
+      }
+    }).when(query_pool).submit(any(Runnable.class));
   }
   
   @Override
@@ -62,10 +86,20 @@ public class MockTSDB implements TSDB {
 
   @Override
   public Timer getMaintenanceTimer() {
-    return timer;
+    return maint_timer;
   }
   
-  public static final class FakeTaskTimer extends HashedWheelTimer {
+  @Override
+  public ExecutorService getQueryThreadPool() {
+    return query_pool;
+  }
+
+  @Override
+  public Timer getQueryTimer() {
+    return query_timer;
+  }
+  
+  public static class FakeTaskTimer extends HashedWheelTimer {
     public boolean multi_task;
     public TimerTask newPausedTask = null;
     public TimerTask pausedTask = null;
@@ -109,5 +143,5 @@ public class MockTSDB implements TSDB {
     }
   }
 
-
+  
 }

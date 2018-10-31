@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import java.util.concurrent.ExecutorService;
+
 import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.stats.StatsCollector;
@@ -37,5 +39,21 @@ public interface TSDB {
   /** @return A timer used for scheduling non-critical maintenance tasks
    * like metrics collection, expirations, etc. */
   public Timer getMaintenanceTimer();
+  
+  /**
+   * A thread pool for use by query nodes when operations need to be 
+   * handled in a separate thread.
+   * @return A non-null executor service.
+   */
+  public ExecutorService getQueryThreadPool();
+  
+  /**
+   * A timer for use by queries.
+   * <b>WARNING:</b> Make sure to use {@link #getQueryThreadPool()} as 
+   * soon as the timer task is executed. Do not perform heavy work in
+   * the timer thread itself.
+   * @return A non-null timer.
+   */
+  public Timer getQueryTimer();
   
 }

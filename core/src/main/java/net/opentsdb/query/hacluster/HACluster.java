@@ -63,7 +63,6 @@ public class HACluster extends AbstractQueryNode {
   protected Timeout primary_timer;
   protected Timeout secondary_timer;
   
-  
   /**
    * Default ctor.
    * @param factory The non-null factory we came from.
@@ -119,7 +118,7 @@ public class HACluster extends AbstractQueryNode {
       synchronized (this) {
         if (secondary_timer == null) {
           // start timer!
-          secondary_timer = context.tsdb().getMaintenanceTimer()
+          secondary_timer = context.tsdb().getQueryTimer()
             .newTimeout(new ResultTimeout(), 
                 DateTime.parseDuration(config.getSecondaryTimeout()), 
                 TimeUnit.MILLISECONDS);
@@ -142,7 +141,7 @@ public class HACluster extends AbstractQueryNode {
         synchronized (this) {
           if (primary_timer == null) {
             // start it!
-            primary_timer = context.tsdb().getMaintenanceTimer()
+            primary_timer = context.tsdb().getQueryTimer()
               .newTimeout(new ResultTimeout(), 
                   DateTime.parseDuration(config.getPrimaryTimeout()), 
                   TimeUnit.MILLISECONDS);
@@ -247,15 +246,33 @@ public class HACluster extends AbstractQueryNode {
       
       for (final Entry<String, QueryResult> entry : results.entrySet()) {
         if (entry.getValue() != null) {
-          // TODO - if timed out, run in separate thread.
-          sendUpstream(new WrappedResult(entry.getValue()));
+          if (timed_out) {
+            context.tsdb().getQueryThreadPool().submit(new Runnable() {
+              @Override
+              public void run() {
+                sendUpstream(new WrappedResult(entry.getValue()));
+              }
+            });
+          } else {
+            sendUpstream(new WrappedResult(entry.getValue()));
+          }
         } else {
           // we need to send an empty result with the actual downstream 
           // node....
           for (final QueryNode node : downstream_sources) {
+            final QueryResult cluster_result = new WrappedResult(
+                new EmptyResult(good_result, node));
             if (node.config().getId().equals(entry.getKey())) {
-              // TODO - if timed out, run in separate thread.
-              sendUpstream(new WrappedResult(new EmptyResult(good_result, node)));
+              if (timed_out) {
+                context.tsdb().getQueryThreadPool().submit(new Runnable() {
+                  @Override
+                  public void run() {
+                    sendUpstream(cluster_result);
+                  }
+                });
+              } else {
+                sendUpstream(cluster_result);
+              }
               break;
             }
           }

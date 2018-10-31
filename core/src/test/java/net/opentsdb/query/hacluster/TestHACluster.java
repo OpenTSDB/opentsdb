@@ -19,7 +19,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -32,8 +32,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
@@ -41,7 +39,7 @@ import com.stumbleupon.async.Deferred;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -55,35 +53,19 @@ public class TestHACluster {
   private QueryPipelineContext context;
   private QueryNode upstream;
   private HAClusterConfig config;
-  private Timer timer;
-  private List<MockTimeout> timeouts;
+  private MockTSDB tsdb;
   
   @Before
   public void before() throws Exception {
     config = mock(HAClusterConfig.class);
     context = mock(QueryPipelineContext.class);
     upstream = mock(QueryNode.class);
-    timer = mock(Timer.class);
     
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
     
-    TSDB tsdb = mock(TSDB.class);
+    tsdb = new MockTSDB();
     when(context.tsdb()).thenReturn(tsdb);
-    when(tsdb.getMaintenanceTimer()).thenReturn(timer);
-    timeouts = Lists.newArrayList();
-    
-    when(timer.newTimeout(any(TimerTask.class), anyLong(), any(TimeUnit.class)))
-      .thenAnswer(new Answer<Timeout>() {
-        @Override
-        public Timeout answer(InvocationOnMock invocation) throws Throwable {
-          MockTimeout timeout = new MockTimeout();
-          timeout.task = (TimerTask) invocation.getArguments()[0];
-          timeout.timeout = (long) invocation.getArguments()[1];
-          timeouts.add(timeout);
-          return timeout;
-        }
-      });
     
     config = (HAClusterConfig) HAClusterConfig.newBuilder()
         .setPrimaryTimeout("10s")
@@ -167,9 +149,9 @@ public class TestHACluster {
     assertSame(r1, node.results.get("s1"));
     assertNull(node.results.get("s2"));
     verify(upstream, never()).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertFalse(timeouts.get(0).isCancelled());
-    assertEquals(5000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(5000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, never()).cancel();
     
     QueryResult r2 = mock(QueryResult.class);
     QueryNode n2 = mock(TimeSeriesDataSource.class);
@@ -180,9 +162,9 @@ public class TestHACluster {
     assertSame(r1, node.results.get("s1"));
     assertSame(r2, node.results.get("s2"));
     verify(upstream, times(2)).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertTrue(timeouts.get(0).isCancelled());
-    assertEquals(5000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(5000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, times(1)).cancel();
   }
   
   @Test
@@ -203,9 +185,10 @@ public class TestHACluster {
     assertSame(r2, node.results.get("s2"));
     assertNull(node.results.get("s1"));
     verify(upstream, never()).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertFalse(timeouts.get(0).isCancelled());
-    assertEquals(10000L, timeouts.get(0).timeout);
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(10000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, never()).cancel();
     
     QueryResult r1 = mock(QueryResult.class);
     QueryNode n1 = mock(TimeSeriesDataSource.class);
@@ -216,9 +199,9 @@ public class TestHACluster {
     assertSame(r1, node.results.get("s1"));
     assertSame(r2, node.results.get("s2"));
     verify(upstream, times(2)).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertTrue(timeouts.get(0).isCancelled());
-    assertEquals(10000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(10000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, times(1)).cancel();
   }
   
   @Test
@@ -249,19 +232,24 @@ public class TestHACluster {
     assertSame(r1, node.results.get("s1"));
     assertNull(node.results.get("s2"));
     verify(upstream, never()).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertFalse(timeouts.get(0).isCancelled());
-    assertEquals(5000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(5000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, never()).cancel();
     
-    timeouts.get(0).task.run(timeouts.get(0));
+    // run em
+    tsdb.query_timer.pausedTask.run(null);
+    assertEquals(2, tsdb.runnables.size());
+    for (final Runnable runnable : tsdb.runnables) {
+      runnable.run();
+    }
     
     assertSame(r1, node.results.get("s1"));
     assertTrue(node.results.get("s2") instanceof HACluster.EmptyResult);
     assertSame(n2, node.results.get("s2").source());
     verify(upstream, times(2)).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertTrue(timeouts.get(0).isCancelled());
-    assertEquals(5000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(5000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, times(1)).cancel();
   }
   
   @Test
@@ -292,19 +280,24 @@ public class TestHACluster {
     assertSame(r2, node.results.get("s2"));
     assertNull(node.results.get("s1"));
     verify(upstream, never()).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertFalse(timeouts.get(0).isCancelled());
-    assertEquals(10000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(10000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, never()).cancel();
     
-    timeouts.get(0).task.run(timeouts.get(0));
+    // run em
+    tsdb.query_timer.pausedTask.run(null);
+    assertEquals(2, tsdb.runnables.size());
+    for (final Runnable runnable : tsdb.runnables) {
+      runnable.run();
+    }
     
     assertTrue(node.results.get("s1") instanceof HACluster.EmptyResult);
     assertSame(n1, node.results.get("s1").source());
     assertSame(r2, node.results.get("s2"));
     verify(upstream, times(2)).onNext(any(QueryResult.class));
-    assertEquals(1, timeouts.size());
-    assertTrue(timeouts.get(0).isCancelled());
-    assertEquals(10000L, timeouts.get(0).timeout);
+    verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
+        eq(10000L), eq(TimeUnit.MILLISECONDS));
+    verify(tsdb.query_timer.timeout, times(1)).cancel();
   }
   
   static class MockTimeout implements Timeout {
