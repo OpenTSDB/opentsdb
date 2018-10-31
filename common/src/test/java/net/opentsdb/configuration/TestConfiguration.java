@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.configuration;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -34,9 +35,11 @@ import com.google.common.collect.Maps;
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.configuration.ConfigurationOverride;
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
+import net.opentsdb.configuration.provider.BaseProvider;
 import net.opentsdb.configuration.provider.CommandLineProvider;
 import net.opentsdb.configuration.provider.ProtocolProviderFactory;
 import net.opentsdb.configuration.provider.Provider;
@@ -46,7 +49,7 @@ import net.opentsdb.configuration.provider.SystemPropertiesProvider;
 
 public class TestConfiguration {
   
-  private static final int BUILT_IN_FACTORIES = 9;
+  private static final int BUILT_IN_FACTORIES = 10;
   private static final int BUILT_IN_SCHEMAS = 3;
   
   final String[] cli_args = new String[] {
@@ -197,6 +200,41 @@ public class TestConfiguration {
       assertTrue(config.providers.get(0) instanceof CommandLineProvider);
       assertTrue(config.providers.get(1) instanceof DummyHttpProvider);
       assertEquals(BUILT_IN_FACTORIES, config.factories.size());
+    }
+  }
+  
+  @Test
+  public void ctorSecret() throws Exception {
+    String[] cli_args = new String[] {
+        "--" + Configuration.CONFIG_PROVIDERS_KEY 
+          + "=secrets://net.opentsdb.configuration.provider.PlainTextSecretProvider,CommandLine"
+    };
+    
+    try (final Configuration config = new Configuration(cli_args)) {
+      config.register("my.secret", "hidden_secret", false, "UT");
+      assertEquals("hidden_secret", config.getSecretString("my.secret"));
+      assertArrayEquals("hidden_secret".getBytes(Const.UTF8_CHARSET), 
+          config.getSecretBytes("my.secret"));
+    }
+    
+    cli_args = new String[] {
+        "--" + Configuration.CONFIG_PROVIDERS_KEY 
+          + "=secrets://net.opentsdb.configuration.provider.PlainTextSecretProvider:MyID,CommandLine"
+    };
+    
+    try (final Configuration config = new Configuration(cli_args)) {
+      config.register("my.secret", "hidden_secret", false, "UT");
+      assertEquals("hidden_secret", config.getSecretString("MyID:my.secret"));
+      assertArrayEquals("hidden_secret".getBytes(Const.UTF8_CHARSET), 
+          config.getSecretBytes("MyID:my.secret"));
+      try {
+        config.getSecretString("my.secret");
+        fail("Expected ConfigurationException");
+      } catch (ConfigurationException e) { }
+      try {
+        config.getSecretBytes("my.secret");
+        fail("Expected ConfigurationException");
+      } catch (ConfigurationException e) { }
     }
   }
   
@@ -1171,7 +1209,7 @@ public class TestConfiguration {
     assertTrue(found_factory);
   }
   
-  public static class DummyHttpProvider extends Provider {
+  public static class DummyHttpProvider extends BaseProvider {
     boolean closed = false;
     
     public DummyHttpProvider(ProviderFactory factory, Configuration config,

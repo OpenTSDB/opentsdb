@@ -20,6 +20,7 @@ import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
+import net.opentsdb.configuration.provider.BaseProvider;
 import net.opentsdb.configuration.provider.Provider;
 import net.opentsdb.configuration.provider.ProviderFactory;
 import net.opentsdb.configuration.provider.RuntimeOverrideProvider;
@@ -110,7 +111,7 @@ public class UnitTestConfiguration extends Configuration {
     }
   }
   
-  public static class UnitTestProvider extends Provider {
+  public static class UnitTestProvider extends BaseProvider {
     private Map<String, String> kvs;
     
     public UnitTestProvider(final ProviderFactory factory, 

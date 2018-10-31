@@ -58,7 +58,7 @@ import net.opentsdb.configuration.ConfigurationOverride;
  * 
  * @since 3.0
  */
-public class PropertiesFileProvider extends Provider {
+public class PropertiesFileProvider extends BaseProvider {
   private static final Logger LOG = LoggerFactory.getLogger(PropertiesFileProvider.class);
   
   /** The file name. */

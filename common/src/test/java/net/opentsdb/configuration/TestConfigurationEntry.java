@@ -51,7 +51,7 @@ public class TestConfigurationEntry {
     when(runtime.source()).thenReturn(RuntimeOverrideProvider.SOURCE);
     when(cli.source()).thenReturn(CommandLineProvider.SOURCE);
     
-    when(config.sources()).thenReturn(Lists.newArrayList(cli, runtime));
+    when(config.providers()).thenReturn(Lists.newArrayList(cli, runtime));
   }
   
   @Test
@@ -196,7 +196,7 @@ public class TestConfigurationEntry {
     when(source2.source()).thenReturn("source2");
     
     config = mock(Configuration.class);
-    when(config.sources()).thenReturn(
+    when(config.providers()).thenReturn(
         Lists.newArrayList(cli, source2, source1, runtime));
     
     ConfigurationEntrySchema schema = ConfigurationEntrySchema.newBuilder()
@@ -254,7 +254,7 @@ public class TestConfigurationEntry {
     when(source2.source()).thenReturn("source2");
     
     config = mock(Configuration.class);
-    when(config.sources()).thenReturn(
+    when(config.providers()).thenReturn(
         Lists.newArrayList(cli, source2, source1, runtime));
     
     ConfigurationEntrySchema schema = ConfigurationEntrySchema.newBuilder()
@@ -313,7 +313,7 @@ public class TestConfigurationEntry {
     when(source2.source()).thenReturn("source2");
     
     config = mock(Configuration.class);
-    when(config.sources()).thenReturn(
+    when(config.providers()).thenReturn(
         Lists.newArrayList(cli, source2, source1, runtime));
     
     ConfigurationEntrySchema schema = ConfigurationEntrySchema.newBuilder()
