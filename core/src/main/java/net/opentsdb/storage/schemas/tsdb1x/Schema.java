@@ -138,7 +138,7 @@ public class Schema implements WritableTimeSeriesDataStore {
     final String store_name = tsdb.getConfig().getString(key);
     
     final Tsdb1xDataStoreFactory store_factory = tsdb.getRegistry()
-          .getDefaultPlugin(Tsdb1xDataStoreFactory.class);
+          .getPlugin(Tsdb1xDataStoreFactory.class, store_name);
     if (store_factory == null) {
       throw new ConfigurationException("No factory found for: " + store_name);
     }

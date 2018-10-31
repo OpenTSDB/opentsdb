@@ -136,6 +136,11 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
       return wrapped_series;
     }
     
+    @Override
+    public TypeToken<? extends TimeSeriesId> idType() {
+      return Const.TS_STRING_ID;
+    }
+    
   }
   
   /** Overloads the ID. */
