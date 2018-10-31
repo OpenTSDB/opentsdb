@@ -124,7 +124,7 @@ public class SchemaBase {
     id_validator = mock(DatumIdValidator.class);
     
     // return the default
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    

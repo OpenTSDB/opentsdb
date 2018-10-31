@@ -169,6 +169,7 @@ public class TestByteToStringIdConverter {
     verify(upstream, never()).onError(any(Throwable.class));
     
     assertEquals(2, from_upstream[0].timeSeries().size());
+    assertEquals(Const.TS_STRING_ID, from_upstream[0].idType());
     Iterator<TimeSeries> iterator = from_upstream[0].timeSeries().iterator();
     TimeSeries series = iterator.next();
     assertSame(sid1, series.id());

@@ -197,7 +197,7 @@ public class UTBase {
       }
     });
     
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), any(), any(Schema.class)))
       .thenReturn(data_store);

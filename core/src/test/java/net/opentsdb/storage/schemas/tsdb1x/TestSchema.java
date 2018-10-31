@@ -94,7 +94,7 @@ public class TestSchema extends SchemaBase {
   @Test
   public void ctorOverrides() throws Exception {
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -126,7 +126,7 @@ public class TestSchema extends SchemaBase {
     UniqueId uc = mock(UniqueId.class);
     Tsdb1xDataStoreFactory sf = mock(Tsdb1xDataStoreFactory.class);
     Tsdb1xDataStore s = mock(Tsdb1xDataStore.class);
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(sf);
     when(sf.newInstance(eq(tsdb), eq(TESTID), any(Schema.class))).thenReturn(s);
     when(tsdb.registry.getSharedObject(TESTID + "_uidstore"))
@@ -170,7 +170,7 @@ public class TestSchema extends SchemaBase {
   public void ctorNullStoreFromFactory() throws Exception {
     MockTSDB tsdb = new MockTSDB();
     Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenReturn(null);
@@ -184,7 +184,7 @@ public class TestSchema extends SchemaBase {
   public void ctorStoreInstantiationFailure() throws Exception {
     MockTSDB tsdb = new MockTSDB();
     Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenThrow(new UnitTestException());
@@ -533,7 +533,7 @@ public class TestSchema extends SchemaBase {
     
     // salt and diff metric width
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -565,7 +565,7 @@ public class TestSchema extends SchemaBase {
   @Test
   public void prefixKeyWithSalt() throws Exception {
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -663,7 +663,7 @@ public class TestSchema extends SchemaBase {
   @Test
   public void prefixKeyWithSaltMultiByte() throws Exception {
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -1003,7 +1003,7 @@ public class TestSchema extends SchemaBase {
   public void createRowKeySuccessSalted() throws Exception {
     resetConfig();
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
