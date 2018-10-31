@@ -242,7 +242,7 @@ class ConfigurationEntry {
           boolean found = false;
           for (int x = 0; x < settings.size(); x++) {
             for (int y = source_index - 1; y >= 0; y--) {
-              if (config.sources().get(y).source()
+              if (config.providers().get(y).source()
                     .equals(settings().get(x).getSource())) {
                 // if a match was made we found the next entry that 
                 // comes BEFORE the current setting, so insert this setting
@@ -370,13 +370,13 @@ class ConfigurationEntry {
     if (Strings.isNullOrEmpty(source)) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
-    if (config.sources() == null) {
+    if (config.providers() == null) {
       throw new IllegalStateException("Shouldn't be calling this if the "
           + "sources list is null, meaning the config wasn't initialized"
           + "properly!");
     }
-    for (int i = 0; i < config.sources().size(); i++) {
-      if (config.sources().get(i).source().equals(source)) {
+    for (int i = 0; i < config.providers().size(); i++) {
+      if (config.providers().get(i).source().equals(source)) {
         return i;
       }
     }

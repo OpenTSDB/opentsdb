@@ -102,7 +102,7 @@ public class TestProvider {
     }
   }
   
-  static class MockProvider extends Provider {
+  static class MockProvider extends BaseProvider {
     public MockProvider(final ProviderFactory factory, 
                         final Configuration config,
                         final HashedWheelTimer timer, 

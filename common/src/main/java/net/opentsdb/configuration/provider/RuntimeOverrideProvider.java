@@ -28,7 +28,7 @@ import net.opentsdb.configuration.ConfigurationOverride;
  * 
  * @since 3.0
  */
-public class RuntimeOverrideProvider extends Provider {
+public class RuntimeOverrideProvider extends BaseProvider {
   public static final String SOURCE = RuntimeOverrideProvider.class.getSimpleName();
   
   /**

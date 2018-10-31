@@ -28,7 +28,7 @@ import net.opentsdb.configuration.ConfigurationOverride;
  * 
  * @since 3.0
  */
-public class EnvironmentProvider extends Provider implements TimerTask {
+public class EnvironmentProvider extends BaseProvider implements TimerTask {
   public static final String SOURCE = EnvironmentProvider.class.getSimpleName();
 
   /**

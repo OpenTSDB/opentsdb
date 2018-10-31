@@ -46,6 +46,7 @@ import net.opentsdb.configuration.provider.Provider;
 import net.opentsdb.configuration.provider.ProviderFactory;
 import net.opentsdb.configuration.provider.RuntimeOverrideProvider;
 import net.opentsdb.configuration.provider.RuntimeOverrideProvider.RuntimeOverride;
+import net.opentsdb.configuration.provider.SecretProvider;
 import net.opentsdb.configuration.provider.SystemPropertiesProvider;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.PluginLoader;
@@ -151,6 +152,9 @@ public class Configuration implements Closeable {
    */
   protected final List<Provider> providers;
   
+  /** A list of secret providers. */
+  protected final Map<String, SecretProvider> secret_providers;
+  
   /** The parsed provider config string. */
   protected String provider_config;
   
@@ -239,6 +243,7 @@ public class Configuration implements Closeable {
     timer = new HashedWheelTimer();
     
     providers = Lists.newArrayList();
+    secret_providers = Maps.newHashMap();
     loadInitialConfig(cli_args);
     loadPlugins();
     loadProviders(cli_args);
@@ -826,6 +831,72 @@ public class Configuration implements Closeable {
   }
   
   /**
+   * Calls the appropriate {@link SecretProvider} to fetch the value.
+   * Keys can be in the format "key" or "provider_id:key". If the secret
+   * is a binary value, it's converted to a UTF-8 string.
+   * 
+   * @param key A non-null and non-empty key to fetch.
+   * @return The key if found, an exception if not.
+   */
+  public String getSecretString(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (key.contains(":")) {
+      final String type = key.substring(0, key.indexOf(":")).trim();
+      if (Strings.isNullOrEmpty(type)) {
+        throw new IllegalArgumentException("Empty plugin ID preceding ");
+      }
+      final SecretProvider provider = secret_providers.get(type);
+      if (provider == null) {
+        throw new ConfigurationException("No secret provider found for: " 
+            + type);
+      }
+      return provider.getSecretString(key.substring(key.indexOf(":") + 1));
+    } else {
+      final SecretProvider provider = secret_providers.get(null);
+      if (provider == null) {
+        throw new ConfigurationException("No default secret provider "
+            + "configured.");
+      }
+      return provider.getSecretString(key);
+    }
+  }
+  
+  /**
+   * Calls the appropriate {@link SecretProvider} to fetch the value.
+   * Keys can be in the format "key" or "provider_id:key". If the secret
+   * is a string value, it's converted to a UTF-8 encoded byte array.
+   * 
+   * @param key A non-null and non-empty key to fetch.
+   * @return The key if found, an exception if not.
+   */
+  public byte[] getSecretBytes(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (key.contains(":")) {
+      final String type = key.substring(0, key.indexOf(":")).trim();
+      if (Strings.isNullOrEmpty(type)) {
+        throw new IllegalArgumentException("Empty plugin ID preceding ");
+      }
+      final SecretProvider provider = secret_providers.get(type);
+      if (provider == null) {
+        throw new ConfigurationException("No secret provider found for: " 
+            + type);
+      }
+      return provider.getSecretBytes(key.substring(key.indexOf(":") + 1));
+    } else {
+      final SecretProvider provider = secret_providers.get(null);
+      if (provider == null) {
+        throw new ConfigurationException("No default secret provider "
+            + "configured.");
+      }
+      return provider.getSecretBytes(key);
+    }
+  }
+  
+  /**
    * Returns a read-only view of the current state of the config. Creates
    * a snapshot with duplicate values so if the config is really large
    * use this with care.
@@ -1117,12 +1188,22 @@ public class Configuration implements Closeable {
                 throw new ConfigurationException("Factory [" 
                     + factory + "] returned a null instance.");
               }
-              providers.add(provider);
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("Instantiated the [" 
-                    + provider.getClass().getSimpleName() 
-                    + "] provider with source: " + source);
+              if (provider instanceof SecretProvider) {
+                secret_providers.put(provider.source(), (SecretProvider) provider);
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Instantiated the [" 
+                      + provider.getClass().getSimpleName() 
+                      + "] secret provider with ID: " + source);
+                }
+              } else {
+                providers.add(provider);
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Instantiated the [" 
+                      + provider.getClass().getSimpleName() 
+                      + "] provider with source: " + source);
+                }
               }
+              
               matched = true;
               break;
             }
@@ -1175,10 +1256,21 @@ public class Configuration implements Closeable {
                 throw new ConfigurationException("Factory [" 
                     + factory + "] returned a null instance.");
               }
-              providers.add(plugin);
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("Instantiated the [" 
-                    + plugin.getClass().getSimpleName() + "] provider.");
+              
+              if (plugin instanceof SecretProvider) {
+                secret_providers.put(plugin.source(), (SecretProvider) plugin);
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Instantiated the [" 
+                      + plugin.getClass().getSimpleName() 
+                      + "] secret provider with ID: " + source);
+                }
+              } else {
+                providers.add(plugin);
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Instantiated the [" 
+                      + plugin.getClass().getSimpleName() 
+                      + "] provider with source: " + source);
+                }
               }
               matched = true;
               break;
@@ -1244,11 +1336,6 @@ public class Configuration implements Closeable {
   }
   
   @VisibleForTesting
-  List<Provider> sources() {
-    return providers;
-  }
-
-  @VisibleForTesting
   HashedWheelTimer timer() {
     return timer;
   }
@@ -1263,7 +1350,7 @@ public class Configuration implements Closeable {
     return factories;
   }
 
-  @VisibleForTesting
+  /** @return Package private list of providers. */
   List<Provider> providers() {
     return providers;
   }

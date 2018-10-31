@@ -30,7 +30,7 @@ import net.opentsdb.utils.ArgP;
  * 
  * @since 3.0
  */
-public class CommandLineProvider extends Provider {
+public class CommandLineProvider extends BaseProvider {
   public static final String SOURCE = CommandLineProvider.class.getSimpleName();
   
   /** The arguments. */

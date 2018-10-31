@@ -26,7 +26,7 @@ import net.opentsdb.configuration.ConfigurationOverride;
  * 
  * @since 3.0
  */
-public class SystemPropertiesProvider extends Provider {
+public class SystemPropertiesProvider extends BaseProvider {
   public static final String SOURCE = SystemPropertiesProvider.class.getSimpleName();
   
   /**
