@@ -31,6 +31,7 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.MutableGraph;
 import com.google.common.graph.Traverser;
 import com.google.common.hash.HashCode;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -38,11 +39,13 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Deferreds;
@@ -296,7 +299,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     final List<Deferred<Void>> deferreds = 
         Lists.newArrayListWithExpectedSize(source_nodes.size());
-    for (final QueryNodeConfig c : source_nodes) {
+    for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
+      // see if we need to insert a byte Id converter upstream.
+      needByteIdConverter(c, factory_cache);
+      
       if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
         deferreds.add(((TimeSeriesDataSourceConfig) c)
             .getFilter().initialize(span));
@@ -872,7 +878,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param factory_cache A non-null factory cache.
    * @return
    */
-  QueryNodeFactory getFactory(final String key, 
+  private QueryNodeFactory getFactory(final String key, 
                               final Map<String, QueryNodeFactory> factory_cache) {
     QueryNodeFactory factory = factory_cache.get(key);
     if (factory != null) {
@@ -883,6 +889,90 @@ public class DefaultQueryPlanner implements QueryPlanner {
       factory_cache.put(key, factory);
     }
     return factory;
+  }
+  
+  /**
+   * Recursive search for joining nodes (like mergers) that would run
+   * into multiple sources with different byte IDs (or byte IDs and string
+   * IDs) that need to be converted to strings for proper joins. Start
+   * by passing the source node and it will walk up to find joins.
+   * 
+   * @param current The non-null current node.
+   * @param factory_cache The cache of factories.
+   */
+  private void needByteIdConverter(final QueryNodeConfig current,
+                                   final Map<String, QueryNodeFactory> factory_cache) {
+    if (!(current instanceof TimeSeriesDataSourceConfig) &&
+        current.joins()) {
+      final Map<String, TypeToken<? extends TimeSeriesId>> source_ids = 
+          Maps.newHashMap();
+      uniqueSources(current, source_ids, factory_cache);
+      if (!source_ids.isEmpty() && source_ids.size() > 1) {
+        // check to see we have at least a byte ID in the mix
+        int byte_ids = 0;
+        for (final TypeToken<? extends TimeSeriesId> type : source_ids.values()) {
+          if (type == Const.TS_BYTE_ID) {
+            byte_ids++;
+          }
+        }
+        
+        if (byte_ids > 0) {
+          // OOH we may need to add one!
+          Set<QueryNodeConfig> successors = config_graph.successors(current);
+          if (successors.size() == 1 && 
+              successors.iterator().next() instanceof ByteToStringIdConverterConfig) {
+            // nothing to do!
+          } else {
+            // woot, add one!
+            QueryNodeConfig config = ByteToStringIdConverterConfig.newBuilder()
+                .setId(current.getId() + "_IdConverter")
+                .build();
+            successors = Sets.newHashSet(successors);
+            for (final QueryNodeConfig successor : successors) {
+              removeEdge(current, successor);
+              addEdge(config, successor);
+            }
+            addEdge(current, config);
+          }
+        }
+        return;
+      } 
+    }
+    
+    Set<QueryNodeConfig> predecessors = config_graph.predecessors(current);
+    if (!predecessors.isEmpty()) {
+      predecessors = Sets.newHashSet(predecessors);
+    }
+    for (final QueryNodeConfig predecessor : predecessors) {
+      needByteIdConverter(predecessor, factory_cache);
+    }
+  }
+  
+  /**
+   * Helper that walks down from the join config to determine if a the 
+   * sources feeding that node have byte IDs or not.
+   * 
+   * @param current The non-null current node.
+   * @param source_ids A non-null map of data source to ID types.
+   * @param factory_cache A non-null factory cache.
+   */
+  private void uniqueSources(final QueryNodeConfig current, 
+                     final Map<String, TypeToken<? extends TimeSeriesId>> source_ids,
+                     final Map<String, QueryNodeFactory> factory_cache) {
+    if (current instanceof TimeSeriesDataSourceConfig && 
+        current.getSources().isEmpty()) {
+      TimeSeriesDataSourceFactory factory = (TimeSeriesDataSourceFactory) 
+          getFactory(
+            ((TimeSeriesDataSourceConfig) current).getSourceId(),
+            factory_cache);
+      source_ids.put(
+        Strings.isNullOrEmpty(factory.id()) ? "null" : factory.id(),
+        factory.idType());
+    } else {
+      for (final QueryNodeConfig successor : config_graph.successors(current)) {
+        uniqueSources(successor, source_ids, factory_cache);
+      }
+    }
   }
   
   /**
@@ -900,4 +990,20 @@ public class DefaultQueryPlanner implements QueryPlanner {
     System.out.println(" ------------------------- ");
   }
   
+  /**
+   * Helper for UTs and debugging to print the graph.
+   */
+  public void printNodeGraph() {
+    System.out.println(" ------------------------- ");
+    for (final QueryNode node : graph.nodes()) {
+      System.out.println("[V] " + node.config().getId() + " (" 
+          + node.getClass().getSimpleName() + ")");
+    }
+    System.out.println();
+    for (final EndpointPair<QueryNode> pair : graph.edges()) {
+      System.out.println("[E] " + pair.nodeU().config().getId() 
+          + " => " + pair.nodeV().config().getId());
+    }
+    System.out.println(" ------------------------- ");
+  }
 }
