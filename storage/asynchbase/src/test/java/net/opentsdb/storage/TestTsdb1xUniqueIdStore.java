@@ -2761,7 +2761,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
       .thenReturn(Deferred.fromResult(null));
     
     timer = new FakeTaskTimer();
-    tsdb.timer = timer;
+    tsdb.maint_timer = timer;
     
     when(tsdb.registry.getDefaultPlugin(
         UniqueIdAssignmentAuthorizer.class)).thenReturn(filter);

@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
@@ -118,8 +120,14 @@ public class DefaultTSDB implements TSDB {
   /** The metric reporter. */
   private StatsCollector stats_collector;
 
-  /** Timer used for various tasks such as idle timeouts or query timeouts */
-  private final HashedWheelTimer timer;
+  /** Timer used for non-query background tasks. */
+  private final HashedWheelTimer maintenance_timer;
+  
+  /** Timer used for query related background tasks. */
+  private final HashedWheelTimer query_timer;
+  
+  /** Pool used for executing query tasks. */
+  private final ExecutorService query_pool;
   
 //  /**
 //   * Row keys that need to be compacted.
@@ -311,7 +319,10 @@ public class DefaultTSDB implements TSDB {
     this.config = config;
     registry = new DefaultRegistry(this);
     stats_collector = (StatsCollector) new BlackholeStatsCollector();
-    timer = Threads.newTimer("MainTSDBTimer");
+    maintenance_timer = Threads.newTimer("TSDBMaintenanceTimer");
+    query_timer = Threads.newTimer("TSDBQueryTimer");
+    // TODO - fixed potentially.
+    query_pool = Executors.newCachedThreadPool();
     
     if (!config.hasProperty(MAINT_TIMER_KEY)) {
       config.register(MAINT_TIMER_KEY, MAINT_TIMER_DEFAULT, true, 
@@ -1984,7 +1995,17 @@ public class DefaultTSDB implements TSDB {
 //  
   @Override
   public Timer getMaintenanceTimer() {
-    return timer;
+    return maintenance_timer;
+  }
+  
+  @Override
+  public Timer getQueryTimer() {
+    return query_timer;
+  }
+  
+  @Override
+  public ExecutorService getQueryThreadPool() {
+    return query_pool;
   }
   
 //  // ------------------ //
