@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -41,6 +42,7 @@ import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
 import net.opentsdb.configuration.provider.CommandLineProvider;
 import net.opentsdb.configuration.provider.CommandLineProvider.CommandLine;
 import net.opentsdb.configuration.provider.EnvironmentProvider;
+import net.opentsdb.configuration.provider.MapProvider;
 import net.opentsdb.configuration.provider.ProtocolProviderFactory;
 import net.opentsdb.configuration.provider.Provider;
 import net.opentsdb.configuration.provider.ProviderFactory;
@@ -179,7 +181,43 @@ public class Configuration implements Closeable {
    * loaded.
    */
   public Configuration() {
-    this(new String[0]);
+    this(new String[0], null);
+  }
+  
+  /**
+   * An optional ctor that bootstraps from a properties object.
+   * 
+   * @param properties A non-null properties object. May be empty.
+   * @throws IllegalArgumentException if some required parameter was invalid.
+   * @throws ConfigurationException if the configuration could not be 
+   * loaded.
+   */
+  public Configuration(final Properties properties) {
+    this(new String[0], new MapProvider(properties));
+  }
+  
+  /**
+   * An optional ctor that bootstraps from a map object.
+   * 
+   * @param properties A non-null properties object. May be empty.
+   * @throws IllegalArgumentException if some required parameter was invalid.
+   * @throws ConfigurationException if the configuration could not be 
+   * loaded.
+   */
+  public Configuration(final Map<String, String> properties) {
+    this(new String[0], new MapProvider(properties));
+  }
+  
+  /**
+   * An optional ctor that bootstraps from CLI arguments.
+   * 
+   * @param cli_args A non-null list of CLI arguments..
+   * @throws IllegalArgumentException if some required parameter was invalid.
+   * @throws ConfigurationException if the configuration could not be 
+   * loaded.
+   */
+  public Configuration(final String[] cli_args) {
+    this(cli_args, null);
   }
   
   /**
@@ -192,7 +230,8 @@ public class Configuration implements Closeable {
    * @throws ConfigurationException if the configuration could not be 
    * loaded.
    */
-  public Configuration(final String[] cli_args) {
+  public Configuration(final String[] cli_args, 
+                       final MapProvider map_provider) {
     if (cli_args == null) {
       throw new IllegalArgumentException("CLI arguments cannot be null.");
     }
@@ -244,9 +283,9 @@ public class Configuration implements Closeable {
     
     providers = Lists.newArrayList();
     secret_providers = Maps.newHashMap();
-    loadInitialConfig(cli_args);
+    loadInitialConfig(cli_args, map_provider);
     loadPlugins();
-    loadProviders(cli_args);
+    loadProviders(cli_args, map_provider);
     configureReloads();
   }
 
@@ -957,12 +996,14 @@ public class Configuration implements Closeable {
    * <li>Command line arguments</li></ol>
    * 
    * @param cli_args A non-null array of zero or more command line arguments.
+   * @param map_provider An optional map of configs passed programatically.
    * @throws IllegalArgumentException if the args were null or if a value
    * read for one of the initial properties faild validation.
    * @throws ConfigurationException if the default providers list failed
    * to match the regular expression check.
    */
-  private void loadInitialConfig(final String[] cli_args) {
+  private void loadInitialConfig(final String[] cli_args, 
+                                 final MapProvider map_provider) {
     if (cli_args == null) {
       throw new IllegalArgumentException("CLI Args cannot be null.");
     }
@@ -1043,7 +1084,7 @@ public class Configuration implements Closeable {
           .build());
     }
     
-    // Finally we'll parse out the command line args. 
+    // ...then we'll parse out the command line args. 
     final ArgP argp = new ArgP(false);
     argp.addOption("--" + CONFIG_PROVIDERS_KEY, "The comma separated list "
         + "of config sources in order from defaults to overrides.");
@@ -1092,6 +1133,21 @@ public class Configuration implements Closeable {
             .setSource(CommandLineProvider.SOURCE)
             .setValue(plugin_path)
             .build());
+      }
+    }
+    
+    // finally, if we have a map provider, do it!
+    if (map_provider != null) {
+      ConfigurationOverride override = map_provider.getSetting(CONFIG_PROVIDERS_KEY);
+      if (override != null) {
+        provider_config = (String) override.getValue();
+        addOverride(CONFIG_PROVIDERS_KEY, override);
+      }
+      
+      override = map_provider.getSetting(PLUGIN_DIRECTORY_KEY);
+      if (override != null) {
+        plugin_path = (String) override.getValue();
+        addOverride(PLUGIN_DIRECTORY_KEY, override);
       }
     }
   }
@@ -1144,8 +1200,10 @@ public class Configuration implements Closeable {
    * 
    * @param cli_args A non-null list of cli arguments to pass to the 
    * command line provider if requested.
+   * @param map_provider An optional map provider.
    */
-  private void loadProviders(final String[] cli_args) {
+  private void loadProviders(final String[] cli_args, 
+                             final MapProvider map_provider) {
     final String[] raw_sources = StringUtils.splitString(provider_config, ',');
     if (raw_sources.length < 1) {
       throw new IllegalArgumentException("No sources found!");
@@ -1163,6 +1221,10 @@ public class Configuration implements Closeable {
         de_dupes.add(raw.trim());
         sources.add(raw.trim());
       }
+    }
+    
+    if (map_provider != null) {
+      providers.add(map_provider);
     }
     
     // init in reverse order so remote sources can pull settings from 
