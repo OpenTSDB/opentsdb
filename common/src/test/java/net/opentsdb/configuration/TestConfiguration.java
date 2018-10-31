@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import org.junit.Test;
@@ -41,6 +42,7 @@ import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
 import net.opentsdb.configuration.provider.BaseProvider;
 import net.opentsdb.configuration.provider.CommandLineProvider;
+import net.opentsdb.configuration.provider.MapProvider;
 import net.opentsdb.configuration.provider.ProtocolProviderFactory;
 import net.opentsdb.configuration.provider.Provider;
 import net.opentsdb.configuration.provider.ProviderFactory;
@@ -99,8 +101,58 @@ public class TestConfiguration {
   }
 
   @Test
+  public void ctorPropertiesObject() throws Exception {
+    Properties properties = new Properties();
+    properties.put(Configuration.CONFIG_PROVIDERS_KEY, "RuntimeOverride");
+    properties.put("my.key", "Lallybrach");
+    
+    try (final Configuration config = new Configuration(properties)) {
+      assertEquals("RuntimeOverride", 
+          config.provider_config);
+      assertNull(config.plugin_path);
+      assertEquals(BUILT_IN_SCHEMAS, config.merged_config.size());
+      assertEquals("RuntimeOverride", 
+          config.merged_config.get(Configuration.CONFIG_PROVIDERS_KEY).getValue());
+      assertNull(config.merged_config.get(Configuration.PLUGIN_DIRECTORY_KEY)
+          .getValue());
+      assertEquals(2, config.providers.size());
+      assertTrue(config.providers.get(0) instanceof MapProvider);
+      assertTrue(config.providers.get(1) instanceof RuntimeOverrideProvider);
+      assertEquals(BUILT_IN_FACTORIES, config.factories.size());
+      
+      config.register("my.key", null, false, "UT");
+      assertEquals("Lallybrach", config.getString("my.key"));
+    }
+  }
+  
+  @Test
+  public void ctorPropertiesMap() throws Exception {
+    Map<String, String> properties = Maps.newHashMap();
+    properties.put(Configuration.CONFIG_PROVIDERS_KEY, "RuntimeOverride");
+    properties.put("my.key", "Lallybrach");
+    
+    try (final Configuration config = new Configuration(properties)) {
+      assertEquals("RuntimeOverride", 
+          config.provider_config);
+      assertNull(config.plugin_path);
+      assertEquals(BUILT_IN_SCHEMAS, config.merged_config.size());
+      assertEquals("RuntimeOverride", 
+          config.merged_config.get(Configuration.CONFIG_PROVIDERS_KEY).getValue());
+      assertNull(config.merged_config.get(Configuration.PLUGIN_DIRECTORY_KEY)
+          .getValue());
+      assertEquals(2, config.providers.size());
+      assertTrue(config.providers.get(0) instanceof MapProvider);
+      assertTrue(config.providers.get(1) instanceof RuntimeOverrideProvider);
+      assertEquals(BUILT_IN_FACTORIES, config.factories.size());
+      
+      config.register("my.key", null, false, "UT");
+      assertEquals("Lallybrach", config.getString("my.key"));
+    }
+  }
+  
+  @Test
   public void ctorNullArgs() throws Exception {
-    try (final Configuration config = new Configuration(null)) {
+    try (final Configuration config = new Configuration((String[]) null)) {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
