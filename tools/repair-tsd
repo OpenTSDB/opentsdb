@@ -7,7 +7,6 @@ import copy
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import logging
-import pprint
 
 log = logging.getLogger("repair-tsd")
 log.setLevel(logging.INFO)
@@ -35,8 +34,8 @@ def get_metrics(args):
     base = "{} fsck --config={}".format(tsd_path, cfg_path)
     check_cmd = "{} uid --config={} metrics".format(tsd_path, cfg_path)
     if use_sudo:
-        base = "sudo -u {} {}".format(self.sudo_user, self.base)
-        check_cmd = "sudo -u {} {}".format(self.sudo_user, self.check_cmd)
+        base = "sudo -u {} {}".format(sudo_user, base)
+        check_cmd = "sudo -u {} {}".format(sudo_user, check_cmd)
     metricobj = {"time_chunk": time_chunk,
                  "timeout": int(time_chunk * 60),
                  "retries": args.get("retries", 1),
@@ -60,6 +59,7 @@ def get_metrics(args):
         shuffle(metrics)
     log.info("There are {} metrics to process".format(len(metrics)))
     return metrics
+
 
 def repair_metric_chunk(metricobj, chunk):
     """
@@ -88,11 +88,13 @@ def repair_metric_chunk(metricobj, chunk):
         try:
             results, err = metricproc.communicate(timeout=timeout)
         except TimeoutExpired:
-            log.warning("chunk {} for {} failed to complete in window (run {})".format(chunk, metric, x))
+            log.warning("{}: chunk {} failed in window (run {})".format(metric,
+                                                                        chunk,
+                                                                        x))
             continue
         except Exception as e:
             log.error("{} general exception :: {}".format(metric,
-                                                               e))
+                                                          e))
         else:
             results = [r for r in results.decode().split("\n") if r][-26:]
             final_results = []
@@ -117,6 +119,7 @@ def repair_metric_chunk(metricobj, chunk):
         log.error("Failed to completely repair {}".format(metric))
         return metric
 
+
 def process_metric(metricobj):
     """
     Run fsck on a list of metrics over a time range
@@ -131,12 +134,10 @@ def process_metric(metricobj):
         return None
     log.info("Repairing {} in {} chunks".format(metric, chunk_count))
     start_time = time.time()
-    start_time_min = int(start_time//60 * 60)
     for x in range(1, chunk_count + 1):
         failed = repair_metric_chunk(metricobj, x)
         if failed:
-            failed_metrics.append(failed)
-            break
+            return metric
     runtime = time.time() - start_time
     log.info("{} repair took {} seconds".format(metric,
                                                 int(runtime)))
