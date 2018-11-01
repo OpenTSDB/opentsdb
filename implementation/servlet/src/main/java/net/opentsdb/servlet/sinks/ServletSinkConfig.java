@@ -17,6 +17,7 @@ package net.opentsdb.servlet.sinks;
 import java.util.List;
 
 import javax.servlet.AsyncContext;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -43,12 +44,14 @@ public class ServletSinkConfig implements QuerySinkConfig {
   private final SerdesOptions options;
   private final AsyncContext async;
   private final HttpServletResponse response;
+  private final HttpServletRequest request;
   
   ServletSinkConfig(final Builder builder) {
     id = builder.id;
     options = builder.serdesOptions;
     async = builder.async;
     response = builder.response;
+    request = builder.request;
   }
   
   @Override
@@ -75,6 +78,10 @@ public class ServletSinkConfig implements QuerySinkConfig {
     return response;
   }
   
+  public HttpServletRequest request() {
+    return request;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -94,6 +101,7 @@ public class ServletSinkConfig implements QuerySinkConfig {
     
     private AsyncContext async;
     private HttpServletResponse response;
+    private HttpServletRequest request;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -112,6 +120,11 @@ public class ServletSinkConfig implements QuerySinkConfig {
     
     public Builder setResponse(final HttpServletResponse response) {
       this.response = response;
+      return this;
+    }
+    
+    public Builder setRequest(final HttpServletRequest request) {
+      this.request = request;
       return this;
     }
     

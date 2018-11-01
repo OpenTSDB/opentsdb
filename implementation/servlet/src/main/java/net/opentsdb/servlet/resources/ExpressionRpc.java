@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.servlet.resources;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -85,9 +86,17 @@ public class ExpressionRpc {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public void post(final @Context ServletConfig servlet_config, 
-                       final @Context HttpServletRequest request,
-                       final @Context HttpServletResponse response) throws Exception {
+  public Response post(final @Context ServletConfig servlet_config, 
+                       final @Context HttpServletRequest request/*,
+                       final @Context HttpServletResponse response*/) throws Exception {
+    final Object stream = request.getAttribute("DATA");
+    if (stream != null) {
+      return Response.ok()
+          .entity(((ByteArrayOutputStream) stream).toByteArray())
+          .header("Content-Type", "application/json")
+          .build();
+    }
+    
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
     if (obj == null) {
@@ -208,8 +217,6 @@ public class ExpressionRpc {
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
-    response.setHeader("Content-Type", "application/json");
-    
     TimeSeriesQuery q = query.build();
     SerdesOptions serdes = q.getSerdesConfigs().isEmpty() ? null :
       q.getSerdesConfigs().get(0);
@@ -229,7 +236,7 @@ public class ExpressionRpc {
         .addSink(ServletSinkConfig.newBuilder()
             .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)
-            .setResponse(response)
+            .setRequest(request)
             .setAsync(async)
             .build())
         .build();
@@ -291,18 +298,20 @@ public class ExpressionRpc {
         execute_span.setErrorTags(t)
                     .finish();
       }
-      GenericExceptionMapper.serialize(t, response);
+      //GenericExceptionMapper.serialize(t, response);
       async.complete();
       if (query_span != null) {
         query_span.setErrorTags(t)
                    .finish();
       }
+      throw t;
     }
     
     if (execute_span != null) {
       execute_span.setSuccessTags()
                   .finish();
     }
+    return null;
   }
   
 }

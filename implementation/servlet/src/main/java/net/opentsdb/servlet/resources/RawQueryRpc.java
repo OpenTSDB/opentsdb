@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.servlet.resources;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -25,6 +27,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -73,9 +76,18 @@ public class RawQueryRpc {
   
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public void post(final @Context ServletConfig servlet_config, 
-                       final @Context HttpServletRequest request,
-                       final @Context HttpServletResponse response) throws Exception {
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response post(final @Context ServletConfig servlet_config, 
+                       final @Context HttpServletRequest request/*,
+                       final @Context HttpServletResponse response*/) throws Exception {
+    final Object stream = request.getAttribute("DATA");
+    if (stream != null) {
+      return Response.ok()
+          .entity(((ByteArrayOutputStream) stream).toByteArray())
+          .header("Content-Type", "application/json")
+          .build();
+    }
+    
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
     if (obj == null) {
@@ -186,7 +198,8 @@ public class RawQueryRpc {
         .addSink(ServletSinkConfig.newBuilder()
             .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)
-            .setResponse(response)
+            //.setResponse(response)
+            .setRequest(request)
             .setAsync(async)
             .build())
         .build();
@@ -234,13 +247,17 @@ public class RawQueryRpc {
 //        execute_span.setErrorTags(e)
 //                    .finish();
 //      }
-      GenericExceptionMapper.serialize(t, response);
+      //GenericExceptionMapper.serialize(t, response);
+
       async.complete();
       if (query_span != null) {
         query_span.setErrorTags(t)
                    .finish();
       }
+      throw t;
     }
+    
+    return null;
   }
   
 }

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.servlet.resources;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -120,10 +121,18 @@ final public class QueryRpc {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public void post(final @Context ServletConfig servlet_config, 
-                       final @Context HttpServletRequest request,
-                       final @Context HttpServletResponse response) throws Exception {
-    handleQuery(servlet_config, request, response, false);
+  public Response post(final @Context ServletConfig servlet_config, 
+                       final @Context HttpServletRequest request/*,
+                       final @Context HttpServletResponse response*/) throws Exception {
+    final Object stream = request.getAttribute("DATA");
+    if (stream != null) {
+      return Response.ok()
+          .entity(((ByteArrayOutputStream) stream).toByteArray())
+          .header("Content-Type", "application/json")
+          .build();
+    }
+    
+    return handleQuery(servlet_config, request, false);
   }
   
   /**
@@ -136,10 +145,18 @@ final public class QueryRpc {
    */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public void get(final @Context ServletConfig servlet_config, 
-                      final @Context HttpServletRequest request,
-                      final @Context HttpServletResponse response) throws Exception {
-    handleQuery(servlet_config, request, response, true);
+  public Response get(final @Context ServletConfig servlet_config, 
+                      final @Context HttpServletRequest request/*,
+                      final @Context HttpServletResponse response*/) throws Exception {
+    final Object stream = request.getAttribute("DATA");
+    if (stream != null) {
+      return Response.ok()
+          .entity(((ByteArrayOutputStream) stream).toByteArray())
+          .header("Content-Type", "application/json")
+          .build();
+    }
+    
+    return handleQuery(servlet_config, request, true);
   }
   
   /**
@@ -152,9 +169,8 @@ final public class QueryRpc {
    * @throws Exception if something went pear shaped.
    */
   @VisibleForTesting
-  void handleQuery(final ServletConfig servlet_config, 
+  Response handleQuery(final ServletConfig servlet_config, 
                        final HttpServletRequest request,
-                       final HttpServletResponse response,
                        final boolean is_get) throws Exception {
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
@@ -301,7 +317,7 @@ final public class QueryRpc {
         .addSink(ServletSinkConfig.newBuilder()
             .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)
-            .setResponse(response)
+            .setRequest(request)
             .setAsync(async)
             .build())
         .build();
@@ -357,7 +373,7 @@ final public class QueryRpc {
       ctx.fetchNext(query_span);
     } catch (Throwable t) {
       LOG.error("Unexpected exception adding callbacks to deferred.", t);
-      GenericExceptionMapper.serialize(t, response);
+      //GenericExceptionMapper.serialize(t, response);
       if (execute_span != null) {
         execute_span.setErrorTags(t)
                     .finish();
@@ -367,13 +383,14 @@ final public class QueryRpc {
         query_span.setErrorTags(t)
                    .finish();
       }
-      return;
+      throw t;
     }
     
     if (execute_span != null) {
       execute_span.setSuccessTags()
                   .finish();
     }
+    return null;
   }
   
 //  /**
