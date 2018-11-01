@@ -90,20 +90,22 @@ public class ServletSink implements QuerySink {
   public void onComplete() {
     try {
       serdes.serializeComplete(null);
-      try {
-        // TODO - oh this is sooooo ugly.... *sniff*
-        config.response().setContentType("application/json");
-        final byte[] data = stream.toByteArray();
-        stream.close();
-        config.response().setContentLength(data.length);
-        config.response().setStatus(200);
-        config.response().getOutputStream().write(data);
-        config.response().getOutputStream().close();
-      } catch (IOException e1) {
-        onError(e1);
-        return;
-      }
-      config.async().complete();
+      config.request().setAttribute("DATA", stream);
+//      try {
+//        // TODO - oh this is sooooo ugly.... *sniff*
+//        config.response().setContentType("application/json");
+//        final byte[] data = stream.toByteArray();
+//        stream.close();
+//        config.response().setContentLength(data.length);
+//        config.response().setStatus(200);
+//        config.response().getOutputStream().write(data);
+//        config.response().getOutputStream().close();
+//      } catch (IOException e1) {
+//        onError(e1);
+//        return;
+//      }
+      //config.async().complete();
+      config.async().dispatch();
       logComplete();
     } catch (Exception e) {
       LOG.error("Unexpected exception dispatching async request for "
