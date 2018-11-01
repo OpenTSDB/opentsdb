@@ -2,7 +2,7 @@
 
 from subprocess import Popen, PIPE, TimeoutExpired, check_output
 from random import shuffle
-from multiprocessing import Pool
+from multiprocessing import Pool, Value
 import copy
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -15,6 +15,7 @@ logformat = '%(asctime)s %(name)s %(levelname)s %(message)s'
 formatter = logging.Formatter(logformat)
 ch.setFormatter(formatter)
 log.addHandler(ch)
+metric_count = Value('i', 0)
 
 
 def get_metrics(args):
@@ -36,22 +37,22 @@ def get_metrics(args):
     if use_sudo:
         base = "sudo -u {} {}".format(sudo_user, base)
         check_cmd = "sudo -u {} {}".format(sudo_user, check_cmd)
-    metricobj = {"time_chunk": time_chunk,
-                 "timeout": int(time_chunk * 60),
-                 "retries": args.get("retries", 1),
-                 "multiplier": multiplier,
-                 "chunk_count": time_range * multiplier,
-                 "base": base, "check_cmd": check_cmd}
     cmd = '{} uid --config={} grep metrics ".*"'.format(tsd_path,
                                                         cfg_path)
     proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
     results = proc.communicate()
     metriclist = [m.split(" ")[1].strip(":")
                   for m in results[0].decode().split("\n") if m]
+    metriclist = [m for m in metriclist if m and m != "\x00"]
+    metricobj = {"time_chunk": time_chunk,
+                 "timeout": int(time_chunk * 60),
+                 "retries": args.get("retries", 1),
+                 "multiplier": multiplier,
+                 "metriccount": len(metriclist),
+                 "chunk_count": time_range * multiplier,
+                 "base": base, "check_cmd": check_cmd}
     metrics = []
     for m in metriclist:
-        if not m or m == "\x00":
-            continue
         metric = copy.deepcopy(metricobj)
         metric["metric"] = m
         metrics.append(metric)
@@ -139,8 +140,13 @@ def process_metric(metricobj):
         if failed:
             return metric
     runtime = time.time() - start_time
-    log.info("{} repair took {} seconds".format(metric,
-                                                int(runtime)))
+    with metric_count.get_lock():
+        metric_count.value += 1
+    line = "{} repair took {} seconds".format(metric,
+                                              int(runtime))
+    line += " ({} of {} metrics complete)".format(metric_count.value,
+                                                  metricobj["metriccount"])
+    log.info(line)
 
 
 def process_metrics(metric_list):
