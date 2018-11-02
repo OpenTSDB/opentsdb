@@ -22,39 +22,39 @@ import net.opentsdb.stats.QueryStats;
  * The interface used to build a query context for query execution. This is the
  * main API for executing a query and merges the query itself with a mode, stats
  * and at least one listener.
- * 
+ *
  * @since 3.0
  */
 public interface QueryContextBuilder {
-  
+
   /**
    * Sets the query for this execution.
    * @param query A non-null query.
    * @return The builder.
    */
   public QueryContextBuilder setQuery(final TimeSeriesQuery query);
-  
+
   /**
    * Sets the query mode for this execution.
    * @param mode A non-null mode.
    * @return The builder.
    */
   public QueryContextBuilder setMode(final QueryMode mode);
-  
+
   /**
    * Sets the optional stats object for the query execution.
    * @param stats An optional stats object. If null, stats will not be recorded.
    * @return The builder.
    */
   public QueryContextBuilder setStats(final QueryStats stats);
-  
+
   /**
    * Sets the list of sink configs for the query, taking the list reference.
    * @param configs A list of sink configs.
    * @return The builder.
    */
   public QueryContextBuilder setSinks(final List<QuerySinkConfig> configs);
-  
+
   /**
    * Adds a non-null sink config to the list of sink configs. Does not
    * check for duplicates.
@@ -62,7 +62,7 @@ public interface QueryContextBuilder {
    * @return The builder.
    */
   public QueryContextBuilder addSink(final QuerySinkConfig config);
-  
+
   /**
    * Returns a context ready for execution via {@link QueryContext#fetchNext()}.
    * If construction failed due to a validation error or some other problem this

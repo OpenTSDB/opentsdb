@@ -24,36 +24,36 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 
 /**
- * Factory to construct the TagValueLiteralOr filter.
- * 
+ * Factory to construct the MetricRegex filter.
+ *
  * @since 3.0
  */
-public class TagValueLiteralOrFactory extends BaseTSDBPlugin
-    implements QueryFilterFactory {
+public class MetricRegexFactory extends BaseTSDBPlugin
+        implements QueryFilterFactory {
 
-  static final String TYPE = "TagValueLiteralOr";
-  
+  static final String TYPE = "MetricRegex";
+
   @Override
   public String getType() {
     return TYPE;
   }
 
-  public QueryFilter parse(final TSDB tsdb, 
+  public QueryFilter parse(final TSDB tsdb,
                            final ObjectMapper mapper,
                            final JsonNode node) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
     try {
-      return (QueryFilter) mapper.treeToValue(node, TagValueLiteralOrFilter.class);
+      return (QueryFilter) mapper.treeToValue(node, MetricRegexFilter.class);
     } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Failed to parse TagValueLiteralOr", e);
+      throw new IllegalArgumentException("Failed to parse MetricLiteral", e);
     }
   }
 
   @Override
   public String type() {
-    return TYPE;
+    return "MetricRegex";
   }
 
   @Override
@@ -61,7 +61,7 @@ public class TagValueLiteralOrFactory extends BaseTSDBPlugin
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     return Deferred.fromResult(null);
   }
-  
+
   @Override
   public String version() {
     return "3.0.0";
