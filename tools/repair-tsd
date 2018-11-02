@@ -16,6 +16,7 @@ formatter = logging.Formatter(logformat)
 ch.setFormatter(formatter)
 log.addHandler(ch)
 metric_count = Value('i', 0)
+failed_count = Value('i', 0)
 
 
 def get_metrics(args):
@@ -138,6 +139,8 @@ def process_metric(metricobj):
     for x in range(1, chunk_count + 1):
         failed = repair_metric_chunk(metricobj, x)
         if failed:
+            with failed_count.get_lock():
+                failed_count.value += 1
             return metric
     runtime = time.time() - start_time
     with metric_count.get_lock():
@@ -146,11 +149,12 @@ def process_metric(metricobj):
                                               int(runtime))
     line += " ({} of {} metrics complete)".format(metric_count.value,
                                                   metricobj["metriccount"])
+    line += " ({} failed)".format(failed_count.value)
     log.info(line)
 
 
-def process_metrics(metric_list):
-    threads = Pool(4)
+def process_metrics(metric_list, threads):
+    threads = Pool(threads)
     failed_metrics = threads.map(process_metric, metric_list)
     failed_metrics = [m for m in failed_metrics if m]
     log.warning("Failed metrics: {}".format(failed_metrics))
@@ -180,6 +184,8 @@ def cli_opts():
     parser.add_argument("--shuffle", action="store_true",
                         default=False,
                         help="Mix up incoming metric order")
+    parser.add_argument("--threads", default="4",
+                        help="Total number of metrics to process at once")
     parser.add_argument("--sudo-user", default="opentsdb",
                         help="User to switch to...")
     return parser.parse_args()
@@ -198,11 +204,15 @@ def main():
     except Exception as e:
         log.error("Invalid retry number {} :: {}".format(args.retries, e))
     try:
+        threads = int(args.threads)
+    except Exception as e:
+        log.error("Invalid thread count {} :: {}".format(args.threads, e))
+    try:
         time_chunk = int(args.time_chunk)
         if 60 % time_chunk != 0:
             raise ArithmeticError
     except Exception as e:
-        log.error("Invalid time chunk {} :: {}".format(args.retries, e))
+        log.error("Invalid time chunk {} :: {}".format(args.time_chunk, e))
 
     metric_list = get_metrics({"time_range": time_range,
                                "use_sudo": args.use_sudo,
@@ -213,7 +223,7 @@ def main():
                                "store_path": args.store_path,
                                "shuffle": args.shuffle,
                                "retries": retries})
-    process_metrics(metric_list)
+    process_metrics(metric_list, threads)
 
 
 if __name__ == "__main__":
