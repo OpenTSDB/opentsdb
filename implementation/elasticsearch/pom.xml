@@ -9,13 +9,13 @@
       <relativePath>../../pom.xml</relativePath>
    </parent>
    
-   <artifactId>opentsdb-elasticsearch</artifactId>
-   <name>opentsdb-elasticsearch</name>
+   <artifactId>opentsdb-elasticsearch-transportclient</artifactId>
+   <name>opentsdb-elasticsearch-transportclient</name>
    <description>ElasticSearch related OpenTSDB plugins.</description>
    <packaging>jar</packaging>
-   
+
    <properties>
-      <es.version>6.2.4</es.version>
+      <es.version>1.7.2</es.version>
    </properties>
    
    <dependencyManagement>
@@ -42,18 +42,11 @@
             <version>${project.version}</version>
             <type>test-jar</type>
          </dependency>
-		 
-		     <dependency>
-           <groupId>org.elasticsearch.client</groupId>
-           <artifactId>elasticsearch-rest-high-level-client</artifactId>
-           <version>${es.version}</version>
-         </dependency>
          <dependency>
-           <groupId>org.elasticsearch</groupId>
-           <artifactId>elasticsearch</artifactId>
-           <version>${es.version}</version>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>${es.version}</version>
          </dependency>
-         
       </dependencies>
    </dependencyManagement>
    
@@ -66,14 +59,9 @@
          <groupId>net.opentsdb</groupId>
          <artifactId>opentsdb-core</artifactId>
       </dependency>
-	  
-	    <dependency>
-        <groupId>org.elasticsearch.client</groupId>
-        <artifactId>elasticsearch-rest-high-level-client</artifactId>
-      </dependency>
       <dependency>
-        <groupId>org.elasticsearch</groupId>
-        <artifactId>elasticsearch</artifactId>
+         <groupId>org.elasticsearch</groupId>
+         <artifactId>elasticsearch</artifactId>
       </dependency>
 	      
       <!-- TESTING Deps. -->
@@ -114,6 +102,16 @@
          <artifactId>powermock-module-junit4</artifactId>
          <scope>test</scope>
       </dependency>
+      <dependency>
+         <groupId>net.opentsdb</groupId>
+         <artifactId>opentsdb-executors-http</artifactId>
+         <version>${project.version}</version>
+         <scope>compile</scope>
+      </dependency>
+       <dependency>
+           <groupId>net.opentsdb</groupId>
+           <artifactId>opentsdb-core</artifactId>
+       </dependency>
    </dependencies>
    
    <build>

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -50,7 +51,7 @@ import net.opentsdb.common.Const;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = BaseTimeSeriesStringId.Builder.class)
 public class BaseTimeSeriesStringId implements TimeSeriesStringId {
-  
+
   /** Whether or not the strings are specially encoded values. */
   protected boolean encoded;
   
@@ -178,7 +179,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
             Ordering.<String>natural().lexicographical().nullsFirst())
         .result();
   }
-  
+
   @Override
   public boolean equals(final Object o) {
     if (this == o)
