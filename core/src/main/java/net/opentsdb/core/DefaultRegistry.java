@@ -31,6 +31,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -99,9 +100,14 @@ public class DefaultRegistry implements Registry {
     }
     
     if (!tsdb.getConfig().hasProperty(PLUGIN_CONFIG_KEY)) {
-      tsdb.getConfig().register(PLUGIN_CONFIG_KEY, null, false, 
-          "The path to a plugin configuration file to override the "
-          + "built-in default.");
+      tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
+          .setKey(PLUGIN_CONFIG_KEY)
+          .setType(PluginsConfig.class)
+          .setDescription("The path to or direct plugin configuration.")
+          .isNullable()
+          .setSource(getClass().getName())
+          .setValidator(new PluginConfigValidator())
+          .build());
     }
     tsdb.getConfig().register(DEFAULT_CLUSTERS_KEY, null, false, 
         "TODO");
@@ -413,6 +419,18 @@ public class DefaultRegistry implements Registry {
    * @return A deferred to wait on for results.
    */
   public Deferred<Object> loadPlugins() {
+    try {
+      plugins = tsdb.getConfig().getTyped(PLUGIN_CONFIG_KEY, PluginsConfig.class);
+      if (plugins != null) {
+        return plugins.initialize(tsdb);
+      }
+    } catch (Exception e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Looks like the plugin config is not an object. Trying a file", e);
+      }
+    }
+    
+    // try it as a string.
     final String config = tsdb.getConfig().getString(PLUGIN_CONFIG_KEY);
     if (Strings.isNullOrEmpty(config)) {
       if (plugins == null) {

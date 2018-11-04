@@ -329,12 +329,12 @@ public class Configuration implements Closeable {
           + "key: " + schema.key);
     }
     
+    if (schema.isDynamic()) {
+      reload_keys.add(schema.getKey());
+    }
+    
     // pull from previous sources in order
     for (int i = providers.size() - 1; i >= 0; i--) {
-      if (schema.isDynamic()) {
-        reload_keys.add(schema.getKey());
-      }
-      
       final ConfigurationOverride setting = providers.get(i)
           .getSetting(schema.key);
       if (setting != null) {

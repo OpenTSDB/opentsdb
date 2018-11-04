@@ -66,6 +66,7 @@ public class ConfigurationEntrySchema {
    * parameterized command line arg. */
   protected final String meta;
   
+  /** Used for validation to make sure the jvm doesn't skip the operation. */
   protected Object black_hole;
   
   /**
@@ -173,11 +174,18 @@ public class ConfigurationEntrySchema {
   
   /**
    * Determines if the given value is valid or not based on the schema
-   * type and value.
+   * type and value. If a validator is set, that's used instead. 
+   * Otherwise this just checks for types, parsing and nulls.
    * @param value A value that may be null if nullables are allowed.
    * @return A non-null validation result.
    */
   public ValidationResult validate(final Object value) {
+    if (validator != null) {
+      // we have a custom validator so let it handle all the validation
+      // from here.
+      return validator.validate(this, value);
+    }
+    
     if (!nullable && value == null) {
       return ConfigurationValueValidator.NULL;
     }
@@ -209,12 +217,9 @@ public class ConfigurationEntrySchema {
           .notValid()
           .setMessage(e.getMessage())
           .build();
+    } finally {
+      black_hole = null;
     }
-    
-    if (validator != null) {
-      return validator.validate(this, value);
-    }
-    
     return ConfigurationValueValidator.OK;
   }
   
