@@ -132,7 +132,6 @@ class ConfigurationEntry {
    * source was null.
    * @throws ConfigurationException if the schema wasn't already set.
    */
-  @SuppressWarnings("unchecked")
   public ValidationResult addOverride(final ConfigurationOverride override) {
     if (override == null) {
       throw new IllegalArgumentException("The setting cannot be null.");
