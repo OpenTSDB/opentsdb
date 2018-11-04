@@ -990,6 +990,11 @@ public class Configuration implements Closeable {
     LOG.info("Completed shutdown of config providers, factories and timer.");
   }
   
+  /** @return The unmodifiable list of keys to notify on. */
+  public Set<String> reloadableKeys() {
+    return Collections.unmodifiableSet(reload_keys);
+  }
+  
   /**
    * Helper method that attempts to load the initial providers key and
    * plugin path from the:
@@ -1247,7 +1252,7 @@ public class Configuration implements Closeable {
           if (factory instanceof ProtocolProviderFactory) {
             if (((ProtocolProviderFactory) factory).handlesProtocol(source)) {
               final Provider provider = ((ProtocolProviderFactory) factory)
-                  .newInstance(this, timer, reload_keys, source);
+                  .newInstance(this, timer, source);
               if (provider == null) {
                 throw new ConfigurationException("Factory [" 
                     + factory + "] returned a null instance.");
@@ -1285,7 +1290,6 @@ public class Configuration implements Closeable {
           providers.add(new CommandLineProvider(new CommandLine(), 
                                                 this, 
                                                 timer, 
-                                                reload_keys, 
                                                 cli_args));
           if (LOG.isDebugEnabled()) {
             LOG.debug("Instantiated the [CommandLine] provider.");
@@ -1296,15 +1300,14 @@ public class Configuration implements Closeable {
           // properly. Here we force instantiation.
           providers.add(new RuntimeOverrideProvider(new CommandLine(), 
                                                     this, 
-                                                    timer, 
-                                                    reload_keys));
+                                                    timer));
           if (LOG.isDebugEnabled()) {
             LOG.debug("Instantiated the [CommandLine] provider.");
           }
         } else if (source.equals("UnitTest")) {
           // another outlier for unit tests.
           providers.add(new UnitTestConfiguration.UnitTest()
-              .newInstance(this, timer, reload_keys));
+              .newInstance(this, timer));
           if (LOG.isDebugEnabled()) {
             LOG.debug("Instantiated the [UnitTest] provider.");
           }
@@ -1315,7 +1318,7 @@ public class Configuration implements Closeable {
             if (factory.simpleName().equals(source) || 
                 factory.getClass().getCanonicalName().equals(source)) {
               final Provider plugin = factory
-                  .newInstance(this, timer, reload_keys);
+                  .newInstance(this, timer);
               if (plugin == null) {
                 throw new ConfigurationException("Factory [" 
                     + factory + "] returned a null instance.");
@@ -1404,11 +1407,6 @@ public class Configuration implements Closeable {
     return timer;
   }
 
-  @VisibleForTesting
-  Set<String> reloadKeys() {
-    return this.reloadKeys();
-  }
-  
   @VisibleForTesting
   List<ProviderFactory> factories() {
     return factories;

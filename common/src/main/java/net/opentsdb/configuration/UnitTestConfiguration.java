@@ -116,9 +116,8 @@ public class UnitTestConfiguration extends Configuration {
     
     public UnitTestProvider(final ProviderFactory factory, 
                             final Configuration config,
-                            final HashedWheelTimer timer, 
-                            final Set<String> reload_keys) {
-      super(factory, config, timer, reload_keys);
+                            final HashedWheelTimer timer) {
+      super(factory, config, timer);
     }
 
     @Override
@@ -158,9 +157,8 @@ public class UnitTestConfiguration extends Configuration {
 
     @Override
     public Provider newInstance(final Configuration config, 
-                                final HashedWheelTimer timer,
-                                final Set<String> reload_keys) {
-      return new UnitTestProvider(this, config, timer, reload_keys);
+                                final HashedWheelTimer timer) {
+      return new UnitTestProvider(this, config, timer);
     }
 
     @Override

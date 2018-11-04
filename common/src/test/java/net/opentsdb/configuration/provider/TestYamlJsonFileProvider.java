@@ -28,10 +28,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -60,7 +58,6 @@ public class TestYamlJsonFileProvider {
   private ProviderFactory factory;
   private Configuration config;
   private HashedWheelTimer timer;
-  private Set<String> reload_keys;
   private ByteSource source;
   private File file;
   private HashCode hash;
@@ -70,7 +67,6 @@ public class TestYamlJsonFileProvider {
     factory = mock(ProviderFactory.class);
     config = mock(Configuration.class);
     timer = mock(HashedWheelTimer.class);
-    reload_keys = Collections.emptySet();
     source = mock(ByteSource.class);
     file = mock(File.class);
     
@@ -94,7 +90,7 @@ public class TestYamlJsonFileProvider {
         new ByteArrayInputStream(json.getBytes()));
     
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     verify(source, times(1)).openStream();
     assertTrue(provider.cache.isEmpty());
@@ -109,7 +105,7 @@ public class TestYamlJsonFileProvider {
         new ByteArrayInputStream(json.getBytes()));
     
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     verify(source, times(1)).openStream();
     assertTrue(provider.cache.isEmpty());
@@ -124,7 +120,7 @@ public class TestYamlJsonFileProvider {
         new ByteArrayInputStream(json.getBytes()));
     
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     verify(source, times(1)).openStream();
     assertTrue(provider.cache.isEmpty());
@@ -139,7 +135,7 @@ public class TestYamlJsonFileProvider {
         new UnitTestException());
     
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     verify(source, never()).openStream();
     assertTrue(provider.cache.isEmpty());
@@ -155,7 +151,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(6, provider.cache.size());
     
@@ -206,7 +202,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.yaml");
+        factory, config, timer, "file://test.yaml");
     
     assertEquals(6, provider.cache.size());
     
@@ -247,7 +243,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(1, provider.cache.size());
     assertTrue(provider.getSetting("root").getValue() instanceof JsonNode);
@@ -281,7 +277,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(yaml.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(1, provider.cache.size());
     assertTrue(provider.getSetting("root").getValue() instanceof JsonNode);
@@ -315,7 +311,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(yaml.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(1, provider.cache.size());
     assertTrue(provider.getSetting("root").getValue() instanceof JsonNode);
@@ -343,7 +339,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     assertTrue(provider.cache.isEmpty());
   }
   
@@ -355,7 +351,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(6, provider.cache.size());
     verify(source, times(1)).openStream();
@@ -372,7 +368,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(6, provider.cache.size());
     verify(source, times(1)).openStream();
@@ -455,7 +451,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(6, provider.cache.size());
     verify(source, times(1)).openStream();
@@ -508,7 +504,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(1, provider.cache.size());
     assertTrue(provider.getSetting("root").getValue() instanceof JsonNode);
@@ -567,7 +563,7 @@ public class TestYamlJsonFileProvider {
     when(source.openStream()).thenReturn(
         new ByteArrayInputStream(json.getBytes()));
     YamlJsonFileProvider provider = new YamlJsonFileProvider(
-        factory, config, timer, reload_keys, "file://test.json");
+        factory, config, timer, "file://test.json");
     
     assertEquals(1, provider.cache.size());
     assertTrue(provider.getSetting("root").getValue() instanceof JsonNode);

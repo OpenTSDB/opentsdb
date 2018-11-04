@@ -18,8 +18,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
-import java.util.Collections;
-import java.util.Set;
 import java.util.Map.Entry;
 
 import org.junit.Test;
@@ -32,12 +30,11 @@ public class TestSystemPropertiesProvider {
   private Configuration config = mock(Configuration.class);
   private ProviderFactory factory = mock(ProviderFactory.class);
   private HashedWheelTimer timer = mock(HashedWheelTimer.class);
-  private Set<String> reload_keys = Collections.emptySet();
   
   @Test
   public void ctor() throws Exception {
     try (final SystemPropertiesProvider props = 
-        new SystemPropertiesProvider(factory, config, timer, reload_keys)) {
+        new SystemPropertiesProvider(factory, config, timer)) {
       assertEquals(SystemPropertiesProvider.SOURCE, props.source());
     }
   }
@@ -45,7 +42,7 @@ public class TestSystemPropertiesProvider {
   @Test
   public void getSetting() throws Exception {
     try (final SystemPropertiesProvider props = 
-        new SystemPropertiesProvider(factory, config, timer, reload_keys)) {
+        new SystemPropertiesProvider(factory, config, timer)) {
       
       if (System.getProperties().isEmpty()) {
         // could happen, maybe sorta kinda

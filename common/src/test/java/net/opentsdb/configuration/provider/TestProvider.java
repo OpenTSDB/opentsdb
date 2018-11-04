@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.configuration.provider;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -27,8 +28,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
@@ -42,35 +41,28 @@ public class TestProvider {
   private ProviderFactory factory = mock(ProviderFactory.class);
   private Configuration config = mock(Configuration.class);
   private HashedWheelTimer timer = mock(HashedWheelTimer.class);
-  private Set<String> reload_keys = Collections.emptySet();
   
   @Test
   public void ctor() throws Exception {
     try {
-      new MockProvider(null, config, timer, reload_keys).close();
+      new MockProvider(null, config, timer).close();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new MockProvider(factory, null, timer, reload_keys).close();
+      new MockProvider(factory, null, timer).close();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new MockProvider(factory, config, null, reload_keys).close();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new MockProvider(factory, config, timer, null).close();
+      new MockProvider(factory, config, null).close();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try (final MockProvider provider = 
-        new MockProvider(factory, config, timer, reload_keys)) {
+        new MockProvider(factory, config, timer)) {
       assertSame(config, provider.config);
       assertSame(timer, provider.timer);
-      assertSame(reload_keys, provider.reload_keys);
     }
   }
   
@@ -79,7 +71,7 @@ public class TestProvider {
     when(config.getTyped(anyString(), any(Class.class))).thenReturn(42L);
     
     try (final MockProvider provider = 
-        new MockProvider(factory, config, timer, reload_keys)) {
+        new MockProvider(factory, config, timer)) {
       assertFalse(provider.reloaded);
       
       provider.run(null);
@@ -90,7 +82,7 @@ public class TestProvider {
     }
     
     try (final MockProvider provider = 
-        new MockProvider(factory, config, timer, reload_keys)) {
+        new MockProvider(factory, config, timer)) {
       provider.throw_exception_on_reload = true;
       assertFalse(provider.reloaded);
       
@@ -105,9 +97,8 @@ public class TestProvider {
   static class MockProvider extends BaseProvider {
     public MockProvider(final ProviderFactory factory, 
                         final Configuration config,
-                        final HashedWheelTimer timer, 
-                        final Set<String> reload_keys) {
-      super(factory, config, timer, reload_keys);
+                        final HashedWheelTimer timer) {
+      super(factory, config, timer);
     }
 
     boolean reloaded = false;

@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.configuration.provider;
 
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -43,9 +42,6 @@ public abstract class BaseProvider implements Provider {
   /** A timer from the config used to reload the config. */
   protected final HashedWheelTimer timer;
   
-  /** The SHARED set of reload keys to update on refreshes. */
-  protected final Set<String> reload_keys;
-  
   /** The last reload time in ms. May be 0 for non-reloadable providers. */
   protected long last_reload;
   
@@ -54,13 +50,11 @@ public abstract class BaseProvider implements Provider {
    * @param factory A non-null provider factory.
    * @param config A non-null config object we belong to.
    * @param timer A non-null timer object.
-   * @param reload_keys A non-null (possibly empty) set of keys to reload.
    * @throws IllegalArgumentException if a required parameter is missing.
    */
   public BaseProvider(final ProviderFactory factory, 
                   final Configuration config, 
-                  final HashedWheelTimer timer,
-                  final Set<String> reload_keys) {
+                  final HashedWheelTimer timer) {
     if (factory == null) {
       throw new IllegalArgumentException("Factory cannot be null.");
     }
@@ -70,13 +64,9 @@ public abstract class BaseProvider implements Provider {
     if (timer == null) {
       throw new IllegalArgumentException("Timer cannot be null.");
     }
-    if (reload_keys == null) {
-      throw new IllegalArgumentException("Reload keys cannot be null.");
-    }
     this.factory = factory;
     this.config = config;
     this.timer = timer;
-    this.reload_keys = reload_keys;
   }
   
   /**

@@ -15,7 +15,6 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.IOException;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
@@ -54,27 +53,25 @@ public class FileFactory implements ProtocolProviderFactory, ProviderFactory {
 
   @Override
   public Provider newInstance(final Configuration config, 
-                              final HashedWheelTimer timer,
-                              final Set<String> reload_keys) {
+                              final HashedWheelTimer timer) {
     throw new UnsupportedOperationException();
   }
   
   @Override
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer,
-                              final Set<String> reload_keys,
                               String uri) {
     uri = uri.toLowerCase();
     if (uri.endsWith(".conf") ||
         uri.endsWith(".config") ||
         uri.endsWith(".txt") ||
         uri.endsWith(".properties")) {
-      return new PropertiesFileProvider(this, config, timer, reload_keys, uri);
+      return new PropertiesFileProvider(this, config, timer, uri);
     } else if (uri.endsWith(".yaml") || 
                uri.endsWith(".yml") ||
                uri.endsWith(".json") ||
                uri.endsWith(".jsn")) {
-      return new YamlJsonFileProvider(this, config, timer, reload_keys, uri);
+      return new YamlJsonFileProvider(this, config, timer, uri);
     } else {
       throw new UnsupportedOperationException("File type not recognized.");
     }

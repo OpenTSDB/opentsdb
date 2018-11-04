@@ -77,28 +77,28 @@ public class PropertiesFileProvider extends BaseProvider {
    * @param factory A non-null provider factory.
    * @param config A non-null config object we belong to.
    * @param timer A non-null timer object.
-   * @param reload_keys A non-null (possibly empty) set of keys to reload.
    * @throws IllegalArgumentException if a required parameter is missing.
    */
   public PropertiesFileProvider(final ProviderFactory factory, 
                         final Configuration config, 
-                        final HashedWheelTimer timer,
-                        final Set<String> reload_keys) {
-    this(factory, config, timer, reload_keys, null);
+                        final HashedWheelTimer timer) {
+    this(factory, config, timer, null);
   }
   
   /**
    * Ctor used by the factory to load a specific file. If a user provided
    * file name is given, the file will attempt reloads at each interval.
+   * @param factory A non-null provider factory.
+   * @param config A non-null config object we belong to.
+   * @param timer A non-null timer object.
    * @param file_name A file name. If null or empty it will look for defaults.
    * @throws ConfigurationException if the default file name couldn't be found.
    */
   public PropertiesFileProvider(final ProviderFactory factory, 
                                 final Configuration config, 
                                 final HashedWheelTimer timer,
-                                final Set<String> reload_keys,
                                 final String file_name) {
-    super(factory, config, timer, reload_keys);
+    super(factory, config, timer);
     if (Strings.isNullOrEmpty(file_name)) {
       this.file_name = findDefault();
       if (Strings.isNullOrEmpty(this.file_name)) {
@@ -178,8 +178,7 @@ public class PropertiesFileProvider extends BaseProvider {
           cache.put((String) entry.getKey(), (String) entry.getValue());
           new_keys.add((String) entry.getKey());
           
-          if (reload_keys != null && 
-              reload_keys.contains((String) entry.getKey())) {
+          if (config.reloadableKeys().contains((String) entry.getKey())) {
             try {
               config.addOverride((String) entry.getKey(),
                   ConfigurationOverride.newBuilder()

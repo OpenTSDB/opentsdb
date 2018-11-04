@@ -63,16 +63,14 @@ public class YamlJsonFileProvider extends BaseProvider {
    * @param factory A non-null provider factory.
    * @param config A non-null config object we belong to.
    * @param timer A non-null timer object.
-   * @param reload_keys A non-null (possibly empty) set of keys to reload.
    * @param uri The URI to parse out. A file in this case.
    * @throws IllegalArgumentException if a required parameter is missing.
    */
   public YamlJsonFileProvider(final ProviderFactory factory, 
                               final Configuration config,
                               final HashedWheelTimer timer, 
-                              final Set<String> reload_keys, 
                               final String uri) {
-    super(factory, config, timer, reload_keys);
+    super(factory, config, timer);
     
     cache = Maps.newConcurrentMap();
     
@@ -228,8 +226,7 @@ public class YamlJsonFileProvider extends BaseProvider {
    * @param value The value to return. May be null.
    */
   void notifyBinds(final String key, final Object value) {
-    if (reload_keys != null && 
-        reload_keys.contains(key)) {
+    if (config.reloadableKeys().contains(key)) {
       try {
         config.addOverride(key,
             ConfigurationOverride.newBuilder()

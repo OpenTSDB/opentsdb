@@ -19,9 +19,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-import java.util.Collections;
-import java.util.Set;
-
 import org.junit.Test;
 
 import io.netty.util.HashedWheelTimer;
@@ -32,18 +29,16 @@ public class TestCommandLineProvider {
   private Configuration config = mock(Configuration.class);
   private ProviderFactory factory = mock(ProviderFactory.class);
   private HashedWheelTimer timer = mock(HashedWheelTimer.class);
-  private Set<String> reload_keys = Collections.emptySet();
   
   @Test
   public void ctor() throws Exception {
     try {
-      new CommandLineProvider(factory, config, timer, reload_keys, null).close();;
+      new CommandLineProvider(factory, config, timer, null).close();;
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    new CommandLineProvider(factory, config, timer, reload_keys, 
-        new String[0]).close();
-    new CommandLineProvider(factory, config, timer, reload_keys, 
+    new CommandLineProvider(factory, config, timer, new String[0]).close();
+    new CommandLineProvider(factory, config, timer, 
         new String[] { "--test.conf=foo" }).close();
   }
   
@@ -54,7 +49,7 @@ public class TestCommandLineProvider {
         "--test.bar=42"
     };
     try (final CommandLineProvider provider = 
-        new CommandLineProvider(factory, config, timer, reload_keys, args)) {
+        new CommandLineProvider(factory, config, timer, args)) {
       try {
         provider.getSetting(null);
         fail("Expected IllegalArgumentException");

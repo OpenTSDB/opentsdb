@@ -23,9 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.Collections;
 import java.util.Properties;
-import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -51,7 +49,6 @@ public class TestPropertiesFileProvider {
   private ProviderFactory factory;
   private Configuration config;
   private HashedWheelTimer timer;
-  private Set<String> reload_keys;
   private ByteSource source;
   private File file;
   private HashCode hash;
@@ -61,7 +58,6 @@ public class TestPropertiesFileProvider {
     factory = mock(ProviderFactory.class);
     config = mock(Configuration.class);
     timer = mock(HashedWheelTimer.class);
-    reload_keys = Collections.emptySet();
     source = mock(ByteSource.class);
     file = mock(File.class);
     
@@ -84,7 +80,7 @@ public class TestPropertiesFileProvider {
       .withAnyArguments()
       .thenReturn(mock(File.class));
     try {
-      new PropertiesFileProvider(factory, config, timer, reload_keys).close();;
+      new PropertiesFileProvider(factory, config, timer).close();;
       fail("Expected ConfigurationException");
     } catch (ConfigurationException e) { }
     
@@ -97,13 +93,13 @@ public class TestPropertiesFileProvider {
     PowerMockito.whenNew(FileInputStream.class)
       .withAnyArguments()
       .thenReturn(mock(FileInputStream.class));
-    new PropertiesFileProvider(factory, config, timer, reload_keys).close();
+    new PropertiesFileProvider(factory, config, timer).close();
   }
   
   @Test
   public void ctorNoProtocol() throws Exception {
     try {
-      new PropertiesFileProvider(factory, config, timer, reload_keys, 
+      new PropertiesFileProvider(factory, config, timer, 
           "opentsdb.conf").close();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -111,10 +107,10 @@ public class TestPropertiesFileProvider {
   
   @Test
   public void ctorWithFile() throws Exception {
-    new PropertiesFileProvider(factory, config, timer, reload_keys, 
+    new PropertiesFileProvider(factory, config, timer, 
         "file://opentsdb.conf").close();
     
-    new PropertiesFileProvider(factory, config, timer, reload_keys, 
+    new PropertiesFileProvider(factory, config, timer, 
         "FiLe://opentsdb.conf").close();
   }
   
@@ -136,7 +132,7 @@ public class TestPropertiesFileProvider {
       .withAnyArguments()
       .thenReturn(mock(FileInputStream.class));
     final PropertiesFileProvider provider = new PropertiesFileProvider(factory, 
-        config, timer, reload_keys, "file://opentsdb.conf");
+        config, timer, "file://opentsdb.conf");
     
     assertEquals(2, provider.cache().size());
     assertEquals("foo", provider.cache().get("tsd.conf"));
@@ -185,7 +181,7 @@ public class TestPropertiesFileProvider {
       .withAnyArguments()
       .thenReturn(mock(FileInputStream.class));
     final PropertiesFileProvider provider = new PropertiesFileProvider(factory, config, 
-        timer, reload_keys, "file://opentsdb.conf");
+        timer, "file://opentsdb.conf");
     
     assertNull(provider.getSetting("no.such.key"));
     ConfigurationOverride override = provider.getSetting("tsd.conf");

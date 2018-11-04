@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import org.junit.Test;
 
@@ -74,6 +73,7 @@ public class TestConfiguration {
       assertTrue(config.providers.get(0) instanceof RuntimeOverrideProvider);
       assertTrue(config.providers.get(1) instanceof CommandLineProvider);
       assertTrue(config.providers.get(2) instanceof SystemPropertiesProvider);
+      System.out.println("****** factories: " + config.factories);
       assertEquals(BUILT_IN_FACTORIES, config.factories.size());
     }
   }
@@ -181,6 +181,7 @@ public class TestConfiguration {
       assertEquals(2, config.providers.size());
       assertTrue(config.providers.get(0) instanceof CommandLineProvider);
       assertTrue(config.providers.get(1) instanceof SystemPropertiesProvider);
+      System.out.println("****** factories: " + config.factories);
       assertEquals(BUILT_IN_FACTORIES, config.factories.size());
     }
   }
@@ -1265,8 +1266,8 @@ public class TestConfiguration {
     boolean closed = false;
     
     public DummyHttpProvider(ProviderFactory factory, Configuration config,
-        HashedWheelTimer timer, Set<String> reload_keys) {
-      super(factory, config, timer, reload_keys);
+        HashedWheelTimer timer) {
+      super(factory, config, timer);
       // TODO Auto-generated constructor stub
     }
 
@@ -1313,15 +1314,14 @@ public class TestConfiguration {
     }
 
     @Override
-    public Provider newInstance(Configuration config, HashedWheelTimer timer,
-        Set<String> reload_keys) {
-      return new DummyHttpProvider(this, config, timer, reload_keys);
+    public Provider newInstance(Configuration config, HashedWheelTimer timer) {
+      return new DummyHttpProvider(this, config, timer);
     }
 
     @Override
     public Provider newInstance(Configuration config, HashedWheelTimer timer,
-        Set<String> reload_keys, String uri) {
-      return new DummyHttpProvider(this, config, timer, reload_keys);
+        String uri) {
+      return new DummyHttpProvider(this, config, timer);
     }
 
     @Override
@@ -1337,8 +1337,7 @@ public class TestConfiguration {
     public void close() throws IOException { }
 
     @Override
-    public Provider newInstance(Configuration config, HashedWheelTimer timer,
-        Set<String> reload_keys) {
+    public Provider newInstance(Configuration config, HashedWheelTimer timer) {
       // this will cause an error
       return null;
     }
@@ -1362,8 +1361,7 @@ public class TestConfiguration {
     public void close() throws IOException { }
 
     @Override
-    public Provider newInstance(Configuration config, HashedWheelTimer timer,
-        Set<String> reload_keys) {
+    public Provider newInstance(Configuration config, HashedWheelTimer timer) {
       // this will cause an error
       throw new RuntimeException("OOPSS! Couldn't instantiate me!");
     }
