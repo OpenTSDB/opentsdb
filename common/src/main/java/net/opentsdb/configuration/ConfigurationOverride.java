@@ -155,7 +155,6 @@ public class ConfigurationOverride {
       return this;
     }
     
-    
     /** @return The constructed {@link ConfigurationOverride} */
     public ConfigurationOverride build() {
       return new ConfigurationOverride(this);

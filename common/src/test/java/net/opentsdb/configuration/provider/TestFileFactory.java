@@ -26,27 +26,43 @@ import org.junit.Test;
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
 
-public class TestPropertiesFileFactory {
+public class TestFileFactory {
 
   @Test
   public void handlesProtocol() throws Exception {
-    try (final PropertiesFileFactory factory = new PropertiesFileFactory()) {
+    try (final FileFactory factory = new FileFactory()) {
       assertFalse(factory.handlesProtocol("HttpS://mysite.com/file.conf"));
       assertTrue(factory.handlesProtocol("File:///mysite.com/file.conf"));
       assertTrue(factory.handlesProtocol("file:///mysite.com/file.txt"));
       assertTrue(factory.handlesProtocol("File://C:\\myfolder\\foo.properties"));
       assertFalse(factory.handlesProtocol("file:///mysite.com/file.txt.tmp"));
+      assertTrue(factory.handlesProtocol("File://C:\\myfolder\\foo.properties"));
+      assertTrue(factory.handlesProtocol("File:///mysite.com/file.yaml"));
+      assertTrue(factory.handlesProtocol("File:///mysite.com/file.yml"));
+      assertTrue(factory.handlesProtocol("File:///mysite.com/file.json"));
+      assertTrue(factory.handlesProtocol("File:///mysite.com/file.jsn"));
     }
   }
   
   @Test
   public void newInstance() throws Exception {
-    try (final PropertiesFileFactory factory = new PropertiesFileFactory()) {
-      assertEquals("foo.conf", factory.newInstance(
+    try (final FileFactory factory = new FileFactory()) {
+      Provider provider = factory.newInstance(
           mock(Configuration.class), 
           mock(HashedWheelTimer.class),
           Collections.emptySet(),
-          "file://foo.conf").source());
+          "file://foo.conf");
+      assertTrue(provider instanceof PropertiesFileProvider);
+      assertEquals("foo.conf", provider.source());
+      
+      provider = factory.newInstance(
+          mock(Configuration.class), 
+          mock(HashedWheelTimer.class),
+          Collections.emptySet(),
+          "file://foo.yaml");
+      
+      assertTrue(provider instanceof YamlJsonFileProvider);
+      assertEquals("foo.yaml", provider.source());
     }
   }
   
