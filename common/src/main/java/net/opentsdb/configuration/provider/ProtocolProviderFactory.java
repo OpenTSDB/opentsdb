@@ -15,7 +15,6 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.Closeable;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
@@ -47,13 +46,11 @@ public interface ProtocolProviderFactory extends ProviderFactory, Closeable {
    * URI. Same URI as sent to {@link #handlesProtocol(String)}.
    * @param config The non-null config this provider will belong to.
    * @param timer The non-null config timer.
-   * @param reload_keys Non-null set of keys to update on reload.
    * @param uri A non-null and non-empty URI string.
    * @return The non-null provider instance.
    */
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer,
-                              final Set<String> reload_keys, 
                               final String uri);
   
 }

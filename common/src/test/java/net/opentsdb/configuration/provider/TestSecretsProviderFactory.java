@@ -40,14 +40,12 @@ public class TestSecretsProviderFactory {
     try (SecretProviderFactory factory = new SecretProviderFactory()) {
       Provider provider = factory.newInstance(mock(Configuration.class), 
                                               mock(HashedWheelTimer.class), 
-                                              null,
           "secrets://net.opentsdb.configuration.provider.PlainTextSecretProvider");
       assertTrue(provider instanceof PlainTextSecretProvider);
       
       try {
         factory.newInstance(mock(Configuration.class), 
             mock(HashedWheelTimer.class), 
-            null,
             "secrets://net.opentsdb.configuration.provider.noSuchClass");
         fail("Expected IllegalArgumentException");
       } catch (IllegalArgumentException e) { }

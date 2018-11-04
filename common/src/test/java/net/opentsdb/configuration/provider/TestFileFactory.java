@@ -19,8 +19,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import java.util.Collections;
-
 import org.junit.Test;
 
 import io.netty.util.HashedWheelTimer;
@@ -50,7 +48,6 @@ public class TestFileFactory {
       Provider provider = factory.newInstance(
           mock(Configuration.class), 
           mock(HashedWheelTimer.class),
-          Collections.emptySet(),
           "file://foo.conf");
       assertTrue(provider instanceof PropertiesFileProvider);
       assertEquals("foo.conf", provider.source());
@@ -58,7 +55,6 @@ public class TestFileFactory {
       provider = factory.newInstance(
           mock(Configuration.class), 
           mock(HashedWheelTimer.class),
-          Collections.emptySet(),
           "file://foo.yaml");
       
       assertTrue(provider instanceof YamlJsonFileProvider);

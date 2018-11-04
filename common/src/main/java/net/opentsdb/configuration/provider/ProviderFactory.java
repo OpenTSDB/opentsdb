@@ -15,7 +15,6 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.Closeable;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
@@ -36,13 +35,10 @@ public interface ProviderFactory extends Closeable {
    * belongs to.
    * @param timer A non-null timer the config uses for triggering 
    * {@link Provider#reload()}s.
-   * @param reload_keys A non-null set of keys to keep an eye on during
-   * reloads.
    * @return A non-null provider instance.
    */
   public Provider newInstance(final Configuration config,
-                              final HashedWheelTimer timer,
-                              final Set<String> reload_keys);
+                              final HashedWheelTimer timer);
   
   /** @return Whether or not the provider is reloadable. */
   public boolean isReloadable();

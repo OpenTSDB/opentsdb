@@ -15,7 +15,6 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.IOException;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
@@ -36,14 +35,12 @@ public class RuntimeOverrideProvider extends BaseProvider {
    * @param factory A non-null provider factory.
    * @param config A non-null config object we belong to.
    * @param timer A non-null timer object.
-   * @param reload_keys A non-null (possibly empty) set of keys to reload.
    * @throws IllegalArgumentException if a required parameter is missing.
    */
   public RuntimeOverrideProvider(final ProviderFactory factory, 
                          final Configuration config, 
-                         final HashedWheelTimer timer,
-                         final Set<String> reload_keys) {
-    super(factory, config, timer, reload_keys);
+                         final HashedWheelTimer timer) {
+    super(factory, config, timer);
   }
   
   @Override
@@ -80,9 +77,8 @@ public class RuntimeOverrideProvider extends BaseProvider {
   
     @Override
     public Provider newInstance(final Configuration config, 
-                                final HashedWheelTimer timer,
-                                final Set<String> reload_keys) {
-      return new RuntimeOverrideProvider(this, config, timer, reload_keys);
+                                final HashedWheelTimer timer) {
+      return new RuntimeOverrideProvider(this, config, timer);
     }
   
     @Override

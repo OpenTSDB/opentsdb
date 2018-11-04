@@ -19,12 +19,11 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
 
 import org.junit.Test;
@@ -39,12 +38,11 @@ public class TestEnvironmentProvider {
   private Configuration config = mock(Configuration.class);
   private ProviderFactory factory = mock(ProviderFactory.class);
   private HashedWheelTimer timer = mock(HashedWheelTimer.class);
-  private Set<String> reload_keys = Collections.emptySet();
   
   @Test
   public void ctor() throws Exception {
     try (final EnvironmentProvider environment = 
-        new EnvironmentProvider(factory, config, timer, reload_keys)) {
+        new EnvironmentProvider(factory, config, timer)) {
       assertEquals(EnvironmentProvider.SOURCE, environment.source());
     }
   }
@@ -52,7 +50,7 @@ public class TestEnvironmentProvider {
   @Test
   public void getSetting() throws Exception {
     try (final EnvironmentProvider environment = 
-        new EnvironmentProvider(factory, config, timer, reload_keys)) {
+        new EnvironmentProvider(factory, config, timer)) {
       
       final Map<String, String> env = System.getenv();
       if (env == null || env.isEmpty()) {
@@ -71,7 +69,7 @@ public class TestEnvironmentProvider {
   @Test
   public void reload() throws Exception {
     try (final EnvironmentProvider environment = 
-        new EnvironmentProvider(factory, config, timer, Sets.newHashSet())) {
+        new EnvironmentProvider(factory, config, timer)) {
       
       final Map<String, String> env = System.getenv();
       if (env == null || env.isEmpty()) {
@@ -79,7 +77,7 @@ public class TestEnvironmentProvider {
         return;
       }
       final Entry<String, String> entry = env.entrySet().iterator().next();
-      environment.reload_keys.add(entry.getKey());
+      when(config.reloadableKeys()).thenReturn(Sets.newHashSet(entry.getKey()));
       environment.reload();
       
       verify(config, times(1)).addOverride(eq(entry.getKey()), 

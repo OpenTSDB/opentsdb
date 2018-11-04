@@ -15,7 +15,6 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.IOException;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
@@ -32,15 +31,13 @@ public class SecretProviderFactory implements ProtocolProviderFactory, ProviderF
   
   @Override
   public Provider newInstance(final Configuration config, 
-                              final HashedWheelTimer timer,
-                              final Set<String> reload_keys) {
+                              final HashedWheelTimer timer) {
     throw new UnsupportedOperationException("Requires a URI");
   }
   
   @Override
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer,
-                              final Set<String> reload_keys, 
                               final String uri) {
     final String class_and_id = uri.trim().substring(PROTOCOL.length()).trim();
     if (class_and_id.contains(":")) {

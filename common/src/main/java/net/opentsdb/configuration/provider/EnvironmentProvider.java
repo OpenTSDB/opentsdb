@@ -15,7 +15,6 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.IOException;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.TimerTask;
@@ -36,14 +35,12 @@ public class EnvironmentProvider extends BaseProvider implements TimerTask {
    * @param factory A non-null provider factory.
    * @param config A non-null config object we belong to.
    * @param timer A non-null timer object.
-   * @param reload_keys A non-null (possibly empty) set of keys to reload.
    * @throws IllegalArgumentException if a required parameter is missing.
    */
   public EnvironmentProvider(final ProviderFactory factory, 
                      final Configuration config, 
-                     final HashedWheelTimer timer,
-                     final Set<String> reload_keys) {
-    super(factory, config, timer, reload_keys);
+                     final HashedWheelTimer timer) {
+    super(factory, config, timer);
   }
   
   @Override
@@ -70,7 +67,7 @@ public class EnvironmentProvider extends BaseProvider implements TimerTask {
   
   @Override
   public void reload() {
-    for (final String key : reload_keys) {
+    for (final String key : config.reloadableKeys()) {
       final String value = System.getenv(key);
       if (value == null) {
         continue;
@@ -86,9 +83,8 @@ public class EnvironmentProvider extends BaseProvider implements TimerTask {
   
     @Override
     public Provider newInstance(final Configuration config, 
-                                final HashedWheelTimer timer,
-                                final Set<String> reload_keys) {
-      return new EnvironmentProvider(this, config, timer, reload_keys);
+                                final HashedWheelTimer timer) {
+      return new EnvironmentProvider(this, config, timer);
     }
     
     @Override
