@@ -21,22 +21,32 @@ import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
 
 /**
- * The factory for parsing properties files, basic key = value files.
+ * The factory for parsing files. Uses the suffix to determine the type
+ * of provider to return.
+ * 
+ * Returns a key = value properties config if the suffix is .conf, 
+ * .config, .tx, .properties.
+ * Returns a JSON/YAML parser if the suffix is .yaml, .yml, .json, .jsn. 
  * 
  * @since 3.0
  */
-public class PropertiesFileFactory implements ProtocolProviderFactory, ProviderFactory {
+public class FileFactory implements ProtocolProviderFactory, ProviderFactory {
   public static final String PROTOCOL = "file://";
   
   @Override
-  public boolean handlesProtocol(final String uri) {
-    if (!uri.toLowerCase().startsWith(PROTOCOL)) {
+  public boolean handlesProtocol(String uri) {
+    uri = uri.toLowerCase();
+    if (!uri.startsWith(PROTOCOL)) {
       return false;
     }
-    if (uri.toLowerCase().endsWith(".conf") ||
-        uri.toLowerCase().endsWith(".config") ||
-        uri.toLowerCase().endsWith(".txt") ||
-        uri.toLowerCase().endsWith(".properties")) {
+    if (uri.endsWith(".conf") ||
+        uri.endsWith(".config") ||
+        uri.endsWith(".txt") ||
+        uri.endsWith(".properties") ||
+        uri.endsWith(".yaml") || 
+        uri.endsWith(".yml") ||
+        uri.endsWith(".json") ||
+        uri.endsWith(".jsn")) {
       return true;
     }
     return false;
@@ -46,15 +56,28 @@ public class PropertiesFileFactory implements ProtocolProviderFactory, ProviderF
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer,
                               final Set<String> reload_keys) {
-    return new PropertiesFileProvider(this, config, timer, reload_keys);
+    throw new UnsupportedOperationException();
   }
   
   @Override
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer,
                               final Set<String> reload_keys,
-                              final String uri) {
-    return new PropertiesFileProvider(this, config, timer, reload_keys, uri);
+                              String uri) {
+    uri = uri.toLowerCase();
+    if (uri.endsWith(".conf") ||
+        uri.endsWith(".config") ||
+        uri.endsWith(".txt") ||
+        uri.endsWith(".properties")) {
+      return new PropertiesFileProvider(this, config, timer, reload_keys, uri);
+    } else if (uri.endsWith(".yaml") || 
+               uri.endsWith(".yml") ||
+               uri.endsWith(".json") ||
+               uri.endsWith(".jsn")) {
+      return new YamlJsonFileProvider(this, config, timer, reload_keys, uri);
+    } else {
+      throw new UnsupportedOperationException("File type not recognized.");
+    }
   }
   
   @Override
@@ -82,5 +105,5 @@ public class PropertiesFileFactory implements ProtocolProviderFactory, ProviderF
   public void close() throws IOException {
     // no-op
   }
-
+  
 }

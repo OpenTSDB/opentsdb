@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -71,7 +72,7 @@ import net.opentsdb.utils.Threads;
  * <p>
  * For example 'PropertiesFile,Environment,SystemProperties,CommandLine,RuntimeOverride'
  * means load the old style OpenTSDB default files via the 
- * {@link PropertiesFileFactory} factory, then parse the environment
+ * {@link FileFactory} factory, then parse the environment
  * variables and override any duplicates from the properties, then parse
  * the system properties and command line in that order. The final
  * {@link RuntimeOverrideProvider} allows the application to insert
@@ -120,7 +121,8 @@ public class Configuration implements Closeable {
    * Jackson de/serializer initialized, configured and shared in order
    * to use the converter for handling type conversion.
    */
-  protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  public static final ObjectMapper OBJECT_MAPPER = 
+      new ObjectMapper(new YAMLFactory());
   static {
     // allows parsing NAN and such without throwing an exception. This is
     // important
