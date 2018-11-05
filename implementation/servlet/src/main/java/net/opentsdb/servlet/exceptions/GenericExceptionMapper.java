@@ -50,6 +50,19 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
       return Response.status(Response.Status.NOT_FOUND)
           .build(); 
     }
+    if (t instanceof IllegalArgumentException ) {
+      final Map<String, Object> response = new HashMap<String, Object>(3);
+      response.put("code", Response.Status.BAD_REQUEST);
+      response.put("message", t.getMessage());
+      response.put("trace", Throwables.getStackTraceAsString(t));
+      
+      final Map<String, Object> outerMap = new HashMap<String, Object>(1);
+      outerMap.put("error", response);
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity(JSON.serializeToString(outerMap))
+          .type(MediaType.APPLICATION_JSON)
+          .build(); 
+    }
     
     LOG.error("Unexpected exception", t);
     
