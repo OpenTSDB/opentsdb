@@ -99,9 +99,9 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
+public class TimeRouterFactory<T> extends QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(
-      TimeBasedRoutingExecutor.class);
+      TimeRouterFactory.class);
   
   /** The map of time ranges to executors. */
   private Map<String, QueryExecutor<T>> executors;
@@ -116,7 +116,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
    * Default ctor.
    * @param node A non-null node with a default configuration.
    */
-  public TimeBasedRoutingExecutor() {
+  public TimeRouterFactory() {
     super();
 //    if (node.getConfig() == null) {
 //      throw new IllegalArgumentException("Default config cannot be null.");
