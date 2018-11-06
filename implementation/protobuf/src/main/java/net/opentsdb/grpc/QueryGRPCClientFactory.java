@@ -178,7 +178,6 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
   public QueryRpcBetaStub stub() {
     return stub;
   }
-
   
   @Override
   public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
@@ -192,5 +191,12 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
     // no-op
+  }
+
+  @Override
+  public boolean supportsQuery(TimeSeriesQuery query,
+      TimeSeriesDataSourceConfig config) {
+    // TODO Auto-generated method stub
+    return true;
   }
 }

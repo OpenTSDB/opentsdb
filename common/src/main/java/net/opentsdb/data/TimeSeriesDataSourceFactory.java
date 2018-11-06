@@ -22,6 +22,8 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.stats.Span;
 
 /**
@@ -39,6 +41,21 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
    * @return A non-null type token.
    */
   public TypeToken<? extends TimeSeriesId> idType();
+  
+  /**
+   * Called, potentially, before 
+   * {@link #setupGraph(TimeSeriesQuery, QueryNodeConfig, net.opentsdb.query.plan.QueryPlanner)}
+   * to determine if the data source handles the particular query. E.g. if
+   * the source would handle the namespace or metric for the given query.
+   * 
+   * @param query The non-null parent query.
+   * @param config The non-null query that would be passed to this factory.
+   * @return True if the data source supports the query (even if the results
+   * may be empty) or false if the source does not support the query, e.g.
+   * maybe the source doesn't handle the particular namespace or metric.
+   */
+  public boolean supportsQuery(final TimeSeriesQuery query, 
+                               final TimeSeriesDataSourceConfig config);
   
   /**
    * Whether or not the store supports pushing down the operation into
