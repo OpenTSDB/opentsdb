@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution;
+package net.opentsdb.query.router;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +44,8 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.MetricShardingExecutor.Config.Builder;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;

@@ -1,3 +1,4 @@
+package net.opentsdb.query.router;
 //// This file is part of OpenTSDB.
 //// Copyright (C) 2017  The OpenTSDB Authors.
 ////
