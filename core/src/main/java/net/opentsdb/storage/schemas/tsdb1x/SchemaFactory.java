@@ -33,6 +33,7 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.stats.Span;
@@ -63,6 +64,13 @@ public class SchemaFactory extends BaseTSDBPlugin
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_BYTE_ID;
+  }
+  
+  @Override
+  public boolean supportsQuery(final TimeSeriesQuery query, 
+                               final TimeSeriesDataSourceConfig config) {
+    // TODO - let the underlying store handle this.
+    return true;
   }
   
   @Override

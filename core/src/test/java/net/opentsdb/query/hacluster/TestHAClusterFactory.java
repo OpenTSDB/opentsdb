@@ -1040,6 +1040,45 @@ public class TestHAClusterFactory {
     TSDB.config.override(factory.getConfigKey(HAClusterFactory.SECONDARY_KEY), "5s");
   }
 
+  @Test
+  public void supportsQueryDefaults() throws Exception {
+    HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
+        .setMergeAggregator("max")
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.if.in")
+            .build())
+        .setId("m1")
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(config)
+        .build();
+    
+    assertTrue(FACTORY.supportsQuery(query, config));
+  }
+  
+  @Test
+  public void supportsQueryNotSupported() throws Exception {
+    HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
+        .setMergeAggregator("max")
+        .setDataSources(Lists.newArrayList("s1"))
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.if.in")
+            .build())
+        .setId("m1")
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(config)
+        .build();
+    
+    assertFalse(FACTORY.supportsQuery(query, config));
+  }
+  
   static class MockFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory {
 
     final List<Class<? extends QueryNodeConfig>> pushdowns;
@@ -1055,6 +1094,15 @@ public class TestHAClusterFactory {
       return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
     }
 
+    @Override
+    public boolean supportsQuery(final TimeSeriesQuery query, 
+                                 final TimeSeriesDataSourceConfig config) {
+      if (pushdowns != null && pushdowns.size() > 0) {
+        return true;
+      }
+      return false;
+    }
+    
     @Override
     public void setupGraph(TimeSeriesQuery query, QueryNodeConfig config,
         QueryPlanner planner) {

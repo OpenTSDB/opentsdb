@@ -106,6 +106,47 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   }
 
   @Override
+  public boolean supportsQuery(final TimeSeriesQuery query, 
+                               final TimeSeriesDataSourceConfig config) {
+    final HAClusterConfig cluster_config = (HAClusterConfig) config;
+    if (cluster_config.getHasBeenSetup()) {
+      return true;
+    }
+    
+    final List<String> sources;
+    if (cluster_config.getDataSources().isEmpty() && 
+        cluster_config.getDataSourceConfigs().isEmpty()) {
+      // sub in the defaults.
+      synchronized (default_sources) {
+        sources = Lists.newArrayList(default_sources);
+      }
+    } else {
+      sources = cluster_config.getDataSources();
+    }
+    
+    for (final String source : sources) {
+      final TimeSeriesDataSourceFactory factory = 
+          tsdb.getRegistry().getPlugin(
+              TimeSeriesDataSourceFactory.class, source);
+      if (factory != null && factory.supportsQuery(query, config)) {
+        return true;
+      }
+    }
+    
+    for (final TimeSeriesDataSourceConfig source : 
+      cluster_config.getDataSourceConfigs()) {
+      final TimeSeriesDataSourceFactory factory = 
+          tsdb.getRegistry().getPlugin(
+              TimeSeriesDataSourceFactory.class, source.getSourceId());
+      if (factory != null && factory.supportsQuery(query, config)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  @Override
   public void setupGraph(final TimeSeriesQuery query, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
