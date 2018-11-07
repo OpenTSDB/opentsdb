@@ -18,6 +18,7 @@ import javax.servlet.ServletConfig;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Context;
 
+import net.opentsdb.servlet.resources.*;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import com.google.common.collect.ImmutableMap;
@@ -26,12 +27,6 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
-import net.opentsdb.servlet.resources.ExpressionRpc;
-import net.opentsdb.servlet.resources.JMXResource;
-import net.opentsdb.servlet.resources.PutDataPointRpc;
-import net.opentsdb.servlet.resources.QueryRpc;
-import net.opentsdb.servlet.resources.RawQueryRpc;
-import net.opentsdb.servlet.resources.RegistryRpc;
 
 @ApplicationPath("/")
 public class OpenTSDBApplication extends ResourceConfig {
@@ -76,6 +71,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       register(JMXResource.class);
       register(RegistryRpc.class);
       register(GenericExceptionMapper.class);
+      register(MetaRpc.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
       
       addProperties(ImmutableMap.of(

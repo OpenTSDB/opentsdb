@@ -127,7 +127,7 @@ public final class PluginLoader {
       throw new IllegalArgumentException("Plugin name cannot be null or empty.");
     }
     if (type == null) {
-      throw new IllegalArgumentException("Type annot be null.");
+      throw new IllegalArgumentException("Type cannot be null.");
     }
     final ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
     Iterator<T> it = serviceLoader.iterator();

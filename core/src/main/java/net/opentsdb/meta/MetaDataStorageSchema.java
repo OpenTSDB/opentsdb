@@ -16,7 +16,7 @@ package net.opentsdb.meta;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.query.MetaQuery;
+import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;

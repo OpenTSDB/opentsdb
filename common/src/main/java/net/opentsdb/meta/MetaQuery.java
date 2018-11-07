@@ -12,11 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query;
-
+package net.opentsdb.meta;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -36,17 +34,16 @@ public class MetaQuery {
   /**
    * The starting pointer for results for pagination
    */
-  private String from;
+  private int from;
 
   /**
    * The end pointer for results for pagination
    */
-  private String to;
+  private int to;
 
   /**
    * The namespace for the query
    */
-  @JsonProperty("namespace")
   private String namespace;
 
   /**
@@ -57,27 +54,27 @@ public class MetaQuery {
   /**
    * The field by which user wants to aggregate by to return unique values
    */
-  private Field aggregateBy = Field.ALL;
+  private AggregationField aggregate_by = AggregationField.ALL;
 
   /**
    * The tag for which a second level aggregation is applied. Lists tag values for a tag key
    */
-  private String aggregationField;
+  private String aggregation_field;
 
   /**
    * Size of number unique tag values to return.
    */
-  private String size;
+  private int size;
 
   protected MetaQuery(final Builder builder) {
 
-    from = Strings.isNullOrEmpty(builder.from) ? null : builder.from;
+    from = builder.from == null ? null : Integer.parseInt(builder.from);
 
-    to = Strings.isNullOrEmpty(builder.to) ? null : builder.to;
+    to = builder.to == null ? null : Integer.parseInt(builder.to);
 
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
 
-    aggregationField = Strings.isNullOrEmpty(builder.aggregationField) ? null : builder.aggregationField;
+    aggregation_field = Strings.isNullOrEmpty(builder.aggregationField) ? null : builder.aggregationField;
 
     if (builder.filters == null) {
       throw new IllegalArgumentException("Please set atleast one filter");
@@ -85,9 +82,9 @@ public class MetaQuery {
       filters = builder.filters;
     }
 
-    aggregateBy = builder.aggregateBy == null ? Field.ALL : builder.aggregateBy;
+    aggregate_by = builder.aggregateBy == null ? AggregationField.ALL : builder.aggregateBy;
 
-    size = Strings.isNullOrEmpty(builder.size) ? null : builder.size;
+    size = builder.size == null ? 0 : Integer.parseInt(builder.size);
 
     if (builder.from == null) {
       throw new IllegalArgumentException("Please set from field");
@@ -103,31 +100,31 @@ public class MetaQuery {
 
   }
 
-  public String getNamespace() {
+  public String namespace() {
     return namespace;
   }
 
 
-  public String getFrom() {
+  public int from() {
     return from;
   }
 
 
-  public String getTo() {
+  public int to() {
     return to;
   }
 
-  public QueryFilter getFilters() {
+  public QueryFilter filters() {
     return filters;
   }
 
 
-  public Field getAggregateBy() {
-    return aggregateBy;
+  public AggregationField aggregate_by() {
+    return aggregate_by;
   }
 
-  public String getAggregationField() {
-    return aggregationField;
+  public String aggregation_field() {
+    return aggregation_field;
   }
 
 
@@ -144,7 +141,7 @@ public class MetaQuery {
     private String to;
     private String namespace;
     private QueryFilter filters;
-    private Field aggregateBy;
+    private AggregationField aggregateBy;
     private String aggregationField;
     private String size;
 
@@ -169,7 +166,7 @@ public class MetaQuery {
     }
 
 
-    public Builder setAggregateBy(final Field aggregateBy) {
+    public Builder setAggregateBy(final AggregationField aggregateBy) {
       this.aggregateBy = aggregateBy;
       return this;
     }
@@ -198,7 +195,7 @@ public class MetaQuery {
    * @param node   The JSON node for the query
    * @return a Builder after parsing the query
    */
-  public static Builder parse(TSDB tsdb, ObjectMapper mapper, JsonNode node) {
+  public static Builder parse(final TSDB tsdb, final ObjectMapper mapper, final JsonNode node) {
     if (node == null) {
       throw new IllegalArgumentException("Cannot be empty");
     }
@@ -211,7 +208,6 @@ public class MetaQuery {
     builder.setTo(n.asText());
 
     n = node.get("namespace");
-    System.out.println(n);
     builder.setNamespace(n.asText());
 
     n = node.get("filter");
@@ -219,24 +215,30 @@ public class MetaQuery {
 
     final QueryFilterFactory factory = tsdb.getRegistry()
             .getPlugin(QueryFilterFactory.class, type.asText());
-
     builder.setFilters((factory.parse(tsdb, mapper, n)));
 
-    n = node.get("aggregateBy");
+    n = node.get("aggregate_by");
     if (n.asText().equalsIgnoreCase("ALL")) {
-      builder.setAggregateBy(Field.ALL);
+      builder.setAggregateBy(AggregationField.ALL);
+      n = node.get("size");
+      if (n != null) {
+        builder.setSize(n.asText());
+      }
     } else if (n.asText().equalsIgnoreCase("Metrics")) {
-      builder.setAggregateBy(Field.AM_NESTED);
-    } else if (n.asText().equalsIgnoreCase("Tags_keys")) {
-      builder.setAggregateBy(Field.TAGS_KEYS);
-    } else if (n.asText().equalsIgnoreCase("Tags_Values")) {
-      builder.setAggregateBy(Field.TAGS_VALUES);
-      n = node.get("aggregateField");
+      builder.setAggregateBy(AggregationField.METRICS);
+    } else if (n.asText().equalsIgnoreCase("Tag_keys")) {
+      builder.setAggregateBy(AggregationField.TAGS_KEYS);
+    } else if (n.asText().equalsIgnoreCase("Tag_Values")) {
+      builder.setAggregateBy(AggregationField.TAGS_VALUES);
+      n = node.get("tag_key");
       if (n != null) {
         builder.setAggregationField(n.asText());
       }
       n = node.get("size");
-      builder.setSize(n.asText());
+      if (n != null) {
+        builder.setSize(n.asText());
+      }
+
     } else {
       throw new IllegalArgumentException("Invalid aggregation");
     }
@@ -244,16 +246,16 @@ public class MetaQuery {
 
   }
 
-  public enum Field {
+  public enum AggregationField {
 
-    AM_NESTED("AM_nested"),
+    METRICS("metrics"),
     TAGS_KEYS("tags.key"),
     TAGS_VALUES("tags.value"),
     ALL("ALL");
 
     private String field;
 
-    Field(String field) {
+    AggregationField(String field) {
       this.field = field;
     }
 

@@ -31,7 +31,7 @@ import net.opentsdb.core.TSDB;
 public class AnyFieldRegexFactory extends BaseTSDBPlugin
         implements QueryFilterFactory {
 
-  static final String TYPE = "AnyFieldRegex";
+  public static final String TYPE = "AnyFieldRegex";
 
   @Override
   public String getType() {

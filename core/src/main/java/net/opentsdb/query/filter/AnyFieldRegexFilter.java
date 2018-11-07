@@ -47,7 +47,7 @@ public class AnyFieldRegexFilter extends BaseTagValueFilter {
    * @param builder The non-null builder.
    */
   protected AnyFieldRegexFilter(final Builder builder) {
-    super("*", builder.filter);
+    super(".*", builder.filter);
     pattern = Pattern.compile(filter.trim());
   }
 
