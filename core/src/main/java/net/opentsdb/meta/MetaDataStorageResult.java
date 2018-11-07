@@ -15,6 +15,7 @@
 package net.opentsdb.meta;
 
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
@@ -41,4 +42,8 @@ public interface MetaDataStorageResult {
   public List<TimeSeriesId> timeSeries();
   
   public TypeToken<? extends TimeSeriesId> idType();
+
+  public List<String> metrics();
+
+  public Map<String, List<String>> tags();
 }

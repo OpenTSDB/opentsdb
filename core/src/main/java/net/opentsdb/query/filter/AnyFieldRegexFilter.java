@@ -63,7 +63,7 @@ public class AnyFieldRegexFilter extends BaseTagValueFilter {
 
   @Override
   public String getType() {
-    return TagValueRegexFactory.TYPE;
+    return AnyFieldRegexFactory.TYPE;
   }
 
 

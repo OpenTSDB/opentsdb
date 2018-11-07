@@ -31,6 +31,7 @@ import net.opentsdb.query.filter.ChainFilterFactory;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.utils.Config;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -56,7 +57,7 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({ DefaultTSDB.class, Config.class,
         Deferred.class, DeferredGroupException.class })
 public final class TestMetaRpc {
-  private TSDB tsdb;
+  private static TSDB tsdb;
   private Configuration config;
   private MetaRpc rpc;
   private ServletConfig servlet_config;
@@ -65,12 +66,17 @@ public final class TestMetaRpc {
   private AsyncContext async;
   private Map<String, String> headers;
   private ObjectMapper mapper;
-//
-  @Before
-  public void before() throws Exception {
+
+  @BeforeClass
+  public static void beforeClass() {
     tsdb = MockTSDBDefault.getMockTSDB();
+
     ((MockTSDB) tsdb).registry.registerPlugin(QueryFilterFactory.class, ChainFilterFactory.TYPE, new ChainFilterFactory());
     ((MockTSDB) tsdb).registry.registerPlugin(QueryFilterFactory.class, AnyFieldRegexFactory.TYPE, new AnyFieldRegexFactory());
+  }
+
+  @Before
+  public void before() throws Exception {
 
     config = UnitTestConfiguration.getConfiguration();
     rpc = new MetaRpc();
@@ -129,7 +135,7 @@ public final class TestMetaRpc {
   public void parseQueryWithtagKeysAggregate() throws Exception {
     String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\",\"filter\":{\"type\":\"Chain\",\"filters\":[" +
             "{\"type\":\"AnyFieldRegex\",\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\",\"filter\":\"cpu\"}]}," +
-            "\"aggregate_by\":\"metrics\"}";
+            "\"aggregate_by\":\"tag_keys\"}";
     JsonNode node = mapper.readTree(request);
 
     MetaQuery query = MetaQuery.parse(tsdb, mapper, node).build();
@@ -145,7 +151,7 @@ public final class TestMetaRpc {
 
   @Test
   public void parseQueryWithtagValuesAggregate() throws Exception {
-    String request = "{\"from\":0,\"to\":10,\"namespace\":\"UDB\",\"filter\":{\"type\":\"chain\",\"filters\":[" +
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\",\"filter\":{\"type\":\"chain\",\"filters\":[" +
             "{\"type\":\"AnyFieldRegex\",\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\",\"filter\":\"cpu\"}]}" +
             ",\"aggregate_by\":\"tag_values\",\"tag_key\":\"host\"}";
 

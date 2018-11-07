@@ -25,8 +25,8 @@ import net.opentsdb.auth.Authentication;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
-import net.opentsdb.meta.YmsESSchema;
 import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
@@ -168,7 +168,7 @@ public class MetaRpc {
 
 
         try {
-          YmsESSchema.YmsResult metaDataStorageResult = (YmsESSchema.YmsResult) tsdb.getRegistry().getDefaultPlugin(MetaDataStorageSchema.class).runQuery(query, query_span)
+          MetaDataStorageResult metaDataStorageResult = tsdb.getRegistry().getDefaultPlugin(MetaDataStorageSchema.class).runQuery(query, query_span)
                     .join();
 
           response.setContentType(MediaType.APPLICATION_JSON);
