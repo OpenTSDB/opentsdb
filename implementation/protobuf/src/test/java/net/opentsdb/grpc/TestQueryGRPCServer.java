@@ -51,6 +51,7 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.pbuf.QueryResultPB;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
@@ -116,8 +117,8 @@ public class TestQueryGRPCServer {
     when(ctx_builder.setTSDB(TSDB)).thenReturn(ctx_builder);
     when(ctx_builder.setQuery(any(TimeSeriesQuery.class)))
       .thenReturn(ctx_builder);
-    when(ctx_builder.addSink(any()))
-    .thenReturn(ctx_builder);
+    when(ctx_builder.addSink(any(QuerySinkConfig.class)))
+      .thenReturn(ctx_builder);
     when(ctx_builder.build()).thenReturn(ctx);
     
     when(context.tsdb()).thenReturn(TSDB);
