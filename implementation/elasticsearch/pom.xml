@@ -16,6 +16,7 @@
    
    <properties>
       <es.version>6.2.4</es.version>
+      <es.version-transport>1.7.2</es.version-transport>
    </properties>
    
    <dependencyManagement>
@@ -51,7 +52,7 @@
          <dependency>
            <groupId>org.elasticsearch</groupId>
            <artifactId>elasticsearch</artifactId>
-           <version>${es.version}</version>
+           <version>${es.version-transport}</version>
          </dependency>
          
       </dependencies>
@@ -114,6 +115,16 @@
          <artifactId>powermock-module-junit4</artifactId>
          <scope>test</scope>
       </dependency>
+      <dependency>
+         <groupId>net.opentsdb</groupId>
+         <artifactId>opentsdb-executors-http</artifactId>
+         <version>3.0.86-SNAPSHOT</version>
+         <scope>compile</scope>
+      </dependency>
+       <dependency>
+           <groupId>net.opentsdb</groupId>
+           <artifactId>opentsdb-core</artifactId>
+       </dependency>
    </dependencies>
    
    <build>
