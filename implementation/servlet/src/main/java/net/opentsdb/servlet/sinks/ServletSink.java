@@ -110,7 +110,7 @@ public class ServletSink implements QuerySink {
     } catch (Exception e) {
       LOG.error("Unexpected exception dispatching async request for "
           + "query: " + JSON.serializeToString(context.query()), e);
-      GenericExceptionMapper.serialize(e, config.response());
+      GenericExceptionMapper.serialize(e, config.async().getResponse());
       config.async().complete();
       logComplete();
     }

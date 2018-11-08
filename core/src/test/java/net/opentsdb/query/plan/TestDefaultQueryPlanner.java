@@ -565,6 +565,58 @@ public class TestDefaultQueryPlanner {
     planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
+  
+  @Test
+  public void oneMetricPushDown() throws Exception {
+    when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
+      .thenReturn(true);
+    
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .addSource("m1")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(1, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertEquals(2, planner.graph().nodes().size());
+
+    assertEquals(1, planner.serializationSources().size());
+    
+    QueryNode node = planner.nodes_map.get("m1");
+    assertSame(STORE_NODES.get(0), node);
+    DefaultTimeSeriesDataSourceConfig source_config = 
+        (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
+    assertEquals(1, source_config.getPushDownNodes().size());
+    assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
+    
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodeForId("m1")));
+  }
 
   @Test
   public void twoMetricsOneGraphPushdownCommon() throws Exception {
@@ -637,6 +689,12 @@ public class TestDefaultQueryPlanner {
     assertEquals(1, source_config.getPushDownNodes().size());
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
+    
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodeForId("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"), 
+        planner.nodeForId("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"), 
+        planner.nodeForId("m2")));
     
     // no filter
     query = SemanticQuery.newBuilder()
