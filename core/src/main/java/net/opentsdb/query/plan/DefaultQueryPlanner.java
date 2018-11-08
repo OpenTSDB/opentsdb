@@ -241,6 +241,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
                 push_downs,
                 clone);
             if (pushed) {
+              Set<QueryNodeConfig> predecessors = config_graph.predecessors(n);
+              for (final QueryNodeConfig predecessor : predecessors) {
+                config_graph.putEdge(predecessor, node);
+              }
               config_graph.removeEdge(n, node);
               push_downs.add(n);
             }

@@ -841,7 +841,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
   }
 
   String configKey(final String suffix) {
-    return "tsd.storage." + (Strings.isNullOrEmpty(id) ? "" : id + ".")
-      + suffix;
+    return "tsd.storage." + (Strings.isNullOrEmpty(id) || 
+        id.equals(MockDataStoreFactory.TYPE) ? "" : id + ".")
+          + suffix;
   }
 }
