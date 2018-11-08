@@ -64,6 +64,14 @@ public interface QueryContextBuilder {
   public QueryContextBuilder addSink(final QuerySinkConfig config);
   
   /**
+   * A direct sink for programmatic queries to avoid having to use a 
+   * factory.
+   * @param sink The non-null sink to call.
+   * @return The builder.
+   */
+  public QueryContextBuilder addSink(final QuerySink sink);
+  
+  /**
    * Returns a context ready for execution via {@link QueryContext#fetchNext()}.
    * If construction failed due to a validation error or some other problem this
    * will throw an exception.

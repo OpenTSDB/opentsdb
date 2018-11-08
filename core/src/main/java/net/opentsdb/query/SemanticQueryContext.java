@@ -58,7 +58,7 @@ public class SemanticQueryContext implements QueryContext {
           .start();
     }
     
-    pipeline = new LocalPipeline(this);
+    pipeline = new LocalPipeline(this, builder.sinks);
   }
   
   @Override
@@ -141,6 +141,7 @@ public class SemanticQueryContext implements QueryContext {
     private SemanticQuery query;
     private QueryStats stats;
     private List<QuerySinkConfig> sink_configs;
+    private List<QuerySink> sinks;
     
     public QueryContextBuilder setTSDB(final TSDB tsdb) {
       this.tsdb = tsdb;
@@ -184,6 +185,15 @@ public class SemanticQueryContext implements QueryContext {
     }
     
     @Override
+    public QueryContextBuilder addSink(final QuerySink sink) {
+      if (sinks == null) {
+        sinks = Lists.newArrayList();
+      }
+      sinks.add(sink);
+      return this;
+    }
+    
+    @Override
     public QueryContext build() {
       return (QueryContext) new SemanticQueryContext(this);
     }
@@ -192,8 +202,11 @@ public class SemanticQueryContext implements QueryContext {
 
   class LocalPipeline extends AbstractQueryPipelineContext {
 
-    public LocalPipeline(final QueryContext context) {
+    public LocalPipeline(final QueryContext context, final List<QuerySink> direct_sinks) {
       super(context);
+      if (direct_sinks != null && !direct_sinks.isEmpty()) {
+        sinks.addAll(direct_sinks);
+      }
     }
 
     @Override

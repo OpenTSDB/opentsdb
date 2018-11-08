@@ -51,6 +51,9 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
   /** The sinks we'll write to. */
   private List<QuerySinkConfig> sink_configs;
   
+  /** Programmatic sinks. */
+  private List<QuerySink> sinks;
+  
   /** Whether or not this object was built users can't call the set methods. */
   private boolean built;
   
@@ -108,6 +111,15 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
       sink_configs = Lists.newArrayList();
     }
     sink_configs.add(config);
+    return this;
+  }
+  
+  @Override
+  public QueryContextBuilder addSink(final QuerySink sink) {
+    if (sinks == null) {
+      sinks = Lists.newArrayList();
+    }
+    sinks.add(sink);
     return this;
   }
   
@@ -221,6 +233,10 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
 
     public LocalPipeline(final QueryContext context) {
       super(context);
+      if (TSDBV2QueryContextBuilder.this.sinks != null && 
+          !TSDBV2QueryContextBuilder.this.sinks.isEmpty()) {
+        sinks.addAll(TSDBV2QueryContextBuilder.this.sinks);
+      }
     }
 
     @Override
