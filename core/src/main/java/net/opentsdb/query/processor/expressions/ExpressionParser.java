@@ -56,6 +56,7 @@ import net.opentsdb.expressions.parser.MetricExpressionParser.Logical_expr_or_ru
 import net.opentsdb.expressions.parser.MetricExpressionParser.Logical_operands_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.LogicopContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Main_relational_ruleContext;
+import net.opentsdb.expressions.parser.MetricExpressionParser.Main_ternary_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.MetricContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Minus_metric_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Mod_arith_ruleContext;
@@ -65,10 +66,13 @@ import net.opentsdb.expressions.parser.MetricExpressionParser.OrContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Paren_arith_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Paren_logical_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Paren_relational_ruleContext;
+import net.opentsdb.expressions.parser.MetricExpressionParser.Paren_ternary_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.ProgContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.RelationalContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.Relational_operands_ruleContext;
 import net.opentsdb.expressions.parser.MetricExpressionParser.RelationalopContext;
+import net.opentsdb.expressions.parser.MetricExpressionParser.TernaryContext;
+import net.opentsdb.expressions.parser.MetricExpressionParser.TernaryOperandsContext;
 import net.opentsdb.expressions.parser.MetricExpressionVisitor;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
@@ -644,6 +648,30 @@ public class ExpressionParser extends DefaultErrorStrategy
   }
 
   @Override
+  public Object visitTernary(TernaryContext ctx) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Object visitParen_ternary_rule(Paren_ternary_ruleContext ctx) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Object visitMain_ternary_rule(Main_ternary_ruleContext ctx) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Object visitTernaryOperands(TernaryOperandsContext ctx) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
   public void recover(final Parser recognizer, final RecognitionException e) {
     final StringBuilder buf = new StringBuilder()
         .append("Error at line (")
@@ -707,5 +735,5 @@ public class ExpressionParser extends DefaultErrorStrategy
   /** Make sure we don't attempt to recover from problems in subrules. */
   @Override
   public void sync(final Parser recognizer) { }
-  
+
 }

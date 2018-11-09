@@ -19,6 +19,7 @@ prog: expression;
 expression : arthmeticExpression #arithmetic
            | logicalExpression #logical
            | relationalExpression #relational
+           | ternaryExpression   #ternary
            ;
 
 logicalExpression : '(' logicalExpression ')'                  #paren_logical_rule
@@ -54,6 +55,14 @@ relationalOperands : (arthmeticExpression | TRUE | FALSE)  #relational_operands_
 logicop: and | or | not ;
 
 relationalop: '<'|'>'|'=='|'<='|'>='|'!=';
+
+ternaryExpression : '(' ternaryExpression ')'                                                   #paren_ternary_rule
+                  | relationalExpression '?'  ternaryOperands ':' ternaryOperands       #main_ternary_rule
+                  ;
+
+ternaryOperands:  arthmeticExpression | logicalExpression              // We can label alertnatives - but seems to me like the output will have a single type
+                ;
+
 
 and : A N D | '&&'
 
