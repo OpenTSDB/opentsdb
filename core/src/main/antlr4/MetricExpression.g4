@@ -60,7 +60,7 @@ ternaryExpression : '(' ternaryExpression ')'                                   
                   | relationalExpression '?'  ternaryOperands ':' ternaryOperands       #main_ternary_rule
                   ;
 
-ternaryOperands:  arthmeticExpression               // We can label alertnatives - but seems to me like the output will have a single type
+ternaryOperands:  arthmeticExpression | logicalExpression              // We can label alertnatives - but seems to me like the output will have a single type
                 ;
 
 
