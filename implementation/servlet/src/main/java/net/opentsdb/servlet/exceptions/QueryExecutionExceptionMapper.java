@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -138,13 +139,16 @@ public class QueryExecutionExceptionMapper implements
   }
 
   public static void serialize(final QueryExecutionException e,
-                               final HttpServletResponse response) {
+                               final ServletResponse response) {
     LOG.error("Query exception", e);
     final Map<String, Object> outer_map = Maps.newHashMapWithExpectedSize(1);
     outer_map.put("error", recursiveExceptions(0, e, true, 4));
     final Status status = Status.fromStatusCode(e.getStatusCode());
-    response.setStatus(status != null ? status.getStatusCode() : 
-      Status.INTERNAL_SERVER_ERROR.getStatusCode());
+    if (response instanceof HttpServletResponse) {
+      ((HttpServletResponse) response).setStatus(
+          status != null ? status.getStatusCode() : 
+        Status.INTERNAL_SERVER_ERROR.getStatusCode());
+    }
     response.setContentType("application/json");
     try {
       response.getOutputStream().write(JSON.serializeToBytes(outer_map));

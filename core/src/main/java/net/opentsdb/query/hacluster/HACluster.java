@@ -135,6 +135,7 @@ public class HACluster extends AbstractQueryNode {
           break;
         }
       }
+      
       if (!matched) {
         // WTF? 
       } else {

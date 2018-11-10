@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -29,17 +28,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.graph.Traverser;
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -438,52 +432,15 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
    * A simple pass-through wrapper that will decrement the proper counter
    * when the result is closed.
    */
-  private class ResultWrapper implements QueryResult {
-    
-    private final QueryResult result;
+  private class ResultWrapper extends BaseWrappedQueryResult {
     
     ResultWrapper(final QueryResult result) {
-      this.result = result;
+      super(result);
     }
-
-    @Override
-    public TimeSpecification timeSpecification() {
-      return result.timeSpecification();
-    }
-
-    @Override
-    public Collection<TimeSeries> timeSeries() {
-      return result.timeSeries();
-    }
-
-    @Override
-    public long sequenceId() {
-      return result.sequenceId();
-    }
-
+    
     @Override
     public QueryNode source() {
       return result.source();
-    }
-
-    @Override
-    public TypeToken<? extends TimeSeriesId> idType() {
-      return result.idType();
-    }
-
-    @Override
-    public ChronoUnit resolution() {
-      return result.resolution();
-    }
-
-    @Override
-    public RollupConfig rollupConfig() {
-      return result.rollupConfig();
-    }
-
-    @Override
-    public String dataSource() {
-      return result.dataSource();
     }
     
     @Override
@@ -502,7 +459,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         LOG.error("Failed to close result: " + result, t);
       }
     }
-    
   }
   
 }

@@ -309,7 +309,14 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .build();
         planner.replace(config, merger);
         
+        final List<String> data_sources = 
+            Lists.newArrayListWithExpectedSize(new_sources.size());
+        for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
+          data_sources.add(source.id());
+        }
+        
         HAClusterConfig rebuilt = (HAClusterConfig) builder
+            .setDataSources(data_sources)
             .setId(new_id)
             .build();
         planner.addEdge(merger, rebuilt);
@@ -392,11 +399,14 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         .build();
     planner.replace(config, merger);
     
+    final List<String> data_sources = 
+        Lists.newArrayListWithExpectedSize(new_sources.size());
     for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
-      builder.addSource(source.id());
+      data_sources.add(source.id());
     }
     
     HAClusterConfig rebuilt = (HAClusterConfig) builder
+        .setDataSources(data_sources)
         .setId(new_id)
         .build();
     planner.addEdge(merger, rebuilt);

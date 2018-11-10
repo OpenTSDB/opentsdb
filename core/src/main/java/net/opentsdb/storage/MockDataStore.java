@@ -502,6 +502,17 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
     
     @Override
+    public String error() {
+      return null;
+    }
+    
+    @Override
+    public Throwable exception() {
+      // TODO - implement
+      return null;
+    }
+    
+    @Override
     public long sequenceId() {
       return sequence_id;
     }

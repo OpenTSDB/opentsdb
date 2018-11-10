@@ -30,8 +30,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
+import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -45,7 +47,11 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
       GenericExceptionMapper.class);
   
   @Override
-  public Response toResponse(final Throwable t) {
+  public Response toResponse(Throwable t) {
+    if (t instanceof DeferredGroupException) {
+      t = Exceptions.getCause((DeferredGroupException) t);
+    }
+    
     if (t instanceof NotFoundException) {
       return Response.status(Response.Status.NOT_FOUND)
           .build(); 
@@ -79,8 +85,12 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
         .build(); 
   }
 
-  public static void serialize(final Throwable t, 
+  public static void serialize(Throwable t, 
                                final ServletResponse response) {
+    if (t instanceof DeferredGroupException) {
+      t = Exceptions.getCause((DeferredGroupException) t);
+    }
+    
     if (t instanceof NotFoundException) {
       if (response instanceof HttpServletResponse) {
         ((HttpServletResponse) response).setStatus(
@@ -94,6 +104,8 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
     int status = Status.INTERNAL_SERVER_ERROR.getStatusCode();
     if (t instanceof QueryExecutionException) {
       status = ((QueryExecutionException) t).getStatusCode();
+    } else if (t instanceof IllegalArgumentException) {
+      status = Status.BAD_REQUEST.getStatusCode();
     }
     
     final Map<String, Object> map = new HashMap<String, Object>(3);

@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.merge;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -256,4 +257,43 @@ public class TestMergerResult {
     assertEquals(0, merger.timeSeries().size());
   }
   
+  @Test
+  public void joinOneError() throws Exception {
+    when(result_a.timeSeries()).thenReturn(
+        Lists.<TimeSeries>newArrayList(ts2));
+    
+    MergerResult merger = new MergerResult(node, result_a);
+    result_b = mock(QueryResult.class);
+    when(result_b.error()).thenReturn("Error");
+    merger.add(result_b);
+    merger.join();
+    assertEquals(42, merger.sequenceId());
+    assertSame(time_spec, merger.timeSpecification());
+    assertEquals(1, merger.groups.size());
+    assertNull(merger.error());
+    
+    // xx hash is deterministic
+    MergerTimeSeries ts = (MergerTimeSeries) 
+        merger.groups.get(ts2.id().buildHashCode());
+    assertEquals(1, ts.sources().size());
+    assertTrue(ts.sources.contains(ts2));
+  }
+  
+  @Test
+  public void joinTwoErrors() throws Exception {
+    result_a = mock(QueryResult.class);
+    when(result_a.sequenceId()).thenReturn(42l);
+    when(result_a.timeSpecification()).thenReturn(time_spec);
+    when(result_a.error()).thenReturn("ErrorA");
+    result_b = mock(QueryResult.class);
+    when(result_b.error()).thenReturn("ErrorB");
+    
+    MergerResult merger = new MergerResult(node, result_a);
+    merger.add(result_b);
+    merger.join();
+    assertEquals(42, merger.sequenceId());
+    assertSame(time_spec, merger.timeSpecification());
+    assertEquals(0, merger.groups.size());
+    assertEquals("ErrorA", merger.error);
+  }
 }

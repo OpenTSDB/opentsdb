@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -28,23 +27,20 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.ProcessorFactory;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A result for summarizer nodes.
  * 
  * @since 3.0
  */
-public class SummarizerResult implements QueryResult {
+public class SummarizerResult extends BaseWrappedQueryResult {
 
   /** The non-null parent node. */
   private final Summarizer node;
-  
-  /** The non-null query results. */
-  private final QueryResult results;
   
   /** The non-null list of summarizer time series. */
   private final List<TimeSeries> series;
@@ -55,8 +51,8 @@ public class SummarizerResult implements QueryResult {
    * @param results The non-null results to source from.
    */
   SummarizerResult(final Summarizer node, final QueryResult results) {
+    super(results);
     this.node = node;
-    this.results = results;
     series = Lists.newArrayList();
     for (final TimeSeries ts : results.timeSeries()) {
       series.add(new SummarizerTimeSeries(ts));
@@ -73,42 +69,12 @@ public class SummarizerResult implements QueryResult {
   public Collection<TimeSeries> timeSeries() {
     return series;
   }
-
-  @Override
-  public long sequenceId() {
-    return results.sequenceId();
-  }
-
+  
   @Override
   public QueryNode source() {
     return node;
   }
-
-  @Override
-  public String dataSource() {
-    return results.dataSource();
-  }
-
-  @Override
-  public TypeToken<? extends TimeSeriesId> idType() {
-    return results.idType();
-  }
-
-  @Override
-  public ChronoUnit resolution() {
-    return results.resolution();
-  }
-
-  @Override
-  public RollupConfig rollupConfig() {
-    return results.rollupConfig();
-  }
-
-  @Override
-  public void close() {
-    results.close();
-  }
-
+  
   /**
    * Summarizer time series. 
    */

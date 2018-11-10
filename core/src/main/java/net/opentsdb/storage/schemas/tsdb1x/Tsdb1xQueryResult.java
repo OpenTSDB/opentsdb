@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Map;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
@@ -73,6 +74,12 @@ public class Tsdb1xQueryResult implements QueryResult {
   /** The resolution of the data. */
   protected volatile ChronoUnit resolution;
   
+  /** An exception/error from downstream. */
+  protected String error;
+  
+  /** An exception from downstream. */
+  protected Throwable exception;
+  
   /**
    * Default ctor. The node is expected to have a {@link BaseTimeSeriesDataSourceConfig}
    * configuration that will give us a {@link Configuration} config to
@@ -118,6 +125,16 @@ public class Tsdb1xQueryResult implements QueryResult {
     return results.values();
   }
 
+  @Override
+  public String error() {
+    return error;
+  }
+  
+  @Override
+  public Throwable exception() {
+    return exception;
+  }
+  
   @Override
   public long sequenceId() {
     return sequence_id;
@@ -236,5 +253,18 @@ public class Tsdb1xQueryResult implements QueryResult {
       + "using more tags or decrease your time range.";
   }
 
+  /**
+   * Sets the error.
+   * @param error The non-null and non-empty error to set.
+   */
+  public synchronized void setError(final String error) {
+    this.error = error;
+  }
   
+  public synchronized void setException(final Throwable t) {
+    this.exception = t;
+    if (Strings.isNullOrEmpty(error)) {
+      error = t.getMessage();
+    }
+  }
 }

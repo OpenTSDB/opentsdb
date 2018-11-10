@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.groupby;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
@@ -34,12 +32,10 @@ import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A result from the {@link GroupBy} node for a segment. The grouping is 
@@ -48,7 +44,7 @@ import net.opentsdb.rollup.RollupConfig;
  * 
  * @since 3.0
  */
-public class GroupByResult implements QueryResult {
+public class GroupByResult extends BaseWrappedQueryResult {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByResult.class);
   
   /** Used to denote when all of the upstreams are done with this result set. */
@@ -56,9 +52,6 @@ public class GroupByResult implements QueryResult {
   
   /** The parent node. */
   protected final GroupBy node;
-  
-  /** The downstream result received by the group by node. */
-  protected final QueryResult next;
   
   /** The map of hash codes to groups. */
   protected final Map<Long, TimeSeries> groups;
@@ -70,6 +63,7 @@ public class GroupByResult implements QueryResult {
    * @throws IllegalArgumentException if the node or result was null.
    */
   public GroupByResult(final GroupBy node, final QueryResult next) {
+    super(next);
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -79,7 +73,6 @@ public class GroupByResult implements QueryResult {
     
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
-    this.next = next;
     groups = Maps.newHashMap();
     if (next.idType().equals(Const.TS_STRING_ID)) {
       for (final TimeSeries series : next.timeSeries()) {
@@ -199,18 +192,8 @@ public class GroupByResult implements QueryResult {
   }
   
   @Override
-  public TimeSpecification timeSpecification() {
-    return next.timeSpecification();
-  }
-
-  @Override
   public Collection<TimeSeries> timeSeries() {
     return groups.values();
-  }
-  
-  @Override
-  public long sequenceId() {
-    return next.sequenceId();
   }
   
   @Override
@@ -218,38 +201,9 @@ public class GroupByResult implements QueryResult {
     return node;
   }
 
-  @Override
-  public String dataSource() {
-    return next.dataSource();
-  }
-  
-  @Override
-  public TypeToken<? extends TimeSeriesId> idType() {
-    return next.idType();
-  }
-  
-  @Override
-  public ChronoUnit resolution() {
-    return next.resolution();
-  }
-  
-  @Override
-  public RollupConfig rollupConfig() {
-    return next.rollupConfig();
-  }
-  
-  @Override
-  public void close() {
-    // NOTE - a race here. Should be idempotent.
-    latch.countDown();
-    if (latch.getCount() <= 0) {
-      next.close();
-    }
-  }
-  
   /** @return The downstream result. */
   QueryResult downstreamResult() {
-    return next;
+    return result;
   }
   
 }

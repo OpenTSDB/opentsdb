@@ -125,6 +125,18 @@ public class ExpressionResult implements QueryResult {
   }
 
   @Override
+  public String error() {
+    // TODO - implement
+    return null;
+  }
+  
+  @Override
+  public Throwable exception() {
+    // TODO - implement
+    return null;
+  }
+  
+  @Override
   public long sequenceId() {
     return results.get(0).sequenceId();
   }

@@ -15,7 +15,6 @@
 package net.opentsdb.servlet.sinks;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 import javax.ws.rs.core.Response;
 
@@ -25,12 +24,14 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
+import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
@@ -121,6 +122,16 @@ public class ServletSink implements QuerySink {
 
   @Override
   public void onNext(final QueryResult next) {
+    if (next.exception() != null) {
+      onError(next.exception());
+      return;
+    }
+    
+    if (next.error() != null) {
+      onError(new QueryExecutionException(next.error(), 0));
+      return;
+    }
+    
     if (LOG.isDebugEnabled()) {
       LOG.debug("Successful response for query=" 
           + JSON.serializeToString(
@@ -134,7 +145,8 @@ public class ServletSink implements QuerySink {
     }
     
     final Span serdes_span = context.stats().querySpan() != null ?
-        context.stats().querySpan().newChild("onNext_" + next.source().config().getId() + ":" + next.dataSource())
+        context.stats().querySpan().newChild("onNext_" 
+            + next.source().config().getId() + ":" + next.dataSource())
         .start()
         : null;
     
@@ -163,7 +175,13 @@ public class ServletSink implements QuerySink {
     LOG.error("Exception for query: " 
         + JSON.serializeToString(context.query()), t);
     try {
-      GenericExceptionMapper.serialize(t, config.response());
+      if (t instanceof QueryExecutionException) {
+        QueryExecutionExceptionMapper.serialize(
+            (QueryExecutionException) t, 
+            config.async().getResponse());
+      } else {
+        GenericExceptionMapper.serialize(t, config.async().getResponse());
+      }
       config.async().complete();
       logComplete(t);
     } catch (Throwable t1) {

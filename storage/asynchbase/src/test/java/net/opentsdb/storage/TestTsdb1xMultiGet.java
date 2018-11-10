@@ -940,13 +940,18 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertFalse(mget.has_failed);
     verify(node, never()).onError(any(Throwable.class));
     
-    mget.error_cb.call(new UnitTestException());
-    assertTrue(mget.has_failed);
-    verify(node, times(1)).onError(any(Throwable.class));
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    mget.current_result = result;
     
     mget.error_cb.call(new UnitTestException());
     assertTrue(mget.has_failed);
-    verify(node, times(1)).onError(any(Throwable.class));
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onError(any(Throwable.class));
+    
+    mget.error_cb.call(new UnitTestException());
+    assertTrue(mget.has_failed);
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onError(any(Throwable.class));
   }
   
   @Test
@@ -988,6 +993,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget.response_cb.call(results);
     assertEquals(0, mget.outstanding);
     verify(result, times(2)).isFull();
+    verify(node, times(2)).onNext(result);
     verify(node, never()).onError(any(Throwable.class));
     
     // exception
@@ -1000,7 +1006,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget.response_cb.call(results);
     assertEquals(0, mget.outstanding);
     verify(result, times(2)).isFull();
-    verify(node, times(1)).onError(any(Throwable.class));
+    verify(node, times(3)).onNext(result);
+    verify(node, never()).onError(any(Throwable.class));
   }
 
   @Test
@@ -1277,9 +1284,9 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget.fetchNext(result, trace.newSpan("UT").start());
     assertEquals(State.EXCEPTION, mget.state());
     assertEquals(0, mget.outstanding);
-    verify(node, never()).onNext(result);
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(node, times(1)).onError(any(Throwable.class));
+    verify(node, never()).onError(any(Throwable.class));
     verify(result, times(28)).decode(any(ArrayList.class), 
         any(RollupInterval.class));
     verifySpan(Tsdb1xMultiGet.class.getName() + ".fetchNext", UnitTestException.class, 9);

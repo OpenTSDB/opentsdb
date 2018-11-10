@@ -121,6 +121,18 @@ public class PBufQueryResult implements QueryResult {
   }
 
   @Override
+  public String error() {
+    // TODO - implement
+    return null;
+  }
+  
+  @Override
+  public Throwable exception() {
+    // TODO - implement
+    return null;
+  }
+  
+  @Override
   public long sequenceId() {
     return result.getSequenceId();
   }

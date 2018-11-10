@@ -245,7 +245,8 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   @Override
   public void onNext(final QueryResult next) {
     sendUpstream(next);
-    if (executor.state() == State.COMPLETE) {
+    if (executor.state() == State.COMPLETE || 
+        executor.state() == State.EXCEPTION) {
       completeUpstream(sequence_id.get(), sequence_id.get());
     }
   }

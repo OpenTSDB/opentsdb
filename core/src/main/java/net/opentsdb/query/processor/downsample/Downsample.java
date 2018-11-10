@@ -38,6 +38,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
@@ -45,7 +46,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.processor.ProcessorFactory;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A processing node that performs downsampling on each individual time series
@@ -102,12 +102,10 @@ public class Downsample extends AbstractQueryNode {
    * A downsample result that's a member class of the main node so that we share
    * the references to the config and node.
    */
-  class DownsampleResult implements QueryResult, TimeSpecification {
+  class DownsampleResult extends BaseWrappedQueryResult 
+      implements TimeSpecification {
     /** Countdown latch for closing the result set based on the upstreams. */
     private final CountDownLatch latch;
-    
-    /** The non-null query results. */
-    private final QueryResult results;
     
     /** The new downsampler time series applied to the result's time series. */
     private final List<TimeSeries> downsamplers;
@@ -126,8 +124,8 @@ public class Downsample extends AbstractQueryNode {
      * @param results The non-null results set.
      */
     DownsampleResult(final QueryResult results) {
+      super(results);
       latch = new CountDownLatch(Downsample.this.upstream.size());
-      this.results = results;
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
         downsamplers.add(new DownsampleTimeSeries(series));
@@ -183,51 +181,22 @@ public class Downsample extends AbstractQueryNode {
     
     @Override
     public TimeSpecification timeSpecification() {
-      return config.getFill() ? this : results.timeSpecification();
+      return config.getFill() ? this : result.timeSpecification();
     }
 
     @Override
     public Collection<TimeSeries> timeSeries() {
       return downsamplers;
     }
-
-    @Override
-    public long sequenceId() {
-      return results.sequenceId();
-    }
-
+    
     @Override
     public QueryNode source() {
       return Downsample.this;
-    }
-
-    @Override
-    public String dataSource() {
-      return results.dataSource();
-    }
-    
-    @Override
-    public TypeToken<? extends TimeSeriesId> idType() {
-      return results.idType();
     }
     
     @Override
     public ChronoUnit resolution() {
       return resolution;
-    }
-    
-    @Override
-    public RollupConfig rollupConfig() {
-      return results.rollupConfig();
-    }
-    
-    @Override
-    public void close() {
-      // NOTE - a race here. Should be idempotent.
-      latch.countDown();
-      if (latch.getCount() <= 0) {
-        results.close();
-      }
     }
     
     public void updateTimestamp(final int offset, final TimeStamp timestamp) {
@@ -289,7 +258,7 @@ public class Downsample extends AbstractQueryNode {
     
     /** @return The downstream results. */
     QueryResult downstreamResult() {
-      return results;
+      return result;
     }
     
     /**
