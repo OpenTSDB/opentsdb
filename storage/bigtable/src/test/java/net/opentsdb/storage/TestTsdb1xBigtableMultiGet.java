@@ -954,13 +954,18 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     assertFalse(mget.has_failed);
     verify(node, never()).onError(any(Throwable.class));
     
-    mget.new ResponseCB(null).onFailure(new UnitTestException());
-    assertTrue(mget.has_failed);
-    verify(node, times(1)).onError(any(Throwable.class));
+    Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
+    mget.current_result = result;
     
     mget.new ResponseCB(null).onFailure(new UnitTestException());
     assertTrue(mget.has_failed);
-    verify(node, times(1)).onError(any(Throwable.class));
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onError(any(Throwable.class));
+    
+    mget.new ResponseCB(null).onFailure(new UnitTestException());
+    assertTrue(mget.has_failed);
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onError(any(Throwable.class));
   }
   
   @Test
@@ -1283,9 +1288,9 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     mget.fetchNext(result, trace.newSpan("UT").start());
     assertEquals(State.EXCEPTION, mget.state());
     assertEquals(0, mget.outstanding);
-    verify(node, never()).onNext(result);
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(node, times(1)).onError(any(Throwable.class));
+    verify(node, never()).onError(any(Throwable.class));
     verify(result, times(28)).decode(any(Row.class), 
         any(RollupInterval.class));
     verifySpan(Tsdb1xBigtableMultiGet.class.getName() + ".fetchNext", 

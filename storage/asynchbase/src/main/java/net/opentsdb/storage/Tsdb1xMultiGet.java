@@ -416,7 +416,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
              .finish();
       }
       state = State.EXCEPTION;
-      node.onError(t);
+      current_result.setException(t);
+      final QueryResult result = current_result;
+      current_result = null;
+      outstanding = 0;
+      node.onNext(result);
     } else {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Exception from followup get", t);

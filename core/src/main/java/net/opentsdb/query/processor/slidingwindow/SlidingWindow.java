@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.slidingwindow;
 
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -25,15 +24,14 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A node that computes an aggregation on a window that slides over the
@@ -90,16 +88,13 @@ public class SlidingWindow extends AbstractQueryNode {
   /**
    * Local results.
    */
-  class SlidingWindowResult implements QueryResult {
-
-    /** The original results. */
-    private final QueryResult next;
+  class SlidingWindowResult extends BaseWrappedQueryResult {
     
     /** The new series. */
     private List<TimeSeries> series;
     
     SlidingWindowResult(final QueryResult next) {
-      this.next = next;
+      super(next);
       series = Lists.newArrayListWithExpectedSize(next.timeSeries().size());
       for (final TimeSeries ts : next.timeSeries()) {
         series.add(new SlidingWindowTimeSeries(ts));
@@ -107,48 +102,13 @@ public class SlidingWindow extends AbstractQueryNode {
     }
     
     @Override
-    public TimeSpecification timeSpecification() {
-      return next.timeSpecification();
-    }
-
-    @Override
     public Collection<TimeSeries> timeSeries() {
       return series;
     }
-
-    @Override
-    public long sequenceId() {
-      return next.sequenceId();
-    }
-
+    
     @Override
     public QueryNode source() {
       return SlidingWindow.this;
-    }
-
-    @Override
-    public String dataSource() {
-      return next.dataSource();
-    }
-    
-    @Override
-    public TypeToken<? extends TimeSeriesId> idType() {
-      return next.idType();
-    }
-
-    @Override
-    public ChronoUnit resolution() {
-      return next.resolution();
-    }
-
-    @Override
-    public RollupConfig rollupConfig() {
-      return next.rollupConfig();
-    }
-
-    @Override
-    public void close() {
-      next.close();
     }
     
     /**

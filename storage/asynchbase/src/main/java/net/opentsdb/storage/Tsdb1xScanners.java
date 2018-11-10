@@ -39,6 +39,7 @@ import com.stumbleupon.async.Callback;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.NotFilter;
@@ -364,7 +365,11 @@ public class Tsdb1xScanners implements HBaseExecutor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Exception from downstream", t);
     }
-    node.onError(t);
+    
+    current_result.setException(t);
+    final QueryResult result = current_result;
+    current_result = null;
+    node.onNext(result);
   }
 
   @Override
@@ -384,6 +389,11 @@ public class Tsdb1xScanners implements HBaseExecutor {
   
   @Override
   public State state() {
+    synchronized (this) {
+      if (has_failed) {
+        return State.EXCEPTION;
+      }
+    }
     if (!initialized && scanners == null) {
       return State.CONTINUE;
     }
@@ -546,8 +556,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
           child.setErrorTags(ex)
                .finish();
         }
-        node.onError(ex);
-        has_failed = true;
+        exception(ex);
         return null;
       }
     }
@@ -563,8 +572,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
             child.setErrorTags(ex)
                  .finish();
           }
-          node.onError(ex);
-          has_failed = true;
+          exception(ex);
           return null;
         }
         
@@ -602,7 +610,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
         child.setErrorTags(e)
              .finish();
       }
-      node.onError(e);
+      exception(e);
     }
   }
   
@@ -881,7 +889,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
           scanner.fetchNext(current_result, span);
         } catch (Exception e) {
           LOG.error("Failed to execute query on scanner: " + scanner, e);
-          node.onError(e);
+          exception(e);
           throw e;
         }
       } else {

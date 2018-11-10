@@ -15,7 +15,6 @@
 package net.opentsdb.query.processor.dedup;
 
 import com.google.common.reflect.TypeToken;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -27,18 +26,16 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.rollup.RollupConfig;
-
 /**
  * A node that handles deduplication and/or sorting of time series values
  * from underlying iterators.
@@ -91,59 +88,24 @@ public class DedupNode extends AbstractQueryNode {
     sendUpstream(dedupResult);
   }
   
-  private class DedupResult implements QueryResult {
+  private class DedupResult extends BaseWrappedQueryResult {
 
-    private QueryResult next;
     private List<TimeSeries> results = new ArrayList<>();
 
-    public DedupResult(QueryResult next) {
-      this.next = next;
+    public DedupResult(final QueryResult next) {
+      super(next);
     }
-
-    @Override
-    public TimeSpecification timeSpecification() {
-      return next.timeSpecification();
-    }
-
+    
     @Override
     public Collection<TimeSeries> timeSeries() {
       return results;
     }
-
-    @Override
-    public long sequenceId() {
-      return next.sequenceId();
-    }
-
-    @Override
-    public QueryNode source() {
-      return next.source();
-    }
-
-    @Override
-    public String dataSource() {
-      return next.dataSource();
-    }
     
     @Override
-    public TypeToken<? extends TimeSeriesId> idType() {
-      return next.idType();
+    public QueryNode source() {
+      return DedupNode.this;
     }
-
-    @Override
-    public ChronoUnit resolution() {
-      return next.resolution();
-    }
-
-    @Override
-    public RollupConfig rollupConfig() {
-      return next.rollupConfig();
-    }
-
-    @Override
-    public void close() {
-        next.close();
-    }
+    
   }
 
   private class DedupTimeSeries implements TimeSeries, TypedTimeSeriesIterator {

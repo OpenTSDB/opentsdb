@@ -55,15 +55,20 @@ public abstract class BaseWrappedQueryResult implements QueryResult {
   }
 
   @Override
+  public String error() {
+    return result.error();
+  }
+  
+  @Override
+  public Throwable exception() {
+    return result.exception();
+  }
+  
+  @Override
   public long sequenceId() {
     return result.sequenceId();
   }
-
-  @Override
-  public QueryNode source() {
-    return result.source();
-  }
-
+  
   @Override
   public String dataSource() {
     return result.dataSource();

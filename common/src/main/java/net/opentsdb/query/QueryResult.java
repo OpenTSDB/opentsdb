@@ -51,6 +51,23 @@ public interface QueryResult {
   public Collection<TimeSeries> timeSeries();
   
   /**
+   * An optional error from downstream. If this is set, then 
+   * {@link #timeSeries()} must be empty. If this is not null and not 
+   * empty then the result had an error and upstream can take the 
+   * appropriate action.
+   * @return An optional error message. May be null.
+   */
+  public String error();
+  
+  /**
+   * An optional exception from downstream. {@link #error()} takes 
+   * precedence and should be set to either the message of the throwable
+   * or a different string.
+   * @return An optional exception. May be null.
+   */
+  public Throwable exception();
+  
+  /**
    * @return The zero based sequence ID of the result when operating in a 
    * streaming mode.
    */

@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -30,9 +29,9 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
@@ -40,7 +39,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.ProcessorFactory;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * A processing node that performs rate conversion on each individual time series
@@ -91,12 +89,9 @@ public class Rate extends AbstractQueryNode {
    * A rate result that's a member class of the main node so that we share
    * the references to the config and node.
    */
-  class RateResult implements QueryResult {
+  class RateResult extends BaseWrappedQueryResult {
     /** Countdown latch for closing the result set based on the upstreams. */
     private final CountDownLatch latch;
-    
-    /** The non-null query results. */
-    private final QueryResult results;
     
     /** The new downsampler time series applied to the result's time series. */
     private final List<TimeSeries> downsamplers;
@@ -106,8 +101,8 @@ public class Rate extends AbstractQueryNode {
      * @param results The non-null results set.
      */
     private RateResult(final QueryResult results) {
+      super(results);
       latch = new CountDownLatch(Rate.this.upstream.size());
-      this.results = results;
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
         downsamplers.add(new RateTimeSeries(series));
@@ -115,52 +110,13 @@ public class Rate extends AbstractQueryNode {
     }
     
     @Override
-    public TimeSpecification timeSpecification() {
-      return results.timeSpecification();
-    }
-
-    @Override
     public Collection<TimeSeries> timeSeries() {
       return downsamplers;
     }
 
     @Override
-    public long sequenceId() {
-      return results.sequenceId();
-    }
-
-    @Override
     public QueryNode source() {
       return Rate.this;
-    }
-
-    @Override
-    public String dataSource() {
-      return results.dataSource();
-    }
-    
-    @Override
-    public TypeToken<? extends TimeSeriesId> idType() {
-      return results.idType();
-    }
-    
-    @Override
-    public ChronoUnit resolution() {
-      return results.resolution();
-    }
-    
-    @Override
-    public RollupConfig rollupConfig() {
-      return results.rollupConfig();
-    }
-    
-    @Override
-    public void close() {
-      // NOTE - a race here. Should be idempotent.
-      latch.countDown();
-      if (latch.getCount() <= 0) {
-        results.close();
-      }
     }
     
   }

@@ -33,6 +33,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -139,6 +140,11 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
     @Override
     public TypeToken<? extends TimeSeriesId> idType() {
       return Const.TS_STRING_ID;
+    }
+
+    @Override
+    public QueryNode source() {
+      return ByteToStringIdConverter.this;
     }
     
   }

@@ -1880,6 +1880,9 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = result;
+    
     scanners.initialize(null);
     
     assertNull(scanners.row_key_literals);
@@ -1887,15 +1890,13 @@ public class TestTsdb1xScanners extends UTBase {
     assertFalse(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
-    verify(node, times(1)).onError(any(NoSuchUniqueName.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(NoSuchUniqueName.class));
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     trace = new MockTrace(true);
     scanners = new Tsdb1xScanners(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
-    verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
-        NoSuchUniqueName.class, 3);
   }
   
   @Test
@@ -1916,6 +1917,8 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     setConfig(filter, null, false);
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = result;
     scanners.initialize(null);
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1923,12 +1926,13 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
-    verify(node, times(1)).onError(any(NoSuchUniqueName.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(NoSuchUniqueName.class));
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     // can't ignore with explicit tags
     scanners = new Tsdb1xScanners(node, source_config);
+    scanners.current_result = result;
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
     
@@ -1937,8 +1941,8 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
-    verify(node, times(2)).onError(any(NoSuchUniqueName.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(NoSuchUniqueName.class));
+    verify(node, times(2)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     // tracing
@@ -1961,6 +1965,7 @@ public class TestTsdb1xScanners extends UTBase {
           .build();
     setConfig(filter, null, false);
     scanners = new Tsdb1xScanners(node, source_config);
+    scanners.current_result = result;
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
     
@@ -1969,8 +1974,8 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
-    verify(node, times(3)).onError(any(NoSuchUniqueName.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(NoSuchUniqueName.class));
+    verify(node, times(2)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
   
@@ -1990,6 +1995,8 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     setConfig(filter, null, false);
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = result;
     scanners.initialize(null);
     
     assertEquals(0, scanners.row_key_literals.size());
@@ -1997,8 +2004,8 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.couldMultiGet());
     assertNull(scanners.scanners);
     assertFalse(scanners.initialized);
-    verify(node, times(1)).onError(any(NoSuchUniqueName.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(NoSuchUniqueName.class));
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     // tracing
@@ -2186,6 +2193,8 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void scanNext() throws Exception {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = result;
     Tsdb1xScanner scanner = mock(Tsdb1xScanner.class);
     when(scanner.state()).thenReturn(State.CONTINUE);
     scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(
@@ -2193,24 +2202,26 @@ public class TestTsdb1xScanners extends UTBase {
         );
     
     scanners.scanNext(null);
-    verify(scanner, times(1)).fetchNext(null, null);
+    verify(scanner, times(1)).fetchNext(result, null);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
-    doThrow(new UnitTestException()).when(scanner).fetchNext(null, null);
+    doThrow(new UnitTestException()).when(scanner).fetchNext(result, null);
     try {
       scanners.scanNext(null);
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
-    verify(node, times(1)).onError(any(UnitTestException.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(UnitTestException.class));
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
   
   @Test
   public void scanNextSalted() throws Exception {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = result;
     Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
     when(scanner1.state()).thenReturn(State.CONTINUE);
     Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
@@ -2220,19 +2231,19 @@ public class TestTsdb1xScanners extends UTBase {
         );
     
     scanners.scanNext(null);
-    verify(scanner1, times(1)).fetchNext(null, null);
-    verify(scanner2, times(1)).fetchNext(null, null);
+    verify(scanner1, times(1)).fetchNext(result, null);
+    verify(scanner2, times(1)).fetchNext(result, null);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
-    doThrow(new UnitTestException()).when(scanner2).fetchNext(null, null);
+    doThrow(new UnitTestException()).when(scanner2).fetchNext(result, null);
     try {
       scanners.scanNext(null);
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
-    verify(node, times(1)).onError(any(UnitTestException.class));
-    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onError(any(UnitTestException.class));
+    verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
   
@@ -2269,16 +2280,20 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void exception() throws Exception {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = result;
     assertFalse(scanners.hasException());
     
     scanners.exception(new UnitTestException());
     assertTrue(scanners.hasException());
-    verify(node, times(1)).onError(any(UnitTestException.class));
+    verify(node, never()).onError(any(UnitTestException.class));
+    verify(node, times(1)).onNext(result);
     
     // nother scanner threw a failure
     scanners.exception(new UnitTestException());
     assertTrue(scanners.hasException());
-    verify(node, times(1)).onError(any(UnitTestException.class));
+    verify(node, never()).onError(any(UnitTestException.class));
+    verify(node, times(1)).onNext(result);
   }
   
   @Test

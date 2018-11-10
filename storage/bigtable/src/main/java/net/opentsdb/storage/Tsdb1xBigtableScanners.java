@@ -38,6 +38,7 @@ import com.stumbleupon.async.Callback;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.NotFilter;
@@ -381,7 +382,11 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Exception from downstream", t);
     }
-    node.onError(t);
+    
+    current_result.setException(t);
+    final QueryResult result = current_result;
+    current_result = null;
+    node.onNext(result);
   }
 
   @Override
@@ -563,8 +568,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
           child.setErrorTags(ex)
                .finish();
         }
-        node.onError(ex);
-        has_failed = true;
+        exception(ex);
         return null;
       }
     }
@@ -580,8 +584,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
             child.setErrorTags(ex)
                  .finish();
           }
-          node.onError(ex);
-          has_failed = true;
+          exception(ex);
           return null;
         }
         
@@ -620,7 +623,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
         child.setErrorTags(e)
              .finish();
       }
-      node.onError(e);
+      exception(e);
     }
   }
   
@@ -900,7 +903,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
           scanner.fetchNext(current_result, span);
         } catch (Exception e) {
           LOG.error("Failed to execute query on scanner: " + scanner, e);
-          node.onError(e);
+          exception(e);
           throw e;
         }
       } else {

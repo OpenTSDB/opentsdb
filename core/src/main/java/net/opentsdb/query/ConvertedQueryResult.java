@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -31,9 +30,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -46,9 +43,8 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class ConvertedQueryResult implements QueryResult, Runnable {
-  /** The original encoded result. */
-  private final QueryResult result;
+public class ConvertedQueryResult extends BaseWrappedQueryResult 
+    implements Runnable {
   
   /** The node to callback with the converted result. If this is null
    * then the {@link #sink} cannot be null. */
@@ -73,7 +69,7 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   protected ConvertedQueryResult(final QueryResult result, 
                                  final QueryNode node,
                                  final Span span) {
-    this.result = result;
+    super(result);
     this.node = node;
     sink = null;
     this.span = span;
@@ -88,7 +84,7 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   protected ConvertedQueryResult(final QueryResult result, 
                                  final QuerySink sink,
                                  final Span span) {
-    this.result = result;
+    super(result);
     node = null;
     this.sink = sink;
     this.span = span;
@@ -181,18 +177,8 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   }
 
   @Override
-  public TimeSpecification timeSpecification() {
-    return result.timeSpecification();
-  }
-
-  @Override
   public Collection<TimeSeries> timeSeries() {
     return series == null ? result.timeSeries() : series;
-  }
-
-  @Override
-  public long sequenceId() {
-    return result.sequenceId();
   }
 
   @Override
@@ -201,28 +187,8 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
   }
 
   @Override
-  public String dataSource() {
-    return result.dataSource();
-  }
-  
-  @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;
-  }
-
-  @Override
-  public ChronoUnit resolution() {
-    return result.resolution();
-  }
-  
-  @Override
-  public RollupConfig rollupConfig() {
-    return result.rollupConfig();
-  }
-    
-  @Override
-  public void close() {
-    result.close();
   }
   
   /**
@@ -327,6 +293,5 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
     }
     
   }
-
   
 }

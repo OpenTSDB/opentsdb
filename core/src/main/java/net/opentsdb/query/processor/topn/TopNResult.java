@@ -30,6 +30,7 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.RollupConfig;
@@ -41,13 +42,10 @@ import net.opentsdb.rollup.RollupConfig;
  * 
  * @since 3.0
  */
-public class TopNResult implements QueryResult, Runnable {
+public class TopNResult extends BaseWrappedQueryResult implements Runnable {
 
   /** The parent node. */
   protected final TopN node;
-  
-  /** The downstream result received by the group by node. */
-  protected final QueryResult next;
   
   /** The ordered results to fill. */
   protected final List<TimeSeries> results;
@@ -58,6 +56,7 @@ public class TopNResult implements QueryResult, Runnable {
    * @param next The non-null results to pull from.
    */
   public TopNResult(final TopN node, final QueryResult next) {
+    super(next);
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -65,21 +64,20 @@ public class TopNResult implements QueryResult, Runnable {
       throw new IllegalArgumentException("Result cannot be null.");
     }
     this.node = node;
-    this.next = next;
     results = Lists.newArrayList();
   }
   
   @Override
   public void run() {
     try {
-      if (next.timeSeries().isEmpty()) {
+      if (result.timeSeries().isEmpty()) {
         node.onNext(this);
         return;
       }
       
       final TreeMap<Number, TimeSeries> sorted_results = 
           new TreeMap<Number, TimeSeries>();
-      for (final TimeSeries ts : next.timeSeries()) {
+      for (final TimeSeries ts : result.timeSeries()) {
         // TODO - parallelize
         
         final NumericType value;
@@ -129,49 +127,13 @@ public class TopNResult implements QueryResult, Runnable {
   }
 
   @Override
-  public TimeSpecification timeSpecification() {
-    return next.timeSpecification();
-  }
-
-  @Override
   public Collection<TimeSeries> timeSeries() {
     return results;
   }
-
-  @Override
-  public long sequenceId() {
-    return next.sequenceId();
-  }
-
+  
   @Override
   public QueryNode source() {
     return node;
   }
-
-  @Override
-  public String dataSource() {
-    return next.dataSource();
-  }
   
-  @Override
-  public TypeToken<? extends TimeSeriesId> idType() {
-    return next.idType();
-  }
-
-  @Override
-  public ChronoUnit resolution() {
-    return next.resolution();
-  }
-
-  @Override
-  public RollupConfig rollupConfig() {
-    return next.rollupConfig();
-  }
-
-  @Override
-  public void close() {
-    // TODO Auto-generated method stub
-    
-  }
- 
 }
