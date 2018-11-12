@@ -1,3 +1,17 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2018  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.meta;
 
 import com.google.common.collect.Lists;
@@ -31,15 +45,22 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-public class YmsESSchema extends BaseTSDBPlugin implements
+/**
+ * Run the Meta Query on Meta Store with schema and form the results.
+ *
+ * @since 3.0
+ */
+public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implements
         MetaDataStorageSchema {
-  public static final String TYPE = "YmsESSchema";
+  public static final String TYPE = "NamespacedAggregatedDocumentSchema";
   public static final String MAX_CARD_KEY = "tsd.meta.max.cardinality";
   public static final String QUERY_TIMEOUT_KEY = "es.query_timeout";
-  private static final Logger LOG = LoggerFactory.getLogger(YmsESSchema.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NamespacedAggregatedDocumentSchema.class);
   private TSDB tsdb;
 
+  /** The elastic search client to use */
   private YmsESClient native_client;
+
   private boolean fallback_on_exception;
   private boolean fallback_on_no_data;
 
@@ -118,7 +139,7 @@ public class YmsESSchema extends BaseTSDBPlugin implements
             for (QueryFilter filter : filters) {
               if (filter instanceof AnyFieldRegexFilter) {
                 String regex = ((AnyFieldRegexFilter) filter).getFilter();
-                post_query_filter.add(ESQuery.convertToLuceneRegex(regex));
+                post_query_filter.add(NamespacedAggregatedDocumentQuery.convertToLuceneRegex(regex));
 
               }
               if (filter instanceof MetricLiteralFilter) {
@@ -128,7 +149,7 @@ public class YmsESSchema extends BaseTSDBPlugin implements
               }
               if (filter instanceof MetricRegexFilter) {
                 String regex = ((MetricRegexFilter) filter).getMetric();
-                metrics_regex_filter.add(ESQuery.convertToLuceneRegex(regex));
+                metrics_regex_filter.add(NamespacedAggregatedDocumentQuery.convertToLuceneRegex(regex));
               }
             }
           }
@@ -343,7 +364,7 @@ public class YmsESSchema extends BaseTSDBPlugin implements
     if (filter instanceof ChainFilter && ((ChainFilter) filter).getOp() ==
             FilterOp.AND) {
       List<QueryFilter> filters = ((ChainFilter) filter).getFilters();
-      ESQuery.ESQueryBuilder es_query_builder = ESQuery.newBuilder();
+      NamespacedAggregatedDocumentQuery.NamespacedAggregatedDocumentQueryBuilder es_query_builder = NamespacedAggregatedDocumentQuery.newBuilder();
       es_query_builder = es_query_builder.setQuery_filter(filters);
       if (aggregate == MetaQuery.AggregationField.ALL) {
         es_query_builder.addAggregate(filters, MetaQuery.AggregationField

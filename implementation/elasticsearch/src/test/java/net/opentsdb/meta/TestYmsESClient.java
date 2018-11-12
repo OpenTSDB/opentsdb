@@ -58,7 +58,6 @@ import com.stumbleupon.async.TimeoutException;
 
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.meta.YmsESClient;
 import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)

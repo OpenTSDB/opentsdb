@@ -125,7 +125,6 @@ public class YmsESClient extends BaseTSDBPlugin {
         client.addTransportAddress(new InetSocketTransportAddress(host_and_port[0],
                 host_and_port.length == 1 ? DEFAULT_PORT :
                         Integer.parseInt(host_and_port[1])));
-        LOG.info("ES client ==== " + client);
         clients.add(client);
         LOG.info("Instantiated ES client for " + host);
       }
@@ -247,8 +246,8 @@ public class YmsESClient extends BaseTSDBPlugin {
                 client.prepareSearch(index)
                         .setSearchType(SearchType.DEFAULT)
                         .setSource(query.toString());
-                       // .setTimeout(TimeValue.timeValueMillis(
-                       //         tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
+        // .setTimeout(TimeValue.timeValueMillis(
+        //         tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
         LOG.info("Searching ES with search req === " + request_builder);
 //        if (excludes != null && excludes.length > 0) {
 //          request_builder.setFetchSource(null, excludes);
