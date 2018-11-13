@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.stats.QueryStats;
@@ -53,6 +54,9 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
   
   /** Programmatic sinks. */
   private List<QuerySink> sinks;
+  
+  /** The authentication state. */
+  private AuthState auth_state;
   
   /** Whether or not this object was built users can't call the set methods. */
   private boolean built;
@@ -120,6 +124,12 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
       sinks = Lists.newArrayList();
     }
     sinks.add(sink);
+    return this;
+  }
+  
+  @Override
+  public QueryContextBuilder setAuthState(final AuthState auth_state) {
+    this.auth_state = auth_state;
     return this;
   }
   
@@ -202,6 +212,11 @@ public class TSDBV2QueryContextBuilder implements QueryContextBuilder {
       return tsdb;
     }
   
+    @Override
+    public AuthState authState() {
+      return auth_state;
+    }
+    
     @Override
     public Deferred<Void> initialize(final Span span) {
       List<Deferred<Void>> initializations = null;

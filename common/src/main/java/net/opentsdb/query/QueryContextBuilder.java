@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import java.util.List;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.stats.QueryStats;
 
 /**
@@ -70,6 +71,13 @@ public interface QueryContextBuilder {
    * @return The builder.
    */
   public QueryContextBuilder addSink(final QuerySink sink);
+  
+  /**
+   * Sets the authentication state for the query context.
+   * @param auth_state A non-null authentication state object.
+   * @return The builder.
+   */
+  public QueryContextBuilder setAuthState(final AuthState auth_state);
   
   /**
    * Returns a context ready for execution via {@link QueryContext#fetchNext()}.

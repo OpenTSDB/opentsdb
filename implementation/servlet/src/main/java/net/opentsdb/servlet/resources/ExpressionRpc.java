@@ -233,6 +233,7 @@ public class ExpressionRpc {
             .setTrace(trace)
             .setQuerySpan(query_span)
             .build())
+        .setAuthState(auth_state)
         .addSink(ServletSinkConfig.newBuilder()
             .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)

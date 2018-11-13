@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
@@ -76,6 +77,9 @@ public interface QueryContext {
   
   /** @return The TSDB to which we belong. */
   public TSDB tsdb();
+  
+  /** @return The optional auth state. May be null if auth is not enabled. */
+  public AuthState authState();
   
   /**
    * Called after building the context but before calling 
