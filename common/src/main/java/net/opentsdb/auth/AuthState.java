@@ -69,6 +69,9 @@ public interface AuthState {
    */
   public Throwable getException();
   
+  /** @return A descriptor of the type of token if provided. May be null. */
+  public String getTokenType();
+  
   /**
    * An optional token to use with an authentication system for validating that
    * the user key is still valid.

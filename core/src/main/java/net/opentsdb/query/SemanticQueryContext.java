@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.stats.QueryStats;
@@ -43,6 +44,9 @@ public class SemanticQueryContext implements QueryContext {
   
   /** The pipeline. */
   private LocalPipeline pipeline;
+  
+  /** The authentication state. */
+  private AuthState auth_state;
   
   /** A local span for tracing. */
   private Span local_span;
@@ -106,6 +110,11 @@ public class SemanticQueryContext implements QueryContext {
   }
   
   @Override
+  public AuthState authState() {
+    return auth_state;
+  }
+  
+  @Override
   public Deferred<Void> initialize(final Span span) {
     List<Deferred<Void>> initializations = null;
     if (query.getFilters() != null && !query.getFilters().isEmpty()) {
@@ -142,6 +151,7 @@ public class SemanticQueryContext implements QueryContext {
     private QueryStats stats;
     private List<QuerySinkConfig> sink_configs;
     private List<QuerySink> sinks;
+    private AuthState auth_state;
     
     public QueryContextBuilder setTSDB(final TSDB tsdb) {
       this.tsdb = tsdb;
@@ -190,6 +200,12 @@ public class SemanticQueryContext implements QueryContext {
         sinks = Lists.newArrayList();
       }
       sinks.add(sink);
+      return this;
+    }
+    
+    @Override
+    public QueryContextBuilder setAuthState(final AuthState auth_state) {
+      this.auth_state = auth_state;
       return this;
     }
     
