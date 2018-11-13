@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.meta;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,7 +63,7 @@ public class MetaQuery {
   /**
    * Size of number unique tag values to return.
    */
-  private int size;
+  private int agg_size;
 
   protected MetaQuery(final Builder builder) {
 
@@ -84,7 +83,7 @@ public class MetaQuery {
 
     aggregate_by = builder.aggregateBy == null ? AggregationField.ALL : builder.aggregateBy;
 
-    size = builder.size == null ? 0 : Integer.parseInt(builder.size);
+    agg_size = builder.agg_size == null ? 0 : Integer.parseInt(builder.agg_size);
 
     if (builder.from == null) {
       throw new IllegalArgumentException("Please set from field");
@@ -127,6 +126,7 @@ public class MetaQuery {
     return aggregation_field;
   }
 
+  public int agg_size() { return agg_size; }
 
   public static MetaQuery.Builder newBuilder() {
     return new Builder();
@@ -143,7 +143,7 @@ public class MetaQuery {
     private QueryFilter filters;
     private AggregationField aggregateBy;
     private String aggregationField;
-    private String size;
+    private String agg_size;
 
     public Builder setFrom(final String from) {
       this.from = from;
@@ -176,8 +176,8 @@ public class MetaQuery {
       return this;
     }
 
-    public Builder setSize(final String size) {
-      this.size = size;
+    public Builder setAgg_size(final String agg_size) {
+      this.agg_size = agg_size;
       return this;
     }
 
@@ -220,12 +220,16 @@ public class MetaQuery {
     n = node.get("aggregate_by");
     if (n.asText().equalsIgnoreCase("ALL")) {
       builder.setAggregateBy(AggregationField.ALL);
-      n = node.get("size");
+      n = node.get("agg_size");
       if (n != null) {
-        builder.setSize(n.asText());
+        builder.setAgg_size(n.asText());
       }
     } else if (n.asText().equalsIgnoreCase("Metrics")) {
       builder.setAggregateBy(AggregationField.METRICS);
+      n = node.get("agg_size");
+      if (n != null) {
+        builder.setAgg_size(n.asText());
+      }
     } else if (n.asText().equalsIgnoreCase("Tag_keys")) {
       builder.setAggregateBy(AggregationField.TAGS_KEYS);
     } else if (n.asText().equalsIgnoreCase("Tag_Values")) {
@@ -234,9 +238,9 @@ public class MetaQuery {
       if (n != null) {
         builder.setAggregationField(n.asText());
       }
-      n = node.get("size");
+      n = node.get("agg_size");
       if (n != null) {
-        builder.setSize(n.asText());
+        builder.setAgg_size(n.asText());
       }
 
     } else {
