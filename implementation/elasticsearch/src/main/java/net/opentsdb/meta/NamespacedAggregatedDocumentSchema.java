@@ -43,7 +43,12 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Run the Meta Query on Meta Store with schema and form the results.
@@ -111,7 +116,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
     SearchSourceBuilder search_source_builder = buildQuery(query.filters(),
             query.aggregate_by(), query.aggregation_field(),
-            query.from(), query.to());
+            query.from(), query.to(), query.agg_size());
 
     LOG.info("Running Elastic Search query == " + search_source_builder
             .toString());
@@ -238,7 +243,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
   @Override
   public Deferred<MetaDataStorageResult> runQuery(QueryPipelineContext
-                                                            queryPipelineContext, TimeSeriesDataSourceConfig timeSeriesDataSourceConfig, Span span) {
+                                                          queryPipelineContext, TimeSeriesDataSourceConfig timeSeriesDataSourceConfig, Span span) {
     return null;
   }
 
@@ -359,7 +364,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
 
   SearchSourceBuilder buildQuery(final QueryFilter filter, MetaQuery
-          .AggregationField aggregate, String optAggValue, int from, int to) {
+          .AggregationField aggregate, String optAggValue, int from, int to,
+                                 int agg_size) {
     SearchSourceBuilder search_source_builder = null;
     if (filter instanceof ChainFilter && ((ChainFilter) filter).getOp() ==
             FilterOp.AND) {
@@ -368,13 +374,13 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       es_query_builder = es_query_builder.setQuery_filter(filters);
       if (aggregate == MetaQuery.AggregationField.ALL) {
         es_query_builder.addAggregate(filters, MetaQuery.AggregationField
-                .METRICS, optAggValue);
+                .METRICS, optAggValue, agg_size);
         es_query_builder.addAggregate(filters, MetaQuery.AggregationField
-                .TAGS_KEYS, optAggValue);
+                .TAGS_KEYS, optAggValue, agg_size);
         es_query_builder.addAggregate(filters, MetaQuery.AggregationField
-                .TAGS_VALUES, optAggValue);
+                .TAGS_VALUES, optAggValue, agg_size);
       } else {
-        es_query_builder.addAggregate(filters, aggregate, optAggValue);
+        es_query_builder.addAggregate(filters, aggregate, optAggValue, agg_size);
       }
       search_source_builder = es_query_builder.build();
       search_source_builder.from(from);
