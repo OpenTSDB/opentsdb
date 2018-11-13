@@ -205,7 +205,7 @@ public class NamespacedAggregatedDocumentQuery {
     }
 
     public NamespacedAggregatedDocumentQueryBuilder addAggregate(List<QueryFilter> filters,
-                                                                 AggregationField agg_by, String opt_agg) {
+                                                                 AggregationField agg_by, String opt_agg, int agg_size) {
 
       NestedBuilder agg = null;
       FilterBuilder should_filter = null;
@@ -232,7 +232,8 @@ public class NamespacedAggregatedDocumentQuery {
         BoolFilterBuilder bool_filter = FilterBuilders.boolFilter();
         if (literal_values.size() != 0 || regexp_values.size() != 0) {
           if (literal_values.size() != 0) {
-            addMustFilterToBool(bool_filter, QUERY_METRIC, literal_values,
+            should_filter = addMustFilterToBool(bool_filter, QUERY_METRIC,
+                    literal_values,
                     "literal_or");
           }
           if (regexp_values.size() != 0) {
@@ -244,10 +245,10 @@ public class NamespacedAggregatedDocumentQuery {
           agg.subAggregation(AggregationBuilders.filter("metrics").filter
                   (should_filter).
                   subAggregation((AggregationBuilders.terms("unique_" +
-                          agg_by).field(RESULT_METRIC).size(0))));
+                          agg_by).field(RESULT_METRIC).size(agg_size))));
         } else {
           agg.subAggregation((AggregationBuilders.terms("unique_" + agg_by)
-                  .field(RESULT_METRIC).size(0)));
+                  .field(RESULT_METRIC).size(agg_size)));
         }
 
       } else if (agg_by == MetaQuery.AggregationField.TAGS_KEYS) {
@@ -315,7 +316,7 @@ public class NamespacedAggregatedDocumentQuery {
                                                   .terms("unique_" + agg_by
                                                           .toString() +
                                                           "_values").field
-                                                          (RESULT_TAG_VALUE_KEY).size(0)))));
+                                                          (RESULT_TAG_VALUE_KEY).size(agg_size)))));
         }
         else {
           agg.
@@ -328,7 +329,7 @@ public class NamespacedAggregatedDocumentQuery {
                                   subAggregation(AggregationBuilders.terms
                                           ("unique_" + agg_by.toString() +
                                                   "_values").field
-                                          (RESULT_TAG_VALUE_KEY).size(0))));
+                                          (RESULT_TAG_VALUE_KEY).size(agg_size))));
         }
       }
 
