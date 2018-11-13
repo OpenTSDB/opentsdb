@@ -80,19 +80,21 @@ public class MetaRpc {
             tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "meta");
         }
 
-        // check auth.
-        final AuthState auth_state;
-        if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {
-            if (request.getAttribute(AuthFilter.AUTH_STATE_KEY) == null ||
-                    ((AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY))
-                            .getStatus() != AuthStatus.SUCCESS) {
-                throw new WebApplicationException("Access denied.",
-                        Response.Status.FORBIDDEN);
-            }
-            auth_state = (AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY);
-        } else {
-            auth_state = null; // TODO - add an "unknown" auth user.
-        }
+//        // check auth.
+//        final AuthState auth_state;
+//        if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {
+//            if (request.getAttribute(AuthFilter.AUTH_STATE_KEY) == null ||
+//                    ((AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY))
+//                            .getStatus() != AuthStatus.SUCCESS) {
+//                throw new WebApplicationException("Access denied.",
+//                        Response.Status.FORBIDDEN);
+//            }
+//            auth_state = (AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY);
+//        } else {
+//            auth_state = null; // TODO - add an "unknown" auth user.
+//        }
+
+      AuthState auth_state = null;
 
         // initiate the tracer
         final Trace trace;
