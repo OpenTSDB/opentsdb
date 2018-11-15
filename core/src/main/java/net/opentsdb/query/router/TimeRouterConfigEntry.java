@@ -14,7 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.router;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 
 import net.opentsdb.core.TSDB;
@@ -28,6 +32,8 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
+@JsonInclude(Include.NON_NULL)
+@JsonDeserialize(builder = TimeRouterConfigEntry.Builder.class)
 public class TimeRouterConfigEntry {
   
   /** Enum to determine if the results matched or not. */
@@ -64,6 +70,8 @@ public class TimeRouterConfigEntry {
   
   /** The ID of the data source. */
   private final String source_id;
+  
+  private TimeSeriesDataSourceFactory factory;
   
   /**
    * Default protected ctor.
@@ -201,21 +209,19 @@ public class TimeRouterConfigEntry {
     }
     
     // time matched, check the factory now.
-    String source_id;
-    if (!Strings.isNullOrEmpty(config.getSourceId())) {
-      source_id = config.getSourceId();
-    } else if (!Strings.isNullOrEmpty(config.getType())) {
-      source_id = config.getType();
-    } else {
-      source_id = config.getId();
-    }
-    
-    TimeSeriesDataSourceFactory factory = tsdb.getRegistry().getPlugin(
-        TimeSeriesDataSourceFactory.class, source_id);
     if (factory == null) {
-      throw new IllegalArgumentException("No factory found for source: " 
-          + (Strings.isNullOrEmpty(source_id) ? "Default" : source_id));
+      synchronized (this) {
+        if (factory == null) {
+          factory = tsdb.getRegistry().getPlugin(
+              TimeSeriesDataSourceFactory.class, source_id);
+          if (factory == null) {
+            throw new IllegalArgumentException("No factory found for source: " 
+                + (Strings.isNullOrEmpty(source_id) ? "Default" : source_id));
+          }
+        }
+      }
     }
+
     if (!factory.supportsQuery(query, config)) {
       return MatchType.NONE;
     }
@@ -226,6 +232,7 @@ public class TimeRouterConfigEntry {
     return new Builder();
   }
   
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     @JsonProperty
     private String start;
@@ -263,7 +270,7 @@ public class TimeRouterConfigEntry {
       return this;
     }
     
-    public TimeRouterConfigEntry builder() {
+    public TimeRouterConfigEntry build() {
       return new TimeRouterConfigEntry(this);
     }
   }
