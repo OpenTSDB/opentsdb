@@ -79,7 +79,7 @@ public class TestTimeRouterConfigEntry {
     
     TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
-        .builder();
+        .build();
     assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
   }
   
@@ -102,7 +102,7 @@ public class TestTimeRouterConfigEntry {
     TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
         .setStart("1h-ago")
-        .builder();
+        .build();
     
     //PowerMockito.mockStatic(DateTime.class);
     // 2.5 hours ish
@@ -136,7 +136,7 @@ public class TestTimeRouterConfigEntry {
     entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
         .setEnd("1h-ago")
-        .builder();
+        .build();
     
     // full
     start.updateEpoch(0);
@@ -163,7 +163,7 @@ public class TestTimeRouterConfigEntry {
         .setSourceId("mock")
         .setStart("2h-ago")
         .setEnd("1h-ago")
-        .builder();
+        .build();
     
     // full
     start.updateEpoch(1800);
@@ -210,7 +210,7 @@ public class TestTimeRouterConfigEntry {
     TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
         .setStart("5400")
-        .builder();
+        .build();
     
     //PowerMockito.mockStatic(DateTime.class);
     // 2.5 hours ish
@@ -244,7 +244,7 @@ public class TestTimeRouterConfigEntry {
     entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
         .setEnd("5400")
-        .builder();
+        .build();
     
     // full
     start.updateEpoch(0);
@@ -271,7 +271,7 @@ public class TestTimeRouterConfigEntry {
         .setSourceId("mock")
         .setStart("1800")
         .setEnd("5400")
-        .builder();
+        .build();
     
     // full
     start.updateEpoch(1800);
@@ -319,7 +319,7 @@ public class TestTimeRouterConfigEntry {
         .setSourceId("mock")
         .setStart("5400")
         .setFullOnly(true)
-        .builder();
+        .build();
     
     //PowerMockito.mockStatic(DateTime.class);
     // 2.5 hours ish
@@ -354,7 +354,7 @@ public class TestTimeRouterConfigEntry {
         .setSourceId("mock")
         .setEnd("5400")
         .setFullOnly(true)
-        .builder();
+        .build();
     
     // full
     start.updateEpoch(0);
@@ -382,7 +382,7 @@ public class TestTimeRouterConfigEntry {
         .setStart("1800")
         .setEnd("5400")
         .setFullOnly(true)
-        .builder();
+        .build();
     
     // full
     start.updateEpoch(1800);
@@ -428,15 +428,18 @@ public class TestTimeRouterConfigEntry {
     
     TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
-        .builder();
+        .build();
     assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
     verify(tsdb.registry, times(1)).getPlugin(
-        TimeSeriesDataSourceFactory.class, "TimeSeriesDataSource");
+        TimeSeriesDataSourceFactory.class, "mock");
     
     when(factory.supportsQuery(any(TimeSeriesQuery.class), 
         any(TimeSeriesDataSourceConfig.class))).thenReturn(false);
     assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
     
+    entry = TimeRouterConfigEntry.newBuilder()
+        .setSourceId("mock")
+        .build();
     when(tsdb.registry.getPlugin(eq(TimeSeriesDataSourceFactory.class), 
         anyString())).thenReturn(null);
     try {

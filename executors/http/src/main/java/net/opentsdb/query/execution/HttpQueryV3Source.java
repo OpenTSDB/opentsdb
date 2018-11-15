@@ -119,6 +119,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     pushdowns.put(config.getId(), 
         ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
           .setPushDownNodes(Collections.emptyList())
+          .setSourceId(null) // TODO - we may want to make this configurable
           .build());
     for (final QueryNodeConfig pushdown : config.getPushDownNodes()) {
       pushdowns.put(pushdown.getId(), pushdown);

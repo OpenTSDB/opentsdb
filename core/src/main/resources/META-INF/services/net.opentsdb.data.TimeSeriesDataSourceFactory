@@ -1,3 +1,4 @@
 net.opentsdb.query.hacluster.HAClusterFactory
 net.opentsdb.storage.MockDataStoreFactory
 net.opentsdb.storage.schemas.tsdb1x.SchemaFactory
+net.opentsdb.query.router.TimeRouterFactory
