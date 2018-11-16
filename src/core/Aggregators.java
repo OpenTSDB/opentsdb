@@ -82,6 +82,9 @@ public final class Aggregators {
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
 
+  /** Aggregator that returns the square sum of the data point. */
+  public static final Aggregator SQUARESUM = new SquareSum(Interpolation.ZIM, "squareSum");
+
   /** Aggregator that returns the number of data points.
    * WARNING: This currently interpolates with zero-if-missing. In this case 
    * counts will be off when counting multiple time series. Only use this when
@@ -164,6 +167,7 @@ public final class Aggregators {
     aggregators.put("mimmax", MIMMAX);
     aggregators.put("first", FIRST);
     aggregators.put("last", LAST);
+    aggregators.put("squareSum", SQUARESUM)
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
@@ -231,6 +235,40 @@ public final class Aggregators {
       return (0L == n) ? Double.NaN : result;
     }
     
+  }
+
+  private static final class SquareSum extends Aggregator {
+    public SquareSum(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      long a = values.nextLongValue();
+      long result = a * a;
+      while (values.hasNextValue()) {
+        a = values.nextLongValue();
+        result += a * a;
+      }
+      return result;
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      double result = 0.;
+      long n = 0L;
+
+      while (values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result += val * val;
+          ++n;
+        }
+      }
+
+      return (0L == n) ? Double.NaN : result;
+    }
+
   }
 
   private static final class Min extends Aggregator {
