@@ -108,40 +108,57 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   @Override
   public boolean supportsQuery(final TimeSeriesQuery query, 
                                final TimeSeriesDataSourceConfig config) {
-    final HAClusterConfig cluster_config = (HAClusterConfig) config;
-    if (cluster_config.getHasBeenSetup()) {
-      return true;
-    }
-    
-    final List<String> sources;
-    if (cluster_config.getDataSources().isEmpty() && 
-        cluster_config.getDataSourceConfigs().isEmpty()) {
-      // sub in the defaults.
+    if (config instanceof HAClusterConfig) {
+      final HAClusterConfig cluster_config = (HAClusterConfig) config;
+      if (cluster_config.getHasBeenSetup()) {
+        return true;
+      }
+      
+      final List<String> sources;
+      if (cluster_config.getDataSources().isEmpty() && 
+          cluster_config.getDataSourceConfigs().isEmpty()) {
+        // sub in the defaults.
+        synchronized (default_sources) {
+          sources = Lists.newArrayList(default_sources);
+        }
+      } else {
+        sources = cluster_config.getDataSources();
+      }
+      
+      for (final String source : sources) {
+        final TimeSeriesDataSourceFactory factory = 
+            tsdb.getRegistry().getPlugin(
+                TimeSeriesDataSourceFactory.class, source);
+        if (factory != null && factory.supportsQuery(query, config)) {
+          return true;
+        }
+      }
+      
+      for (final TimeSeriesDataSourceConfig source : 
+        cluster_config.getDataSourceConfigs()) {
+        final TimeSeriesDataSourceFactory factory = 
+            tsdb.getRegistry().getPlugin(
+                TimeSeriesDataSourceFactory.class, source.getSourceId());
+        if (factory != null && factory.supportsQuery(query, config)) {
+          return true;
+        }
+      }
+    } else {
+      final List<String> sources;
       synchronized (default_sources) {
         sources = Lists.newArrayList(default_sources);
       }
-    } else {
-      sources = cluster_config.getDataSources();
-    }
-    
-    for (final String source : sources) {
-      final TimeSeriesDataSourceFactory factory = 
-          tsdb.getRegistry().getPlugin(
-              TimeSeriesDataSourceFactory.class, source);
-      if (factory != null && factory.supportsQuery(query, config)) {
-        return true;
+      
+      for (final String source : sources) {
+        final TimeSeriesDataSourceFactory factory = 
+            tsdb.getRegistry().getPlugin(
+                TimeSeriesDataSourceFactory.class, source);
+        if (factory != null && factory.supportsQuery(query, config)) {
+          return true;
+        }
       }
     }
     
-    for (final TimeSeriesDataSourceConfig source : 
-      cluster_config.getDataSourceConfigs()) {
-      final TimeSeriesDataSourceFactory factory = 
-          tsdb.getRegistry().getPlugin(
-              TimeSeriesDataSourceFactory.class, source.getSourceId());
-      if (factory != null && factory.supportsQuery(query, config)) {
-        return true;
-      }
-    }
     
     return false;
   }
@@ -150,35 +167,52 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   public void setupGraph(final TimeSeriesQuery query, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
-    final HAClusterConfig cluster_config = (HAClusterConfig) config;
-    if (cluster_config.getHasBeenSetup()) {
-      return;
-    }
-    
-    final String new_id = "ha_" + cluster_config.getId();
-    final HAClusterConfig.Builder builder = 
-        ((HAClusterConfig) config).toBuilder()
-        .setHasBeenSetup(true);
-    if (Strings.isNullOrEmpty(cluster_config.getMergeAggregator())) {
+    final HAClusterConfig.Builder builder;
+    if (config instanceof HAClusterConfig) {
+      final HAClusterConfig cluster_config = (HAClusterConfig) config;
+      if (cluster_config.getHasBeenSetup()) {
+        return;
+      }
+      builder = ((HAClusterConfig) config).toBuilder()
+          .setHasBeenSetup(true);
+      
+      if (Strings.isNullOrEmpty(cluster_config.getMergeAggregator())) {
+        builder.setMergeAggregator(tsdb.getConfig().getString(
+            getConfigKey(AGGREGATOR_KEY)));
+      }
+      if (Strings.isNullOrEmpty(cluster_config.getPrimaryTimeout())) {
+        builder.setPrimaryTimeout(tsdb.getConfig().getString(
+            getConfigKey(PRIMARY_KEY)));
+      }
+      if (Strings.isNullOrEmpty(cluster_config.getSecondaryTimeout())) {
+        builder.setSecondaryTimeout(tsdb.getConfig().getString(
+            getConfigKey(SECONDARY_KEY)));
+      }
+      
+      if (cluster_config.getDataSources().isEmpty() && 
+          cluster_config.getDataSourceConfigs().isEmpty()) {
+        // sub in the defaults.
+        synchronized (default_sources) {
+          builder.setDataSources(Lists.newArrayList(default_sources));
+        }
+      }
+    } else {
+      builder = HAClusterConfig.newBuilder();
+      HAClusterConfig.newBuilder((TimeSeriesDataSourceConfig) config,
+            builder);
       builder.setMergeAggregator(tsdb.getConfig().getString(
-          getConfigKey(AGGREGATOR_KEY)));
-    }
-    if (Strings.isNullOrEmpty(cluster_config.getPrimaryTimeout())) {
-      builder.setPrimaryTimeout(tsdb.getConfig().getString(
-          getConfigKey(PRIMARY_KEY)));
-    }
-    if (Strings.isNullOrEmpty(cluster_config.getSecondaryTimeout())) {
-      builder.setSecondaryTimeout(tsdb.getConfig().getString(
-          getConfigKey(SECONDARY_KEY)));
-    }
-    
-    if (cluster_config.getDataSources().isEmpty() && 
-        cluster_config.getDataSourceConfigs().isEmpty()) {
-      // sub in the defaults.
+               getConfigKey(AGGREGATOR_KEY)))
+             .setPrimaryTimeout(tsdb.getConfig().getString(
+               getConfigKey(PRIMARY_KEY)))
+             .setSecondaryTimeout(tsdb.getConfig().getString(
+                getConfigKey(SECONDARY_KEY)))
+             .setHasBeenSetup(true);
       synchronized (default_sources) {
         builder.setDataSources(Lists.newArrayList(default_sources));
       }
     }
+    
+    final String new_id = "ha_" + config.getId();
     
     // if there is only one source, drop the merger and ha config nodes
     if (builder.dataSources().size() + builder.dataSourceConfigs().size() == 1) {
@@ -190,7 +224,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             + builder.dataSources().get(0));
         }
         
-        HAClusterConfig rebuilt = (HAClusterConfig) cluster_config.toBuilder()
+        QueryNodeConfig rebuilt = builder
             .setSourceId(builder.dataSources().get(0))
             .setId(config.getId())
             .build();
@@ -204,8 +238,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             + "or empty for the config override: " 
             + builder.dataSourceConfigs().get(0));
       }
-      TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig) 
-          builder.dataSourceConfigs().get(0).toBuilder()
+      TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig)
+         builder.dataSourceConfigs().get(0).toBuilder()
             .setId(config.getId())
             .build();
       planner.replace(config, rebuilt);
@@ -216,33 +250,35 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         Lists.newArrayList();
     final Map<String, TimeSeriesDataSourceFactory> factories = Maps.newHashMap();
     
-    for (final TimeSeriesDataSourceConfig source : 
-        cluster_config.getDataSourceConfigs()) {
-      if (Strings.isNullOrEmpty(source.getSourceId())) {
-        throw new IllegalArgumentException("The sourceId cannot be null "
-            + "or empty for the config override: " + source);
-      }
-      // we have to fix the ID here to avoid dupes and collisions.
-      TimeSeriesDataSourceConfig.Builder rebuilt = 
-          (TimeSeriesDataSourceConfig.Builder) source.toBuilder()
-            .setId(new_id + "_" + source.getSourceId());
-      for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
-        if (extant.id().equals(rebuilt.id())) {
-          throw new IllegalArgumentException("Duplicate source IDs are "
-              + "not allowed: " + source);
+    if (config instanceof HAClusterConfig) {
+      for (final TimeSeriesDataSourceConfig source : 
+            ((HAClusterConfig) config).getDataSourceConfigs()) {
+        if (Strings.isNullOrEmpty(source.getSourceId())) {
+          throw new IllegalArgumentException("The sourceId cannot be null "
+              + "or empty for the config override: " + source);
         }
+        // we have to fix the ID here to avoid dupes and collisions.
+        TimeSeriesDataSourceConfig.Builder rebuilt = 
+            (TimeSeriesDataSourceConfig.Builder) source.toBuilder()
+              .setId(new_id + "_" + source.getSourceId());
+        for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
+          if (extant.id().equals(rebuilt.id())) {
+            throw new IllegalArgumentException("Duplicate source IDs are "
+                + "not allowed: " + source);
+          }
+        }
+        
+        final TimeSeriesDataSourceFactory factory = 
+            planner.context().tsdb().getRegistry().getPlugin(
+              TimeSeriesDataSourceFactory.class, 
+              source.getSourceId());
+        if (factory == null) {
+          throw new IllegalArgumentException("No data source found for: " 
+              + source.getSourceId());
+        }
+        factories.put(source.getSourceId(), factory);
+        new_sources.add(rebuilt);
       }
-      
-      final TimeSeriesDataSourceFactory factory = 
-          planner.context().tsdb().getRegistry().getPlugin(
-            TimeSeriesDataSourceFactory.class, 
-            source.getSourceId());
-      if (factory == null) {
-        throw new IllegalArgumentException("No data source found for: " 
-            + source.getSourceId());
-      }
-      factories.put(source.getSourceId(), factory);
-      new_sources.add(rebuilt);
     }
     
     for (final String source : builder.dataSources()) {
@@ -255,8 +291,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       }
       factories.put(source, factory);
       
-      HAClusterConfig.Builder rebuilt = (HAClusterConfig.Builder) 
-          cluster_config.toBuilder()
+      TimeSeriesDataSourceConfig.Builder rebuilt = 
+          (TimeSeriesDataSourceConfig.Builder)
+            ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
             .setSourceId(source)
             .setId(new_id + "_" + source);
       for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
@@ -297,7 +334,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       
       if (max_pushdowns > 0) {
         MergerConfig merger = (MergerConfig) MergerConfig.newBuilder()
-            .setAggregator(cluster_config.getMergeAggregator())
+            .setAggregator(builder.mergeAggregator())
             // TODO - may want to make this configurable.
             .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
               .setFillPolicy(FillPolicy.NONE)
@@ -305,7 +342,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
               .setDataType(NumericType.TYPE.toString())
               .build())
             .addSource(new_id)
-            .setId(cluster_config.getId())
+            .setId(builder.id())
             .build();
         planner.replace(config, merger);
         
@@ -386,16 +423,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
     // no push down, just replace
     MergerConfig merger = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator(
-            Strings.isNullOrEmpty(cluster_config.getMergeAggregator()) ? 
+            Strings.isNullOrEmpty(builder.mergeAggregator()) ? 
                 tsdb.getConfig().getString(getConfigKey(AGGREGATOR_KEY)) : 
-                cluster_config.getMergeAggregator())
+                builder.mergeAggregator())
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
           .setFillPolicy(FillPolicy.NONE)
           .setRealFillPolicy(FillWithRealPolicy.NONE)
           .setDataType(NumericType.TYPE.toString())
           .build())
         .addSource(new_id)
-        .setId(cluster_config.getId())
+        .setId(builder.id())
         .build();
     planner.replace(config, merger);
     

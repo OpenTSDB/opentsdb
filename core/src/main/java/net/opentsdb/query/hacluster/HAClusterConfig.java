@@ -299,6 +299,10 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       return sourceId;
     }
     
+    public String mergeAggregator() {
+      return mergeAggregator;
+    }
+    
     /** @return The instantiated ClusterConfig on success or exceptions on 
      * failure. */
     public HAClusterConfig build() {

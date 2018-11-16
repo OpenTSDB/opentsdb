@@ -397,6 +397,60 @@ public class TestHAClusterFactory {
   }
   
   @Test
+  public void setupGraphNoinHAConfig() throws Exception {
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.if.in")
+                .build())
+            .setId("m1")
+            .build())
+        .build();
+    
+    QueryContext ctx = mock(QueryContext.class);
+    when(ctx.stats()).thenReturn(mock(QueryStats.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(TSDB);
+    when(context.query()).thenReturn(query);
+    when(context.queryContext()).thenReturn(ctx);
+    when(context.downstreamSources(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(SRC_MOCK));
+    QueryNode ctx_node = mock(QueryNode.class);
+    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
+    planner.plan(null).join(250);
+    
+    assertEquals(5, planner.graph().nodes().size());
+    assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
+    QueryNode node = planner.nodeForId("ha_m1_s1");
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in", 
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    
+    node = planner.nodeForId("ha_m1_s2");
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in", 
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    
+    assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
+    assertTrue(planner.nodeForId("m1") instanceof Merger);
+    
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
+        planner.nodeForId("ha_m1_s1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
+        planner.nodeForId("ha_m1_s2")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
+        planner.nodeForId("ha_m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+        planner.nodeForId("m1")));
+  }
+  
+  @Test
   public void setupGraphOverride1DataSource1Config() throws Exception {
     // yeah this can cause trouble. maybe we don't want it?
     SemanticQuery query = SemanticQuery.newBuilder()

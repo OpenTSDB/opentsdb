@@ -147,7 +147,8 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
       return false;
     }
     
-    return id.equals(((BaseTimeSeriesDataSourceConfig) o).id);
+    return id.equals(((BaseTimeSeriesDataSourceConfig) o).id) &&
+           source_id.equals(((BaseTimeSeriesDataSourceConfig) o).source_id);
   }
   
   @Override
@@ -173,6 +174,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
     hashes.add(Const.HASH_FUNCTION().newHasher()
         .putString(id, Const.UTF8_CHARSET)
+        .putString(source_id == null ? "" : source_id, Const.UTF8_CHARSET)
         .hash());
     // TODO - implement in full
     return Hashing.combineOrdered(hashes);
