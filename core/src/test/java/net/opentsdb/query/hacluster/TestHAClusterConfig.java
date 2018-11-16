@@ -28,7 +28,9 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -267,4 +269,20 @@ public class TestHAClusterConfig {
 //    assertEquals(1, c1.compareTo(c2));
 //  }
   
+  @Test
+  public void newBuilderFromSource() throws Exception {
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("m1")
+        .build();
+    
+    HAClusterConfig ha = (HAClusterConfig) 
+        HAClusterConfig.newBuilder(config, HAClusterConfig.newBuilder())
+        .build();
+    assertEquals("system.cpu.user", ha.getMetric().getMetric());
+  }
 }
