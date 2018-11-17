@@ -20,7 +20,6 @@ import static org.junit.Assert.fail;
 
 import java.util.List;
 
-import net.opentsdb.utils.DateTime;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,10 +27,10 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.TimeSeriesQuery.LogLevel;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -87,6 +86,7 @@ public class TestSemanticQuery {
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
     assertEquals(1, query.getExecutionGraph().size());
     assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
+    assertEquals(LogLevel.ERROR, query.getLogLevel());
     
     try {
       SemanticQuery.newBuilder()
@@ -296,6 +296,7 @@ public class TestSemanticQuery {
         .setTimeZone("America/Denver")
         .addFilter(filter)
         .setExecutionGraph(graph)
+        .setLogLevel(LogLevel.DEBUG)
         .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
             .addFilter("ds")
             .setId("JsonV2QuerySerdes")
@@ -310,6 +311,7 @@ public class TestSemanticQuery {
     assertTrue(json.contains("\"filter\":\"web01\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"timezone\":\"America/Denver\""));
+    assertTrue(json.contains("\"logLevel\":\"DEBUG\""));
     assertTrue(json.contains("\"executionGraph\":["));
     assertTrue(json.contains("\"id\":\"m1\""));
     //assertTrue(json.contains("\"type\":\"" + DefaultTimeSeriesDataSourceConfig.TYPE + "\""));
@@ -343,6 +345,7 @@ public class TestSemanticQuery {
     assertEquals("web01", ((TagValueLiteralOrFilter) query.getFilters().get(0).getFilter()).getFilter());
     assertEquals(2, query.getExecutionGraph().size());
     assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
+    assertEquals(LogLevel.DEBUG, query.getLogLevel());
   }
   
   @Test

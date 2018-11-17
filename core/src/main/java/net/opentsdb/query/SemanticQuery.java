@@ -69,6 +69,9 @@ public class SemanticQuery implements TimeSeriesQuery {
   /** The serialization options. */
   private List<SerdesOptions> serdes_options;
   
+  /** The log level for this query. */
+  private LogLevel log_level;
+  
   SemanticQuery(final Builder builder) {
     if (Strings.isNullOrEmpty(builder.start) && Strings.isNullOrEmpty(builder.end)) {
       throw new IllegalArgumentException("Start time is required.");
@@ -142,6 +145,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     mode = builder.mode;
     serdes_options = builder.serdes_config == null ? 
         Collections.emptyList() : builder.serdes_config;
+    log_level = builder.log_level;
   }
 
   @Override
@@ -215,6 +219,11 @@ public class SemanticQuery implements TimeSeriesQuery {
         .hash();
   }
 
+  @Override
+  public LogLevel getLogLevel() {
+    return log_level;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -227,6 +236,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     private List<NamedFilter> filters;
     private QueryMode mode;
     private List<SerdesOptions> serdes_config;
+    private LogLevel log_level = LogLevel.ERROR;
     
     public Builder setStart(final String start) {
       this.start = start;
@@ -284,6 +294,11 @@ public class SemanticQuery implements TimeSeriesQuery {
         this.serdes_config = Lists.newArrayList();
       }
       this.serdes_config.add(serdes_config);
+      return this;
+    }
+    
+    public Builder setLogLevel(final LogLevel log_level) {
+      this.log_level = log_level;
       return this;
     }
     
@@ -407,6 +422,11 @@ public class SemanticQuery implements TimeSeriesQuery {
       }
     } else {
       builder.setMode(QueryMode.SINGLE);
+    }
+    
+    node = root.get("logLevel");
+    if (node != null && !node.isNull()) {
+      builder.setLogLevel(LogLevel.valueOf(node.asText().toUpperCase()));
     }
     
     node = root.get("serdesConfigs");

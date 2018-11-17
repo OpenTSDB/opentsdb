@@ -72,6 +72,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesQuery.LogLevel;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -592,7 +593,16 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         }
         
         if (LOG.isDebugEnabled()) {
-          LOG.debug("[" + MockDataStore.this.id + "@" + System.identityHashCode(MockDataStore.this) + "] DONE with filtering. " + pipeline + "  Results: " 
+          LOG.debug("[" + MockDataStore.this.id + "@" 
+              + System.identityHashCode(MockDataStore.this) 
+              + "] DONE with filtering. " + pipeline + "  Results: " 
+              + matched_series.size());
+        }
+        if (context.queryContext().query().getLogLevel().ordinal() >= 
+            LogLevel.DEBUG.ordinal()) {
+          context.queryContext().logDebug(pipeline, "[" + MockDataStore.this.id 
+              + "@" + System.identityHashCode(MockDataStore.this) 
+              + "] DONE with filtering. " + pipeline + "  Results: " 
               + matched_series.size());
         }
         if (pipeline.completed.get()) {
