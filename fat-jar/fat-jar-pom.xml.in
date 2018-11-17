@@ -285,7 +285,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${surefire-plugin.version}</version>
         <configuration>
-          <argLine>-Xmx2048m -XX:MaxPermSize=256m</argLine>
+          <argLine>-Xmx2048m -XX:MaxMetaspaceSize=256m</argLine>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
           <parallel>classes</parallel>
           <threadCount>2</threadCount>
