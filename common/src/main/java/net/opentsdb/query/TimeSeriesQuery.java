@@ -31,6 +31,16 @@ import net.opentsdb.query.serdes.SerdesOptions;
  */
 public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
 
+  /** A log level for the query. */
+  public static enum LogLevel {
+    OFF,
+    ERROR,
+    WARN,
+    INFO,
+    DEBUG,
+    TRACE
+  }
+  
   /** @return The overall start timestamp for the query. This is used to
    * filter the output. */
   public String getStart();
@@ -73,5 +83,8 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
   
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode();
+  
+  /** @return A non-null log level for the query. */
+  public LogLevel getLogLevel();
   
 }

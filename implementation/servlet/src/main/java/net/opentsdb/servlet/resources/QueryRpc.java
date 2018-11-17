@@ -56,12 +56,12 @@ import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.TSDBV2QueryContextBuilder;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TagVFilter;
@@ -307,7 +307,8 @@ final public class QueryRpc {
           .build();
     }
     
-    final QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(tsdb)
+    final QueryContext ctx = SemanticQueryContext.newBuilder()
+        .setTSDB(tsdb)
         .setQuery(q)
         .setMode(QueryMode.SINGLE)
         .setStats(DefaultQueryStats.newBuilder()

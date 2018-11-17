@@ -47,6 +47,7 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery.LogLevel;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
@@ -58,6 +59,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV3QuerySerdes.class);
   
+  /** The query context. */
+  private final QueryContext context;
 
   /** The options for this serialization. */
   private final SerdesOptions options;
@@ -88,6 +91,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     if (stream == null) {
       throw new IllegalArgumentException("Stream cannot be null.");
     }
+    this.context = context;
     this.options = options;
     try {
       json = JSON.getFactory().createGenerator(stream);
@@ -255,6 +259,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     try {
       // TODO - other bits like the query and trace data
       json.writeEndArray();
+      
+      if (context.query().getLogLevel() != LogLevel.OFF) {
+        json.writeArrayFieldStart("log");
+        for (final String log : context.logs()) {
+          json.writeString(log);
+        }
+        json.writeEndArray();
+      }
+      
       json.writeEndObject();
       json.flush();
     } catch (IOException e) {
