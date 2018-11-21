@@ -405,9 +405,13 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
       
       try {
-        /** Add additionnal tags from HTTP header */
-        if ( (query_tags != null) && (query_tags.size() > 0) ) {
-          dp.addTags(query_tags);
+        if (dp == null) {
+          if (show_details) {
+            details.add(this.getHttpDetails("Unexpected null datapoint encountered in set.", dp));
+          }
+          LOG.warn("Datapoint null was encountered in set.");
+          illegal_arguments.incrementAndGet();
+          continue;
         }
         
         if (!dp.validate(details)) {
