@@ -34,7 +34,7 @@ def get_metrics(args):
     use_sudo = args.get("use_sudo", False)
     sudo_user = args.get("sudo_user", "opentsdb")
     base = "{} fsck --config={}".format(tsd_path, cfg_path)
-    check_cmd = "{} uid --config={} metrics".format(tsd_path, cfg_path)
+    check_cmd = "{} uid --config={} grep metrics".format(tsd_path, cfg_path)
     if use_sudo:
         base = "sudo -u {} {}".format(sudo_user, base)
         check_cmd = "sudo -u {} {}".format(sudo_user, check_cmd)
@@ -134,7 +134,7 @@ def process_metric(metricobj):
     metric = metricobj["metric"]
     chunk_count = metricobj["chunk_count"]
     try:
-        check_output("{} {}".format(metricobj["check_cmd"], metric),
+        check_output("{} \"^{}$\"".format(metricobj["check_cmd"], metric),
                      shell=True)
     except Exception:
         log.warning("{} doesn't exist! Skipping...".format(metric))
