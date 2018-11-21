@@ -38,6 +38,8 @@ src-main
 src-test
 plugin_test.jar
 bin/
+*/*/dependency-reduced-pom.xml
+
 
 #Docker
 tools/docker/libs
