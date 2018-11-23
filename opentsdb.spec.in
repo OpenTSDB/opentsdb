@@ -92,6 +92,7 @@ if [ $1 -eq 1 ]; then
   ln -s %{_datarootdir}/opentsdb/etc/opentsdb /etc/opentsdb
   if [ -d /run/systemd/system ]; then
     ln -s %{_datarootdir}/opentsdb/etc/systemd/system/opentsdb@.service /lib/systemd/system
+    systemctl daemon-reload
   else
     ln -s %{_datarootdir}/opentsdb/etc/init.d/opentsdb /etc/init.d/opentsdb
   fi
@@ -104,5 +105,6 @@ if [ $1 -eq 0 ]; then
   [ -L /etc/opentsdb ] && rm -f /etc/opentsdb
   [ -L /etc/init.d/opentsdb ] && rm -f /etc/init.d/opentsdb
   [ -L /lib/systemd/system/opentsdb@.service ] && rm -f /lib/systemd/system/opentsdb@.service
+  [ -d /run/systemd/system ] && systemctl daemon-reload
 fi
 exit 0
