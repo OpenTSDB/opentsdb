@@ -29,7 +29,8 @@ nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
   src/mygnuplot.bat src/opentsdb.conf tools/opentsdb_restart.py src/logback.xml
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
-  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
+  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb \
+  build-aux/rpm/systemd/opentsdb@.service
 tsdb_SRC := \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
@@ -640,17 +641,23 @@ install-data-etc:
 	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
 	destdataconfdir="$$destdataetcdir/opentsdb" ; \
 	destdatainitdir="$$destdataetcdir/init.d" ; \
+	destdatasystemddir="$$destdataetcdir/systemd/system" ; \
 	echo " $(mkdir_p) $$destdataconfdir"; \
 	$(mkdir_p) "$$destdataconfdir" || exit 1; \
 	echo " $(mkdir_p) $$destdatainitdir"; \
 	$(mkdir_p) "$$destdatainitdir" || exit 1; \
+	echo " $(mkdir_p) $$destdatasystemddir"; \
+	$(mkdir_p) "$$destdatasystemddir" || exit 1; \
 	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
 	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/logback.xml" ; \
 	echo " $(INSTALL_SCRIPT)" $$conf_files "$$destdataconfdir" ; \
 	$(INSTALL_DATA) $$conf_files "$$destdataconfdir" || exit 1; \
 	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
 	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
-	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1;
+	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1; \
+	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb@.service" ; \
+	echo " $(INSTALL_SCRIPT)" $$systemd_file "$$destdatasystemddir" ; \
+	$(INSTALL_SCRIPT) $$systemd_file "$$destdatasystemddir" || exit 1;
 
 uninstall-data-etc:
 	@$(NORMAL_UNINSTALL)
