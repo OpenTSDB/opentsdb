@@ -143,7 +143,9 @@ def repair_metric_chunk(metricobj, chunk):
             if not _process_metric_chunk(metric, chunk, x, ccmd, timeout):
                 continue
         if chunk % 20 == 0:
-            log.debug("Chunk {} of {} finished".format(chunk, chunk_count))
+            log.info("{} -> Chunk {} of {} finished".format(metric,
+                                                            chunk,
+                                                            chunk_count))
         return None
     else:
         log.error("Failed to completely repair {}".format(metric))
@@ -196,7 +198,7 @@ def cli_opts():
                         help="Show debug information")
     parser.add_argument("--time-range", default="48",
                         help="How many hours of time we collect to repair")
-    parser.add_argument("--time-chunk", default="15",
+    parser.add_argument("--time-chunk", default="60",
                         help="How many minutes of data to scan per chunk")
     parser.add_argument("--retries", default="1",
                         help="How many times we should try failed metrics")
