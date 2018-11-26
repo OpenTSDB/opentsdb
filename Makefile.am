@@ -832,7 +832,7 @@ mostlyclean-local:
 	  && find $(package_dir) -depth -type d -exec rmdir {} ';' \
 	  && dir=$(package_dir) && dir=$${dir%/*} \
 	  && while test x"$$dir" != x"$${dir%/*}"; do \
-	       rmdir "$$dir" && dir=$${dir%/*} || break; \
+	       rm -rf "$$dir" && dir=$${dir%/*} || break; \
 	     done \
 	  && rmdir "$$dir"
 
