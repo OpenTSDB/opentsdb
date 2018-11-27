@@ -68,6 +68,7 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
     return tag_keys;
   }
   
+  @Override
   public boolean matches(final Map<String, String> tags) {
     int matches = 0;
     for (final String tag_key : tags.keySet()) {
@@ -80,6 +81,11 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
       return false;
     }
     return true;
+  }
+  
+  @Override
+  public boolean matches(final String tag_key) {
+    return tag_keys.contains(tag_key);
   }
   
   @Override

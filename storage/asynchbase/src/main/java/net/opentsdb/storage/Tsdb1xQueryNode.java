@@ -585,7 +585,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
       final List<byte[]> tsuids = Lists.newArrayListWithExpectedSize(
           result.timeSeries().size());
       final byte[] metric = ((TimeSeriesByteId) result.timeSeries()
-          .get(0)).metric();
+          .iterator().next()).metric();
       for (final TimeSeriesId raw_id : result.timeSeries()) {
         final TimeSeriesByteId id = (TimeSeriesByteId) raw_id;
         if (Bytes.memcmp(metric, id.metric()) != 0) {
@@ -628,7 +628,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
       }
     } else {
       final String metric = ((TimeSeriesStringId) 
-          result.timeSeries().get(0)).metric();
+          result.timeSeries().iterator().next()).metric();
       Set<String> dedupe_tagks = Sets.newHashSet();
       Set<String> dedupe_tagvs = Sets.newHashSet();
       // since it's quite possible that a result would share a number of 
