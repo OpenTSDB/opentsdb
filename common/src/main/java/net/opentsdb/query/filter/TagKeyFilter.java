@@ -33,4 +33,11 @@ public interface TagKeyFilter extends QueryFilter {
    */
   public boolean matches(final Map<String, String> tags);
   
+  /**
+   * Whether or not the filter is satisfied with the given key.
+   * @param tag_key A non-null and non-empty key.
+   * @return True if satisfied, false if not.
+   */
+  public boolean matches(final String tag_key);
+  
 }

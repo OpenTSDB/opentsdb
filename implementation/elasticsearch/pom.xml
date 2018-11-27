@@ -140,6 +140,7 @@
                           <exclude>META-INF/*.RSA</exclude>
                           <exclude>org.slf4j:*</exclude>  
                           <exclude>net.opentsdb:*</exclude>   
+                          <exclude>org.elasticsearch:org.elasticsearch.script.groovy*</exclude>
                         </excludes>
                   </filter>
                </filters>

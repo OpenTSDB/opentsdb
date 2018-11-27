@@ -25,9 +25,12 @@ import net.opentsdb.auth.Authentication;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.meta.DefaultMetaQuery;
 import net.opentsdb.meta.MetaDataStorageResult;
+import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaQuery;
+import net.opentsdb.meta.MetaQuery.QueryType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
@@ -36,6 +39,8 @@ import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,12 +56,10 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map;
 
-@Path("api/search")
+@Path("api/search/timeseries")
 public class MetaRpc {
     private static final Logger LOG = LoggerFactory.getLogger(MetaRpc.class);
-
-
-
+    
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -125,12 +128,8 @@ public class MetaRpc {
         } else {
             ObjectMapper mapper = JSON.getMapper();
             JsonNode node = mapper.readTree(request.getInputStream());
-            query= MetaQuery.parse(tsdb, mapper, node).build();
-
-           // query = JSON.parseToObject(request.getInputStream(), MetaQuery.class);
+            query = DefaultMetaQuery.parse(tsdb, mapper, node).build();
         }
-
-
 
         // TODO validate
         if (parse_span != null) {
@@ -138,6 +137,7 @@ public class MetaRpc {
                     .finish();
         }
 
+        // TODO - actual async
         final AsyncContext async = request.startAsync();
         async.setTimeout((Integer) servlet_config.getServletContext()
                 .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
@@ -156,20 +156,16 @@ public class MetaRpc {
                     .asChildOf(query_span)
                     .start();
         }
-
-//        class FutureCB implements Callback<MetaDataStorageResult, MetaDataStorageResult> {
-//
-//
-//          @Override
-//          public MetaDataStorageResult call(MetaDataStorageResult metaDataStorageResult) {
-//            return metaDataStorageResult;
-//          }
-//        }
-
-
+        
         try {
-          MetaDataStorageResult metaDataStorageResult = tsdb.getRegistry().getDefaultPlugin(MetaDataStorageSchema.class).runQuery(query, query_span)
+          final MetaDataStorageResult metaDataStorageResult = tsdb.getRegistry()
+              .getDefaultPlugin(
+                  MetaDataStorageSchema.class).runQuery(query, query_span)
                     .join();
+          
+          if (metaDataStorageResult.result() == MetaResult.EXCEPTION) {
+            throw metaDataStorageResult.exception();
+          }
 
           response.setContentType(MediaType.APPLICATION_JSON);
           ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -179,10 +175,18 @@ public class MetaRpc {
           JsonGenerator json = factory.createGenerator(stream);
 
           json.writeStartObject();
+          json.writeNumberField("totalHits", metaDataStorageResult.totalHits());
+          
+          json.writeFieldName("namespaces");
+          json.writeStartArray();
+          for (final String namespace : metaDataStorageResult.namespaces()) {
+            json.writeString(namespace);
+          }
+          json.writeEndArray();
+          
           json.writeFieldName("timeseries");
           json.writeStartArray();
           for (TimeSeriesId timeSeriesId : metaDataStorageResult.timeSeries()) {
-
             json.writeStartObject();
             BaseTimeSeriesStringId id = (BaseTimeSeriesStringId) timeSeriesId;
             json.writeStringField("metric", id.metric());
@@ -195,30 +199,62 @@ public class MetaRpc {
             json.writeEndObject();
           }
           json.writeEndArray();
-          json.writeFieldName("Metrics");
+          
+          json.writeFieldName("metrics");
           json.writeStartArray();
-          for (String metric : metaDataStorageResult.metrics()) {
-            json.writeString(metric);
-          }
-          json.writeEndArray();
-
-          json.writeFieldName("Tags");
-          json.writeStartArray();
-          for (Map.Entry<String, List<String>> tags : metaDataStorageResult.tags().entrySet()) {
-            json.writeString(tags.getKey());
-            if (tags.getValue()!=null) {
-              json.writeStartArray();
-              if (tags.getValue() != null)
-                for (String tagv : tags.getValue()) {
-                  json.writeString(tagv);
-                }
-              json.writeEndArray();
+          if (metaDataStorageResult.metrics() != null) {
+            for (final Pair<String, Long> metric : metaDataStorageResult.metrics()) {
+              json.writeStartObject();
+              json.writeNumberField(metric.getKey(), metric.getValue());
+              json.writeEndObject();
             }
           }
           json.writeEndArray();
 
+          json.writeObjectFieldStart("tagKeysAndValues");
+          if (metaDataStorageResult.tags() != null) {
+            for (final Map.Entry<Pair<String, Long>, List<Pair<String, Long>>> tags : 
+                metaDataStorageResult.tags().entrySet()) {
+              json.writeObjectFieldStart(tags.getKey().getKey());
+              json.writeNumberField("hits", tags.getKey().getValue());
+              json.writeArrayFieldStart("values");
+              if (tags.getValue() != null) {
+                for (final Pair<String, Long> tagv : tags.getValue()) {
+                  json.writeStartObject();
+                  json.writeNumberField(tagv.getKey(), tagv.getValue());
+                  json.writeEndObject();
+                }
+              }
+              json.writeEndArray();
+              json.writeEndObject();
+            }
+          }
           json.writeEndObject();
 
+          json.writeFieldName("tagKeys");
+          json.writeStartArray();
+          if (query.type() == QueryType.TAG_KEYS && 
+              metaDataStorageResult.tagKeysOrValues() != null) {
+            for (final Pair<String, Long> key_or_value : metaDataStorageResult.tagKeysOrValues()) {
+              json.writeStartObject();
+              json.writeNumberField(key_or_value.getKey(), key_or_value.getValue());
+              json.writeEndObject();
+            }
+          }
+          json.writeEndArray();
+          
+          json.writeFieldName("tagValues");
+          json.writeStartArray();
+          if (query.type() == QueryType.TAG_VALUES && 
+              metaDataStorageResult.tagKeysOrValues() != null) {
+            for (final Pair<String, Long> key_or_value : metaDataStorageResult.tagKeysOrValues()) {
+              json.writeStartObject();
+              json.writeNumberField(key_or_value.getKey(), key_or_value.getValue());
+              json.writeEndObject();
+            }
+          }
+          json.writeEndArray();
+          json.writeEndObject();
 
           json.close();
           final byte[] data = stream.toByteArray();

@@ -22,107 +22,115 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
 
 /**
- * Regular expression filter to search for in any field for meta.
- *
+ * Regular expression filter over tag keys.
+ * 
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
-@JsonDeserialize(builder = AnyFieldRegexFilter.Builder.class)
-public class AnyFieldRegexFilter implements QueryFilter {
+@JsonDeserialize(builder = TagKeyRegexFilter.Builder.class)
+public class TagKeyRegexFilter implements TagKeyFilter {
 
-  /** The filter. */
-  private final String filter;
+  /** The compiled pattern */
+  final Pattern pattern;
   
-  /**
-   * The compiled pattern
-   */
-  private final Pattern pattern;
-
+  /** Whether or not the regex would match-all. */
+  final boolean matches_all;
+  
   /**
    * Protected ctor.
-   *
    * @param builder The non-null builder.
    */
-  protected AnyFieldRegexFilter(final Builder builder) {
-    filter = builder.filter;
-    if (Strings.isNullOrEmpty(filter)) {
-      throw new IllegalArgumentException("Filter cannot be null or empty.");
+  protected TagKeyRegexFilter(final Builder builder) {
+    final String regexp = builder.filter.trim();
+    pattern = Pattern.compile(regexp);
+    
+    if (regexp.equals(".*") || 
+        regexp.equals("^.*") || 
+        regexp.equals(".*$") || 
+        regexp.equals("^.*$")) {
+      // yeah there are many more permutations but these are the most likely
+      // to be encountered in the wild.
+      matches_all = true;
+    } else {
+      matches_all = false;
     }
-    pattern = Pattern.compile(builder.filter.trim());
   }
 
-  /** @return The original filter string. */
-  public String getFilter() {
-    return filter;
+  @Override
+  public String filter() {
+    return pattern.toString();
   }
   
-  public boolean matches(final String value) {
-    return pattern.matcher(value).find();
-  }
-  
+  @Override
   public boolean matches(final Map<String, String> tags) {
+    if (matches_all) {
+      return true;
+    }
     for (final String key : tags.keySet()) {
       if (pattern.matcher(key).find()) {
         return true;
       }
     }
-    for (final String value : tags.values()) {
-      if (pattern.matcher(value).find()) {
-        return true;
-      }
-    }
     return false;
+  }
+  
+  @Override
+  public boolean matches(final String tag_key) {
+    if (matches_all) {
+      return true;
+    }
+    return pattern.matcher(tag_key).find();
   }
 
   @Override
   public String getType() {
-    return AnyFieldRegexFactory.TYPE;
+    return TagValueRegexFactory.TYPE;
+  }
+  
+  /** Whether or not the regex would match all strings. */
+  public boolean matchesAll() {
+    return matches_all;
   }
   
   @Override
   public String toString() {
     return new StringBuilder()
-            .append("{type=")
-            .append(getClass().getSimpleName())
-            .append(", filter=")
-            .append(pattern.toString())
-            .toString();
+        .append("{type=")
+        .append(getClass().getSimpleName())
+        .append(", filter=")
+        .append(pattern.toString())
+        .append(", matchesAll=")
+        .append(matches_all)
+        .append("}")
+        .toString();
   }
-
+  
   @Override
   public Deferred<Void> initialize(final Span span) {
     return INITIALIZED;
-  }
-
-  /** @return The compiled pattern. */
-  public Pattern pattern() {
-    return pattern;
   }
   
   public static Builder newBuilder() {
     return new Builder();
   }
-
+  
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
-
     @JsonProperty
     private String filter;
-
-
+    
     public Builder setFilter(final String filter) {
       this.filter = filter;
       return this;
     }
-
-    public AnyFieldRegexFilter build() {
-      return new AnyFieldRegexFilter(this);
+    
+    public TagKeyRegexFilter build() {
+      return new TagKeyRegexFilter(this);
     }
   }
 

@@ -15,7 +15,6 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -41,7 +40,6 @@ public class TestAnyFieldRegexFilter {
     JsonNode node = JSON.getMapper().readTree(json);
     AnyFieldRegexFilter filter = (AnyFieldRegexFilter)
             factory.parse(tsdb, JSON.getMapper(), node);
-    assertEquals(".*", filter.getTagKey());
     assertEquals("web.*", filter.getFilter());
 
     try {
@@ -56,14 +54,6 @@ public class TestAnyFieldRegexFilter {
       factory.parse(tsdb, JSON.getMapper(), node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-
-//    // no tag key
-//    json = "{\"filter\":\"web01|web02\"}";
-//    node = JSON.getMapper().readTree(json);
-//    try {
-//      factory.parse(tsdb, JSON.getMapper(), node);
-//      fail("Expected IllegalArgumentException");
-//    } catch (IllegalArgumentException e) { }
   }
 
   @Test
@@ -80,35 +70,30 @@ public class TestAnyFieldRegexFilter {
     filter = AnyFieldRegexFilter.newBuilder()
             .setFilter("ogg-01.ops.ankh.*")
             .build();
-    assertEquals(".*", filter.getTagKey());
     assertEquals("ogg-01.ops.ankh.*", filter.getFilter());
     assertTrue(filter.matches(tags));
 
     filter = AnyFieldRegexFilter.newBuilder()
             .setFilter(".*")
             .build();
-    assertEquals(".*", filter.getTagKey());
     assertEquals(".*", filter.getFilter());
     assertTrue(filter.matches(tags));
 
     filter = AnyFieldRegexFilter.newBuilder()
             .setFilter("^.*")
             .build();
-    assertEquals(".*", filter.getTagKey());
     assertEquals("^.*", filter.getFilter());
     assertTrue(filter.matches(tags));
 
     filter = AnyFieldRegexFilter.newBuilder()
             .setFilter(".*$")
             .build();
-    assertEquals(".*", filter.getTagKey());
     assertEquals(".*$", filter.getFilter());
     assertTrue(filter.matches(tags));
 
     filter = AnyFieldRegexFilter.newBuilder()
             .setFilter("^.*$")
             .build();
-    assertEquals(".*", filter.getTagKey());
     assertEquals("^.*$", filter.getFilter());
     assertTrue(filter.matches(tags));
 
@@ -116,11 +101,8 @@ public class TestAnyFieldRegexFilter {
     filter = AnyFieldRegexFilter.newBuilder()
             .setFilter(" ogg-01.ops.ankh.* ")
             .build();
-    assertEquals(".*", filter.getTagKey());
     assertEquals(" ogg-01.ops.ankh.* ", filter.getFilter());
     assertTrue(filter.matches(tags));
-
-
 
     try {
       AnyFieldRegexFilter.newBuilder()
@@ -128,8 +110,7 @@ public class TestAnyFieldRegexFilter {
               .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-
-
+    
     // bad pattern
     try {
       AnyFieldRegexFilter.newBuilder()
@@ -147,7 +128,6 @@ public class TestAnyFieldRegexFilter {
 
     final String json = JSON.serializeToString(filter);
     assertTrue(json.contains("\"filter\":\"ogg-01.ops.ankh.*\""));
-    assertTrue(json.contains("\"tagKey\":\".*"));
     assertTrue(json.contains("\"type\":\"AnyFieldRegex"));
   }
 

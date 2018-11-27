@@ -14,12 +14,14 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.utils.Pair;
 
 /**
  * The result from a meta data store query.
@@ -35,15 +37,21 @@ public interface MetaDataStorageResult {
     EXCEPTION
   }
   
+  public long totalHits();
+  
   public MetaResult result();
   
   public Throwable exception();
   
-  public List<TimeSeriesId> timeSeries();
+  public Collection<String> namespaces();
+  
+  public Collection<TimeSeriesId> timeSeries();
   
   public TypeToken<? extends TimeSeriesId> idType();
 
-  public List<String> metrics();
+  public Collection<Pair<String, Long>> metrics();
 
-  public Map<String, List<String>> tags();
+  public Map<Pair<String, Long>, List<Pair<String, Long>>> tags();
+  
+  public Collection<Pair<String, Long>> tagKeysOrValues();
 }
