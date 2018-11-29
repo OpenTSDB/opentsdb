@@ -60,11 +60,11 @@ public class OpenTSDBApplication extends ResourceConfig {
       }
       
       final int asyncTimeout;
-      if (tsdb.getConfig().hasProperty("tsd.http.async.timeout")) {
-        asyncTimeout = tsdb.getConfig().getInt("tsd.http.async.timeout");
-      } else {
-        asyncTimeout = DEFAULT_ASYNC_TIMEOUT;
+      if (!tsdb.getConfig().hasProperty("tsd.http.async.timeout")) {
+        tsdb.getConfig().register("tsd.http.async.timeout", DEFAULT_ASYNC_TIMEOUT, 
+            false, "A timeout in milliseconds for asynchronous operations.");
       }
+      asyncTimeout = tsdb.getConfig().getInt("tsd.http.async.timeout");
       servletConfig.getServletContext().setAttribute(ASYNC_TIMEOUT_ATTRIBUTE, 
           asyncTimeout);
 
