@@ -88,7 +88,7 @@ public class QueryExecutionExceptionMapper implements
     final Map<String, Object> response = Maps.newTreeMap();
     response.put("code", e.getStatusCode());
     response.put("message", e.getMessage());
-    if (show_trace) {
+    if (show_trace && e.getCause() != null) {
       response.put("trace", 
           Throwables.getStackTraceAsString(e.getCause()));  
     }
@@ -108,7 +108,7 @@ public class QueryExecutionExceptionMapper implements
           sub_exception.put("code", t instanceof QueryExecutionException ?
               ((QueryExecutionException) t).getStatusCode() : 0);
           sub_exception.put("message", t.getMessage());
-          if (show_trace) {
+          if (show_trace && e.getCause() != null) {
             sub_exception.put("trace", 
                 Throwables.getStackTraceAsString(e.getCause()));  
           }
