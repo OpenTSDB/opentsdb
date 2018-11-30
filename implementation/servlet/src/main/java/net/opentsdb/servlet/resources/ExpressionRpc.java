@@ -25,7 +25,6 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -202,12 +201,14 @@ public class ExpressionRpc {
                   .finish();
     }
     
-    Span setup_span = null;
+    final Span setup_span;
     if (query_span != null) {
       setup_span = trace.newSpanWithThread("setupContext")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
+    } else {
+      setup_span = null;
     }
     
     // start the Async context and pass it around. 
@@ -257,9 +258,17 @@ public class ExpressionRpc {
         } catch (Exception e) {
           LOG.error("Failed to close the query: ", e);
         }
+        
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getSuppliedResponse());
+            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
+        event.getAsyncContext().complete();
+        
+        try {
+          context.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override
@@ -275,43 +284,46 @@ public class ExpressionRpc {
     }
 
     async.addListener(new AsyncTimeout());
-    
-    if (setup_span != null) {
-      setup_span.setTag("Status", "OK")
-                .setTag("finalThread", Thread.currentThread().getName())
-                .finish();
-    }
-    
-    Span execute_span = null;
-    if (query_span != null) {
-      execute_span = trace.newSpanWithThread("startExecution")
-          .withTag("startThread", Thread.currentThread().getName())
-          .asChildOf(query_span)
-          .start();
-    }
-    
-    try {
-      context.initialize(query_span).join();
-      context.fetchNext(query_span);
-    } catch (Throwable t) {
-      LOG.error("Unexpected exception triggering query.", t);
-      if (execute_span != null) {
-        execute_span.setErrorTags(t)
+    async.start(new Runnable() {
+      public void run() {
+        if (setup_span != null) {
+          setup_span.setTag("Status", "OK")
+                    .setTag("finalThread", Thread.currentThread().getName())
                     .finish();
+        }
+        
+        Span execute_span = null;
+        if (query_span != null) {
+          execute_span = trace.newSpanWithThread("startExecution")
+              .withTag("startThread", Thread.currentThread().getName())
+              .asChildOf(query_span)
+              .start();
+        }
+        
+        try {
+          context.initialize(query_span).join();
+          context.fetchNext(query_span);
+        } catch (Throwable t) {
+          LOG.error("Unexpected exception triggering query.", t);
+          if (execute_span != null) {
+            execute_span.setErrorTags(t)
+                        .finish();
+          }
+          //GenericExceptionMapper.serialize(t, response);
+          async.complete();
+          if (query_span != null) {
+            query_span.setErrorTags(t)
+                       .finish();
+          }
+          throw new QueryExecutionException("Unexpected expection", 500, t);
+        }
+        
+        if (execute_span != null) {
+          execute_span.setSuccessTags()
+                      .finish();
+        }
       }
-      //GenericExceptionMapper.serialize(t, response);
-      async.complete();
-      if (query_span != null) {
-        query_span.setErrorTags(t)
-                   .finish();
-      }
-      throw t;
-    }
-    
-    if (execute_span != null) {
-      execute_span.setSuccessTags()
-                  .finish();
-    }
+    });
     return null;
   }
   
