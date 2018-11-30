@@ -82,5 +82,11 @@ public enum QueryMode {
    * results are sent immediately upstream regardless of the previous query 
    * result's closed state.
    */
-  CONTINOUS_SERVER_ASYNC_STREAM
+  CONTINOUS_SERVER_ASYNC_STREAM,
+  
+  /**
+   * Simple validates the query without actually executing it. This can include
+   * generating a query plan and making sure metrics and tags exist.
+   */
+  VALIDATE
 }

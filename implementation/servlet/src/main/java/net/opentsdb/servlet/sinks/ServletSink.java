@@ -26,6 +26,7 @@ import com.stumbleupon.async.Callback;
 
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.serdes.SerdesFactory;
@@ -89,6 +90,10 @@ public class ServletSink implements QuerySink {
   
   @Override
   public void onComplete() {
+    if (context.query().getMode() == QueryMode.VALIDATE) {
+      // no-op
+      return;
+    }
     try {
       serdes.serializeComplete(null);
       config.request().setAttribute("DATA", stream);
