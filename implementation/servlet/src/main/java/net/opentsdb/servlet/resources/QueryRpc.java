@@ -280,10 +280,12 @@ final public class QueryRpc {
         .put("query", ts_query)
         .build()));
     
-    Span setup_span = null;
+    final Span setup_span;
     if (query_span != null) {
       setup_span = query_span.newChild("setupContext")
           .start();
+    } else {
+      setup_span = null;
     }
     
     // start the Async context and pass it around. 
@@ -339,9 +341,17 @@ final public class QueryRpc {
         } catch (Exception e) {
           LOG.error("Failed to close the query: ", e);
         }
+        
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getSuppliedResponse());
+            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
+        event.getAsyncContext().complete();
+        
+        try {
+          ctx.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override
@@ -357,41 +367,44 @@ final public class QueryRpc {
     }
 
     async.addListener(new AsyncTimeout());
-    
-    Span execute_span = null;
-    try {
-      ctx.initialize(query_span).join();
-      if (setup_span != null) {
-        setup_span.setSuccessTags()
-                  .finish();
+    async.start(new Runnable() {
+      public void run() {
+        Span execute_span = null;
+        try {
+          ctx.initialize(query_span).join();
+          if (setup_span != null) {
+            setup_span.setSuccessTags()
+                      .finish();
+          }
+          
+          if (query_span != null) {
+            execute_span = trace.newSpanWithThread("startExecution")
+                .withTag("startThread", Thread.currentThread().getName())
+                .asChildOf(query_span)
+                .start();
+          }
+          ctx.fetchNext(query_span);
+        } catch (Throwable t) {
+          LOG.error("Unexpected exception adding callbacks to deferred.", t);
+          //GenericExceptionMapper.serialize(t, response);
+          if (execute_span != null) {
+            execute_span.setErrorTags(t)
+                        .finish();
+          }
+          async.complete();
+          if (query_span != null) {
+            query_span.setErrorTags(t)
+                       .finish();
+          }
+          throw new QueryExecutionException("Unexpected expection", 500, t);
+        }
+        
+        if (execute_span != null) {
+          execute_span.setSuccessTags()
+                      .finish();
+        }
       }
-      
-      if (query_span != null) {
-        execute_span = trace.newSpanWithThread("startExecution")
-            .withTag("startThread", Thread.currentThread().getName())
-            .asChildOf(query_span)
-            .start();
-      }
-      ctx.fetchNext(query_span);
-    } catch (Throwable t) {
-      LOG.error("Unexpected exception adding callbacks to deferred.", t);
-      //GenericExceptionMapper.serialize(t, response);
-      if (execute_span != null) {
-        execute_span.setErrorTags(t)
-                    .finish();
-      }
-      async.complete();
-      if (query_span != null) {
-        query_span.setErrorTags(t)
-                   .finish();
-      }
-      throw t;
-    }
-    
-    if (execute_span != null) {
-      execute_span.setSuccessTags()
-                  .finish();
-    }
+    });
     return null;
   }
   

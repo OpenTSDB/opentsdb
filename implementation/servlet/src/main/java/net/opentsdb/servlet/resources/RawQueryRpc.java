@@ -218,9 +218,17 @@ public class RawQueryRpc {
         } catch (Exception e) {
           LOG.error("Failed to close the query: ", e);
         }
+        
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getSuppliedResponse());
+            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
+        event.getAsyncContext().complete();
+        
+        try {
+          context.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override
@@ -236,26 +244,24 @@ public class RawQueryRpc {
     }
 
     async.addListener(new AsyncTimeout());
+    async.start(new Runnable() {
+      public void run() {
+        try {
+          context.initialize(query_span).join();
+          context.fetchNext(query_span);
+        } catch (Throwable t) {
+          LOG.error("Unexpected exception triggering query.", t);
+          GenericExceptionMapper.serialize(t, async.getResponse());
     
-    try {
-      context.initialize(query_span).join();
-      context.fetchNext(query_span);
-    } catch (Throwable t) {
-      LOG.error("Unexpected exception triggering query.", t);
-//      if (execute_span != null) {
-//        execute_span.setErrorTags(e)
-//                    .finish();
-//      }
-      //GenericExceptionMapper.serialize(t, response);
-
-      async.complete();
-      if (query_span != null) {
-        query_span.setErrorTags(t)
-                   .finish();
+          async.complete();
+          if (query_span != null) {
+            query_span.setErrorTags(t)
+                       .finish();
+          }
+          throw new QueryExecutionException("Unexpected expection", 500, t);
+        }
       }
-      throw t;
-    }
-    
+    });
     return null;
   }
   
