@@ -22,6 +22,7 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -42,6 +43,7 @@ import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
@@ -248,6 +250,18 @@ public class RawQueryRpc {
       public void run() {
         try {
           context.initialize(query_span).join();
+          
+          if (query.getMode() == QueryMode.VALIDATE) {
+            async.getResponse().setContentType("application/json");
+            // TODO - here it would be better to write the query plan.
+            async.getResponse().getWriter().write("{\"status\":\"OK\"}");
+            ((HttpServletResponse) async.getResponse()).setStatus(200);
+            async.complete();
+            if (query_span != null) {
+              query_span.setSuccessTags().finish();
+            }
+            return;
+          }
           context.fetchNext(query_span);
         } catch (Throwable t) {
           LOG.error("Unexpected exception triggering query.", t);
