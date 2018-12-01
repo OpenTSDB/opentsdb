@@ -17,6 +17,7 @@ package net.opentsdb.query.processor.downsample;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -201,6 +202,59 @@ public class TestDownsampleConfig {
   }
 
   @Test
+  public void autoInterval() throws Exception {
+    DownsampleFactory factory = new DownsampleFactory();
+    MockTSDB tsdb = new MockTSDB();
+    factory.initialize(tsdb, null).join(250);
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("auto")
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .setIntervals(factory.intervals())
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .addSource("m1")
+        .build();
+    assertEquals("1m", config.getInterval());
+    
+    // delta to small for auto
+    try {
+      DownsampleConfig.newBuilder()
+          .setAggregator("sum")
+          .setId("foo")
+          .setInterval("auto")
+          .setStart("1514843302")
+          .setEnd("1514843303")
+          .setIntervals(factory.intervals())
+          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(summary_config)
+          .addSource("m1")
+          .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // not configured
+    factory = new DownsampleFactory();
+    try {
+      DownsampleConfig.newBuilder()
+          .setAggregator("sum")
+          .setId("foo")
+          .setInterval("auto")
+          .setStart("1514843302")
+          .setEnd("1514846902")
+          .setIntervals(factory.intervals())
+          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(summary_config)
+          .addSource("m1")
+          .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+  }
+  
+  @Test
   public void serdes() throws Exception {
     DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
@@ -232,7 +286,8 @@ public class TestDownsampleConfig {
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     
     JsonNode node = JSON.getMapper().readTree(json);
-    config = DownsampleConfig.parse(JSON.getMapper(), tsdb, node);
+    DownsampleFactory factory = new DownsampleFactory();
+    config = (DownsampleConfig) factory.parseConfig(JSON.getMapper(), tsdb, node);
     
     assertEquals("sum", config.getAggregator());
     assertEquals("foo", config.getId());
@@ -259,6 +314,7 @@ public class TestDownsampleConfig {
     assertEquals(FillWithRealPolicy.NEXT_ONLY, 
         ((NumericSummaryInterpolatorConfig) config.interpolatorConfig(NumericSummaryType.TYPE))
           .getDefaultRealFillPolicy());
+    assertSame(factory.intervals(), config.autoIntervals());
   }
 
   @Test

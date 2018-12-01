@@ -23,25 +23,20 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Pair;
 
 /**
  * A configuration implementation for Downsampling processors.
@@ -100,6 +95,9 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   /** The computed end time for downsampling (Last value) */
   private final TimeStamp end_time;
   
+  /** A reference to the auto downsample interval config. */
+  private final List<Pair<Long, String>> intervals;
+  
   /** The cached intervals. */
   private int cached_intervals = -1;
   
@@ -120,18 +118,57 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       throw new IllegalArgumentException("At least one interpolator "
           + "config must be present.");
     }
-    interval = builder.interval;
+    
+    intervals = builder.intervals;
     timezone = builder.timezone != null ? ZoneId.of(builder.timezone) : Const.UTC;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
     run_all = builder.run_all;
     fill = builder.fill;
     
-    if (!run_all) {
-      interval_part = DateTime.getDurationInterval(interval);
-      units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
-      duration = DateTime.parseDuration2(interval);
+    if (!Strings.isNullOrEmpty(builder.start)) {
+      start_time = new MillisecondTimeStamp(
+          DateTime.parseDateTimeString(builder.start, builder.timezone));
     } else {
+      start_time = null;
+    }
+    if (!Strings.isNullOrEmpty(builder.end)) {
+      end_time = new MillisecondTimeStamp(
+          DateTime.parseDateTimeString(builder.end, builder.timezone));
+    } else {
+      end_time = new MillisecondTimeStamp(DateTime.currentTimeMillis());
+    }
+    
+    if (!run_all) {
+      // try for auto.
+      if (builder.interval.equalsIgnoreCase("auto")) {
+        if (start_time != null && end_time != null) {
+          if (intervals == null) {
+            throw new IllegalArgumentException("Auto downsampling is not "
+                + "configured or enabled.");
+          }
+          // TODO - handle smaller scales
+          final long delta = end_time.msEpoch() - start_time.msEpoch();
+          interval = DownsampleFactory.getAutoInterval(delta, intervals);
+        } else {
+          // we've just be parsed, not setup, so set back to auto.
+          interval = "auto";
+        }
+      } else {
+        interval = builder.interval;
+      }
+      
+      if (interval.equalsIgnoreCase("auto")) {
+        interval_part = DateTime.getDurationInterval("1m");
+        units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits("1m"));
+        duration = DateTime.parseDuration2("1m");
+      } else {
+        interval_part = DateTime.getDurationInterval(interval);
+        units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
+        duration = DateTime.parseDuration2(interval);
+      }
+    } else {
+      interval = "0all";
       interval_part = 0;
       units = null;
       duration = null;
@@ -139,8 +176,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     
     start = builder.start;
     if (!Strings.isNullOrEmpty(builder.start)) {
-      start_time = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(builder.start, builder.timezone));
       if (!run_all) {
         final TimeStamp original = start_time.getCopy();
         start_time.snapToPreviousInterval(interval_part, units);
@@ -148,20 +183,15 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
           start_time.add(duration);
         }
       }
-    } else {
-      start_time = null;
     }
     
     end = builder.end;
     if (!Strings.isNullOrEmpty(builder.end)) {
-      end_time = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(builder.end, builder.timezone));
       if (!run_all) {
         end_time.snapToPreviousInterval(interval_part, units);
       }
       // TODO - fall to next interval?
     } else {
-      end_time = new MillisecondTimeStamp(DateTime.currentTimeMillis());
       if (!run_all) {
         end_time.snapToPreviousInterval(interval_part, units);
       }
@@ -172,7 +202,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     if (start_time != null && end_time.msEpoch() - start_time.msEpoch() < 
         DateTime.parseDuration(interval)) {
       throw new IllegalArgumentException("The start and stop times of "
-          + "the query must be greater than the interval provided.");
+          + "the query must be greater than the interval provided: " + interval);
     }
   }
   
@@ -279,6 +309,15 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     return cached_intervals;
   }
   
+  /**
+   * Returns the auto intervals for this factory.
+   * <b>WARNING:</b> Do NOT modify the list or entries.
+   * @return The non-null intervals list.
+   */
+  public List<Pair<Long, String>> autoIntervals() {
+    return intervals;
+  }
+  
   @Override
   public Builder toBuilder() {
     return (Builder) new Builder()
@@ -353,6 +392,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         .setInfectiousNan(config.infectious_nan)
         .setInterval(config.interval)
         .setTimeZone(config.timezone.toString())
+        .setIntervals(config.intervals)
         .setInterpolatorConfigs(Lists.newArrayList(
             config.interpolator_configs.values()))
         .setSources(Lists.newArrayList(config.getSources()))
@@ -377,6 +417,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     private String start;
     @JsonProperty
     private String end;
+    private List<Pair<Long, String>> intervals;
     
     Builder() {
       setType(DownsampleFactory.TYPE);
@@ -456,6 +497,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       return this;
     }
     
+    public Builder setIntervals(final List<Pair<Long, String>> intervals) {
+      this.intervals = intervals;
+      return this;
+    }
+    
     /** @return The constructed config.
      * @throws IllegalArgumentException if a required parameter is missing or
      * invalid. */
@@ -464,84 +510,4 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     }
   }
   
-  public static DownsampleConfig parse(final ObjectMapper mapper,
-                                       final TSDB tsdb, 
-                                       final JsonNode node) {
-    Builder builder = new Builder();
-    JsonNode n = node.get("interval");
-    if (n != null) {
-      builder.setInterval(n.asText());
-    }
-    
-    n = node.get("id");
-    if (n != null) {
-      builder.setId(n.asText());
-    }
-    
-    n = node.get("timezone");
-    if (n != null) {
-      builder.setTimeZone(n.asText());
-    }
-    
-    n = node.get("aggregator");
-    if (n != null) {
-      builder.setAggregator(n.asText());
-    }
-    
-    n = node.get("infectiousNan");
-    if (n != null) {
-      builder.setInfectiousNan(n.asBoolean());
-    }
-    
-    n = node.get("runAll");
-    if (n != null) {
-      builder.setRunAll(n.asBoolean());
-    }
-    
-    n = node.get("fill");
-    if (n != null) {
-      builder.setFill(n.asBoolean());
-    }
-    
-    n = node.get("start");
-    if (n != null) {
-      builder.setStart(n.asText());
-    }
-    
-    n = node.get("end");
-    if (n != null) {
-      builder.setEnd(n.asText());
-    }
-    
-    n = node.get("interpolatorConfigs");
-    for (final JsonNode config : n) {
-      JsonNode type_json = config.get("type");
-      final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
-          QueryInterpolatorFactory.class, 
-          type_json == null || type_json.isNull() ? 
-             null : type_json.asText());
-      if (factory == null) {
-        throw new IllegalArgumentException("Unable to find an "
-            + "interpolator factory for: " + 
-            (type_json == null || type_json.isNull() ? "Default" :
-             type_json.asText()));
-      }
-      
-      final QueryInterpolatorConfig interpolator_config = 
-          factory.parseConfig(mapper, tsdb, config);
-      builder.addInterpolatorConfig(interpolator_config);
-    }
-    
-    n = node.get("sources");
-    if (n != null && !n.isNull()) {
-      try {
-        builder.setSources(mapper.treeToValue(n, List.class));
-      } catch (JsonProcessingException e) {
-        throw new IllegalArgumentException("Failed to parse json", e);
-      }
-    }
-    
-    return (DownsampleConfig) builder.build();
-  }
-
 }

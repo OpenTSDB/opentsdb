@@ -37,6 +37,7 @@ import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 
@@ -75,6 +76,7 @@ import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.utils.Pair;
 
 public class TestDownsampleFactory {
   
@@ -369,5 +371,116 @@ public class TestDownsampleFactory {
     assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
     
     assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
+  }
+
+  @Test
+  public void initialize() throws Exception {
+    MockTSDB tsdb = new MockTSDB();
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(tsdb, null).join(250);
+    
+    assertEquals(6, factory.intervals().size());
+    assertEquals(86_400L * 365L * 1000L, (long) factory.intervals().get(0).getKey());
+    assertEquals("1w", factory.intervals().get(0).getValue());
+  }
+  
+  @Test
+  public void autoIntervalConfig() throws Exception {
+    MockTSDB tsdb = new MockTSDB();
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(tsdb, null).join(250);
+    
+    assertEquals(6, factory.intervals().size());
+    assertEquals(86_400L * 365L * 1000L, (long) factory.intervals().get(0).getKey());
+    assertEquals("1w", factory.intervals().get(0).getValue());
+    
+    Map<String, String> new_config = Maps.newHashMap();
+    new_config.put("31d", "1d"); // new
+    new_config.put("1w", "2h"); // change interval
+    new_config.put("12h", "1h");
+    new_config.put("0", "30s");
+    
+    tsdb.getConfig().addOverride(DownsampleFactory.AUTO_KEY, new_config);
+    assertEquals(4, factory.intervals().size());
+    assertEquals(86_400L * 31L * 1000L, (long) factory.intervals().get(0).getKey());
+    assertEquals("1d", factory.intervals().get(0).getValue());
+    assertEquals(86_400L * 7L * 1000L, (long) factory.intervals().get(1).getKey());
+    assertEquals("2h", factory.intervals().get(1).getValue());
+    assertEquals(3_600L * 12L * 1000L, (long) factory.intervals().get(2).getKey());
+    assertEquals("1h", factory.intervals().get(2).getValue());
+    assertEquals(0, (long) factory.intervals().get(3).getKey());
+    assertEquals("30s", factory.intervals().get(3).getValue());
+    
+    // bad config due to missing 0, no change
+    new_config = Maps.newHashMap();
+    new_config.put("31d", "1d"); // new
+    new_config.put("1w", "2h"); // change interval
+    new_config.put("12h", "1h");
+    //new_config.put("0", "30s");
+    
+    tsdb.getConfig().addOverride(DownsampleFactory.AUTO_KEY, new_config);
+    assertEquals(4, factory.intervals().size());
+    assertEquals(86_400L * 31L * 1000L, (long) factory.intervals().get(0).getKey());
+    assertEquals("1d", factory.intervals().get(0).getValue());
+    assertEquals(86_400L * 7L * 1000L, (long) factory.intervals().get(1).getKey());
+    assertEquals("2h", factory.intervals().get(1).getValue());
+    assertEquals(3_600L * 12L * 1000L, (long) factory.intervals().get(2).getKey());
+    assertEquals("1h", factory.intervals().get(2).getValue());
+    assertEquals(0, (long) factory.intervals().get(3).getKey());
+    assertEquals("30s", factory.intervals().get(3).getValue());
+    
+    // empty map
+    new_config.clear();
+    tsdb.getConfig().addOverride(DownsampleFactory.AUTO_KEY, new_config);
+    assertEquals(4, factory.intervals().size());
+    assertEquals(86_400L * 31L * 1000L, (long) factory.intervals().get(0).getKey());
+    assertEquals("1d", factory.intervals().get(0).getValue());
+    assertEquals(86_400L * 7L * 1000L, (long) factory.intervals().get(1).getKey());
+    assertEquals("2h", factory.intervals().get(1).getValue());
+    assertEquals(3_600L * 12L * 1000L, (long) factory.intervals().get(2).getKey());
+    assertEquals("1h", factory.intervals().get(2).getValue());
+    assertEquals(0, (long) factory.intervals().get(3).getKey());
+    assertEquals("30s", factory.intervals().get(3).getValue());
+  }
+  
+  @Test
+  public void getAutoInterval() throws Exception {
+    List<Pair<Long, String>> intervals = Lists.newArrayListWithExpectedSize(6);
+    intervals.add(new Pair<Long, String>(86_400L * 365L * 1000L, "1w")); // 1y
+    intervals.add(new Pair<Long, String>(86_400L * 30L * 1000L, "1d")); // 1n
+    intervals.add(new Pair<Long, String>(86_400L * 7L * 1000L, "6h")); // 1w
+    intervals.add(new Pair<Long, String>(86_400L * 1000L, "1h")); // 1d
+    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "15m")); // 6h
+    intervals.add(new Pair<Long, String>(0L, "1m")); // default
+    
+    assertEquals("1w", DownsampleFactory.getAutoInterval(
+        86_400L * 365L * 2L * 1000L, intervals));
+    assertEquals("1w", DownsampleFactory.getAutoInterval(
+        86_400L * 365L * 1000L, intervals));
+    assertEquals("1d", DownsampleFactory.getAutoInterval(
+        (86_400L * 365L * 1000L) - 1, intervals));
+    assertEquals("1d", DownsampleFactory.getAutoInterval(
+        86_400L * 30L * 1000L, intervals));
+    assertEquals("6h", DownsampleFactory.getAutoInterval(
+        (86_400L * 30L * 1000L) - 1, intervals));
+    assertEquals("6h", DownsampleFactory.getAutoInterval(
+        86_400L * 7L * 1000L, intervals));
+    assertEquals("1h", DownsampleFactory.getAutoInterval(
+        (86_400L * 7L * 1000L) - 1, intervals));
+    assertEquals("1h", DownsampleFactory.getAutoInterval(
+        86_400L * 1000L, intervals));
+    assertEquals("15m", DownsampleFactory.getAutoInterval(
+        (86_400L * 1000L) - 1, intervals));
+    assertEquals("15m", DownsampleFactory.getAutoInterval(
+        3_600L * 6L * 1000L, intervals));
+    assertEquals("1m", DownsampleFactory.getAutoInterval(
+        (3_600L * 6L * 1000L) - 1, intervals));
+    assertEquals("1m", DownsampleFactory.getAutoInterval(
+        0, intervals));
+    
+    try {
+      DownsampleFactory.getAutoInterval(-1, intervals);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
   }
 }
