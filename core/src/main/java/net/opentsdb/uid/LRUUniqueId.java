@@ -767,6 +767,8 @@ public class LRUUniqueId implements UniqueId, TimerTask {
             stats.missRate(), "uid", type.toString(), "type", "name", "id", id);
         tsdb.getStatsCollector().setGauge("uid.cache.guava.lru.evictionCount", 
             stats.evictionCount(), "uid", type.toString(), "type", "name", "id", id);
+        tsdb.getStatsCollector().setGauge("uid.cache.guava.lru.size", 
+            name_cache.size(), "uid", type.toString(), "type", "name", "id", id);
       }
       
       if (id_cache != null) {
@@ -783,13 +785,15 @@ public class LRUUniqueId implements UniqueId, TimerTask {
             stats.missRate(), "uid", type.toString(), "type", "uid", "id", id);
         tsdb.getStatsCollector().setGauge("uid.cache.guava.lru.evictionCount", 
             stats.evictionCount(), "uid", type.toString(), "type", "uid", "id", id);
+        tsdb.getStatsCollector().setGauge("uid.cache.guava.lru.size", 
+            id_cache.size(), "uid", type.toString(), "type", "uid", "id", id);
       }
-    } catch (Exception e) {
-      LOG.error("Unexpected exception recording LRU stats", e);
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception recording LRU stats", t);
     }
     
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Wrote stats for UID cache " + type + " and ID " + id);
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Wrote stats for UID cache " + type + " and ID " + id);
     }
     tsdb.getMaintenanceTimer().newTimeout(this, 
         tsdb.getConfig().getInt(DefaultTSDB.MAINT_TIMER_KEY), 
