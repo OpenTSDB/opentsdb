@@ -1,0 +1,93 @@
+# --------- HTTP SERVER ----------
+# The TCP port TSD should use for the HTTP Server
+# *** REQUIRED or use tsd.network.ssl_port ***
+tsd.network.port: 4242
+
+# An optional TLS port to listen on.
+# tsd.network.ssl_port: 4343
+
+# The IPv4 network address to bind to, defaults to all addresses.
+# tsd.network.bind: 0.0.0.0
+
+# An optional root path for HTTP requests.
+# tsd.http.root: /
+
+# An optional PEM formatted TLS certificate to use for the server. It should
+# contain the certificate and required intermediates. It can optionally contain
+# the required key though that may also be referenced in tsd.network.tls.key.
+# If null or empty TLS is not enabled.
+# tsd.network.tls.certificate:
+
+# An optional PEM formatted private key for TLS use.
+# tsd.network.tls.key: 
+
+# An optional PEM formatted CA certificate for TLS use.
+# tsd.network.tls.ca: 
+
+# A regular expression of CORs domains to allow requests from.
+# If null or empty then we default to not allowing CORs requests.
+# tsd.http.request.cors.pattern: 
+
+# A comma separated list of CORs headers we allow.
+# tsd.http.request.cors.headers: Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since
+
+# The default amount of time to wait for HTTP requests to timeout in milliseconds.
+# tsd.http.async.timeout: 60000
+
+# --------- CORE ----------
+# Whether or not to load plugins on startup.
+# tsd.core.load_plugins: true
+
+# The Plugin JSON (with escaped quotes, on one line) or config file (ending in .json)
+# that determines what plugins to load and in what order.
+tsd.plugin.config:
+  configs:
+    - plugin: net.opentsdb.storage.Tsdb1xHBaseFactory
+      isDefault: true
+      type: net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory
+
+    - plugin: net.opentsdb.storage.schemas.tsdb1x.SchemaFactory
+      isDefault: true
+      type: net.opentsdb.data.TimeSeriesDataSourceFactory
+  
+  pluginLocations:
+  continueOnError: true
+  loadDefaultInstances: true
+
+# ---------- HBASE ---------------
+
+# The comma separated ZK quorum servers.
+tsd.storage.zookeeper.quorum: 127.0.0.1:2181
+
+# The base zookeeper node.
+tsd.storage.zookeeper.znode.parent: /hbase
+
+# Whether or not to enable authentication
+#tsd.storage.auth.enable: false
+
+# An HBase kerberos principal
+# tsd.storage.kerberos.principal:
+
+# Whether or not Kerberos is enabled.
+# tsd.storage.kerberos.enable: false
+
+# The entry from a JAAS config passed as a JVM argument.
+# tsd.storage.sasl.clientconfig: Client
+
+# Optional salt configurations. 
+# tsd.storage.salt.buckets: 20
+# tsd.storage.salt.width: 1
+
+# The data and UID tables in HBase for TSDB data.
+tsd.storage.data_table: tsdb
+tsd.storage.uid_table: tsdb-uid
+
+# UID widths in bytes. These are the defaults for OpenTSDB.
+tsd.storage.uid.width.metric: 3
+tsd.storage.uid.width.tagk: 3
+tsd.storage.uid.width.tagv: 3
+
+# A UID cache for each type.
+tsd.storage.uid.cache.type.metric: LRUUniqueId
+tsd.storage.uid.cache.type.tagk: LRUUniqueId
+tsd.storage.uid.cache.type.tagv: LRUUniqueId

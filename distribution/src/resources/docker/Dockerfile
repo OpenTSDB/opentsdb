@@ -16,12 +16,13 @@ RUN       apk add --no-cache vim
 ADD       opentsdb-$projectVersion.tar.gz $SHAREDIR
 RUN       chown -R root $WORKDIR
 RUN       chgrp -R root $WORKDIR
-ADD       opentsdb.conf $WORKDIR/conf/opentsdb.conf
+ADD       opentsdb.yaml $WORKDIR/conf/opentsdb.yaml
+ADD       opentsdb_dev.yaml $WORKDIR/conf/opentsdb_dev.yaml
 ADD       tsdb $WORKDIR/bin/tsdb
 
 # It is expected these might need to be passed in with the -e flag
-ENV       CONFIG $WORKDIR/conf/opentsdb.conf
+ENV       CONFIG $WORKDIR/conf/opentsdb.yaml
 ENV       LOGBACK $WORKDIR/conf/logback.xml
 ENV       JAVA_OPTS="-Xms512m -Xmx2048m -enableassertions -enablesystemassertions"
 
-ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config=${CONFIG} > ${LOGDIR}/stdout.log 2> ${LOGDIR}/stderr.log
+ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config.providers=file://${CONFIG} > ${LOGDIR}/stdout.log 2> ${LOGDIR}/stderr.log

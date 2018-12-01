@@ -45,22 +45,17 @@
       <outputDirectory>bin</outputDirectory>
     </file>
     <file>
-      <source>src/resources/opentsdb.conf</source>
+      <source>src/resources/opentsdb.yaml</source>
+      <fileMode>0755</fileMode>
+      <outputDirectory>conf</outputDirectory>
+    </file>
+    <file>
+      <source>src/resources/opentsdb_dev.yaml</source>
       <fileMode>0755</fileMode>
       <outputDirectory>conf</outputDirectory>
     </file>
     <file>
       <source>src/resources/logback.xml</source>
-      <fileMode>0755</fileMode>
-      <outputDirectory>conf</outputDirectory>
-    </file>
-    <file>
-      <source>src/resources/plugins.json</source>
-      <fileMode>0755</fileMode>
-      <outputDirectory>conf</outputDirectory>
-    </file>
-    <file>
-      <source>src/resources/default_execution_graphs.json</source>
       <fileMode>0755</fileMode>
       <outputDirectory>conf</outputDirectory>
     </file>
