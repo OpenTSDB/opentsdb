@@ -15,7 +15,7 @@ us know what you think.
 
 Undertow is a stripped down J2EE server comparable to Jetty. We use it at Yahoo for a number of projects so we'll offer this as a TSDB host for providing the HTTP API.
 
-The following parameters can be used in the ``opentsdb.conf`` file to control the server's behavior.
+The following parameters can be used in the ``opentsdb.yaml`` file to control the server's behavior.
 
 * ``tsd.network.port`` - Copied from 2.x, controls the HTTP port the server will listen on. Required.
 * ``tsd.network.ssl_port`` - If SSL is required, the port for HTTPS connections. Optional

@@ -84,7 +84,7 @@
               <groupId>com.spotify</groupId>
               <artifactId>docker-maven-plugin</artifactId>
               <version>0.4.14</version>
-              
+
               <configuration>
                 <serverId>docker-hub</serverId>
                 <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
