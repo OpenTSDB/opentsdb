@@ -28,18 +28,17 @@ def get_large_divisors(num):
     Get "large" divisors of num
     i.e. only numbers that, when multiplied, are > than num
 
+    e.g. 60 -> 10, 12, 15, 20, 30, 60
+
+    * Because while 1, 2, 3, 4, 6 are all divisors, they are too small
+      when mutiplied together
+
     :param int num: The number to check
     :returns: all large divisors
     :rtype: list
     """
-    divisors = []
-    large_divisors = []
-    for i in range(1, int(math.sqrt(num)) + 1):
-        if num % i == 0:
-            if i*i != num:
-                large_divisors.append(int(num / i))
-    divisors.extend(reversed(large_divisors))
-    return divisors
+    return [int(num / i) for i in range(1, int(math.sqrt(num)) + 1)
+            if num % i == 0 and i * i != num]
 
 
 def get_metrics(args):
