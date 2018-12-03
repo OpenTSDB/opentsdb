@@ -22,6 +22,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 
 /**
@@ -35,12 +36,14 @@ public interface ESClient {
    * Executes the given query against a single or multiple clusters and
    * returns the results in a list, one per cluster.
    * @param query The query to execute.
+   * @param context The non-null query pipeline context.
    * @param index The index to search.
    * @param span An optional tracing span.
    * @return A deferred resolving to a list of search response objects
    * or an exception if the query couldn't execute.
    */
   public Deferred<List<SearchResponse>> runQuery(final QueryBuilder query,
+                                                 final QueryPipelineContext context,
                                                  final String index,
                                                  final Span span);
   

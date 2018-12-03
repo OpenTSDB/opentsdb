@@ -382,7 +382,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         }
       }
      
-      return client.runQuery(bool_query, namespace, child)
+      return client.runQuery(bool_query, queryPipelineContext, namespace, child)
           .addCallback(new ResultCB())
           .addErrback(new ErrorCB());
     } catch (Exception e) {
