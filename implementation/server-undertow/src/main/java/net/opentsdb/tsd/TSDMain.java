@@ -93,7 +93,7 @@ public class TSDMain {
   /** The TSD reference. Static so we can shutdown gracefully. */
   private static DefaultTSDB tsdb = null;
   
-  /** The Undertwo server reference. Static so we can shutdown gracefully. */
+  /** The Undertow server reference. Static so we can shutdown gracefully. */
   private static Undertow server = null;
   
   /**
@@ -292,7 +292,7 @@ public class TSDMain {
       }
       return sslContext;
     } catch (CertificateException e) {
-      LOG.error("Failed to insantiate factory", e);
+      LOG.error("Failed to instantiate factory", e);
     } catch (Exception e) {
       LOG.error("Unexpected exception initializing SSL Context", e);
     }
@@ -302,7 +302,7 @@ public class TSDMain {
   
   /**
    * Attempts to load a keystore from disk and initialize an SSL Context 
-   * with the data therin. The keystore should contain all of the certs,
+   * with it. The keystore should contain all of the certs,
    * intermediates, CAs and the private key.
    * @param config A non-null config.
    * @return An instantiated context or null if something went wrong. The
@@ -531,7 +531,7 @@ public class TSDMain {
             server.stop();
           }
           if (tsdb != null) {
-            LOG.info("Shuttingdown TSD");
+            LOG.info("Shutting down TSD");
             tsdb.shutdown().join();
           }
           
@@ -591,7 +591,7 @@ public class TSDMain {
    * @return A private key if parsing was successful.
    * @throws IOException If the input was corrupted.
    * @throws GeneralSecurityException If parsing failed because the key
-   * appared to be in the wrong format.
+   * appeared to be in the wrong format.
    */
   static RSAPrivateKey parsePKCS1Key(final String key) throws 
       IOException, GeneralSecurityException {

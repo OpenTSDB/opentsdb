@@ -241,6 +241,9 @@
         <artifactId>cobertura-maven-plugin</artifactId>
         <version>2.7</version>
         <configuration>
+          <check>
+            <!--TODO by qudongfang-->
+          </check>
           <format>xml</format>
           <maxmem>256m</maxmem>
           <!-- aggregated reports for multi-module projects -->
