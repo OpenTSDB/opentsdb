@@ -82,7 +82,6 @@ public class HttpQueryV3Result implements QueryResult {
   /** An optional rollup config from summaries. */
   private RollupConfig rollup_config;
   
-  
   /**
    * Default ctor without an exception.
    * @param node The non-null parent node.
