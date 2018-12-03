@@ -203,13 +203,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
       }
     }
     
-    n = node.get("intervals");
-    if (n != null && !n.isNull()) {
-      // hmmm we got some in the JSON? Interesting.
-      // TODO - parse em
-    } else {
-      builder.setIntervals(intervals);
-    }
+    builder.setIntervals(intervals);
     
     return (DownsampleConfig) builder.build();
   }
@@ -264,7 +258,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     @Override
     public void update(final String key, final Object value) {
       if (key.equals(AUTO_KEY)) {
-        if (value == null) {
+        if (value == null || ((Map<String, String>) value).isEmpty()) {
           return;
         }
         
