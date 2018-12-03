@@ -224,6 +224,21 @@ public class SemanticQuery implements TimeSeriesQuery {
     return log_level;
   }
   
+  @Override
+  public boolean isTraceEnabled() {
+    return log_level.ordinal() >= LogLevel.TRACE.ordinal();
+  }
+  
+  @Override
+  public boolean isDebugEnabled() {
+    return log_level.ordinal() >= LogLevel.DEBUG.ordinal();
+  }
+  
+  @Override
+  public boolean isWarnEnabled() {
+    return log_level.ordinal() >= LogLevel.WARN.ordinal();
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }

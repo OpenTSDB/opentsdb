@@ -87,4 +87,13 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
   /** @return A non-null log level for the query. */
   public LogLevel getLogLevel();
   
+  /** @return True if tracing is enabled. */
+  public boolean isTraceEnabled();
+  
+  /** @return True if debug is enabled. */
+  public boolean isDebugEnabled();
+  
+  /** @return True if warn is enabled. */
+  public boolean isWarnEnabled();
+  
 }
