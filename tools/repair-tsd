@@ -90,8 +90,6 @@ def _process_metric_chunk(metric, chunk, x, cmd, timeout):
         log.warning("{}: chunk {} failed in window (run {})".format(metric,
                                                                     chunk,
                                                                     x))
-        #metricproc.kill()
-        #results, err = metricproc.communicate()
         try:
             os.killpg(os.getpgid(metricproc.pid), signal.SIGTERM)
         except Exception as e:
