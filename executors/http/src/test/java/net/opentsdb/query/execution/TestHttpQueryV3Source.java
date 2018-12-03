@@ -68,6 +68,7 @@ public class TestHttpQueryV3Source {
   private QueryContext context;
   private QueryPipelineContext ctx;
   private CloseableHttpAsyncClient client;
+  private String host;
   private String endpoint;
   private HttpUriRequest request;
   private FutureCallback<HttpResponse> callback;
@@ -79,7 +80,8 @@ public class TestHttpQueryV3Source {
     context = mock(QueryContext.class);
     ctx = mock(QueryPipelineContext.class);
     client = mock(CloseableHttpAsyncClient.class);
-    endpoint = "http://localhost:4242/api/query/graph";
+    host = "http://localhost:4242";
+    endpoint = "/api/query/graph";
     upstream = mock(QueryNode.class);
     
     when(ctx.queryContext()).thenReturn(context);
@@ -100,7 +102,7 @@ public class TestHttpQueryV3Source {
   @Test
   public void requestMetricOnly() throws Exception {
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.fetchNext(null);
     
     verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
@@ -150,7 +152,7 @@ public class TestHttpQueryV3Source {
         .build();
     
     when(ctx.query()).thenReturn(query);
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.fetchNext(null);
     
     verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
@@ -176,7 +178,7 @@ public class TestHttpQueryV3Source {
     when(context.authState()).thenReturn(auth);
     
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.fetchNext(null);
     
     verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
@@ -192,7 +194,7 @@ public class TestHttpQueryV3Source {
   @Test
   public void responseCancelled() throws Exception {
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.initialize(null).join(250);
     src.fetchNext(null);
     
@@ -210,7 +212,7 @@ public class TestHttpQueryV3Source {
   @Test
   public void responseException() throws Exception {
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.initialize(null).join(250);
     src.fetchNext(null);
     
@@ -238,7 +240,7 @@ public class TestHttpQueryV3Source {
         + "\"1540567704\":75,\"1540567764\":75.19999694824219}}]}]}";
     
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.initialize(null).join(250);
     src.fetchNext(null);
     
@@ -283,7 +285,7 @@ public class TestHttpQueryV3Source {
         + "]}";
     
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.initialize(null).join(250);
     src.fetchNext(null);
     
@@ -317,7 +319,7 @@ public class TestHttpQueryV3Source {
         + "52.29999923706055,\"1540567644\":52.299";
     
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.initialize(null).join(250);
     src.fetchNext(null);
     
@@ -345,7 +347,7 @@ public class TestHttpQueryV3Source {
         + "\"trace\":\"java.lang.IllegalArgumentException:Nofilter\"}}";
     
     TimeSeriesDataSourceConfig config = setQuery();
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, endpoint);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.initialize(null).join(250);
     src.fetchNext(null);
     

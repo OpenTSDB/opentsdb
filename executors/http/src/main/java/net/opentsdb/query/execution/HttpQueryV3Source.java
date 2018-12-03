@@ -26,6 +26,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +68,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
   /** The client to query. */
   private final CloseableHttpAsyncClient client;
   
-  /** The full URL to POST to including protocol, host, port and endpoint */
+  /** The hostname to post to with protocol, host and port. */
+  private final String host;
+  
+  /** The URL endpoint. */
   private final String endpoint;
   
   /**
@@ -76,17 +80,20 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
    * @param context The non-null query context.
    * @param config The non-null config to send (with pushdowns if required)
    * @param client The non-null client to use.
-   * @param endpoint The non-null endpoint with protocol, host, port and 
-   * path.
+   * @param host The non-null and non-empty host name with protocol and port if
+   * required.
+   * @param endpoint The non-null and non-empty endpoint, e.g. `api/query/graph`
    */
   public HttpQueryV3Source(final QueryNodeFactory factory,
                            final QueryPipelineContext context,
                            final TimeSeriesDataSourceConfig config,
                            final CloseableHttpAsyncClient client,
+                           final String host,
                            final String endpoint) {
     super(factory, context);
     this.config = config;
     this.client = client;
+    this.host = host;
     this.endpoint = endpoint;
   }
   
@@ -142,7 +149,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
       }
     }
     
-    final HttpPost post = new HttpPost(endpoint);
+    final HttpPost post = new HttpPost(host + endpoint);
     post.setHeader("Content-Type", "application/json");
     
     // may need to pass down a cookie.
@@ -174,7 +181,9 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     }
     
     /** Does the fun bit of parsing the response and calling the deferred. */
-    class ResponseCallback implements FutureCallback<HttpResponse> {      
+    class ResponseCallback implements FutureCallback<HttpResponse> {
+      int retries = 0;
+      
       @Override
       public void cancelled() {
         if (LOG.isDebugEnabled()) {
@@ -182,7 +191,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         }
         try {
           final Exception e = new QueryExecutionCanceled(
-              "Query was canceled: " + endpoint, 400, 0); 
+              "Query was canceled: " + host + endpoint, 400, 0); 
           sendUpstream(e);
         } catch (IllegalStateException e) {
           // already called, ignore it.
@@ -200,12 +209,32 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           host = header.getValue();
         }
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Response from endpoint: " + endpoint + " (" + host 
+          LOG.debug("Response from endpoint: " + host + endpoint + " (" + host 
               + ") received");
         }
 
         String json = null;
         try {
+          if (response.getStatusLine().getStatusCode() == 500) {
+            if (factory instanceof BaseHttpExecutorFactory) {
+              ((BaseHttpExecutorFactory) factory).markHostAsBad(
+                  HttpQueryV3Source.this.host, 0);
+              if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
+                  retries < ((BaseHttpExecutorFactory) factory).retries()) {
+                retries++;
+                final HttpPost retry = new HttpPost(
+                    ((BaseHttpExecutorFactory) factory).nextHost() + endpoint);
+                retry.setEntity(post.getEntity());
+                EntityUtils.consume(response.getEntity());
+                client.execute(retry, this);
+                if (LOG.isTraceEnabled()) {
+                  LOG.trace("Retrying Http query to a TSD: " + endpoint);
+                }
+                return;
+              }
+            }
+          }
+          
           json = SharedHttpClient.parseResponse(response, 0, host);
           final JsonNode root = JSON.getMapper().readTree(json);
           JsonNode results = root.get("results");
@@ -237,7 +266,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           } else {
             try {
               final Exception ex = new QueryExecutionException(
-                  "Unexepected exception: " + endpoint, 500, 0, e);
+                  "Unexepected exception: " + host + endpoint, 500, 0, e);
               sendUpstream(ex);
             } catch (IllegalStateException caught) {
               // ignore;
@@ -251,13 +280,28 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
 
       @Override
       public void failed(final Exception e) {
-        // TODO possibly retry?
+        if (factory instanceof BaseHttpExecutorFactory) {
+          ((BaseHttpExecutorFactory) factory).markHostAsBad(
+              HttpQueryV3Source.this.host, 0);
+          if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
+              retries < ((BaseHttpExecutorFactory) factory).retries()) {
+            retries++;
+            final HttpPost retry = new HttpPost(
+                ((BaseHttpExecutorFactory) factory).nextHost() + endpoint);
+            retry.setEntity(post.getEntity());
+            client.execute(retry, this);
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Retrying Http query to a TSD: " + endpoint);
+            }
+            return;
+          }
+        }
         sendUpstream(e);
       }
     }
     client.execute(post, new ResponseCallback());
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Sent Http query to a TSD: " + endpoint);
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Sent Http query to a TSD: " + endpoint);
     }
   }
 
