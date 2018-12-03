@@ -10,6 +10,7 @@ import copy
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import logging
+import math
 
 log = logging.getLogger("repair-tsd")
 log.setLevel(logging.INFO)
@@ -20,6 +21,25 @@ ch.setFormatter(formatter)
 log.addHandler(ch)
 metric_count = Value('i', 0)
 failed_count = Value('i', 0)
+
+
+def get_large_divisors(num):
+    """
+    Get "large" divisors of num
+    i.e. only numbers that, when multiplied, are > than num
+
+    :param int num: The number to check
+    :returns: all large divisors
+    :rtype: list
+    """
+    divisors = []
+    large_divisors = []
+    for i in range(1, int(math.sqrt(num)) + 1):
+        if num % i == 0:
+            if i*i != num:
+                large_divisors.append(int(num / i))
+    divisors.extend(reversed(large_divisors))
+    return divisors
 
 
 def get_metrics(args):
@@ -233,6 +253,7 @@ def cli_opts():
 
 def main():
     args = cli_opts()
+    chunks = get_large_divisors(60)
     if args.debug:
         log.setLevel(logging.DEBUG)
     try:
@@ -249,8 +270,12 @@ def main():
         log.error("Invalid thread count {} :: {}".format(args.threads, e))
     try:
         time_chunk = int(args.time_chunk)
-        if 60 % time_chunk != 0:
-            raise ArithmeticError
+        if time_chunk < 60:
+            if time_chunk not in chunks:
+                raise ArithmeticError
+        if time_chunk > 60:
+            if not any(n for n in chunks if time_chunk % chunk == 0):
+                raise ArithmeticError
     except Exception as e:
         log.error("Invalid time chunk {} :: {}".format(args.time_chunk, e))
 
