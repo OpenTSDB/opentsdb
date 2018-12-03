@@ -216,7 +216,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     return timezone;
   }
   
-  /** @return The non-null timezone string name.. */
+  /** @return The non-null timezone string name. */
   public String getTimezone() {
     return timezone.toString();
   }
@@ -329,6 +329,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         .setFill(fill)
         .setStart(start)
         .setEnd(end)
+        .setIntervals(intervals)
         .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
         .setId(id);
   }
