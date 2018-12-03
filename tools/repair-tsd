@@ -2,6 +2,9 @@
 
 from subprocess import Popen, PIPE, TimeoutExpired, check_output
 from random import shuffle
+from pprint import pformat
+import signal
+import os
 from multiprocessing import Pool, Value
 import copy
 import time
@@ -26,7 +29,7 @@ def get_metrics(args):
     :returns: all metrics
     :rtype: list
     """
-    time_chunk = args.get("time_chunk", 15)
+    time_chunk = args.get("time_chunk", 60)
     multiplier = int(60 / time_chunk)
     time_range = args.get("time_range", 48)
     tsd_path = args.get("tsd_path", "/usr/share/opentsdb/bin/tsdb")
@@ -46,7 +49,7 @@ def get_metrics(args):
                   for m in results[0].decode().split("\n") if m]
     metriclist = [m for m in metriclist if m and m != "\x00"]
     metricobj = {"time_chunk": time_chunk,
-                 "timeout": int(time_chunk * 60),
+                 "timeout": int((time_chunk * 60) / 2),
                  "retries": args.get("retries", 1),
                  "compact": args.get("compact", 1),
                  "multiplier": multiplier,
@@ -79,13 +82,20 @@ def _process_metric_chunk(metric, chunk, x, cmd, timeout):
     :rtype: bool
     """
     log.debug("Running command: {}".format(cmd))
-    metricproc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    metricproc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE,
+                       preexec_fn=os.setsid)
     try:
         results, err = metricproc.communicate(timeout=timeout)
     except TimeoutExpired:
         log.warning("{}: chunk {} failed in window (run {})".format(metric,
                                                                     chunk,
                                                                     x))
+        #metricproc.kill()
+        #results, err = metricproc.communicate()
+        try:
+            os.killpg(os.getpgid(metricproc.pid), signal.SIGTERM)
+        except Exception as e:
+            log.warning("Couldn't kill subprocess :: {}".format(e))
         return False
     except Exception as e:
         log.error("{} general exception :: {}".format(metric,
@@ -187,7 +197,6 @@ def process_metrics(metric_list, threads):
     threads = Pool(threads)
     failed_metrics = threads.map(process_metric, metric_list)
     failed_metrics = [m for m in failed_metrics if m]
-    log.warning("Failed metrics: {}".format(failed_metrics))
     return failed_metrics
 
 
@@ -257,7 +266,14 @@ def main():
                                "shuffle": args.shuffle,
                                "compact": args.compact,
                                "retries": retries})
-    process_metrics(metric_list, threads)
+    stime = time.time()
+    failed = process_metrics(metric_list, threads)
+    etime = time.time()
+    log.info("Processed {} metrics in [{}] seconds".format(len(metric_list),
+                                                           etime - stime))
+    if len(failed) > 0:
+        log.warning("{} failed metrics:\n{}".format(len(failed),
+                                                    pformat(sorted(failed))))
 
 
 if __name__ == "__main__":
