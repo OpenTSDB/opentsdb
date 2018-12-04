@@ -70,7 +70,7 @@ def get_metrics(args):
     metricobj = {"time_chunk": time_chunk,
                  "timeout": int((time_chunk * 60) / 2),
                  "retries": args.get("retries", 1),
-                 "compact": args.get("compact", 1),
+                 "compact": args.get("compact", False),
                  "multiplier": multiplier,
                  "metriccount": len(metriclist),
                  "chunk_count": time_range * multiplier,
@@ -106,21 +106,22 @@ def _process_metric_chunk(metric, chunk, x, cmd, timeout):
     try:
         results, err = metricproc.communicate(timeout=timeout)
     except TimeoutExpired:
-        log.warning("{}: chunk {} failed in window (run {})".format(metric,
-                                                                    chunk,
-                                                                    x))
+        msg = "{}: chunk {} failed (timeout: {}) (run {})".format(metric,
+                                                                  chunk,
+                                                                  timeout,
+                                                                  x)
+        log.warning(msg)
         try:
             os.killpg(os.getpgid(metricproc.pid), signal.SIGTERM)
         except Exception as e:
             log.warning("Couldn't kill subprocess :: {}".format(e))
         return False
     except Exception as e:
+        log.error("{} general exception :: {}".format(metric, e))
         try:
             os.killpg(os.getpgid(metricproc.pid), signal.SIGTERM)
         except Exception as e:
             log.warning("Couldn't kill subprocess :: {}".format(e))
-        log.error("{} general exception :: {}".format(metric,
-                                                      e))
         return False
     results = [r for r in results.decode().split("\n") if r][-26:]
     final_results = []
