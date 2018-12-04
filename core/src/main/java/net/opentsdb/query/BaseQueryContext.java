@@ -218,7 +218,7 @@ public abstract class BaseQueryContext implements QueryContext {
    * @param log The log.
    */
   protected void log(final LogLevel level, final QueryNode node, final String log) {
-    if (level.ordinal() < query.getLogLevel().ordinal()) {
+    if (level.ordinal() > query.getLogLevel().ordinal()) {
       return;
     }
     
