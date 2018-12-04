@@ -79,14 +79,17 @@ public class LastFactory extends BaseTSDBPlugin implements
         throw new IllegalDataException("End offset must be greater than 0");
       }
       if (infectious_nans) {
-        for (int i = start_offset; i < end_offset; i++) {
-          if (Double.isNaN(values[i])) {
-            dp.resetValue(Double.NaN);
-            return;
-          }
+        dp.resetValue(values[end_offset - 1]);
+        return;
+      }
+      
+      for (int i = end_offset - 1; i >= start_offset; i--) {
+        if (!Double.isNaN(values[i])) {
+          dp.resetValue(values[i]);
+          return;
         }
       }
-      dp.resetValue(values[end_offset - 1]);
+      dp.resetValue(Double.NaN);
     }
     
   }
