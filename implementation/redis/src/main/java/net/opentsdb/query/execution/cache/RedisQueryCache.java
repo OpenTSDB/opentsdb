@@ -27,10 +27,8 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.Span;
-import net.opentsdb.stats.TsdbTrace;
+import net.opentsdb.utils.ByteCache;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -44,7 +42,7 @@ import redis.clients.jedis.Protocol;
  * @since 3.0
  */
 public class RedisQueryCache extends BaseTSDBPlugin 
-    implements QueryCachePlugin {
+    implements ByteCache {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisQueryCache.class);
   
@@ -103,6 +101,7 @@ public class RedisQueryCache extends BaseTSDBPlugin
       tsdb.getConfig().register(WAIT_TIME_KEY, DEFAULT_WAIT_TIME, false, 
           "How long to wait on a connection from the pool in milliseconds.");
     }
+    // TODO - gimme a real secret.
     if (!tsdb.getConfig().hasProperty(AUTH_KEY)) {
       tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
           .setKey(AUTH_KEY)
@@ -185,175 +184,135 @@ public class RedisQueryCache extends BaseTSDBPlugin
   }
   
   @Override
-  public QueryExecution<byte[]> fetch(final QueryContext context, 
-                                      final byte[] key,
-                                      final Span upstream_span) {
-    /** The execution class. */
-    class LocalExecution extends QueryExecution<byte[]> {
-
-      public LocalExecution() {
-        super(null);
-//        if (context.getTracer() != null) {
-//          setSpan(context, 
-//              RedisQueryCache.this.getClass().getSimpleName(), 
-//              upstream_span,
-//              TsdbTrace.addTags(
-//                  "key", Bytes.pretty(key),
-//                  "startThread", Thread.currentThread().getName()));
-//        }
+  public Deferred<byte[]> fetch(final byte[] key,
+                                final Span span) {
+    if (connection_pool == null) {
+      final IllegalStateException ex = 
+          new IllegalStateException("Cache has not been initialized.");
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
       }
-      
-      /** Do da work */
-      void execute() {
-        if (connection_pool == null) {
-          final IllegalStateException ex = 
-              new IllegalStateException("Cache has not been initialized.");
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-          return;
-        }
-        if (key == null) {
-          final IllegalArgumentException ex = 
-              new IllegalArgumentException("Key cannot be null.");
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-          return;
-        }
-        if (key.length < 1) {
-          final IllegalArgumentException ex = 
-              new IllegalArgumentException("Key must be at least 1 byte long.");
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-          return;
-        }
-        
-        byte[] raw = null;
-        Exception ex = null;
-        try (Jedis connection = connection_pool.getResource()) {
-          raw = connection.get(key);
-          tsdb.getStatsCollector().incrementCounter("query.cache.redis.get", 
-              (String[]) null);
-        } catch (Exception e) {
-          LOG.warn("Exception querying Redis for cache data", e);
-          ex = e;
-        }
-        if (ex != null) {
-          // don't return the exception, just trace it.
-          callback(raw, 
-              TsdbTrace.exceptionTags(ex), 
-              TsdbTrace.exceptionAnnotation(ex));
-        } else {
-          callback(raw, TsdbTrace.successfulTags(
-               "bytes", raw == null ? "0" : Integer.toString(raw.length),
-               "cacheHit", raw == null ? "false" : "true"));
-        }
+      return Deferred.fromError(ex);
+    }
+    if (key == null) {
+      final IllegalArgumentException ex = 
+          new IllegalArgumentException("Key cannot be null.");
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
       }
-      
-      @Override
-      public void cancel() {
-        // No-op.
+      return Deferred.fromError(ex);
+    }
+    if (key.length < 1) {
+      final IllegalArgumentException ex = 
+          new IllegalArgumentException("Key must be at least 1 byte long.");
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
       }
+      return Deferred.fromError(ex);
     }
     
-    final LocalExecution execution = new LocalExecution();
-    execution.execute();
-    return execution;
+    byte[] raw = null;
+    Exception ex = null;
+    try (Jedis connection = connection_pool.getResource()) {
+      raw = connection.get(key);
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.get", 
+          (String[]) null);
+    } catch (Exception e) {
+      LOG.warn("Exception querying Redis for cache data", e);
+      ex = e;
+    }
+    if (ex != null) {
+      // don't return the exception, just trace it.
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
+      }
+      return Deferred.fromResult(null);
+    } else {
+      if (span != null) {
+        span.setSuccessTags()
+             .setTag("bytes", raw == null ? "0" : Integer.toString(raw.length))
+             .setTag("cacheHit", raw == null ? "false" : "true")
+             .finish();
+      }
+      return Deferred.fromResult(raw);
+    }
   }
 
   @Override
-  public QueryExecution<byte[][]> fetch(final QueryContext context, 
-                                        final byte[][] keys,
-                                        final Span upstream_span) {
-    /** The execution class. */
-    class LocalExecution extends QueryExecution<byte[][]> {
-
-      public LocalExecution() {
-        super(null);
-//        if (context.getTracer() != null) {
-//          setSpan(context, 
-//              RedisQueryCache.this.getClass().getSimpleName(), 
-//              upstream_span,
-//              TsdbTrace.addTags(
-//                  "keys", Integer.toString(keys.length),
-//                  "startThread", Thread.currentThread().getName()));
-//        }
+  public Deferred<byte[][]> fetch(final byte[][] keys,
+                                  final Span span) {
+    if (connection_pool == null) {
+      final IllegalStateException ex = 
+          new IllegalStateException("Cache has not been initialized.");
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
       }
-      
-      /** Do da work */
-      void execute() {
-        if (connection_pool == null) {
-          final IllegalStateException ex = 
-              new IllegalStateException("Cache has not been initialized.");
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-          return;
-        }
-        if (keys == null) {
-          final IllegalArgumentException ex = 
-              new IllegalArgumentException("Keys cannot be null.");
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-          return;
-        }
-        if (keys.length < 1) {
-          final IllegalArgumentException ex = 
-              new IllegalArgumentException("Keys must have at least one value.");
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
-          return;
-        }
-        
-        int bytes = 0;
-        int hits = 0;
-        final byte[][] results = new byte[keys.length][];
-        Exception ex = null;
-        try (Jedis connection = connection_pool.getResource()) {
-          final List<byte[]> raw = connection.mget(keys);
-          if (raw.size() != results.length) {
-            throw new IllegalStateException("Redis returned " + raw.size() 
-              + " values from a multi-get when we expected " + results.length);
-          }
-          tsdb.getStatsCollector().incrementCounter("query.cache.redis.get", 
-              (String[]) null);
-          for (int i = 0; i < raw.size(); i++) {
-            results[i] = raw.get(i);
-            if (results[i] != null) {
-              bytes += results[i].length;
-              ++hits;
-            }
-          }
-        } catch (Exception e) {
-          LOG.warn("Exception querying Redis for cache data", e);
-          ex = e;
-        }
-        if (ex != null) {
-          // don't return the exception, just trace it.
-          callback(results, 
-              TsdbTrace.exceptionTags(ex), 
-              TsdbTrace.exceptionAnnotation(ex));
-        } else {
-          callback(results, TsdbTrace.successfulTags(
-               "bytes", Integer.toString(bytes),
-               "cacheHitRatio", Double.toString(
-                   ((double) hits / (double) results.length) * 100)));
-        }
+      return Deferred.fromError(ex);
+    }
+    if (keys == null) {
+      final IllegalArgumentException ex = 
+          new IllegalArgumentException("Keys cannot be null.");
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
       }
-      
-      @Override
-      public void cancel() {
-        // No-op.
+      return Deferred.fromError(ex);
+    }
+    if (keys.length < 1) {
+      final IllegalArgumentException ex = 
+          new IllegalArgumentException("Keys must have at least one value.");
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
       }
+      return Deferred.fromError(ex);
     }
     
-    final LocalExecution execution = new LocalExecution();
-    execution.execute();
-    return execution;
+    int bytes = 0;
+    int hits = 0;
+    final byte[][] results = new byte[keys.length][];
+    Exception ex = null;
+    try (Jedis connection = connection_pool.getResource()) {
+      final List<byte[]> raw = connection.mget(keys);
+      if (raw.size() != results.length) {
+        throw new IllegalStateException("Redis returned " + raw.size() 
+          + " values from a multi-get when we expected " + results.length);
+      }
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.get", 
+          (String[]) null);
+      for (int i = 0; i < raw.size(); i++) {
+        results[i] = raw.get(i);
+        if (results[i] != null) {
+          bytes += results[i].length;
+          ++hits;
+        }
+      }
+    } catch (Exception e) {
+      LOG.warn("Exception querying Redis for cache data", e);
+      ex = e;
+    }
+    if (ex != null) {
+      // don't return the exception, just trace it.
+      if (span != null) {
+        span.setErrorTags(ex)
+             .finish();
+      }
+      return Deferred.fromResult(results);
+    } else {
+      if (span != null) {
+        span.setSuccessTags()
+             .setTag("bytes", Integer.toString(bytes))
+             .setTag("cacheHitRatio", Double.toString(
+                 ((double) hits / (double) results.length) * 100))
+             .finish();
+      }
+      return Deferred.fromResult(results);
+    }
   }
 
   @Override
