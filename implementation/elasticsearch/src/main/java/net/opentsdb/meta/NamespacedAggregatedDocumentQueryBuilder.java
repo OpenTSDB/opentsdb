@@ -20,6 +20,8 @@ import net.opentsdb.query.filter.TagValueFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
+import net.opentsdb.meta.MetaQuery.QueryType;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
@@ -128,7 +130,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof MetricLiteralFilter) {
       return FilterBuilders.nestedFilter(METRIC_PATH, 
           FilterBuilders.boolFilter().must(
-              FilterBuilders.termFilter(QUERY_METRIC, filter.getMetric())));
+              FilterBuilders.termFilter(QUERY_METRIC, 
+                  filter.getMetric().toLowerCase())));
     } else if (filter instanceof MetricRegexFilter) {
       return FilterBuilders.nestedFilter(METRIC_PATH, 
           FilterBuilders.boolFilter().must(

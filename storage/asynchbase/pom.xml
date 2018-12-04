@@ -159,12 +159,7 @@
                         <shadedPattern>net.opentsdb.com.google.protobuf</shadedPattern>
                       </relocation>
                     </relocations>
-                    <relocations>
-                      <relocation>
-                        <pattern>com.google.common</pattern>
-                        <shadedPattern>net.opentsdb.com.google.common</shadedPattern>
-                      </relocation>
-                    </relocations>
+
                     <filters>  
                       <filter> 
                         <artifact>*:*</artifact> 
