@@ -78,7 +78,10 @@ public class TestLast {
     assertEquals(3.25, dp.doubleValue(), 0.001);
     
     agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 0, 3, true, dp);
-    assertTrue(Double.isNaN(dp.doubleValue()));
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, Double.NaN }, 0, 3, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
     
     agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 0, 3, false, dp);
     assertTrue(Double.isNaN(dp.doubleValue()));
