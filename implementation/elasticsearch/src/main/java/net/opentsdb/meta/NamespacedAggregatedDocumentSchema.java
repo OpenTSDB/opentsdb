@@ -84,6 +84,10 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       throw new IllegalStateException("No client found!");
     }
 
+    if (!tsdb.getConfig().hasProperty(QUERY_TIMEOUT_KEY)) {
+      tsdb.getConfig().register(QUERY_TIMEOUT_KEY, 5000, true,
+              "How long, in milliseconds, to wait for responses.");
+    }
     if (!tsdb.getConfig().hasProperty(MAX_CARD_KEY)) {
       tsdb.getConfig().register(MAX_CARD_KEY, 4096, true,
               "The maximum number of entries to allow for multi-get queries.");
@@ -275,6 +279,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     }
 
     return client.runQuery(search_source_builder, 
+        null,
         query.type() == QueryType.NAMESPACES ? "all_namespace" : query.namespace()
             .toLowerCase(), child)
             .addCallback(new ResultCB())
@@ -406,7 +411,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         LOG.trace("Running ES Query: " + search.toString());
       }
       
-      return client.runQuery(search, namespace, child)
+      return client.runQuery(search, queryPipelineContext, namespace, child)
           .addCallback(new ResultCB())
           .addErrback(new ErrorCB());
     } catch (Exception e) {

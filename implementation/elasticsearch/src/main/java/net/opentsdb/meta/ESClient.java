@@ -17,7 +17,6 @@ package net.opentsdb.meta;
 import java.util.List;
 
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.stumbleupon.async.Deferred;
@@ -42,12 +41,8 @@ public interface ESClient {
    * @return A deferred resolving to a list of search response objects
    * or an exception if the query couldn't execute.
    */
-  public Deferred<List<SearchResponse>> runQuery(final QueryBuilder query,
-                                                 final QueryPipelineContext context,
-                                                 final String index,
-                                                 final Span span);
-  
   public Deferred<List<SearchResponse>> runQuery(final SearchSourceBuilder query,
+                                                 final QueryPipelineContext context,
                                                  final String index,
                                                  final Span span);
 
