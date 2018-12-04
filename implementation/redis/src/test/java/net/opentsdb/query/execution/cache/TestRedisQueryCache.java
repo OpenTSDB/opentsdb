@@ -42,13 +42,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -64,7 +64,6 @@ public class TestRedisQueryCache {
   private Configuration config;
   private JedisPool connection_pool;
   private Jedis instance;
-  private QueryContext context;
   
   @Before
   public void before() throws Exception {
@@ -72,7 +71,6 @@ public class TestRedisQueryCache {
     registry = mock(DefaultRegistry.class);
     connection_pool = mock(JedisPool.class);
     instance = mock(Jedis.class);
-    context = mock(QueryContext.class);
     
     config_map = Maps.newHashMap();
     config = UnitTestConfiguration.getConfiguration(config_map);
@@ -387,37 +385,37 @@ public class TestRedisQueryCache {
     byte[] data = new byte[] { 42 };
     
     RedisQueryCache cache = new RedisQueryCache();
-    QueryExecution<byte[]> exec = cache.fetch(context, key, null);
+    Deferred<byte[]> exec = cache.fetch(key, null);
     
     try {
-      exec.deferred().join(1);
+      exec.join(1);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     cache.initialize(tsdb, null).join(1);
     
-    exec = cache.fetch(context, key, null);
-    assertNull(exec.deferred().join(1));
+    exec = cache.fetch(key, null);
+    assertNull(exec.join(1));
     
     when(instance.get(key)).thenReturn(data);
-    exec = cache.fetch(context, key, null);
-    assertArrayEquals(data, exec.deferred().join(1));
+    exec = cache.fetch(key, null);
+    assertArrayEquals(data, exec.join(1));
     
-    exec = cache.fetch(context, (byte[]) null, null);
+    exec = cache.fetch((byte[]) null, null);
     try {
-      exec.deferred().join(1);
+      exec.join(1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    exec = cache.fetch(context, new byte[] { }, null);
+    exec = cache.fetch(new byte[] { }, null);
     try {
-      exec.deferred().join(1);
+      exec.join(1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(instance.get(key)).thenThrow(new IllegalStateException("Boo!"));
-    exec = cache.fetch(context, key, null);
-    assertNull(exec.deferred().join(1));
+    exec = cache.fetch(key, null);
+    assertNull(exec.join(1));
   }
   
   @Test
@@ -427,52 +425,52 @@ public class TestRedisQueryCache {
     byte[] data_b = new byte[] { 24 };
     
     RedisQueryCache cache = new RedisQueryCache();
-    QueryExecution<byte[][]> exec = cache.fetch(context, keys, null);
+    Deferred<byte[][]> exec = cache.fetch(keys, null);
     
     try {
-      exec.deferred().join(1);
+      exec.join(1);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     cache.initialize(tsdb, null).join(1);
     
-    exec = cache.fetch(context, keys, null);
-    byte[][] response = exec.deferred().join(1);
+    exec = cache.fetch(keys, null);
+    byte[][] response = exec.join(1);
     assertEquals(2, response.length);
     assertNull(response[0]);
     assertNull(response[1]);
     
     List<byte[]> cached = Lists.newArrayList(data_a, data_b);
     when(instance.mget(keys)).thenReturn(cached);
-    exec = cache.fetch(context, keys, null);
-    response = exec.deferred().join(1);
+    exec = cache.fetch(keys, null);
+    response = exec.join(1);
     assertEquals(2, response.length);
     assertArrayEquals(data_a, response[0]);
     assertArrayEquals(data_b, response[1]);
     
     cached = Lists.newArrayList(null, data_b);
     when(instance.mget(keys)).thenReturn(cached);
-    exec = cache.fetch(context, keys, null);
-    response = exec.deferred().join(1);
+    exec = cache.fetch(keys, null);
+    response = exec.join(1);
     assertEquals(2, response.length);
     assertNull(response[0]);
     assertArrayEquals(data_b, response[1]);
     
-    exec = cache.fetch(context, (byte[][]) null, null);
+    exec = cache.fetch((byte[][]) null, null);
     try {
-      exec.deferred().join(1);
+      exec.join(1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    exec = cache.fetch(context, new byte[][] { }, null);
+    exec = cache.fetch(new byte[][] { }, null);
     try {
-      exec.deferred().join(1);
+      exec.join(1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(instance.mget(keys)).thenThrow(new IllegalStateException("Boo!"));
-    exec = cache.fetch(context, keys, null);
-    response = exec.deferred().join(1);
+    exec = cache.fetch(keys, null);
+    response = exec.join(1);
     assertEquals(2, response.length);
     assertNull(response[0]);
     assertNull(response[1]);
