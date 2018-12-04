@@ -66,7 +66,8 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
                                      final MetaQuery query) {
     this.result = result;
     this.query = query;
-    if (query.type() != QueryType.NAMESPACES) {
+    if (query != null && query.type() != null && 
+        query.type() != QueryType.NAMESPACES) {
       namespaces = Sets.newHashSet(query.namespace());
     }
   }
@@ -182,7 +183,8 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param id A non-null time series string id.
    */
   void addTimeSeries(final TimeSeriesId id) {
-    if (!matchMetric(((TimeSeriesStringId) id).metric(), false, query.filter())) {
+    if (query != null && 
+        !matchMetric(((TimeSeriesStringId) id).metric(), false, query.filter())) {
       return;
     }
     
