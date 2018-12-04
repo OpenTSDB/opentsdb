@@ -51,7 +51,7 @@
         <dependency>
           <groupId>org.hbase</groupId>
           <artifactId>asynchbase</artifactId>
-          <version>1.8.2</version>
+          <version>1.9.0-20181204.011011-1</version>
         </dependency>
         
         <!-- used for fast primitive maps. May try others. -->
