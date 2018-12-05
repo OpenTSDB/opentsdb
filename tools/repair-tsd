@@ -207,8 +207,8 @@ def process_metric(metricobj):
     runtime = time.time() - start_time
     with metric_count.get_lock():
         metric_count.value += 1
-    line = "{} repair took {} seconds".format(metric,
-                                              int(runtime))
+    line = "COMPLETE: {} repair took {} seconds".format(metric,
+                                                        int(runtime))
     line += " ({} of {} metrics complete)".format(metric_count.value,
                                                   metricobj["metriccount"])
     line += " ({} failed)".format(failed_count.value)
