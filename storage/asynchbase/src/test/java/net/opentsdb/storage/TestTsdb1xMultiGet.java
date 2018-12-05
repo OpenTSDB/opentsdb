@@ -60,11 +60,13 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -110,6 +112,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(schema.rollupConfig()).thenReturn(rollup_config);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
+    when(context.query()).thenReturn(mock(TimeSeriesQuery.class));
     
     PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
       .thenAnswer(new Answer<Tsdb1xScanner>() {
