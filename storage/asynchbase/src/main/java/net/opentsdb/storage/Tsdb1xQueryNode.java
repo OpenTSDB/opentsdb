@@ -134,6 +134,9 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   /** An optional downsample config from upstream. */
   protected DownsampleConfig ds_config;
   
+  /** When we start fetching data. */
+  protected long fetch_start;
+  
   /**
    * Default ctor.
    * @param factory The Tsdb1xHBaseDataStore that instantiated this node.

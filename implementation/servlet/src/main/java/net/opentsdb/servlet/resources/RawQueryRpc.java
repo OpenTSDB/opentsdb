@@ -205,6 +205,10 @@ public class RawQueryRpc {
             .build())
         .build();
     
+    if (trace != null && query.isDebugEnabled()) {
+      context.logDebug("Trace ID: " + trace.traceId());
+    }
+    
     class AsyncTimeout implements AsyncListener {
 
       @Override

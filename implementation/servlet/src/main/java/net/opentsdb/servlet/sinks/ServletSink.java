@@ -90,6 +90,9 @@ public class ServletSink implements QuerySink {
   
   @Override
   public void onComplete() {
+    if (context.query().isTraceEnabled()) {
+      context.logTrace("Query serialization complete.");
+    }
     if (context.query().getMode() == QueryMode.VALIDATE) {
       // no-op
       return;
@@ -143,10 +146,12 @@ public class ServletSink implements QuerySink {
               ImmutableMap.<String, Object>builder()
               // TODO - possible upstream headers
               .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
-              //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
-              //.put("traceId", trace != null ? trace.traceId() : "")
-              .put("query", JSON.serializeToString(context.query()))
+              .put("node", next.source().config().getId() + ":" + next.dataSource())
               .build()));
+    }
+    if (context.query().isTraceEnabled()) {
+      context.logTrace(next.source(), "Received response: " 
+          + next.source().config().getId() + ":" + next.dataSource());
     }
     
     final Span serdes_span = context.stats().querySpan() != null ?
@@ -158,7 +163,21 @@ public class ServletSink implements QuerySink {
     class FinalCB implements Callback<Void, Object> {
       @Override
       public Void call(final Object ignored) throws Exception {
-        next.close();
+        if (ignored != null && ignored instanceof Throwable) {
+          LOG.error("Failed to serialize result: " 
+              + next.source().config().getId() + ":" 
+              + next.dataSource(), (Throwable) ignored);
+        }
+        try {
+          next.close();
+        } catch (Throwable t) {
+          LOG.warn("Failed to close result: " 
+              + next.source().config().getId() + ":" + next.dataSource(), t);
+        }
+        if (context.query().isTraceEnabled()) {
+          context.logTrace(next.source(), "Finished serializing response: " 
+              + next.source().config().getId() + ":" + next.dataSource());
+        }
         if (serdes_span != null) {
           serdes_span.setSuccessTags().finish();
         }
@@ -179,6 +198,7 @@ public class ServletSink implements QuerySink {
   public void onError(final Throwable t) {
     LOG.error("Exception for query: " 
         + JSON.serializeToString(context.query()), t);
+    context.logError("Error sent to the query sink: " + t.getMessage());
     try {
       if (t instanceof QueryExecutionException) {
         QueryExecutionExceptionMapper.serialize(

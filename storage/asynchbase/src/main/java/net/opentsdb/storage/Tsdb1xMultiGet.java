@@ -156,6 +156,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   /** The state of this executor. */
   protected volatile State state;
   
+  /** Tracking time. */
+  protected long fetch_start;
+  
   /**
    * Default ctor that parses the query, sets up rollups and sorts (and
    * optionally salts) the TSUIDs.
@@ -306,6 +309,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   @Override
   public synchronized void fetchNext(final Tsdb1xQueryResult result, 
                                      final Span span) {
+    if (fetch_start == 0) {
+      fetch_start = DateTime.nanoTime();
+    }
     if (result == null) {
       throw new IllegalArgumentException("Result cannot be null.");
     }
@@ -316,6 +322,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getName() + ".fetchNext")
                   .start();
+    }
+    
+    if (node.pipelineContext().query().isTraceEnabled()) {
+      node.pipelineContext().queryContext().logTrace(node, "Executing multiget query with " 
+          + tsuids.size() + " TSUIDs and a concurrency of " + concurrency_multi_get);
     }
     
     while (outstanding < concurrency_multi_get && !advance() && !has_failed) {
@@ -415,6 +426,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         child.setErrorTags(t)
              .finish();
       }
+      node.pipelineContext().queryContext().logError(node, 
+          "Multiget query failed with exception: " + t.getMessage());
       state = State.EXCEPTION;
       current_result.setException(t);
       final QueryResult result = current_result;
@@ -476,6 +489,10 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           current_result.timeSeries().isEmpty()) && 
           rollups_enabled && node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
         // we can fallback!
+        if (node.pipelineContext().query().isDebugEnabled()) {
+          node.pipelineContext().queryContext().logDebug(node, 
+              "Falling back to next highest resolution.");
+        }
         tsuid_idx = 0;
         fallback_timestamp = null;
         if (node.rollupUsage() == RollupUsage.ROLLUP_FALLBACK_RAW) {
@@ -493,6 +510,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         current_result = null;
         if (child != null) {
           child.setSuccessTags().finish();
+        }
+        if (node.pipelineContext().query().isTraceEnabled()) {
+          node.pipelineContext().queryContext().logTrace(node, 
+              "Finished multi-get query in: " 
+                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), fetch_start));
         }
         state = State.COMPLETE;
         node.onNext(result);

@@ -46,6 +46,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
+import javax.naming.Context;
+
 /**
  * Run the Meta Query on Meta Store with schema and form the results.
  *
@@ -345,9 +347,15 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
             }
             
             // if we have too many results, bail out with a no-data error.
-            if (response.getHits().getTotalHits() > tsdb.getConfig().getInt(MAX_CARD_KEY)) {
+            if (max_hits > tsdb.getConfig().getInt(MAX_CARD_KEY)) {
               if (LOG.isTraceEnabled()) {
                 LOG.trace("Too many hits from ES: " + response.getHits().getTotalHits());
+              }
+              if (queryPipelineContext.query().isDebugEnabled()) {
+                queryPipelineContext.queryContext().logDebug(
+                    "Total hits from ES: " + max_hits 
+                      + " exceeded the configured limit: " 
+                      + tsdb.getConfig().getInt(MAX_CARD_KEY));
               }
               result = new NamespacedAggregatedDocumentResult(
                   tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY) 
