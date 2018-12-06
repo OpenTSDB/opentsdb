@@ -223,4 +223,29 @@ public final class TestAggregators {
     }
     numbers.reset();
   }
+
+  @Test
+  public void testSquareSumFewDataInputs(){
+    final long[] longValues = new long[2];
+    for (int i = 0; i < longValues.length; i++) {
+      longValues[i] = i + 1;
+    }
+
+    Numbers values = new Numbers(longValues);
+    assertAggregatorEquals(5, net.opentsdb.core.Aggregators.get("squareSum"), values);
+  }
+
+  @Test
+  public void testSquareSumRandomInputs(){
+    final long[] longValues = new long[100];
+    long summ = 0;
+    for (int i = 0; i < longValues.length; i++) {
+      long temp = random.nextLong();
+      longValues[i] = temp;
+      summ += temp * temp;
+    }
+
+    Numbers values = new Numbers(longValues);
+    assertAggregatorEquals(summ, net.opentsdb.core.Aggregators.get("squareSum"), values);
+  }
 }
