@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -90,6 +92,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /** Map of the config IDs to nodes for use in linking and unit testing. */
   protected final Map<String, QueryNode> nodes_map;
   
+  /** The cache of factories. */
+  protected final Map<String, QueryNodeFactory> factory_cache;
+  
   /** The context node from the query pipeline context. All results pass
    * through this. */
   protected QueryNodeConfig context_node;
@@ -110,6 +115,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     roots = Lists.newArrayList();
     data_sources = Lists.newArrayList();
     nodes_map = Maps.newHashMap();
+    factory_cache = Maps.newHashMap();
     context_sink_config = new ContextNodeConfig();
     source_nodes = Sets.newHashSet();
     config_graph = GraphBuilder.directed()
@@ -175,7 +181,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
     }
     
-    final Map<String, QueryNodeFactory> factory_cache = Maps.newHashMap();
     final Set<String> satisfied_filters = Sets.newHashSet();
     
     // next we walk and let the factories update the graph as needed.
@@ -187,8 +192,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         break;
       }
       for (final QueryNodeConfig node : source_nodes) {
-        modified = recursiveSetup(node, already_setup, factory_cache, 
-            satisfied_filters);
+        modified = recursiveSetup(node, already_setup, satisfied_filters);
         if (modified) {
           break;
         }
@@ -210,20 +214,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         // next, push down by walking up from the data sources.
         final List<QueryNodeConfig> copy = Lists.newArrayList(source_nodes);
         for (final QueryNodeConfig node : copy) {
-          final QueryNodeFactory factory;
-          if (node instanceof TimeSeriesDataSourceConfig) {
-            final String source_id =  
-                Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
-                    .getSourceId()) ? null : 
-                      ((TimeSeriesDataSourceConfig) node)
-                        .getSourceId().toLowerCase();
-            factory = getFactory(source_id, factory_cache);
-          } else if (!Strings.isNullOrEmpty(node.getType())) {
-            factory = getFactory(node.getType().toLowerCase(), factory_cache);
-          } else {
-            factory = getFactory(node.getId().toLowerCase(), factory_cache);
-          }
-          
+          final QueryNodeFactory factory = getFactory(node);
           // TODO - cleanup the source factories. ugg!!!
           if (factory == null || !(factory instanceof TimeSeriesDataSourceFactory)) {
             throw new IllegalArgumentException("No node factory found for "
@@ -280,7 +271,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         Traverser<QueryNodeConfig> traverser = Traverser.forGraph(config_graph);
         for (final QueryNodeConfig node : traverser.breadthFirst(context_node)) {
           if (config_graph.predecessors(node).isEmpty()) {
-            buildNodeGraph(context, node, constructed, nodes_map, factory_cache);
+            buildNodeGraph(context, node, constructed, nodes_map);
           }
         }
         
@@ -305,7 +296,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         Lists.newArrayListWithExpectedSize(source_nodes.size());
     for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
       // see if we need to insert a byte Id converter upstream.
-      needByteIdConverter(c, factory_cache);
+      needByteIdConverter(c);
       
       if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
         deferreds.add(((TimeSeriesDataSourceConfig) c)
@@ -323,7 +314,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * if the graph has changed.
    * @param node The non-null current node.
    * @param already_setup Nodes already setup to avoid repeats.
-   * @param factory_cache The factory cache.
    * @param satisfied_filters Filters.
    * @return true if the graph has mutated and we should restart, false
    * if not.
@@ -331,7 +321,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
   private boolean recursiveSetup(
       final QueryNodeConfig node, 
       final Set<QueryNodeConfig> already_setup, 
-      final Map<String, QueryNodeFactory> factory_cache,
       final Set<String> satisfied_filters) {
     if (!already_setup.contains(node) && node != context_sink_config) {
       // TODO - ugg!! There must be a better way to determine if the graph
@@ -372,36 +361,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
         }
       }
       
-      final String factory_id;
-      if (node instanceof TimeSeriesDataSourceConfig) {
-        factory_id = Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
-            .getSourceId()) ? null : 
-              ((TimeSeriesDataSourceConfig) node)
-              .getSourceId().toLowerCase();
-        final TimeSeriesDataSourceFactory factory = 
-            (TimeSeriesDataSourceFactory) getFactory(factory_id, factory_cache);
-        if (factory == null) {
-          throw new IllegalArgumentException("No data source factory found for: " 
-              + factory_id);
-        }
-        factory.setupGraph(context.query(), node, this);
-        factory_cache.put(factory_id, factory);
-      } else {
-        if (!Strings.isNullOrEmpty(node.getType())) {
-          factory_id = node.getType().toLowerCase();
-        } else {
-          factory_id = node.getId().toLowerCase();
-        }
-        
-        final QueryNodeFactory factory = getFactory(factory_id, factory_cache);
-        if (factory == null) {
-          throw new IllegalArgumentException("No node factory found for: " 
-              + factory_id);
-        }
-        factory.setupGraph(context.query(), node, this);
-        factory_cache.put(factory_id, factory);
+      final QueryNodeFactory factory = getFactory(node);
+      if (factory == null) {
+        throw new IllegalArgumentException("No data source factory found for: " 
+            + node);
       }
-      
+      factory.setupGraph(context.query(), node, this);
       already_setup.add(node);
       if (!config_graph.equals(clone)) {
         return true;
@@ -410,7 +375,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     // all done, move up.
     for (final QueryNodeConfig upstream : config_graph.predecessors(node)) {
-      if (recursiveSetup(upstream, already_setup, factory_cache, satisfied_filters)) {
+      if (recursiveSetup(upstream, already_setup, satisfied_filters)) {
         return true;
       }
     }
@@ -531,16 +496,13 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param constructed A cache to determine if we've already instantated
    * and linked the node.
    * @param nodes_map A map of instantiated nodes to use for linking.
-   * @param factory_cache The cache of factories so we don't have to keep
-   * looking them up.
    * @return A node to link with.
    */
   private QueryNode buildNodeGraph(
       final QueryPipelineContext context, 
       final QueryNodeConfig node, 
       final List<Long> constructed,
-      final Map<String, QueryNode> nodes_map,
-      final Map<String, QueryNodeFactory> factory_cache) {
+      final Map<String, QueryNode> nodes_map) {
     // short circuit initialized nodes.
     if (constructed.contains(node.buildHashCode().asLong())) {
       return nodes_map.get(node.getId());
@@ -553,8 +515,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
           context, 
           n, 
           constructed, 
-          nodes_map, 
-          factory_cache));
+          nodes_map));
     }
     
     // special case, ug.
@@ -568,19 +529,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       return context_sink;
     }
     
-    QueryNodeFactory factory;
-    if (node instanceof TimeSeriesDataSourceConfig) {
-      factory = getFactory(
-          Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
-              .getSourceId()) ? null : 
-                ((TimeSeriesDataSourceConfig) node)
-                .getSourceId().toLowerCase(),
-          factory_cache);
-    } else if (!Strings.isNullOrEmpty(node.getType())) {
-      factory = getFactory(node.getType().toLowerCase(), factory_cache);
-    } else {
-      factory = getFactory(node.getId().toLowerCase(), factory_cache);
-    }
+    QueryNodeFactory factory = getFactory(node);
     if (factory == null) {
       throw new IllegalArgumentException("No node factory found for "
           + "configuration " + node);
@@ -876,14 +825,20 @@ public class DefaultQueryPlanner implements QueryPlanner {
     return false;
   }
   
-  /**
-   * Helper to get the factory from the cache or registry.
-   * @param key The key, may be null for the default.
-   * @param factory_cache A non-null factory cache.
-   * @return
-   */
-  private QueryNodeFactory getFactory(final String key, 
-                              final Map<String, QueryNodeFactory> factory_cache) {
+  @Override
+  public QueryNodeFactory getFactory(final QueryNodeConfig node) {
+    final String key;
+    if (node instanceof TimeSeriesDataSourceConfig) {
+      key = Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
+              .getSourceId()) ? null : 
+                ((TimeSeriesDataSourceConfig) node)
+                  .getSourceId().toLowerCase();
+    } else if (!Strings.isNullOrEmpty(node.getType())) {
+      key = node.getType().toLowerCase();
+    } else {
+      key = node.getId().toLowerCase();
+    }
+    
     QueryNodeFactory factory = factory_cache.get(key);
     if (factory != null) {
       return factory;
@@ -895,6 +850,25 @@ public class DefaultQueryPlanner implements QueryPlanner {
     return factory;
   }
   
+  @Override
+  public Collection<QueryNodeConfig> terminalSourceNodes(final QueryNodeConfig config) {
+    final Set<QueryNodeConfig> successors = config_graph.successors(config);
+    if (successors.isEmpty()) {
+      // some nodes in between may be sources but NOT a terminal. We only want
+      // the terminals.
+      if (config instanceof TimeSeriesDataSourceConfig) {
+        return Lists.newArrayList(config);
+      }
+      return Collections.emptyList();
+    }
+    
+    Set<QueryNodeConfig> sources = Sets.newHashSet();
+    for (final QueryNodeConfig successor : successors) {
+      sources.addAll(terminalSourceNodes(successor));
+    }
+    return sources;
+  }
+  
   /**
    * Recursive search for joining nodes (like mergers) that would run
    * into multiple sources with different byte IDs (or byte IDs and string
@@ -902,15 +876,13 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * by passing the source node and it will walk up to find joins.
    * 
    * @param current The non-null current node.
-   * @param factory_cache The cache of factories.
    */
-  private void needByteIdConverter(final QueryNodeConfig current,
-                                   final Map<String, QueryNodeFactory> factory_cache) {
+  private void needByteIdConverter(final QueryNodeConfig current) {
     if (!(current instanceof TimeSeriesDataSourceConfig) &&
         current.joins()) {
       final Map<String, TypeToken<? extends TimeSeriesId>> source_ids = 
           Maps.newHashMap();
-      uniqueSources(current, source_ids, factory_cache);
+      uniqueSources(current, source_ids);
       if (!source_ids.isEmpty() && source_ids.size() > 1) {
         // check to see we have at least a byte ID in the mix
         int byte_ids = 0;
@@ -948,7 +920,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       predecessors = Sets.newHashSet(predecessors);
     }
     for (final QueryNodeConfig predecessor : predecessors) {
-      needByteIdConverter(predecessor, factory_cache);
+      needByteIdConverter(predecessor);
     }
   }
   
@@ -958,23 +930,19 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * 
    * @param current The non-null current node.
    * @param source_ids A non-null map of data source to ID types.
-   * @param factory_cache A non-null factory cache.
    */
   private void uniqueSources(final QueryNodeConfig current, 
-                     final Map<String, TypeToken<? extends TimeSeriesId>> source_ids,
-                     final Map<String, QueryNodeFactory> factory_cache) {
+                     final Map<String, TypeToken<? extends TimeSeriesId>> source_ids) {
     if (current instanceof TimeSeriesDataSourceConfig && 
         current.getSources().isEmpty()) {
       TimeSeriesDataSourceFactory factory = (TimeSeriesDataSourceFactory) 
-          getFactory(
-            ((TimeSeriesDataSourceConfig) current).getSourceId(),
-            factory_cache);
+          getFactory(current);
       source_ids.put(
         Strings.isNullOrEmpty(factory.id()) ? "null" : factory.id(),
         factory.idType());
     } else {
       for (final QueryNodeConfig successor : config_graph.successors(current)) {
-        uniqueSources(successor, source_ids, factory_cache);
+        uniqueSources(successor, source_ids);
       }
     }
   }

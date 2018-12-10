@@ -75,7 +75,7 @@ public class TestGroupByNumericSummaryIterator {
   
   @Before
   public void before() throws Exception {
-    rollup_config = DefaultRollupConfig.builder()
+    rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)

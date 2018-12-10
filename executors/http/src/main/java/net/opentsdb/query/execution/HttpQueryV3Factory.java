@@ -34,6 +34,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
@@ -132,5 +133,11 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
       tsdb.getConfig().register(getConfigKey(ENDPOINT_KEY), "/api/query/graph", true,
           "The endpoint to send queries to.");
     }
+  }
+
+  @Override
+  public RollupConfig rollupConfig() {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

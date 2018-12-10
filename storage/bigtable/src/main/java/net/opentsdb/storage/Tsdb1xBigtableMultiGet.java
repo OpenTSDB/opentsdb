@@ -28,8 +28,8 @@ import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowSet;
-import com.google.bigtable.v2.RowFilter.Interleave;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -126,6 +126,9 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
   /** The current timestamp for the lowest resolution data we're querying. */
   protected volatile TimeStamp timestamp;
   
+  /** The final timestamp with optional padding. */
+  protected volatile TimeStamp end_timestamp;
+  
   /** The current fallback timestamp for the next highest resolution data
    * we're querying when falling back. May be null. */
   protected volatile TimeStamp fallback_timestamp;
@@ -162,8 +165,8 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
    * @throws IllegalArgumentException if the params were null or empty.
    */
   public Tsdb1xBigtableMultiGet(final Tsdb1xBigtableQueryNode node, 
-                        final TimeSeriesDataSourceConfig source_config, 
-                        final List<byte[]> tsuids) {
+                                final TimeSeriesDataSourceConfig source_config, 
+                                final List<byte[]> tsuids) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -239,41 +242,22 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       pre_aggregate = false;
     }
     
-    final Interleave.Builder rollup_filter;
     if (node.rollupIntervals() != null && 
         !node.rollupIntervals().isEmpty() && 
         node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
       rollups_enabled = true;
       rollup_index = 0;
-      if (node.rollupAggregation() != null && 
-          node.rollupAggregation().equals("avg")) {
-        // old and new schemas with literal agg names or prefixes.
-        rollup_filter = RowFilter.Interleave.newBuilder()
-            .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
-                    "sum".getBytes(Const.ASCII_US_CHARSET))))
-            .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
-                    "count".getBytes(Const.ASCII_US_CHARSET))))
-            .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
-                    (byte) node.schema().rollupConfig().getIdForAggregator("sum")
-                })))
-            .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
-                    (byte) node.schema().rollupConfig().getIdForAggregator("count")
-                })));
-      } else {
-        // it's another aggregation
-        rollup_filter = RowFilter.Interleave.newBuilder()
-            .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
-                    node.rollupAggregation().getBytes(Const.ASCII_US_CHARSET))))
-            .addFilters(RowFilter.newBuilder()
-                .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
-                    (byte) node.schema().rollupConfig()
-                      .getIdForAggregator(node.rollupAggregation())
-                })));
+      
+      RowFilter.Interleave.Builder builder = RowFilter.Interleave.newBuilder();
+      for (final String agg : source_config.getRollupAggregations()) {
+        builder.addFilters(RowFilter.newBuilder()
+            .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
+                agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));
+        builder.addFilters(RowFilter.newBuilder()
+            .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
+                (byte) node.schema().rollupConfig().getIdForAggregator(
+                    agg.toLowerCase())
+            })));
       }
       filter = RowFilter.newBuilder()
           .setChain(RowFilter.Chain.newBuilder()
@@ -281,7 +265,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
                   .setFamilyNameRegexFilterBytes(
                       UnsafeByteOperations.unsafeWrap(Tsdb1xBigtableDataStore.DATA_FAMILY)))
               .addFilters(RowFilter.newBuilder()
-                  .setInterleave(rollup_filter)))
+                  .setInterleave(builder)))
           .build();
     } else {
       rollup_index = -1;
@@ -295,6 +279,11 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     // sentinel
     tsuid_idx = -1;
     timestamp = getInitialTimestamp(rollup_index);
+    end_timestamp = reversed ? node.pipelineContext().query().startTime().getCopy() :
+        node.pipelineContext().query().endTime().getCopy();
+    if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
+      end_timestamp.add(DateTime.parseDuration2(source_config.getPostPadding()));
+    }
     
     if (rollups_enabled) {
       tables = Lists.newArrayListWithCapacity(node.rollupIntervals().size() + 1);
@@ -381,8 +370,8 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       }
     }
     if (ts != null && (reversed ? 
-        ts.compare(Op.LT, node.pipelineContext().query().startTime()) : 
-        ts.compare(Op.GT, node.pipelineContext().query().endTime()))) {
+        ts.compare(Op.LT, end_timestamp) : 
+        ts.compare(Op.GT, end_timestamp))) {
       // DONE with query!
       return true;
     }
@@ -404,8 +393,8 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
         }
       }
       if (reversed ? 
-          ts.compare(Op.LT, node.pipelineContext().query().startTime()) : 
-          ts.compare(Op.GT, node.pipelineContext().query().endTime())) {
+          ts.compare(Op.LT, end_timestamp) : 
+          ts.compare(Op.GT, end_timestamp)) {
         // DONE with query!
         return true;
       }
@@ -717,9 +706,8 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     } else {
       long ts = reversed ? node.pipelineContext().query().endTime().epoch() : 
         node.pipelineContext().query().startTime().epoch();
-      if (node.downsampleConfig() != null) {
-        final long interval = DateTime.parseDuration(
-            node.downsampleConfig().getInterval());
+      if (!(Strings.isNullOrEmpty(source_config.getPrePadding()))) {
+        final long interval = DateTime.parseDuration(source_config.getPrePadding());
         if (interval > 0) {
           final long interval_offset = (1000L * ts) % interval;
           ts -= interval_offset / 1000L;

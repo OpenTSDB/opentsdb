@@ -345,7 +345,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setPreAggregationTable("tsdb-rollup-1h")
         .build();
     interval.setConfig(rollup_config);
-    rollup_config = DefaultRollupConfig.builder()
+    rollup_config = DefaultRollupConfig.newBuilder()
         .addInterval(interval)
         .addAggregationId("sum", 0)
         .build();
@@ -381,7 +381,7 @@ public class TestTsdb1xQueryResult extends UTBase {
         .setPreAggregationTable("tsdb-rollup-1h")
         .build();
     interval.setConfig(rollup_config);
-    rollup_config = DefaultRollupConfig.builder()
+    rollup_config = DefaultRollupConfig.newBuilder()
         .addInterval(interval)
         .addAggregationId("sum", 0)
         .build();

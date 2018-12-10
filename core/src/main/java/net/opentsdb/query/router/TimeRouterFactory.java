@@ -49,6 +49,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.router.TimeRouterConfigEntry.MatchType;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -264,6 +265,12 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
     } else {
       return KEY_PREFIX + id + "." + suffix;
     }
+  }
+
+  @Override
+  public RollupConfig rollupConfig() {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }

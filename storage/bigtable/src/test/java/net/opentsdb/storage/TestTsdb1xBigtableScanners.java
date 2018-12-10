@@ -260,19 +260,17 @@ public class TestTsdb1xBigtableScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("avg")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("avg");
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .setPrePadding("1h")
+        .setPostPadding("1h")
+        .setId("m1")
+        .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     assertEquals(State.CONTINUE, scanners.state());
@@ -354,36 +352,31 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .setId("m1")
         .build();
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("max")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("max");
+        .addRollupAggregation("max")
+        .setPrePadding("1h")
+        .setPostPadding("1h")
+        .setId("m1")
+        .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
     
     // downsample 2 hours
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("2h")
-        .setAggregator("max")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
+        .addRollupAggregation("max")
+        .setPrePadding("2h")
+        .setPostPadding("2h")
+        .setId("m1")
+        .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
@@ -426,37 +419,33 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertArrayEquals(makeRowKey(METRIC_BYTES, 1514851200, null), stop);
     
     // downsample
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("avg")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("avg");
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .setPrePadding("1h")
+        .setPostPadding("1h")
+        .setId("m1")
+        .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 7200), null), stop);
     
     // downsample 2 hours
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("2h")
-        .setAggregator("avg")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("avg");
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .setPrePadding("2h")
+        .setPostPadding("2h")
+        .setId("m1")
+        .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 10800), null), stop);
@@ -877,9 +866,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertEquals(4, interleave.getFiltersCount());
     assertArrayEquals("sum".getBytes(Const.ASCII_CHARSET), 
         interleave.getFilters(0).getColumnQualifierRegexFilter().toByteArray());
-    assertArrayEquals("count".getBytes(Const.ASCII_CHARSET), 
-        interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 1 }, 
+        interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
+    assertArrayEquals("count".getBytes(Const.ASCII_CHARSET), 
         interleave.getFilters(2).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 2 }, 
         interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
@@ -1004,9 +993,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
       assertEquals(4, interleave.getFiltersCount());
       assertArrayEquals("sum".getBytes(Const.ASCII_CHARSET), 
           interleave.getFilters(0).getColumnQualifierRegexFilter().toByteArray());
-      assertArrayEquals("count".getBytes(Const.ASCII_CHARSET), 
-          interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
       assertArrayEquals(new byte[] { 1 }, 
+          interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
+      assertArrayEquals("count".getBytes(Const.ASCII_CHARSET), 
           interleave.getFilters(2).getColumnQualifierRegexFilter().toByteArray());
       assertArrayEquals(new byte[] { 2 }, 
           interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
@@ -1203,10 +1192,13 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
         .setFilterId("f1")
         .setId("m1")
         .build();
@@ -1250,11 +1242,15 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertArrayEquals(Tsdb1xBigtableDataStore.DATA_FAMILY, 
         chain.getFilters(1).getFamilyNameRegexFilterBytes().toByteArray());
     Interleave interleave = chain.getFilters(2).getInterleave();
-    assertEquals(2, interleave.getFiltersCount());
+    assertEquals(4, interleave.getFiltersCount());
     assertArrayEquals("sum".getBytes(Const.ASCII_CHARSET), 
         interleave.getFilters(0).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 1 }, 
         interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
+    assertArrayEquals("count".getBytes(Const.ASCII_CHARSET), 
+        interleave.getFilters(2).getColumnQualifierRegexFilter().toByteArray());
+    assertArrayEquals(new byte[] { 2 }, 
+        interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
     
     // raw
     request = storage.getScanners().get(1).request();
@@ -2397,6 +2393,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     }
     query = query_builder.build();
     when(context.query()).thenReturn(query);
+    
     DefaultTimeSeriesDataSourceConfig.Builder builder = 
         (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
@@ -2406,6 +2403,16 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setId("m1");
     if (pre_agg) {
       builder.addOverride(Tsdb1xBigtableDataStore.PRE_AGG_KEY, "true");
+    }
+    if (ds != null) {
+      if (ds.equals("avg")) {
+        builder.addRollupAggregation("sum")
+               .addRollupAggregation("count");
+      } else {
+        builder.addRollupAggregation(ds);
+      }
+      builder.setPrePadding("1h")
+             .setPostPadding("1h");
     }
     
     source_config = builder.build();
@@ -2424,20 +2431,6 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .setPreAggregationTable("tsdb-agg-30m")
             .setRowSpan("1d")
             .build()));
-      
-      when(node.downsampleConfig()).thenReturn(
-          (DownsampleConfig) DownsampleConfig.newBuilder()
-          .setId("ds")
-          .setInterval("1h")
-          .setAggregator(ds)
-          .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-              .setFillPolicy(FillPolicy.NONE)
-              .setRealFillPolicy(FillWithRealPolicy.NONE)
-              .setType("interp")
-              .setDataType(NumericType.TYPE.toString())
-              .build())
-          .build());
-      when(node.rollupAggregation()).thenReturn(ds);
     }
     return filter;
   }

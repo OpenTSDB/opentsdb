@@ -117,7 +117,8 @@ public class TestTsdb1xQueryNode extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
@@ -208,45 +209,36 @@ public class TestTsdb1xQueryNode extends UTBase {
     Schema schema = mock(Schema.class);
     when(data_store.schema()).thenReturn(schema);
     
-    when(rollup_config.getRollupIntervals(3600, "1h", true))
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+    when(rollup_config.getRollupInterval("1h")).thenReturn(
+        RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
           .setRowSpan("1d")
-          .build(),
+          .build());
+    when(rollup_config.getRollupInterval("30m")).thenReturn(
         RollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
           .setPreAggregationTable("tsdb-agg-30m")
           .setRowSpan("1d")
-          .build()));
-    
-    when(rollup_config.getRollupIntervals(1800, "30m", true))
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-          .setInterval("30m")
-          .setTable("tsdb-30m")
-          .setPreAggregationTable("tsdb-agg-30m")
-          .setRowSpan("1d")
-          .build()));
+          .build());
     
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
-    final Downsample ds = mock(Downsample.class);
-    when(ds.config()).thenReturn(DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("avg")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(context.upstreamOfType(any(QueryNode.class), eq(Downsample.class)))
-      .thenReturn(Lists.newArrayList(ds));
-    
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .addRollupInterval("1h")
+        .addRollupInterval("30m")
+        .setPrePadding("1h")
+        .setPostPadding("1h")
+        .setId("m1")
+        .build();
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
     assertSame(source_config, node.config);

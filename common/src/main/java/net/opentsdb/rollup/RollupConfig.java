@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
+import java.util.List;
 import java.util.Map;
 
 public interface RollupConfig {
@@ -34,5 +35,21 @@ public interface RollupConfig {
    * aggregator was null or empty.
    */
   public int getIdForAggregator(final String aggregator);
+  
+  /**
+   * An ordered set of resolutions supported by this source starting with the 
+   * lowest resolution working towards the highest.
+   * @return A non-null list of intervals in TSDB Duration formation, e.g. "1h"
+   */
+  public List<String> getIntervals();
+  
+  /**
+   * Returns a list of applicable intervals given a downsample interval. If no
+   * intervals apply then it will return an empty list.
+   * @param interval A non-null and non-empty string.
+   * @return A non-null, possibly empty list of intervals from lowest resolution
+   * to highest.
+   */
+  public List<String> getPossibleIntervals(final String interval);
   
 }

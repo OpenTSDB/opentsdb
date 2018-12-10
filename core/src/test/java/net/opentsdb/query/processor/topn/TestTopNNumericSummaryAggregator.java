@@ -76,7 +76,7 @@ public class TestTopNNumericSummaryAggregator {
         .build();
     when(node.config()).thenReturn(config);
     
-    RollupConfig rollup_config = DefaultRollupConfig.builder()
+    RollupConfig rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)

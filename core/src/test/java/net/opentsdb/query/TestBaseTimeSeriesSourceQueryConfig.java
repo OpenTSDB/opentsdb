@@ -38,16 +38,28 @@ public class TestBaseTimeSeriesSourceQueryConfig {
   public void builder() throws Exception {
     UTConfig config = (UTConfig) UTConfig.newBuilder()
         .setSourceId("HBase")
+        .setNamespace("Verizon")
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
         .addPushDownNode(mock(QueryNodeConfig.class))
+        .addRollupInterval("1h")
+        .addRollupAggregation("sum")
+        .setPrePadding("30m")
+        .setPostPadding("1h")
         .setId("UT")
         .build();
     assertEquals("HBase", config.getSourceId());
+    assertEquals("Verizon", config.getNamespace());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
     assertEquals("UT", config.getId());
     assertEquals(1, config.getPushDownNodes().size());
+    assertEquals(1, config.getRollupIntervals().size());
+    assertTrue(config.getRollupIntervals().contains("1h"));
+    assertEquals(1, config.getRollupAggregations().size());
+    assertTrue(config.getRollupAggregations().contains("sum"));
+    assertEquals("30m", config.getPrePadding());
+    assertEquals("1h", config.getPostPadding());
     assertFalse(config.pushDown());
     
     try {
@@ -63,11 +75,16 @@ public class TestBaseTimeSeriesSourceQueryConfig {
   public void builderClone() throws Exception {
     UTConfig config = (UTConfig) UTConfig.newBuilder()
         .setSourceId("HBase")
+        .setNamespace("Verizon")
         .setTypes(Lists.newArrayList("Numeric", "Annotation"))
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
         .addPushDownNode(mock(QueryNodeConfig.class))
+        .addRollupInterval("1h")
+        .addRollupAggregation("sum")
+        .setPrePadding("30m")
+        .setPostPadding("1h")
         .setId("UT")
         .build();
     
@@ -75,6 +92,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     UTConfig clone = (UTConfig) UTConfig.newBuilder(config, builder).build();
     assertNotSame(config, clone);
     assertEquals("HBase", clone.getSourceId());
+    assertEquals("Verizon", config.getNamespace());
     assertNotSame(config.getTypes(), clone.getTypes());
     assertEquals(2, clone.getTypes().size());
     assertTrue(clone.getTypes().contains("Numeric"));
@@ -82,12 +100,19 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertSame(config.getMetric(), clone.getMetric());
     assertEquals("UT", clone.getId());
     assertTrue(clone.getPushDownNodes().isEmpty());
+    assertEquals(1, config.getRollupIntervals().size());
+    assertTrue(config.getRollupIntervals().contains("1h"));
+    assertEquals(1, config.getRollupAggregations().size());
+    assertTrue(config.getRollupAggregations().contains("sum"));
+    assertEquals("30m", config.getPrePadding());
+    assertEquals("1h", config.getPostPadding());
   }
 
   @Test
   public void serdes() throws Exception {
     UTConfig config = (UTConfig) UTConfig.newBuilder()
         .setSourceId("HBase")
+        .setNamespace("Verizon")
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
@@ -103,12 +128,17 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             .setInfectiousNan(true)
             .setId("Toppy")
             .build())
+        .addRollupInterval("1h")
+        .addRollupAggregation("sum")
+        .setPrePadding("30m")
+        .setPostPadding("1h")
         .setId("UT")
         .build();
     
     final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"sourceId\":\"HBase\""));
     assertTrue(json.contains("\"id\":\"UT\""));
+    assertTrue(json.contains("\"namespace\":\"Verizon\""));
     assertTrue(json.contains("\"metric\":{"));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
     assertTrue(json.contains("\"type\":\"MetricLiteral\""));
@@ -117,6 +147,10 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"pushDownNodes\":["));
     assertTrue(json.contains("\"id\":\"Toppy\""));
     assertTrue(json.contains("\"type\":\"TopN\""));
+    assertTrue(json.contains("\"rollupIntervals\":[\"1h\"]"));
+    assertTrue(json.contains("\"rollupAggregations\":[\"sum\"]"));
+    assertTrue(json.contains("\"prePadding\":\"30m\""));
+    assertTrue(json.contains("\"postPadding\":\"1h\""));
     
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode root = JSON.getMapper().readTree(json);
@@ -125,6 +159,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             tsdb, root, builder);
     
     assertEquals("HBase", config.getSourceId());
+    assertEquals("Verizon", config.getNamespace());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
     assertEquals("UT", config.getId());
     assertEquals(1, config.getPushDownNodes().size());
@@ -132,6 +167,12 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("f1", config.getFilterId());
     assertTrue(config.getFetchLast());
     assertEquals("web01", ((TagValueLiteralOrFilter) config.getFilter()).getFilter());
+    assertEquals(1, config.getRollupIntervals().size());
+    assertTrue(config.getRollupIntervals().contains("1h"));
+    assertEquals(1, config.getRollupAggregations().size());
+    assertTrue(config.getRollupAggregations().contains("sum"));
+    assertEquals("30m", config.getPrePadding());
+    assertEquals("1h", config.getPostPadding());
   }
   
   static class UTConfig extends BaseTimeSeriesDataSourceConfig {

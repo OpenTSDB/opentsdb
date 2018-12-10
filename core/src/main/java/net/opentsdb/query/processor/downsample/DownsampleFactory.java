@@ -38,6 +38,7 @@ import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
@@ -48,6 +49,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
@@ -219,6 +221,42 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
         .setStart(query.getStart())
         .setEnd(query.getEnd())
         .setId(config.getId());
+    
+    // and we need to find our sources if we have a rollup as well as set the 
+    // padding.
+    final List<QueryNodeConfig> sources = Lists.newArrayList(
+        plan.terminalSourceNodes(config));
+    for (final QueryNodeConfig source : sources) {
+      if (!(source instanceof TimeSeriesDataSourceConfig)) {
+        LOG.debug("Hmmm, wasn't a data source config? " + source);
+        continue;
+      }
+      TimeSeriesDataSourceConfig.Builder new_source = 
+          (TimeSeriesDataSourceConfig.Builder)
+            ((TimeSeriesDataSourceConfig) source).toBuilder();
+      final TimeSeriesDataSourceFactory factory = (TimeSeriesDataSourceFactory) 
+          plan.getFactory(source);
+      if (factory.rollupConfig() != null) {
+        final List<String> intervals = factory.rollupConfig().getPossibleIntervals(
+            ((DownsampleConfig) config).getInterval());
+        new_source.setRollupIntervals(intervals);
+        if (((DownsampleConfig) config).getAggregator().equalsIgnoreCase("avg")) {
+          new_source.addRollupAggregation("sum");
+          new_source.addRollupAggregation("count");
+        } else {
+          new_source.addRollupAggregation(((DownsampleConfig) config).getAggregator());
+        }
+      }
+      
+      if (((TimeSeriesDataSourceConfig) source).getPushDownNodes() != null && 
+          !((TimeSeriesDataSourceConfig) source).getPushDownNodes().isEmpty()) {
+        new_source.setPushDownNodes(((TimeSeriesDataSourceConfig) source).getPushDownNodes());
+      }
+      // TODO - better calculations.
+      new_source.setPrePadding(((DownsampleConfig) config).getInterval());
+      new_source.setPostPadding(((DownsampleConfig) config).getInterval());
+      plan.replace(source, new_source.build());
+    }
     
     plan.replace(config, builder.build());
   }

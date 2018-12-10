@@ -39,6 +39,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.query.QueryNode;
@@ -57,7 +58,7 @@ public class TestSchemaFactory extends SchemaBase {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = new MockTSDB();
     store = mock(Tsdb1xDataStore.class);
     node = mock(QueryNode.class);
     

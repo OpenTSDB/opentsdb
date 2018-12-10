@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 import org.slf4j.Logger;
@@ -73,16 +74,14 @@ public class DefaultRollupConfig implements RollupConfig {
   /** The map of aggregators to IDs for use at write time. */
   protected final Map<String, Integer> aggregations_to_ids;
   
+  /** The sorted list of intervals. */
+  protected final List<String> intervals;
+  
   /**
    * Default ctor for the builder.
    * @param builder A non-null builder to load from.
    */
   protected DefaultRollupConfig(final Builder builder) {
-    forward_intervals = Maps.newHashMapWithExpectedSize(2);
-    reverse_intervals = Maps.newHashMapWithExpectedSize(2);
-    ids_to_aggregations = Maps.newHashMapWithExpectedSize(4);
-    aggregations_to_ids = Maps.newHashMapWithExpectedSize(4);
-    
     if (builder.intervals == null || builder.intervals.isEmpty()) {
       throw new IllegalArgumentException("Rollup config given but no intervals "
           + "were found.");
@@ -91,6 +90,13 @@ public class DefaultRollupConfig implements RollupConfig {
       throw new IllegalArgumentException("Rollup config given but no aggegation "
           + "ID mappings found.");
     }
+    
+    forward_intervals = Maps.newHashMapWithExpectedSize(builder.intervals.size());
+    reverse_intervals = Maps.newHashMapWithExpectedSize(builder.intervals.size());
+    ids_to_aggregations = Maps.newHashMapWithExpectedSize(builder.aggregationIds.size());
+    aggregations_to_ids = Maps.newHashMapWithExpectedSize(builder.aggregationIds.size());
+    intervals = Lists.newArrayListWithExpectedSize(builder.intervals.size());
+    
     int defaults = 0;
     for (final RollupInterval config_interval : builder.intervals) {
       if (forward_intervals.containsKey(config_interval.getInterval())) {
@@ -108,7 +114,9 @@ public class DefaultRollupConfig implements RollupConfig {
       reverse_intervals.put(config_interval.getPreAggregationTable(), 
           config_interval);
       config_interval.setConfig(this);
-      LOG.info("Loaded rollup interval: " + config_interval);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Loaded rollup interval: " + config_interval);
+      }
     }
     
     for (final Entry<String, Integer> entry : builder.aggregationIds.entrySet()) {
@@ -121,14 +129,23 @@ public class DefaultRollupConfig implements RollupConfig {
         throw new IllegalArgumentException("Multiple mappings for the "
             + "ID '" + entry.getValue() + "' are not allowed."); 
       }
-//      if (Aggregators.get(agg) == null) {
-//        throw new IllegalArgumentException("No such aggregator found for " + agg);
-//      }
+      
       aggregations_to_ids.put(agg, entry.getValue());
       ids_to_aggregations.put(entry.getValue(), agg);
-      LOG.info("Mapping aggregator '" + agg + "' to ID " + entry.getValue());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Mapping aggregator '" + agg + "' to ID " + entry.getValue());
+      }
     }
     
+    // funky way to sort
+    Map<Long, String> ordered = Maps.newTreeMap(Collections.reverseOrder());
+    for (final RollupInterval interval : builder.intervals) {
+      ordered.put(DateTime.parseDuration(interval.getInterval()), interval.getInterval());
+    }
+    for (final Entry<Long, String> entry : ordered.entrySet()) {
+      intervals.add(entry.getValue());
+    }
+      
     LOG.info("Configured [" + forward_intervals.size() + "] rollup intervals");
   }
   
@@ -286,8 +303,27 @@ public class DefaultRollupConfig implements RollupConfig {
   }
   
   /** @return The immutable list of rollup intervals for serialization. */
-  public List<RollupInterval> getIntervals() {
+  public List<RollupInterval> getRollupIntervals() {
     return Lists.newArrayList(forward_intervals.values());
+  }
+  
+  @Override
+  public List<String> getIntervals() {
+    return Collections.unmodifiableList(intervals);
+  }
+  
+  @Override
+  public List<String> getPossibleIntervals(final String interval) {
+    final List<RollupInterval> intervals = getRollupIntervals(
+        DateTime.parseDuration(interval) / 1000, interval, true);
+    if (intervals == null || intervals.isEmpty()) {
+      return Collections.emptyList();
+    }
+    final List<String> results = Lists.newArrayListWithExpectedSize(intervals.size());
+    for (final RollupInterval ri : intervals) {
+      results.add(ri.getInterval());
+    }
+    return results;
   }
   
   @Override
@@ -401,7 +437,7 @@ public class DefaultRollupConfig implements RollupConfig {
     return agg;
   }
   
-  public static Builder builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
   

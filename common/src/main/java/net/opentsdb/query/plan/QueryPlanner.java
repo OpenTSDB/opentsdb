@@ -14,11 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
+import java.util.Collection;
+
 import com.google.common.graph.MutableGraph;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 
@@ -96,5 +99,20 @@ public interface QueryPlanner {
    * @return The node if found, null if not.
    */
   public QueryNode nodeForId(final String id);
+  
+  /**
+   * Attempts to load a factory for the given node ID.
+   * <b>WARNING:</b> The node ID MUST be in the graph already.
+   * @param node A non-null query node config object.
+   * @return A factory if found, null if no factory could be found.
+   */
+  public QueryNodeFactory getFactory(final QueryNodeConfig node);
+  
+  /** 
+   * Finds the terminal source nodes that feed into the given config.
+   * @param config A non-null query node config.
+   * @return A list of source nodes for the node. Null until the query has
+   * started planning. */
+  public Collection<QueryNodeConfig> terminalSourceNodes(final QueryNodeConfig config);
   
 }

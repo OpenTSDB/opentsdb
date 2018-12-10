@@ -444,9 +444,9 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
       // interval in which it appears, if downsampling.
       
       // TODO - doesn't account for calendaring, etc.
-      if (node.downsampleConfig() != null) {
+      if (!Strings.isNullOrEmpty(source_config.getPrePadding())) {
         final long interval = DateTime.parseDuration(
-            node.downsampleConfig().getInterval());
+            source_config.getPrePadding());
         if (interval > 0) {
           final long interval_offset = (1000L * start) % interval;
           start -= interval_offset / 1000L;
@@ -492,9 +492,8 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
             rollup_interval);
     } else {
       long interval = 0;
-      if (node.downsampleConfig() != null) {
-        interval = DateTime.parseDuration(
-            node.downsampleConfig().getInterval());
+      if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
+        interval = DateTime.parseDuration(source_config.getPostPadding());
       }
 
       if (interval > 0) {
@@ -693,34 +692,16 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         // set qualifier filters
-        if (node.rollupAggregation() != null && 
-            node.rollupAggregation().equals("avg")) {
-          rollup_filter = RowFilter.Interleave.newBuilder()
-              .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
-                      "sum".getBytes(Const.ASCII_US_CHARSET))))
-              .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
-                      "count".getBytes(Const.ASCII_US_CHARSET))))
-              .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
-                      (byte) node.schema().rollupConfig().getIdForAggregator("sum")
-                  })))
-              .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
-                      (byte) node.schema().rollupConfig().getIdForAggregator("count")
-                  })));
-        } else {
-          // it's another aggregation
-          rollup_filter = RowFilter.Interleave.newBuilder()
-              .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
-                      node.rollupAggregation().getBytes(Const.ASCII_US_CHARSET))))
-              .addFilters(RowFilter.newBuilder()
-                  .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
-                      (byte) node.schema().rollupConfig()
-                        .getIdForAggregator(node.rollupAggregation())
-                  })));
+        rollup_filter = RowFilter.Interleave.newBuilder();
+        for (final String agg : source_config.getRollupAggregations()) {
+          rollup_filter.addFilters(RowFilter.newBuilder()
+              .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
+                  agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));
+          rollup_filter.addFilters(RowFilter.newBuilder()
+              .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(new byte[] { 
+                  (byte) node.schema().rollupConfig().getIdForAggregator(
+                      agg.toLowerCase())
+              })));
         }
       } else {
         rollup_filter = null;

@@ -59,7 +59,7 @@ public class TestNumericSummarySpan {
         .setRowSpan("1d")
         .build();
     
-    CONFIG = DefaultRollupConfig.builder()
+    CONFIG = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addAggregationId("Count", 2)

@@ -67,7 +67,7 @@ public class TestSummarizerNumericIterator {
         .setId("summarizer")
         .build();
     
-    rollup_config = DefaultRollupConfig.builder()
+    rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 1)
         .addAggregationId("max", 2)
