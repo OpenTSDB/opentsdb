@@ -49,8 +49,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.processor.downsample.Downsample;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -60,7 +58,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
-import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Exceptions;
 
 /**
@@ -125,14 +122,8 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   /** Rollup fallback mode. */
   protected final RollupUsage rollup_usage;
   
-  /** The rollup downsampling aggregation by name. */
-  protected String rollup_aggregation;
-  
   /** Rollup intervals matching the query downsampler if applicable. */
   protected List<RollupInterval> rollup_intervals;
-  
-  /** An optional downsample config from upstream. */
-  protected DownsampleConfig ds_config;
   
   /**
    * Default ctor.
@@ -276,24 +267,20 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
     }
 
     if (parent.schema().rollupConfig() != null && 
-        rollup_usage != RollupUsage.ROLLUP_RAW) {
-      Collection<QueryNode> downsamplers = context.upstreamOfType(this, Downsample.class);
-      if (!downsamplers.isEmpty()) {
-        // TODO - find the lowest-common resolution if possible.
-        ds_config = (DownsampleConfig) downsamplers.iterator().next().config();
-        rollup_intervals = parent.schema()
-            .rollupConfig().getRollupIntervals(
-                DateTime.parseDuration(ds_config.getInterval()) / 1000, 
-                ds_config.getInterval(), 
-                true);
-        rollup_aggregation = ds_config.getAggregator();
-      } else {
-        rollup_intervals = null;
-        rollup_aggregation = null;
+        rollup_usage != RollupUsage.ROLLUP_RAW &&
+        config.getRollupIntervals() != null && 
+        !config.getRollupIntervals().isEmpty()) {
+      rollup_intervals = Lists.newArrayListWithExpectedSize(
+          config.getRollupIntervals().size());
+      for (final String interval : config.getRollupIntervals()) {
+        final RollupInterval ri = parent.schema().rollupConfig()
+            .getRollupInterval(interval);
+        if (ri != null) {
+          rollup_intervals.add(ri);
+        }
       }
     } else {
       rollup_intervals = null;
-      rollup_aggregation = null;
     }
     
     upstream = context.upstream(this);
@@ -420,16 +407,6 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   /** @return The rollup usage mode. */
   RollupUsage rollupUsage() {
     return rollup_usage;
-  }
-
-  /** @return The optional rollup aggregation. May be null. */
-  String rollupAggregation() {
-    return rollup_aggregation;
-  }
-  
-  /** @return The optional downsample config. May be null. */
-  DownsampleConfig downsampleConfig() {
-    return ds_config;
   }
   
   /**

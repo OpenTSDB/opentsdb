@@ -68,6 +68,7 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupBy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.merge.Merger;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 
@@ -1224,6 +1225,12 @@ public class TestHAClusterFactory {
     @Override
     public String version() {
       return "3.0.0";
+    }
+
+    @Override
+    public RollupConfig rollupConfig() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
   }

@@ -37,6 +37,7 @@ import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -133,5 +134,11 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
       final List<String> join_metrics, 
       final Span span) {
     return Deferred.fromError(new UnsupportedOperationException());
+  }
+
+  @Override
+  public RollupConfig rollupConfig() {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

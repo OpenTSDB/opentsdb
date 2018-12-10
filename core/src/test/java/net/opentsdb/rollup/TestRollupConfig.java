@@ -60,7 +60,7 @@ public class TestRollupConfig {
         .setRowSpan("1d")
         .build();
     
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addAggregationId("count", 2)
@@ -97,7 +97,7 @@ public class TestRollupConfig {
     assertEquals("min", config.ids_to_aggregations.get(3));
     
     // missing aggregations
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addInterval(raw)
         .addInterval(tenmin);
     try {
@@ -106,7 +106,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // duplicate aggregation id
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 1)
         .addAggregationId("Max", 1)
         .addInterval(raw)
@@ -117,7 +117,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // invalid ID
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 128)
         .addInterval(raw)
@@ -128,7 +128,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // empty intervals
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1);
     try {
@@ -137,7 +137,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // dupe intervals
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addInterval(raw)
@@ -155,7 +155,7 @@ public class TestRollupConfig {
         .setRowSpan("1d")
         .setDefaultInterval(true)
         .build();
-    builder = DefaultRollupConfig.builder()
+    builder = DefaultRollupConfig.newBuilder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addInterval(raw)
@@ -268,6 +268,30 @@ public class TestRollupConfig {
       config.getRollupIntervals(0, "1m");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void getPossibleIntervals() throws Exception {
+    DefaultRollupConfig config = builder.build();
+    
+    List<String> intervals = config.getPossibleIntervals("1m");
+    assertEquals(0, intervals.size());
+    
+    intervals = config.getPossibleIntervals("10m");
+    assertEquals(1, intervals.size());
+    assertSame(tenmin.getInterval(), intervals.get(0));
+    
+    intervals = config.getPossibleIntervals("20m");
+    assertEquals(1, intervals.size());
+    assertSame(tenmin.getInterval(), intervals.get(0));
+    
+    intervals = config.getPossibleIntervals("12m");
+    assertEquals(0, intervals.size());
+    
+    try {
+      config.getPossibleIntervals("1s");
+      fail("Expected NoSuchRollupForIntervalException");
+    } catch (NoSuchRollupForIntervalException e) { }
   }
   
   @Test

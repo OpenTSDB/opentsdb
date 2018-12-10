@@ -62,18 +62,13 @@ import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -256,19 +251,16 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
 
   @Test
   public void ctorRollups() throws Exception {
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("avg")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("avg");
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .addRollupInterval("1h")
+        .setId("m1")
+        .build();
     when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
@@ -304,9 +296,9 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     assertEquals(4, interleave.getFiltersCount());
     assertArrayEquals("sum".getBytes(), 
         interleave.getFilters(0).getColumnQualifierRegexFilter().toByteArray());
-    assertArrayEquals("count".getBytes(), 
-        interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 1 }, 
+        interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
+    assertArrayEquals("count".getBytes(), 
         interleave.getFilters(2).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 2 }, 
         interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
@@ -323,6 +315,9 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .addRollupInterval("1h")
         .addOverride(Tsdb1xBigtableDataStore.PRE_AGG_KEY, "true")
         .setId("m1")
         .build();
@@ -348,27 +343,23 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     assertEquals(4, interleave.getFiltersCount());
     assertArrayEquals("sum".getBytes(), 
         interleave.getFilters(0).getColumnQualifierRegexFilter().toByteArray());
-    assertArrayEquals("count".getBytes(), 
-        interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 1 }, 
+        interleave.getFilters(1).getColumnQualifierRegexFilter().toByteArray());
+    assertArrayEquals("count".getBytes(), 
         interleave.getFilters(2).getColumnQualifierRegexFilter().toByteArray());
     assertArrayEquals(new byte[] { 2 }, 
         interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
     
     // sum
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("sum")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("sum");
+        .addRollupAggregation("sum")
+        .addRollupInterval("1h")
+        .setId("m1")
+        .build();
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
@@ -380,6 +371,8 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .addRollupAggregation("sum")
+        .addRollupInterval("1h")
         .setId("m1")
         .build();
     
@@ -449,26 +442,27 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .addRollupAggregation("max")
+        .setPrePadding("2h")
+        .setPostPadding("2h")
         .setId("m1")
         .build();
     
     Tsdb1xBigtableMultiGet mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    assertEquals(END_TS - 900 - 3600, mget.timestamp.epoch());
     
     // downsample 2 hours
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("2h")
-        .setAggregator("max")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("max");
+        .addRollupAggregation("max")
+        .addRollupInterval("2h")
+        .setPrePadding("2h")
+        .setPostPadding("2h")
+        .setId("m1")
+        .build();
     
     mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
@@ -1316,19 +1310,18 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
           .setRowSpan("6h")
           .build()));
     
-    when(node.downsampleConfig()).thenReturn(
-        (DownsampleConfig) DownsampleConfig.newBuilder()
-        .setId("ds")
-        .setInterval("1h")
-        .setAggregator("avg")
-        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setType("interp")
-            .setDataType(NumericType.TYPE.toString())
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
             .build())
-        .build());
-    when(node.rollupAggregation()).thenReturn("avg");
+        .addRollupAggregation("sum")
+        .addRollupAggregation("count")
+        .addRollupInterval("1h")
+        .setPrePadding("1h")
+        .setPostPadding("1h")
+        .setId("m1")
+        .build();
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)

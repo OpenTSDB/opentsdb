@@ -432,9 +432,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
       // interval in which it appears, if downsampling.
       
       // TODO - doesn't account for calendaring, etc.
-      if (node.downsampleConfig() != null) {
+      if (!Strings.isNullOrEmpty(source_config.getPrePadding())) {
         final long interval = DateTime.parseDuration(
-            node.downsampleConfig().getInterval());
+            source_config.getPrePadding());
         if (interval > 0) {
           final long interval_offset = (1000L * start) % interval;
           start -= interval_offset / 1000L;
@@ -480,9 +480,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
             rollup_interval);
     } else {
       long interval = 0;
-      if (node.downsampleConfig() != null) {
-        interval = DateTime.parseDuration(
-            node.downsampleConfig().getInterval());
+      if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
+        interval = DateTime.parseDuration(source_config.getPostPadding());
       }
 
       if (interval > 0) {
@@ -567,7 +566,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
       public Object call(final byte[] metric) throws Exception {
         if (metric == null) {
           final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.METRIC_TYPE, 
-              source_config.getMetric().getMetric());
+              !Strings.isNullOrEmpty(source_config.getNamespace()) ? 
+                  source_config.getNamespace() + source_config.getMetric().getMetric() :
+                    source_config.getMetric().getMetric());
           if (child != null) {
             child.setErrorTags(ex)
                  .finish();
@@ -600,7 +601,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
-      node.schema().getId(UniqueIdType.METRIC, source_config.getMetric().getMetric(), 
+      node.schema().getId(UniqueIdType.METRIC, 
+          !Strings.isNullOrEmpty(source_config.getNamespace()) ? 
+              source_config.getNamespace() + source_config.getMetric().getMetric() :
+                source_config.getMetric().getMetric(), 
           child)
         .addCallback(new MetricCB())
         .addErrback(new ErrorCB());
@@ -677,38 +681,21 @@ public class Tsdb1xScanners implements HBaseExecutor {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         // set qualifier filters
-        if (node.rollupAggregation() != null && 
-            node.rollupAggregation().equals("avg")) {
-          // old and new schemas with literal agg names or prefixes.
-          final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
+        System.out.println("AGGS: " + source_config.getRollupAggregations());
+        final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
+            source_config.getRollupAggregations().size() * 2);
+        for (final String agg : source_config.getRollupAggregations()) {
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator("sum".getBytes(Const.ASCII_CHARSET))));
-          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator("count".getBytes(Const.ASCII_CHARSET))));
-          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(new byte[] { 
-                  (byte) node.schema().rollupConfig().getIdForAggregator("sum")
-              })));
+              new BinaryPrefixComparator(
+                  agg.toLowerCase().getBytes(Const.ASCII_CHARSET))));
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(new byte[] { 
-                  (byte) node.schema().rollupConfig().getIdForAggregator("count")
+                  (byte) node.schema().rollupConfig().getIdForAggregator(
+                      agg.toLowerCase())
               })));
-          
-          rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
-        } else {
-          // it's another aggregation
-          final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
-          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(node.rollupAggregation()
-                  .getBytes(Const.ASCII_CHARSET))));
-          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(new byte[] { 
-                  (byte) node.schema().rollupConfig()
-                    .getIdForAggregator(node.rollupAggregation())
-              })));
-          
-          rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
         }
+        System.out.println("    " + filters);
+        rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
       } else {
         rollup_filter = null;
       }

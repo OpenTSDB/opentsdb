@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -27,7 +25,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -67,7 +64,6 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
 /**
@@ -118,7 +114,6 @@ public class Schema implements WritableTimeSeriesDataStore {
   
   protected final boolean timeless_salting;
   protected final boolean old_salting;
-  protected final DefaultRollupConfig rollup_config;
   
   protected Map<TypeToken<?>, Codec> codecs;
   
@@ -207,29 +202,7 @@ public class Schema implements WritableTimeSeriesDataStore {
       throw new IllegalStateException("Factory " + uid_factory 
           + " returned a null UniqueId instance.");
     }
-    
-    key = configKey("rollups.enable");
-    final boolean rollups_enabled = tsdb.getConfig().getBoolean(key);
-    if (rollups_enabled) {
-      key = configKey("rollups.config");
-      value = tsdb.getConfig().getString(key);
-      if (Strings.isNullOrEmpty(value)) { 
-        throw new ConfigurationException("Null value for config key: " + key);
-      }
-      
-      if (value.endsWith(".json")) {
-        try {
-          value = Files.toString(new File(value), Const.UTF8_CHARSET);
-        } catch (IOException e) {
-          throw new IllegalArgumentException("Failed to open conf file: " 
-              + value, e);
-        }
-      }
-      rollup_config = JSON.parseToObject(value, DefaultRollupConfig.class);
-    } else {
-      rollup_config = null;
-    }
-    
+        
     if (!tsdb.getConfig().hasProperty(QUERY_BYTE_LIMIT_KEY)) {
       tsdb.getConfig().register(QUERY_BYTE_LIMIT_KEY, 
           QUERY_BYTE_LIMIT_DEFAULT, true, 
@@ -657,7 +630,7 @@ public class Schema implements WritableTimeSeriesDataStore {
   }
   
   public DefaultRollupConfig rollupConfig() {
-    return rollup_config;
+    return factory.rollup_config;
   }
   
   /**

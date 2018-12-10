@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -128,6 +129,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   
   /** The current timestamp for the lowest resolution data we're querying. */
   protected volatile TimeStamp timestamp;
+  
+  /** The final timestamp with optional padding. */
+  protected volatile TimeStamp end_timestamp;
   
   /** The current fallback timestamp for the next highest resolution data
    * we're querying when falling back. May be null. */
@@ -250,36 +254,20 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
       rollups_enabled = true;
       rollup_index = 0;
-      if (node.rollupAggregation() != null && 
-          node.rollupAggregation().equals("avg")) {
-        // old and new schemas with literal agg names or prefixes.
-        final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
+      
+      final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
+          source_config.getRollupAggregations().size());
+      for (final String agg : source_config.getRollupAggregations()) {
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator("sum".getBytes(Const.ASCII_CHARSET))));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator("count".getBytes(Const.ASCII_CHARSET))));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig().getIdForAggregator("sum")
-            })));
+            new BinaryPrefixComparator(
+                agg.toLowerCase().getBytes(Const.ASCII_CHARSET))));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig().getIdForAggregator("count")
+                (byte) node.schema().rollupConfig().getIdForAggregator(
+                    agg.toLowerCase())
             })));
-        filter = new FilterList(filters, Operator.MUST_PASS_ONE);
-      } else {
-        // it's another aggregation
-        final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(node.rollupAggregation()
-                .getBytes(Const.ASCII_CHARSET))));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig()
-                .getIdForAggregator(node.rollupAggregation())
-            })));
-        filter = new FilterList(filters, Operator.MUST_PASS_ONE);
       }
+      filter = new FilterList(filters, Operator.MUST_PASS_ONE);
     } else {
       rollup_index = -1;
       rollups_enabled = false;
@@ -289,6 +277,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     // sentinel
     tsuid_idx = -1;
     timestamp = getInitialTimestamp(rollup_index);
+    end_timestamp = reversed ? node.pipelineContext().query().startTime().getCopy() :
+        node.pipelineContext().query().endTime().getCopy();
+    if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
+      end_timestamp.add(DateTime.parseDuration2(source_config.getPostPadding()));
+    }
     
     if (rollups_enabled) {
       tables = Lists.newArrayListWithCapacity(node.rollupIntervals().size() + 1);
@@ -377,8 +370,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     }
     if (ts != null && (reversed ? 
-        ts.compare(Op.LT, ((SemanticQuery) node.pipelineContext().query()).startTime()) : 
-        ts.compare(Op.GT, ((SemanticQuery) node.pipelineContext().query()).endTime()))) {
+        ts.compare(Op.LT, end_timestamp) : 
+        ts.compare(Op.GT, end_timestamp))) {
       // DONE with query!
       return true;
     }
@@ -400,8 +393,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         }
       }
       if (reversed ? 
-          ts.compare(Op.LT, ((SemanticQuery) node.pipelineContext().query()).startTime()) : 
-          ts.compare(Op.GT, ((SemanticQuery) node.pipelineContext().query()).endTime())) {
+          ts.compare(Op.LT, end_timestamp) : 
+          ts.compare(Op.GT, end_timestamp)) {
         // DONE with query!
         return true;
       }
@@ -755,9 +748,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     } else {
       long ts = reversed ? node.pipelineContext().query().endTime().epoch() : 
         node.pipelineContext().query().startTime().epoch();
-      if (node.downsampleConfig() != null) {
-        final long interval = DateTime.parseDuration(
-            node.downsampleConfig().getInterval());
+      if (!(Strings.isNullOrEmpty(source_config.getPrePadding()))) {
+        final long interval = DateTime.parseDuration(source_config.getPrePadding());
         if (interval > 0) {
           final long interval_offset = (1000L * ts) % interval;
           ts -= interval_offset / 1000L;

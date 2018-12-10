@@ -602,6 +602,18 @@ public class HttpQueryV3Result implements QueryResult {
     public int getIdForAggregator(final String aggregator) {
       return name_to_id.get(aggregator);
     }
+
+    @Override
+    public List<String> getIntervals() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public List<String> getPossibleIntervals(String interval) {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
   }
   

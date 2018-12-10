@@ -129,7 +129,7 @@ public class TestMergerFactory {
     when(source_result.timeSpecification()).thenReturn(time_spec);
     when(time_spec.start()).thenReturn(new MillisecondTimeStamp(1000));
     
-    final DefaultRollupConfig rollup_config = DefaultRollupConfig.builder()
+    final DefaultRollupConfig rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
