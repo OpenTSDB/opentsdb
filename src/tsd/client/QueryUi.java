@@ -18,6 +18,7 @@ package tsd.client;
  * virtually no exposure to the technology except through the tutorial. --tsuna
  */
 
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -723,12 +724,12 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private void addFormats(final StringBuilder url) {
     final String yformat = this.yformat.getText();
     if (!yformat.isEmpty()) {
-      url.append("&yformat=").append(yformat);
+      url.append("&yformat=").append(URL.encode(yformat));
     }
     if (y2format.isEnabled()) {
       final String y2format = this.y2format.getText();
       if (!y2format.isEmpty()) {
-        url.append("&y2format=").append(y2format);
+        url.append("&y2format=").append(URL.encode(y2format));
       }
     }
   }
