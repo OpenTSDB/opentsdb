@@ -72,11 +72,29 @@ public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
     
     LOG.error("Unexpected exception", t);
     
+    // TODO - it looks like Jersey doesn't like long error messages. So we'll
+    // truncate this guy to around 4096 bytes-ish and that should help us out.
+    int len = 12
+        + 10 
+        + Response.Status.INTERNAL_SERVER_ERROR.toString().length() 
+        + 12
+        + t.getMessage().length();
+        
     final Map<String, Object> response = new HashMap<String, Object>(3);
     response.put("code", Response.Status.INTERNAL_SERVER_ERROR);
     response.put("message", t.getMessage());
-    response.put("trace", Throwables.getStackTraceAsString(t));
-    
+    String trace = Throwables.getStackTraceAsString(t);
+    if (trace.length() > 4096 - len) {
+      int idx = trace.lastIndexOf('\n', 4096 - len);
+      if (idx < 0) {
+        idx = trace.lastIndexOf('\t', 4096 - len);
+      }
+      if (idx < 0) {
+        idx = 4096 - len;
+      }
+      trace = trace.substring(0, idx) + "...";
+    }
+    response.put("trace", trace);
     final Map<String, Object> outerMap = new HashMap<String, Object>(1);
     outerMap.put("error", response);
     return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
