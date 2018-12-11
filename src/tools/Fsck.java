@@ -32,6 +32,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.AppendDataPoints;
@@ -154,7 +155,7 @@ final class Fsck {
     final List<Thread> threads = new ArrayList<Thread>(scanners.size());
     int i = 0;
     for (final Scanner scanner : scanners) {
-      final FsckWorker worker = new FsckWorker(scanner, i++);
+      final FsckWorker worker = new FsckWorker(scanner, i++, this.options);
       worker.setName("Fsck #" + i);
       worker.start();
       threads.add(worker);
@@ -193,7 +194,7 @@ final class Fsck {
       final List<Thread> threads = new ArrayList<Thread>(scanners.size());
       int i = 0;
       for (final Scanner scanner : scanners) {
-        final FsckWorker worker = new FsckWorker(scanner, i++);
+        final FsckWorker worker = new FsckWorker(scanner, i++, this.options);
         worker.setName("Fsck #" + i);
         worker.start();
         threads.add(worker);
@@ -233,6 +234,23 @@ final class Fsck {
   }
 
   /**
+   * Log all Throwables
+   */
+  final class GeneralErrCallBack implements Callback<Deferred<Object>, Exception> {
+    private Object[] parameters;
+
+    GeneralErrCallBack(Object... parameters) {
+        this.parameters = parameters;
+    }
+
+    @Override
+    public Deferred<Object> call(Exception arg) throws Exception {
+        LOG.error("when: %s, something went wrong: %s", parameters, arg);
+        throw arg;
+    }
+  }
+
+  /**
    * A worker thread that takes a query or a chunk of the main data table and
    * performs the actual FSCK process.
    */
@@ -246,6 +264,8 @@ final class Fsck {
     /** Set of TSUIDs this worker has seen. Used to avoid UID resolution for
      * previously processed row keys */
     final Set<String> tsuids = new HashSet<String>();
+
+    final FsckOptions options;
 
     /** Shared flags and values for compiling a compacted column */
     byte[] compact_qualifier = null;
@@ -261,10 +281,11 @@ final class Fsck {
      * @param scanner The scanner to use for iterationg
      * @param thread_id Id of the thread this worker is assigned for logging
      */
-    FsckWorker(final Scanner scanner, final int thread_id) {
+    FsckWorker(final Scanner scanner, final int thread_id, final FsckOptions options) {
       this.scanner = scanner;
       this.thread_id = thread_id;
       query = null;
+      this.options = options;
     }
 
     /**
@@ -354,7 +375,11 @@ final class Fsck {
           LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t" + kv);
           if (options.fix() && options.deleteUnknownColumns()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-            tsdb.getClient().delete(delete);
+            Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+            operation_result.addErrback(new GeneralErrCallBack(delete));
+            if (options.fixInSync()) {
+              operation_result.join(options.getFixTimeout());
+            }
             unknown_fixed.getAndIncrement();
           }
           continue;
@@ -374,7 +399,11 @@ final class Fsck {
                 "of bytes.\n\t" + kv);
             if (options.fix() && options.deleteUnknownColumns()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getClient().delete(delete);
+              Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+              operation_result.addErrback(new GeneralErrCallBack(delete));
+              if (options.fixInSync()) {
+                operation_result.join(options.getFixTimeout());
+              }
               unknown_fixed.getAndIncrement();
             }
             continue;
@@ -463,7 +492,11 @@ final class Fsck {
             LOG.error(e.getMessage());
             if (options.fix() && options.deleteBadCompacts()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getClient().delete(delete);
+              Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+              operation_result.addErrback(new GeneralErrCallBack(delete));
+              if (options.fixInSync()) {
+                operation_result.join(options.getFixTimeout());
+              }
               bad_compacted_columns_deleted.getAndIncrement();
             }
           }
@@ -509,7 +542,11 @@ final class Fsck {
 
         if (options.fix() && options.deleteBadRows()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-          tsdb.getClient().delete(delete);
+          Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+          operation_result.addErrback(new GeneralErrCallBack(delete));
+          if (options.fixInSync()) {
+            operation_result.join(options.getFixTimeout());
+          }
           bad_key_fixed.getAndIncrement();
         }
         return false;
@@ -529,7 +566,11 @@ final class Fsck {
 
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getClient().delete(delete);
+            Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+            operation_result.addErrback(new GeneralErrCallBack(delete));
+            if (options.fixInSync()) {
+              operation_result.join(options.getFixTimeout());
+            }
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -545,7 +586,11 @@ final class Fsck {
 
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getClient().delete(delete);
+            Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+            operation_result.addErrback(new GeneralErrCallBack(delete));
+            if (options.fixInSync()) {
+              operation_result.join(options.getFixTimeout());
+            }
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -670,11 +715,15 @@ final class Fsck {
                 duplicates_fixed_comp.getAndIncrement();
               } else if (!dp.compacted) {
                 LOG.debug("Removing duplicate data point: " + dp.kv);
-                tsdb.getClient().delete(
-                  new DeleteRequest(
-                    tsdb.dataTable(), dp.kv.key(), dp.kv.family(), dp.qualifier()
-                  )
-                );
+                DeleteRequest delete = new DeleteRequest(tsdb.dataTable(),
+                  dp.kv.key(),
+                  dp.kv.family(),
+                  dp.qualifier());
+                Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+                operation_result.addErrback(new GeneralErrCallBack(delete));
+                if (options.fixInSync()) {
+                  operation_result.join(options.getFixTimeout());
+                }
                 duplicates_fixed.getAndIncrement();
               }
             }
@@ -809,13 +858,17 @@ final class Fsck {
             final float value_as_float =
                 Float.intBitsToFloat(Bytes.getInt(value, 4));
             value = Bytes.fromInt(
-                Float.floatToRawIntBits((float)value_as_float));
+                Float.floatToRawIntBits(value_as_float));
             if (compact_row || options.compact()) {
               appendDP(qual, value, 4);
             } else if (!dp.compacted){
-              final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(),
-                  dp.kv.key(), dp.kv.family(), qual, value, dp.kv.timestamp());
-              tsdb.getClient().put(put);
+              final PutRequest put = new PutRequest(tsdb.dataTable(),
+                  dp.kv.key(), dp.kv.family(), qual, value);
+              Deferred<Object> operation_result = tsdb.getClient().put(put);
+              operation_result.addErrback(new GeneralErrCallBack(put));
+              if (options.fixInSync()) {
+                operation_result.join(options.getFixTimeout());
+              }
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a "
                   + "single value");
@@ -834,7 +887,11 @@ final class Fsck {
           if (options.fix() && options.deleteBadValues() && !dp.compacted) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(),
                 dp.kv);
-            tsdb.getClient().delete(delete);
+            Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+            operation_result.addErrback(new GeneralErrCallBack(delete));
+            if (options.fixInSync()) {
+              operation_result.join(options.getFixTimeout());
+            }
             bad_values_deleted.getAndIncrement();
           } else if (dp.compacted) {
             LOG.error("The value was in a compacted column. This should "
@@ -853,13 +910,17 @@ final class Fsck {
             final float value_as_float =
                 Float.intBitsToFloat(Bytes.getInt(value, 4));
             value = Bytes.fromInt(
-                Float.floatToRawIntBits((float)value_as_float));
+                Float.floatToRawIntBits(value_as_float));
             if (compact_row || options.compact()) {
               appendDP(qual, value, 4);
             } else if (!dp.compacted) {
               final PutRequest put = new PutRequest(tsdb.dataTable(),
                   dp.kv.key(), dp.kv.family(), qual, value);
-              tsdb.getClient().put(put);
+              Deferred<Object> operation_result = tsdb.getClient().put(put);
+              operation_result.addErrback(new GeneralErrCallBack(put));
+              if (options.fixInSync()) {
+                operation_result.join(options.getFixTimeout());
+              }
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a single value");
             }
@@ -876,7 +937,11 @@ final class Fsck {
                   + " was only " + value.length + " bytes.\n\t" + dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getClient().delete(delete);
+          Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+          operation_result.addErrback(new GeneralErrCallBack(delete));
+          if (options.fixInSync()) {
+            operation_result.join(options.getFixTimeout());
+          }
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -892,7 +957,11 @@ final class Fsck {
                   + " bytes.\n\t" + dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getClient().delete(delete);
+          Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+          operation_result.addErrback(new GeneralErrCallBack(delete));
+          if (options.fixInSync()) {
+            operation_result.join(options.getFixTimeout());
+          }
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -937,7 +1006,11 @@ final class Fsck {
             + "should be " + length + " bytes.\n\t" + dp.kv);
         if (options.fix() && options.deleteBadValues()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getClient().delete(delete);
+          Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+          operation_result.addErrback(new GeneralErrCallBack(delete));
+          if (options.fixInSync()) {
+            operation_result.join(options.getFixTimeout());
+          }
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -981,7 +1054,11 @@ final class Fsck {
             tsdb.getClient().put(put).joinUninterruptibly();
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(),
                 dp.kv.key(), dp.kv.family(), qual);
-            tsdb.getClient().delete(delete);
+            Deferred<Object> operation_result = tsdb.getClient().delete(delete);
+            operation_result.addErrback(new GeneralErrCallBack(delete));
+            if (options.fixInSync()) {
+              operation_result.join(options.getFixTimeout());
+            }
           }
           vle_fixed.getAndIncrement();
         } // don't return true here as we don't consider a VLE an error.
