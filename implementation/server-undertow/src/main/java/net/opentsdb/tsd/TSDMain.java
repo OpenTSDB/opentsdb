@@ -14,49 +14,10 @@
 // limitations under the License.
 package net.opentsdb.tsd;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.StringReader;
-import java.math.BigInteger;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPrivateKeySpec;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletException;
-import javax.xml.bind.DatatypeConverter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
@@ -73,8 +34,32 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.utils.ArgP;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.security.util.DerInputStream;
 import sun.security.util.DerValue;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.servlet.DispatcherType;
+import javax.servlet.ServletException;
+import javax.xml.bind.DatatypeConverter;
+import java.io.*;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPrivateKeySpec;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * A simple main method that instantiates a TSD and the TSD servlet package
@@ -108,7 +93,7 @@ public class TSDMain {
   /** The TSD reference. Static so we can shutdown gracefully. */
   private static DefaultTSDB tsdb = null;
   
-  /** The Undertwo server reference. Static so we can shutdown gracefully. */
+  /** The Undertow server reference. Static so we can shutdown gracefully. */
   private static Undertow server = null;
   
   /**
@@ -307,7 +292,7 @@ public class TSDMain {
       }
       return sslContext;
     } catch (CertificateException e) {
-      LOG.error("Failed to insantiate factory", e);
+      LOG.error("Failed to instantiate factory", e);
     } catch (Exception e) {
       LOG.error("Unexpected exception initializing SSL Context", e);
     }
@@ -317,7 +302,7 @@ public class TSDMain {
   
   /**
    * Attempts to load a keystore from disk and initialize an SSL Context 
-   * with the data therin. The keystore should contain all of the certs,
+   * with it. The keystore should contain all of the certs,
    * intermediates, CAs and the private key.
    * @param config A non-null config.
    * @return An instantiated context or null if something went wrong. The
@@ -330,9 +315,8 @@ public class TSDMain {
       throw new IllegalArgumentException("Cannot enable SSL without a "
           + "keystore password. Set '" + KEYSTORE_PASS_KEY +"'");
     }
-    try {
-      // load an initialize the keystore.
-      final FileInputStream file = new FileInputStream(keystore_location);
+    // load an initialize the keystore.
+    try(final FileInputStream file = new FileInputStream(keystore_location)) {
       final KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
       keystore.load(file, keystore_key.toCharArray());
       
@@ -547,7 +531,7 @@ public class TSDMain {
             server.stop();
           }
           if (tsdb != null) {
-            LOG.info("Shuttingdown TSD");
+            LOG.info("Shutting down TSD");
             tsdb.shutdown().join();
           }
           
@@ -607,7 +591,7 @@ public class TSDMain {
    * @return A private key if parsing was successful.
    * @throws IOException If the input was corrupted.
    * @throws GeneralSecurityException If parsing failed because the key
-   * appared to be in the wrong format.
+   * appeared to be in the wrong format.
    */
   static RSAPrivateKey parsePKCS1Key(final String key) throws 
       IOException, GeneralSecurityException {

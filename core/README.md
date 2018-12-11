@@ -61,7 +61,7 @@ This contains the abstract interface to a concrete data store (responsible for s
 
 Until the main documentation is up we'll note some important configs here.
 
-So far, the 3.x configuration is similar to the 2.x branch with the ``opentsdb.conf`` file. Here are some important, common configs for 3.x.
+So far, the 3.x configuration is similar to the 2.x branch with the ``opentsdb.yaml`` file. Here are some important, common configs for 3.x.
 
 * ``tsd.query.default_execution_graphs`` - A JSON config that defines the default execution graphs available on startup for the TSD. If the config value ends with ``.json`` (in lower case) then it's assumed the value is the path to a file that will be opened and parsed. Otherwise users can paste quote-escaped (``\"``) JSON in the config file. (But since it's ugly, try using the file method).
 * ``tsd.plugin.config`` - A JSON config that defines the plugins loaded by the TSD and the order in which they are initialized.
