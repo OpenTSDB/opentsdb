@@ -152,6 +152,11 @@ final class SearchRpc implements HttpRpc {
       }
     }
     
+    if (query.hasQueryStringParam("use_meta")) {
+      search_query.setUseMeta(Boolean.parseBoolean(
+          query.getQueryStringParam("use_meta")));
+    }
+    
     return search_query;
   }
 
