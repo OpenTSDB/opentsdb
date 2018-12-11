@@ -254,6 +254,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   
   /**  @returnConverts the units to a 2x style parseable string. */
   public String getInterval() {
+    if (units == null) {
+      return "all";
+    }
+    
     switch (units) {
     case NANOS:
       return interval_part + "ns";
@@ -390,6 +394,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         .setEnd(config.end)
         .setAggregator(config.aggregator)
         .setFill(config.fill)
+        .setRunAll(config.run_all)
         .setInfectiousNan(config.infectious_nan)
         .setInterval(config.interval)
         .setTimeZone(config.timezone.toString())
