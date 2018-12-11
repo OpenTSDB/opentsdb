@@ -548,7 +548,7 @@ gwttsd: staticroot
 	$(mkdir_p) $(DEV_TSD_STATICROOT)
 	cp $(dist_static_DATA:%=$(srcdir)/%) $(DEV_TSD_STATICROOT)
 	find -L $(DEV_TSD_STATICROOT) -type l -exec rm {} \;
-	p=`pwd`/gwt/queryui && cd $(DEV_TSD_STATICROOT) \
+	p=../gwt/queryui && cd $(DEV_TSD_STATICROOT) \
 	  && for i in $$p/*; do ln -s -f "$$i" || break; done
 	find -L $(DEV_TSD_STATICROOT)/gwt -type f | xargs touch
 	@touch .staticroot-stamp
@@ -763,7 +763,7 @@ mostlyclean-local:
 	  && find $(package_dir) -depth -type d -exec rmdir {} ';' \
 	  && dir=$(package_dir) && dir=$${dir%/*} \
 	  && while test x"$$dir" != x"$${dir%/*}"; do \
-	       rmdir "$$dir" && dir=$${dir%/*} || break; \
+	       rm -rf "$$dir" && dir=$${dir%/*} || break; \
 	     done \
 	  && rmdir "$$dir"
 

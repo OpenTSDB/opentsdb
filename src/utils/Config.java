@@ -502,6 +502,7 @@ public class Config {
     default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
     default_map.put("tsd.core.storage_exception_handler.enable", "false");
     default_map.put("tsd.core.uid.random_metrics", "false");
+    default_map.put("tsd.core.bulk.allow_out_of_order_timestamps", "false");
     default_map.put("tsd.query.filter.expansion_limit", "4096");
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");

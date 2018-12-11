@@ -330,6 +330,9 @@ final class UidManager {
   private static boolean printResult(final ArrayList<KeyValue> row,
                                      final byte[] family,
                                      final boolean formard) {
+    if (null == row || row.isEmpty()) {
+      return false;
+    }
     final byte[] key = row.get(0).key();
     String name = formard ? CliUtils.fromBytes(key) : null;
     String id = formard ? null : Arrays.toString(key);

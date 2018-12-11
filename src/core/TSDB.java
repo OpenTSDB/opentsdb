@@ -946,7 +946,7 @@ public final class TSDB {
                             tags, flags);
   }
 
-  private Deferred<Object> addPointInternal(final String metric,
+  Deferred<Object> addPointInternal(final String metric,
                                             final long timestamp,
                                             final byte[] value,
                                             final Map<String, String> tags,
