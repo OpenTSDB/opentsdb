@@ -342,6 +342,33 @@ public class TestDownsampleConfig {
     // snap forward
     assertEquals(1514843310, config.startTime().epoch());
     assertEquals(1514846895, config.endTime().epoch());
+  }
+  
+  @Test
+  public void toBuilderRunAll() throws Exception {
+    DownsampleConfig original = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setRunAll(true)
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
     
+    DownsampleConfig config = (DownsampleConfig) original.toBuilder().build();
+    assertEquals("sum", config.getAggregator());
+    assertEquals("foo", config.getId());
+    assertNull(config.interval());
+    assertEquals(0, config.intervalPart());
+    assertFalse(config.getFill());
+    assertEquals(ZoneId.of("UTC"), config.timezone());
+    assertNull(config.units());
+    assertFalse(config.getInfectiousNan());
+    assertTrue(config.getRunAll());
+    // snap forward
+    assertEquals(1514843302, config.startTime().epoch());
+    assertEquals(1514846902, config.endTime().epoch());
   }
 }
