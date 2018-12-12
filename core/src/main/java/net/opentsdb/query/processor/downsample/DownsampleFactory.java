@@ -253,8 +253,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
         new_source.setPushDownNodes(((TimeSeriesDataSourceConfig) source).getPushDownNodes());
       }
       // TODO - better calculations.
-      new_source.setPrePadding(((DownsampleConfig) config).getInterval());
-      new_source.setPostPadding(((DownsampleConfig) config).getInterval());
+      if (!((DownsampleConfig) config).getRunAll()) {
+        new_source.setPrePadding(((DownsampleConfig) config).getInterval());
+        new_source.setPostPadding(((DownsampleConfig) config).getInterval());
+      }
       plan.replace(source, new_source.build());
     }
     

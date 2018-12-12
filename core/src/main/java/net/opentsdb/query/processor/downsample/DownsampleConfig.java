@@ -255,7 +255,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   /**  @returnConverts the units to a 2x style parseable string. */
   public String getInterval() {
     if (units == null) {
-      return "all";
+      return "0all";
     }
     
     switch (units) {

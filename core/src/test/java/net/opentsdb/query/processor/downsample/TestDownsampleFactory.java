@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -389,6 +390,117 @@ public class TestDownsampleFactory {
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
     assertEquals("1m", node.getPrePadding());
     assertEquals("1m", node.getPostPadding());
+    assertTrue(node.getRollupAggregations().isEmpty());
+    assertTrue(node.getRollupIntervals().isEmpty());
+    
+    assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
+  }
+  
+  @Test
+  public void setupGraphRunAll() throws Exception {  
+    NumericInterpolatorConfig numeric_config = 
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setDataType(NumericType.TYPE.toString())
+        .build();
+    
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("0all")
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config)
+        .setId("downsample")
+        .addSource("m1")
+        .build();
+    
+    TimeSeriesDataSourceConfig source = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+          .setMetric(MetricLiteralFilter.newBuilder()
+              .setMetric("sys.cpu.user")
+              .build())
+          .setId("m1")
+          .build();
+    
+    final List<QueryNodeConfig> graph = Lists.newArrayList(
+        source,
+        config,
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(numeric_config)
+            .setId("gb")
+            .addSource("downsample")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    
+    QueryPlanner planner = mock(QueryPlanner.class);
+    when(planner.terminalSourceNodes(any(QueryNodeConfig.class)))
+      .thenReturn(Lists.newArrayList(source));
+    TimeSeriesDataSourceFactory source_factory = 
+        mock(TimeSeriesDataSourceFactory.class);
+    when(planner.getFactory(any(QueryNodeConfig.class))).thenReturn(source_factory);
+    
+    // gb -> ds -> metric
+    MutableGraph<QueryNodeConfig> dag = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    dag.putEdge(graph.get(2), graph.get(1));
+    dag.putEdge(graph.get(1), graph.get(0));
+    when(planner.configGraph()).thenReturn(dag);
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        final QueryNodeConfig config = (QueryNodeConfig) invocation.getArguments()[1];
+        if (config instanceof DownsampleConfig) {
+          graph.set(1, config);
+        } else {
+          graph.set(0, config);
+        }
+        return null;
+      }
+    }).when(planner)
+      .replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
+    
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.setupGraph(query, config, planner);
+    
+    QueryNodeConfig new_node = graph.get(1);
+    assertEquals("downsample", new_node.getId());
+    assertTrue(new_node.getSources().contains("m1"));
+    assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
+    assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
+    assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
+    assertEquals("0all", ((DownsampleConfig) new_node).getInterval());
+    assertTrue(((DownsampleConfig) new_node).getRunAll());
+    verify(planner, times(2)).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
+    
+    assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
+    
+    // ds -> metric
+    dag = GraphBuilder.directed().allowsSelfLoops(false).build();
+    when(planner.configGraph()).thenReturn(dag);
+    
+    dag.putEdge(graph.get(1), graph.get(0));
+    factory.setupGraph(query, config, planner);
+    
+    new_node = dag.predecessors(graph.get(0)).iterator().next();
+    assertEquals("downsample", new_node.getId());
+    assertTrue(new_node.getSources().contains("m1"));
+    assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
+    assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
+    assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
+    assertEquals("0all", ((DownsampleConfig) new_node).getInterval());
+    assertTrue(((DownsampleConfig) new_node).getRunAll());
+    
+    TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
+    assertNull(node.getPrePadding());
+    assertNull(node.getPostPadding());
     assertTrue(node.getRollupAggregations().isEmpty());
     assertTrue(node.getRollupIntervals().isEmpty());
     
