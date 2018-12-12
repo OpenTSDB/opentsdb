@@ -59,7 +59,7 @@ import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.JSON;
 
-@Path("api/query/exp")
+@Path("query/exp")
 public class ExpressionRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
   

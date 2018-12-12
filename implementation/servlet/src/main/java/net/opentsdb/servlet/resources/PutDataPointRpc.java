@@ -67,7 +67,7 @@ import net.opentsdb.utils.JSON;
 /**
  * TODO
  */
-@Path("api/put")
+@Path("put")
 public class PutDataPointRpc {
   private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
       new TypeReference<ArrayList<IncomingDataPoint>>() {};
