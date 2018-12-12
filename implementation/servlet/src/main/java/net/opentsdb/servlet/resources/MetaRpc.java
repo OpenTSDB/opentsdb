@@ -56,7 +56,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map;
 
-@Path("api/search/timeseries")
+@Path("search/timeseries")
 public class MetaRpc {
     private static final Logger LOG = LoggerFactory.getLogger(MetaRpc.class);
     

@@ -39,7 +39,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.utils.JSON;
 
-@Path("api/registry")
+@Path("registry")
 public class RegistryRpc {
   
   @Path("shared")

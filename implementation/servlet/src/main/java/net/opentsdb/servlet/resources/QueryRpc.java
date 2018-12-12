@@ -89,7 +89,7 @@ import net.opentsdb.utils.StringUtils;
  * 
  * @since 2.0
  */
-@Path("api/query")
+@Path("query")
 final public class QueryRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
   private static final Logger QUERY_LOG = LoggerFactory.getLogger("QueryLog");

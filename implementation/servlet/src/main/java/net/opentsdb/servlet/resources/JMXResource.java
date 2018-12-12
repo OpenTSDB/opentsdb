@@ -110,7 +110,7 @@ import net.opentsdb.utils.JSON;
  *  
  *  @since 3.0
  */
-@Path("api/stats/jmx")
+@Path("stats/jmx")
 public class JMXResource {
   private static final Logger LOG = LoggerFactory.getLogger(JMXResource.class);
 

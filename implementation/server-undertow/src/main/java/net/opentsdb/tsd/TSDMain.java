@@ -23,6 +23,7 @@ import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.encoding.EncodingHandler;
+import io.undertow.server.handlers.resource.FileResourceManager;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
@@ -67,7 +68,6 @@ import java.util.Map.Entry;
  * 
  * @since 3.0
  */
-@SuppressWarnings("restriction")
 public class TSDMain {
   private static Logger LOG = LoggerFactory.getLogger(TSDMain.class);
   
@@ -84,6 +84,7 @@ public class TSDMain {
   public static final String TLS_CA_KEY = "tsd.network.tls.ca";
   public static final String CORS_PATTERN_KEY = "tsd.http.request.cors.pattern";
   public static final String CORS_HEADERS_KEY = "tsd.http.request.cors.headers";
+  public static final String DIRECTORY_KEY = "tsd.http.staticroot";
   
   private static CertificateFactory factory;
   
@@ -160,6 +161,8 @@ public class TSDMain {
         "A comma separated list of headers sent to clients when "
         + "executing a CORs request. The literal value of this option "
         + "will be passed to clients.");
+    config.register(DIRECTORY_KEY, null, false, 
+        "The path to a directory to host at the root for hosting files.");
     
     int port = config.getInt(HTTP_PORT_KEY);
     int ssl_port = config.getInt(TLS_PORT_KEY);
@@ -198,7 +201,13 @@ public class TSDMain {
                   .setLoadOnStartup(1)
                   .addInitParam("javax.ws.rs.Application", 
                       OpenTSDBApplication.class.getName())
-                  .addMapping("/*"));
+                  .addMapping(root + "api/*"));
+    
+        if (tsdb.getConfig().hasProperty(DIRECTORY_KEY) &&
+            !Strings.isNullOrEmpty(tsdb.getConfig().getString(DIRECTORY_KEY))) {
+          servletBuilder.setResourceManager(new FileResourceManager(
+                  new File(tsdb.getConfig().getString(DIRECTORY_KEY))));
+        }
 
     // Load an authentication filter if so configured.
     if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {

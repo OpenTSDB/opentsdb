@@ -61,7 +61,7 @@ import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.YAML;
 
-@Path("api/query/graph")
+@Path("query/graph")
 public class RawQueryRpc {
   private static final Logger LOG = LoggerFactory.getLogger(RawQueryRpc.class);
   
