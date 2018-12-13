@@ -22,6 +22,7 @@ import java.util.Map;
 
 import net.opentsdb.uid.UniqueId;
 
+import net.opentsdb.utils.DateTime;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -812,7 +813,7 @@ public final class Internal {
    */
   public static byte[] buildQualifier(final long timestamp, final short flags) {
     final long base_time;
-    if ((timestamp & Const.SECOND_MASK) != 0) {
+    if (DateTime.isMsResolution(timestamp)) {
       // drop the ms timestamp to seconds to calculate the base timestamp
       base_time = ((timestamp / 1000) - ((timestamp / 1000) 
           % Const.MAX_TIMESPAN));

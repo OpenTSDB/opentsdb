@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import org.junit.Assert;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -19,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Map;
 
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -442,6 +444,53 @@ public final class TestTSDB extends BaseTsdbTest {
   @Test (expected = IllegalArgumentException.class)
   public void renameUidBadType() {
     tsdb.renameUid("wrongtype", METRIC_STRING, METRIC_STRING);
+  }
+
+  @Test
+  public void invalidTimestamp() {
+    Map<String, String> tags = new HashMap<String, String>();
+
+    try {
+      // 9 digits
+      tsdb.addPoint("NONE", 100000000L, 10L, tags);
+      Assert.fail("Expect IllegalArgumentException");
+    } catch (IllegalArgumentException ignore) {
+    }
+
+    try {
+      // 12 digits
+      tsdb.addPoint("NONE", 100000000000L, 10L, tags);
+       Assert.fail("Expect IllegalArgumentException");
+    } catch (IllegalArgumentException ignore) {
+    }
+
+    try {
+      // 14 digits
+      tsdb.addPoint("NONE", 10000000000000L, 10L, tags);
+      Assert.fail("Expect IllegalArgumentException");
+    } catch (IllegalArgumentException ignore) {
+    }
+
+    try {
+      // negative
+      tsdb.addPoint("NONE", -1L, 10L, tags);
+      Assert.fail("Expect IllegalArgumentException");
+    } catch (IllegalArgumentException ignore) {
+    }
+
+    try {
+      // exceed MAX SECOND
+      tsdb.addPoint("NONE", Const.MAX_SECOND_TIMESTAMP + 1, 10L, tags);
+      Assert.fail("Expect IllegalArgumentException");
+    } catch (IllegalArgumentException ignore) {
+    }
+
+    try {
+      // exceed MAX MILLISECOND
+      tsdb.addPoint("NONE", Const.MAX_MILLISECOND_TIMESTAMP + 1, 10L, tags);
+      Assert.fail("Expect IllegalArgumentException");
+    } catch (IllegalArgumentException ignore) {
+    }
   }
 
   @Test

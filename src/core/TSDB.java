@@ -951,20 +951,19 @@ public final class TSDB {
                                             final byte[] value,
                                             final Map<String, String> tags,
                                             final short flags) {
-    // we only accept positive unix epoch timestamps in seconds or milliseconds
-    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
-        timestamp > 9999999999999L)) {
+    if (!DateTime.isValidTimestamp(timestamp)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
           + " to metric=" + metric + ", tags=" + tags);
     }
+
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
     final long base_time;
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     
-    if ((timestamp & Const.SECOND_MASK) != 0) {
+    if (DateTime.isMsResolution(timestamp)) {
       // drop the ms timestamp to seconds to calculate the base timestamp
       base_time = ((timestamp / 1000) - 
           ((timestamp / 1000) % Const.MAX_TIMESPAN));

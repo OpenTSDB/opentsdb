@@ -18,6 +18,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.TimeZone;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.Tags;
 
 /**
@@ -578,4 +579,32 @@ public class DateTime {
     throw new IllegalArgumentException("Unrecognized unit type: " + units);
   }
 
+  /**
+   * Test whether the timestamp format is valid.
+   * <pre>
+   * +-------------+-----------+--------------------------------+
+   * |  resolution | format    | range                          |
+   * +-------------+-----------+--------------------------------+
+   * | second      | 10 digits | [1000000000, 4294967295]       |
+   * +-------------+-----------+--------------------------------+
+   * | millisecond | 13 digits | [1000000000000, 9999999999999] |
+   * +-------------+-----------+--------------------------------+
+   * </pre>
+   *
+   * @param timestamp unix epoch timestamp
+   * @return True if format is valid
+   */
+  public static boolean isValidTimestamp(final long timestamp) {
+    return isSecResolution(timestamp) || isMsResolution(timestamp);
+  }
+
+  public static boolean isSecResolution(final long timestamp) {
+    return timestamp >= Const.MIN_SECOND_TIMESTAMP &&
+        timestamp <= Const.MAX_SECOND_TIMESTAMP;
+  }
+
+  public static boolean isMsResolution(final long timestamp) {
+    return timestamp >= Const.MIN_MILLISECOND_TIMESTAMP &&
+        timestamp <= Const.MAX_MILLISECOND_TIMESTAMP;
+  }
 }

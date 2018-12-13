@@ -87,6 +87,17 @@ public final class Const {
   
   /** Mask to verify a timestamp on 6 bytes in milliseconds */
   public static final long MILLISECOND_MASK = 0xFFFFF00000000000L;
+
+  /** 10 digits for second resolution */
+  public static final long MIN_SECOND_TIMESTAMP = 1000000000L;
+
+  /** We store timestamp on 4 bytes, so the max value is not 9999999999. */
+  public static final long MAX_SECOND_TIMESTAMP = 0xFFFFFFFFFFFFFFFFL ^ SECOND_MASK;
+
+  /** 13 digits for millisecond resolution */
+  public static final long MIN_MILLISECOND_TIMESTAMP = 1000000000000L;
+
+  public static final long MAX_MILLISECOND_TIMESTAMP = 9999999999999L;
   
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_TIMESPAN = 3600;
