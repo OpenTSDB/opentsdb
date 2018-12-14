@@ -38,7 +38,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
@@ -55,7 +55,7 @@ public class SchemaFactory extends BaseTSDBPlugin
                                       WritableTimeSeriesDataStoreFactory {
   public static final String TYPE = "Tsdb1xSchemaFactory";
   
-  public static final String KEY_PREFIX = "tsdb.storage.";
+  public static final String KEY_PREFIX = "tsd.storage.";
   public static final String ROLLUP_ENABLED_KEY = "rollups.enable";
   public static final String ROLLUP_KEY = "rollups.config";
   
@@ -94,7 +94,6 @@ public class SchemaFactory extends BaseTSDBPlugin
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     registerConfigs(tsdb);
-    
     if (tsdb.getConfig().getBoolean(getConfigKey(ROLLUP_ENABLED_KEY))) {
       rollup_config = tsdb.getConfig().getTyped(getConfigKey(ROLLUP_KEY), 
           DefaultRollupConfig.class);
@@ -126,7 +125,7 @@ public class SchemaFactory extends BaseTSDBPlugin
   public void setupGraph(final TimeSeriesQuery query, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
-    // TODO Auto-generated method stub
+    // No-op
   }
 
   @Override
@@ -137,7 +136,42 @@ public class SchemaFactory extends BaseTSDBPlugin
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
                            final QueryNodeConfig config) {
-    return schema.dataStore().newNode(context, config);
+    TimeSeriesDataSourceConfig source_config = 
+        (TimeSeriesDataSourceConfig) config;
+    if (!Strings.isNullOrEmpty(source_config.getSummaryInterval())) {
+      TimeSeriesDataSourceConfig.Builder builder = (TimeSeriesDataSourceConfig.Builder)
+          source_config.toBuilder();
+      
+      if (source_config.getSummaryInterval().toLowerCase().endsWith("all")) {
+        if (rollup_config != null) {
+          // compute an interval from the query span
+          // TODO - other timestamps. For now just seconds.
+          final long span = context.query().endTime().epoch() - 
+              context.query().startTime().epoch();
+          for (final RollupInterval interval : rollup_config.getRollupIntervals()) {
+            if (span % interval.getIntervalSeconds() == 0) {
+              builder.addRollupInterval(interval.getInterval());
+            }
+          }
+        }
+        
+        // TODO - figure out padding
+      } else {
+        if (rollup_config != null) {
+          builder.setRollupIntervals(rollup_config.getPossibleIntervals(
+              source_config.getSummaryInterval()));
+        }
+        
+        // TODO compute the padding
+        builder.setPrePadding("1h");
+        builder.setPostPadding("30m");
+      }
+      
+      //planner.replace(source_config, builder.build());
+      source_config = builder.build();
+    }
+    
+    return schema.dataStore().newNode(context, source_config);
   }
 
   @Override
@@ -160,11 +194,6 @@ public class SchemaFactory extends BaseTSDBPlugin
       final Span span) {
     return schema.getIds(UniqueIdType.METRIC, join_metrics, span);
   }
-
-  @Override
-  public RollupConfig rollupConfig() {
-    return rollup_config;
-  }
   
   void registerConfigs(final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(getConfigKey(ROLLUP_KEY))) {
@@ -185,7 +214,8 @@ public class SchemaFactory extends BaseTSDBPlugin
   }
 
   String getConfigKey(final String suffix) {
-    return KEY_PREFIX + (Strings.isNullOrEmpty(id) ? "" : id + ".")
+    return KEY_PREFIX + (Strings.isNullOrEmpty(id) || id.equals(TYPE) ? 
+        "" : id + ".")
       + suffix;
   }
 }

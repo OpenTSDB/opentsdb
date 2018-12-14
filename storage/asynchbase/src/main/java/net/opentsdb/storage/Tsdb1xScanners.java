@@ -681,10 +681,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         // set qualifier filters
-        System.out.println("AGGS: " + source_config.getRollupAggregations());
         final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
-            source_config.getRollupAggregations().size() * 2);
-        for (final String agg : source_config.getRollupAggregations()) {
+            source_config.getSummaryAggregations().size() * 2);
+        for (final String agg : source_config.getSummaryAggregations()) {
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(
                   agg.toLowerCase().getBytes(Const.ASCII_CHARSET))));
@@ -694,7 +693,6 @@ public class Tsdb1xScanners implements HBaseExecutor {
                       agg.toLowerCase())
               })));
         }
-        System.out.println("    " + filters);
         rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
       } else {
         rollup_filter = null;

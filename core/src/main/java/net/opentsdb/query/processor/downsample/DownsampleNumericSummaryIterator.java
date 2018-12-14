@@ -124,14 +124,13 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
           .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
           .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
       if (config.getAggregator().toLowerCase().equals("avg")) {
-        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
-        .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
-        .setSync(true)
-        .setComponentAggregator(
-            node.pipelineContext().tsdb()
-            .getRegistry().getPlugin(NumericAggregatorFactory.class, 
-                "sum").newAggregator(
-                    ((DownsampleConfig) node.config()).getInfectiousNan()));
+        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("avg"))
+          .setSync(true)
+          .setComponentAggregator(
+              node.pipelineContext().tsdb()
+              .getRegistry().getPlugin(NumericAggregatorFactory.class, 
+                  "sum").newAggregator(
+                      ((DownsampleConfig) node.config()).getInfectiousNan()));
       } else {
         nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
             DefaultRollupConfig.queryToRollupAggregation(config.getAggregator())));
@@ -203,7 +202,6 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         has_next = true;
       }
     }
-    
     return dp;
   }
   
@@ -410,7 +408,6 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
             accumulators.entrySet()) {
           final NumericAccumulator accumulator = entry.getValue();
           if (accumulator.valueIndex() > 0) {
-            
             dp.resetValue(entry.getKey(), (NumericType) accumulator.dp());
           }
         }

@@ -38,7 +38,6 @@ import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
@@ -234,29 +233,14 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
       TimeSeriesDataSourceConfig.Builder new_source = 
           (TimeSeriesDataSourceConfig.Builder)
             ((TimeSeriesDataSourceConfig) source).toBuilder();
-      final TimeSeriesDataSourceFactory factory = (TimeSeriesDataSourceFactory) 
-          plan.getFactory(source);
-      if (factory.rollupConfig() != null) {
-        final List<String> intervals = factory.rollupConfig().getPossibleIntervals(
-            ((DownsampleConfig) config).getInterval());
-        new_source.setRollupIntervals(intervals);
-        if (((DownsampleConfig) config).getAggregator().equalsIgnoreCase("avg")) {
-          new_source.addRollupAggregation("sum");
-          new_source.addRollupAggregation("count");
-        } else {
-          new_source.addRollupAggregation(((DownsampleConfig) config).getAggregator());
-        }
+      new_source.setSummaryInterval(((DownsampleConfig) config).getInterval());
+      if (((DownsampleConfig) config).getAggregator().equalsIgnoreCase("avg")) {
+        new_source.addSummaryAggregation("sum");
+        new_source.addSummaryAggregation("count");
+      } else {
+        new_source.addSummaryAggregation(((DownsampleConfig) config).getAggregator());
       }
       
-      if (((TimeSeriesDataSourceConfig) source).getPushDownNodes() != null && 
-          !((TimeSeriesDataSourceConfig) source).getPushDownNodes().isEmpty()) {
-        new_source.setPushDownNodes(((TimeSeriesDataSourceConfig) source).getPushDownNodes());
-      }
-      // TODO - better calculations.
-      if (!((DownsampleConfig) config).getRunAll()) {
-        new_source.setPrePadding(((DownsampleConfig) config).getInterval());
-        new_source.setPostPadding(((DownsampleConfig) config).getInterval());
-      }
       plan.replace(source, new_source.build());
     }
     

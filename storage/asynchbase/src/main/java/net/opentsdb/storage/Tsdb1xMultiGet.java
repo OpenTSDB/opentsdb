@@ -45,7 +45,6 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
@@ -256,8 +255,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       rollup_index = 0;
       
       final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
-          source_config.getRollupAggregations().size());
-      for (final String agg : source_config.getRollupAggregations()) {
+          source_config.getSummaryAggregations().size());
+      for (final String agg : source_config.getSummaryAggregations()) {
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(
                 agg.toLowerCase().getBytes(Const.ASCII_CHARSET))));
@@ -268,6 +267,10 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
             })));
       }
       filter = new FilterList(filters, Operator.MUST_PASS_ONE);
+      if (node.pipelineContext().query().isTraceEnabled()) {
+        node.pipelineContext().queryContext().logTrace(node, 
+            "Enabling rollup queries with filter: " + filter);
+      }
     } else {
       rollup_index = -1;
       rollups_enabled = false;

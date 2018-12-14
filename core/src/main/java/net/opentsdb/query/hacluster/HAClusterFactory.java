@@ -47,7 +47,6 @@ import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 
@@ -629,12 +628,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       
       canPushDown(predecessors.iterator().next(), factory, push_downs, planner);
     }
-  }
-
-  @Override
-  public RollupConfig rollupConfig() {
-    // TODO Auto-generated method stub
-    return null;
   }
   
 }

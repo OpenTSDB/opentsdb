@@ -44,7 +44,8 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             .build())
         .addPushDownNode(mock(QueryNodeConfig.class))
         .addRollupInterval("1h")
-        .addRollupAggregation("sum")
+        .setSummaryInterval("1h")
+        .addSummaryAggregation("sum")
         .setPrePadding("30m")
         .setPostPadding("1h")
         .setId("UT")
@@ -56,8 +57,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals(1, config.getPushDownNodes().size());
     assertEquals(1, config.getRollupIntervals().size());
     assertTrue(config.getRollupIntervals().contains("1h"));
-    assertEquals(1, config.getRollupAggregations().size());
-    assertTrue(config.getRollupAggregations().contains("sum"));
+    assertEquals("1h", config.getSummaryInterval());
+    assertEquals(1, config.getSummaryAggregations().size());
+    assertTrue(config.getSummaryAggregations().contains("sum"));
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
     assertFalse(config.pushDown());
@@ -82,7 +84,8 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             .build())
         .addPushDownNode(mock(QueryNodeConfig.class))
         .addRollupInterval("1h")
-        .addRollupAggregation("sum")
+        .setSummaryInterval("1h")
+        .addSummaryAggregation("sum")
         .setPrePadding("30m")
         .setPostPadding("1h")
         .setId("UT")
@@ -99,11 +102,13 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(clone.getTypes().contains("Annotation"));
     assertSame(config.getMetric(), clone.getMetric());
     assertEquals("UT", clone.getId());
-    assertTrue(clone.getPushDownNodes().isEmpty());
+    assertEquals(1, clone.getPushDownNodes().size());
+    assertTrue(clone.getPushDownNodes().get(0) instanceof QueryNodeConfig);
     assertEquals(1, config.getRollupIntervals().size());
     assertTrue(config.getRollupIntervals().contains("1h"));
-    assertEquals(1, config.getRollupAggregations().size());
-    assertTrue(config.getRollupAggregations().contains("sum"));
+    assertEquals("1h", config.getSummaryInterval());
+    assertEquals(1, config.getSummaryAggregations().size());
+    assertTrue(config.getSummaryAggregations().contains("sum"));
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
   }
@@ -129,7 +134,8 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             .setId("Toppy")
             .build())
         .addRollupInterval("1h")
-        .addRollupAggregation("sum")
+        .setSummaryInterval("1h")
+        .addSummaryAggregation("sum")
         .setPrePadding("30m")
         .setPostPadding("1h")
         .setId("UT")
@@ -148,7 +154,8 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"id\":\"Toppy\""));
     assertTrue(json.contains("\"type\":\"TopN\""));
     assertTrue(json.contains("\"rollupIntervals\":[\"1h\"]"));
-    assertTrue(json.contains("\"rollupAggregations\":[\"sum\"]"));
+    assertTrue(json.contains("\"summaryInterval\":\"1h\""));
+    assertTrue(json.contains("\"summaryAggregations\":[\"sum\"]"));
     assertTrue(json.contains("\"prePadding\":\"30m\""));
     assertTrue(json.contains("\"postPadding\":\"1h\""));
     
@@ -169,8 +176,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("web01", ((TagValueLiteralOrFilter) config.getFilter()).getFilter());
     assertEquals(1, config.getRollupIntervals().size());
     assertTrue(config.getRollupIntervals().contains("1h"));
-    assertEquals(1, config.getRollupAggregations().size());
-    assertTrue(config.getRollupAggregations().contains("sum"));
+    assertEquals("1h", config.getSummaryInterval());
+    assertEquals(1, config.getSummaryAggregations().size());
+    assertTrue(config.getSummaryAggregations().contains("sum"));
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
   }

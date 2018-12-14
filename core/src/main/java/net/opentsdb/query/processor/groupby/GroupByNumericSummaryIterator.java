@@ -42,7 +42,6 @@ import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
-import net.opentsdb.rollup.DefaultRollupConfig;
 
 /**
  * A group by iterator for summary data. Note that for the special case
@@ -76,11 +75,6 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
   
   /** The interpolator config. */
   private final NumericSummaryInterpolatorConfig config;
-  
-  /** IDs cached to avoid lookups per value. */
-  private final int sum_id;
-  private final int count_id;
-  private final int avg_id;
   
   /** An index in the sources array used when pulling numeric iterators from the
    * sources. Must be less than or equal to the number of sources. */
@@ -151,21 +145,10 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
           NumericSummaryInterpolatorConfig.newBuilder()
           .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).getFillPolicy())
           .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).getRealFillPolicy());
-      if (((GroupByConfig) node.config()).getAggregator().toLowerCase().equals("avg")) {
-        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
-        .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
-        .setSync(true)
-        .setComponentAggregator(node.pipelineContext().tsdb()
-            .getRegistry().getPlugin(NumericAggregatorFactory.class, "sum")
-            .newAggregator(((GroupByConfig) node.config()).getInfectiousNan()));
-      } else {
-        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
-            DefaultRollupConfig.queryToRollupAggregation(
-                ((GroupByConfig) node.config()).getAggregator())));
-      }
       interpolator_config = nsic
           .setDataType(NumericSummaryType.TYPE.toString())
-          .setType(null).build();
+          .setType(null)
+          .build();
     }
     config = (NumericSummaryInterpolatorConfig) interpolator_config;
     
@@ -174,7 +157,8 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
             interpolator_config.getType());
     if (factory == null) {
       throw new IllegalArgumentException("No interpolator factory found for: " + 
-          interpolator_config.getDataType() == null ? "Default" : interpolator_config.getDataType());
+          interpolator_config.getDataType() == null ? "Default" : 
+            interpolator_config.getDataType());
     }
     
     for (final TimeSeries source : sources) {
@@ -199,9 +183,6 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     for (final int summary : config.getExpectedSummaries()) {
       accumulators.put(summary, new NumericAccumulator());
     }
-    sum_id = result.rollupConfig().getIdForAggregator("sum");
-    count_id = result.rollupConfig().getIdForAggregator("count");
-    avg_id = result.rollupConfig().getIdForAggregator("avg");
   }
   
   @Override
@@ -231,8 +212,10 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
           
           NumericAccumulator accumulator = accumulators.get(summary);
           if (accumulator == null) {
+            accumulator = new NumericAccumulator();
+            accumulators.put(summary, accumulator);
             // TODO - counter about the unexpected summary
-            continue;
+            //continue;
           }
           
           if (value.isInteger()) {
@@ -259,46 +242,20 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
       }
     }
     
-    if (aggregator.name().toLowerCase().equals("avg") && 
-        !config.getExpectedSummaries().contains(avg_id)) {
-      for (final Entry<Integer, NumericAccumulator> entry : accumulators.entrySet()) {
-        final NumericAccumulator accumulator = entry.getValue();
-        if (accumulator.valueIndex() > 0) {
-          accumulator.run(config.componentAggregator() != null ? 
-              config.componentAggregator() : aggregator, infectious_nan);
-          dp.resetValue(entry.getKey(), (NumericType) accumulator.dp());
-        }
+    for (final Entry<Integer, NumericAccumulator> entry : 
+        accumulators.entrySet()) {
+      final NumericAccumulator accumulator = entry.getValue();
+      if (accumulator.valueIndex() > 0) {
+        accumulator.run(aggregator, infectious_nan);
+        dp.resetValue(entry.getKey(), (NumericType) accumulator.dp());
       }
-      // TODO - this is an ugly old hard-coding!!! Make it flexible somehow
-      final NumericType sum = dp.value(sum_id);
-      final NumericType count = dp.value(count_id);
-      dp.clear();
-      if (sum == null || count == null) {
-        // no-op
-        // TODO - log and track a metric
-        if (had_nan) {
-          dp.resetValue(avg_id, Double.NaN);
-        }
-      } else {
-        dp.resetValue(avg_id, (sum.toDouble() / count.toDouble()));
-      }
-      dp.resetTimestamp(next_ts);
-    } else {
-      for (final Entry<Integer, NumericAccumulator> entry : 
-          accumulators.entrySet()) {
-        final NumericAccumulator accumulator = entry.getValue();
-        if (accumulator.valueIndex() > 0) {
-          accumulator.run(aggregator, infectious_nan);
-          dp.resetValue(entry.getKey(), (NumericType) accumulator.dp());
-        }
-      }
-      if (dp.summariesAvailable().isEmpty() && had_nan) {
-        for (int summary : config.getExpectedSummaries()) {
-          dp.resetValue(summary, Double.NaN);
-        }
-      }
-      dp.resetTimestamp(next_ts);
     }
+    if (dp.summariesAvailable().isEmpty() && had_nan) {
+      for (int summary : config.getExpectedSummaries()) {
+        dp.resetValue(summary, Double.NaN);
+      }
+    }
+    dp.resetTimestamp(next_ts);
     
     next_ts.update(next_next_ts);
     return this;
