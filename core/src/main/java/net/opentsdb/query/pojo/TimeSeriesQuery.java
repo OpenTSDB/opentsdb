@@ -74,7 +74,7 @@ import java.util.Set;
 public class TimeSeriesQuery extends Validatable 
     implements Comparable<TimeSeriesQuery>{
   
-  public static final String RATE_1_TO_0_KEY = "tsd.query.convert.2x.rate1to0";
+  public static final String RATE_1_TO_RESET_KEY = "tsd.query.convert.2x.rate1toReset";
   
   /** An optional name for the query */
   private String name;
@@ -778,21 +778,22 @@ public class TimeSeriesQuery extends Validatable
                                final RateOptions options, 
                                final QueryNodeConfig parent,
                                final TSDB tsdb) {
-    if (!tsdb.getConfig().hasProperty(RATE_1_TO_0_KEY)) {
+    if (!tsdb.getConfig().hasProperty(RATE_1_TO_RESET_KEY)) {
       synchronized(tsdb.getConfig()) { 
-        if (!tsdb.getConfig().hasProperty(RATE_1_TO_0_KEY)) {
-          tsdb.getConfig().register(RATE_1_TO_0_KEY, false, true,
+        if (!tsdb.getConfig().hasProperty(RATE_1_TO_RESET_KEY)) {
+          tsdb.getConfig().register(RATE_1_TO_RESET_KEY, false, true,
               "For 2.x queries, if the rate reset value was set to 1 to "
-              + "avoid missbehavior in the past, converts it to 0 for the "
-              + "proper new behvaior.");
+              + "avoid missbehavior in the past, converts it to the default and "
+              + "sets dropResets for the proper new behvaior.");
         }
       }
     }
     
     if (options.getResetValue() == 1 && 
-        tsdb.getConfig().getBoolean(RATE_1_TO_0_KEY)) {
+        tsdb.getConfig().getBoolean(RATE_1_TO_RESET_KEY)) {
       return RateOptions.newBuilder(metric.getRateOptions())
           .setResetValue(0)
+          .setDropResets(true)
           .setId(metric.getId() + "_Rate")
           .addSource(parent.getId())
           .build();
