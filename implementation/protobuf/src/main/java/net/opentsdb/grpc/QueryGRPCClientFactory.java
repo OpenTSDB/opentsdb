@@ -200,10 +200,5 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
     // TODO Auto-generated method stub
     return true;
   }
-
-  @Override
-  public RollupConfig rollupConfig() {
-    // TODO Auto-generated method stub
-    return null;
-  }
+  
 }

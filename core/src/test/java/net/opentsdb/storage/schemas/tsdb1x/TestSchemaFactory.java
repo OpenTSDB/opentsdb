@@ -17,6 +17,7 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -40,11 +41,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -52,7 +56,7 @@ import net.opentsdb.uid.UniqueIdType;
 @PrepareForTest({ SchemaFactory.class })
 public class TestSchemaFactory extends SchemaBase {
 
-  private TSDB tsdb;
+  private MockTSDB tsdb;
   private Tsdb1xDataStore store;
   private QueryNode node;
   
@@ -94,7 +98,90 @@ public class TestSchemaFactory extends SchemaBase {
     factory.initialize(tsdb, null).join(1);
     
     assertSame(node, factory.newNode(mock(QueryPipelineContext.class), 
-        mock(QueryNodeConfig.class)));
+        mock(TimeSeriesDataSourceConfig.class)));
+  }
+  
+  @Test
+  public void newNodePadding() throws Exception {
+    TimeSeriesDataSourceConfig config = 
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setSummaryInterval("1h")
+        .addSummaryAggregation("sum")
+        .setId("m1")
+        .build();
+    
+    QueryNodeConfig[] configs = new QueryNodeConfig[1];
+    when(store.newNode(any(QueryPipelineContext.class), 
+        any(QueryNodeConfig.class)))
+      .thenAnswer(new Answer<QueryNode>() {
+        @Override
+        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
+          configs[0] = (QueryNodeConfig) invocation.getArguments()[1];
+          return null;
+        }
+      });
+    
+    SchemaFactory factory = new SchemaFactory();
+    factory.initialize(tsdb, null).join(1);
+    factory.newNode(mock(QueryPipelineContext.class), config);
+    TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) configs[0];
+    assertEquals("1h", new_config.getPrePadding());
+    assertEquals("30m", new_config.getPostPadding());
+    assertEquals("1h", new_config.getSummaryInterval());
+    assertEquals(1, new_config.getSummaryAggregations().size());
+    assertTrue(new_config.getSummaryAggregations().contains("sum"));
+    assertTrue(new_config.getRollupIntervals().isEmpty());
+  }
+  
+  @Test
+  public void newNodeRollups() throws Exception {
+    TimeSeriesDataSourceConfig config = 
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setSummaryInterval("1h")
+        .addSummaryAggregation("sum")
+        .setId("m1")
+        .build();
+    
+    DefaultRollupConfig rollup_config = mock(DefaultRollupConfig.class);
+    when(rollup_config.getPossibleIntervals("1h"))
+      .thenReturn(Lists.newArrayList("1h", "30m"));
+    
+    QueryNodeConfig[] configs = new QueryNodeConfig[1];
+    when(store.newNode(any(QueryPipelineContext.class), 
+        any(QueryNodeConfig.class)))
+      .thenAnswer(new Answer<QueryNode>() {
+        @Override
+        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
+          configs[0] = (QueryNodeConfig) invocation.getArguments()[1];
+          return null;
+        }
+      });
+    
+    SchemaFactory factory = new SchemaFactory();
+    factory.registerConfigs(tsdb);
+    tsdb.config.override(factory.getConfigKey(
+        SchemaFactory.ROLLUP_ENABLED_KEY), true);
+    tsdb.config.override(factory.getConfigKey(
+        SchemaFactory.ROLLUP_KEY), rollup_config);
+    
+    factory.initialize(tsdb, null).join(1);
+    factory.newNode(mock(QueryPipelineContext.class), config);
+    
+    TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) configs[0];
+    assertEquals("1h", new_config.getPrePadding());
+    assertEquals("30m", new_config.getPostPadding());
+    assertEquals("1h", new_config.getSummaryInterval());
+    assertEquals(1, new_config.getSummaryAggregations().size());
+    assertTrue(new_config.getSummaryAggregations().contains("sum"));
+    assertEquals(2, new_config.getRollupIntervals().size());
+    assertTrue(new_config.getRollupIntervals().contains("1h"));
+    assertTrue(new_config.getRollupIntervals().contains("30m"));
   }
   
   @Test

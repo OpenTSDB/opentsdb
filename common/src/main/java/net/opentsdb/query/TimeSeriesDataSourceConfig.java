@@ -54,11 +54,14 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
   /** @return An optional list of push down nodes. May be null. */
   public List<QueryNodeConfig> getPushDownNodes();
   
+  /** @return An optional summary interval from an upstream downsampler. */
+  public String getSummaryInterval();
+  
+  /** @return An optional list of summary aggregations from an upstream downsampler. */
+  public List<String> getSummaryAggregations();
+  
   /** @return An optional list of rollup intervals as durations. */
   public List<String> getRollupIntervals();
-  
-  /** @return An optional list of aggregations for rollups. */
-  public List<String> getRollupAggregations();
   
   /** @return An optional pre-query start time padding string as a duration. */
   public String getPrePadding();
@@ -91,13 +94,15 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
     
     public Builder addPushDownNode(final QueryNodeConfig node);
 
+    public Builder setSummaryInterval(final String summary_interval);
+    
+    public Builder setSummaryAggregations(final List<String> summary_aggregations);
+    
+    public Builder addSummaryAggregation(final String summary_aggregation);
+    
     public Builder setRollupIntervals(final List<String> rollup_intervals);
     
     public Builder addRollupInterval(final String rollup_interval);
-    
-    public Builder setRollupAggregations(final List<String> rollup_aggregations);
-    
-    public Builder addRollupAggregation(final String rollup_aggregation);
     
     public Builder setPrePadding(final String pre_padding);
     

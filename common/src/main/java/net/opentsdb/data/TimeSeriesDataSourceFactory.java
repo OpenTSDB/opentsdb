@@ -24,7 +24,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -104,11 +103,5 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
   public Deferred<List<byte[]>> encodeJoinMetrics(
       final List<String> join_metrics, 
       final Span span);
-  
-  /**
-   * An optional rollup config if the source supports lower resolutions of data.
-   * @return Null if the source doesn't support rollups, a rollup config if it does.
-   */
-  public RollupConfig rollupConfig();
   
 }

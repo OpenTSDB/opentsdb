@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -53,7 +52,6 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
@@ -65,12 +63,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.processor.downsample.Downsample;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -231,8 +224,8 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .addRollupInterval("1h")
         .addRollupInterval("30m")
         .setPrePadding("1h")

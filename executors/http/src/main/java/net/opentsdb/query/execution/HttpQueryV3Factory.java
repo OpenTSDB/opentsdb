@@ -134,10 +134,5 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
           "The endpoint to send queries to.");
     }
   }
-
-  @Override
-  public RollupConfig rollupConfig() {
-    // TODO Auto-generated method stub
-    return null;
-  }
+  
 }

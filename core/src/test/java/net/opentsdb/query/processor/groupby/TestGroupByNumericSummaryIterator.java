@@ -486,8 +486,6 @@ public class TestGroupByNumericSummaryIterator {
     interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
-        .addExpectedSummary(0)
-        .addExpectedSummary(2)
         .setComponentAggregator(new SumFactory().newAggregator(false))
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -509,9 +507,8 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(avg(sums, counts, i, false), tsv.value().value(5).doubleValue(), 0.0001);
-      assertNull(tsv.value().value(0));
-      assertNull(tsv.value().value(2));
+      assertEquals(avg(sums, i, false), tsv.value().value(0).doubleValue(), 0.0001);
+      assertNull(tsv.value().value(5));
       ts += 3600 * 1000L;
       i++;
     }
@@ -575,9 +572,8 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(avg(sums, counts, i, false), tsv.value().value(5).doubleValue(), 0.0001);
-      assertNull(tsv.value().value(0));
-      assertNull(tsv.value().value(2));
+      assertEquals(avg(sums,  i, false), tsv.value().value(0).toDouble(), 0.0001);
+      assertNull(tsv.value().value(5));
       ts += 3600 * 1000L;
       i++;
     }
@@ -612,52 +608,8 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(avg(sums, counts, i, false), tsv.value().value(5).doubleValue(), 0.0001);
-      assertNull(tsv.value().value(0));
-      assertNull(tsv.value().value(2));
-      ts += 3600 * 1000L;
-      i++;
-    }
-    assertEquals(4, i);
-  }
-  
-  @Test
-  public void nextAvgSumAndCountStaggeredMissingStaggeredNaNsInfectious() throws Exception {
-    interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NONE)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
-        .addExpectedSummary(0)
-        .addExpectedSummary(2)
-        .setComponentAggregator(new SumFactory().newAggregator(false))
-        .setDataType(NumericSummaryType.TYPE.toString())
-        .build();
-    config = (GroupByConfig) GroupByConfig.newBuilder()
-        .setAggregator("avg")
-        .addTagKey("dc")
-        .setInfectiousNan(true)
-        .addInterpolatorConfig(interpolator_config)
-        .setId("Testing")
-        .build();
-    
-    long[] sums = new long[] { -1, 11, 12, -1, 21, 22, -1, 24, 31, 32, 33, 34 };
-    long[] counts = new long[] { 1, 2, 3, 4, -1, 2, 3, -1, -1, 2, -1, 4 }; 
-    setupData(sums, counts, true);
-    setupMock();
-    
-    GroupByNumericSummaryIterator iterator = new GroupByNumericSummaryIterator(node, result, source_map);
-    long ts = BASE_TIME;
-    int i = 0;
-    while (iterator.hasNext()) {
-      TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      assertEquals(ts, tsv.timestamp().msEpoch());
-      double avg = avg(sums, counts, i, true);
-      if (avg < 0) {
-        assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
-      } else {
-        assertEquals(avg, tsv.value().value(5).doubleValue(), 0.0001);
-      }
-      assertNull(tsv.value().value(0));
-      assertNull(tsv.value().value(2));
+      assertEquals(avg(sums, i, false), tsv.value().value(0).toDouble(), 0.0001);
+      assertNull(tsv.value().value(5));
       ts += 3600 * 1000L;
       i++;
     }
@@ -669,8 +621,6 @@ public class TestGroupByNumericSummaryIterator {
     interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
-        .addExpectedSummary(0)
-        .addExpectedSummary(2)
         .setComponentAggregator(new SumFactory().newAggregator(false))
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -692,11 +642,11 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      double avg = avg(sums, counts, i, true);
-      if (avg < 0) {
+      if (avg(sums, i, true) < 0) {
         assertNull(tsv.value());
       } else {
-        assertEquals(avg, tsv.value().value(5).doubleValue(), 0.0001);
+        assertEquals(avg(sums, i, true), tsv.value().value(0).doubleValue(), 0.001);
+        assertEquals(avg(counts, i, true), tsv.value().value(2).longValue(), 0.001);
       }
       ts += 3600 * 1000L;
       i++;
@@ -709,8 +659,6 @@ public class TestGroupByNumericSummaryIterator {
     interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
-        .addExpectedSummary(0)
-        .addExpectedSummary(2)
         .setComponentAggregator(new SumFactory().newAggregator(false))
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -732,11 +680,12 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      double avg = avg(sums, counts, i, true);
+      double avg = avg(sums, i, true);
       if (avg < 0) {
         assertNull(tsv.value());
       } else {
-        assertEquals(avg, tsv.value().value(5).doubleValue(), 0.0001);
+        assertEquals(avg(sums, i, true), tsv.value().value(0).toDouble(), 0.0001);
+        assertEquals(avg(counts, i, true), tsv.value().value(2).toDouble(), 0.0001);
       }
       ts += 3600 * 1000L;
       i++;
@@ -749,8 +698,6 @@ public class TestGroupByNumericSummaryIterator {
     interpolator_config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NONE)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
-        .addExpectedSummary(0)
-        .addExpectedSummary(2)
         .setComponentAggregator(new SumFactory().newAggregator(false))
         .setDataType(NumericSummaryType.TYPE.toString())
         .build();
@@ -772,11 +719,11 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      double avg = avg(sums, counts, i, true);
+      double avg = avg(sums, i, true);
       if (avg < 0) {
         assertNull(tsv.value());
       } else {
-        assertEquals(avg, tsv.value().value(5).doubleValue(), 0.0001);
+        assertEquals(avg, tsv.value().value(0).toDouble(), 0.0001);
       }
       ts += 3600 * 1000L;
       i++;
@@ -809,7 +756,7 @@ public class TestGroupByNumericSummaryIterator {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertEquals(sum(sums, i, false), tsv.value().value(0).longValue());
-      assertNull(tsv.value().value(2));
+      assertEquals(sum(counts, i, false), tsv.value().value(2).longValue());
       ts += 3600 * 1000L;
       i++;
     }
@@ -840,11 +787,11 @@ public class TestGroupByNumericSummaryIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      double avg = avg(sums, counts, i, true);
+      double avg = avg(sums, i, true);
       if (avg < 0) {
         assertNull(tsv.value());
       } else {
-        assertEquals(avg, tsv.value().value(5).doubleValue(), 0.0001);
+        assertEquals(avg, tsv.value().value(0).toDouble(), 0.0001);
       }
       ts += 3600 * 1000L;
       i++;
@@ -868,6 +815,25 @@ public class TestGroupByNumericSummaryIterator {
       }
     }
     return sum;
+  }
+  
+  private double avg(long[] dps, int i, boolean infectious) {
+    long sum = -1;
+    int read = 0;
+    for (int x = 0; x < 3; x++) {
+      if (dps[i + (x * 4)] < 0) {
+        if (infectious) {
+          return -1;
+        }
+      } else {
+        if (sum < 0) {
+          sum = 0;
+        }
+        sum += dps[i + (x * 4)];
+        read++;
+      }
+    }
+    return (double) sum / (double) read;
   }
   
   private double avg(long[] sums, long[] counts, int i, boolean infectious) {

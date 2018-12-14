@@ -693,7 +693,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
         
         // set qualifier filters
         rollup_filter = RowFilter.Interleave.newBuilder();
-        for (final String agg : source_config.getRollupAggregations()) {
+        for (final String agg : source_config.getSummaryAggregations()) {
           rollup_filter.addFilters(RowFilter.newBuilder()
               .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                   agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));

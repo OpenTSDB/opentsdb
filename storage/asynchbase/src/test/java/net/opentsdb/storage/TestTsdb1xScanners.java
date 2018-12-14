@@ -64,7 +64,6 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -72,7 +71,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
@@ -82,9 +80,6 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -257,8 +252,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setPrePadding("1h")
         .setPostPadding("1h")
         .setId("m1")
@@ -343,7 +338,7 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("max")
+        .addSummaryAggregation("max")
         .setPrePadding("1h")
         .setPostPadding("1h")
         .setId("m1")
@@ -358,7 +353,7 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("max")
+        .addSummaryAggregation("max")
         .setPrePadding("2h")
         .setPostPadding("2h")
         .setId("m1")
@@ -410,8 +405,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setPrePadding("1h")
         .setPostPadding("1h")
         .setId("m1")
@@ -426,8 +421,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setPrePadding("2h")
         .setPostPadding("2h")
         .setId("m1")
@@ -1176,8 +1171,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setFilterId("f1")
         .setId("m1")
         .build();
@@ -2451,10 +2446,10 @@ public class TestTsdb1xScanners extends UTBase {
     }
     if (ds != null) {
       if (ds.equals("avg")) {
-        builder.addRollupAggregation("sum")
-               .addRollupAggregation("count");
+        builder.addSummaryAggregation("sum")
+               .addSummaryAggregation("count");
       } else {
-        builder.addRollupAggregation(ds);
+        builder.addSummaryAggregation(ds);
       }
       builder.setPrePadding("1h")
              .setPostPadding("1h");

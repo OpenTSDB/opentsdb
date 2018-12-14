@@ -265,8 +265,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setPrePadding("1h")
         .setPostPadding("1h")
         .setId("m1")
@@ -357,7 +357,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("max")
+        .addSummaryAggregation("max")
         .setPrePadding("1h")
         .setPostPadding("1h")
         .setId("m1")
@@ -372,7 +372,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("max")
+        .addSummaryAggregation("max")
         .setPrePadding("2h")
         .setPostPadding("2h")
         .setId("m1")
@@ -424,8 +424,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setPrePadding("1h")
         .setPostPadding("1h")
         .setId("m1")
@@ -440,8 +440,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setPrePadding("2h")
         .setPostPadding("2h")
         .setId("m1")
@@ -1197,8 +1197,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
-        .addRollupAggregation("sum")
-        .addRollupAggregation("count")
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
         .setFilterId("f1")
         .setId("m1")
         .build();
@@ -2406,10 +2406,10 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     }
     if (ds != null) {
       if (ds.equals("avg")) {
-        builder.addRollupAggregation("sum")
-               .addRollupAggregation("count");
+        builder.addSummaryAggregation("sum")
+               .addSummaryAggregation("count");
       } else {
-        builder.addRollupAggregation(ds);
+        builder.addSummaryAggregation(ds);
       }
       builder.setPrePadding("1h")
              .setPostPadding("1h");
