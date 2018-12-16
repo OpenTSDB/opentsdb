@@ -1,5 +1,30 @@
 OpenTSDB - User visible changes.
 
+* Version 2.3.2 (2018-12-16)
+
+Noteworthy Changes:
+  - A new Python wrapper script to make FSCK repair runs easier.
+  - Track performance in the Nagios/Icinga script
+  - Add a Contributions file.
+  - Add a config, 'tsd.core.bulk.allow_out_of_order_timestamps' to allow out of
+    order timestamps for bulk ingest.
+  - NOTE: This version also includes a JDK 8 compiled version of Jackson due to 
+    security patches. If you need to run with an older JDK please replace the 
+	Jackson JARs with older versions.
+
+Bug Fixes:
+  - Unwrap NoSuchUniqueIds when writing data points to make it easier to understand
+    exceptions.
+  - Fix an NPE in the PutDataPointRpc class if a data point in the list is null. 
+  - Fix a Makefile error in the clean portion.
+  - Fix an NPOE in the UIDManager print result.
+  - Fix a bug in the UI where Y formats may contain a percent sign.
+  - Allow specifying the data block encoding and TTL in the HBase table creation
+    script.
+  - Change the make and TSDB scripts to use relative paths.
+  - Fix parsing of `use_meta` from the URI for the search endpoint.
+  - Fix the clean cache script to be a bit more OS agnostic.
+
 * Version 2.3.1 (2018-04-21)
 
 Noteworthy Changes:
