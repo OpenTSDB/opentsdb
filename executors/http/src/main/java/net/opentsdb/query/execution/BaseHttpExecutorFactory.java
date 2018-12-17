@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.ParseException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
@@ -164,52 +165,56 @@ public abstract class BaseHttpExecutorFactory implements
       
       @Override
       public void run(final Timeout timeout) throws Exception {
+        final String endpoint = tsdb.getConfig()
+            .getString(getConfigKey(HEALTH_ENDPOINT_KEY));
         try {
-          
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Testing v3 HTTP host " + host + endpoint + " for health.");
+          }
           class ResponseCallback implements FutureCallback<HttpResponse> {
 
             @Override
             public void completed(final HttpResponse result) {
-              try {
-                EntityUtils.consume(result.getEntity());
-              } catch (IOException e) { }
+              if (LOG.isTraceEnabled()) {
+                try {
+                  LOG.trace("Response from health check: " + host + " " 
+                      + result + " => " + EntityUtils.toString(result.getEntity()));
+                } catch (IOException e) { }
+              }
               
+              // TODO - redirects to a login page can cause a false positive here.
+              // We may want to figure out what the content should be.
               if (result.getStatusLine().getStatusCode() == 200) {
                 synchronized (hosts) {
                   for (final Pair<String, Boolean> extant : hosts) {
                     if (extant.getKey().equals(host)) {
                       if (!extant.getValue()) {
                         extant.setValue(true);
-                        LOG.info("Recovered host: " + host);
+                        LOG.info("Recovered V3 HTTP host: " + host);
+                        // important to remove this from the checks map.
+                        checks.remove(host);
                       }
                       break;
                     }
                   }
                 }
-                
-                // important to remove this from the checks map.
-                checks.remove(host);
               } else {
                 if (LOG.isTraceEnabled()) {
                   LOG.trace("Host " + host + " is still down: " 
                       + result.getStatusLine().getStatusCode());
                 }
-                // reschedule
-                tsdb.getMaintenanceTimer().newTimeout(
-                    Check.this, 
-                    tsdb.getConfig().getLong(getConfigKey(HEALTH_INTERVAL_KEY)), 
-                    TimeUnit.MILLISECONDS);
+                reschedule();
               }
+              
+              try {
+                EntityUtils.consume(result.getEntity());
+              } catch (IOException e) { }
             }
 
             @Override
             public void failed(final Exception ex) {
               LOG.error("Failed to check host: " + host, ex);
-              // reschedule
-              tsdb.getMaintenanceTimer().newTimeout(
-                  Check.this, 
-                  tsdb.getConfig().getLong(getConfigKey(HEALTH_INTERVAL_KEY)), 
-                  TimeUnit.MILLISECONDS);
+              reschedule();
             }
 
             @Override
@@ -220,19 +225,24 @@ public abstract class BaseHttpExecutorFactory implements
             
           }
           
-          final HttpGet request = new HttpGet(host + 
-              tsdb.getConfig().getString(getConfigKey(HEALTH_ENDPOINT_KEY)));
+          final HttpGet request = new HttpGet(host + endpoint);
           client.execute(request, new ResponseCallback());
         } catch (Throwable t) {
-          LOG.error("Failed to check host: " + host, t);
-          // reschedule
-          tsdb.getMaintenanceTimer().newTimeout(
-              Check.this, 
-              tsdb.getConfig().getLong(getConfigKey(HEALTH_INTERVAL_KEY)), 
-              TimeUnit.MILLISECONDS);
+          LOG.error("Failed executing check against host: " + host + endpoint, t);
+          reschedule();
         }
       }
       
+      void reschedule() {
+        tsdb.getMaintenanceTimer().newTimeout(
+            Check.this, 
+            tsdb.getConfig().getLong(getConfigKey(HEALTH_INTERVAL_KEY)), 
+            TimeUnit.MILLISECONDS);
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Rescheduling check for host " + host + " in " 
+              + tsdb.getConfig().getLong(getConfigKey(HEALTH_INTERVAL_KEY)) + "ms.");
+        }
+      }
     }
     
     if (marked) {

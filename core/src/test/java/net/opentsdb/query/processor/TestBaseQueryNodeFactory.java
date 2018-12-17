@@ -49,7 +49,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 
 public class TestBaseQueryNodeFactory {
@@ -206,7 +205,7 @@ public class TestBaseQueryNodeFactory {
     
     @Override
     public void setupGraph(
-        final TimeSeriesQuery query, 
+        final QueryPipelineContext context, 
         final QueryNodeConfig config, 
         final QueryPlanner plan) {
       // TODO Auto-generated method stub

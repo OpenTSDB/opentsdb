@@ -59,6 +59,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.idconverter.ByteToStringIdConverter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -92,10 +93,13 @@ public class TestHAClusterFactory {
         DownsampleConfig.class, GroupByConfig.class));
     MockFactory s4 = new MockFactory("s4", Lists.newArrayList(
         DownsampleConfig.class, GroupByConfig.class));
+    MockFactory s5 = new MockFactory("s5", Lists.newArrayList(
+        DownsampleConfig.class), Const.TS_BYTE_ID);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s1", s1);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s2", s2);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s3", s3);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s4", s4);
+    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s5", s5);
     
     FACTORY = new HAClusterFactory();
     FACTORY.registerConfigs(TSDB);
@@ -669,6 +673,8 @@ public class TestHAClusterFactory {
     assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().size());
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("ha_m1_s2", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
         
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
     assertTrue(planner.nodeForId("m1") instanceof Merger);
@@ -742,6 +748,8 @@ public class TestHAClusterFactory {
     assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().size());
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("ha_m1_s2", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
     
     node = planner.nodeForId("ha_m1_s3");
     assertTrue(node instanceof TimeSeriesDataSource);
@@ -754,6 +762,8 @@ public class TestHAClusterFactory {
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(1) instanceof GroupByConfig);
+    assertEquals("ha_m1_s3", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
         
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
     assertTrue(planner.nodeForId("m1") instanceof Merger);
@@ -835,6 +845,8 @@ public class TestHAClusterFactory {
     assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().size());
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("ha_m1_s2", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
     
     node = planner.nodeForId("ha_m1_s3");
     assertTrue(node instanceof TimeSeriesDataSource);
@@ -847,6 +859,8 @@ public class TestHAClusterFactory {
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(1) instanceof GroupByConfig);
+    assertEquals("ha_m1_s3", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
         
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
     assertTrue(planner.nodeForId("m1") instanceof Merger);
@@ -929,6 +943,8 @@ public class TestHAClusterFactory {
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(1) instanceof GroupByConfig);
+    assertEquals("ha_m1_s3", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
     
     node = planner.nodeForId("ha_m1_s4");
     assertTrue(node instanceof TimeSeriesDataSource);
@@ -941,6 +957,8 @@ public class TestHAClusterFactory {
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(1) instanceof GroupByConfig);
+    assertEquals("ha_m1_s4", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
         
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
     assertTrue(planner.nodeForId("m1") instanceof Merger);
@@ -1028,6 +1046,8 @@ public class TestHAClusterFactory {
         .getPushDownNodes().get(1) instanceof GroupByConfig);
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(2) instanceof DownsampleConfig);
+    assertEquals("ha_m1_s3", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
         
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
     assertTrue(planner.nodeForId("m1") instanceof Merger);
@@ -1048,6 +1068,67 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_s3")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
         planner.nodeForId("ha_m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+        planner.nodeForId("m1")));
+  }
+  
+  @Test
+  public void setupGraphIdConverterNeeded() throws Exception {
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(HAClusterConfig.newBuilder()
+            .setMergeAggregator("max")
+            .setDataSources(Lists.newArrayList("s3", "s5"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.if.in")
+                .build())
+            .setId("m1")
+            .build())
+        .build();
+    
+    QueryContext ctx = mock(QueryContext.class);
+    when(ctx.stats()).thenReturn(mock(QueryStats.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(TSDB);
+    when(context.query()).thenReturn(query);
+    when(context.queryContext()).thenReturn(ctx);
+    when(context.downstreamSources(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(SRC_MOCK));
+    QueryNode ctx_node = mock(QueryNode.class);
+    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
+    planner.plan(null).join(250);
+    
+    assertEquals(6, planner.graph().nodes().size());
+    assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
+    QueryNode node = planner.nodeForId("ha_m1_s3");
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in", 
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    
+    node = planner.nodeForId("ha_m1_s5");
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in", 
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s5", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    
+    assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
+    assertTrue(planner.nodeForId("m1") instanceof Merger);
+    assertTrue(planner.nodeForId("m1_converter") instanceof ByteToStringIdConverter);
+    
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
+        planner.nodeForId("ha_m1_s3")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
+        planner.nodeForId("ha_m1_s5")));
+    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
+        planner.nodeForId("ha_m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1_converter"), 
+        planner.nodeForId("ha_m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
+        planner.nodeForId("m1_converter")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
         planner.nodeForId("m1")));
   }
@@ -1136,10 +1217,20 @@ public class TestHAClusterFactory {
   static class MockFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory {
 
     final List<Class<? extends QueryNodeConfig>> pushdowns;
+    final TypeToken<? extends TimeSeriesId> id_type;
 
     MockFactory(final String id, final List<Class<? extends QueryNodeConfig>> pushdowns) {
       this.id = id;
       this.pushdowns = pushdowns;
+      id_type = Const.TS_STRING_ID;
+    }
+    
+    MockFactory(final String id, 
+                final List<Class<? extends QueryNodeConfig>> pushdowns,
+                final TypeToken<? extends TimeSeriesId> id_type) {
+      this.id = id;
+      this.pushdowns = pushdowns;
+      this.id_type = id_type;
     }
     
     @Override
@@ -1158,7 +1249,7 @@ public class TestHAClusterFactory {
     }
     
     @Override
-    public void setupGraph(TimeSeriesQuery query, QueryNodeConfig config,
+    public void setupGraph(final QueryPipelineContext context, QueryNodeConfig config,
         QueryPlanner planner) {
       // no-op
     }
@@ -1186,7 +1277,7 @@ public class TestHAClusterFactory {
 
     @Override
     public TypeToken<? extends TimeSeriesId> idType() {
-      return Const.TS_STRING_ID;
+      return id_type;
     }
 
     @Override

@@ -49,7 +49,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -210,15 +209,15 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config, 
                          final QueryPlanner plan) {
     // For downsampling we need to set the config start and end times
     // to the query start and end times. The config will then align them.
     DownsampleConfig.Builder builder = DownsampleConfig
         .newBuilder((DownsampleConfig) config)
-        .setStart(query.getStart())
-        .setEnd(query.getEnd())
+        .setStart(context.query().getStart())
+        .setEnd(context.query().getEnd())
         .setId(config.getId());
     
     // and we need to find our sources if we have a rollup as well as set the 

@@ -41,11 +41,13 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 
 public class TestHACluster {
@@ -63,6 +65,8 @@ public class TestHACluster {
     
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
+    when(context.query()).thenReturn(mock(TimeSeriesQuery.class));
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
     
     tsdb = new MockTSDB();
     when(context.tsdb()).thenReturn(tsdb);

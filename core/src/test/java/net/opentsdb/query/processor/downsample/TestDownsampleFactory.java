@@ -358,8 +358,11 @@ public class TestDownsampleFactory {
     }).when(planner)
       .replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
     
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
+    
     DownsampleFactory factory = new DownsampleFactory();
-    factory.setupGraph(query, config, planner);
+    factory.setupGraph(context, config, planner);
     
     QueryNodeConfig new_node = graph.get(1);
     assertEquals("downsample", new_node.getId());
@@ -377,7 +380,7 @@ public class TestDownsampleFactory {
     when(planner.configGraph()).thenReturn(dag);
     
     dag.putEdge(graph.get(1), graph.get(0));
-    factory.setupGraph(query, config, planner);
+    factory.setupGraph(context, config, planner);
     
     new_node = dag.predecessors(graph.get(0)).iterator().next();
     assertEquals("downsample", new_node.getId());
@@ -467,9 +470,11 @@ public class TestDownsampleFactory {
       }
     }).when(planner)
       .replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
     
     DownsampleFactory factory = new DownsampleFactory();
-    factory.setupGraph(query, config, planner);
+    factory.setupGraph(context, config, planner);
     
     QueryNodeConfig new_node = graph.get(1);
     assertEquals("downsample", new_node.getId());
@@ -488,7 +493,7 @@ public class TestDownsampleFactory {
     when(planner.configGraph()).thenReturn(dag);
     
     dag.putEdge(graph.get(1), graph.get(0));
-    factory.setupGraph(query, config, planner);
+    factory.setupGraph(context, config, planner);
     
     new_node = dag.predecessors(graph.get(0)).iterator().next();
     assertEquals("downsample", new_node.getId());
@@ -580,9 +585,11 @@ public class TestDownsampleFactory {
       }
     }).when(planner)
       .replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
     
     DownsampleFactory factory = new DownsampleFactory();
-    factory.setupGraph(query, config, planner);
+    factory.setupGraph(context, config, planner);
     
     QueryNodeConfig new_node = graph.get(1);
     assertEquals("downsample", new_node.getId());
@@ -601,7 +608,7 @@ public class TestDownsampleFactory {
     when(planner.configGraph()).thenReturn(dag);
     
     dag.putEdge(graph.get(1), graph.get(0));
-    factory.setupGraph(query, config, planner);
+    factory.setupGraph(context, config, planner);
     
     new_node = dag.predecessors(graph.get(0)).iterator().next();
     assertEquals("downsample", new_node.getId());

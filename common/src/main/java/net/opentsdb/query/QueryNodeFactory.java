@@ -50,12 +50,12 @@ public interface QueryNodeFactory extends TSDBPlugin {
    * During query planning, this is called to allow the node factory to
    * modify the user provided configuration and/or the graph, particularly
    * for multi-node factories.
-   * @param query The non-null user given query.
+   * @param context The non-null query context.
    * @param config An optional user provided config for the node. 
    * @param planner The non-null query planner to mutate if necessary.
    */
   public void setupGraph(
-      final TimeSeriesQuery query, 
+      final QueryPipelineContext context, 
       final QueryNodeConfig config, 
       final QueryPlanner planner);
   

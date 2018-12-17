@@ -122,6 +122,7 @@
                   <excludes>
                      <exclude>net.opentsdb:opentsdb-common</exclude>
                      <exclude>net.opentsdb:opentsdb-core</exclude>
+                     <exclude>net.opentsdb:opentsdb-executors-http</exclude>
                      <exclude>ch.qos.logback:logback*</exclude>
                      <exclude>com.fasterxml*:*</exclude>
                      <exclude>javax*:*</exclude>

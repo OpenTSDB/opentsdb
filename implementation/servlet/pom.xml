@@ -32,16 +32,6 @@
           <artifactId>opentsdb-core</artifactId>
           <version>${project.version}</version>
         </dependency>
-        <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-executors-http</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-tracer-brave</artifactId>
-          <version>${project.version}</version>
-        </dependency>
         
         <dependency>
           <groupId>javax.servlet</groupId>
@@ -76,14 +66,6 @@
       <dependency>
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>net.opentsdb</groupId>
-        <artifactId>opentsdb-executors-http</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>net.opentsdb</groupId>
-        <artifactId>opentsdb-tracer-brave</artifactId>
       </dependency>
       
       <dependency>

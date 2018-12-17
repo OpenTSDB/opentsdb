@@ -37,7 +37,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
@@ -205,7 +204,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
 
   @Override
   public void setupGraph(
-      final TimeSeriesQuery query, 
+      final QueryPipelineContext context, 
       final QueryNodeConfig config,
       final QueryPlanner plan) {
     // nothing to do here.

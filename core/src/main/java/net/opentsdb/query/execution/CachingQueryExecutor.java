@@ -813,7 +813,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   }
 
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config, 
                          final QueryPlanner plan) {
     // TODO Auto-generated method stub
