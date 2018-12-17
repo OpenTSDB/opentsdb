@@ -155,13 +155,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
             // TODO - ms, second, nanos, etc
             json.writeNumberField("start", result.timeSpecification().start().epoch());
             json.writeNumberField("end", result.timeSpecification().end().epoch());
-            json.writeStringField("intervalISO", result.timeSpecification().interval().toString());
+            json.writeStringField("intervalISO", result.timeSpecification().interval() != null ? 
+                result.timeSpecification().interval().toString() : "null");
             json.writeStringField("interval", result.timeSpecification().stringInterval());
             //json.writeNumberField("intervalNumeric", result.timeSpecification().interval().get(result.timeSpecification().units()));
             if (result.timeSpecification().timezone() != null) {
               json.writeStringField("timeZone", result.timeSpecification().timezone().toString());
             }
-            json.writeStringField("units", result.timeSpecification().units().toString());
+            json.writeStringField("units", result.timeSpecification().units() != null ? 
+                result.timeSpecification().units().toString() : "null");
             json.writeEndObject();
           }
           

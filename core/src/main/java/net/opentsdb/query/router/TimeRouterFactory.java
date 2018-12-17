@@ -96,13 +96,13 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
   }
   
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
     final List<TimeRouterConfigEntry> config_ref = this.config;
     List<TimeRouterConfigEntry> sources = Lists.newArrayList();
     for (final TimeRouterConfigEntry entry : config_ref) {
-      final MatchType match = entry.match(query, 
+      final MatchType match = entry.match(context.query(), 
           (TimeSeriesDataSourceConfig) config, tsdb);
       if (match == MatchType.NONE) {
         continue;
@@ -129,6 +129,10 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
           .setSourceId(sources.get(0).getSourceId())
           .build();
       planner.replace(config, rebuilt);
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("Only one route available: " 
+            + rebuilt.getSourceId());
+      }
       return;
     }
     
@@ -150,6 +154,10 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
           .setId(config.getId() + "_" + entry.getSourceId())
           .build();
       planner.addEdge(merger, rebuilt);
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("Adding router source: " 
+            + rebuilt.getSourceId());
+      }
     }
   }
 

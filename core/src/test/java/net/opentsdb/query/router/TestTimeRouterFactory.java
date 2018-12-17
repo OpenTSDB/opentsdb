@@ -353,7 +353,7 @@ public class TestTimeRouterFactory {
     }
     
     @Override
-    public void setupGraph(TimeSeriesQuery query, QueryNodeConfig config,
+    public void setupGraph(QueryPipelineContext context, QueryNodeConfig config,
         QueryPlanner planner) {
       // no-op
     }

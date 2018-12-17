@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
+import org.apache.http.ParseException;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
@@ -40,6 +42,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BadQueryResult;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -49,6 +52,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.SharedHttpClient;
 
@@ -115,22 +119,26 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
 
   @Override
   public void fetchNext(final Span span) {
+    final long start = DateTime.nanoTime();
     SemanticQuery.Builder builder = SemanticQuery.newBuilder()
         .setStart(context.query().getStart())
         .setEnd(context.query().getEnd())
         .setMode(context.query().getMode())
         .setTimeZone(context.query().getTimezone());
     
+    LOG.info("***********: " + JSON.serializeToString(config));
+    
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
     pushdowns.put(config.getId(), 
         ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-          .setPushDownNodes(Collections.emptyList())
+          .setPushDownNodes(null)
           .setSourceId(null) // TODO - we may want to make this configurable
           .build());
     for (final QueryNodeConfig pushdown : config.getPushDownNodes()) {
       pushdowns.put(pushdown.getId(), pushdown);
     }
+    LOG.info("SIZE: " + pushdowns.size());
     
     for (final QueryNodeConfig pushdown : pushdowns.values()) {
       if (pushdown.getSources().isEmpty()) {
@@ -160,9 +168,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           context.queryContext().authState().getToken(), Const.UTF8_CHARSET));
     }
     
+    final String json;
     try {
-      post.setEntity(new StringEntity(
-          JSON.serializeToString(builder.build())));
+      json = JSON.serializeToString(builder.build());
+      post.setEntity(new StringEntity(json));
     } catch (UnsupportedEncodingException e) {
       try {
         final Exception ex = new RejectedExecutionException(
@@ -193,8 +202,6 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           final Exception e = new QueryExecutionCanceled(
               "Query was canceled: " + host + endpoint, 400, 0); 
           sendUpstream(e);
-        } catch (IllegalStateException e) {
-          // already called, ignore it.
         } catch (Exception e) {
           LOG.warn("Exception thrown when calling deferred on cancel: " 
               + this, e);
@@ -204,35 +211,43 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
       @Override
       public void completed(final HttpResponse response) {
         final Header header = response.getFirstHeader("X-Served-By");
-        String host = "unknown";
+        String host = HttpQueryV3Source.this.host;
         if (header != null && header.getValue() != null) {
           host = header.getValue();
         }
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Response from endpoint: " + host + endpoint + " (" + host 
-              + ") received");
+          LOG.debug("Response from endpoint: " + host + endpoint +" received: " 
+              + response.getStatusLine());
         }
 
         String json = null;
         try {
-          if (response.getStatusLine().getStatusCode() == 500) {
+          if (response.getStatusLine().getStatusCode() != 200) {
             if (factory instanceof BaseHttpExecutorFactory) {
               ((BaseHttpExecutorFactory) factory).markHostAsBad(
-                  HttpQueryV3Source.this.host, 0);
+                  HttpQueryV3Source.this.host, 
+                  response.getStatusLine().getStatusCode());
               if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
                   retries < ((BaseHttpExecutorFactory) factory).retries()) {
                 retries++;
-                final HttpPost retry = new HttpPost(
-                    ((BaseHttpExecutorFactory) factory).nextHost() + endpoint);
+                final String new_host =((BaseHttpExecutorFactory) factory).nextHost();
+                final HttpPost retry = new HttpPost(new_host + endpoint);
                 retry.setEntity(post.getEntity());
                 EntityUtils.consume(response.getEntity());
                 client.execute(retry, this);
+                context.queryContext().logWarn(HttpQueryV3Source.this, 
+                    "Retrying query to [" + new_host + endpoint + "] after " 
+                    + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
                 if (LOG.isTraceEnabled()) {
-                  LOG.trace("Retrying Http query to a TSD: " + endpoint);
+                  LOG.trace("Retrying Http query to a TSD: " + new_host + endpoint);
                 }
                 return;
               }
             }
+            
+            sendUpstream(new QueryExecutionException("WTF??", 
+                response.getStatusLine().getStatusCode()));
+            return;
           }
           
           json = SharedHttpClient.parseResponse(response, 0, host);
@@ -240,25 +255,40 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           JsonNode results = root.get("results");
           if (results == null) {
             // could be an error, parse it.
+            LOG.error("WTF? " + json);
           } else {
+            if (context.query().isDebugEnabled()) {
+              context.queryContext().logDebug(HttpQueryV3Source.this, 
+                  "Successful reseponse from [" + host + endpoint + "] after " 
+                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
+            }
             for (final JsonNode result : results) {
               sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result));
             }
           }
-
-        } catch (IllegalStateException caught) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Callback was already called but we recieved "
-                + "a result: " + this);
-          }
         } catch (Exception e) {
-          LOG.error("Failure handling response: " + response + "\nQuery: " 
-              + json, e);
+          String content = null;
+          try {
+            content = EntityUtils.toString(response.getEntity());
+          } catch (Exception e1) {
+            LOG.error("Failed to handle the error...", e1);
+          }
+          
           if (e instanceof QueryExecutionException) {
             try {
-              sendUpstream(e);
-            } catch (IllegalStateException caught) {
-              // ignore;
+              context.queryContext().logError(HttpQueryV3Source.this, 
+                  "Error sending query to [" + host + endpoint + "] after " 
+                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
+                      + e.getMessage());
+              if (context.query().isTraceEnabled()) {
+                context.queryContext().logTrace(HttpQueryV3Source.this, 
+                    "Original content: " + response + " => " + content);
+              }
+              sendUpstream(BadQueryResult.newBuilder()
+                  .setNode(HttpQueryV3Source.this)
+                  .setException(e)
+                  .setDataSource(config.getId())
+                  .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
                   + this, e);
@@ -267,9 +297,19 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             try {
               final Exception ex = new QueryExecutionException(
                   "Unexepected exception: " + host + endpoint, 500, 0, e);
-              sendUpstream(ex);
-            } catch (IllegalStateException caught) {
-              // ignore;
+              context.queryContext().logError(HttpQueryV3Source.this, 
+                  "Error sending query to [" + host + endpoint + "] after " 
+                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
+                      + e.getMessage());
+              if (context.query().isTraceEnabled()) {
+                context.queryContext().logTrace(HttpQueryV3Source.this, 
+                    "Original content: " + response + " => " + content);
+              }
+              sendUpstream(BadQueryResult.newBuilder()
+                  .setNode(HttpQueryV3Source.this)
+                  .setException(ex)
+                  .setDataSource(config.getId())
+                  .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
                   + this, e);
@@ -286,22 +326,34 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
               retries < ((BaseHttpExecutorFactory) factory).retries()) {
             retries++;
-            final HttpPost retry = new HttpPost(
-                ((BaseHttpExecutorFactory) factory).nextHost() + endpoint);
+            final String host = ((BaseHttpExecutorFactory) factory).nextHost();
+            final HttpPost retry = new HttpPost(host + endpoint);
             retry.setEntity(post.getEntity());
             client.execute(retry, this);
+            context.queryContext().logWarn(HttpQueryV3Source.this, 
+                "Retrying query to [" + host + endpoint + "] after " 
+                + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
             if (LOG.isTraceEnabled()) {
-              LOG.trace("Retrying Http query to a TSD: " + endpoint);
+              LOG.trace("Retrying Http query to a TSD: " + host + endpoint);
             }
             return;
           }
         }
+        context.queryContext().logError(HttpQueryV3Source.this, 
+            "Error sending query to [" + host + endpoint + "] after " 
+            + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
+                + e.getMessage());
         sendUpstream(e);
       }
     }
     client.execute(post, new ResponseCallback());
+    if (context.query().isTraceEnabled()) {
+      context.queryContext().logTrace(this, "Compiled and sent query to [" 
+          + host + endpoint + "] in " 
+          + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " + json);
+    }
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Sent Http query to a TSD: " + endpoint);
+      LOG.trace("Sent Http query to a TSD: " + host + endpoint + ": " + json);
     }
   }
 

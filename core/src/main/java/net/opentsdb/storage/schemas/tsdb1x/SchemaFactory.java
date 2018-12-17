@@ -122,7 +122,7 @@ public class SchemaFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
     // No-op
@@ -143,17 +143,18 @@ public class SchemaFactory extends BaseTSDBPlugin
           source_config.toBuilder();
       
       if (source_config.getSummaryInterval().toLowerCase().endsWith("all")) {
-        if (rollup_config != null) {
-          // compute an interval from the query span
-          // TODO - other timestamps. For now just seconds.
-          final long span = context.query().endTime().epoch() - 
-              context.query().startTime().epoch();
-          for (final RollupInterval interval : rollup_config.getRollupIntervals()) {
-            if (span % interval.getIntervalSeconds() == 0) {
-              builder.addRollupInterval(interval.getInterval());
-            }
-          }
-        }
+        // TODO - revisit this one.
+//        if (rollup_config != null) {
+//          // compute an interval from the query span
+//          // TODO - other timestamps. For now just seconds.
+//          final long span = context.query().endTime().epoch() - 
+//              context.query().startTime().epoch();
+//          for (final RollupInterval interval : rollup_config.getRollupIntervals()) {
+//            if (span % interval.getIntervalSeconds() == 0) {
+//              builder.addRollupInterval(interval.getInterval());
+//            }
+//          }
+//        }
         
         // TODO - figure out padding
       } else {

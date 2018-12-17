@@ -92,12 +92,18 @@ public class HACluster extends AbstractQueryNode {
     // ignore sources we don't care about. They shouldn't be linked
     // to this node anyway.
     if (!results.containsKey(next.dataSource())) {
+      if (context.query().isDebugEnabled()) {
+        context.queryContext().logDebug(this, "Received unexpected data from: " 
+            + next.source().config().getId() + next.dataSource());
+      }
       return;
     }
     
     boolean all_in = true;
     synchronized (results) {
       if (results.putIfAbsent(next.dataSource(), next) != null) {
+        context.queryContext().logWarn(this, "Duplicate data from: " 
+            + next.source().config().getId() + next.dataSource());
         return;
       }
      
@@ -110,16 +116,23 @@ public class HACluster extends AbstractQueryNode {
     }
     
     if (all_in) {
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace(this, "Received all the sources we expect.");
+      }
       complete(false);
       return;
     }
     
     if (config.getDataSources().get(0).equals(next.dataSource())) {
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace(this, "Received primary: " 
+            + next.source().config().getId() + next.dataSource());
+      }
       synchronized (this) {
         if (secondary_timer == null) {
           // start timer!
           secondary_timer = context.tsdb().getQueryTimer()
-            .newTimeout(new ResultTimeout(), 
+            .newTimeout(new ResultTimeout(false), 
                 DateTime.parseDuration(config.getSecondaryTimeout()), 
                 TimeUnit.MILLISECONDS);
         } else {
@@ -139,11 +152,15 @@ public class HACluster extends AbstractQueryNode {
       if (!matched) {
         // WTF? 
       } else {
+        if (context.query().isTraceEnabled()) {
+          context.queryContext().logTrace(this, "Received secondary: " 
+              + next.source().config().getId() + next.dataSource());
+        }
         synchronized (this) {
           if (primary_timer == null) {
             // start it!
             primary_timer = context.tsdb().getQueryTimer()
-              .newTimeout(new ResultTimeout(), 
+              .newTimeout(new ResultTimeout(true), 
                   DateTime.parseDuration(config.getPrimaryTimeout()), 
                   TimeUnit.MILLISECONDS);
           } else {
@@ -186,12 +203,24 @@ public class HACluster extends AbstractQueryNode {
   /** A timeout class that can generate empty results and trigger sending
    * data upstream. */
   private class ResultTimeout implements TimerTask {
-
+    final boolean is_primary;
+    
+    ResultTimeout(final boolean is_primary) {
+      this.is_primary = is_primary;
+    }
+    
     @Override
     public void run(final Timeout ignored) throws Exception {
       if (!completed.compareAndSet(false, true)) {
         // Already sent upstream, lost the race.
         return;
+      }
+      if (is_primary) {        
+        context.queryContext().logWarn(HACluster.this, 
+            "Primary timed out after: " + config.getPrimaryTimeout());
+      } else {
+        context.queryContext().logWarn(HACluster.this, 
+            "Secondary timed out after: " + config.getSecondaryTimeout());
       }
       
       QueryResult good_result = null;

@@ -31,10 +31,10 @@ import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
@@ -104,7 +104,7 @@ public class TestExpressionFactory {
     graph.putEdge(query.get(1), query.get(0));
     graph.putEdge(SINK, query.get(1));
     
-    factory.setupGraph(mock(TimeSeriesQuery.class), query.get(1), plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), query.get(1), plan);
     assertEquals(3, graph.nodes().size());
     assertTrue(graph.nodes().contains(query.get(0)));
     assertFalse(graph.nodes().contains(query.get(1)));
@@ -161,7 +161,7 @@ public class TestExpressionFactory {
     graph.putEdge(exp, ds);
     graph.putEdge(SINK, exp);
     
-    factory.setupGraph(mock(TimeSeriesQuery.class), exp, plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
     assertEquals(4, graph.nodes().size());
     assertTrue(graph.nodes().contains(m1));
     assertTrue(graph.nodes().contains(ds));
@@ -228,7 +228,7 @@ public class TestExpressionFactory {
     graph.putEdge(exp, ds);
     graph.putEdge(SINK, exp);
     
-    factory.setupGraph(mock(TimeSeriesQuery.class), exp, plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
     assertEquals(5, graph.nodes().size());
     assertTrue(graph.nodes().contains(m1));
     assertTrue(graph.nodes().contains(m2));
@@ -297,7 +297,7 @@ public class TestExpressionFactory {
     graph.putEdge(exp, ds);
     graph.putEdge(SINK, exp);
     
-    factory.setupGraph(mock(TimeSeriesQuery.class), exp, plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
     assertEquals(5, graph.nodes().size());
     assertTrue(graph.nodes().contains(m1));
     assertTrue(graph.nodes().contains(m2));
@@ -374,7 +374,7 @@ public class TestExpressionFactory {
     graph.putEdge(exp, ds);
     graph.putEdge(SINK, exp);
     
-    factory.setupGraph(mock(TimeSeriesQuery.class), exp, plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
     assertEquals(7, graph.nodes().size());
     assertTrue(graph.nodes().contains(m1));
     assertTrue(graph.nodes().contains(m2));
@@ -473,7 +473,7 @@ public class TestExpressionFactory {
     graph.putEdge(exp, ds);
     graph.putEdge(SINK, exp);
     
-    factory.setupGraph(mock(TimeSeriesQuery.class), exp, plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
     assertEquals(10, graph.nodes().size());
     assertTrue(graph.nodes().contains(m1));
     assertTrue(graph.nodes().contains(m2));

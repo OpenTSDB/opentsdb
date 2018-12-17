@@ -275,6 +275,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
           }
         }
         
+        if (context.query().isTraceEnabled()) {
+          context.queryContext().logTrace(printConfigGraph());
+        }
+        
         // depth first initiation of the executors since we have to init
         // the ones without any downstream dependencies first.
         Set<QueryNode> initialized = Sets.newHashSet();
@@ -366,7 +370,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         throw new IllegalArgumentException("No data source factory found for: " 
             + node);
       }
-      factory.setupGraph(context.query(), node, this);
+      factory.setupGraph(context, node, this);
       already_setup.add(node);
       if (!config_graph.equals(clone)) {
         return true;
@@ -950,16 +954,18 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /**
    * Helper for UTs and debugging to print the graph.
    */
-  public void printConfigGraph() {
-    System.out.println(" ------------------------- ");
+  public String printConfigGraph() {
+    final StringBuilder buffer = new StringBuilder();
+    buffer.append(" -------------------------\n");
     for (final QueryNodeConfig node : config_graph.nodes()) {
-      System.out.println("[V] " + node.getId() + " (" + node.getClass().getSimpleName() + ")");
+      buffer.append("[V] " + node.getId() + " (" + node.getClass().getSimpleName() + ")\n");
     }
-    System.out.println();
+    buffer.append("\n");
     for (final EndpointPair<QueryNodeConfig> pair : config_graph.edges()) {
-      System.out.println("[E] " + pair.nodeU().getId() + " => " + pair.nodeV().getId());
+      buffer.append("[E] " + pair.nodeU().getId() + " => " + pair.nodeV().getId() + "\n");
     }
-    System.out.println(" ------------------------- ");
+    buffer.append(" -------------------------\n");
+    return buffer.toString();
   }
   
   /**

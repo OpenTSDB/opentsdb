@@ -41,6 +41,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -164,10 +165,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   }
   
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
     final HAClusterConfig.Builder builder;
+    boolean needs_id_converter = false;
+    
     if (config instanceof HAClusterConfig) {
       final HAClusterConfig cluster_config = (HAClusterConfig) config;
       if (cluster_config.getHasBeenSetup()) {
@@ -213,6 +216,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
     }
     
     final String new_id = "ha_" + config.getId();
+    if (context.query().isTraceEnabled()) {
+      context.queryContext().logTrace("Elligible sources: " + builder.dataSources());
+    }
     
     // if there is only one source, drop the merger and ha config nodes
     if (builder.dataSources().size() + builder.dataSourceConfigs().size() == 1) {
@@ -243,13 +249,17 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .setId(config.getId())
             .build();
       planner.replace(config, rebuilt);
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("Only one source available for query: " 
+            + rebuilt.getSourceId());
+      }
       return;
     }
     
     final List<TimeSeriesDataSourceConfig.Builder> new_sources = 
         Lists.newArrayList();
     final Map<String, TimeSeriesDataSourceFactory> factories = Maps.newHashMap();
-    
+   
     if (config instanceof HAClusterConfig) {
       for (final TimeSeriesDataSourceConfig source : 
             ((HAClusterConfig) config).getDataSourceConfigs()) {
@@ -276,6 +286,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           throw new IllegalArgumentException("No data source found for: " 
               + source.getSourceId());
         }
+        if (factory.idType() != Const.TS_STRING_ID) {
+          needs_id_converter = true;
+        }
         factories.put(source.getSourceId(), factory);
         new_sources.add(rebuilt);
       }
@@ -289,6 +302,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         throw new IllegalArgumentException("No data source found for: " 
           + source);
       }
+      
+      if (factory.idType() != Const.TS_STRING_ID) {
+        needs_id_converter = true;
+      }
+      
       factories.put(source, factory);
       
       TimeSeriesDataSourceConfig.Builder rebuilt = 
@@ -346,6 +364,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .build();
         planner.replace(config, merger);
         
+        QueryNodeConfig converter;
+        if (needs_id_converter) {
+          converter = ByteToStringIdConverterConfig.newBuilder()
+              .setId(config.getId() + "_converter")
+              .build();
+          planner.addEdge(merger, converter);
+        } else {
+          converter = null;
+        }
+        
         final List<String> data_sources = 
             Lists.newArrayListWithExpectedSize(new_sources.size());
         for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
@@ -356,7 +384,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .setDataSources(data_sources)
             .setId(new_id)
             .build();
-        planner.addEdge(merger, rebuilt);
+        planner.addEdge(converter != null ? converter : merger, rebuilt);
         
         final List<QueryNodeConfig> max = push_downs.get(max_index);
         final Map<String, QueryNodeConfig> new_push_downs = 
@@ -403,7 +431,21 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             continue;
           }
           
-          new_sources.get(i).setPushDownNodes(source_push_downs);
+          // We need to rename the sources for these nodes if they pull from the
+          // source.
+          final String pushdown_id = new_sources.get(i).id();
+          List<QueryNodeConfig> renamed_pushdowns = 
+              Lists.newArrayListWithExpectedSize(source_push_downs.size());
+          for (final QueryNodeConfig pd : source_push_downs) {
+            if (pd.getSources().contains(config.getId())) {
+              renamed_pushdowns.add(pd.toBuilder()
+                  .setSources(Lists.newArrayList(pushdown_id))
+                  .build());
+            } else {
+              renamed_pushdowns.add(pd);
+            }
+          }
+          new_sources.get(i).setPushDownNodes(renamed_pushdowns);
           
           final TimeSeriesDataSourceConfig new_source = new_sources.get(i).build();
           if (source_push_downs.size() == max_pushdowns) {
@@ -412,6 +454,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             final QueryNodeConfig mx = new_push_downs.get(
                 max.get(source_push_downs.size()).getId());
             planner.addEdge(mx, new_source);
+          }
+          
+          if (context.query().isTraceEnabled()) {
+            context.queryContext().logTrace("Adding pushdown source: " 
+                + new_source.getSourceId());
           }
         }
         
@@ -436,6 +483,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         .build();
     planner.replace(config, merger);
     
+    QueryNodeConfig converter;
+    if (needs_id_converter) {
+      converter = ByteToStringIdConverterConfig.newBuilder()
+          .setId(config.getId() + "_converter")
+          .build();
+      planner.addEdge(merger, converter);
+    } else {
+      converter = null;
+    }
+    
     final List<String> data_sources = 
         Lists.newArrayListWithExpectedSize(new_sources.size());
     for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
@@ -446,12 +503,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         .setDataSources(data_sources)
         .setId(new_id)
         .build();
-    planner.addEdge(merger, rebuilt);
+    planner.addEdge(converter != null ? converter : merger, rebuilt);
     for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
       planner.addEdge(rebuilt, source.build());
       if (Graphs.hasCycle(planner.configGraph())) {
         throw new IllegalStateException("Cycle created when linking " 
             + rebuilt.getId() + " => " + source.id());
+      }
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("Adding query source: " 
+            + rebuilt.getSourceId());
       }
     }
   }

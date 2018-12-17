@@ -66,8 +66,9 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   }
   
   @Override
-  public void setupGraph(TimeSeriesQuery query, QueryNodeConfig config,
-      QueryPlanner planner) {
+  public void setupGraph(final QueryPipelineContext context, 
+                         final QueryNodeConfig config,
+                         final QueryPlanner planner) {
     // TODO Auto-generated method stub
     
   }

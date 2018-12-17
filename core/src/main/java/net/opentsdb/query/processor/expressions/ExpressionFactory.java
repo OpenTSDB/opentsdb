@@ -81,7 +81,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config, 
                          final QueryPlanner plan) {
     // parse the expression

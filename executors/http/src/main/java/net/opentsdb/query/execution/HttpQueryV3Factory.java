@@ -34,7 +34,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
@@ -106,7 +105,7 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
   }
 
   @Override
-  public void setupGraph(final TimeSeriesQuery query, 
+  public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
     // No-op
