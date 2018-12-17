@@ -15,8 +15,11 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
@@ -36,21 +39,22 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.io.Files;
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({ TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, Const.class})
+  Scanner.class, AtomicIncrementRequest.class, Const.class, Files.class })
 public final class TestTSDB extends BaseTsdbTest {
-  private MockBase storage;
   
   @Before
   public void beforeLocal() throws Exception {
@@ -219,6 +223,63 @@ public final class TestTSDB extends BaseTsdbTest {
     config.overrideConfig(
         "tsd.core.storage_exception_handler.DummySEHPlugin.hosts", "localhost");
     tsdb.initializePlugins(true);
+  }
+  
+  @Test
+  public void loadRollupConfig() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", 
+        "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+        + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":true,"
+        + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
+        + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
+        + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
+        + "{\"sum\":0,\"max\":1}}");
+    tsdb = new TSDB(config);
+    assertEquals(2, tsdb.getRollupConfig().getRollups().size());
+    assertEquals("sum", tsdb.getRollupConfig().getAggregatorForId(0));
+    assertEquals("max", tsdb.getRollupConfig().getAggregatorForId(1));
+  }
+  
+  @Test
+  public void loadRollupConfigFile() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", "nosuchfile.json");
+    PowerMockito.mockStatic(Files.class);
+    when(Files.toString(any(File.class), eq(Const.UTF8_CHARSET))).thenReturn(
+        "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+            + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":true,"
+            + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
+            + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
+            + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
+            + "{\"sum\":0,\"max\":1}}");
+    tsdb = new TSDB(config);
+    assertEquals(2, tsdb.getRollupConfig().getRollups().size());
+    assertEquals("sum", tsdb.getRollupConfig().getAggregatorForId(0));
+    assertEquals("max", tsdb.getRollupConfig().getAggregatorForId(1));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void loadRollupConfigFileCorruptJson() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", "nosuchfile.json");
+    PowerMockito.mockStatic(Files.class);
+    when(Files.toString(any(File.class), eq(Const.UTF8_CHARSET))).thenReturn(
+        "{\"intervals\":[{\"interval\":\"1m\",\"ta");
+    new TSDB(config);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void loadRollupConfigNoDefault() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", 
+        "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+        + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":false,"
+        + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
+        + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
+        + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
+        + "{\"sum\":0,\"max\":1}}");
+    tsdb = new TSDB(config);
   }
   
   @Test

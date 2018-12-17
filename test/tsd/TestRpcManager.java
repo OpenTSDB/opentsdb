@@ -29,6 +29,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDB.OperationMode;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
@@ -53,6 +54,7 @@ public class TestRpcManager {
     when(config.getString("tsd.no_diediedie"))
       .thenReturn("false");
     TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getMode()).thenReturn(OperationMode.READWRITE);
     when(tsdb.getConfig()).thenReturn(config);
     mock_tsdb_no_plugins = tsdb;
   }
@@ -79,6 +81,7 @@ public class TestRpcManager {
      .thenReturn("false");
 
     TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getMode()).thenReturn(OperationMode.READWRITE);
     when(tsdb.getConfig()).thenReturn(config);
     
     PluginLoader.loadJAR("plugin_test.jar");
@@ -109,6 +112,7 @@ public class TestRpcManager {
       .thenReturn("false");
 
     TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getMode()).thenReturn(OperationMode.READWRITE);
     when(tsdb.getConfig()).thenReturn(config);
     
     PluginLoader.loadJAR("plugin_test.jar");

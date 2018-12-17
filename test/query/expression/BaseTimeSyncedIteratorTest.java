@@ -113,7 +113,7 @@ public class BaseTimeSyncedIteratorTest extends BaseTsdbTest {
   
   /**
    * Executes the queries against MockBase through the regular pipeline and stores
-   * the results in {@linke #results}
+   * the results in {@link #results}
    * @param subs The queries to execute
    */
   protected void runQueries(final ArrayList<TSSubQuery> subs) throws Exception {

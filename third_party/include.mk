@@ -27,6 +27,7 @@ include third_party/javassist/include.mk
 include third_party/jexl/include.mk
 include third_party/jgrapht/include.mk
 include third_party/junit/include.mk
+include third_party/kryo/include.mk
 include third_party/logback/include.mk
 include third_party/mockito/include.mk
 include third_party/netty/include.mk

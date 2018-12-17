@@ -29,7 +29,7 @@ public final class HttpRpcPluginQuery extends AbstractHttpQuery {
   }
 
   /**
-   * Return the base route with no plugin prefix in it.  This is matched with
+   * Return the base route with no plugin prefix in it. This is matched with
    * values returned by {@link HttpRpcPlugin#getPath()}.
    * @return the base route path (no query parameters, etc.)
    */
@@ -39,15 +39,6 @@ public final class HttpRpcPluginQuery extends AbstractHttpQuery {
     if (parts.length < 2) { // Must be at least something like: /plugin/blah
       throw new BadRequestException("Invalid plugin request path: " + getQueryPath());
     }
-    // Lop off the first element (which is the "plugin" base path).
-    // The remaining elements are the base route.
-    final StringBuilder joined = new StringBuilder();
-    for (int i=1; i<parts.length; i++) {
-      if (i != 1) {
-        joined.append('/');
-      }
-      joined.append(parts[i]);
-    }
-    return joined.toString();
+    return parts[1];
   }
 }

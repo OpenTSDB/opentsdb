@@ -1,4 +1,19 @@
-OpenTSDB - User visible changes.
+OpenTSDB - Changelog
+
+* Version 2.4.0 RC2 (2017-10-08)
+
+Noteworthy Changes:
+  - Modify the RPC handler plugin system so that it parses only the first part of 
+    the URI instead of the entire path. Now plugins can implement sub-paths.
+  - Return the HTML 5 doctype for built-in UI pages
+  - Add an optional byte and/or data point limit to the amount of data fetched
+    from storage. This allows admins to prevent OOMing TSDs due to massive queries.
+  - Allow a start time via config when enabling the date tiered compaction in HBase
+  - Provide the option of using an LRU for caching UIDs to avoid OOMing writers and
+    readers with too many strings
+  - Optionally avoid writing to the forward or reverse UID maps when a specific TSD
+    operational mode is enabled to avoid wasting memory on maps that will never be
+    used.
 
 * Version 2.3.2 (2018-12-16)
 

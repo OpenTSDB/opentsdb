@@ -269,7 +269,6 @@ public final class JSON {
    * @return A JSON formatted string
    * @throws IllegalArgumentException if the object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final String serializeToString(final Object object) {
     if (object == null)
@@ -287,7 +286,6 @@ public final class JSON {
    * @return A JSON formatted byte array
    * @throws IllegalArgumentException if the object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final byte[] serializeToBytes(final Object object) {
     if (object == null)
@@ -301,7 +299,7 @@ public final class JSON {
 
   /**
    * Serializes the given object and wraps it in a callback function
-   * i.e. &lt;callback&gt;(&lt;json&gt)
+   * i.e. &lt;callback&gt;(&lt;json&gt;)
    * Note: This will not append a trailing semicolon
    * @param callback The name of the Javascript callback to prepend
    * @param object The object to serialize
@@ -309,7 +307,6 @@ public final class JSON {
    * @throws IllegalArgumentException if the callback method name was missing 
    * or object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final String serializeToJSONPString(final String callback,
       final Object object) {
@@ -326,7 +323,7 @@ public final class JSON {
 
   /**
    * Serializes the given object and wraps it in a callback function
-   * i.e. &lt;callback&gt;(&lt;json&gt)
+   * i.e. &lt;callback&gt;(&lt;json&gt;)
    * Note: This will not append a trailing semicolon
    * @param callback The name of the Javascript callback to prepend
    * @param object The object to serialize
@@ -334,7 +331,6 @@ public final class JSON {
    * @throws IllegalArgumentException if the callback method name was missing 
    * or object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final byte[] serializeToJSONPBytes(final String callback,
       final Object object) {

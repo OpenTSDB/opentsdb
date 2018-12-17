@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import java.util.Arrays;
 import java.util.Comparator;
 
+import net.opentsdb.uid.NoSuchUniqueId;
+
 import org.hbase.async.Bytes;
 
 import com.stumbleupon.async.Deferred;
@@ -128,7 +130,7 @@ final public class RowKey {
    * tag UIDs and returning a modulo based on the number of salt buckets.
    * The result will always be a positive integer from 0 to salt buckets.
    * 
-   * NOTE: The row key passed in MUST have allocated the {@link width} number of
+   * NOTE: The row key passed in MUST have allocated the {@code width} number of
    * bytes at the front of the row key or this call will overwrite data.
    * 
    * WARNING: If the width is set to a positive value, then the bucket must be

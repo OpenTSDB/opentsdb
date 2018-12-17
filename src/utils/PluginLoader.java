@@ -22,6 +22,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
 import org.slf4j.Logger;
@@ -88,7 +89,7 @@ public final class PluginLoader {
    * @return An instantiated object of the given type if found, null if the
    * class could not be found
    * @throws ServiceConfigurationError if the plugin cannot be instantiated
-   * @throws IllegalArgumentName if the plugin name is null or empty
+   * @throws IllegalArgumentException if the plugin name is null or empty
    */
   public static <T> T loadSpecificPlugin(final String name, 
       final Class<T> type) {

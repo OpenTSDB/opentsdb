@@ -28,6 +28,8 @@ final class FsckOptions {
   private boolean delete_bad_rows;
   private boolean delete_bad_compacts;
   private int threads;
+  private long fix_timeout; // fix timeout for each operation results, time unit: milliseconds
+  private boolean fix_in_sync_mode = false; // wait for each fix operation to finish to continue
   
   /**
    * Default Ctor that sets the options based on command line flags and config
@@ -52,6 +54,8 @@ final class FsckOptions {
         argp.has("--fix-all");
     delete_bad_compacts = argp.has("--delete-bad-compacts") || 
         argp.has("--fix-all");
+    fix_in_sync_mode = argp.has("--sync");
+
     if (argp.has("--threads")) {
       threads = Integer.parseInt(argp.get("--threads"));
       if (threads < 1) {
@@ -220,5 +224,35 @@ final class FsckOptions {
           "Not allowed to run more than 4 threads per core");
     }
     this.threads = threads;
+  }
+
+  /**
+  * @param timeout The maximum time to wait in milliseconds.  A value of 0
+  * means no timeout.
+  */
+  public void setFixTimeout(long timeout) {
+    this.fix_timeout = timeout;
+  }
+
+  /**
+   *  @return timeout
+   */
+  public long getFixTimeout() {
+    return this.fix_timeout;
+  }
+
+  /**
+  * @param flag Wheather to wait for the result of the fix operation.
+  */
+  public void setFixInSync(boolean flag) {
+    this.fix_in_sync_mode = flag;
+  }
+
+  /**
+   * Wait for each fix operation to finish to continue.
+   * @return true if in sync mode
+   */
+  public boolean fixInSync() {
+    return this.fix_in_sync_mode;
   }
 }

@@ -22,6 +22,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDB.OperationMode;
 import net.opentsdb.core.BaseTsdbTest.UnitTestException;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -36,6 +37,7 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -83,11 +85,21 @@ public final class TestUniqueId {
   private static final String TAGV = "tagv";
   private static final byte[] TAGV_ARRAY = { 't', 'a', 'g', 'v' };
   private static final byte[] UID = new byte[] { 0, 0, 1 };
-  private TSDB tsdb = mock(TSDB.class);
-  private HBaseClient client = mock(HBaseClient.class);
+  private TSDB tsdb;
+  private Config config;
+  private HBaseClient client;
   private UniqueId uid;  
   private MockBase storage;
 
+  @Before
+  public void before() throws Exception {
+    tsdb = mock(TSDB.class);
+    client = mock(HBaseClient.class);
+    config = new Config(false);
+    when(tsdb.getClient()).thenReturn(client);
+    when(tsdb.getConfig()).thenReturn(config);
+  }
+  
   @Test(expected=IllegalArgumentException.class)
   public void testCtorZeroWidth() {
     uid = new UniqueId(client, table, METRIC, 0);
@@ -1465,14 +1477,253 @@ public final class TestUniqueId {
     assertEquals("sys.cpu.user", uid.getName(UID));
   }
   
+  @Test
+  public void useLru() throws Exception {
+    config.overrideConfig("tsd.uid.lru.enable", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertEquals("foo", uid.getName(id));
+    // Should be a cache hit ...
+    assertEquals("foo", uid.getName(id));
+
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+    assertNotNull(uid.lruNameCache());
+    assertNotNull(uid.lruIdCache());
+  }
+  
+  @Test
+  public void useLruLimit() throws Exception {
+    config.overrideConfig("tsd.uid.lru.name.size", "2");
+    config.overrideConfig("tsd.uid.lru.id.size", "2");
+    config.overrideConfig("tsd.uid.lru.enable", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    byte[] id = { 0, 'a', 0x42 };
+    byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertEquals("foo", uid.getName(id));
+    // Should be a cache hit ...
+    assertEquals("foo", uid.getName(id));
+
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+    
+    id = new byte[] { 0, 0, 1 };
+    byte_name = new byte[] { 'b', 'a', 'r' };
+    
+    kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+    
+    assertEquals("bar", uid.getName(id));
+    assertEquals(1, uid.cacheHits());
+    assertEquals(2, uid.cacheMisses());
+    assertEquals(4, uid.cacheSize());
+    verify(client, times(2)).get(anyGet());
+    
+    // now one should be bumped out
+    id = new byte[] { 0, 0, 2 };
+    byte_name = new byte[] { 'd', 'o', 'g' };
+    
+    kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+    
+    assertEquals("dog", uid.getName(id));
+    assertEquals(1, uid.cacheHits());
+    assertEquals(3, uid.cacheMisses());
+    assertEquals(4, uid.cacheSize());
+    verify(client, times(3)).get(anyGet());
+  }
+
+  @Test
+  public void useModeRWGetName() throws Exception {
+    when(tsdb.getMode()).thenReturn(OperationMode.READWRITE);
+    config.overrideConfig("tsd.uid.use_mode", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertEquals("foo", uid.getName(id));
+    // Should be a cache hit ...
+    assertEquals("foo", uid.getName(id));
+
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+  }
+  
+  @Test
+  public void useModeROGetName() throws Exception {
+    when(tsdb.getMode()).thenReturn(OperationMode.READONLY);
+    config.overrideConfig("tsd.uid.use_mode", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertEquals("foo", uid.getName(id));
+    // Should be a cache hit ...
+    assertEquals("foo", uid.getName(id));
+
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(1, uid.cacheSize());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+    assertTrue(uid.nameCache().isEmpty());
+    assertEquals(1, uid.idCache().size());
+  }
+  
+  @Test
+  public void useModeWOGetName() throws Exception {
+    when(tsdb.getMode()).thenReturn(OperationMode.WRITEONLY);
+    config.overrideConfig("tsd.uid.use_mode", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(id, ID, METRIC_ARRAY, byte_name));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertEquals("foo", uid.getName(id));
+    // NOT a cache hit since we didn't cache the first result.
+    assertEquals("foo", uid.getName(id));
+
+    assertEquals(0, uid.cacheHits());
+    assertEquals(2, uid.cacheMisses());
+    assertEquals(0, uid.cacheSize());
+
+    // 2 hbase hits this time
+    verify(client, times(2)).get(anyGet());
+    assertTrue(uid.nameCache().isEmpty());
+    assertTrue(uid.idCache().isEmpty());
+  }
+  
+  @Test
+  public void useModeRWGetId() throws Exception {
+    when(tsdb.getMode()).thenReturn(OperationMode.READWRITE);
+    config.overrideConfig("tsd.uid.use_mode", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(byte_name, ID, METRIC_ARRAY, id));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertArrayEquals(id, uid.getId("foo"));
+    // Should be a cache hit ...
+    assertArrayEquals(id, uid.getId("foo"));
+
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+  }
+  
+  @Test
+  public void useModeROGetId() throws Exception {
+    when(tsdb.getMode()).thenReturn(OperationMode.READONLY);
+    config.overrideConfig("tsd.uid.use_mode", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(byte_name, ID, METRIC_ARRAY, id));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertArrayEquals(id, uid.getId("foo"));
+    // NOT a cache hit since we didn't cache the first time.
+    assertArrayEquals(id, uid.getId("foo"));
+
+    assertEquals(0, uid.cacheHits());
+    assertEquals(2, uid.cacheMisses());
+    assertEquals(0, uid.cacheSize());
+
+    // two HBase hits
+    verify(client, times(2)).get(anyGet());
+    assertTrue(uid.nameCache().isEmpty());
+    assertTrue(uid.idCache().isEmpty());
+  }
+  
+  @Test
+  public void useModeWOGetId() throws Exception {
+    when(tsdb.getMode()).thenReturn(OperationMode.WRITEONLY);
+    config.overrideConfig("tsd.uid.use_mode", "true");
+    uid = new UniqueId(tsdb, table, METRIC, 3, false);
+    final byte[] id = { 0, 'a', 0x42 };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(byte_name, ID, METRIC_ARRAY, id));
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs))
+      .thenReturn(Deferred.fromResult(kvs));
+
+    assertArrayEquals(id, uid.getId("foo"));
+    // Should be a cache hit ...
+    assertArrayEquals(id, uid.getId("foo"));
+
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(1, uid.cacheSize());
+
+    // ... so verify there was only one HBase Get.
+    verify(client, times(1)).get(anyGet());
+    assertEquals(1, uid.nameCache().size());
+    assertTrue(uid.idCache().isEmpty());
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //
 
   private void setupStorage() throws Exception {
-    final Config config = mock(Config.class);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getClient()).thenReturn(client);
     storage = new MockBase(tsdb, client, true, true, true, true);
     
     final List<byte[]> families = new ArrayList<byte[]>();

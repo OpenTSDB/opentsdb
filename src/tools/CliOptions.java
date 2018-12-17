@@ -67,7 +67,7 @@ final class CliOptions {
 
   /**
    * Parse the command line arguments with the given options.
-   * @param options Options to parse in the given args.
+   * @param opt,ions Options to parse in the given args.
    * @param args Command line arguments to parse.
    * @return The remainder of the command line or
    * {@code null} if {@code args} were invalid and couldn't be parsed.
@@ -107,7 +107,7 @@ final class CliOptions {
     config.setAutoMetric(config.getBoolean("tsd.core.auto_create_metrics"));
     return config;
   }
-  
+
   /**
    * Copies the parsed command line options to the {@link Config} class
    * @param config Configuration instance to override
@@ -152,10 +152,14 @@ final class CliOptions {
         config.overrideConfig("tsd.network.async_io", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
         config.overrideConfig("tsd.network.worker_threads", entry.getValue());
-      } 	  
+      } else if(entry.getKey().toLowerCase().equals("--use-otsdb-ts")) {
+        config.overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+      } else if (entry.getKey().toLowerCase().equals("--dtc-ts")) {
+        config.overrideConfig("tsd.storage.get_date_tiered_compaction_start", entry.getValue());
+      }
     }
   }
-  
+
   /** Changes the log level to 'WARN' unless --verbose is passed.  */
   private static void honorVerboseFlag(final ArgP argp) {
     if (argp.optionExists("--verbose") && !argp.has("--verbose")

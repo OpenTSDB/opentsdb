@@ -61,7 +61,7 @@ public class ExpressionReader {
     return chars[mark++];
   }
 
-  /** @param the number of characters to skip */
+  /** @param num the number of characters to skip */
   public void skip(final int num) {
     if (num < 0) {
       throw new UnsupportedOperationException("Skipping backwards is not allowed");

@@ -18,9 +18,15 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 
+import com.stumbleupon.async.Deferred;
+import net.opentsdb.auth.AllowAllAuthenticatingAuthorizer;
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSQuery;
 import net.opentsdb.utils.Config;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -36,7 +42,6 @@ import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Ignore;
-import org.powermock.reflect.Whitebox;
 
 /**
  * Helper class that provides mockups for testing any OpenTSDB processes that
@@ -49,16 +54,46 @@ public final class NettyMocks {
    * Sets up a TSDB object for HTTP RPC tests that has a Config object
    * @return A TSDB mock
    */
-  public static TSDB getMockedHTTPTSDB() {
+  public static TSDB getMockedHTTPTSDB() throws Exception {
     final TSDB tsdb = mock(TSDB.class);
-    final Config config = mock(Config.class);
-    HashMap<String, String> properties = new HashMap<String, String>();
-    properties.put("tsd.http.show_stack_trace", "true");
-    Whitebox.setInternalState(config, "properties", properties);
+
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.http.show_stack_trace", "true");
+    config.overrideConfig("tsd.core.authentication.enable", "false");
     when(tsdb.getConfig()).thenReturn(config);
+
+    final Authentication authentication = mock(Authentication.class);
+    when(authentication.isReady(any(TSDB.class), any(Channel.class))).thenReturn(false);
+    when(tsdb.getAuth()).thenReturn(authentication);
+
     return tsdb;
   }
-  
+
+  /**
+   * Sets up a TSDB object for HTTP RPC tests that has a Config object
+   * @return A TSDB mock
+   */
+  public static TSDB getMockedHTTPTSDBWithAuthEnabled(final AuthState.AuthStatus authStatus) throws Exception {
+    final TSDB tsdb = mock(TSDB.class);
+
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.http.show_stack_trace", "true");
+    config.overrideConfig("tsd.core.authentication.enable", "true");
+    when(tsdb.getConfig()).thenReturn(config);
+
+    final AuthState state = mock(AuthState.class);
+    when(state.getStatus()).thenReturn(authStatus);
+
+    final Authorization authorization = mock(Authorization.class);
+    when(authorization.allowQuery(any(AuthState.class), any(TSQuery.class))).thenReturn(state);
+
+    final Authentication authentication = mock(Authentication.class);
+    when(authentication.authorization()).thenReturn(authorization);
+    when(authentication.isReady(any(TSDB.class), any(Channel.class))).thenReturn(true);
+    when(tsdb.getAuth()).thenReturn(authentication);
+    return tsdb;
+  }
+
   /**
    * Returns a mocked Channel object that simply sets the name to
    * [fake channel]
@@ -203,7 +238,9 @@ public final class NettyMocks {
     return new HttpQuery(tsdb, req, channelMock);
   }
 
-  /** @param the query to mock a future callback for */
+  /**
+   * @param query the query to mock a future callback for
+   */
   public static void mockChannelFuture(final HttpQuery query) {
     final ChannelFuture future = new DefaultChannelFuture(query.channel(), false);
     when(query.channel().write(any(ChannelBuffer.class))).thenReturn(future);

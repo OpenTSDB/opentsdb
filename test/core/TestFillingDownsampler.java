@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import org.junit.Test;
 
 import net.opentsdb.core.SeekableViewsForTest.MockSeekableView;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.utils.DateTime;
 
 import static org.junit.Assert.assertEquals;
@@ -812,6 +814,284 @@ public class TestFillingDownsampler {
     step(downsampler, timestamp, Double.NaN);
     step(downsampler, timestamp += 60000, Double.NaN);
     assertFalse(downsampler.hasNext());
+  }
+
+  @Test
+  public void testDownsampler_rollup() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
+    final long baseTime = 1000L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  0L, 12.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  1L, 11.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  2L, 10.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  3L,  9.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L,  8.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L,  7.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  6L,  6.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L,  5.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  8L,  4.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  9L,  3.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 10L,  2.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 11L,  1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
+
+    long timestamp = baseTime;
+    step(downsampler, timestamp, 42.);
+    step(downsampler, timestamp += 100, 26.);
+    step(downsampler, timestamp += 100, 10.);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_rollupMissing() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
+    final long baseTime = 500L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 12L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 15L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 24L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 25L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 26L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 27L, 1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 36 * 25L, specification, 0, 0, rollup_query);
+    
+    long timestamp = baseTime;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 100, 3.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 2.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 4.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_rollupAvg() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.AVG,
+        3600000, Aggregators.SUM);
+    final long baseTime = 1000L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  0L, 12.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  1L, 11.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  2L, 10.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  3L,  9.),
+        
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L,  8.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L,  7.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  6L,  6.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L,  5.),
+        
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  8L,  4.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  9L,  3.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 10L,  2.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 11L,  1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-avg-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
+
+    long timestamp = baseTime;
+    step(downsampler, timestamp, 10.5);
+    step(downsampler, timestamp += 100, 6.5);
+    step(downsampler, timestamp += 100, 2.5);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_rollupAvgMissing() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
+    final long baseTime = 500L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 12L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 15L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 24L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 25L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 26L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 27L, 1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-avg-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 36 * 25L, specification, 0, 0, rollup_query);
+    
+    long timestamp = baseTime;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 100, 1.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 1);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 1.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_rollupCount() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.COUNT,
+        3600000, Aggregators.SUM);
+    final long baseTime = 1000L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  0L, 12.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  1L, 11.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  2L, 10.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  3L,  9.),
+        
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L,  8.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L,  7.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  6L,  6.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L,  5.),
+        
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  8L,  4.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  9L,  3.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 10L,  2.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 11L,  1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-count-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
+
+    long timestamp = baseTime;
+    step(downsampler, timestamp, 4);
+    step(downsampler, timestamp += 100, 4);
+    step(downsampler, timestamp += 100, 4);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_rollupCountMissing() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
+    final long baseTime = 500L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 12L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 15L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 24L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 25L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 26L, 1.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 27L, 1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-count-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 36 * 25L, specification, 0, 0, rollup_query);
+    
+    long timestamp = baseTime;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 100, 3.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 2.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 4.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test (expected = UnsupportedOperationException.class)
+  public void testDownsampler_rollupDev() {
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.DEV,
+        3600000, Aggregators.SUM);
+    final long baseTime = 1000L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  0L, 12.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  1L, 11.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  2L, 10.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  3L,  9.),
+        
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L,  8.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L,  7.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  6L,  6.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L,  5.),
+        
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  8L,  4.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L *  9L,  3.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 10L,  2.),
+        MutableDataPoint.ofDoubleValue(baseTime + 25L * 11L,  1.),
+      });
+
+    specification = new DownsamplingSpecification("100ms-dev-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
+    while (downsampler.hasNext()) {
+      downsampler.next(); // <-- throws here
+    }
   }
   
   private void step(final Downsampler downsampler, final long expected_timestamp, 

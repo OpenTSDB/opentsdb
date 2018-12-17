@@ -55,7 +55,8 @@ make
 %install
 rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
-mkdir -p %{buildroot}/var/cache/opentsdb
+mkdir -p %{buildroot}%{_localstatedir}/cache/opentsdb
+mkdir -p %{buildroot}%{_localstatedir}/log/opentsdb
 mkdir -p %{buildroot}%{_datarootdir}/opentsdb/plugins
 # TODO: Use alternatives to manage the init script and configuration.
 
@@ -70,29 +71,40 @@ rm -rf %{buildroot}
 %attr(0755,root,root) %{_datarootdir}/opentsdb/plugins
 %attr(0755,root,root) %{_datarootdir}/opentsdb/tools/*
 %attr(0755,root,root) %{_datarootdir}/opentsdb/etc/init.d/opentsdb
+%attr(0644,root,root) %{_datarootdir}/opentsdb/etc/systemd/system/opentsdb@.service
 %config %{_datarootdir}/opentsdb/etc/opentsdb/opentsdb.conf
 %config %{_datarootdir}/opentsdb/etc/opentsdb/logback.xml
 %doc
 %{_datarootdir}/opentsdb
 %{_bindir}/tsdb
-%dir %{_localstatedir}/cache/opentsdb
+%dir %attr(0755,opentsdb,opentsdb) %{_localstatedir}/cache/opentsdb
+%dir %attr(0755,opentsdb,opentsdb) %{_localstatedir}/log/opentsdb
 
 %changelog
 
-%post
+%pre
+getent group opentsdb 2>/dev/null >/dev/null || /usr/sbin/groupadd -r opentsdb
+getent passwd opentsbd 2>&1 > /dev/null || /usr/sbin/useradd -c "OpenTSDB" -s /sbin/nologin -g opentsdb -r -d %{_datarootdir}/opentsdb opentsdb 2> /dev/null || :
 
+%post
 if [ $1 -eq 1 ]; then
   # we're installing the first version of this package
   ln -s %{_datarootdir}/opentsdb/etc/opentsdb /etc/opentsdb
-  ln -s %{_datarootdir}/opentsdb/etc/init.d/opentsdb /etc/init.d/opentsdb
+  if [ -d /run/systemd/system ]; then
+    ln -s %{_datarootdir}/opentsdb/etc/systemd/system/opentsdb@.service /lib/systemd/system
+    systemctl daemon-reload
+  else
+    ln -s %{_datarootdir}/opentsdb/etc/init.d/opentsdb /etc/init.d/opentsdb
+  fi
 fi
 exit 0
 
 %postun
-
 if [ $1 -eq 0 ]; then
   # we're removing last version of this package
-  rm -rf /etc/opentsdb
-  rm -rf /etc/init.d/opentsdb
+  [ -L /etc/opentsdb ] && rm -f /etc/opentsdb
+  [ -L /etc/init.d/opentsdb ] && rm -f /etc/init.d/opentsdb
+  [ -L /lib/systemd/system/opentsdb@.service ] && rm -f /lib/systemd/system/opentsdb@.service
+  [ -d /run/systemd/system ] && systemctl daemon-reload
 fi
 exit 0

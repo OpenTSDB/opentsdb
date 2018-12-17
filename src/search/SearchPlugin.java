@@ -13,10 +13,15 @@
 package net.opentsdb.search;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
+
+import java.util.List;
+
+import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
@@ -55,7 +60,7 @@ public abstract class SearchPlugin {
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are 
    * missing
-   * @throws Exception if something else goes wrong
+   * @throws RuntimeException if something else goes wrong
    */
   public abstract void initialize(final TSDB tsdb);
   
@@ -144,6 +149,12 @@ public abstract class SearchPlugin {
    */
   public abstract Deferred<Object> deleteAnnotation(final Annotation note);
 
+  public Deferred<List<ByteMap<byte[][]>>> resolveTSQuery(final TSQuery query, 
+                                                          final int sub_query_index) {
+    throw new UnsupportedOperationException("Not implemented by this plugin: " 
+                                                          + this);
+  }
+  
   /**
    * Executes a very basic search query, returning the results in the SearchQuery
    * object passed in.

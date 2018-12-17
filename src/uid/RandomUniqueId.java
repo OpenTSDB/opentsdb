@@ -40,7 +40,7 @@ public class RandomUniqueId {
    * and 2^31-1.
    * NOTE: The caller is responsible for assuring that the UID hasn't been
    * assigned yet.
-   * @return a random UID up to {@link TSDB.metrics_width} wide
+   * @return a random UID up to {@link TSDB#metrics_width()} wide
    */
   public static long getRandomUID() {
     return getRandomUID(TSDB.metrics_width());
@@ -52,7 +52,7 @@ public class RandomUniqueId {
    * @param width Number of bytes to randomize, it can not be larger 
    * than {@link MAX_WIDTH} bytes wide
    * @return a randomly UID
-   * @throws throws IllegalArgumentException if the width is larger than 
+   * @throws IllegalArgumentException if the width is larger than 
    * {@link MAX_WIDTH} bytes
    */
   public static long getRandomUID(final int width) {

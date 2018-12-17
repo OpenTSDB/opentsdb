@@ -227,8 +227,8 @@ public class AppendDataPoints {
       
     if (repair && needs_repair) {
       LOG.debug("Repairing appended data column " + kv);
-      final PutRequest put = new PutRequest(tsdb.table, kv.key(),  
-          TSDB.FAMILY(), kv.qualifier(), healed_cell);
+      final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.table, kv.key(),
+          TSDB.FAMILY(), kv.qualifier(), healed_cell, kv.timestamp());
       repaired_deferred = tsdb.getClient().put(put);
     }
     

@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
@@ -42,6 +44,7 @@ import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.JSONException;
 
 /**
  * Abstract base class for Serializers; plugins that handle converting requests
@@ -172,6 +175,23 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented parsePutV1");
+  }
+  
+  /**
+   * Parses one or more data points for storage
+   * @param <T> The type of incoming data points to parse.
+   * @param type The type of the class to parse.
+   * @param typeReference The reference to use for parsing.
+   * @return an array of data points to process for storage
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.4
+   */
+  public <T extends IncomingDataPoint> List<T> parsePutV1(final Class<T> type,
+      final TypeReference<ArrayList<T>> typeReference) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+        "The requested API endpoint has not been implemented",
+        this.getClass().getCanonicalName() +
+            " has not implemented parsePutV1");
   }
   
   /**
@@ -310,7 +330,7 @@ public abstract class HttpSerializer {
    * Parses a tree ID and optional list of TSUIDs to search for collisions or
    * not matched TSUIDs.
    * @return A map with "treeId" as an integer and optionally "tsuids" as a 
-   * List<String> 
+   * List&lt;String&gt; 
    * @throws BadRequestException if the plugin has not implemented this method
    */
   public Map<String, Object> parseTreeTSUIDsListV1() {
@@ -361,7 +381,7 @@ public abstract class HttpSerializer {
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
    * <li>failed - (long) the number of datapoint parsing failures</li>
-   * <li>errors - (ArrayList<HashMap<String, Object>>) an optional list of 
+   * <li>errors - (ArrayList&lt;HashMap&lt;String, Object&gt;&gt;) an optional list of 
    * datapoints that had errors. The nested map has these fields:
    * <ul><li>error - (String) the error that occurred</li>
    * <li>datapoint - (IncomingDatapoint) the datapoint that generated the error
@@ -544,7 +564,7 @@ public abstract class HttpSerializer {
   
   /**
    * Format a a list of TSMeta objects
-   * @param meta The list of TSMeta objects to serialize
+   * @param metas The list of TSMeta objects to serialize
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
@@ -631,7 +651,7 @@ public abstract class HttpSerializer {
    * @param results The list of results. Main map key is the tsuid. Child map:
    * "branch" : Parsed branch result, may be null
    * "meta" : TSMeta object, may be null
-   * "messages" : An ArrayList<String> of one or more messages 
+   * "messages" : An ArrayList&lt;String&gt; of one or more messages 
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
    */
@@ -671,7 +691,7 @@ public abstract class HttpSerializer {
   
   /**
    * Format the results of a bulk annotation deletion
-   * @param notes The annotation deletion request to return
+   * @param request The request to handle.
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
    */
