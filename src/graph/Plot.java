@@ -15,6 +15,7 @@ package net.opentsdb.graph;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -134,6 +135,13 @@ public final class Plot {
    * </ul>
    */
   public void setParams(final Map<String, String> params) {
+    // check "format y" and "format y2"
+    String[] y_format_keys = {"format y", "format y2"};
+    for(String k : y_format_keys){
+      if(params.containsKey(k)){
+        params.put(k, URLDecoder.decode(params.get(k)));
+      }
+    }
     this.params = params;
   }
 

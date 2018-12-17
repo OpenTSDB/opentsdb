@@ -1,5 +1,70 @@
 OpenTSDB - User visible changes.
 
+* Version 2.3.2 (2018-12-16)
+
+Noteworthy Changes:
+  - A new Python wrapper script to make FSCK repair runs easier.
+  - Track performance in the Nagios/Icinga script
+  - Add a Contributions file.
+  - Add a config, 'tsd.core.bulk.allow_out_of_order_timestamps' to allow out of
+    order timestamps for bulk ingest.
+  - NOTE: This version also includes a JDK 8 compiled version of Jackson due to 
+    security patches. If you need to run with an older JDK please replace the 
+	Jackson JARs with older versions.
+
+Bug Fixes:
+  - Unwrap NoSuchUniqueIds when writing data points to make it easier to understand
+    exceptions.
+  - Fix an NPE in the PutDataPointRpc class if a data point in the list is null. 
+  - Fix a Makefile error in the clean portion.
+  - Fix an NPOE in the UIDManager print result.
+  - Fix a bug in the UI where Y formats may contain a percent sign.
+  - Allow specifying the data block encoding and TTL in the HBase table creation
+    script.
+  - Change the make and TSDB scripts to use relative paths.
+  - Fix parsing of `use_meta` from the URI for the search endpoint.
+  - Fix the clean cache script to be a bit more OS agnostic.
+
+* Version 2.3.1 (2018-04-21)
+
+Noteworthy Changes:
+  - When setting up aggregators, advance to the first data point equal to or greater
+    than the query start timestamp. This helps with calendar downsampling intervals.
+  - Add support to the Nagios check script for downsampling fill policies.
+
+Bug Fixes:
+  - Fix expression calculation by avoiding double execution and checking both
+    output types for boolean values.
+  - Fixing missing tools scripts in builds.
+  - Default HBase 1.2.5 in the OSX install script
+  - Upgrade AsyncBigtable to 0.3.1
+  - Log query stats when a channel is closed unexpectedly.
+  - Add the Java 8 path in the debian init script and remove Java 6.
+  - Pass the column family name to the get requests in the compaction scheduler.
+  - Fix a comparison issue in the UI on group by tags.
+  - Filter annotation queries by the starting timestamp, excluding those in a row that
+    began before the query start time.
+  - Tiny stap at purging backticks from Gnuplot scripts.
+  - Remove the `final` annotation from the meta classes so they can be extended.
+  - Fix the javacc maven plugin version.
+  - Fix the literal or filter to allow single character filters.
+  - Fix query start stats logging to use the ms instead of nano time.
+  - Move Jackson and Netty to newer versions for security reasons.
+  - Upgrade to AsyncHBase 1.8.2 for compatibility with HBase 1.3 and 2.0
+  - Fix the Highest Current calculation to handle empty time series.
+  - Change the cache hits counters to longs.
+
+* Version 2.3.0 (2016-12-31)
+
+Noteworthy Changes:
+  - Release of 2.3.0.
+  - Add example classes for using the Java API.
+
+Bug Fixes:
+  - Same fixes as in 2.2.2
+  - Fix a null UID check on decoding metric names from row keys.
+  - Fix unit tests for JDK 8 and later.
+
 * Version 2.2.2 (2016-12-29)
 
 Bug Fixes:
@@ -10,6 +75,27 @@ Bug Fixes:
     time was set to 1 second or less than the top of that final hour.
   - Fix a concurrent modification issue where salt scanners were not synchronized on the
     annotation map and could cause spinning threads.
+
+* Version 2.3.0 RC2 (2016-10-08)
+
+Noteworthy Changes:
+  - Added a docker file and tool to build TSD docker containers (#871).
+  - Log X-Forwarded-For addresses when handling HTTP requests.
+  - Expand aggregator options in the Nagios check script.
+  - Allow enabling or disabling the HTTP API or UI.
+  - TSD will now exit when an unrecognized CLI param is passed.
+  
+Bug Fixes:
+  - Improved ALPN version detection when using Google Bigtable.
+  - Fix the DumpSeries class to support appended data point types.
+  - Fix queries where groupby is set to false on all filters.
+  - Fix a missing attribute in the Nagios check script (#728).
+  - Fix a major security bug where requesting a PNG with certain URI params could execute code
+    on the host (#793, #781).
+  - Return a proper error code when dropping caches with the DELETE HTTP verb (#830).
+  - Fix backwards compatibility with HBase 0.94 when using explicit tags by removing the
+    fuzzy filter (#837).
+  - Fix an RPM build issue when creating the GWT directory.s
 
 * Version 2.2.1 (2016-10-08)
 
@@ -37,6 +123,38 @@ Bug Fixes:
   - Fix a live-lock situation when performing regular expression or wildcard queries (#823).
   - Change the static file path for the HTTP API to be relative (#857).
   - Fix an issue where the GUI could flicker when two or more tag filters were set (#708).
+
+* Version 2.3.0 RC1 (2016-05-02)
+
+Noteworthy Changes:
+  - Introduced option --max-connection/tsd.core.connections.limit to set the maximum number
+    of connection a TSD will accept (#638)
+  - 'tsdb import' can now read from stdin (#580)
+  - Added datapoints counter (#369)
+  - Improved metadata storage performance (#699)
+  - added checkbox for showing global annotations in UI (#736)
+  - Added startup plugins, can be used for Service Discovery or other integration (#719)
+  - Added MetaDataCache plugin api
+  - Added timeshift() function (#175)
+  - Now align downsampling to Gregorian Calendar (#548, #657)
+  - Added None aggregator to fetch raw data along with first and last aggregators to 
+    fetch only the first or last data points when downsampling.
+  - Added script to build OpenTSDB/HBase on OSX (#674)
+  - Add cross-series expressions with mathematical operators using Jexl
+  - Added query epxressions (alias(), scale(), absolute(), movingAverage(), highestCurrent(),
+    highestMax(), timeShift(), divide(), sum(), difference(), multiply()) (#625)
+  - Add a Unique ID assignment filter API for enforcing UID assignment naming conventions.
+  - Add a whitelist regular expression based UID assignment filter
+  - Add a time series storage filter plugin API that allows processing time series data
+    and determining if it should be stored or not.
+  - Allow using OpenTSDB with Google's Bigtable cloud platform or with Apache Cassandra
+    
+Bug Fixes:
+  - Some improperly formatted timestamps were allowed (#724)
+  - Removed stdout logging from packaged logback.xml files (#715)
+  - Restore the ability to create TSMeta objects via URI
+  - Restore raw data points (along with post-filtered data points) in query stats
+  - Built in UI will now properly display global annotations when the query string is passed
 
 * Version 2.2.0 (2016-02-14)
 

@@ -126,8 +126,8 @@ public abstract class AbstractHttpQuery {
    */
   public Map<String, String> getPrintableHeaders() {
     final Map<String, String> headers = new HashMap<String, String>(
-        request.getHeaders().size());
-    for (final Entry<String, String> header : request.getHeaders()) {
+        request.headers().entries().size());
+    for (final Entry<String, String> header : request.headers().entries()) {
       if (header.getKey().toLowerCase().equals("cookie")) {
         // null out the cookies
         headers.put(header.getKey(), "*******");
@@ -152,8 +152,8 @@ public abstract class AbstractHttpQuery {
    */
   public Map<String, String> getHeaders() {
     final Map<String, String> headers = new HashMap<String, String>(
-        request.getHeaders().size());
-    for (final Entry<String, String> header : request.getHeaders()) {
+        request.headers().entries().size());
+    for (final Entry<String, String> header : request.headers().entries()) {
       // http://tools.ietf.org/html/rfc2616#section-4.2
       if (headers.containsKey(header.getKey())) {
         headers.put(header.getKey(), 
@@ -386,6 +386,9 @@ public abstract class AbstractHttpQuery {
    */
   public void sendStatusOnly(final HttpResponseStatus status) {
     if (!chan.isConnected()) {
+      if(stats != null) {
+        stats.markSendFailed();
+      }
       done();
       return;
     }
@@ -414,6 +417,9 @@ public abstract class AbstractHttpQuery {
                           final ChannelBuffer buf,
                           final String contentType) {
     if (!chan.isConnected()) {
+      if(stats != null) {
+        stats.markSendFailed();
+      }
       done();
       return;
     }
@@ -442,7 +448,10 @@ public abstract class AbstractHttpQuery {
   private class SendSuccess implements ChannelFutureListener {
     @Override
     public void operationComplete(final ChannelFuture future) throws Exception {
-      stats.markSent();
+      if(future.isSuccess()) {
+        stats.markSent();}
+      else
+        stats.markSendFailed();
     }
   }
   
@@ -467,21 +476,38 @@ public abstract class AbstractHttpQuery {
     return LOG;
   }
 
+  protected final String logChannel() {
+    if (request.headers().contains("X-Forwarded-For")) {
+        String inetAddress;
+        String proxyChain = request.headers().get("X-Forwarded-For");
+        int firstComma = proxyChain.indexOf(',');
+        if (firstComma != -1) {
+          inetAddress = proxyChain.substring(0, proxyChain.indexOf(','));
+        } else {
+          inetAddress = proxyChain;
+        }
+        return "[id: 0x" + Integer.toHexString(chan.hashCode()) 
+          + ", /" + inetAddress + " => " + chan.getLocalAddress() + ']';
+    } else {
+        return chan.toString();
+    }
+  }
+
   protected final void logInfo(final String msg) {
     if (logger().isInfoEnabled()) {
-      logger().info(chan.toString() + ' ' + msg);
+      logger().info(logChannel() + ' ' + msg);
     }
   }
 
   protected final void logWarn(final String msg) {
     if (logger().isWarnEnabled()) {
-      logger().warn(chan.toString() + ' ' + msg);
+      logger().warn(logChannel() + ' ' + msg);
     }
   }
 
   protected final void logError(final String msg, final Exception e) {
     if (logger().isErrorEnabled()) {
-      logger().error(chan.toString() + ' ' + msg, e);
+      logger().error(logChannel() + ' ' + msg, e);
     }
   }
 

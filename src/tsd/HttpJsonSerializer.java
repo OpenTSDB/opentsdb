@@ -32,6 +32,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.FillPolicy;
@@ -193,6 +194,26 @@ class HttpJsonSerializer extends HttpSerializer {
     }
   }
   
+  /**
+   * Parses metric, tagk or tagv, and name to rename UID
+   * @return as hash map of type and name
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public HashMap<String, String> parseUidRenameV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, TR_HASH_MAP);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+
   /**
    * Parses a timeseries data query
    * @return A TSQuery with data ready to validate
@@ -535,6 +556,15 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format a response from the Uid Rename RPC
+   * @param response A map of result and error of the rename
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatUidRenameV1(final Map<String, String> response) {
+    return this.serializeJSON(response);
+  }
+  /**
    * Format the results from a timeseries data query
    * @param data_query The TSQuery object used to fetch the results
    * @param results The data fetched from storage
@@ -704,6 +734,13 @@ class HttpJsonSerializer extends HttpSerializer {
               Collections.sort(annotations);
               json.writeArrayFieldStart("annotations");
               for (Annotation note : annotations) {
+                long ts = note.getStartTime();
+                if (!((ts & Const.SECOND_MASK) != 0)) {
+                  ts *= 1000;
+                }
+                if (ts < data_query.startTime() || ts > data_query.endTime()) {
+                  continue;
+                }
                 json.writeObject(note);
               }
               json.writeEndArray();
@@ -713,6 +750,13 @@ class HttpJsonSerializer extends HttpSerializer {
               Collections.sort(globals);
               json.writeArrayFieldStart("globalAnnotations");
               for (Annotation note : globals) {
+                long ts = note.getStartTime();
+                if (!((ts & Const.SECOND_MASK) != 0)) {
+                  ts *= 1000;
+                }
+                if (ts < data_query.startTime() || ts > data_query.endTime()) {
+                  continue;
+                }
                 json.writeObject(note);
               }
               json.writeEndArray();

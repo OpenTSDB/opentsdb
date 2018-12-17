@@ -46,6 +46,12 @@ public class TestRpcManager {
   @Before
   public void before() {
     Config config = mock(Config.class);
+    when(config.getString("tsd.core.enable_api"))
+      .thenReturn("true");
+    when(config.getString("tsd.core.enable_ui"))
+      .thenReturn("true");
+    when(config.getString("tsd.no_diediedie"))
+      .thenReturn("false");
     TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     mock_tsdb_no_plugins = tsdb;
@@ -62,10 +68,16 @@ public class TestRpcManager {
   public void loadHttpRpcPlugins() throws Exception {
     Config config = mock(Config.class);
     when(config.hasProperty("tsd.http.rpc.plugins"))
-    .thenReturn(true);
+      .thenReturn(true);
     when(config.getString("tsd.http.rpc.plugins"))
       .thenReturn("net.opentsdb.tsd.DummyHttpRpcPlugin");
-    
+    when(config.getString("tsd.core.enable_api"))
+      .thenReturn("true");
+    when(config.getString("tsd.core.enable_ui"))
+      .thenReturn("true");
+    when(config.getString("tsd.no_diediedie"))
+     .thenReturn("false");
+
     TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     
@@ -80,17 +92,22 @@ public class TestRpcManager {
   public void loadRpcPlugin() throws Exception {
     Config config = mock(Config.class);
     when(config.hasProperty("tsd.rpc.plugins"))
-    .thenReturn(true);
+      .thenReturn(true);
     when(config.getString("tsd.rpc.plugins"))
       .thenReturn("net.opentsdb.tsd.DummyRpcPlugin");
-    
     when(config.hasProperty("tsd.rpcplugin.DummyRPCPlugin.hosts"))
-    .thenReturn(true);
+      .thenReturn(true);
     when(config.getString("tsd.rpcplugin.DummyRPCPlugin.hosts"))
       .thenReturn("blah");
     when(config.getInt("tsd.rpcplugin.DummyRPCPlugin.port"))
       .thenReturn(1000);
-    
+    when(config.getString("tsd.core.enable_api"))
+      .thenReturn("true");
+    when(config.getString("tsd.core.enable_ui"))
+      .thenReturn("true");
+    when(config.getString("tsd.no_diediedie"))
+      .thenReturn("false");
+
     TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     

@@ -33,6 +33,23 @@ public final class FailedToAssignUniqueIdException extends RuntimeException {
    * @param kind The kind of object that couldn't be assigned
    * @param name The name of the object that couldn't be assigned
    * @param attempts How many attempts were made to assign
+   * @param msg A message to append
+   * @since 2.3
+   */
+  public FailedToAssignUniqueIdException(final String kind, final String name, 
+      final int attempts, final String msg) {
+    super("Failed to assign ID for kind='" + kind + "' name='" + 
+      name + "' after " + attempts + " attempts due to: " + msg);
+    this.kind = kind;
+    this.name = name;
+    this.attempts = attempts;
+  }
+  
+  /**
+   * CTor
+   * @param kind The kind of object that couldn't be assigned
+   * @param name The name of the object that couldn't be assigned
+   * @param attempts How many attempts were made to assign
    * @param ex An exception that caused assignment to fail
    */
   public FailedToAssignUniqueIdException(final String kind, final String name, 
@@ -43,6 +60,7 @@ public final class FailedToAssignUniqueIdException extends RuntimeException {
     this.name = name;
     this.attempts = attempts;
   }
+  
   
   /** @return Returns the kind of unique ID that couldn't be assigned.  */
   public String kind() {

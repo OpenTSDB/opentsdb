@@ -67,7 +67,7 @@
   
   <!-- Fallthrough root logger and router -->
   <root level="INFO">
-    <appender-ref ref="STDOUT"/>
+    <!-- <appender-ref ref="STDOUT"/> -->
     <appender-ref ref="CYCLIC"/>
     <appender-ref ref="FILE"/>
   </root>

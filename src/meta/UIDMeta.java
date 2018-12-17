@@ -67,7 +67,7 @@ import net.opentsdb.utils.JSONException;
  */
 @JsonIgnoreProperties(ignoreUnknown = true) 
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
-public final class UIDMeta {
+public class UIDMeta {
   private static final Logger LOG = LoggerFactory.getLogger(UIDMeta.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
