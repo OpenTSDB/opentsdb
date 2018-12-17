@@ -1,19 +1,34 @@
 OpenTSDB - Changelog
 
-* Version 2.4.0 RC2 (2017-10-08)
+* Version 2.4.0 (2018-12-16)
 
 Noteworthy Changes:
-  - Modify the RPC handler plugin system so that it parses only the first part of 
-    the URI instead of the entire path. Now plugins can implement sub-paths.
-  - Return the HTML 5 doctype for built-in UI pages
-  - Add an optional byte and/or data point limit to the amount of data fetched
-    from storage. This allows admins to prevent OOMing TSDs due to massive queries.
-  - Allow a start time via config when enabling the date tiered compaction in HBase
-  - Provide the option of using an LRU for caching UIDs to avoid OOMing writers and
-    readers with too many strings
-  - Optionally avoid writing to the forward or reverse UID maps when a specific TSD
-    operational mode is enabled to avoid wasting memory on maps that will never be
-    used.
+  - Set default data block encoding to `DIFF` in the create table script.
+  - Add callbacks to log errors in the FSCK tool when a call was made to
+    fix something.
+  - Add a sum of squares aggregator "squareSum".
+  - Add the diff aggregator that computes the difference between the first
+    and last values.
+  - Add a SystemD template to the RPM package.
+  - Allow tags to be added via HTTP header.
+  - Add example implementations for the Authorization and Authentication
+    plugins.
+  - Change `tsd.storage.use_otsdb_timestamp` to default to false.
+  - Literal or filter now allows single character values.
+  - Rollup query code now only uses the downsampler value to pick an interval.
+  - Add jdk 8 in the debian script.
+  - Setup fill policies in the Nagios check
+
+Bug Fixes:
+  - Fix rollup scanner filter for single aggregate queries.
+  - Fix FSCK HBase timestamps when deduping. Sometimes they were negative.
+  - Fix exception handling when writing data over HTTP with the sync flag enabled.
+  - Fix missing source files in the Makefile.
+  - Change UID cache to longs from ints and add hit and miss counters.
+  - Fix HighestCurrent returning the wrong results.
+  - Fix running query stats queryStart timestamp to millis.
+  - Fix TimeShift millisecond bug.
+  - Fix post remove step in the debian package.
 
 * Version 2.3.2 (2018-12-16)
 
@@ -39,6 +54,22 @@ Bug Fixes:
   - Change the make and TSDB scripts to use relative paths.
   - Fix parsing of `use_meta` from the URI for the search endpoint.
   - Fix the clean cache script to be a bit more OS agnostic.
+
+
+* Version 2.4.0 RC2 (2017-10-08)
+
+Noteworthy Changes:
+  - Modify the RPC handler plugin system so that it parses only the first part of 
+    the URI instead of the entire path. Now plugins can implement sub-paths.
+  - Return the HTML 5 doctype for built-in UI pages
+  - Add an optional byte and/or data point limit to the amount of data fetched
+    from storage. This allows admins to prevent OOMing TSDs due to massive queries.
+  - Allow a start time via config when enabling the date tiered compaction in HBase
+  - Provide the option of using an LRU for caching UIDs to avoid OOMing writers and
+    readers with too many strings
+  - Optionally avoid writing to the forward or reverse UID maps when a specific TSD
+    operational mode is enabled to avoid wasting memory on maps that will never be
+    used.
 
 * Version 2.3.1 (2018-04-21)
 
