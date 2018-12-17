@@ -248,7 +248,8 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         .setFilterId(config.getFilterId())
         .setQueryFilter(config.getFilter())
         .setFetchLast(config.getFetchLast())
-        .setRollupIntervals(config.getRollupIntervals())
+        .setRollupIntervals(config.getRollupIntervals().isEmpty() ? 
+            null : config.getRollupIntervals())
         .setSummaryInterval(config.getSummaryInterval())
         .setSummaryAggregations(config.getSummaryAggregations().isEmpty() ? 
             null : config.getSummaryAggregations())
