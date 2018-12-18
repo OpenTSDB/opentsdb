@@ -47,6 +47,12 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
  */
 final class UniqueIdRpc implements HttpRpc {
 
+  private final TSDB.OperationMode mode;
+
+  public UniqueIdRpc(TSDB.OperationMode mode) {
+    this.mode = mode;
+  }
+
   @Override
   public void execute(TSDB tsdb, HttpQuery query) throws IOException {
     
@@ -87,6 +93,10 @@ final class UniqueIdRpc implements HttpRpc {
    * @param query The query for this request
    */
   private void handleAssign(final TSDB tsdb, final HttpQuery query) {
+    if (!mode.isWrite()) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+              "This operation is not allowed in ro mode.");
+    }
     // only accept GET And POST
     if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
@@ -162,6 +172,10 @@ final class UniqueIdRpc implements HttpRpc {
     final HttpMethod method = query.getAPIMethod();
     // GET
     if (method == HttpMethod.GET) {
+      if (!mode.isRead()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in wo mode.");
+      }
       
       final String uid = query.getRequiredQueryStringParam("uid");
       final UniqueIdType type = UniqueId.stringToUniqueIdType(
@@ -178,6 +192,10 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // POST
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
       
       final UIDMeta meta;
       if (query.hasContent()) {
@@ -224,6 +242,10 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // DELETE    
     } else if (method == HttpMethod.DELETE) {
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
       
       final UIDMeta meta;
       if (query.hasContent()) {
@@ -261,6 +283,10 @@ final class UniqueIdRpc implements HttpRpc {
     final HttpMethod method = query.getAPIMethod();
     // GET
     if (method == HttpMethod.GET) {
+      if (!mode.isRead()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in wo mode.");
+      }
       
       String tsuid = null;
       if (query.hasQueryStringParam("tsuid")) {
@@ -313,6 +339,10 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // POST / PUT
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
 
       final TSMeta meta;
       if (query.hasContent()) {
@@ -431,6 +461,10 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // DELETE  
     } else if (method == HttpMethod.DELETE) {
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
       
       final TSMeta meta;
       if (query.hasContent()) {
@@ -491,6 +525,10 @@ final class UniqueIdRpc implements HttpRpc {
    * @param query The query for this request
    */
   private void handleRename(final TSDB tsdb, final HttpQuery query) {
+    if (!mode.isWrite()) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+              "This operation is not allowed in ro mode.");
+    }
     // only accept GET and POST
     if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,

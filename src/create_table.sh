@@ -23,7 +23,7 @@ COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
 # This can save a lot of storage space.
 DATA_BLOCK_ENCODING=${DATA_BLOCK_ENCODING-'DIFF'}
 DATA_BLOCK_ENCODING=`echo "$DATA_BLOCK_ENCODING" | tr a-z A-Z`
-TSDB_TTL=${TSDB_TTL-'FOREVER'}
+TSDB_TTL=${TSDB_TTL-'2147483647'}
 
 case $COMPRESSION in
   (NONE|LZO|GZIP|SNAPPY)  :;;  # Known good.

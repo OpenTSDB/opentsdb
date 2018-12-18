@@ -81,6 +81,7 @@ tsdb_SRC := \
 	src/core/RequestBuilder.java	\
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
+	src/core/RpcResponder.java	\
 	src/core/iRowSeq.java	\
 	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
@@ -126,6 +127,7 @@ tsdb_SRC := \
 	src/query/expression/ExpressionReader.java	\
 	src/query/expression/Expressions.java	\
 	src/query/expression/ExpressionTree.java	\
+	src/query/expression/FirstDifference.java	\
 	src/query/expression/HighestCurrent.java	\
 	src/query/expression/HighestMax.java	\
 	src/query/expression/IntersectionIterator.java	\
@@ -322,6 +324,7 @@ test_SRC := \
 	test/core/TestRateSpan.java	\
 	test/core/TestRowKey.java	\
 	test/core/TestRowSeq.java	\
+	test/core/TestRpcResponsder.java	\
 	test/core/TestSaltScanner.java	\
 	test/core/TestSeekableViewChain.java	\
 	test/core/TestSpan.java	\

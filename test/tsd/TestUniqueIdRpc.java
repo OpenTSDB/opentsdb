@@ -64,7 +64,7 @@ public final class TestUniqueIdRpc {
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
   private MockBase storage;
-  private UniqueIdRpc rpc = new UniqueIdRpc();
+  private UniqueIdRpc rpc = new UniqueIdRpc(TSDB.OperationMode.READWRITE);
   
   @Before
   public void before() throws Exception {
@@ -89,6 +89,15 @@ public final class TestUniqueIdRpc {
   }
   
   // Test /api/uid/assign ----------------------
+
+  @Test (expected = BadRequestException.class)
+  public void assignReadOnlyMode() throws Exception {
+    setupAssign();
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+            "/api/uid/assign?metric=sys.cpu.0");
+    this.rpc.execute(tsdb, query);
+  }
   
   @Test
   public void assignQsMetricSingle() throws Exception {
@@ -540,6 +549,14 @@ public final class TestUniqueIdRpc {
     rpc.execute(tsdb, query);
   }
 
+  @Test (expected = BadRequestException.class)
+  public void renameReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
+            "{\"metric\":\"sys.cpu.1\",\"name\":\"sys.cpu.2\"}");
+    this.rpc.execute(tsdb, query);
+  }
+
   @Test
   public void renamePostMetric() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
@@ -686,6 +703,15 @@ public final class TestUniqueIdRpc {
   }
 
   // Teset /api/uid/uidmeta --------------------
+
+  @Test (expected = BadRequestException.class)
+  public void uidGetWriteOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.WRITEONLY);
+    setupUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+            "/api/uid/uidmeta?type=metric&uid=000001");
+    rpc.execute(tsdb, query);
+  }
   
   @Test
   public void uidGet() throws Exception {
@@ -717,6 +743,15 @@ public final class TestUniqueIdRpc {
     setupUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/uidmeta?type=metric&uid=000002");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void uidPostReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    setupUID();
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/uidmeta",
+            "{\"uid\":\"000001\",\"type\":\"metric\",\"displayName\":\"Hello!\"}");
     rpc.execute(tsdb, query);
   }
   
@@ -770,6 +805,15 @@ public final class TestUniqueIdRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
+
+  @Test (expected = BadRequestException.class)
+  public void uidPutReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    setupUID();
+    HttpQuery query = NettyMocks.putQuery(tsdb, "/api/uid/uidmeta",
+            "{\"uid\":\"000001\",\"type\":\"metric\",\"displayName\":\"Hello!\"}");
+    rpc.execute(tsdb, query);
+  }
   
   @Test
   public void uidPut() throws Exception {
@@ -821,6 +865,15 @@ public final class TestUniqueIdRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
+
+  @Test (expected = BadRequestException.class)
+  public void uidDeleteReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    setupUID();
+    HttpQuery query = NettyMocks.deleteQuery(tsdb, "/api/uid/uidmeta",
+            "{\"uid\":\"000001\",\"type\":\"metric\",\"displayName\":\"Hello!\"}");
+    rpc.execute(tsdb, query);
+  }
   
   @Test
   public void uidDelete() throws Exception {
@@ -857,6 +910,15 @@ public final class TestUniqueIdRpc {
   }
   
   // Test /api/uid/tsmeta ----------------------
+
+  @Test (expected = BadRequestException.class)
+  public void tsuidGetWriteOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.WRITEONLY);
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+            "/api/uid/tsmeta?tsuid=000001000001000001");
+    rpc.execute(tsdb, query);
+  }
   
   @Test
   public void tsuidGet() throws Exception {
@@ -943,6 +1005,15 @@ public final class TestUniqueIdRpc {
     rpc.execute(tsdb, query);
   }
 
+  @Test (expected = BadRequestException.class)
+  public void tsuidPostReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    setupTSUID();
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/tsmeta",
+            "{\"tsuid\":\"000001000001000001\", \"displayName\":\"Hello World\"}");
+    rpc.execute(tsdb, query);
+  }
+
   @Test
   public void tsuidPost() throws Exception {  
     setupTSUID();
@@ -987,6 +1058,15 @@ public final class TestUniqueIdRpc {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/uid/tsmeta?display_name=42&method_override=post");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void tsuidPutReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    setupTSUID();
+    HttpQuery query = NettyMocks.putQuery(tsdb, "/api/uid/tsmeta",
+            "{\"tsuid\":\"000001000001000001\", \"displayName\":\"Hello World\"}");
     rpc.execute(tsdb, query);
   }
   
@@ -1034,6 +1114,15 @@ public final class TestUniqueIdRpc {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/uid/tsmeta?display_name=42&method_override=put");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void tsuidDeleteReadOnlyMode() throws Exception {
+    rpc = new UniqueIdRpc(TSDB.OperationMode.READONLY);
+    setupTSUID();
+    HttpQuery query = NettyMocks.deleteQuery(tsdb, "/api/uid/tsmeta",
+            "{\"tsuid\":\"000001000001000001\", \"displayName\":\"Hello World\"}");
     rpc.execute(tsdb, query);
   }
   

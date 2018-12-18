@@ -305,7 +305,7 @@ public final class RpcManager {
         http.put("api/rollup", rollups);
         http.put("api/histogram", histos);
         http.put("api/tree", new TreeRpc());
-        http.put("api/uid", new UniqueIdRpc());
+        http.put("api/uid", new UniqueIdRpc(mode));
       }
       break;
     case READONLY:
@@ -321,6 +321,7 @@ public final class RpcManager {
         http.put("api/query", new QueryRpc());
         http.put("api/search", new SearchRpc());
         http.put("api/suggest", suggest_rpc);
+        http.put("api/uid", new UniqueIdRpc(mode));
       }
       
       break;
@@ -347,7 +348,7 @@ public final class RpcManager {
         http.put("api/rollup", rollups);
         http.put("api/histogram", histos);
         http.put("api/tree", new TreeRpc());
-        http.put("api/uid", new UniqueIdRpc());
+        http.put("api/uid", new UniqueIdRpc(mode));
       }
     }
     
