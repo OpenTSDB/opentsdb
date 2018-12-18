@@ -938,6 +938,39 @@ public class Configuration implements Closeable {
   }
   
   /**
+   * Calls the appropriate {@link SecretProvider} to fetch the value.
+   * Keys can be in the format "key" or "provider_id:key". The raw secret
+   * object is returned based on the type.
+   * 
+   * @param key A non-null and non-empty key to fetch.
+   * @return The key if found, an exception if not.
+   */
+  public Object getSecretObject(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (key.contains(":")) {
+      final String type = key.substring(0, key.indexOf(":")).trim();
+      if (Strings.isNullOrEmpty(type)) {
+        throw new IllegalArgumentException("Empty plugin ID preceding ");
+      }
+      final SecretProvider provider = secret_providers.get(type);
+      if (provider == null) {
+        throw new ConfigurationException("No secret provider found for: " 
+            + type);
+      }
+      return provider.getSecretObject(key.substring(key.indexOf(":") + 1));
+    } else {
+      final SecretProvider provider = secret_providers.get(null);
+      if (provider == null) {
+        throw new ConfigurationException("No default secret provider "
+            + "configured.");
+      }
+      return provider.getSecretObject(key);
+    }
+  }
+  
+  /**
    * Returns a read-only view of the current state of the config. Creates
    * a snapshot with duplicate values so if the config is really large
    * use this with care.

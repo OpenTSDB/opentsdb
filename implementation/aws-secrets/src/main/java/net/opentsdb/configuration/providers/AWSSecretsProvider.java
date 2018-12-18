@@ -34,7 +34,6 @@ import io.netty.util.HashedWheelTimer;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationException;
-import net.opentsdb.configuration.ConfigurationOverride;
 import net.opentsdb.configuration.provider.BaseSecretProvider;
 import net.opentsdb.configuration.provider.ProviderFactory;
 
@@ -133,12 +132,28 @@ public class AWSSecretsProvider extends BaseSecretProvider {
       throw new ConfigurationException("Unexpected exception.", e);
     }
   }
-
+  
   @Override
-  public ConfigurationOverride getSetting(final String key) {
-    return null;
+  public Object getSecretObject(final String key) {
+    final GetSecretValueRequest request = new GetSecretValueRequest()
+          .withSecretId(key);
+    try {
+      final GetSecretValueResult result = client.getSecretValue(request);
+      if (!Strings.isNullOrEmpty(result.getSecretString())) {
+        return result.getSecretString();
+      } else {
+        return new String(Base64.getDecoder().decode(
+            result.getSecretBinary()).array(), Const.UTF8_CHARSET);
+      }
+    } catch (ResourceNotFoundException e) {
+      throw new ConfigurationException("No such key.", e);
+    } catch (AWSSecretsManagerException e) {
+      throw new ConfigurationException("Failed to fetch key from AWS.", e);
+    } catch (Exception e) {
+      throw new ConfigurationException("Unexpected exception.", e);
+    }
   }
-
+  
   @Override
   public void close() throws IOException {
     if (client != null) {

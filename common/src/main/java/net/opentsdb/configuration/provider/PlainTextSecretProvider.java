@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.ConfigurationOverride;
 
 /**
  * Dummy class to test secret providers. This should NOT be loaded in
@@ -81,9 +80,8 @@ public class PlainTextSecretProvider extends BaseSecretProvider  {
   }
 
   @Override
-  public ConfigurationOverride getSetting(final String key) {
-    // Always returns null from this source.
-    return null;
+  public Object getSecretObject(final String key) {
+    return config.getString(key);
   }
   
   @Override
