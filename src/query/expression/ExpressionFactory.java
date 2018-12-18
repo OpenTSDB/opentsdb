@@ -37,6 +37,7 @@ public final class ExpressionFactory {
     available_functions.put("highestMax", new HighestMax());
     available_functions.put("shift", new TimeShift());
     available_functions.put("timeShift", new TimeShift());
+    available_functions.put("firstDiff", new FirstDifference());
   }
   
   /** Don't instantiate me! */
