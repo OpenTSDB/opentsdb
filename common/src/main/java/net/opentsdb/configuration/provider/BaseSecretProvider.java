@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.ConfigurationOverride;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -82,6 +83,11 @@ public abstract class BaseSecretProvider implements SecretProvider {
     this.config = config;
     this.timer = timer;
     this.id = id;
+  }
+  
+  @Override
+  public ConfigurationOverride getSetting(final String key) {
+    return null;
   }
   
   /**

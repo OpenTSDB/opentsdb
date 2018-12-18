@@ -23,6 +23,8 @@ public interface SecretProvider extends Provider {
   
   public byte[] getSecretBytes(final String key);
   
+  public Object getSecretObject(final String key);
+  
   public void initialize(final ProviderFactory factory, 
                          final Configuration config, 
                          final HashedWheelTimer timer,
