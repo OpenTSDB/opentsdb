@@ -96,6 +96,7 @@ final class FsckOptions {
         "Delete compacted columns that cannot be parsed.");
     argp.addOption("--threads", "NUMBER",
         "Number of threads to use when executing a full table scan.");
+    argp.addOption("--sync", "Wait for each fix operation to finish to continue.");
   }
   
   /** @return Whether or not to fix errors while processing. Does not affect 
