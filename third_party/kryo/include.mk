@@ -13,16 +13,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-KRYO_VERSION := 2.21.1
+KRYO_VERSION := 3.0.0
 KRYO := third_party/kryo/kryo-$(KRYO_VERSION).jar
-KRYO_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/kryo/kryo/$(KRYO_VERSION)
+KRYO_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/kryo/$(KRYO_VERSION)
 
 $(KRYO): $(KRYO).md5
 	set dummy "$(KRYO_BASE_URL)" "$(KRYO)"; shift; $(FETCH_DEPENDENCY)
 
-REFLECTASM_VERSION := 1.07
+REFLECTASM_VERSION := 1.10.0
 REFLECTASM := third_party/kryo/reflectasm-$(REFLECTASM_VERSION)-shaded.jar
-REFLECTASM_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/reflectasm/reflectasm/$(REFLECTASM_VERSION)
+REFLECTASM_BASE_URL :=https://repo1.maven.org/maven2/com/esotericsoftware/reflectasm/$(REFLECTASM_VERSION)
 
 $(REFLECTASM): $(REFLECTASM).md5
 	set dummy "$(REFLECTASM_BASE_URL)" "$(REFLECTASM)"; shift; $(FETCH_DEPENDENCY)
@@ -34,9 +34,9 @@ ASM_BASE_URL := https://repo1.maven.org/maven2/org/ow2/asm/asm/$(ASM_VERSION)
 $(ASM): $(ASM).md5
 	set dummy "$(ASM_BASE_URL)" "$(ASM)"; shift; $(FETCH_DEPENDENCY)
 
-MINLOG_VERSION := 1.2
+MINLOG_VERSION := 1.3
 MINLOG := third_party/kryo/minlog-$(MINLOG_VERSION).jar
-MINLOG_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/minlog/minlog/$(MINLOG_VERSION)
+MINLOG_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/minlog/$(MINLOG_VERSION)
 
 $(MINLOG): $(MINLOG).md5
 	set dummy "$(MINLOG_BASE_URL)" "$(MINLOG)"; shift; $(FETCH_DEPENDENCY)

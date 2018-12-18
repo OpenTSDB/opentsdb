@@ -27,6 +27,8 @@ import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
 
+import org.jboss.netty.util.internal.ThreadLocalRandom;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -100,6 +102,24 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void setEndTime() throws Exception {
     query.setEndTime(1356998400L);
     assertEquals(1356998400L, query.getEndTime());
+  }
+
+  @Test
+  public void getScanEndTimeSeconds() {
+    long now = System.currentTimeMillis() / 1000;
+    long baseTime = now - (now % Const.MAX_TIMESPAN);
+    long expectedEndScanTime = baseTime + Const.MAX_TIMESPAN;
+
+    for (int i = 0; i < 3600; i++) {
+      long sec = baseTime + i;
+      long ms = sec * 1000 + ThreadLocalRandom.current().nextInt(1000);
+      query.setEndTime(sec);
+      Assert.assertEquals("EndTime=" + sec, expectedEndScanTime,
+          query.getScanEndTimeSeconds());
+      query.setEndTime(ms);
+      Assert.assertEquals("EndTime=" + ms, expectedEndScanTime,
+          query.getScanEndTimeSeconds());
+    }
   }
 
   @Test (expected = IllegalStateException.class)
