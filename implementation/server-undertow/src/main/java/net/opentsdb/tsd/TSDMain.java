@@ -582,6 +582,9 @@ public class TSDMain {
             throw new IllegalStateException("Unrecognized key: " 
                 + config.getString(TLS_SECRET_KEY_KEY));
           }
+        } else {
+          throw new IllegalArgumentException("Unknown private key object type: " 
+              + key_secret.getClass().getCanonicalName().toString());
         }
         LOG.info("Successfully loaded private key from secret: "+  
             config.getString(TLS_SECRET_KEY_KEY));
