@@ -29,6 +29,7 @@ import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
 import net.opentsdb.auth.Authentication;
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.DefaultTSDB;
@@ -37,8 +38,6 @@ import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.utils.ArgP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.security.util.DerInputStream;
-import sun.security.util.DerValue;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -47,9 +46,22 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
 import javax.xml.bind.DatatypeConverter;
-import java.io.*;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.StringReader;
 import java.math.BigInteger;
-import java.security.*;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -61,6 +73,10 @@ import java.security.spec.RSAPrivateKeySpec;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import sun.security.provider.certpath.*;
+import sun.security.util.DerInputStream;
+import sun.security.util.DerValue;
 
 /**
  * A simple main method that instantiates a TSD and the TSD servlet package
@@ -82,6 +98,8 @@ public class TSDMain {
   public static final String TLS_CERT_KEY = "tsd.network.tls.certificate";
   public static final String TLS_KEY_KEY = "tsd.network.tls.key";
   public static final String TLS_CA_KEY = "tsd.network.tls.ca";
+  public static final String TLS_SECRET_CERT_KEY = "tsd.network.tls.secrets.certificate";
+  public static final String TLS_SECRET_KEY_KEY = "tsd.network.tls.secrets.key";
   public static final String CORS_PATTERN_KEY = "tsd.http.request.cors.pattern";
   public static final String CORS_HEADERS_KEY = "tsd.http.request.cors.headers";
   public static final String DIRECTORY_KEY = "tsd.http.staticroot";
@@ -145,6 +163,15 @@ public class TSDMain {
         "The location to a file containing the PKCS#1 or PKCS#8 encoded "
         + "private key. Make sure that '" + TLS_CERT_KEY 
         + "' is also configured.");
+    config.register(TLS_SECRET_CERT_KEY, null, false,
+        "The secret provider key to a PEM formatted value containing the public "
+        + "certificate, optional intermediaries and optionally the "
+        + "private key. If the private key is not present, make "
+        + "sure that '" + TLS_SECRET_KEY_KEY + "' is set.");
+    config.register(TLS_SECRET_KEY_KEY, null, false,
+        "The secret provider key containing the PKCS#1 or PKCS#8 encoded "
+        + "private key. Make sure that '" + TLS_SECRET_CERT_KEY 
+        + "' is also configured.");
     config.register(TLS_CA_KEY, null, false,
         "An optional location to a PEM formatted file containing CA "
         + "certificates.");
@@ -168,6 +195,7 @@ public class TSDMain {
     int ssl_port = config.getInt(TLS_PORT_KEY);
     if (port < 1 && ssl_port < 1) {
       System.err.println("Must provide an HTTP or SSL port.");
+      System.exit(1);
     }
   
     String bind = config.getString(BIND_KEY);
@@ -180,8 +208,8 @@ public class TSDMain {
         // if the plugins don't load within 5 minutes, something is TERRIBLY
         // wrong.
         tsdb.initializeRegistry(true).join(300000);
-      } catch (Exception e) {
-        LOG.error("Failed to initialize TSDB registry", e);
+      } catch (Throwable t) {
+        LOG.error("Failed to initialize TSDB registry", t);
         System.exit(1);
       }
     }
@@ -292,6 +320,8 @@ public class TSDMain {
       final SSLContext sslContext;
       if (!Strings.isNullOrEmpty(keystore_location)) {
         sslContext = contextFromKeystore(config);
+      } else if (config.hasProperty(TLS_SECRET_CERT_KEY)) {
+        sslContext = contextFromSecrets(config);
       } else {
         sslContext = contextFromKeyAndCerts(config);
       }
@@ -389,7 +419,10 @@ public class TSDMain {
         }
         LOG.info("Successfully loaded private key from file: "+  key_location);
       }
-    } catch (IOException | GeneralSecurityException e) {
+    } catch (IOException e) {
+      LOG.error("Failed to parse private key at: " + key_location);
+      return null;
+    } catch (GeneralSecurityException e) {
       LOG.error("Failed to parse private key at: " + key_location);
       return null;
     }
@@ -463,6 +496,198 @@ public class TSDMain {
     } catch (IOException | GeneralSecurityException e) {
       LOG.error("Failed to load certificate(s) from " 
           + cert_file_location, e);
+      return null;
+    }
+    
+    final String ca_certs_location = config.getString(TLS_CA_KEY);
+    if (!Strings.isNullOrEmpty(ca_certs_location)) {
+      try {
+        if (new File(ca_certs_location).isDirectory()) {
+          // TODO - load all the certs in the dir
+          throw new UnsupportedOperationException("We don't support "
+              + "loading directories yet.");
+        } else {
+          final String raw_cas = Files.toString(new File(ca_certs_location), 
+              Charsets.UTF_8);
+          parts = splitPem(raw_cas);
+          for (final String part : parts) {
+            X509Certificate cert = parseCert(trimCertificate(part));
+            certificates.add(cert);
+            String cn = getCN(cert);
+            keystore.setCertificateEntry(Integer.toString(cert_id++), cert);
+            LOG.info("Successfully loaded CA cert with CN: " + cn);
+          }
+        }
+      } catch (IOException | GeneralSecurityException e) {
+        LOG.error("Failed to load CA certificates from: " + ca_certs_location, e);
+        return null;
+      }
+    }
+    
+    try {
+      // initialize a key manager to pass to the SSL context using the keystore.
+      final KeyManagerFactory key_factory = KeyManagerFactory.getInstance(
+          KeyManagerFactory.getDefaultAlgorithm());
+      key_factory.init(keystore, keystore_pass.toCharArray());
+  
+      // init a trust manager so we can use the public cert.
+      final TrustManagerFactory trust_factory = 
+          TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+      trust_factory.init(keystore);
+      final TrustManager[] trustManagers = trust_factory.getTrustManagers();
+      
+      final SSLContext ssl_context = SSLContext.getInstance("TLS"); 
+      ssl_context.init(key_factory.getKeyManagers(), trustManagers, null);
+      return ssl_context;
+    } catch (GeneralSecurityException e) {
+      LOG.error("Failed to initialize SSLContext", e);
+      return null;
+    }
+  }
+  
+  /**
+   * Attempts to load the key from a combination of private key file, 
+   * certificate file(s) and Certificate Authority pem.
+   * @param config A non-null config.
+   * @return An instantiated context or null if something went wrong. The
+   * exceptions will be logged.
+   */
+  private static SSLContext contextFromSecrets(final Configuration config) {
+    final Object cert_secret = config.getSecretObject(
+        config.getString(TLS_SECRET_CERT_KEY));
+    if (cert_secret == null) {
+      throw new IllegalStateException("The secret object cannot be null: " 
+          + config.getString(TLS_SECRET_CERT_KEY));
+    }
+    
+    RSAPrivateKey key = null;
+    final Object key_secret = config.getSecretObject(
+        config.getString(TLS_SECRET_KEY_KEY));
+    try {
+      if (key_secret != null) {
+        if (key_secret instanceof RSAPrivateKey) {
+          key = (RSAPrivateKey) key_secret;
+        } else if (key_secret instanceof String || key_secret instanceof byte[]) {
+          final String raw_key;
+          if (key_secret instanceof String) {
+            raw_key = (String) key_secret;
+          } else {
+            raw_key = new String((byte[]) key_secret, Const.UTF8_CHARSET);
+          }
+          if (raw_key.contains("BEGIN PRIVATE KEY")) {
+            key = parsePKCS8Key(trimPrivateKey(raw_key));
+          } else if (raw_key.contains("BEGIN RSA PRIVATE KEY")) {
+            key = parsePKCS1Key(trimPrivateKey(raw_key));
+          } else {
+            throw new IllegalStateException("Unrecognized key: " 
+                + config.getString(TLS_SECRET_KEY_KEY));
+          }
+        }
+        LOG.info("Successfully loaded private key from secret: "+  
+            config.getString(TLS_SECRET_KEY_KEY));
+      }
+    } catch (IOException | GeneralSecurityException e) {
+      LOG.error("Failed to parse private key at: " + 
+          config.getString(TLS_SECRET_KEY_KEY));
+      return null;
+    }
+    
+    List<String> parts;
+    KeyStore keystore = null;
+    List<Certificate> certificates = null;
+    final String keystore_pass = Long.toString(System.currentTimeMillis());
+    int cert_id = 0;
+    
+    try {
+      final String raw_certs;
+      if (cert_secret instanceof String) {
+        raw_certs = (String) cert_secret;
+      } else if (cert_secret instanceof byte[]) {
+        raw_certs = new String((byte[]) cert_secret, Const.UTF8_CHARSET);
+      } else if (cert_secret instanceof X509CertPath) {
+        raw_certs = null;
+        certificates = Lists.newArrayList();
+        keystore = KeyStore.getInstance("JKS");
+        keystore.load(null);
+        X509CertPath p = (X509CertPath) cert_secret;
+        boolean have_server_cert = false;
+        for (final X509Certificate c : p.getCertificates()) {
+          certificates.add(c);
+          String cn = getCN(c);
+          boolean is_server_cert = isServerCert(c);
+          if (have_server_cert && is_server_cert) {
+            throw new IllegalStateException("Multiple server certs in "
+                + "the PEM are not allowed.");
+          } else if (is_server_cert) {
+            have_server_cert = is_server_cert;
+            LOG.info("Successfully loaded server certificate with CN:: " + cn);
+          } else {
+            LOG.info("Successfully loaded intermediate or CA cert with CN: " + cn);
+          }
+          keystore.setCertificateEntry(Integer.toString(cert_id++), c);
+        }
+        
+      } else {
+        throw new IllegalArgumentException("Unrecognized secret class: " 
+            + cert_secret.getClass());
+      }
+      
+      if (raw_certs != null) {
+        parts = splitPem(raw_certs);
+        if (parts.size() < 1) {
+          throw new IllegalStateException("No certificates found in secret: " 
+              + config.getString(TLS_SECRET_CERT_KEY));
+        }
+
+        keystore = KeyStore.getInstance("JKS");
+        keystore.load(null);
+        certificates = Lists.newArrayList();
+        boolean have_server_cert = false;
+        for (final String part : parts) {
+          if (part.contains("BEGIN PRIVATE KEY")) {
+            if (key != null) {
+              throw new RuntimeException("Already loaded a key but " 
+                  + config.getString(TLS_SECRET_CERT_KEY) + " also had a key.");
+            }
+            key = parsePKCS8Key(trimPrivateKey(part));
+          } else if (part.contains("BEGIN RSA PRIVATE KEY")) {
+            if (key != null) {
+              throw new RuntimeException("Already loaded a key but " 
+                  + config.getString(TLS_SECRET_CERT_KEY) + " also had a key.");
+            }
+            key = parsePKCS1Key(trimPrivateKey(part));
+          } else {
+            X509Certificate cert = parseCert(trimCertificate(part));
+            certificates.add(cert);
+            String cn = getCN(cert);
+            boolean is_server_cert = isServerCert(cert);
+            if (have_server_cert && is_server_cert) {
+              throw new IllegalStateException("Multiple server certs in "
+                  + "the PEM are not allowed.");
+            } else if (is_server_cert) {
+              have_server_cert = is_server_cert;
+              LOG.info("Successfully loaded server certificate with CN:: " + cn);
+            } else {
+              LOG.info("Successfully loaded intermediate or CA cert with CN: " + cn);
+            }
+            keystore.setCertificateEntry(Integer.toString(cert_id++), cert);
+          }
+        }
+      }
+      
+      if (certificates.isEmpty()) {
+        throw new IllegalStateException("No certificates loaded from: " 
+            + config.getString(TLS_SECRET_CERT_KEY));
+      }
+      Certificate[] cert_array = new Certificate[certificates.size()];
+      certificates.toArray(cert_array);
+      keystore.setKeyEntry("key-alias", 
+                           key, 
+                           keystore_pass.toCharArray(),
+                           cert_array);
+    } catch (IOException | GeneralSecurityException e) {
+      LOG.error("Failed to load certificate(s) from " 
+          + config.getString(TLS_SECRET_CERT_KEY), e);
       return null;
     }
     
