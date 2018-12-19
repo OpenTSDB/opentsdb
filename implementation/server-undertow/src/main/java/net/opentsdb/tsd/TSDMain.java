@@ -28,6 +28,8 @@ import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
+import io.undertow.servlet.api.InstanceFactory;
+import io.undertow.servlet.api.InstanceHandle;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
@@ -44,6 +46,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
 import javax.servlet.ServletException;
 import javax.xml.bind.DatatypeConverter;
 
@@ -240,11 +243,34 @@ public class TSDMain {
     // Load an authentication filter if so configured.
     if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {
       LOG.info("Authentication is enabled, searching for an auth filter.");
-      AuthFilter auth_filter = tsdb.getRegistry()
+      final AuthFilter auth_filter = tsdb.getRegistry()
           .getDefaultPlugin(AuthFilter.class);
+      
       if (auth_filter != null) {
-        final FilterInfo filter_info = new FilterInfo("tsdbAuthFilter", 
-            auth_filter.getClass());
+        class AuthFactory implements InstanceFactory<Filter> {
+
+          @Override
+          public InstanceHandle<Filter> createInstance()
+              throws InstantiationException {
+            return new InstanceHandle<Filter>() {
+
+              @Override
+              public Filter getInstance() {
+                return auth_filter;
+              }
+
+              @Override
+              public void release() { }
+              
+            };
+          }
+          
+        };
+        
+        final FilterInfo filter_info = new FilterInfo(
+            "tsdbAuthFilter", 
+            auth_filter.getClass(),
+            new AuthFactory());
         filter_info.setAsyncSupported(true);
         final  Map<String, String> conf = tsdb.getConfig().asUnsecuredMap();
         for (final Entry<String, String> entry : conf.entrySet()) {
@@ -259,6 +285,8 @@ public class TSDMain {
         return;
       }
     }
+    
+    
     
     final DeploymentManager manager = Servlets.defaultContainer()
         .addDeployment(servletBuilder);
