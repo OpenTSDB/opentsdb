@@ -3,8 +3,8 @@ dist: trusty
 script: export MAVEN_OPTS="-Xmx1024m" && mvn clean test cobertura:cobertura coveralls:report --quiet
 after_success:
   - if [[ "$TRAVIS_BRANCH" == "3.0" && "$TRAVIS_PULL_REQUEST" = "false" ]]; then 
-    mvn deploy --settings settings.xml;
-    mvn deploy -Dmaven.test.skip=true -Pdocker --settings settings.xml;
+    mvn deploy -q --settings settings.xml;
+    mvn install -q -Dmaven.test.skip=true -Pdocker --settings settings.xml;
     fi
 addons:
   hostname: short-hostname

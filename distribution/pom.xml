@@ -128,18 +128,18 @@
                   </goals>
                   <configuration>
                     <image>opentsdb:${project.version}</image>
-                    <newName>${env.DOCKER_USERNAME}/opentsdb:${project.version}</newName>
+                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
                   </configuration>
                 </execution>
                 
                 <execution>
                   <id>push-image</id>
-                  <phase>deploy</phase>
+                  <phase>install</phase>
                   <goals>
                     <goal>push</goal>
                   </goals>
                   <configuration>
-                    <imageName>${env.DOCKER_USERNAME}/opentsdb</imageName>
+                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
                   </configuration>
                 </execution>
               </executions>
