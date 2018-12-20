@@ -21,8 +21,9 @@ ADD       opentsdb_dev.yaml $WORKDIR/conf/opentsdb_dev.yaml
 ADD       tsdb $WORKDIR/bin/tsdb
 
 # It is expected these might need to be passed in with the -e flag
-ENV       CONFIG $WORKDIR/conf/opentsdb.yaml
+ENV       CONFIG file://$WORKDIR/conf/opentsdb.yaml
 ENV       LOGBACK $WORKDIR/conf/logback.xml
 ENV       JAVA_OPTS="-Xms512m -Xmx2048m -enableassertions -enablesystemassertions"
+ENV       CLI_ARGS=""
 
-ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config.providers=file://${CONFIG} > ${LOGDIR}/stdout.log 2> ${LOGDIR}/stderr.log
+ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config.providers=${CONFIG} ${CLI_ARGS} > ${LOGDIR}/stdout.log 2> ${LOGDIR}/stderr.log
