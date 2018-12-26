@@ -120,6 +120,7 @@ tsdb_SRC := \
 	src/query/expression/ExpressionReader.java	\
 	src/query/expression/Expressions.java	\
 	src/query/expression/ExpressionTree.java	\
+	src/query/expression/FirstDifference.java	\
 	src/query/expression/HighestCurrent.java	\
 	src/query/expression/HighestMax.java	\
 	src/query/expression/IntersectionIterator.java	\
