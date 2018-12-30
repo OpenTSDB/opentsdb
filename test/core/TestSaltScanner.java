@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -31,14 +31,15 @@ import java.util.List;
 import java.util.TreeMap;
 
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -52,36 +53,30 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({ TSDB.class, Scanner.class, SaltScanner.class, Span.class, 
   Const.class, UniqueId.class })
 public class TestSaltScanner extends BaseTsdbTest {
-  private final static byte[] KEY_A = { 0x00, 0x00, 0x00, 0x01, 
-    0x50, (byte) 0xE2, 0x27, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01 };
-  // different tagv
-  private final static byte[] KEY_B = { 0x00, 0x00, 0x00, 0x01, 
-    0x50, (byte) 0xE2, 0x27, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02 };
-  // same as A bug different time
-  private final static byte[] KEY_C = { 0x00, 0x00, 0x00, 0x01, 
-    0x51, (byte) 0x0B, 0x13, (byte) 0x90, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01 };
-  private final static byte[] FAMILY = "t".getBytes();
-  private final static byte[] QUALIFIER_A = { 0x00, 0x00 };
-  private final static byte[] QUALIFIER_B = { 0x00, 0x10 };
-  private final static byte[] VALUE = { 0x42 };
-  private final static long VALUE_LONG = 66;
+  protected byte[] KEY_A;
+  protected byte[] KEY_B;
+  protected byte[] KEY_C;
+  protected final static byte[] FAMILY = "t".getBytes();
+  protected final static byte[] QUALIFIER_A = { 0x00, 0x00 };
+  protected final static byte[] QUALIFIER_B = { 0x00, 0x10 };
+  protected final static byte[] VALUE = { 0x42 };
+  protected final static long VALUE_LONG = 66;
   
-  private final static int NUM_BUCKETS = 2;
-  private List<Scanner> scanners;
-  private TreeMap<byte[], Span> spans;
-  private List<TagVFilter> filters;
+  protected List<Scanner> scanners;
+  protected TreeMap<byte[], Span> spans;
+  protected List<TagVFilter> filters;
   
-  private List<ArrayList<ArrayList<KeyValue>>> kvs_a;
-  private List<ArrayList<ArrayList<KeyValue>>> kvs_b;
+  protected List<ArrayList<ArrayList<KeyValue>>> kvs_a;
+  protected List<ArrayList<ArrayList<KeyValue>>> kvs_b;
   
-  private Scanner scanner_a;
-  private Scanner scanner_b;
+  protected Scanner scanner_a;
+  protected Scanner scanner_b;
   
   @Before
-  public void beforeLocal() {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(NUM_BUCKETS);
+  public void beforeLocal() throws Exception {
+    KEY_A = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
+    KEY_B = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_B_STRING);
+    KEY_C = getRowKey(METRIC_STRING, 1359680400, TAGK_STRING, TAGV_STRING);
     
     filters = new ArrayList<TagVFilter>();
     
@@ -92,12 +87,6 @@ public class TestSaltScanner extends BaseTsdbTest {
   @Test
   public void ctor() {
     assertNotNull(new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void ctorSaltDisabled() {
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(0);
-    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -122,7 +111,7 @@ public class TestSaltScanner extends BaseTsdbTest {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorNotEnoughScanners() {
-    scanners.remove(1);
+    scanners.remove(0);
     new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters);
   }
   
@@ -312,22 +301,24 @@ public class TestSaltScanner extends BaseTsdbTest {
   
   @Test
   public void scanHBaseScannerFromDeferredB() throws Exception {
-    setupMockScanners(false);
-    // we can't instantiate an HBaseException so just throw a RuntimeException
-    final RuntimeException e = new RuntimeException("From HBase");
-    when(scanner_b.nextRows())
-      .thenReturn(Deferred.fromResult(kvs_b.get(0)))
-      .thenReturn(Deferred.fromResult(kvs_b.get(1)))
-      .thenReturn(Deferred.
-          <ArrayList<ArrayList<KeyValue>>>fromError(e));
-  
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
-    try {
-      scanner.scan().joinUninterruptibly();
-      fail("Expected a runtime exception here");
-    } catch (RuntimeException re) {
-      assertEquals(e, re);
+    if (Const.SALT_WIDTH() > 0) {
+      setupMockScanners(false);
+      // we can't instantiate an HBaseException so just throw a RuntimeException
+      final RuntimeException e = new RuntimeException("From HBase");
+      when(scanner_b.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+        .thenReturn(Deferred.
+            <ArrayList<ArrayList<KeyValue>>>fromError(e));
+    
+      final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
+          spans, filters);
+      try {
+        scanner.scan().joinUninterruptibly();
+        fail("Expected a runtime exception here");
+      } catch (RuntimeException re) {
+        assertEquals(e, re);
+      }
     }
   }
   
@@ -352,21 +343,23 @@ public class TestSaltScanner extends BaseTsdbTest {
   
   @Test
   public void scanHBaseScannerThrownB() throws Exception {
-    setupMockScanners(false);
-    // we can't instantiate an HBaseException so just throw a RuntimeException
-    final RuntimeException e = new RuntimeException("From HBase");
-    when(scanner_b.nextRows())
-      .thenReturn(Deferred.fromResult(kvs_b.get(0)))
-      .thenReturn(Deferred.fromResult(kvs_b.get(1)))
-      .thenThrow(e);
-  
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
-    try {
-      scanner.scan().joinUninterruptibly();
-      fail("Expected a runtime exception here");
-    } catch (RuntimeException re) {
-      assertEquals(e, re);
+    if (Const.SALT_WIDTH() > 0) {
+      setupMockScanners(false);
+      // we can't instantiate an HBaseException so just throw a RuntimeException
+      final RuntimeException e = new RuntimeException("From HBase");
+      when(scanner_b.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+        .thenThrow(e);
+    
+      final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
+          spans, filters);
+      try {
+        scanner.scan().joinUninterruptibly();
+        fail("Expected a runtime exception here");
+      } catch (RuntimeException re) {
+        assertEquals(e, re);
+      }
     }
   }
   
@@ -400,7 +393,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     setupMockScanners(false);
     
     doThrow(new IllegalDataException("Boo!")).when(
-        tsdb).compact(any(ArrayList.class), any(List.class));
+        tsdb).compact(any(ArrayList.class), any(List.class), any(List.class));
     
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
@@ -413,31 +406,77 @@ public class TestSaltScanner extends BaseTsdbTest {
     setupMockScanners(false);
     
     doThrow(new RuntimeException("Boo!")).when(
-        tsdb).compact(any(ArrayList.class), any(List.class));
+        tsdb).compact(any(ArrayList.class), any(List.class), any(List.class));
     
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
     scanner.scan().joinUninterruptibly();
   }
   
+  @Test
+  public void scanTooManyDps() throws Exception {
+    setupMockScanners(false);
+    List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter(TAGK_STRING, "web*"));
+    
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
+        spans, null, false, null, null, 0, null, 0, 1);
+    try {
+      scanner.scan().joinUninterruptibly();
+      fail("Excpected a QueryException");
+    } catch (QueryException e) {
+      assertEquals(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, e.getStatus());
+    }
+  }
+  
+  @Test
+  public void scanTooManyBytes() throws Exception {
+    setupMockScanners(false);
+    List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter(TAGK_STRING, "web*"));
+    
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
+        spans, null, false, null, null, 0, null, 2, 0);
+    try {
+      scanner.scan().joinUninterruptibly();
+      fail("Excpected a QueryException");
+    } catch (QueryException e) {
+      assertEquals(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, e.getStatus());
+    }
+    config.overrideConfig("tsd.core.scanner.max_bytes", "0");
+  }
+  
+  
   /**
    * Sets up a pair of scanners with either a list of values or no data
    * @param no_data Whether or not to return 0 data.
    */
-  private void setupMockScanners(final boolean no_data) {
-    scanners = new ArrayList<Scanner>(NUM_BUCKETS);
-    scanner_a = mock(Scanner.class);
-    scanner_b = mock(Scanner.class);
-    if (no_data) {
-      when(scanner_a.nextRows()).thenReturn(
-          Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-      when(scanner_b.nextRows()).thenReturn(
-          Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+  protected void setupMockScanners(final boolean no_data) throws Exception {
+    if (Const.SALT_WIDTH() > 0) {
+      scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
+      scanner_a = mock(Scanner.class);
+      scanner_b = mock(Scanner.class);
+      if (no_data) {
+        when(scanner_a.nextRows()).thenReturn(
+            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+        when(scanner_b.nextRows()).thenReturn(
+            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+      } else {
+        setupValues();
+      }
+      scanners.add(scanner_a);
+      scanners.add(scanner_b);
     } else {
-      setupValues();
+      scanners = new ArrayList<Scanner>(1);
+      scanner_a = mock(Scanner.class);
+      if (no_data) {
+        when(scanner_a.nextRows()).thenReturn(
+            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+      } else {
+        setupValues();
+      }
+      scanners.add(scanner_a);
     }
-    scanners.add(scanner_a);
-    scanners.add(scanner_b);
   }
   
   /**
@@ -447,7 +486,8 @@ public class TestSaltScanner extends BaseTsdbTest {
    * only happen if you add the timestamp to the salt calculation, which we
    * may do in the future. We're testing now for future proofing.
    */
-  private void setupValues() {
+  protected void setupValues() throws Exception {
+    setDataPointStorage();
     kvs_a = new ArrayList<ArrayList<ArrayList<KeyValue>>>(3);
     kvs_b = new ArrayList<ArrayList<ArrayList<KeyValue>>>(2);
     
@@ -478,7 +518,6 @@ public class TestSaltScanner extends BaseTsdbTest {
         break;
       case 3:
         key = Arrays.copyOf(KEY_A, KEY_A.length);
-        key[0] = 1;
         row.add(new KeyValue(key, FAMILY, QUALIFIER_B, 0, VALUE));
         row.add(new KeyValue(key, FAMILY, new byte[] { 1, 0, 0 }, 0, 
             note.getBytes(Charset.forName("UTF8"))));
@@ -486,22 +525,31 @@ public class TestSaltScanner extends BaseTsdbTest {
         break;
       case 4:
         key = Arrays.copyOf(KEY_C, KEY_C.length);
-        key[0] = 1;
         row.add(new KeyValue(key, FAMILY, QUALIFIER_B, 0, VALUE));
         kvs_b.add(rows);
         break;
       }
     }
     
-    when(scanner_a.nextRows())
-      .thenReturn(Deferred.fromResult(kvs_a.get(0)))
-      .thenReturn(Deferred.fromResult(kvs_a.get(1)))
-      .thenReturn(Deferred.fromResult(kvs_a.get(2)))
-      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-    
-    when(scanner_b.nextRows())
-      .thenReturn(Deferred.fromResult(kvs_b.get(0)))
-      .thenReturn(Deferred.fromResult(kvs_b.get(1)))
-      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    if (Const.SALT_WIDTH() > 0) {
+      when(scanner_a.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_a.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(1)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(2)))
+        .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+      
+      when(scanner_b.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+        .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    } else {
+      when(scanner_a.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_a.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(1)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(2)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+        .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    }
   }
 }

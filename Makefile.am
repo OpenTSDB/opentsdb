@@ -29,7 +29,8 @@ nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
   src/mygnuplot.bat src/opentsdb.conf tools/opentsdb_restart.py src/logback.xml
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
-  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
+  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb \
+  build-aux/rpm/systemd/opentsdb@.service
 tsdb_SRC := \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
@@ -47,19 +48,42 @@ tsdb_SRC := \
 	src/core/DownsamplingSpecification.java \
 	src/core/FillingDownsampler.java \
 	src/core/FillPolicy.java \
+	src/core/Histogram.java	\
+	src/core/HistogramAggregation.java	\
+	src/core/HistogramAggregationIterator.java	\
+	src/core/HistogramAggregator.java	\
+	src/core/HistogramBucketDataPointsAdaptor.java	\
+	src/core/HistogramCodecManager.java	\
+	src/core/HistogramDataPoint.java	\
+	src/core/HistogramDataPointCodec.java	\
+	src/core/HistogramDataPoints.java	\
+	src/core/HistogramDataPointsToDataPointsAdaptor.java	\
+	src/core/HistogramDownsampler.java	\
+	src/core/HistogramPojo.java	\
+	src/core/HistogramRowSeq.java	\
+	src/core/HistogramSeekableView.java	\
+	src/core/HistogramSpan.java	\
+	src/core/HistogramSpanGroup.java	\
+	src/core/iHistogramRowSeq.java	\
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
+	src/core/MultiGetQuery.java	\
 	src/core/MutableDataPoint.java \
 	src/core/Query.java	\
 	src/core/QueryException.java	\
-	src/core/RateOptions.java  \
-	src/core/RateSpan.java  \
+	src/core/RateOptions.java	\
+	src/core/RateSpan.java	\
+	src/core/RequestBuilder.java	\
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
+	src/core/iRowSeq.java	\
 	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
+	src/core/SimpleHistogram.java	\
+	src/core/SimpleHistogramDataPointAdapter.java	\
+	src/core/SimpleHistogramDecoder.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
 	src/core/TSDB.java	\
@@ -70,12 +94,20 @@ tsdb_SRC := \
 	src/core/WritableDataPoints.java	\
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
+	src/auth/AllowAllAuthenticatingAuthorizer.java	\
+	src/auth/AuthenticationChannelHandler.java	\
+	src/auth/Authentication.java	\
+	src/auth/Authorization.java	\
+	src/auth/AuthState.java	\
+	src/auth/Permissions.java	\
+	src/auth/Roles.java	\
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
+	src/query/QueryLimitOverride.java	\
 	src/query/expression/Absolute.java	\
 	src/query/expression/Alias.java	\
 	src/query/expression/DiffSeries.java	\
@@ -117,6 +149,15 @@ tsdb_SRC := \
 	src/query/pojo/Query.java	\
 	src/query/pojo/Timespan.java	\
 	src/query/pojo/Validatable.java	\
+	src/rollup/NoSuchRollupForIntervalException.java	\
+	src/rollup/NoSuchRollupForTableException.java	\
+	src/rollup/RollupConfig.java	\
+	src/rollup/RollUpDataPoint.java	\
+	src/rollup/RollupInterval.java	\
+	src/rollup/RollupQuery.java	\
+	src/rollup/RollupSeq.java	\
+	src/rollup/RollupSpan.java	\
+	src/rollup/RollupUtils.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
 	src/search/TimeSeriesLookup.java	\
@@ -138,6 +179,11 @@ tsdb_SRC := \
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
 	src/tools/UidManager.java	\
+	src/tools/ArgValueValidator.java	\
+	src/tools/ConfigArgP.java	\
+	src/tools/ConfigMetaType.java	\
+	src/tools/GnuplotInstaller.java	\
+	src/tools/OpenTSDBMain.java	\
 	src/tree/Branch.java	\
 	src/tree/Leaf.java	\
 	src/tree/Tree.java	\
@@ -150,6 +196,7 @@ tsdb_SRC := \
 	src/tsd/DropCachesRpc.java \
 	src/tsd/GnuplotException.java	\
 	src/tsd/GraphHandler.java	\
+	src/tsd/HistogramDataPointRpc.java	\
 	src/tsd/HttpJsonSerializer.java	\
 	src/tsd/HttpSerializer.java	\
 	src/tsd/HttpQuery.java	\
@@ -162,6 +209,7 @@ tsdb_SRC := \
 	src/tsd/PutDataPointRpc.java	\
 	src/tsd/QueryExecutor.java	\
 	src/tsd/QueryRpc.java	\
+	src/tsd/RollupDataPointRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
 	src/tsd/RpcManager.java	\
@@ -193,9 +241,10 @@ tsdb_SRC := \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
 	src/utils/PluginLoader.java	\
-	src/utils/Threads.java
+	src/utils/Threads.java 
 
 tsdb_DEPS = \
+	$(ASM)	\
 	$(COMMONS_LOGGING)	\
 	$(GUAVA)	\
 	$(LOG4J_OVER_SLF4J)	\
@@ -207,7 +256,10 @@ tsdb_DEPS = \
 	$(JAVACC)	\
 	$(JEXL)	\
 	$(JGRAPHT)	\
+	$(KRYO)	\
+	$(MINLOG)	\
 	$(NETTY)	\
+	$(REFLECTASM)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(APACHE_MATH)
@@ -239,6 +291,9 @@ endif
 test_SRC := \
 	test/core/SeekableViewsForTest.java \
 	test/core/BaseTsdbTest.java \
+	test/core/HistogramSeekableViewForTest.java \
+	test/core/LongHistogramDataPointForTest.java \
+	test/core/LongHistogramDataPointForTestDecoder.java \
 	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestAppendDataPoints.java \
@@ -247,6 +302,14 @@ test_SRC := \
 	test/core/TestDownsampler.java \
 	test/core/TestDownsamplingSpecification.java \
 	test/core/TestFillingDownsampler.java \
+	test/core/TestHistogramAggregationIterator.java \
+	test/core/TestHistogramCodecManager.java \
+	test/core/TestHistogramDataPointsToDataPointsAdaptor.java \
+	test/core/TestHistogramDownsampler.java \
+	test/core/TestHistogramPojo.java \
+	test/core/TestHistogramRowSeq.java \
+	test/core/TestHistogramSpan.java \
+	test/core/TestHistogramSpanGroup.java \
 	test/core/TestIncomingDataPoints.java	\
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
@@ -270,6 +333,7 @@ test_SRC := \
 	test/core/TestTsdbQuerySaltedAppend.java	\
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
+	test/core/TestTsdbTSConfig.java \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
@@ -310,6 +374,10 @@ test_SRC := \
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
 	test/query/pojo/TestTimeSpan.java	\
+	test/rollup/TestRollupConfig.java	\
+	test/rollup/TestRollupInterval.java	\
+	test/rollup/TestRollupSeq.java	\
+	test/rollup/TestRollupUtils.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
@@ -328,6 +396,7 @@ test_SRC := \
 	test/tree/TestTree.java	\
 	test/tree/TestTreeBuilder.java	\
 	test/tree/TestTreeRule.java	\
+	test/tsd/BaseTestPutRpc.java	\
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
@@ -338,6 +407,7 @@ test_SRC := \
 	test/tsd/TestQueryExecutor.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestQueryRpcLastDataPoint.java	\
+	test/tsd/TestRollupRpc.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
 	test/tsd/TestRpcManager.java	\
@@ -640,17 +710,23 @@ install-data-etc:
 	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
 	destdataconfdir="$$destdataetcdir/opentsdb" ; \
 	destdatainitdir="$$destdataetcdir/init.d" ; \
+	destdatasystemddir="$$destdataetcdir/systemd/system" ; \
 	echo " $(mkdir_p) $$destdataconfdir"; \
 	$(mkdir_p) "$$destdataconfdir" || exit 1; \
 	echo " $(mkdir_p) $$destdatainitdir"; \
 	$(mkdir_p) "$$destdatainitdir" || exit 1; \
+	echo " $(mkdir_p) $$destdatasystemddir"; \
+	$(mkdir_p) "$$destdatasystemddir" || exit 1; \
 	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
 	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/logback.xml" ; \
 	echo " $(INSTALL_SCRIPT)" $$conf_files "$$destdataconfdir" ; \
 	$(INSTALL_DATA) $$conf_files "$$destdataconfdir" || exit 1; \
 	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
 	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
-	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1;
+	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1; \
+	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb@.service" ; \
+	echo " $(INSTALL_SCRIPT)" $$systemd_file "$$destdatasystemddir" ; \
+	$(INSTALL_SCRIPT) $$systemd_file "$$destdatasystemddir" || exit 1;
 
 uninstall-data-etc:
 	@$(NORMAL_UNINSTALL)
@@ -808,6 +884,44 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@maven_profile_hbase@/$(maven_profile_hbase)/' \
 	    -e 's/@maven_profile_bigtable@/$(maven_profile_bigtable)/' \
 	    -e 's/@maven_profile_cassandrae@/$(maven_profile_cassandra)/' \
+	    ; \
+	} >$@-t
+	mv $@-t ../$@
+
+# Generates a maven pom called fat-jar-pom.xml that builds a fat jar 
+# containing all the dependencies required to run opentsdb
+fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
+	(cd $(top_srcdir) ; ./fat-jar/create-src-dir-overlay.sh)
+	{ \
+	  echo '<!-- Generated by Makefile on '`date`' -->'; \
+	  sed <$< \
+	    -e 's/@ASYNCHBASE_VERSION@/$(ASYNCHBASE_VERSION)/' \
+	    -e 's/@ASYNCBIGTABLE_VERSION@/$(ASYNCBIGTABLE_VERSION)/' \
+	    -e 's/@ASYNCCASSANDRA_VERSION@/$(ASYNCCASSANDRA_VERSION)/' \
+	    -e 's/@GUAVA_VERSION@/$(GUAVA_VERSION)/' \
+	    -e 's/@GWT_VERSION@/$(GWT_VERSION)/' \
+	    -e 's/@GWT_THEME_VERSION@/$(GWT_THEME_VERSION)/' \
+	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \
+	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
+	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
+	    -e 's/@JUNIT_VERSION@/$(JUNIT_VERSION)/' \
+	    -e 's/@KRYO_VERSION@/$(KRYO_VERSION)/' \
+	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
+	    -e 's/@LOGBACK_CLASSIC_VERSION@/$(LOGBACK_CLASSIC_VERSION)/' \
+	    -e 's/@LOGBACK_CORE_VERSION@/$(LOGBACK_CORE_VERSION)/' \
+	    -e 's/@MOCKITO_VERSION@/$(MOCKITO_VERSION)/' \
+	    -e 's/@NETTY_VERSION@/$(NETTY_VERSION)/' \
+	    -e 's/@OBJENESIS_VERSION@/$(OBJENESIS_VERSION)/' \
+	    -e 's/@POWERMOCK_MOCKITO_VERSION@/$(POWERMOCK_MOCKITO_VERSION)/' \
+	    -e 's/@SLF4J_API_VERSION@/$(SLF4J_API_VERSION)/' \
+	    -e 's/@SUASYNC_VERSION@/$(SUASYNC_VERSION)/' \
+	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
+	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
+	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
+	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \	    
+	    -e 's/@spec_title@/$(spec_title)/' \
+	    -e 's/@spec_vendor@/$(spec_vendor)/' \
+	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \
 	    ; \
 	} >$@-t
 	mv $@-t ../$@

@@ -20,6 +20,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
@@ -34,6 +36,8 @@ import net.opentsdb.utils.PluginLoader;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.DefaultChannelFuture;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -787,9 +791,9 @@ public final class TestHttpQuery {
     assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
         query.response().getStatus());
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -841,9 +845,9 @@ public final class TestHttpQuery {
     }
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());    
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -922,9 +926,9 @@ public final class TestHttpQuery {
     query.badRequest("Bad user error");
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());    
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -963,9 +967,9 @@ public final class TestHttpQuery {
     query.notFound();
     assertEquals(HttpResponseStatus.NOT_FOUND, query.response().getStatus());    
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -1205,5 +1209,12 @@ public final class TestHttpQuery {
     HttpQuery.initializeSerializerMaps(tsdb);
     assertNotNull(HttpQuery.getSerializerStatus());
   }
-
+  
+  /** @param the query to mock a future callback for */
+  public static void mockChannelFuture(final HttpQuery query) {
+    final ChannelFuture future = new DefaultChannelFuture(query.channel(), false);
+    when(query.channel().write(any(ChannelBuffer.class))).thenReturn(future);
+    future.setSuccess();
+  }
+  
 }

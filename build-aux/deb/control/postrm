@@ -7,7 +7,7 @@ case "$1" in
         rm -rf /var/log/opentsdb
         
         # remove **only** empty data dir
-        rmdir -p --ignore-fail-on-non-empty /tmp/opentsdb
+        rmdir --ignore-fail-on-non-empty /tmp/opentsdb
     ;;
 
     purge)

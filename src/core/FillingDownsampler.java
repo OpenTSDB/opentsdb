@@ -12,9 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.Aggregator.Doubles;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -70,8 +75,28 @@ public class FillingDownsampler extends Downsampler {
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final DownsamplingSpecification specification, 
       final long query_start, final long end_start) {
+    this(source, start_time, end_time, specification, query_start, end_start,
+        null);
+  }
+  
+  /** 
+   * Create a new filling downsampler.
+   * @param source The iterator to access the underlying data.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param specification The downsampling spec to use
+   * @param query_start The start timestamp of the actual query for use with "all"
+   * @param query_end The end timestamp of the actual query for use with "all"
+   * @param rollup_query An optional rollup query.
+   * @throws IllegalArgumentException if fill_policy is interpolation.
+   * @since 2.4
+   */
+  FillingDownsampler(final SeekableView source, final long start_time,
+      final long end_time, final DownsamplingSpecification specification, 
+      final long query_start, final long end_start, 
+      final RollupQuery rollup_query) {
     // Lean on the superclass implementation.
-    super(source, specification, query_start, end_start);
+    super(source, specification, query_start, end_start, rollup_query);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == specification.getFillPolicy()) {
@@ -145,7 +170,7 @@ public class FillingDownsampler extends Downsampler {
    */
   @Override
   public DataPoint next() {
-    // Don't proceed if we've already completed iteration.
+ // Don't proceed if we've already completed iteration.
     if (hasNext()) {
       // Ensure that the timestamp we request is valid.
       values_in_interval.initializeIfNotDone();
@@ -162,13 +187,72 @@ public class FillingDownsampler extends Downsampler {
         values_in_interval.moveToNextInterval();
         actual = values_in_interval.getIntervalTimestamp();
       }
-
+      
       // Check whether the timestamp of the calculation interval matches what
       // we expect.
       if (run_all || actual == timestamp) {
         // The calculated interval timestamp matches what we expect, so we can
         // do normal processing.
-        value = specification.getFunction().runDouble(values_in_interval);
+        if (rollup_query != null && 
+            (rollup_query.getRollupAgg() == Aggregators.AVG || 
+            rollup_query.getRollupAgg() == Aggregators.DEV)) {
+          if (rollup_query.getRollupAgg() == Aggregators.AVG) {
+            if (specification.getFunction() == Aggregators.AVG) {
+              double sum = 0;
+              long count = 0;
+              while (values_in_interval.hasNextValue()) {
+                count += values_in_interval.nextValueCount();
+                sum += values_in_interval.nextDoubleValue();
+              }
+              if (count == 0) { // avoid # / 0
+                value = 0;
+              } else {
+                value = sum / (double)count;
+              }
+            } else {
+              class Accumulator implements Doubles {
+                List<Double> values = new ArrayList<Double>();
+                Iterator<Double> iterator;
+                @Override
+                public boolean hasNextValue() {
+                  return iterator.hasNext();
+                }
+                @Override
+                public double nextDoubleValue() {
+                  return iterator.next();
+                }
+              }
+              
+              final Accumulator accumulator = new Accumulator();
+              while (values_in_interval.hasNextValue()) {
+                long count = values_in_interval.nextValueCount();
+                double sum = values_in_interval.nextDoubleValue();
+                if (count == 0) {
+                  accumulator.values.add(0D);
+                } else {
+                  accumulator.values.add(sum / (double) count);
+                }
+              }
+              accumulator.iterator = accumulator.values.iterator();
+              value = specification.getFunction().runDouble(accumulator);
+            }
+          } else if (specification.getFunction() == Aggregators.DEV) {
+            throw new UnsupportedOperationException("Standard deviation over "
+                + "rolled up data is not supported at this time");
+          }
+        } else if (rollup_query != null && 
+            specification.getFunction() == Aggregators.COUNT) {
+          double count = 0;
+          while (values_in_interval.hasNextValue()) {
+            count += values_in_interval.nextValueCount();
+            // WARNING: consume and move next or we'll be stuck in an infinite
+            // loop here.
+            values_in_interval.nextDoubleValue(); 
+          }
+          value = count;
+        } else {
+          value = specification.getFunction().runDouble(values_in_interval);
+        }
         values_in_interval.moveToNextInterval();
       } else {
         // Our expected timestamp precedes the actual, so the interval is
@@ -183,6 +267,8 @@ public class FillingDownsampler extends Downsampler {
         case ZERO:
           value = 0.0;
           break;
+          
+          // TODO - scalar
 
         default:
           throw new RuntimeException("unhandled fill policy");

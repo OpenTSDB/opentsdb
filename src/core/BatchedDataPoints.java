@@ -137,8 +137,10 @@ final class BatchedDataPoints implements WritableDataPoints {
     final byte[] q = Arrays.copyOfRange(batched_qualifier, 0, qualifier_index);
     final byte[] v = Arrays.copyOfRange(batched_value, 0, value_index);
     final byte[] r = Arrays.copyOfRange(row_key, 0, row_key.length);
+    final long base_time = this.base_time; // shadow fixes issue #1436
+    System.out.println(Arrays.toString(q) + "  " + Arrays.toString(v) + "  " + Arrays.toString(r));
     reset();
-    return tsdb.put(r, q, v);
+    return tsdb.put(r, q, v, base_time);
   }
 
   @Override
@@ -510,5 +512,14 @@ final class BatchedDataPoints implements WritableDataPoints {
 
   public int getQueryIndex() {
     throw new UnsupportedOperationException("Not mapped to a query");
+  }
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
   }
 }

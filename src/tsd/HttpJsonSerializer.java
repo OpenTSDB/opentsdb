@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.TreeMap;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -44,6 +45,7 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.rollup.RollUpDataPoint;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
@@ -67,8 +69,12 @@ import net.opentsdb.utils.JSON;
 class HttpJsonSerializer extends HttpSerializer {
 
   /** Type reference for incoming data points */
-  private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
+  static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
     new TypeReference<ArrayList<IncomingDataPoint>>() {};
+  
+  /** Type reference for rollup data points */
+  public static TypeReference<ArrayList<RollUpDataPoint>> TR_ROLLUP =
+          new TypeReference<ArrayList<RollUpDataPoint>>() {};
   
   /** Type reference for uid assignments */
   private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
@@ -153,6 +159,41 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Parses one or more data points for storage
+   * @return an array of data points to process for storage
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   * @since 2.4
+   */
+  @Override
+  public <T extends IncomingDataPoint> List<T> parsePutV1(
+      final Class<T> type, final TypeReference<ArrayList<T>> typeReference) {
+    if (!query.hasContent()) {
+      throw new BadRequestException("Missing request content");
+    }
+
+    // convert to a string so we can handle character encoding properly
+    final String content = query.getContent().trim();
+    final int firstbyte = content.charAt(0);
+    try {
+      if (firstbyte == '{') {
+        final T dp =
+          JSON.parseToObject(content, type);
+        final ArrayList<T> dps =
+          new ArrayList<T>(1);
+        dps.add(dp);
+        return dps;
+      } else if (firstbyte == '[') {
+        return JSON.parseToObject(content, typeReference);
+      } else {
+        throw new BadRequestException("The JSON must start as an object or an array");
+      }
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
    * Parses a suggestion query
    * @return a hash map of key/value pairs
    * @throws JSONException if parsing failed
@@ -228,7 +269,12 @@ class HttpJsonSerializer extends HttpSerializer {
           "Supply valid JSON formatted data in the body of your request");
     }
     try {
-      return JSON.parseToObject(json, TSQuery.class);
+      TSQuery data_query =  JSON.parseToObject(json, TSQuery.class);
+      // Filter out duplicate queries
+      Set<TSSubQuery> query_set = new LinkedHashSet<TSSubQuery>(data_query.getQueries());
+      data_query.getQueries().clear();
+      data_query.getQueries().addAll(query_set);
+      return data_query;
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }

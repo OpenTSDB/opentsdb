@@ -50,9 +50,9 @@ import com.stumbleupon.async.DeferredGroupException;
  * This class doesn't handle wild-card searching yet.
  * 
  * When dealing with tags, we can lookup on tagks, tagvs or pairs. Thus:
- * tagk, null  <- lookup all series with a tagk
- * tagk, tagv  <- lookup all series with a tag pair
- * null, tagv  <- lookup all series with a tag value somewhere
+ * tagk, null  &lt;- lookup all series with a tagk
+ * tagk, tagv  &lt;- lookup all series with a tag pair
+ * null, tagv  &lt;- lookup all series with a tag value somewhere
  * 
  * The user can supply multiple tags in a query so the logic is a little goofy
  * but here it is:
@@ -114,8 +114,7 @@ public class TimeSeriesLookup {
   /**
    * Default ctor
    * @param tsdb The TSD to which we belong
-   * @param metric A metric to match on, may be null
-   * @param tags One or more tags to match on, may be null
+   * @param query The search query to execute.
    */
   public TimeSeriesLookup(final TSDB tsdb, final SearchQuery query) {
     this.tsdb = tsdb;

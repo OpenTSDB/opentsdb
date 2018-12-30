@@ -70,7 +70,7 @@ public class Expressions {
 
   /**
    * Parses a list of string expressions into the proper trees, adding the
-   * metrics to the {@link metric_queries} list.
+   * metrics to the {@code metric_queries} list.
    * @param expressions A list of zero or more expressions (if empty, you get an
    * empty tree list back)
    * @param ts_query The original query with timestamps

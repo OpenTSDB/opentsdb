@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2017 The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -19,12 +19,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.hbase.async.HBaseException;
 import org.hbase.async.RpcTimedOutException;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -34,6 +37,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.Query;
@@ -70,6 +74,8 @@ final class QueryRpc implements HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
   
   /** Various counters and metrics for reporting query stats */
+  static final AtomicLong query_forbidden = new AtomicLong();
+  static final AtomicLong query_unauthorized = new AtomicLong();
   static final AtomicLong query_invalid = new AtomicLong();
   static final AtomicLong query_exceptions = new AtomicLong();
   static final AtomicLong query_success = new AtomicLong();
@@ -155,7 +161,9 @@ final class QueryRpc implements HttpRpc {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
     }
-    
+
+    checkAuthorization(tsdb, query.channel(), data_query);
+
     // if the user tried this query multiple times from the same IP and src port
     // they'll be rejected on subsequent calls
     final QueryStats query_stats = 
@@ -281,7 +289,12 @@ final class QueryRpc implements HttpRpc {
         final ArrayList<Deferred<DataPoints[]>> deferreds = 
             new ArrayList<Deferred<DataPoints[]>>(queries.length);
         for (final Query query : queries) {
-          deferreds.add(query.runAsync());
+          // call different interfaces basing on whether it is a percentile query
+          if (!query.isHistogramQuery()) {
+            deferreds.add(query.runAsync());
+          } else {
+            deferreds.add(query.runHistogramAsync());
+          }
         }
         return Deferred.groupInOrder(deferreds).addCallback(new QueriesCB());
       }
@@ -318,6 +331,9 @@ final class QueryRpc implements HttpRpc {
     final net.opentsdb.query.pojo.Query v2_query = 
         JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
     v2_query.validate();
+
+    checkAuthorization(tsdb, query.channel(), v2_query);
+
     final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
     executor.execute(query);
   }
@@ -597,6 +613,12 @@ final class QueryRpc implements HttpRpc {
     if (data_query.getQueries() == null || data_query.getQueries().size() < 1) {
       throw new BadRequestException("Missing sub queries");
     }
+
+    // Filter out duplicate queries
+    Set<TSSubQuery> query_set = new LinkedHashSet<TSSubQuery>(data_query.getQueries());
+    data_query.getQueries().clear();
+    data_query.getQueries().addAll(query_set);
+
     return data_query;
   }
   
@@ -643,6 +665,14 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].equalsIgnoreCase("pre-agg")) {
+        sub_query.setPreAggregate(true);
+      } else if (parts[x].toLowerCase().startsWith("rollup_")) {
+        sub_query.setRollupUsage(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("percentiles")) {
+        sub_query.setPercentiles(QueryRpc.parsePercentiles(parts[x]));
+      } else if (parts[x].toLowerCase().startsWith("show-histogram-buckets")) {
+        sub_query.setShowHistogramBuckets(true);
       } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
         sub_query.setExplicitTags(true);
       }
@@ -698,6 +728,10 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("percentiles")) {
+        sub_query.setPercentiles(QueryRpc.parsePercentiles(parts[x]));
+      } else if (parts[x].toLowerCase().startsWith("show-histogram-buckets")) {
+        sub_query.setShowHistogramBuckets(true);
       }
     }
     
@@ -808,9 +842,79 @@ final class QueryRpc implements HttpRpc {
     query.setQueries(sub_queries);
     return query;
   }
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, final net.opentsdb.query.pojo.Query data_query) {
+    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+      if (tsdb.getAuth().isReady(tsdb, chan)) {
+        final AuthState state = tsdb.getAuth().authorization().allowQuery(
+            (AuthState) chan.getAttachment(), data_query);
+        handleAuthorization(state);
+      }
+    }
+  }
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, final TSQuery data_query) {
+    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+      if (tsdb.getAuth().isReady(tsdb, chan)) {
+        final AuthState state = tsdb.getAuth().authorization().allowQuery(
+            (AuthState) chan.getAttachment(), data_query);
+        handleAuthorization(state);
+      }
+    }
+  }
+
+  private void handleAuthorization(AuthState state) {
+    switch (state.getStatus()) {
+      case SUCCESS:
+        // cary on :)
+        break;
+      case UNAUTHORIZED:
+        query_unauthorized.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED,
+                state.getMessage());
+      case FORBIDDEN:
+        query_forbidden.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.FORBIDDEN,
+                state.getMessage());
+      default:
+        query_exceptions.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                state.getMessage());
+    }
+  }
+
+  /**
+   * Parse the "percentile" section of the query string and returns an list of
+   * float that contains the percentile calculation paramters
+   * <p>
+   * the format of the section: percentile[xx,yy,zz]
+   * </p>
+   * <p>
+   * xx, yy, zz are the floats
+   * </p>
+   * @param spec
+   * @return
+   */
+  public static final List<Float> parsePercentiles(final String spec) {
+    List<Float> rs = new ArrayList<Float>();
+    int start_pos = spec.indexOf('[');
+    int end_pos = spec.indexOf(']');
+    if (start_pos == -1 || end_pos == -1) {
+      throw new BadRequestException("Malformated percentile query paramater: " + spec);
+    }
+    
+    String [] floats = Tags.splitString(spec.substring(start_pos + 1, end_pos), ',');
+    for (String s : floats) {
+      String trimed = s.trim();
+      rs.add(Float.valueOf(trimed));
+    }
+    return rs;
+  }
   
   /** @param collector Populates the collector with statistics */
   public static void collectStats(final StatsCollector collector) {
+    collector.record("http.query.unauthorized", query_unauthorized);
+    collector.record("http.query.forbidden", query_forbidden);
     collector.record("http.query.invalid_requests", query_invalid);
     collector.record("http.query.exceptions", query_exceptions);
     collector.record("http.query.success", query_success);
@@ -921,3 +1025,4 @@ final class QueryRpc implements HttpRpc {
     }
   }
 }
+

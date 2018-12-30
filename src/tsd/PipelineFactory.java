@@ -14,6 +14,8 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 
+import java.util.concurrent.ThreadFactory;
+import net.opentsdb.auth.AuthenticationChannelHandler;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
@@ -66,7 +68,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * plugins. This constructor creates its own {@link RpcManager}.
    * @param tsdb The TSDB to use.
    * @throws RuntimeException if there is an issue loading plugins
-   * @throws Exception if the HttpQuery handler is unable to load 
+   * @throws RuntimeException if the HttpQuery handler is unable to load 
    * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
@@ -80,7 +82,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * @param tsdb The TSDB to use.
    * @param manager instance of a ready-to-use {@link RpcManager}.
    * @throws RuntimeException if there is an issue loading plugins
-   * @throws Exception if the HttpQuery handler is unable to load serializers
+   * throws Exception if the HttpQuery handler is unable to load serializers
    */
   public PipelineFactory(final TSDB tsdb, final RpcManager manager) {
     this(tsdb, RpcManager.instance(tsdb), 
@@ -95,7 +97,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * @param connections_limit The maximum number of concurrent connections 
    * supported by the TSD.
    * @throws RuntimeException if there is an issue loading plugins
-   * @throws Exception if the HttpQuery handler is unable to load serializers
+   * throws Exception if the HttpQuery handler is unable to load serializers
    * @since 2.3
    */
   public PipelineFactory(final TSDB tsdb, final RpcManager manager, 
@@ -158,6 +160,10 @@ public final class PipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("framer", new LineBasedFrameDecoder(1024));
         pipeline.addLast("encoder", ENCODER);
         pipeline.addLast("decoder", DECODER);
+      }
+
+      if (tsdb.getAuth() != null) {
+        pipeline.addLast("authentication", new AuthenticationChannelHandler(tsdb));
       }
 
       pipeline.addLast("timeout", timeoutHandler);

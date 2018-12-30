@@ -82,7 +82,7 @@ public interface VariableIterator {
   public void next();
 
   /** 
-   * Determines whether the individual series in the {@link values} array has 
+   * Determines whether the individual series in the {@code values} array has 
    * another value. This may be used for non-synchronous iteration.
    * @param index The index of the series in the values array to check for
    * @return True if the series has another value, false if not
@@ -90,7 +90,7 @@ public interface VariableIterator {
   public boolean hasNext(final int index);
   
   /**
-   * Fetches the next value for an individual series in the {@link values} array.
+   * Fetches the next value for an individual series in the {@code values} array.
    * @param index The index of the series in the values array to advance
    */
   public void next(final int index);  

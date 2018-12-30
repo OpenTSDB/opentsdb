@@ -52,13 +52,13 @@ public final class TestRowSeq {
   private TSDB tsdb = mock(TSDB.class);
   private Config config = mock(Config.class);
   private UniqueId metrics = mock(UniqueId.class);
-  private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
-  private static final byte[] KEY = 
+  public static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
+  public static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] SALTED_KEY = 
+  public static final byte[] SALTED_KEY = 
     { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] FAMILY = { 't' };
-  private static final byte[] ZERO = { 0 };
+  public static final byte[] FAMILY = { 't' };
+  public static final byte[] ZERO = { 0 };
   
   @Before
   public void before() throws Exception {

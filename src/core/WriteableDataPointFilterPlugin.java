@@ -42,7 +42,7 @@ public abstract class WriteableDataPointFilterPlugin {
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are 
    * missing
-   * @throws Exception if something else goes wrong
+   * @throws RuntimeException if something else goes wrong
    */
   public abstract void initialize(final TSDB tsdb);
 
@@ -89,6 +89,25 @@ public abstract class WriteableDataPointFilterPlugin {
       final byte[] value,
       final Map<String, String> tags,
       final short flags);
+  
+  /**
+   * Determine whether or not the data point should be stored.
+   * If the data should not be stored, the implementation can return false or an
+   * exception in the deferred object. Otherwise it should return true and the
+   * data point will be written to storage.
+   * @param metric The metric name for the data point
+   * @param timestamp The timestamp of the data
+   * @param value The value encoded as either an integer or floating point value
+   * @param tags The tags associated with the data point
+   * @return True if the data should be written, false if it should be rejected.
+   */
+  public Deferred<Boolean> allowHistogramPoint(
+          final String metric,
+          final long timestamp,
+          final byte[] value,
+          final Map<String, String> tags) {
+    throw new UnsupportedOperationException("Not yet implemented.");
+  }
   
   /**
    * Whether or not the filter should process data points.

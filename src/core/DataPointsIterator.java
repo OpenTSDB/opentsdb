@@ -129,4 +129,10 @@ final class DataPointsIterator implements SeekableView, DataPoint {
       + ", dp=" + dp + ')';
   }
 
+  
+  @Override
+  public long valueCount() {
+    return 1;
+  }
+
 }

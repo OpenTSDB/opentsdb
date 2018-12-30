@@ -19,6 +19,8 @@ import java.util.NoSuchElementException;
 import com.google.common.annotations.VisibleForTesting;
 
 import net.opentsdb.core.Aggregators.Interpolation;
+import net.opentsdb.rollup.RollupQuery;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,7 +166,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
    * <li>No: for {@code iterators[i]} the timestamp of the current data
    *     point is {@code timestamps[i]} and the timestamp of the next data
    *     point is {@code timestamps[iterators.length + i]}.</li>
-   * </li></ul>
+   * </ul>
    * <p>
    * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important
    * to use the {@code TIME_MASK} when getting the actual timestamp value
@@ -324,6 +326,57 @@ public class AggregationIterator implements SeekableView, DataPoint,
     }
     return new AggregationIterator(iterators, start_time, end_time, aggregator,
     method, rate);  
+  }
+  
+  /**
+   * Creates a new iterator for a {@link SpanGroup}.
+   * @param spans Spans in a group.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param aggregator The aggregation function to use.
+   * @param method Interpolation method to use when aggregating time series
+   * @param downsampler The downsampling specifier to use (cannot be null)
+   * @param query_start Start of the actual query
+   * @param query_end End of the actual query
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation
+   * options.
+   * @param rollup_query An optional rollup query.
+   * @return an AggregationIterator
+   * @since 2.4
+   */
+  public static AggregationIterator create(final List<Span> spans,
+      final long start_time,
+      final long end_time,
+      final Aggregator aggregator,
+      final Interpolation method,
+      final DownsamplingSpecification downsampler,
+      final long query_start,
+      final long query_end,
+      final boolean rate,
+      final RateOptions rate_options,
+      final RollupQuery rollup_query) {
+    final int size = spans.size();
+    final SeekableView[] iterators = new SeekableView[size];
+    for (int i = 0; i < size; i++) {
+      SeekableView it;
+      if (downsampler == null || 
+          downsampler == DownsamplingSpecification.NO_DOWNSAMPLER) {
+        it = spans.get(i).spanIterator();
+      } else {
+        it = spans.get(i).downsampler(start_time, end_time, downsampler, 
+            query_start, query_end, rollup_query);
+      }
+      if (rate) {
+        it = new RateSpan(it, rate_options);
+      }
+      iterators[i] = it;
+    }
+    return new AggregationIterator(iterators, start_time, end_time, aggregator,
+        method, rate);  
   }
   
   /**
@@ -664,6 +717,9 @@ public class AggregationIterator implements SeekableView, DataPoint,
         case MIN:
           r = Long.MIN_VALUE;
           break;
+        case PREV:
+          r = y0;
+          break;
         default:
           throw new IllegalDataException("Invalid interpolation somehow??");
       }
@@ -729,6 +785,9 @@ public class AggregationIterator implements SeekableView, DataPoint,
       case MIN:
         r = Double.MIN_VALUE;
         break;
+      case PREV:
+        r = y0;
+        break;
       default:
         throw new IllegalDataException("Invalid interploation somehow??");
     }
@@ -777,5 +836,11 @@ public class AggregationIterator implements SeekableView, DataPoint,
                                               final boolean rate) {
     return new AggregationIterator(iterators, start_time, end_time,
                                    aggregator, method, rate);
+  }
+
+  @Override
+  public long valueCount() {
+    // TODO don't know if this is right
+    return values.length;
   }
 }

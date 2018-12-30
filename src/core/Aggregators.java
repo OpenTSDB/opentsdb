@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,17 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.apache.commons.math3.util.ResizableDoubleArray;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 /**
  * Utility class that provides common, generally useful aggregators.
@@ -36,13 +39,21 @@ public final class Aggregators {
     LERP,   /* Regular linear interpolation */
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
-    MIN     /* Returns the <type>.MinValue when a data point is missing */
+    MIN,     /* Returns the <type>.MinValue when a data point is missing */
+    PREV    /* Returns the previous value stored, when a data point is missing */
   }
   
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
       Interpolation.LERP, "sum");
 
+  /**
+   * Aggregator that sums up all the data points,and uses interpolation where
+   * previous value is used for data point missing.
+   */
+  public static final Aggregator PFSUM= new Sum(
+      Interpolation.PREV, "pfsum");
+  
   /** Aggregator that returns the minimum data point. */
   public static final Aggregator MIN = new Min(
       Interpolation.LERP, "min");
@@ -55,6 +66,10 @@ public final class Aggregators {
   public static final Aggregator AVG = new Avg(
       Interpolation.LERP, "avg");
 
+  /** Aggregator that returns the emedian of the data points. */
+  public static final Aggregator MEDIAN = new Median(Interpolation.LERP, 
+      "median");
+  
   /** Aggregator that skips aggregation/interpolation and/or downsampling. */
   public static final Aggregator NONE = new None(Interpolation.ZIM, "raw");
   
@@ -67,20 +82,28 @@ public final class Aggregators {
   public static final Aggregator DEV = new StdDev(
       Interpolation.LERP, "dev");
   
-  /** Sums data points but will cause the SpanGroup to return a 0 if timesamps
+  /** Aggregator that returns the difference of the first value and the 
+   * last value in the data points */
+  public static final Aggregator DIFF = new Diff(
+      Interpolation.LERP, "diff");
+  
+  /** Sums data points but will cause the SpanGroup to return a 0 if timestamps
    * don't line up instead of interpolating. */
   public static final Aggregator ZIMSUM = new Sum(
       Interpolation.ZIM, "zimsum");
 
-  /** Returns the minimum data point, causing SpanGroup to set <type>.MaxValue
+  /** Returns the minimum data point, causing SpanGroup to set &lt;type&gt;.MaxValue
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMIN = new Min(
       Interpolation.MAX, "mimmin");
   
-  /** Returns the maximum data point, causing SpanGroup to set <type>.MinValue
+  /** Returns the maximum data point, causing SpanGroup to set &lt;type&gt;.MinValue
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
+
+  /** Aggregator that returns the square sum of the data point. */
+  public static final Aggregator SQUARESUM = new SquareSum(Interpolation.ZIM, "squareSum");
 
   /** Aggregator that returns the number of data points.
    * WARNING: This currently interpolates with zero-if-missing. In this case 
@@ -92,7 +115,7 @@ public final class Aggregators {
   /** Aggregator that returns the first data point. */
   public static final Aggregator FIRST = new First(Interpolation.ZIM, "first");
 
-  /** Aggregator that returns the first data point. */
+  /** Aggregator that returns the last data point. */
   public static final Aggregator LAST = new Last(Interpolation.ZIM, "last");
   
   /** Maps an aggregator name to its instance. */
@@ -104,7 +127,7 @@ public final class Aggregators {
   public static final PercentileAgg p99 = new PercentileAgg(99d, "p99");
   /** Aggregator that returns 95th percentile. */
   public static final PercentileAgg p95 = new PercentileAgg(95d, "p95");
-  /** Aggregator that returns 99th percentile. */
+  /** Aggregator that returns 90th percentile. */
   public static final PercentileAgg p90 = new PercentileAgg(90d, "p90");
   /** Aggregator that returns 75th percentile. */
   public static final PercentileAgg p75 = new PercentileAgg(75d, "p75");
@@ -120,10 +143,10 @@ public final class Aggregators {
   /** Aggregator that returns estimated 95th percentile. */
   public static final PercentileAgg ep95r3 = 
       new PercentileAgg(95d, "ep95r3", EstimationType.R_3);
-  /** Aggregator that returns estimated 75th percentile. */
+  /** Aggregator that returns estimated 90th percentile. */
   public static final PercentileAgg ep90r3 = 
       new PercentileAgg(90d, "ep90r3", EstimationType.R_3);
-  /** Aggregator that returns estimated 50th percentile. */
+  /** Aggregator that returns estimated 75th percentile. */
   public static final PercentileAgg ep75r3 = 
       new PercentileAgg(75d, "ep75r3", EstimationType.R_3);
   /** Aggregator that returns estimated 50th percentile. */
@@ -139,10 +162,10 @@ public final class Aggregators {
   /** Aggregator that returns estimated 95th percentile. */
   public static final PercentileAgg ep95r7 = 
       new PercentileAgg(95d, "ep95r7", EstimationType.R_7);
-  /** Aggregator that returns estimated 75th percentile. */
+  /** Aggregator that returns estimated 90th percentile. */
   public static final PercentileAgg ep90r7 = 
       new PercentileAgg(90d, "ep90r7", EstimationType.R_7);
-  /** Aggregator that returns estimated 50th percentile. */
+  /** Aggregator that returns estimated 75th percentile. */
   public static final PercentileAgg ep75r7 = 
       new PercentileAgg(75d, "ep75r7", EstimationType.R_7);
   /** Aggregator that returns estimated 50th percentile. */
@@ -156,14 +179,18 @@ public final class Aggregators {
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
     aggregators.put("none", NONE);
+    aggregators.put("median", MEDIAN);
     aggregators.put("mult", MULTIPLY);
     aggregators.put("dev", DEV);
+    aggregators.put("diff", DIFF);
     aggregators.put("count", COUNT);
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
     aggregators.put("first", FIRST);
     aggregators.put("last", LAST);
+    aggregators.put("pfsum", PFSUM);
+    aggregators.put("squareSum", SQUARESUM);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
@@ -231,6 +258,40 @@ public final class Aggregators {
       return (0L == n) ? Double.NaN : result;
     }
     
+  }
+
+  private static final class SquareSum extends Aggregator {
+    public SquareSum(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      long a = values.nextLongValue();
+      long result = a * a;
+      while (values.hasNextValue()) {
+        a = values.nextLongValue();
+        result += a * a;
+      }
+      return result;
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      double result = 0.;
+      long n = 0L;
+
+      while (values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result += val * val;
+          ++n;
+        }
+      }
+
+      return (0L == n) ? Double.NaN : result;
+    }
+
   }
 
   private static final class Min extends Aggregator {
@@ -333,6 +394,42 @@ public final class Aggregators {
    
   }
 
+  private static final class Median extends Aggregator {
+    public Median(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      final List<Long> collection = Lists.newArrayList();
+      while (values.hasNextValue()) {
+        collection.add(values.nextLongValue());
+      }
+      if (collection.isEmpty()) {
+        throw new IllegalStateException("Shouldn't be here without any data");
+      }
+      Collections.sort(collection);
+      return collection.get(collection.size() / 2);
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      final List<Double> collection = Lists.newArrayList();
+      while (values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          collection.add(val);
+        }
+      }
+      if (collection.isEmpty()) {
+        // in this case we may have had lots of NaNs so just drop em.
+        return Double.NaN;
+      }
+      Collections.sort(collection);
+      return collection.get(collection.size() / 2);
+    }
+  }
+  
   /**
    * An aggregator that isn't meant for aggregation. Paradoxical!!
    * Really it's used as a flag to indicate that, during sorting and iteration,
@@ -473,6 +570,53 @@ public final class Aggregators {
 
   }
 
+  /**
+   * Difference of the first value and the last value in multi values aggregator.
+   */
+  private static final class Diff extends net.opentsdb.core.Aggregator {
+    public Diff(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      long first_mean = values.nextLongValue();
+
+      if (!values.hasNextValue()) {
+        return 0;
+      }
+
+      long last_mean = 0;
+      do {
+        last_mean = values.nextLongValue();
+      } while (values.hasNextValue());
+
+      return last_mean - first_mean;
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      double first_mean = values.nextDoubleValue();
+      while (Double.isNaN(first_mean) && values.hasNextValue()) {
+        first_mean = values.nextDoubleValue();
+      }
+
+      if (Double.isNaN(first_mean)) {
+        return Double.NaN;
+      }
+      if (!values.hasNextValue()) {
+        return 0.;
+      }
+
+      double last_mean = 0.;
+      do {
+        last_mean = values.nextDoubleValue();
+      } while (values.hasNextValue());
+
+      return last_mean - first_mean;
+    }
+  }
+  
   private static final class Count extends Aggregator {
     public Count(final Interpolation method, final String name) {
       super(method, name);

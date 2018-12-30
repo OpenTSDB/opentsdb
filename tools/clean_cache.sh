@@ -8,5 +8,5 @@ diskSpaceIsShort() {
 }
 
 if diskSpaceIsShort; then
-  ( cd ${CACHE_DIR} && find . -x -exec rm {} \; )
+  ( cd ${CACHE_DIR} && find . -type f -exec rm {} \; )
 fi
