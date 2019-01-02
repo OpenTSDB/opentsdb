@@ -446,13 +446,23 @@ public class HttpQueryV3Result implements QueryResult {
           }
           double_data[idx++] = node.asDouble();
         } else {
-          if (idx >= long_data.length) {
-            long[] temp = new long[idx < 1024 ? idx * 2 : idx + 8];
-            for (int i = 0; i < idx; i++) {
-              temp[i] = long_data[i];
+          if (long_data == null) {
+            if (idx >= double_data.length) {
+              double[] temp = new double[idx < 1024 ? idx * 2 : idx + 8];
+              for (int i = 0; i < idx; i++) {
+                temp[i] = double_data[i];
+              }
             }
+            double_data[idx++] = node.asDouble();
+          } else {
+            if (idx >= long_data.length) {
+              long[] temp = new long[idx < 1024 ? idx * 2 : idx + 8];
+              for (int i = 0; i < idx; i++) {
+                temp[i] = long_data[i];
+              }
+            }
+            long_data[idx++] = node.asLong();
           }
-          long_data[idx++] = node.asLong();
         }
       }
     }
