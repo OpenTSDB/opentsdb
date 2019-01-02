@@ -14,16 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
-import org.apache.http.ParseException;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
@@ -124,9 +121,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setStart(context.query().getStart())
         .setEnd(context.query().getEnd())
         .setMode(context.query().getMode())
-        .setTimeZone(context.query().getTimezone());
-    
-    LOG.info("***********: " + JSON.serializeToString(config));
+        .setTimeZone(context.query().getTimezone())
+        .setLogLevel(context.query().getLogLevel());
     
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
@@ -134,11 +130,11 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
           .setPushDownNodes(null)
           .setSourceId(null) // TODO - we may want to make this configurable
+          .setType("TimeSeriesDataSource")
           .build());
     for (final QueryNodeConfig pushdown : config.getPushDownNodes()) {
       pushdowns.put(pushdown.getId(), pushdown);
     }
-    LOG.info("SIZE: " + pushdowns.size());
     
     for (final QueryNodeConfig pushdown : pushdowns.values()) {
       if (pushdown.getSources().isEmpty()) {
@@ -262,6 +258,26 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   "Successful reseponse from [" + host + endpoint + "] after " 
                   + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
             }
+            
+            JsonNode n = root.get("log");
+            if (n != null && !n.isNull()) {
+              for (final JsonNode node : n) {
+                final String line = node.asText();
+                // TODO may be a better way
+                if (line.contains(" ERROR ")) {
+                  context.queryContext().logError(HttpQueryV3Source.this, line);
+                } else if (line.contains(" WARN ")) {
+                  context.queryContext().logWarn(HttpQueryV3Source.this, line);
+                } else if (line.contains(" INFO ")) {
+                  context.queryContext().logInfo(HttpQueryV3Source.this, line);
+                } else if (line.contains(" DEBUG ")) {
+                  context.queryContext().logDebug(HttpQueryV3Source.this, line);
+                } else if (line.contains(" TRACE ")) {
+                  context.queryContext().logTrace(HttpQueryV3Source.this, line);
+                }
+              }
+            }
+            
             for (final JsonNode result : results) {
               sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result));
             }
