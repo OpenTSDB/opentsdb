@@ -316,10 +316,9 @@ public class TSDMain {
       if (port > 0) {
         builder.addHttpListener(port, bind);
       }
-      
       // SSL/TLS setup
       if (ssl_port > 0) {
-        builder.addHttpsListener(4443, bind, buildSSLContext(config));
+        builder.addHttpsListener(ssl_port, bind, buildSSLContext(config));
       }
       
       server = builder.build();
