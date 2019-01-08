@@ -75,8 +75,8 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         return;
       }
       
-      final TreeMap<Number, TimeSeries> sorted_results = 
-          new TreeMap<Number, TimeSeries>();
+      final TreeMap<Double, TimeSeries> sorted_results = 
+          new TreeMap<Double, TimeSeries>();
       for (final TimeSeries ts : result.timeSeries()) {
         // TODO - parallelize
         
@@ -102,13 +102,13 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         }
         
         if (value.isInteger()) {
-          sorted_results.put(value.longValue(), ts);
+          sorted_results.put(value.toDouble(), ts);
         } else {
           sorted_results.put(value.doubleValue(), ts);
         }
       }
       
-      final Iterator<Entry<Number, TimeSeries>> iterator = 
+      final Iterator<Entry<Double, TimeSeries>> iterator = 
           ((TopNConfig) node.config()).getTop() ?
               sorted_results.descendingMap().entrySet().iterator() :
                 sorted_results.entrySet().iterator();
