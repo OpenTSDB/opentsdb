@@ -40,6 +40,8 @@ import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.utils.ArgP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xnio.Options;
+import org.xnio.SslClientAuthMode;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -101,6 +103,7 @@ public class TSDMain {
   public static final String TLS_CERT_KEY = "tsd.network.tls.certificate";
   public static final String TLS_KEY_KEY = "tsd.network.tls.key";
   public static final String TLS_CA_KEY = "tsd.network.tls.ca";
+  public static final String TLS_VERIFY_CLIENT_KEY = "tsd.network.tls.verify_client";
   public static final String TLS_SECRET_CERT_KEY = "tsd.network.tls.secrets.certificate";
   public static final String TLS_SECRET_KEY_KEY = "tsd.network.tls.secrets.key";
   public static final String CORS_PATTERN_KEY = "tsd.http.request.cors.pattern";
@@ -178,6 +181,9 @@ public class TSDMain {
     config.register(TLS_CA_KEY, null, false,
         "An optional location to a PEM formatted file containing CA "
         + "certificates.");
+    config.register(TLS_VERIFY_CLIENT_KEY, "NOT_REQUESTED", false,
+        "Handling of client certificates. Can be 'NOT_REQUESTED', 'REQUESTED' "
+        + "or 'REQUIRED'.");
     config.register(CORS_PATTERN_KEY, null, false, "A comma separated list "
         + "of domain names to allow access to OpenTSDB when the Origin "
         + "header is specified by the client. If empty, CORS requests "
@@ -319,6 +325,8 @@ public class TSDMain {
       // SSL/TLS setup
       if (ssl_port > 0) {
         builder.addHttpsListener(ssl_port, bind, buildSSLContext(config));
+        builder.setSocketOption(Options.SSL_CLIENT_AUTH_MODE, 
+            SslClientAuthMode.valueOf(config.getString(TLS_VERIFY_CLIENT_KEY)));
       }
       
       server = builder.build();
@@ -758,8 +766,9 @@ public class TSDMain {
       trust_factory.init(keystore);
       final TrustManager[] trustManagers = trust_factory.getTrustManagers();
       
-      final SSLContext ssl_context = SSLContext.getInstance("TLS"); 
+      final SSLContext ssl_context = SSLContext.getInstance("TLS");
       ssl_context.init(key_factory.getKeyManagers(), trustManagers, null);
+     
       return ssl_context;
     } catch (GeneralSecurityException e) {
       LOG.error("Failed to initialize SSLContext", e);
