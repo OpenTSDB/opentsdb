@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2021  The OpenTSDB Authors.
+# Copyright (C) 2011-2024  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # Semantic Versioning (see http://semver.org/).
-AC_INIT([opentsdb], [2.4.1], [opentsdb@googlegroups.com])
+AC_INIT([opentsdb], [2.5.0-SNAPSHOT], [opentsdb@googlegroups.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign])
 
