@@ -268,7 +268,10 @@ public class DownsampleNumericIterator implements QueryIterator {
     
     /** The data point set and returned by the iterator. */
     private final MutableNumericValue dp;
-      
+    
+    /** Whether or not we're using the longs array. */
+    private boolean longs;
+    
     /** An array of long values used when all sources return longs. */
     private long[] long_values;
     
@@ -344,6 +347,11 @@ public class DownsampleNumericIterator implements QueryIterator {
      * @param value A value to store.
      */
     private void add(final long value) {
+      if (!longs) {
+        add((double) value);
+        return;
+      }
+      
       if (value_idx >= long_values.length) {
         final long[] temp = new long[long_values.length * 2];
         System.arraycopy(long_values, 0, temp, 0, long_values.length);
@@ -357,27 +365,24 @@ public class DownsampleNumericIterator implements QueryIterator {
      * @param value
      */
     private void add(final double value) {
+      if (longs) {
+        if (double_values == null) {
+          double_values = new double[long_values.length];
+        } else if (long_values.length > double_values.length) {
+          double_values = new double[long_values.length];
+        }
+        for (int i = 0; i < long_values.length; i++) {
+          double_values[i] = (double) long_values[i];
+        }
+        longs = false;
+      }
+      
       if (value_idx >= double_values.length) {
         final double[] temp = new double[double_values.length * 2];
         System.arraycopy(double_values, 0, temp, 0, value_idx - 1);
         double_values = temp;
       }
       double_values[value_idx++] = value;
-    }
-      
-    /**
-     * Helper that moves all of the longs to the doubles array.
-     */
-    private void shiftToDouble() {
-      if (double_values == null) {
-        double_values = new double[long_values.length];
-      }
-      if (value_idx == 0) {
-        return;
-      }
-      for (int i = 0; i < value_idx; i++) {
-        double_values[i] = (double) long_values[i];
-      }
     }
     
     @Override
@@ -391,9 +396,9 @@ public class DownsampleNumericIterator implements QueryIterator {
       if (!has_next) {
         throw new RuntimeException("FAIL! NO more data");
       }
+      longs = true;
       has_next = false;
       value_idx = 0;
-      boolean longs = true;
       
       // we only return reals here, so skip empty intervals. Those are handled by
       // the interpolator.
@@ -415,18 +420,12 @@ public class DownsampleNumericIterator implements QueryIterator {
           if (next_dp.value() != null && !next_dp.value().isInteger() && 
               Double.isNaN(next_dp.value().doubleValue())) {
             if (config.getInfectiousNan()) {
-              longs = false;
-              shiftToDouble();
               add(Double.NaN);
             }
           } else if (next_dp.value() != null) {
             if (next_dp.value().isInteger() && longs) {
               add(next_dp.value().longValue());
             } else {
-              if (longs) {
-                longs = false;
-                shiftToDouble();
-              }
               add(next_dp.value().toDouble());
             }
           }
