@@ -41,6 +41,7 @@ import net.opentsdb.utils.ArgP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnio.Options;
+import org.xnio.Sequence;
 import org.xnio.SslClientAuthMode;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -106,6 +107,8 @@ public class TSDMain {
   public static final String TLS_VERIFY_CLIENT_KEY = "tsd.network.tls.verify_client";
   public static final String TLS_SECRET_CERT_KEY = "tsd.network.tls.secrets.certificate";
   public static final String TLS_SECRET_KEY_KEY = "tsd.network.tls.secrets.key";
+  public static final String TLS_PROTOCOLS_KEY = "tsd.network.tls.protocols";
+  public static final String TLS_CIPHERS_KEY = "tsd.network.tls.ciphers";
   public static final String CORS_PATTERN_KEY = "tsd.http.request.cors.pattern";
   public static final String CORS_HEADERS_KEY = "tsd.http.request.cors.headers";
   public static final String DIRECTORY_KEY = "tsd.http.staticroot";
@@ -184,6 +187,12 @@ public class TSDMain {
     config.register(TLS_VERIFY_CLIENT_KEY, "NOT_REQUESTED", false,
         "Handling of client certificates. Can be 'NOT_REQUESTED', 'REQUESTED' "
         + "or 'REQUIRED'.");
+    config.register(TLS_PROTOCOLS_KEY, null, false,
+        "A comma separated list of TLS protocols that the server should accept. "
+        + "If null or empty, then all TLS protocols are allowed.");
+    config.register(TLS_CIPHERS_KEY, null, false,
+        "A comma separated list of ciphers that the server should accept for "
+        + "TLS connections. If null or empty then all ciphers are allowed.");
     config.register(CORS_PATTERN_KEY, null, false, "A comma separated list "
         + "of domain names to allow access to OpenTSDB when the Origin "
         + "header is specified by the client. If empty, CORS requests "
@@ -325,6 +334,16 @@ public class TSDMain {
       // SSL/TLS setup
       if (ssl_port > 0) {
         builder.addHttpsListener(ssl_port, bind, buildSSLContext(config));
+        String temp = tsdb.getConfig().getString(TLS_PROTOCOLS_KEY);
+        if (!Strings.isNullOrEmpty(temp)) {
+          builder.setSocketOption(Options.SSL_ENABLED_PROTOCOLS, 
+              Sequence.of(temp.split(",")));
+        }
+        temp = tsdb.getConfig().getString(TLS_CIPHERS_KEY);
+        if (!Strings.isNullOrEmpty(temp)) {
+          builder.setSocketOption(Options.SSL_ENABLED_CIPHER_SUITES, 
+              Sequence.of(temp.split(",")));
+        }
         builder.setSocketOption(Options.SSL_CLIENT_AUTH_MODE, 
             SslClientAuthMode.valueOf(config.getString(TLS_VERIFY_CLIENT_KEY)));
       }
@@ -355,7 +374,8 @@ public class TSDMain {
       final SSLContext sslContext;
       if (!Strings.isNullOrEmpty(keystore_location)) {
         sslContext = contextFromKeystore(config);
-      } else if (config.hasProperty(TLS_SECRET_CERT_KEY)) {
+      } else if (config.hasProperty(TLS_SECRET_CERT_KEY) && 
+          !Strings.isNullOrEmpty(config.getString(TLS_SECRET_CERT_KEY))) {
         sslContext = contextFromSecrets(config);
       } else {
         sslContext = contextFromKeyAndCerts(config);
