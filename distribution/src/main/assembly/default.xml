@@ -23,6 +23,7 @@
       <includes>
         <include>net.opentsdb:opentsdb-common</include>
         <include>net.opentsdb:opentsdb-core</include>
+		<include>net.opentsdb:opentsdb-http-config</include>
         <include>net.opentsdb:opentsdb-server-undertow</include>
         <include>net.opentsdb:opentsdb-asynchbase</include>
 		<include>net.opentsdb:opentsdb-executors-http</include>
