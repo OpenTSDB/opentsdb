@@ -79,8 +79,6 @@ public class TestHttpProvider {
         @Override
         public Future<HttpResponse> answer(InvocationOnMock invocation) throws Throwable {
           request = (HttpUriRequest) invocation.getArguments()[0];
-          callback = (FutureCallback<HttpResponse>) invocation.getArguments()[1];
-          callback.completed(response);
           return future;
         }
       });
@@ -105,8 +103,6 @@ public class TestHttpProvider {
         @Override
         public Future<HttpResponse> answer(InvocationOnMock invocation) throws Throwable {
           request = (HttpUriRequest) invocation.getArguments()[0];
-          callback = (FutureCallback<HttpResponse>) invocation.getArguments()[1];
-          callback.completed(response);
           return future;
         }
       });

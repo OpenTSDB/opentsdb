@@ -15,17 +15,21 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.apache.http.HttpResponse;
-import org.apache.http.ParseException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.io.Files;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.common.Const;
@@ -40,7 +44,12 @@ public class HttpProvider extends YamlJsonBaseProvider {
   private static final Logger LOG = LoggerFactory.getLogger(
       YamlJsonBaseProvider.class);
   
+  private final static String CACHE_DIR_KEY = "config.http.cache.directory";
+  private final static String CACHE_REPLACE = "[\\:/\\?]";
+  
   private volatile boolean initialized;
+  
+  private final String cache_dir;
   
   public HttpProvider(final ProviderFactory factory, 
                       final Configuration config,
@@ -48,6 +57,7 @@ public class HttpProvider extends YamlJsonBaseProvider {
                       final String uri) {
     super(factory, config, timer, uri);
     
+    cache_dir = System.getProperty(CACHE_DIR_KEY);
     try {
       reload();
     } catch (Throwable t) {
@@ -73,10 +83,11 @@ public class HttpProvider extends YamlJsonBaseProvider {
             LOG.error("Error retrieving URI: " + uri + " => " 
                 + result.getStatusLine().getStatusCode() + "\n" 
                 + EntityUtils.toString(result.getEntity()));
-          } catch (ParseException e) {
-            LOG.error("Failed to parse data for URI: " + uri, e);
           } catch (IOException e) {
             LOG.error("Failed to parse data for URI: " + uri, e);
+          }
+          if (!initialized && !Strings.isNullOrEmpty(cache_dir)) {
+            loadFromCache();
           }
         } else {
           try {
@@ -92,19 +103,37 @@ public class HttpProvider extends YamlJsonBaseProvider {
             
             parse(new ByteArrayInputStream(data.getBytes(Const.UTF8_CHARSET)));
             
+            if (!Strings.isNullOrEmpty(cache_dir)) {
+              final String file = cache_dir.endsWith("/") ? 
+                  cache_dir + getFileName() : 
+                    cache_dir + "/" + getFileName();
+              try {
+                Files.write(data.getBytes(Const.UTF8_CHARSET), new File(file));
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Successfully wrote cache file: " + file);
+                }
+              } catch (Exception e) {
+                LOG.error("Failed to write cache file: " + file, e);
+              }
+            }
+            
             if (LOG.isDebugEnabled()) {
               LOG.debug("Succesfully loaded: " + uri);
             }
-          } catch (ParseException e) {
-            LOG.error("Failed to parse data for URI: " + uri, e);
           } catch (IOException e) {
             LOG.error("Failed to parse data for URI: " + uri, e);
+            if (!initialized && !Strings.isNullOrEmpty(cache_dir)) {
+              loadFromCache();
+            }
           }
         }
       }
 
       @Override
       public void failed(final Exception ex) {
+        if (!initialized && !Strings.isNullOrEmpty(cache_dir)) {
+          loadFromCache();
+        }
         LOG.error("Failed to retrieve URI: " + uri, ex);
       }
 
@@ -119,18 +148,54 @@ public class HttpProvider extends YamlJsonBaseProvider {
       LOG.trace("Requesting URI: " + uri);
     }
     
-    final Future<HttpResponse> future = 
-        ((HttpProviderFactory) factory).client().execute(get, new ResponseCallback());
     if (!initialized) {
-      initialized = true;
       try {
+        final Future<HttpResponse> future = 
+            ((HttpProviderFactory) factory).client().execute(get, null);
         new ResponseCallback().completed(future.get());
-      } catch (InterruptedException e) {
-        LOG.error("Failed to parse data for URI: " + uri, e);
-      } catch (ExecutionException e) {
-        LOG.error("Failed to parse data for URI: " + uri, e);
+      } catch (Exception e) {
+        LOG.error("Failed to fetch URI: " + uri, e);
+        if (!Strings.isNullOrEmpty(cache_dir)) {
+          loadFromCache();
+        }
       }
+      initialized = true;
+    } else {
+      ((HttpProviderFactory) factory).client().execute(get, new ResponseCallback());
     }
   }
 
+  String getFileName() {
+    return uri.replaceAll(CACHE_REPLACE, "_");
+  }
+  
+  void loadFromCache() {
+    final String path = cache_dir.endsWith("/") ? 
+        cache_dir + getFileName() : 
+          cache_dir + "/" + getFileName();
+    LOG.warn("Attempting to bootstrap from cache: " + path);
+    final File file = new File(path);
+    if (!file.exists()) {
+      throw new IllegalStateException("Failed to read from URI: " + uri 
+          + " and no cache file at: " + path);
+    }
+    
+    InputStream stream = null;
+    try {
+      stream = Files.asByteSource(file).openStream();
+      parse(stream);
+      LOG.warn("Successfully loaded cache config: " + path);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to read from URI: " + uri 
+          + " and failed to read file at: " + path);
+    } finally {
+      if (stream != null) {
+        try {
+          stream.close();
+        } catch (IOException e) {
+          LOG.warn("Failed to close stream: " + path);
+        }
+      }
+    }
+  }
 }
