@@ -75,12 +75,7 @@ public class YamlJsonFileProvider extends YamlJsonBaseProvider {
   public void close() throws IOException {
     // no-op
   }
-
-  @Override
-  public String source() {
-    return file_name;
-  }
-
+  
   @Override
   public void reload() {
     final File file = new File(file_name);

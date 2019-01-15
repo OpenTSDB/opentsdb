@@ -58,7 +58,7 @@ public class TestFileFactory {
           "file://foo.yaml");
       
       assertTrue(provider instanceof YamlJsonFileProvider);
-      assertEquals("foo.yaml", provider.source());
+      assertEquals("file://foo.yaml", provider.source());
     }
   }
   
