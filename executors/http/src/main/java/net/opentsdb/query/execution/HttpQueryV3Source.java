@@ -38,6 +38,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BadQueryResult;
 import net.opentsdb.query.QueryNodeConfig;
@@ -51,7 +52,7 @@ import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.SharedHttpClient;
+import net.opentsdb.utils.DefaultSharedHttpClient;
 
 /**
  * An executor that fires an HTTP query against a V3 endpoint for a metric,
@@ -155,6 +156,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     
     final HttpPost post = new HttpPost(host + endpoint);
     post.setHeader("Content-Type", "application/json");
+    final String user_header_key = context.tsdb().getConfig().getString(
+        ((HttpQueryV3Factory) factory).getConfigKey(BaseHttpExecutorFactory.HEADER_USER_KEY));
+    if (!Strings.isNullOrEmpty(user_header_key) && 
+        context.queryContext().authState() != null) {
+      post.setHeader(user_header_key, context.queryContext().authState().getUser());
+    }
     
     // may need to pass down a cookie.
     if (context.queryContext().authState() != null && 
@@ -226,18 +233,28 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
                   retries < ((BaseHttpExecutorFactory) factory).retries()) {
                 retries++;
-                final String new_host =((BaseHttpExecutorFactory) factory).nextHost();
-                final HttpPost retry = new HttpPost(new_host + endpoint);
-                retry.setEntity(post.getEntity());
-                EntityUtils.consume(response.getEntity());
-                client.execute(retry, this);
-                context.queryContext().logWarn(HttpQueryV3Source.this, 
-                    "Retrying query to [" + new_host + endpoint + "] after " 
-                    + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
-                if (LOG.isTraceEnabled()) {
-                  LOG.trace("Retrying Http query to a TSD: " + new_host + endpoint);
+                try {
+                  final String new_host = ((BaseHttpExecutorFactory) factory).nextHost();
+                  final HttpPost retry = new HttpPost(new_host + endpoint);
+                  retry.setEntity(post.getEntity());
+                  EntityUtils.consume(response.getEntity());
+                  client.execute(retry, this);
+                  context.queryContext().logWarn(HttpQueryV3Source.this, 
+                      "Retrying query to [" + new_host + endpoint + "] after " 
+                      + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
+                  if (LOG.isTraceEnabled()) {
+                    LOG.trace("Retrying Http query to a TSD: " + new_host + endpoint);
+                  }
+                  return;
+                } catch (IllegalStateException e) {
+                  // can't retry as we don't have any good hosts.
+                  try {
+                    DefaultSharedHttpClient.parseResponse(response, 0, host);
+                  } catch (RemoteQueryExecutionException rqee) {
+                    sendUpstream(rqee);
+                    return;
+                  }
                 }
-                return;
               }
             }
             
@@ -246,7 +263,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             return;
           }
           
-          json = SharedHttpClient.parseResponse(response, 0, host);
+          json = DefaultSharedHttpClient.parseResponse(response, 0, host);
           final JsonNode root = JSON.getMapper().readTree(json);
           JsonNode results = root.get("results");
           if (results == null) {

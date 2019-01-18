@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.HttpResponse;
-import org.apache.http.ParseException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
@@ -60,6 +59,7 @@ public abstract class BaseHttpExecutorFactory implements
   public static final String KEY_PREFIX = "opentsdb.http.executor.";
   public static final String RETRY_KEY = "retries";
   public static final String HOSTS_KEY = "hosts";
+  public static final String HEADER_USER_KEY = "headers.user";
   public static final String ENDPOINT_KEY = "endpoint";
   public static final String HEALTH_ENDPOINT_KEY = "health.endpoint";
   public static final String HEALTH_INTERVAL_KEY = "health.interval";
@@ -364,6 +364,13 @@ public abstract class BaseHttpExecutorFactory implements
       tsdb.getConfig().register(getConfigKey(CLIENT_KEY), 
           null, false,
           "The ID of the SharedHttpClient plugin to use. Defaults to `null`.");
+    }
+    if (!tsdb.getConfig().hasProperty(getConfigKey(HEADER_USER_KEY))) {
+      tsdb.getConfig().register(getConfigKey(HEADER_USER_KEY), 
+          "X-OpenTSDB-User", true,
+          "An optional custom header to store the user in when making a "
+          + "downstream request. If null or empty then the header will not "
+          + "be sent.");
     }
   }
 

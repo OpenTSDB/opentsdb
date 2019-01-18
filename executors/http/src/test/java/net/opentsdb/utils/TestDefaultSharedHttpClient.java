@@ -39,13 +39,14 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ SharedHttpClient.class, HttpAsyncClients.class, 
+@PrepareForTest({ DefaultSharedHttpClient.class, HttpAsyncClients.class, 
   HttpAsyncClientBuilder.class }) 
-public class TestSharedHttpClient {
+public class TestDefaultSharedHttpClient {
 
   private CloseableHttpAsyncClient client;
   
@@ -69,8 +70,10 @@ public class TestSharedHttpClient {
   
   @Test
   public void initializeAndShutdown() throws Exception {
-    SharedHttpClient shared = new SharedHttpClient();
-    assertNull(shared.initialize(mock(TSDB.class), null).join(250));
+    TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
+    DefaultSharedHttpClient shared = new DefaultSharedHttpClient();
+    assertNull(shared.initialize(tsdb, null).join(250));
     assertSame(client, shared.getClient());
     assertNull(shared.shutdown().join(250));
     verify(client, times(1)).close();
@@ -87,7 +90,7 @@ public class TestSharedHttpClient {
     
     // raw
     when(status.getStatusCode()).thenReturn(200);
-    assertEquals("Hello!", SharedHttpClient.parseResponse(response, 0, "unknown"));
+    assertEquals("Hello!", DefaultSharedHttpClient.parseResponse(response, 0, "unknown"));
     
     // TODO - figure out how to test the compressed entities. Looks like it's a 
     // bit of a pain.
@@ -95,7 +98,7 @@ public class TestSharedHttpClient {
     // non-200 non-json
     when(status.getStatusCode()).thenReturn(400);
     try {
-      SharedHttpClient.parseResponse(response, 0, "unknown");
+      DefaultSharedHttpClient.parseResponse(response, 0, "unknown");
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { 
       assertEquals("Hello!", e.getMessage());
@@ -106,7 +109,7 @@ public class TestSharedHttpClient {
     entity = new StringEntity("{\"error\":{\"message\":\"Boo!\"}}");
     when(response.getEntity()).thenReturn(entity);
     try {
-      SharedHttpClient.parseResponse(response, 0, "unknown");
+      DefaultSharedHttpClient.parseResponse(response, 0, "unknown");
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { 
       assertEquals("Boo!", e.getMessage());
@@ -116,7 +119,7 @@ public class TestSharedHttpClient {
     when(status.getStatusCode()).thenReturn(200);
     when(response.getEntity()).thenReturn(null);
     try {
-      SharedHttpClient.parseResponse(response, 0, "unknown");
+      DefaultSharedHttpClient.parseResponse(response, 0, "unknown");
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
   }
