@@ -14,14 +14,7 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagKeyFilter;
-import net.opentsdb.query.filter.TagValueFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.filter.TagValueRegexFilter;
-import net.opentsdb.query.filter.TagValueWildcardFilter;
-import net.opentsdb.meta.MetaQuery.QueryType;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import com.google.common.collect.Lists;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
@@ -29,19 +22,24 @@ import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.MetricRegexFilter;
 import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagKeyFilter;
+import net.opentsdb.query.filter.TagValueFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
+import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.utils.DateTime;
-
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
+import org.elasticsearch.index.query.QueryFilterBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.google.common.collect.Lists;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Builds the ElasticSearch query
@@ -88,7 +86,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     }
     
     if (filter instanceof MetricFilter) {
-      return getMetricFilter((MetricFilter) filter);
+      return getMetricFilter((MetricFilter) filter, true);
     }
     
     if (filter instanceof TagKeyFilter) {
@@ -125,21 +123,27 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     throw new UnsupportedOperationException("Unsupported filter: " 
         + filter.getClass().toString());
   }
-  
-  FilterBuilder getMetricFilter(final MetricFilter filter) {
+
+  FilterBuilder getMetricFilter(final MetricFilter filter, final boolean nested) {
     if (filter instanceof MetricLiteralFilter) {
-      return FilterBuilders.nestedFilter(METRIC_PATH, 
-          FilterBuilders.boolFilter().must(
-              FilterBuilders.termFilter(QUERY_METRIC, 
-                  filter.getMetric().toLowerCase())));
+      FilterBuilder builder =  FilterBuilders.boolFilter().must(
+              FilterBuilders.termFilter(QUERY_METRIC,
+                      filter.getMetric().toLowerCase()));
+      if (nested) {
+        return FilterBuilders.nestedFilter(METRIC_PATH, builder);
+      }
+      return builder;
     } else if (filter instanceof MetricRegexFilter) {
-      return FilterBuilders.nestedFilter(METRIC_PATH, 
-          FilterBuilders.boolFilter().must(
-              FilterBuilders.regexpFilter(QUERY_METRIC, 
-                  convertToLuceneRegex(filter.getMetric()))));
+      FilterBuilder builder = FilterBuilders.boolFilter().must(
+              FilterBuilders.regexpFilter(QUERY_METRIC,
+                      convertToLuceneRegex(filter.getMetric())));
+      if (nested) {
+        return FilterBuilders.nestedFilter(METRIC_PATH, builder);
+      }
+      return builder;
     } else {
-      throw new UnsupportedOperationException("Unsupported metric filter: " 
-          + filter.getClass().toString());
+      throw new UnsupportedOperationException("Unsupported metric filter: "
+              + filter.getClass().toString());
     }
   }
   
@@ -214,13 +218,25 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   }
   
   AggregationBuilder<?> metricAgg(final QueryFilter filter) {
+    ChainFilter.Builder metric_only_filter = ChainFilter.newBuilder();
+    if (filter instanceof ChainFilter) {
+      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        if (sub_filter instanceof MetricFilter) {
+          metric_only_filter.addFilter(sub_filter);
+        }
+      }
+    }
+
+    FilterBuilder pair_filter = getTagPairFilter(metric_only_filter.build());
     return AggregationBuilders.nested(METRIC_AGG)
         .path(METRIC_PATH)
-        .subAggregation(AggregationBuilders.terms(METRIC_UNIQUE)
+        .subAggregation(AggregationBuilders.filter(METRIC_AGG)
+                .filter(pair_filter)
+                .subAggregation(AggregationBuilders.terms(METRIC_UNIQUE)
             .field(RESULT_METRIC)
             .size(0)
             .order(query.order() == MetaQuery.Order.ASCENDING ? 
-                Order.term(true) : Order.term(false)));
+                Order.term(true) : Order.term(false))));
   }
   
   AggregationBuilder<?> tagKeyAgg(final QueryFilter filter) {
@@ -244,8 +260,18 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   }
   
   AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter) {
+    ChainFilter.Builder tags_filters = ChainFilter.newBuilder();
+
+    if (filter instanceof ChainFilter) {
+      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        if (sub_filter instanceof TagValueFilter || sub_filter instanceof TagKeyFilter) {
+          tags_filters.addFilter(sub_filter);
+        }
+      }
+    }
     // we have to recurse here and find tag key/tag value filters.
-    FilterBuilder pair_filter = getTagPairFilter(filter);
+
+    FilterBuilder pair_filter = getTagPairFilter(tags_filters.build());
     if (pair_filter == null) {
       return null;
     }
@@ -269,6 +295,10 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   FilterBuilder getTagPairFilter(final QueryFilter filter) {
     if (filter == null) {
       return null;
+    }
+
+    if (filter instanceof MetricFilter) {
+      return getMetricFilter((MetricFilter) filter, false);
     }
     
     if (filter instanceof TagValueFilter) {

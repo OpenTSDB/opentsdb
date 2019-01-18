@@ -199,10 +199,6 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param metric A non-null metric.
    */
   void addMetric(final Pair<String, Long> metric) {
-    if (!matchMetric(metric.getKey(), false, query.filter())) {
-      return;
-    }
-    
     if (metrics == null) {
       metrics = Sets.newHashSet();
     }
