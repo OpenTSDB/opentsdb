@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -44,6 +45,8 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
@@ -76,13 +79,17 @@ public class TestHttpQueryV3Source {
   
   @Before
   public void before() throws Exception {
-    factory = mock(QueryNodeFactory.class);
+    factory = mock(HttpQueryV3Factory.class);
     context = mock(QueryContext.class);
     ctx = mock(QueryPipelineContext.class);
     client = mock(CloseableHttpAsyncClient.class);
     host = "http://localhost:4242";
     endpoint = "/api/query/graph";
     upstream = mock(QueryNode.class);
+    
+    TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
+    when(ctx.tsdb()).thenReturn(tsdb);
     
     when(ctx.queryContext()).thenReturn(context);
     when(ctx.upstream(any(QueryNode.class)))
@@ -184,6 +191,34 @@ public class TestHttpQueryV3Source {
     verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertEquals("MyCookie", request.getFirstHeader("Cookie").getValue());
+    String json = EntityUtils.toString(((HttpPost) request).getEntity());
+    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.contains("\"mode\":\"SINGLE\""));
+    assertTrue(json.contains("\"id\":\"m1\""));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
+  @Test
+  public void requestAuthUser() throws Exception {
+    AuthState auth = mock(AuthState.class);
+    TSDB tsdb = mock(TSDB.class);
+    Configuration cfg = mock(Configuration.class);
+    when(tsdb.getConfig()).thenReturn(cfg);
+    when(ctx.tsdb()).thenReturn(tsdb);
+    when(cfg.getString(anyString())).thenReturn("X-OpenTSDB-User");
+    when(auth.getTokenType()).thenReturn("Cookie");
+    when(auth.getToken()).thenReturn("MyCookie".getBytes(Const.UTF8_CHARSET));
+    when(auth.getUser()).thenReturn("UnitTest");
+    when(context.authState()).thenReturn(auth);
+    
+    TimeSeriesDataSourceConfig config = setQuery();
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
+    src.fetchNext(null);
+    
+    verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
+    assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
+    assertEquals("MyCookie", request.getFirstHeader("Cookie").getValue());
+    assertEquals("UnitTest", request.getFirstHeader("X-OpenTSDB-User").getValue());
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
     assertTrue(json.contains("\"start\":\"1h-ago\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
