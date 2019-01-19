@@ -334,6 +334,7 @@ public class TSDMain {
    */
   private static SSLContext buildSSLContext(final Configuration config) {
     final RefreshingSSLContext.Builder builder = RefreshingSSLContext.newBuilder()
+        .setTsdb(tsdb)
         .setInterval(0);
     final String keystore_location = config.getString(KEYSTORE_KEY);
     if (!Strings.isNullOrEmpty(keystore_location)) {
