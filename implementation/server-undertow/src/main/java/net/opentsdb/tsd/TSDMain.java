@@ -36,6 +36,7 @@ import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.RefreshingSSLContext;
 import net.opentsdb.utils.RefreshingSSLContext.SourceType;
+import net.opentsdb.version.CoreVersion;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -315,7 +316,8 @@ public class TSDMain {
       server = builder.build();
       server.start();
       LOG.info("Undertow server successfully started, listening on " + bind + ":" + 
-          (port > 0 ? port : ssl_port));
+          (port > 0 ? port : ssl_port) + ". Version " + CoreVersion.version() 
+            + "@" + CoreVersion.gitCommitId());
       return;
     } catch (ServletException e) {
       LOG.error("Unable to start due to servlet exception", e);
