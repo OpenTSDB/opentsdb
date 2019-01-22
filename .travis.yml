@@ -1,10 +1,12 @@
 language: java
 dist: trusty
-script: export MAVEN_OPTS="-Xmx1024m" && mvn clean test cobertura:cobertura coveralls:report --quiet
-after_success:
-  - if [[ "$TRAVIS_BRANCH" == "3.0" && "$TRAVIS_PULL_REQUEST" = "false" ]]; then 
-    mvn deploy -q --settings settings.xml -Dmaven.test.skip=true;
-    mvn install -q -Dmaven.test.skip=true -Pdocker --settings settings_docker.xml;
+script: 
+  - export MAVEN_OPTS="-Xmx1024m"; 
+    if [[ "$TRAVIS_BRANCH" == "3.0" && "$TRAVIS_PULL_REQUEST" = "false" ]]; then
+      mvn deploy -q --settings settings.xml;
+      mvn install -q -Dmaven.test.skip=true -Pdocker --settings settings_docker.xml;
+    else
+      mvn clean test cobertura:cobertura coveralls:report --quiet;
     fi
 addons:
   hostname: short-hostname
