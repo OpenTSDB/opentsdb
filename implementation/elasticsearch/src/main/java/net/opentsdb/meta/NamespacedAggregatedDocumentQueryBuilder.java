@@ -14,20 +14,10 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import net.opentsdb.query.filter.AnyFieldRegexFilter;
-import net.opentsdb.query.filter.ChainFilter;
+import net.opentsdb.query.filter.*;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
-import net.opentsdb.query.filter.MetricFilter;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.MetricRegexFilter;
-import net.opentsdb.query.filter.NotFilter;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagKeyFilter;
-import net.opentsdb.query.filter.TagValueFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.filter.TagValueRegexFilter;
-import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.utils.DateTime;
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
@@ -189,15 +179,24 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   }
 
   FilterBuilder getTagKeyFilter(final TagKeyFilter filter, final boolean nested) {
-    final FilterBuilder builder = FilterBuilders.boolFilter()
-        .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, ".*"))
-        .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.filter()));
+    final FilterBuilder builder = FilterBuilders.boolFilter();
+    if (filter instanceof TagKeyLiteralOrFilter) {
+      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter
+              (QUERY_TAG_VALUE_KEY, "" +
+                      ".*"))
+              .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.filter()));
+
+    } else if (filter instanceof TagKeyRegexFilter) {
+      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, ".*"))
+              .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, filter.filter()));
+    }
     if (nested) {
       return FilterBuilders.nestedFilter(TAG_PATH, builder);
     }
+
     return builder;
   }
-  
+
   FilterBuilder getAnyFieldFilter(final AnyFieldRegexFilter filter) {
     final String pattern = convertToLuceneRegex(filter.pattern().toString());
     final BoolFilterBuilder builder = FilterBuilders.boolFilter();
@@ -227,7 +226,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       }
     }
 
-    FilterBuilder pair_filter = getTagPairFilter(metric_only_filter.build());
+    FilterBuilder pair_filter = getTagPairFilter(metric_only_filter.build(),
+            false);
     return AggregationBuilders.nested(METRIC_AGG)
         .path(METRIC_PATH)
         .subAggregation(AggregationBuilders.filter(METRIC_AGG)
@@ -259,19 +259,29 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 Order.term(true) : Order.term(false)));
   }
   
-  AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter) {
+  AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter, String
+          field, int size) {
     ChainFilter.Builder tags_filters = ChainFilter.newBuilder();
 
     if (filter instanceof ChainFilter) {
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-        if (sub_filter instanceof TagValueFilter || sub_filter instanceof TagKeyFilter) {
-          tags_filters.addFilter(sub_filter);
+        if (sub_filter instanceof TagValueFilter) {
+          if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
+                  (((TagValueFilter) sub_filter).getTagKey())) {
+            tags_filters.addFilter(sub_filter);
+          }
+        }
+        if (sub_filter instanceof TagKeyFilter) {
+          if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
+                  (((TagKeyFilter) sub_filter).filter())) {
+            tags_filters.addFilter(sub_filter);
+          }
         }
       }
     }
     // we have to recurse here and find tag key/tag value filters.
 
-    FilterBuilder pair_filter = getTagPairFilter(tags_filters.build());
+    FilterBuilder pair_filter = getTagPairFilter(tags_filters.build(), true);
     if (pair_filter == null) {
       return null;
     }
@@ -287,12 +297,12 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 .filter(pair_filter)
                 .subAggregation(AggregationBuilders.terms(TAGS_SUB_UNIQUE)
                     .field(RESULT_TAG_VALUE_KEY)
-                    .size(0)
+                    .size(size)
                     .order(query.order() == MetaQuery.Order.ASCENDING ? 
                         Order.term(true) : Order.term(false)))));
   }
   
-  FilterBuilder getTagPairFilter(final QueryFilter filter) {
+  FilterBuilder getTagPairFilter(final QueryFilter filter, boolean use_must) {
     if (filter == null) {
       return null;
     }
@@ -318,16 +328,20 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     
     if (filter instanceof NotFilter) {
       return FilterBuilders.notFilter(
-          getTagPairFilter(((NotFilter) filter).getFilter()));
+          getTagPairFilter(((NotFilter) filter).getFilter(), use_must));
     }
     
     if (filter instanceof ChainFilter) {
       BoolFilterBuilder builder = FilterBuilders.boolFilter();
-      // everything has to be a should here.
+      // Metrics are should, tags_key_and_value is a must filter
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-        final FilterBuilder sub_builder = getTagPairFilter(sub_filter);
+        final FilterBuilder sub_builder = getTagPairFilter(sub_filter, use_must);
         if (sub_builder != null) {
-          builder.should(sub_builder);
+          if (use_must) {
+            builder.must(sub_builder);
+          } else {
+            builder.should(sub_builder);
+          }
         }
       }
       return builder;
@@ -368,7 +382,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       search_source_builder.size(0);
       break;
     case TAG_KEYS_AND_VALUES:
-      search_source_builder.aggregation(tagKeyAndValueAgg(query.filter()));
+      search_source_builder.aggregation(tagKeyAndValueAgg(query.filter(),
+              query.aggregationField(), query.aggregationSize()));
       search_source_builder.size(0);
       break;
     case TIMESERIES:
