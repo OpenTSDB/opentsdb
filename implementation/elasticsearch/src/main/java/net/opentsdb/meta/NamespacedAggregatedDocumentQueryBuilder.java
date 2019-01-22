@@ -16,19 +16,30 @@ package net.opentsdb.meta;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import net.opentsdb.query.filter.*;
+import net.opentsdb.query.filter.AnyFieldRegexFilter;
+import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
+import net.opentsdb.query.filter.MetricFilter;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.filter.MetricRegexFilter;
+import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagKeyFilter;
+import net.opentsdb.query.filter.TagKeyLiteralOrFilter;
+import net.opentsdb.query.filter.TagKeyRegexFilter;
+import net.opentsdb.query.filter.TagValueFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
+import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.utils.DateTime;
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
-import org.elasticsearch.index.query.QueryFilterBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -182,8 +193,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     final FilterBuilder builder = FilterBuilders.boolFilter();
     if (filter instanceof TagKeyLiteralOrFilter) {
       ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter
-              (QUERY_TAG_VALUE_KEY, "" +
-                      ".*"))
+              (QUERY_TAG_VALUE_KEY, ".*"))
               .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.filter()));
 
     } else if (filter instanceof TagKeyRegexFilter) {
