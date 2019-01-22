@@ -178,7 +178,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
             }
             break;
           case METRICS:
-            if (response.getAggregations() == null || 
+            if (response.getAggregations() == null ||
                 response.getAggregations().get(
                     NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
               break;
@@ -454,9 +454,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       }
       return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
     }
-    
-    final Aggregation metrics = ((InternalNested) aggregation).getAggregations()
-        .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_UNIQUE);
+
+    final Aggregation metrics = ((InternalFilter) ((InternalNested)
+            aggregation)
+            .getAggregations()
+            .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG))
+            .getAggregations()
+            .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_UNIQUE);
+
     if (metrics == null) {
       if (result != null) {
         return result;
