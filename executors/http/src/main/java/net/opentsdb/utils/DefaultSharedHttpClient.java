@@ -47,10 +47,10 @@ import net.opentsdb.utils.RefreshingSSLContext.SourceType;
  * services.
  * 
  * @since 3.0
- * @author clarsen
  *
  */
-public class DefaultSharedHttpClient extends BaseTSDBPlugin implements RefreshCallback {
+public class DefaultSharedHttpClient extends BaseTSDBPlugin 
+    implements SharedHttpClient, RefreshCallback {
   private static final Logger LOG = LoggerFactory.getLogger(
       DefaultSharedHttpClient.class);
   
