@@ -19,6 +19,8 @@ import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import io.undertow.server.HttpHandler;
+import io.undertow.server.handlers.accesslog.AccessLogHandler;
+import io.undertow.server.handlers.accesslog.AccessLogReceiver;
 import io.undertow.server.handlers.encoding.EncodingHandler;
 import io.undertow.server.handlers.resource.FileResourceManager;
 import io.undertow.servlet.Servlets;
@@ -273,8 +275,14 @@ public class TSDMain {
     manager.deploy();
     
     try {
-      HttpHandler handler = Handlers.path(Handlers.redirect(root))
-              .addPrefixPath(root, manager.start());
+      HttpHandler handler = new AccessLogHandler(
+          manager.start(),
+          new Slf4jAccessLogReceiver(),
+          "combined",
+          TSDMain.class.getClassLoader());
+      
+      handler = Handlers.path(Handlers.redirect(root))
+          .addPrefixPath(root, handler);
       
       if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CORS_PATTERN_KEY))) {
         handler = new com.stijndewitt.undertow.cors.Filter(handler);
@@ -406,4 +414,13 @@ public class TSDMain {
     Runtime.getRuntime().addShutdownHook(new TSDBShutdown());
   }
 
+  public static class Slf4jAccessLogReceiver implements AccessLogReceiver {
+    private static Logger ACCESS_LOG = LoggerFactory.getLogger("AccessLog");
+    
+    @Override
+    public void logMessage(final String message) {
+      ACCESS_LOG.info(message);      
+    }
+    
+  }
 }
