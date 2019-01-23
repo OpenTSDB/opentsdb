@@ -126,7 +126,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   }
 
   FilterBuilder getMetricFilter(final MetricFilter filter, final boolean nested) {
-    if (filter instanceof MetricLiteralFilter) {
+    if (filter instanceof MetricLiteralFilter) {  
       FilterBuilder builder =  FilterBuilders.boolFilter().must(
               FilterBuilders.termFilter(QUERY_METRIC,
                       filter.getMetric().toLowerCase()));
