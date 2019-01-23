@@ -106,6 +106,7 @@ tsdb_SRC := \
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
+	src/normalize/NormalizePlugin.java \
 	src/query/QueryUtil.java	\
 	src/query/QueryLimitOverride.java	\
 	src/query/expression/Absolute.java	\
@@ -241,7 +242,7 @@ tsdb_SRC := \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
 	src/utils/PluginLoader.java	\
-	src/utils/Threads.java 
+	src/utils/Threads.java
 
 tsdb_DEPS = \
 	$(ASM)	\
@@ -428,7 +429,7 @@ test_SRC := \
 	test/utils/TestJSON.java \
 	test/utils/TestPair.java \
 	test/utils/TestPluginLoader.java
-	
+
 test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
@@ -448,7 +449,7 @@ test_plugin_SVCS := \
   META-INF/services/net.opentsdb.tsd.RpcPlugin \
   META-INF/services/net.opentsdb.tsd.RTPublisher \
   META-INF/services/net.opentsdb.tsd.StorageExceptionHandler
-  
+
 test_plugin_MF := \
   test/META-INF/MANIFEST.MF
 
@@ -676,7 +677,7 @@ install-data-tools: $(tsdb_DEPS) $(jar)
 	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1; \
 	tools="-r $(top_srcdir)/tools/*" ; \
 	echo " cp" $$tools "$$destdatatoolsdir" ; \
-	cp $$tools "$$destdatatoolsdir" || exit 1; 
+	cp $$tools "$$destdatatoolsdir" || exit 1;
 
 uninstall-data-tools:
 	@$(NORMAL_UNINSTALL)
@@ -746,7 +747,7 @@ uninstall-hook:
 get_runtime_dep_classpath = `for jar in $(test_DEPS); do $(find_jar); done | tr '\n' ':'`
 $(test_SRC): $(test_DEPS)
 	@$(refresh_src)
-	
+
 $(test_plugin_SRC): $(test_DEPS)
 	@$(refresh_src)
 
@@ -888,7 +889,7 @@ pom.xml: pom.xml.in Makefile
 	} >$@-t
 	mv $@-t ../$@
 
-# Generates a maven pom called fat-jar-pom.xml that builds a fat jar 
+# Generates a maven pom called fat-jar-pom.xml that builds a fat jar
 # containing all the dependencies required to run opentsdb
 fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	(cd $(top_srcdir) ; ./fat-jar/create-src-dir-overlay.sh)
@@ -918,7 +919,7 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
 	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
 	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
-	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \	    
+	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
 	    -e 's/@spec_vendor@/$(spec_vendor)/' \
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \
