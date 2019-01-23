@@ -226,7 +226,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return builder;
   }
   
-  AggregationBuilder<?> metricAgg(final QueryFilter filter, int size) {
+  AggregationBuilder<?> metricAgg(final QueryFilter filter, final int size) {
     ChainFilter.Builder metric_only_filter = ChainFilter.newBuilder();
     if (filter instanceof ChainFilter) {
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
@@ -249,7 +249,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 Order.term(true) : Order.term(false))));
   }
   
-  AggregationBuilder<?> tagKeyAgg(final QueryFilter filter, int size) {
+  AggregationBuilder<?> tagKeyAgg(final QueryFilter filter, final int size) {
     return AggregationBuilders.nested(TAG_KEY_AGG)
         .path(TAG_PATH)
         .subAggregation(AggregationBuilders.terms(TAG_KEY_UNIQUE)
@@ -269,8 +269,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 Order.term(true) : Order.term(false)));
   }
   
-  AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter, String
-          field, int size) {
+  AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter, final String
+          field, final int size) {
     ChainFilter.Builder tags_filters = ChainFilter.newBuilder();
 
     if (filter instanceof ChainFilter) {
@@ -312,7 +312,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                         Order.term(true) : Order.term(false)))));
   }
   
-  FilterBuilder getTagPairFilter(final QueryFilter filter, boolean use_must) {
+  FilterBuilder getTagPairFilter(final QueryFilter filter, final boolean
+          use_must) {
     if (filter == null) {
       return null;
     }
