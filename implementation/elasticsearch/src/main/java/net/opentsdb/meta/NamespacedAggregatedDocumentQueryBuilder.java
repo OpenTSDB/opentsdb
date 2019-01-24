@@ -226,7 +226,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return builder;
   }
   
-  AggregationBuilder<?> metricAgg(final QueryFilter filter) {
+  AggregationBuilder<?> metricAgg(final QueryFilter filter, final int size) {
     ChainFilter.Builder metric_only_filter = ChainFilter.newBuilder();
     if (filter instanceof ChainFilter) {
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
@@ -244,17 +244,17 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 .filter(pair_filter)
                 .subAggregation(AggregationBuilders.terms(METRIC_UNIQUE)
             .field(RESULT_METRIC)
-            .size(0)
+            .size(size)
             .order(query.order() == MetaQuery.Order.ASCENDING ? 
                 Order.term(true) : Order.term(false))));
   }
   
-  AggregationBuilder<?> tagKeyAgg(final QueryFilter filter) {
+  AggregationBuilder<?> tagKeyAgg(final QueryFilter filter, final int size) {
     return AggregationBuilders.nested(TAG_KEY_AGG)
         .path(TAG_PATH)
         .subAggregation(AggregationBuilders.terms(TAG_KEY_UNIQUE)
             .field(RESULT_TAG_KEY_KEY)
-            .size(0)
+            .size(size)
             .order(query.order() == MetaQuery.Order.ASCENDING ? 
                 Order.term(true) : Order.term(false)));
   }
@@ -269,8 +269,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 Order.term(true) : Order.term(false)));
   }
   
-  AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter, String
-          field, int size) {
+  AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter, final String
+          field, final int size) {
     ChainFilter.Builder tags_filters = ChainFilter.newBuilder();
 
     if (filter instanceof ChainFilter) {
@@ -312,7 +312,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                         Order.term(true) : Order.term(false)))));
   }
   
-  FilterBuilder getTagPairFilter(final QueryFilter filter, boolean use_must) {
+  FilterBuilder getTagPairFilter(final QueryFilter filter, final boolean
+          use_must) {
     if (filter == null) {
       return null;
     }
@@ -380,11 +381,11 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       search_source_builder.size(0);
       return search_source_builder;
     case METRICS:
-      search_source_builder.aggregation(metricAgg(query.filter()));
+      search_source_builder.aggregation(metricAgg(query.filter(), query.aggregationSize()));
       search_source_builder.size(0);
       break;
     case TAG_KEYS:
-      search_source_builder.aggregation(tagKeyAgg(query.filter()));
+      search_source_builder.aggregation(tagKeyAgg(query.filter(), query.aggregationSize()));
       search_source_builder.size(0);
       break;
     case TAG_VALUES:
