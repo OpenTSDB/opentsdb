@@ -31,6 +31,7 @@ import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Pair;
 
+import net.opentsdb.utils.UniqueKeyPair;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.base.Strings;
 import org.elasticsearch.search.SearchHit;
@@ -474,7 +475,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
       }
       
-      result.addMetric(new Pair<String, Long>(bucket.getKey(), 
+      result.addMetric(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()));
     }
     return result;
@@ -505,7 +506,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
       }
       
-      result.addTagKeyOrValue(new Pair<String, Long>(bucket.getKey(), 
+      result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()));
     }
     return result;
@@ -536,7 +537,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
       }
       
-      result.addTagKeyOrValue(new Pair<String, Long>(bucket.getKey(), 
+      result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()));
     }
     return result;
@@ -569,21 +570,21 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       Aggregation sub = bucket.getAggregations()
           .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_AGG);
       if (sub == null || ((InternalFilter) sub).getDocCount() < 1) {
-        result.addTags(new Pair<String, Long>(bucket.getKey(), 
+        result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()), null);
       } else {
         sub = ((InternalFilter) sub).getAggregations()
             .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_UNIQUE);
         if (sub == null) {
-          result.addTags(new Pair<String, Long>(bucket.getKey(), 
+          result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
               bucket.getDocCount()), null);
         } else {
-          final List<Pair<String, Long>> tag_values = Lists.newArrayList();
+          final List<UniqueKeyPair<String, Long>> tag_values = Lists.newArrayList();
           for (final Terms.Bucket sub_bucket : ((StringTerms) sub).getBuckets()) {
-            tag_values.add(new Pair<String, Long>(sub_bucket.getKey(), 
+            tag_values.add(new UniqueKeyPair<String, Long>(sub_bucket.getKey(),
                 sub_bucket.getDocCount()));
           }
-          result.addTags(new Pair<String, Long>(bucket.getKey(), 
+          result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
                   bucket.getDocCount()), tag_values);
         }
       }

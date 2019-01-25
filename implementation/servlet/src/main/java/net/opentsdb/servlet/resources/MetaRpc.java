@@ -41,6 +41,7 @@ import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
+import net.opentsdb.utils.UniqueKeyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -213,7 +214,8 @@ public class MetaRpc {
 
           json.writeObjectFieldStart("tagKeysAndValues");
           if (metaDataStorageResult.tags() != null) {
-            for (final Map.Entry<Pair<String, Long>, List<Pair<String, Long>>> tags : 
+            for (final Map.Entry<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>>
+                    tags :
                 metaDataStorageResult.tags().entrySet()) {
               json.writeObjectFieldStart(tags.getKey().getKey());
               json.writeNumberField("hits", tags.getKey().getValue());

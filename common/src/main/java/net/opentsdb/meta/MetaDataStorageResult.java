@@ -22,6 +22,7 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.UniqueKeyPair;
 
 /**
  * The result from a meta data store query.
@@ -49,9 +50,9 @@ public interface MetaDataStorageResult {
   
   public TypeToken<? extends TimeSeriesId> idType();
 
-  public Collection<Pair<String, Long>> metrics();
+  public Collection<UniqueKeyPair<String, Long>> metrics();
 
-  public Map<Pair<String, Long>, List<Pair<String, Long>>> tags();
+  public Map<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>> tags();
   
-  public Collection<Pair<String, Long>> tagKeysOrValues();
+  public Collection<UniqueKeyPair<String, Long>> tagKeysOrValues();
 }

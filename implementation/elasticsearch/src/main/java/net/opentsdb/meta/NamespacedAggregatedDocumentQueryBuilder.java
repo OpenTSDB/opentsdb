@@ -35,6 +35,7 @@ import net.opentsdb.utils.DateTime;
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
+import org.elasticsearch.index.query.QueryFilterBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
@@ -289,6 +290,11 @@ public class NamespacedAggregatedDocumentQueryBuilder {
         }
       }
     }
+
+    if (tags_filters.filters() == null || tags_filters.filters().size() == 0) {
+      tags_filters.addFilter(TagValueWildcardFilter.newBuilder().setTagKey
+              (field).setFilter(".*").build());
+    }
     // we have to recurse here and find tag key/tag value filters.
 
     FilterBuilder pair_filter = getTagPairFilter(tags_filters.build(), true);
@@ -338,7 +344,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     }
     
     if (filter instanceof NotFilter) {
-      return FilterBuilders.notFilter(
+      return FilterBuilders.boolFilter().mustNot(
           getTagPairFilter(((NotFilter) filter).getFilter(), use_must));
     }
     
