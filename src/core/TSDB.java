@@ -1252,13 +1252,18 @@ public final class TSDB {
                                             final byte[] value,
                                             final Map<String, String> tags,
                                             final short flags) {
-
-        checkTimestampAndTags(metric, timestamp, value, tags, flags);
-        final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+        final Map<String, String> cleaned_tags = new HashMap<String, String>(tags.size());
+        if (normalize != null) {
+            cleaned_tags.putAll(normalize.normalizeTags(tags));
+        } else {
+            cleaned_tags.putAll(tags);
+        }
+        checkTimestampAndTags(metric, timestamp, value, cleaned_tags, flags);
+        final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, cleaned_tags);
 
         final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-        return storeIntoDB(metric, timestamp, value, tags, flags, row, qualifier);
+        return storeIntoDB(metric, timestamp, value, cleaned_tags, flags, row, qualifier);
     }
 
     private final Deferred<Object> storeIntoDB(final String metric,
@@ -1269,13 +1274,8 @@ public final class TSDB {
                                                final byte[] row,
                                                final byte[] qualifier) {
         final long base_time;
-        final Map<String, String> cleaned_tags = new HashMap<String, String>(tags.size());
 
-        if (normalize != null) {
-            cleaned_tags.putAll(normalize.normalizeTags(tags));
-        } else {
-            cleaned_tags.putAll(tags);
-        }
+
 
         if ((timestamp & Const.SECOND_MASK) != 0) {
             // drop the ms timestamp to seconds to calculate the base timestamp
@@ -1353,9 +1353,9 @@ public final class TSDB {
 
                 if (rt_publisher != null) {
                     if (isHistogram(qualifier)) {
-                        rt_publisher.publishHistogramPoint(metric, timestamp, value, cleaned_tags, tsuid);
+                        rt_publisher.publishHistogramPoint(metric, timestamp, value, tags, tsuid);
                     } else {
-                        rt_publisher.sinkDataPoint(metric, timestamp, value, cleaned_tags, tsuid, flags);
+                        rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
                     }
                 }
                 return result;
@@ -1369,10 +1369,10 @@ public final class TSDB {
 
         if (ts_filter != null && ts_filter.filterDataPoints()) {
             if (isHistogram(qualifier)) {
-                return ts_filter.allowHistogramPoint(metric, timestamp, value, cleaned_tags)
+                return ts_filter.allowHistogramPoint(metric, timestamp, value, tags)
                         .addCallbackDeferring(new WriteCB());
             } else {
-                return ts_filter.allowDataPoint(metric, timestamp, value, cleaned_tags, flags)
+                return ts_filter.allowDataPoint(metric, timestamp, value, tags, flags)
                         .addCallbackDeferring(new WriteCB());
             }
         }
