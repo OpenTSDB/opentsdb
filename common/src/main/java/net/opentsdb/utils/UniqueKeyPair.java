@@ -31,7 +31,7 @@ public class UniqueKeyPair<K, V> extends Pair<K,V> {
    * @param value The value or right hand value to store
    */
   public UniqueKeyPair(final K key, final V value) {
-   super(key,value);
+    super(key,value);
   }
 
 
