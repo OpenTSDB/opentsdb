@@ -74,7 +74,7 @@ public class DefaultMetaQuery implements MetaQuery {
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
     aggregation_field = Strings.isNullOrEmpty(builder.aggregationField) ? 
         null : builder.aggregationField;
-    if (builder.filter == null) {
+    if (! builder.type.equals(QueryType.NAMESPACES) && builder.filter == null) {
       throw new IllegalArgumentException("Please set atleast one filter");
     } else {
       filters = builder.filter;
@@ -188,23 +188,24 @@ public class DefaultMetaQuery implements MetaQuery {
     }
     builder.setNamespace(n.asText());
 
-    n = node.get("filter");
-    if (n == null || n.isNull()) {
-      throw new IllegalArgumentException(
-          "The fitler field cannot be null or empty");
-    }
-    JsonNode type = n.get("type");
-
-    final QueryFilterFactory factory = tsdb.getRegistry()
-            .getPlugin(QueryFilterFactory.class, type.asText());
-    builder.setFilter((factory.parse(tsdb, mapper, n)));
-
     n = node.get("type");
     if (n == null || n.isNull()) {
       throw new IllegalArgumentException("Type cannot be null or empty.");
     }
     builder.setType(QueryType.valueOf(n.asText()));
-    
+
+    if (! n.asText().equalsIgnoreCase(QueryType.NAMESPACES.toString())) {
+      n = node.get("filter");
+      if (n == null || n.isNull()) {
+        throw new IllegalArgumentException(
+                "The fitler field cannot be null or empty");
+      }
+      JsonNode type = n.get("type");
+
+      final QueryFilterFactory factory = tsdb.getRegistry()
+              .getPlugin(QueryFilterFactory.class, type.asText());
+      builder.setFilter((factory.parse(tsdb, mapper, n)));
+    }
     n = node.get("order");
     if (n != null && !n.isNull()) {
       builder.setOrder(Order.valueOf(n.asText()));
