@@ -1269,7 +1269,13 @@ public final class TSDB {
                                                final byte[] row,
                                                final byte[] qualifier) {
         final long base_time;
-        final Map<String, String> cleaned_tags = normalize.normalizeTags(tags);
+        final Map<String, String> cleaned_tags = new HashMap<String, String>(tags.size());
+
+        if (normalize != null) {
+            cleaned_tags.putAll(normalize.normalizeTags(tags));
+        } else {
+            cleaned_tags.putAll(tags);
+        }
 
         if ((timestamp & Const.SECOND_MASK) != 0) {
             // drop the ms timestamp to seconds to calculate the base timestamp
