@@ -1269,6 +1269,7 @@ public final class TSDB {
                                                final byte[] row,
                                                final byte[] qualifier) {
         final long base_time;
+        final Map<String, String> cleaned_tags = normalize.normalizeTags(tags);
 
         if ((timestamp & Const.SECOND_MASK) != 0) {
             // drop the ms timestamp to seconds to calculate the base timestamp
@@ -1346,9 +1347,9 @@ public final class TSDB {
 
                 if (rt_publisher != null) {
                     if (isHistogram(qualifier)) {
-                        rt_publisher.publishHistogramPoint(metric, timestamp, value, tags, tsuid);
+                        rt_publisher.publishHistogramPoint(metric, timestamp, value, cleaned_tags, tsuid);
                     } else {
-                        rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+                        rt_publisher.sinkDataPoint(metric, timestamp, value, cleaned_tags, tsuid, flags);
                     }
                 }
                 return result;
@@ -1362,10 +1363,10 @@ public final class TSDB {
 
         if (ts_filter != null && ts_filter.filterDataPoints()) {
             if (isHistogram(qualifier)) {
-                return ts_filter.allowHistogramPoint(metric, timestamp, value, tags)
+                return ts_filter.allowHistogramPoint(metric, timestamp, value, cleaned_tags)
                         .addCallbackDeferring(new WriteCB());
             } else {
-                return ts_filter.allowDataPoint(metric, timestamp, value, tags, flags)
+                return ts_filter.allowDataPoint(metric, timestamp, value, cleaned_tags, flags)
                         .addCallbackDeferring(new WriteCB());
             }
         }
