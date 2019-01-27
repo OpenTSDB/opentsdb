@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import net.opentsdb.core.RpcResponder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -341,6 +342,23 @@ public class Config {
   }
 
   /**
+   * Returns the given property as an integer.
+   * If no such property is specified, or if the specified value is not a valid
+   * <code>Int</code>, then <code>default_val</code> is returned.
+   *
+   * @param property    The property to load
+   * @param default_val default value
+   * @return A parsed integer or default_val.
+   */
+  public final int getInt(final String property, final int default_val) {
+    try {
+      return getInt(property);
+    } catch (Exception e) {
+      return default_val;
+    }
+  }
+
+  /**
    * Returns the given string trimed or null if is null
    * @param string The string be trimmed of
    * @return The string trimed or null
@@ -418,6 +436,23 @@ public class Config {
     if (val.equals("YES"))
       return true;
     return false;
+  }
+
+  /**
+   * Returns the given property as an boolean.
+   * If no such property is specified, or if the specified value is not a valid
+   * <code>boolean</code>, then <code>default_val</code> is returned.
+   *
+   * @param property    The property to load
+   * @param default_val default value
+   * @return A parsed boolean or default_val.
+   */
+  public final boolean getBoolean(final String property, final boolean default_val) {
+    try {
+      return getBoolean(property);
+    } catch (Exception e) {
+      return default_val;
+    }
   }
 
   /**
