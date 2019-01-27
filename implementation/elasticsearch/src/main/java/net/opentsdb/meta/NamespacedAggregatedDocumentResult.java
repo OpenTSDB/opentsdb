@@ -36,7 +36,7 @@ import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.UniqueKeyPair;
 
 /**
  * A meta query result that handles filtering, storing and sorting the results.
@@ -50,9 +50,9 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   private Set<String> namespaces;
   private Set<TimeSeriesId> ids;
   private Throwable throwable;
-  private Set<Pair<String, Long>> metrics;
-  private Map<Pair<String, Long>, List<Pair<String, Long>>> tags;
-  private Set<Pair<String, Long>> tag_keys_or_values;
+  private Map<Integer, UniqueKeyPair<String, Long>> metrics;
+  private Map<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>> tags;
+  private Map<Integer, UniqueKeyPair<String, Long>> tag_keys_or_values;
   private MetaResult result;
   private final MetaQuery query;
 
@@ -121,48 +121,49 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   }
 
   @Override
-  public Collection<Pair<String, Long>> metrics() {
+  public Collection<UniqueKeyPair<String, Long>> metrics() {
     if (metrics == null) {
       return Collections.emptyList();
     }
-    final List<Pair<String, Long>> sorted = Lists.newArrayList(metrics);
+    final List<UniqueKeyPair<String, Long>> sorted = Lists.newArrayList(metrics.values());
     if (query.order() == Order.ASCENDING) {
-      Collections.sort(sorted, PAIR_CMP);
+      Collections.sort(sorted, UniqueKeyPair_CMP);
     } else {
-      Collections.sort(sorted, REVERSE_PAIR_CMP);
+      Collections.sort(sorted, REVERSE_UniqueKeyPair_CMP);
     }
     return sorted;
   }
 
   @Override
-  public Map<Pair<String, Long>, List<Pair<String, Long>>> tags() {
+  public Map<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>> tags() {
     if (tags == null) {
       return Collections.emptyMap();
     }
     // sort
-    for (final List<Pair<String, Long>> values : tags.values()) {
+    for (final List<UniqueKeyPair<String, Long>> values : tags.values()) {
       if (values == null) {
         continue;
       }
       if (query.order() == Order.ASCENDING) {
-        Collections.sort(values, PAIR_CMP);
+        Collections.sort(values, UniqueKeyPair_CMP);
       } else {
-        Collections.sort(values, REVERSE_PAIR_CMP);
+        Collections.sort(values, REVERSE_UniqueKeyPair_CMP);
       }
     }
     return tags;
   }
 
   @Override
-  public Collection<Pair<String, Long>> tagKeysOrValues() {
+  public Collection<UniqueKeyPair<String, Long>> tagKeysOrValues() {
     if (tag_keys_or_values == null) {
       return Collections.emptyList();
     }
-    final List<Pair<String, Long>> sorted = Lists.newArrayList(tag_keys_or_values);
+    final List<UniqueKeyPair<String, Long>> sorted = Lists.newArrayList
+            (tag_keys_or_values.values());
     if (query.order() == Order.ASCENDING) {
-      Collections.sort(sorted, PAIR_CMP);
+      Collections.sort(sorted, UniqueKeyPair_CMP);
     } else {
-      Collections.sort(sorted, REVERSE_PAIR_CMP);
+      Collections.sort(sorted, REVERSE_UniqueKeyPair_CMP);
     }
     return sorted;
   }
@@ -198,11 +199,17 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * Adds the given metric, filtering to make sure it matches. 
    * @param metric A non-null metric.
    */
-  void addMetric(final Pair<String, Long> metric) {
+  void addMetric(final UniqueKeyPair<String, Long> metric) {
     if (metrics == null) {
-      metrics = Sets.newHashSet();
+      metrics = Maps.newHashMap();
     }
-    metrics.add(metric);
+    if (metrics.containsKey(metric.hashCode())) {
+      if ((long)metrics.get(metric.hashCode()).getValue() < metric.getValue()) {
+        metrics.put(metric.hashCode(), metric);
+      }
+    } else {
+      metrics.put(metric.hashCode(), metric);
+    }
   }
   
   /**
@@ -210,7 +217,8 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param key A non-null key.
    * @param values A non-null (possibly empty) list.
    */
-  void addTags(final Pair<String, Long> key, final List<Pair<String, Long>> values) {
+  void addTags(final UniqueKeyPair<String, Long> key, final List<UniqueKeyPair<String, Long>>
+          values) {
     if (tags == null) {
       tags = Maps.newHashMap();
     }
@@ -222,11 +230,11 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param key
    * @param value
    */
-  void addTag(final  Pair<String, Long> key, final Pair<String, Long> value) {
+  void addTag(final  UniqueKeyPair<String, Long> key, final UniqueKeyPair<String, Long> value) {
     if (tags == null) {
-      tags = Maps.newTreeMap(query.order() == Order.ASCENDING ? PAIR_CMP : REVERSE_PAIR_CMP);
+      tags = Maps.newTreeMap(query.order() == Order.ASCENDING ? UniqueKeyPair_CMP : REVERSE_UniqueKeyPair_CMP);
     }
-    List<Pair<String, Long>> values = tags.get(key);
+    List<UniqueKeyPair<String, Long>> values = tags.get(key);
     if (values == null) {
       values = Lists.newArrayList();
       tags.put(key, values);
@@ -236,13 +244,20 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   
   /**
    * Adds a tag value or key to the list.
-   * @param value A non-null pair.
+   * @param value A non-null UniqueKeyPair.
    */
-  void addTagKeyOrValue(final Pair<String, Long> value) {
+  void addTagKeyOrValue(final UniqueKeyPair<String, Long> value) {
     if (tag_keys_or_values == null) {
-      tag_keys_or_values = Sets.newHashSet();
+      tag_keys_or_values = Maps.newHashMap();
     }
-    tag_keys_or_values.add(value);
+
+    if (tag_keys_or_values.containsKey(value.hashCode())) {
+      if ((long)tag_keys_or_values.get(value.hashCode()).getValue() < value.getValue()) {
+        tag_keys_or_values.put(value.hashCode(), value);
+      }
+    } else {
+      tag_keys_or_values.put(value.hashCode(), value);
+    }
   }
   
   /**
@@ -308,28 +323,28 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   }
   
   /**
-   * A comparator for the pair keys in lexical order.
+   * A comparator for the UniqueKeyPair keys in lexical order.
    */
-  static class PairComparator implements Comparator<Pair<String, ?>> {
+  static class UniqueKeyPairComparator implements Comparator<UniqueKeyPair<String, ?>> {
 
     @Override
-    public int compare(final Pair<String, ?> a, final Pair<String, ?> b) {
+    public int compare(final UniqueKeyPair<String, ?> a, final UniqueKeyPair<String, ?> b) {
       return a.getKey().compareTo(b.getKey());
     }
     
   }
-  static final PairComparator PAIR_CMP = new PairComparator();
+  static final UniqueKeyPairComparator UniqueKeyPair_CMP = new UniqueKeyPairComparator();
   
   /**
-   * A comparator for the pair keys in reverse lexical order.
+   * A comparator for the UniqueKeyPair keys in reverse lexical order.
    */
-  static class ReversePairComparator implements Comparator<Pair<String, ?>> {
+  static class ReverseUniqueKeyPairComparator implements Comparator<UniqueKeyPair<String, ?>> {
 
     @Override
-    public int compare(final Pair<String, ?> a, final Pair<String, ?> b) {
+    public int compare(final UniqueKeyPair<String, ?> a, final UniqueKeyPair<String, ?> b) {
       return -a.getKey().compareTo(b.getKey());
     }
     
   }
-  static final ReversePairComparator REVERSE_PAIR_CMP = new ReversePairComparator();
+  static final ReverseUniqueKeyPairComparator REVERSE_UniqueKeyPair_CMP = new ReverseUniqueKeyPairComparator();
 }
