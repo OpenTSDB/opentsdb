@@ -237,8 +237,6 @@ def cli_opts():
                         help="Path to the OpenTSDB CLI binary")
     parser.add_argument("--cfg-path", default="/etc/opentsdb/opentsdb.conf",
                         help="Path to OpenTSDB config")
-    parser.add_argument("--store-path", default="/tmp/opentsdb-fsck.list",
-                        help="Path to OpenTSDB config")
     parser.add_argument("--use-sudo", action="store_true",
                         default=False,
                         help="switch user when running repairs?")
@@ -289,7 +287,6 @@ def main():
                                "time_chunk": time_chunk,
                                "tsd_path": args.tsd_path,
                                "cfg_path": args.cfg_path,
-                               "store_path": args.store_path,
                                "shuffle": args.shuffle,
                                "compact": args.compact,
                                "retries": retries})
