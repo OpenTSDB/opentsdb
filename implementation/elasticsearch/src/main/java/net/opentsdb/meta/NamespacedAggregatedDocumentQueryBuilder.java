@@ -251,13 +251,29 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   }
   
   AggregationBuilder<?> tagKeyAgg(final QueryFilter filter, final int size) {
+    ChainFilter.Builder tags_filters = ChainFilter.newBuilder();
+    if (filter instanceof ChainFilter) {
+      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        if (sub_filter instanceof TagKeyFilter) {
+            tags_filters.addFilter(sub_filter);
+        }
+      }
+    }
+
+    FilterBuilder pair_filter = getTagPairFilter(tags_filters.build(), true);
+    if (pair_filter == null) {
+      return null;
+    }
+
     return AggregationBuilders.nested(TAG_KEY_AGG)
         .path(TAG_PATH)
-        .subAggregation(AggregationBuilders.terms(TAG_KEY_UNIQUE)
+        .subAggregation(AggregationBuilders.filter(TAG_KEY_UNIQUE)
+                .filter(pair_filter)
+                .subAggregation(AggregationBuilders.terms(TAG_KEY_UNIQUE)
             .field(RESULT_TAG_KEY_KEY)
             .size(size)
             .order(query.order() == MetaQuery.Order.ASCENDING ? 
-                Order.term(true) : Order.term(false)));
+                Order.term(true) : Order.term(false))));
   }
   
   AggregationBuilder<?> tagValueAgg(final QueryFilter filter) {
