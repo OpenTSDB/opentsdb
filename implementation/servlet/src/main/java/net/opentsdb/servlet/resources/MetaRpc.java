@@ -60,6 +60,8 @@ import java.util.Map;
 @Path("search/timeseries")
 public class MetaRpc {
     private static final Logger LOG = LoggerFactory.getLogger(MetaRpc.class);
+    private final String NAME = "name";
+    private final String COUNT = "count";
     
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -206,7 +208,8 @@ public class MetaRpc {
           if (metaDataStorageResult.metrics() != null) {
             for (final Pair<String, Long> metric : metaDataStorageResult.metrics()) {
               json.writeStartObject();
-              json.writeNumberField(metric.getKey(), metric.getValue());
+              json.writeStringField(NAME, metric.getKey());
+              json.writeNumberField(COUNT, metric.getValue());
               json.writeEndObject();
             }
           }
@@ -223,7 +226,8 @@ public class MetaRpc {
               if (tags.getValue() != null) {
                 for (final Pair<String, Long> tagv : tags.getValue()) {
                   json.writeStartObject();
-                  json.writeNumberField(tagv.getKey(), tagv.getValue());
+                  json.writeStringField(NAME, tagv.getKey());
+                  json.writeNumberField(COUNT, tagv.getValue());
                   json.writeEndObject();
                 }
               }
@@ -239,7 +243,8 @@ public class MetaRpc {
               metaDataStorageResult.tagKeysOrValues() != null) {
             for (final Pair<String, Long> key_or_value : metaDataStorageResult.tagKeysOrValues()) {
               json.writeStartObject();
-              json.writeNumberField(key_or_value.getKey(), key_or_value.getValue());
+              json.writeStringField(NAME, key_or_value.getKey());
+              json.writeNumberField(COUNT, key_or_value.getValue());
               json.writeEndObject();
             }
           }
@@ -251,7 +256,8 @@ public class MetaRpc {
               metaDataStorageResult.tagKeysOrValues() != null) {
             for (final Pair<String, Long> key_or_value : metaDataStorageResult.tagKeysOrValues()) {
               json.writeStartObject();
-              json.writeNumberField(key_or_value.getKey(), key_or_value.getValue());
+              json.writeStringField(NAME, key_or_value.getKey());
+              json.writeNumberField(COUNT, key_or_value.getValue());
               json.writeEndObject();
             }
           }

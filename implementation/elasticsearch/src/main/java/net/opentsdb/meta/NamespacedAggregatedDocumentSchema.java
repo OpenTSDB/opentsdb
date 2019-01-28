@@ -554,15 +554,18 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
     }
     
-    final Aggregation tag_keys = ((InternalNested) aggregation).getAggregations()
+    final Aggregation tag_keys_filter = ((InternalNested) aggregation)
+            .getAggregations()
         .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
-    if (tag_keys == null) {
+    if (tag_keys_filter == null) {
       if (result != null) {
         return result;
       }
       return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
     }
-    
+    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
+            .get
+            (NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
     for (Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
       if (result == null) {
         result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);

@@ -304,7 +304,9 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     
     return AggregationBuilders.nested(TAGS_AGG)
         .path(TAG_PATH)
-        .subAggregation(AggregationBuilders.terms(TAGS_UNIQUE)
+        .subAggregation(AggregationBuilders.filter(TAGS_UNIQUE)
+                .filter(pair_filter)
+                .subAggregation(AggregationBuilders.terms(TAGS_UNIQUE)
             .field(RESULT_TAG_KEY_KEY)
             .size(0)
             .order(query.order() == MetaQuery.Order.ASCENDING ? 
@@ -315,7 +317,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                     .field(RESULT_TAG_VALUE_KEY)
                     .size(size)
                     .order(query.order() == MetaQuery.Order.ASCENDING ? 
-                        Order.term(true) : Order.term(false)))));
+                        Order.term(true) : Order.term(false))))));
   }
   
   FilterBuilder getTagPairFilter(final QueryFilter filter, final boolean

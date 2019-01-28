@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014-2017 The OpenTSDB Authors.
+// Copyright (C) 2014-2019 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ public class UniqueKeyPair<K, V> extends Pair<K,V> {
    * @param value The value or right hand value to store
    */
   public UniqueKeyPair(final K key, final V value) {
-   super(key,value);
+    super(key,value);
   }
 
 
