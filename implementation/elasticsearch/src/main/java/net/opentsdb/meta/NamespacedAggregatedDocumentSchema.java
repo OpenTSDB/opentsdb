@@ -492,16 +492,26 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
     }
     
-    final Aggregation metrics = ((InternalNested) aggregation).getAggregations()
+    final Aggregation tag_keys_filter = ((InternalNested) aggregation).getAggregations()
         .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
-    if (metrics == null) {
+    if (tag_keys_filter == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+    }
+
+    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
+            .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
+
+    if (tag_keys == null) {
       if (result != null) {
         return result;
       }
       return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
     }
     
-    for (Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
+    for (Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
       if (result == null) {
         result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
       }
@@ -566,6 +576,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
             .get
             (NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
+
+    if (tag_keys == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+    }
+
     for (Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
       if (result == null) {
         result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
