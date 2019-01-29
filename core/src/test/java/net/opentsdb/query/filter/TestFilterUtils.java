@@ -45,7 +45,7 @@ public class TestFilterUtils {
             .setFilter("tyrion")
             .build())
         .build();
-    assertTrue(FilterUtils.matchesTags(filter, tags));
+    assertTrue(FilterUtils.matchesTags(filter, tags, null));
     
     filter = ChainFilter.newBuilder()
         .setOp(FilterOp.AND)
@@ -58,7 +58,7 @@ public class TestFilterUtils {
             .setFilter("tyrion")
             .build())
         .build();
-    assertFalse(FilterUtils.matchesTags(filter, tags));
+    assertFalse(FilterUtils.matchesTags(filter, tags, null));
     
     // not chains
     filter = NotFilter.newBuilder()
@@ -74,7 +74,7 @@ public class TestFilterUtils {
               .build())
           .build())
         .build();
-    assertFalse(FilterUtils.matchesTags(filter, tags));
+    assertFalse(FilterUtils.matchesTags(filter, tags, null));
     
     filter = NotFilter.newBuilder()
         .setFilter(ChainFilter.newBuilder()
@@ -89,7 +89,7 @@ public class TestFilterUtils {
               .build())
           .build())
         .build();
-    assertTrue(FilterUtils.matchesTags(filter, tags));
+    assertTrue(FilterUtils.matchesTags(filter, tags, null));
     
     // nested chains
     filter = ChainFilter.newBuilder()
@@ -110,7 +110,7 @@ public class TestFilterUtils {
                 .build())
           .build())
         .build();
-    assertTrue(FilterUtils.matchesTags(filter, tags));
+    assertTrue(FilterUtils.matchesTags(filter, tags, null));
     
     filter = ChainFilter.newBuilder()
         .setOp(FilterOp.AND)
@@ -130,20 +130,20 @@ public class TestFilterUtils {
                 .build())
           .build())
         .build();
-    assertFalse(FilterUtils.matchesTags(filter, tags));
+    assertFalse(FilterUtils.matchesTags(filter, tags, null));
     
     // singles
     filter = TagValueLiteralOrFilter.newBuilder()
         .setTagKey("host")
         .setFilter("web01")
         .build();
-    assertTrue(FilterUtils.matchesTags(filter, tags));
+    assertTrue(FilterUtils.matchesTags(filter, tags, null));
     
     filter = TagValueLiteralOrFilter.newBuilder()
         .setTagKey("owner")
         .setFilter("tyrion")
         .build();
-    assertFalse(FilterUtils.matchesTags(filter, tags));
+    assertFalse(FilterUtils.matchesTags(filter, tags, null));
     
     filter = NotFilter.newBuilder()
         .setFilter(TagValueLiteralOrFilter.newBuilder()
@@ -151,7 +151,7 @@ public class TestFilterUtils {
           .setFilter("web01")
           .build())
         .build();
-    assertFalse(FilterUtils.matchesTags(filter, tags));
+    assertFalse(FilterUtils.matchesTags(filter, tags, null));
     
     filter = NotFilter.newBuilder()
         .setFilter(TagValueLiteralOrFilter.newBuilder()
@@ -159,22 +159,22 @@ public class TestFilterUtils {
           .setFilter("tyrion")
           .build())
         .build();
-    assertTrue(FilterUtils.matchesTags(filter, tags));
+    assertTrue(FilterUtils.matchesTags(filter, tags, null));
     
     // TODO - tag key filters
     
     filter = MetricLiteralFilter.newBuilder()
         .setMetric("sys.cpu.user")
         .build();
-    assertTrue(FilterUtils.matchesTags(filter, tags));
+    assertTrue(FilterUtils.matchesTags(filter, tags, null));
     
     try {
-      FilterUtils.matchesTags(null, tags);
+      FilterUtils.matchesTags(null, tags, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      FilterUtils.matchesTags(filter, null);
+      FilterUtils.matchesTags(filter, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

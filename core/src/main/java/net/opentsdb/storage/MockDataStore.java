@@ -558,7 +558,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           }
           
           if (filter != null) {
-            if (!FilterUtils.matchesTags(filter, entry.getKey().tags())) {
+            if (!FilterUtils.matchesTags(filter, entry.getKey().tags(), null)) {
               continue;
             }
           }
