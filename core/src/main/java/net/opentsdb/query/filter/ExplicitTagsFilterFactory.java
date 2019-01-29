@@ -65,7 +65,7 @@ public class ExplicitTagsFilterFactory extends BaseTSDBPlugin
           + "for type: " + type);
     }
     
-    return (QueryFilter) NotFilter.newBuilder()
+    return (QueryFilter) ExplicitTagsFilter.newBuilder()
         .setFilter(factory.parse(tsdb, mapper, filter))
         .build();
   }
