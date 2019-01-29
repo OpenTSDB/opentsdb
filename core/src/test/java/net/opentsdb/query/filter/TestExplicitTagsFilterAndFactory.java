@@ -52,7 +52,8 @@ public class TestExplicitTagsFilterAndFactory {
       .thenReturn(exp_factory);
     
     JsonNode node = JSON.getMapper().readTree(json);
-    ExplicitTagsFilter filter = (ExplicitTagsFilter) exp_factory.parse(tsdb, JSON.getMapper(), node);
+    ExplicitTagsFilter filter = (ExplicitTagsFilter) exp_factory.parse(tsdb, JSON.getMapper(),
+            node);
     assertTrue(filter.getFilter() instanceof TagValueLiteralOrFilter);
     assertEquals("web01|web02", ((TagValueLiteralOrFilter) 
         filter.getFilter()).getFilter());
