@@ -29,6 +29,60 @@ import net.opentsdb.query.filter.ChainFilter.FilterOp;
 public class TestFilterUtils {
 
   @Test
+  public void matchesExplicitTags() throws Exception {
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put("host", "web01");
+
+    // nested explicit tags chains
+    QueryFilter filter = ChainFilter.newBuilder()
+        .setOp(FilterOp.OR)
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("owner")
+            .setFilter("tyrion")
+            .build())
+        .addFilter(ChainFilter.newBuilder()
+            .setOp(FilterOp.OR)
+            .addFilter(TagValueLiteralOrFilter.newBuilder()
+                .setTagKey("host")
+                .setFilter("web02")
+                .build())
+            .addFilter(TagValueLiteralOrFilter.newBuilder()
+                .setTagKey("host")
+                .setFilter("web01")
+                .build())
+            .build())
+        .build();
+
+    QueryFilter explicitFilter = ExplicitTagsFilter.newBuilder().setFilter(filter).build();
+    assertTrue(FilterUtils.matchesTags(explicitFilter, tags, null));
+
+
+    // nested explicit tags chains
+    filter = ChainFilter.newBuilder()
+        .setOp(FilterOp.OR)
+        .addFilter(TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("owner")
+            .setFilter("tyrion")
+            .build())
+        .addFilter(ChainFilter.newBuilder()
+            .setOp(FilterOp.OR)
+            .addFilter(TagValueLiteralOrFilter.newBuilder()
+                .setTagKey("host")
+                .setFilter("web02")
+                .build())
+            .addFilter(TagValueLiteralOrFilter.newBuilder()
+                .setTagKey("host1")
+                .setFilter("web01")
+                .build())
+            .build())
+        .build();
+
+    explicitFilter = ExplicitTagsFilter.newBuilder().setFilter(filter).build();
+    assertFalse(FilterUtils.matchesTags(explicitFilter, tags, null));
+
+  }
+
+  @Test
   public void matchesTags() throws Exception {
     Map<String, String> tags = Maps.newHashMap();
     tags.put("host", "web01");
@@ -111,7 +165,7 @@ public class TestFilterUtils {
           .build())
         .build();
     assertTrue(FilterUtils.matchesTags(filter, tags, null));
-    
+
     filter = ChainFilter.newBuilder()
         .setOp(FilterOp.AND)
         .addFilter(TagValueLiteralOrFilter.newBuilder()
