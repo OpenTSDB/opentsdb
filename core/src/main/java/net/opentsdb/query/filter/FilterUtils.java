@@ -14,7 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.collect.Sets;
+
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Utilities for working with filters.
@@ -27,9 +30,9 @@ public class FilterUtils {
    * Private ctor, statics only.
    */
   private FilterUtils() { }
-  
+
   /**
-   * Determines if the filter(s) are satisfied with the tag sets. This 
+   * Determines if the filter(s) are satisfied with the tag sets. This
    * utility will handle chained filters based on the AND or OR operand.
    * For non-tag handling filters, this method will return true.
    * @param filter The filter to evaluate.
@@ -37,49 +40,76 @@ public class FilterUtils {
    * @return True if the filter(s) matched, false if not or true if the
    * filter(s) were not tag filters.
    */
-  public static boolean matchesTags(final QueryFilter filter, 
-                                    final Map<String, String> tags) {
+  public static boolean matchesTags(final QueryFilter filter,
+      final Map<String, String> tags,
+      Set<String> matched) {
     if (filter == null) {
       throw new IllegalArgumentException("Filter cannot be null.");
     }
     if (tags == null) {
       throw new IllegalArgumentException("Tags cannot be null.");
     }
-    
+
+    if (filter instanceof ExplicitTagsFilter) {
+      matched = Sets.newHashSetWithExpectedSize(tags.size());
+      final boolean satisfied = matchesTags(
+          ((ExplicitTagsFilter) filter).getFilter(), tags, matched);
+
+      if (!satisfied) {
+        return false;
+      }
+      if (matched.size() != tags.size()) {
+        return false;
+      }
+      return true;
+    }
+
     if (filter instanceof TagValueFilter) {
-      return ((TagValueFilter) filter).matches(tags);
+      if (((TagValueFilter) filter).matches(tags)) {
+        if (matched != null) {
+          matched.add(((TagValueFilter) filter).getTagKey());
+        }
+        return true;
+      }
+      return false;
     }
     if (filter instanceof TagKeyFilter) {
-      return ((TagValueFilter) filter).matches(tags);
+      if (((TagValueFilter) filter).matches(tags)) {
+        if (matched != null) {
+          matched.add(((TagKeyFilter) filter).filter());
+        }
+        return true;
+      }
+      return false;
     }
     if (filter instanceof ChainFilter) {
       final ChainFilter chain = (ChainFilter) filter;
       switch (chain.getOp()) {
-      case AND:
-        for (final QueryFilter child : chain.getFilters()) {
-          if (!matchesTags(child, tags)) {
-            return false;
+        case AND:
+          for (final QueryFilter child : chain.getFilters()) {
+            if (!matchesTags(child, tags, matched)) {
+              return false;
+            }
           }
-        }
-        return true;
-      case OR:
-        for (final QueryFilter child : chain.getFilters()) {
-          if (matchesTags(child, tags)) {
-            return true;
+          return true;
+        case OR:
+          for (final QueryFilter child : chain.getFilters()) {
+            if (matchesTags(child, tags, matched)) {
+              return true;
+            }
           }
-        }
-        return false;
-      default:
-        throw new IllegalStateException("Unsupported chain operator: " 
-            + chain.getOp());
+          return false;
+        default:
+          throw new IllegalStateException("Unsupported chain operator: "
+              + chain.getOp());
       }
     }
     if (filter instanceof NotFilter) {
-      return !matchesTags(((NotFilter) filter).getFilter(), tags);
+      return !matchesTags(((NotFilter) filter).getFilter(), tags, matched);
     }
-    
+
     // it's a different type of filter so return true.
     return true;
   }
-  
+
 }
