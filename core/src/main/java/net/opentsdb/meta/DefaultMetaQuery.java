@@ -18,13 +18,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
-import net.opentsdb.utils.DateTime;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
+
+import javax.management.Query;
 
 /**
  * Represents parameters to search for metadata.
@@ -46,11 +45,7 @@ public class DefaultMetaQuery implements MetaQuery {
   
   protected DefaultMetaQuery(final Builder builder) {
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
-    if (builder.filter == null) {
-      throw new IllegalArgumentException("Please set atleast one filter");
-    } else {
-      filters = builder.filter;
-    }
+    filters = builder.filter;
     if (builder.namespace == null) {
       throw new IllegalArgumentException("Please set a namespace");
     }
@@ -89,7 +84,8 @@ public class DefaultMetaQuery implements MetaQuery {
    */
   public static Builder parse(final TSDB tsdb, 
                               final ObjectMapper mapper, 
-                              final JsonNode node) {
+                              final JsonNode node,
+                              final QueryType query_type) {
     if (node == null) {
       throw new IllegalArgumentException("Cannot be empty");
     }
@@ -103,17 +99,18 @@ public class DefaultMetaQuery implements MetaQuery {
     builder.setNamespace(n.asText());
 
 
-    n = node.get("filter");
-    if (n == null || n.isNull()) {
-      throw new IllegalArgumentException(
-              "The fitler field cannot be null or empty");
+    if (query_type != QueryType.NAMESPACES) {
+      n = node.get("filter");
+      if (n == null || n.isNull()) {
+        throw new IllegalArgumentException(
+          "The fitler field cannot be null or empty");
+      }
+      JsonNode type = n.get("type");
+
+      final QueryFilterFactory factory = tsdb.getRegistry()
+        .getPlugin(QueryFilterFactory.class, type.asText());
+      builder.setFilter((factory.parse(tsdb, mapper, n)));
     }
-    JsonNode type = n.get("type");
-
-    final QueryFilterFactory factory = tsdb.getRegistry()
-            .getPlugin(QueryFilterFactory.class, type.asText());
-    builder.setFilter((factory.parse(tsdb, mapper, n)));
-
     return builder;
 
   }

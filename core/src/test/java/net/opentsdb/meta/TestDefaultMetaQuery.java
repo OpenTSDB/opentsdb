@@ -40,7 +40,9 @@ public class TestDefaultMetaQuery {
         + "\"filter\":\"cpu\"}]},\"type\":\"TIMESERIES\"}";
     JsonNode node = JSON.getMapper().readTree(request);
 
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.TIMESERIES)
+      .build();
 
     assertNotNull(query);
     assertEquals("Test-Namespace", query.namespace());
@@ -55,7 +57,8 @@ public class TestDefaultMetaQuery {
         + "\"filter\":\"cpu\"}]},\"type\":\"METRICS\"}";
     JsonNode node = JSON.getMapper().readTree(request);
 
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.METRICS).build();
 
     assertNotNull(query);
     assertEquals("Test-Namespace", query.namespace());
@@ -70,7 +73,9 @@ public class TestDefaultMetaQuery {
         + "\"cpu\"}]},\"type\":\"TAG_KEYS\"}";
     JsonNode node = JSON.getMapper().readTree(request);
 
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.TAG_KEYS)
+      .build();
 
     assertNotNull(query);
     assertEquals("Test-Namespace", query.namespace());
@@ -85,7 +90,9 @@ public class TestDefaultMetaQuery {
         + "\"cpu\"}]},\"type\":\"TAG_VALUES\"}";
     JsonNode node = JSON.getMapper().readTree(request);
 
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.TAG_VALUES)
+      .build();
 
     assertNotNull(query);
     assertEquals("Test-Namespace", query.namespace());

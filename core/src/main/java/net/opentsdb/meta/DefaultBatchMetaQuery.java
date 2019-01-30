@@ -91,6 +91,12 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
       end = new MillisecondTimeStamp(
               DateTime.parseDateTimeString(builder.end, builder.time_zone));
     }
+
+    if (type == QueryType.NAMESPACES) {
+      if (meta_query.size() > 1) {
+        throw new IllegalArgumentException("Namespaces query cannot have more than one query");
+      }
+    }
   }
 
   public String namespace() {
@@ -181,12 +187,6 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     }
     builder.setTo(n.asInt());
 
-//    n = node.get("namespace");
-//    if (n == null || n.isNull()) {
-//      throw new IllegalArgumentException(
-//          "The namespace field cannot be null or empty");
-//    }
-//    builder.setNamespace(n.asText());
 
     n = node.get("type");
     if (n == null || n.isNull()) {
@@ -194,18 +194,7 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     }
     builder.setType(QueryType.valueOf(n.asText()));
 
-//    if (! n.asText().equalsIgnoreCase(QueryType.NAMESPACES.toString())) {
-//      n = node.get("filter");
-//      if (n == null || n.isNull()) {
-//        throw new IllegalArgumentException(
-//                "The fitler field cannot be null or empty");
-//      }
-//      JsonNode type = n.get("type");
-//
-//      final QueryFilterFactory factory = tsdb.getRegistry()
-//              .getPlugin(QueryFilterFactory.class, type.asText());
-//      builder.setFilter((factory.parse(tsdb, mapper, n)));
-//    }
+
     n = node.get("order");
     if (n != null && !n.isNull()) {
       builder.setOrder(Order.valueOf(n.asText()));
@@ -240,10 +229,10 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     if (n !=null && !n.isNull()) {
       List<MetaQuery> meta_query = new ArrayList<>();
       for (int i = 0; i < ((ArrayNode) n).size(); i++) {
-        meta_query.add(DefaultMetaQuery.parse(tsdb, mapper, n.get(i)).build());
+        meta_query.add(DefaultMetaQuery.parse(tsdb, mapper, n.get(i), builder.type)
+          .build());
       }
       builder.setMetaQuery(meta_query);
-      System.out.println(meta_query);
     }
 
     return builder;
