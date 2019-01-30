@@ -857,7 +857,7 @@ public class Tsdb1xScanner {
         deferred.callback(ex);
       }
       
-      if (FilterUtils.matchesTags(filter, id.tags())) {
+      if (FilterUtils.matchesTags(filter, id.tags(), null)) {
         synchronized (keepers) {
           keepers.add(hash);
         }
