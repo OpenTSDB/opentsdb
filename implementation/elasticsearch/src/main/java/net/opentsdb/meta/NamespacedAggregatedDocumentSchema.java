@@ -315,19 +315,31 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         filter = queryPipelineContext.query().getFilter(
             timeSeriesDataSourceConfig.getFilterId());
       }
-      
-      final ChainFilter.Builder builder = ChainFilter.newBuilder()
-        .setOp(FilterOp.AND)
-        .addFilter(MetricLiteralFilter.newBuilder()
-            .setMetric(metric)
-            .build());
+
+      QueryFilter buildFilter;
+
+      final ChainFilter.Builder builder = ChainFilter
+          .newBuilder()
+          .setOp(FilterOp.AND)
+          .addFilter(MetricLiteralFilter.newBuilder().setMetric(metric).build());
       if (filter != null) {
         builder.addFilter(filter);
       }
+
+      if (filter instanceof ExplicitTagsFilter) {
+        final ExplicitTagsFilter.Builder explicitTagBuilder =
+            ExplicitTagsFilter
+                .newBuilder()
+                .setFilter(builder.build());
+        buildFilter = explicitTagBuilder.build();
+      } else {
+        buildFilter = builder.build();
+      }
+      
       final MetaQuery query = DefaultMetaQuery.newBuilder()
           .setType(QueryType.TIMESERIES)
           .setNamespace(namespace)
-          .setFilter(builder.build())
+          .setFilter(buildFilter)
           .build();
       
       SearchSourceBuilder search = NamespacedAggregatedDocumentQueryBuilder

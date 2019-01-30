@@ -51,6 +51,36 @@ public class TestNamespacedAggregatedDocumentQuery {
         + "{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},\"path\":\"tags\"}}"));
 
   }
+
+  @Test
+  public void testExplicitTagQuery() {
+
+    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
+        .addFilter(TagValueRegexFilter.newBuilder().setFilter("cpu").setTagKey("host").build())
+        .build();
+    MetaQuery query = DefaultMetaQuery.newBuilder()
+        .setFrom(0)
+        .setTo(5)
+        .setNamespace("Yahoo")
+        .setFilter( ExplicitTagsFilter.newBuilder().setFilter(chainFil).build())
+        .setType(QueryType.TIMESERIES)
+        .build();
+
+    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder
+        .newBuilder(query)
+        .build();
+
+    String s = source.toString().replaceAll("\n","")
+        .replaceAll(" ", "");
+    System.out.println(s);
+    assertTrue(s.contains("\"from\":0"));
+    assertTrue(s.contains("\"size\":5"));
+    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"term\":{\"tags_value\":1}},{\"bool\":"
+        + "{\"must\":{\"nested\":{\"filter\":{\"bool\":{\"must\":[{\"regexp\":"
+        + "{\"tags.value\":\".*cpu.*\"}},{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},"
+        + "\"path\":\"tags\"}}}}]}}"));
+
+  }
 //
 //  @Test
 //  public void testMetricRegexQuery() {
