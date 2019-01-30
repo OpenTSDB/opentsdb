@@ -21,6 +21,8 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 
+import java.util.Map;
+
 /**
  * Handles querying a meta data store for time series identifiers given
  * the query. Not used for the actual time series data.
@@ -37,8 +39,8 @@ public interface MetaDataStorageSchema {
    * an exception if something went very wrong. It's better to return
    * a result with the exception set.
    */
-  public Deferred<MetaDataStorageResult> runQuery(
-      final MetaQuery query,
+  public Deferred<Map<String, MetaDataStorageResult>> runQuery(
+      final BatchMetaQuery query,
       final Span span);
 
   /**
