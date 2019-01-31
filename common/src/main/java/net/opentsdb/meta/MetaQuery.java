@@ -24,65 +24,16 @@ import net.opentsdb.query.filter.QueryFilter;
  */
 public interface MetaQuery {
 
-  public static enum QueryType {
-    NAMESPACES,
-    METRICS,
-    TAG_KEYS,
-    TAG_VALUES,
-    TAG_KEYS_AND_VALUES,
-    TIMESERIES
-  }
-  
-  public static enum Order {
-    ASCENDING,
-    DESCENDING
-  }
-  
   public String namespace();
 
-  public int from();
-
-  public int to();
-
   public QueryFilter filter();
-  
-  public String aggregationField();
-
-  public int aggregationSize();
-  
-  public QueryType type();
-
-  public Order order();
-  
-  public TimeStamp start();
-  
-  public TimeStamp end();
   
   /**
    * Builder through which the query is parsed and parameters are set
    */
   public static abstract class Builder {
-    protected int from;
-    protected int to;
     protected String namespace;
     protected QueryFilter filter;
-    protected String aggregationField;
-    protected int agg_size;
-    protected QueryType type;
-    protected Order order = Order.ASCENDING;
-    protected String start;
-    protected String end;
-    protected String time_zone;
-
-    public Builder setFrom(final int from) {
-      this.from = from;
-      return this;
-    }
-
-    public Builder setTo(final int to) {
-      this.to = to;
-      return this;
-    }
 
     public Builder setNamespace(final String namespace) {
       this.namespace = namespace;
@@ -91,41 +42,6 @@ public interface MetaQuery {
 
     public Builder setFilter(final QueryFilter filter) {
       this.filter = filter;
-      return this;
-    }
-    
-    public Builder setAggregationField(final String aggregationField) {
-      this.aggregationField = aggregationField;
-      return this;
-    }
-
-    public Builder setAggregationSize(final int aggregation_size) {
-      this.agg_size = aggregation_size;
-      return this;
-    }
-    
-    public Builder setType(final QueryType type) {
-      this.type = type;
-      return this;
-    }
-    
-    public Builder setOrder(final Order order) {
-      this.order = order;
-      return this;
-    }
-
-    public Builder setStart(final String start) {
-      this.start = start;
-      return this;
-    }
-    
-    public Builder setEnd(final String end) {
-      this.end = end;
-      return this;
-    }
-    
-    public Builder setTimeZone(final String time_zone) {
-      this.time_zone = time_zone;
       return this;
     }
     

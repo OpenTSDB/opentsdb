@@ -18,13 +18,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
-import net.opentsdb.utils.DateTime;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
 
 /**
  * Represents parameters to search for metadata.
@@ -35,16 +32,6 @@ import net.opentsdb.utils.DateTime;
 public class DefaultMetaQuery implements MetaQuery {
   
   /**
-   * The starting pointer for results for pagination
-   */
-  private int from;
-
-  /**
-   * The end pointer for results for pagination
-   */
-  private int to;
-
-  /**
    * The namespace for the query
    */
   private String namespace;
@@ -54,46 +41,11 @@ public class DefaultMetaQuery implements MetaQuery {
    */
   private QueryFilter filters;
   
-  /**
-   * The tag for which a second level aggregation is applied. Lists tag values for a tag key
-   */
-  private String aggregation_field;
-
-  /**
-   * Size of number unique tag values to return.
-   */
-  private int agg_size;
-  private QueryType type;
-  private Order order;
-  private TimeStamp start;
-  private TimeStamp end;
-
   protected DefaultMetaQuery(final Builder builder) {
-    from = builder.from;
-    to = builder.to;
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
-    aggregation_field = Strings.isNullOrEmpty(builder.aggregationField) ? 
-        null : builder.aggregationField;
-    if (! builder.type.equals(QueryType.NAMESPACES) && builder.filter == null) {
-      throw new IllegalArgumentException("Please set atleast one filter");
-    } else {
-      filters = builder.filter;
-    }
-    agg_size = builder.agg_size;
+    filters = builder.filter;
     if (builder.namespace == null) {
       throw new IllegalArgumentException("Please set a namespace");
-    }
-    type = builder.type;
-    order = builder.order;
-
-    if (!Strings.isNullOrEmpty(builder.start)) {
-      start = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(builder.start, builder.time_zone));
-    }
-    
-    if (!Strings.isNullOrEmpty(builder.end)) {
-      end = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(builder.end, builder.time_zone));
     }
   }
 
@@ -101,40 +53,8 @@ public class DefaultMetaQuery implements MetaQuery {
     return namespace;
   }
 
-  public int from() {
-    return from;
-  }
-
-  public int to() {
-    return to;
-  }
-
   public QueryFilter filter() {
     return filters;
-  }
-  
-  public String aggregationField() {
-    return aggregation_field;
-  }
-
-  public int aggregationSize() { 
-    return agg_size; 
-  }
-  
-  public QueryType type() {
-    return type;
-  }
-
-  public Order order() {
-    return order;
-  }
-  
-  public TimeStamp start() {
-    return start;
-  }
-  
-  public TimeStamp end() {
-    return end;
   }
   
   public static Builder newBuilder() {
@@ -162,78 +82,32 @@ public class DefaultMetaQuery implements MetaQuery {
    */
   public static Builder parse(final TSDB tsdb, 
                               final ObjectMapper mapper, 
-                              final JsonNode node) {
+                              final JsonNode node,
+                              final QueryType query_type) {
     if (node == null) {
       throw new IllegalArgumentException("Cannot be empty");
     }
     final Builder builder = newBuilder();
 
-    JsonNode n = node.get("from");
-    if (n == null || n.isNull()) {
-      builder.setFrom(0);
-    } else {
-      builder.setFrom(n.asInt());
-    }
-
-    n = node.get("to");
-    if (n == null || n.isNull()) {
-      throw new IllegalArgumentException("The to field must be set.");
-    }
-    builder.setTo(n.asInt());
-
-    n = node.get("namespace");
+  JsonNode n = node.get("namespace");
     if (n == null || n.isNull()) {
       throw new IllegalArgumentException(
           "The namespace field cannot be null or empty");
     }
     builder.setNamespace(n.asText());
 
-    n = node.get("type");
-    if (n == null || n.isNull()) {
-      throw new IllegalArgumentException("Type cannot be null or empty.");
-    }
-    builder.setType(QueryType.valueOf(n.asText()));
 
-    if (! n.asText().equalsIgnoreCase(QueryType.NAMESPACES.toString())) {
+    if (query_type != QueryType.NAMESPACES) {
       n = node.get("filter");
       if (n == null || n.isNull()) {
         throw new IllegalArgumentException(
-                "The fitler field cannot be null or empty");
+          "The fitler field cannot be null or empty");
       }
       JsonNode type = n.get("type");
 
       final QueryFilterFactory factory = tsdb.getRegistry()
-              .getPlugin(QueryFilterFactory.class, type.asText());
+        .getPlugin(QueryFilterFactory.class, type.asText());
       builder.setFilter((factory.parse(tsdb, mapper, n)));
-    }
-    n = node.get("order");
-    if (n != null && !n.isNull()) {
-      builder.setOrder(Order.valueOf(n.asText()));
-    }
-    
-    n = node.get("start");
-    if (n != null && !n.isNull()) {
-      builder.setStart(n.asText());
-    }
-    
-    n = node.get("end");
-    if (n != null && !n.isNull()) {
-      builder.setEnd(n.asText());
-    }
-    
-    n = node.get("timeZone");
-    if (n != null && !n.isNull()) {
-      builder.setTimeZone(n.asText());
-    }
-    
-    n = node.get("aggregationField");
-    if (n != null && !n.isNull()) {
-      builder.setAggregationField(n.asText());
-    }
-    
-    n = node.get("aggregationSize");
-    if (n != null && !n.isNull()) {
-      builder.setAggregationSize(n.asInt());
     }
     return builder;
 

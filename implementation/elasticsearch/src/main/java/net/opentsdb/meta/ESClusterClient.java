@@ -15,12 +15,15 @@
 package net.opentsdb.meta;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.collect.Maps;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.search.MultiSearchRequestBuilder;
+import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -172,17 +175,13 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
   }
   
   @Override
-  public Deferred<List<SearchResponse>> runQuery(final SearchSourceBuilder query,
+  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<String,
+          SearchSourceBuilder> query,
                                                  final QueryPipelineContext context,
-                                                 final String index,
                                                  final Span span) {
     if (query == null) {
       return Deferred.fromError(new IllegalArgumentException(
           "Query cannot be null."));
-    }
-    if (Strings.isNullOrEmpty(index)) {
-      return Deferred.fromError(new IllegalArgumentException(
-          "Index cannot be null or empty."));
     }
 
     final Span child;
@@ -192,10 +191,10 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
       child = null;
     }
 
-    final Deferred<List<SearchResponse>> deferred = 
-        new Deferred<List<SearchResponse>>();
-    final List<SearchResponse> results = 
-        Lists.newArrayListWithCapacity(clients.size());
+    final Deferred<Map<String, MultiSearchResponse>> deferred =  new
+            Deferred<Map<String, MultiSearchResponse>>();
+    final Map<String, MultiSearchResponse> results = Maps
+            .newHashMapWithExpectedSize(clients.size());
 
     final AtomicInteger latch = new AtomicInteger(clients.size());
     final List<Timeout> timeouts = Lists.newArrayListWithExpectedSize(clients.size());
@@ -255,7 +254,7 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
         }
       }
       
-      class FutureCB implements ActionListener<SearchResponse> {
+      class FutureCB implements ActionListener<MultiSearchResponse> {
         @Override
         public void onFailure(final Throwable e) {
           if (local != null) {
@@ -288,11 +287,10 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
         }
         
         @Override
-        public void onResponse(final SearchResponse response) {
+        public void onResponse(final MultiSearchResponse response) {
           synchronized (timeouts) {
             if (timeouts.get(idx) == null) {
-              LOG.warn("ES client " + clusters.get(idx) + " took " 
-                  + response.getTookInMillis() 
+              LOG.warn("ES client " + clusters.get(idx)
                   + " and responded after the timeout.");
               return;
             }
@@ -301,19 +299,19 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
           
           if (local != null) {
             local.setSuccessTags()
-                 .setTag("docs", response.getHits().getTotalHits())
+                 .setTag("responses", response.getResponses().length)
                  .finish();
           }
           
           if (context != null && context.query().isDebugEnabled()) {
-            context.queryContext().logDebug("Response from cluster " 
-                + clusters.get(idx) + " had " + response.getHits().getTotalHits() 
-                + " in " + response.getTookInMillis() + "ms.");
+            context.queryContext().logDebug("Response from cluster "
+                + clusters.get(idx) + " had " + response.getResponses().length
+                + " responses");
           }
           
           tsdb.getStatsCollector().incrementCounter("es.client.query.success");
           synchronized (results) {
-            results.add(response);
+            results.put(clusters.get(idx), response);
           }
           if (latch.decrementAndGet() < 1) {
             if (child != null) {
@@ -325,32 +323,41 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
       }
 
       try {
-        final SearchRequestBuilder request_builder = client
-            .prepareSearch(index)
-            .setSearchType(SearchType.DEFAULT)
-            .setExtraSource(query.toString())
-            .setTimeout(TimeValue.timeValueMillis(
-                tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
+        final MultiSearchRequestBuilder multi_search = client
+                .prepareMultiSearch();
+        for (final Map.Entry<String, SearchSourceBuilder>
+                search_source_builder : query
+                .entrySet()) {
+          final SearchRequestBuilder request_builder = client
+                  .prepareSearch(search_source_builder.getKey())
+                  .setSearchType(SearchType.DEFAULT)
+                  .setExtraSource(search_source_builder.getValue().toString())
+                  .setTimeout(TimeValue.timeValueMillis(
+                          tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
+          multi_search.add(request_builder);
         if (context != null) {
           if (excludes != null && excludes.length > 0) {
             request_builder.setFetchSource(null, excludes);
           }
         }
         if (LOG.isTraceEnabled()) {
-          LOG.trace("[" + clusters.get(idx) + "] Sending ES Query: " 
+          LOG.trace("[" + clusters.get(idx) + "] Sending ES Query: "
               + query.toString());
         }
         if (context != null && context.query().isTraceEnabled()) {
-          context.queryContext().logTrace("[" + clusters.get(idx) 
-            + "] Sending ES Query: " + query.toString() 
+          context.queryContext().logTrace("[" + clusters.get(idx)
+            + "] Sending ES Query: " + query.toString()
             + " to cluster: " + clusters.get(i));
         }
+
+      }
         // start the timer first.
-        timeouts.add(tsdb.getQueryTimer().newTimeout(new QueryTimer(), 
-            tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY), 
+        timeouts.add(tsdb.getQueryTimer().newTimeout(new QueryTimer(),
+            tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY),
             TimeUnit.MILLISECONDS));
-        request_builder.execute()
-                       .addListener(new FutureCB());
+
+        multi_search.execute()
+                .addListener(new FutureCB());
       } catch (Exception e) {
         LOG.error("Failed to execute query: " + query, e);
         deferred.callback(e);
