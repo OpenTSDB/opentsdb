@@ -99,4 +99,18 @@ public class TestDefaultMetaQuery {
     assertEquals("Chain" , query.filter().getType());
   }
 
+  @Test
+  public void parseQueryWithNamespaceAggregateNoFilters() throws Exception {
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+      + "\"type\":\"NAMESPACES\"}";
+    JsonNode node = JSON.getMapper().readTree(request);
+
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.NAMESPACES)
+      .build();
+
+    assertNotNull(query);
+    assertEquals("Test-Namespace", query.namespace());
+  }
+
 }

@@ -23,8 +23,6 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 
-import javax.management.Query;
-
 /**
  * Represents parameters to search for metadata.
  *
