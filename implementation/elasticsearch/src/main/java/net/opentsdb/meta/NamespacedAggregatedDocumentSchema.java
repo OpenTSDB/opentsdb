@@ -22,6 +22,7 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.QueryPipelineContext;
@@ -434,7 +435,6 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
             }
           }
           result.setTotalHits(max_hits);
-
           if (LOG.isTraceEnabled()) {
             LOG.trace("Total meta results: " + result.timeSeries().size());
           }
@@ -704,15 +704,17 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                       .DATA, query, meta_query);
             }
             result.addTimeSeries(buildTimeseries(m.get("name.raw"), tags),
-                    meta_query);
+                    meta_query, m.get("name.raw"));
           }
         }
       } else {
+        String metric_without_namespace = metric.substring(metric.indexOf
+          (".") + 1);
         if (result == null) {
           result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
                   query, meta_query);
         }
-        result.addTimeSeries(buildTimeseries(metric, tags), meta_query);
+        result.addTimeSeries(buildTimeseries(metric, tags), meta_query, metric_without_namespace);
       }
     }
     return result;
@@ -720,6 +722,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
   private TimeSeriesId buildTimeseries(final String metric, final
   List<Map<String, String>> tags) {
+
     final BaseTimeSeriesStringId.Builder builder =
             BaseTimeSeriesStringId.newBuilder();
     builder.setMetric(metric);

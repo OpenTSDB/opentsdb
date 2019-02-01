@@ -184,12 +184,11 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * Adds the timeseries and filters on the metric.
    * @param id A non-null time series string id.
    */
-  void addTimeSeries(final TimeSeriesId id, final MetaQuery meta_query) {
-    if (query != null &&
-        !matchMetric(((TimeSeriesStringId) id).metric(), false, meta_query.filter())) {
+  void addTimeSeries(final TimeSeriesId id, final MetaQuery meta_query, final String metric) {
+    if (meta_query != null &&
+        !matchMetric(metric, false, meta_query.filter())) {
       return;
     }
-
     if (ids == null) {
       ids = Sets.newHashSet();
     }
@@ -319,7 +318,6 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       }
       return matched;
     }
-
     return true;
   }
 
