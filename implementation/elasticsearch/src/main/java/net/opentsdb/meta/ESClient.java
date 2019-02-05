@@ -15,7 +15,10 @@
 package net.opentsdb.meta;
 
 import java.util.List;
+import java.util.Map;
 
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -36,14 +39,12 @@ public interface ESClient {
    * returns the results in a list, one per cluster.
    * @param query The query to execute.
    * @param context The non-null query pipeline context.
-   * @param index The index to search.
    * @param span An optional tracing span.
    * @return A deferred resolving to a list of search response objects
    * or an exception if the query couldn't execute.
    */
-  public Deferred<List<SearchResponse>> runQuery(final SearchSourceBuilder query,
-                                                 final QueryPipelineContext context,
-                                                 final String index,
-                                                 final Span span);
+  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<String, SearchSourceBuilder> query,
+                                                             final QueryPipelineContext context,
+                                                             final Span span);
 
 }

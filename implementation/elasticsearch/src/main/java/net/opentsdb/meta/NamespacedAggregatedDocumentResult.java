@@ -29,8 +29,8 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.meta.MetaQuery.Order;
-import net.opentsdb.meta.MetaQuery.QueryType;
+import net.opentsdb.meta.BatchMetaQuery.Order;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.MetricFilter;
@@ -42,7 +42,7 @@ import net.opentsdb.utils.UniqueKeyPair;
  * A meta query result that handles filtering, storing and sorting the results.
  * <b>WARNING:</b> The getters will sort the results on each call so please cache
  * it if you need to check for null or size.
- * 
+ *
  * @since 3.0
  */
 public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult {
@@ -54,7 +54,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   private Map<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>> tags;
   private Map<Integer, UniqueKeyPair<String, Long>> tag_keys_or_values;
   private MetaResult result;
-  private final MetaQuery query;
+  private final BatchMetaQuery query;
 
   /**
    * Package private ctor to construct a good query. Populates the namespaces
@@ -62,19 +62,20 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param result A non- null result.
    * @param query A non-null query.
    */
-  NamespacedAggregatedDocumentResult(final MetaResult result, 
-                                     final MetaQuery query) {
+  NamespacedAggregatedDocumentResult(final MetaResult result,
+                                     final BatchMetaQuery query,
+                                     final MetaQuery meta_query) {
     this.result = result;
     this.query = query;
-    if (query != null && query.type() != null && 
+    if (query != null && query.type() != null &&
         query.type() != QueryType.NAMESPACES) {
-      namespaces = Sets.newHashSet(query.namespace());
+      namespaces = Sets.newHashSet(meta_query.namespace());
     }
   }
 
-  NamespacedAggregatedDocumentResult(final MetaResult result, 
+  NamespacedAggregatedDocumentResult(final MetaResult result,
                                      final Throwable throwable,
-                                     final MetaQuery query) {
+                                     final BatchMetaQuery query) {
     this.result = result;
     this.throwable = throwable;
     this.query = query;
@@ -84,7 +85,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   public long totalHits() {
     return total_hits;
   }
-  
+
   @Override
   public MetaResult result() {
     return result;
@@ -98,7 +99,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   @Override
   public Collection<String> namespaces() {
     if (namespaces == null) {
-      return Collections.emptyList(); 
+      return Collections.emptyList();
     }
     final List<String> sorted = Lists.newArrayList(namespaces);
     if (query.order() == Order.ASCENDING) {
@@ -108,7 +109,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     }
     return sorted;
   }
-  
+
   @Override
   public Collection<TimeSeriesId> timeSeries() {
     // TODO - sorting?
@@ -178,25 +179,24 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     }
     namespaces.add(namespace);
   }
-  
+
   /**
    * Adds the timeseries and filters on the metric.
    * @param id A non-null time series string id.
    */
-  void addTimeSeries(final TimeSeriesId id) {
-    if (query != null && 
-        !matchMetric(((TimeSeriesStringId) id).metric(), false, query.filter())) {
+  void addTimeSeries(final TimeSeriesId id, final MetaQuery meta_query, final String metric) {
+    if (meta_query != null &&
+        !matchMetric(metric, false, meta_query.filter())) {
       return;
     }
-    
     if (ids == null) {
       ids = Sets.newHashSet();
     }
     ids.add(id);
   }
-  
+
   /**
-   * Adds the given metric, filtering to make sure it matches. 
+   * Adds the given metric, filtering to make sure it matches.
    * @param metric A non-null metric.
    */
   void addMetric(final UniqueKeyPair<String, Long> metric) {
@@ -211,7 +211,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       metrics.put(metric.hashCode(), metric);
     }
   }
-  
+
   /**
    * Adds the given tag key and list of values.
    * @param key A non-null key.
@@ -224,7 +224,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     }
     tags.put(key, values);
   }
-  
+
   /**
    * Adds the given tag to the proper list.
    * @param key
@@ -241,7 +241,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     }
     values.add(value);
   }
-  
+
   /**
    * Adds a tag value or key to the list.
    * @param value A non-null UniqueKeyPair.
@@ -259,7 +259,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       tag_keys_or_values.put(value.hashCode(), value);
     }
   }
-  
+
   /**
    * Sets the total hit count.
    * @param total_hits The total hit count.
@@ -267,23 +267,23 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   void setTotalHits(final long total_hits) {
     this.total_hits = total_hits;
   }
-  
+
   /**
    * Runs through the filter set and evaluates the metric against the set. If
-   * no metric filters are present then we just allow it. 
-   * @param metric The non-null and non-empty metric. 
+   * no metric filters are present then we just allow it.
+   * @param metric The non-null and non-empty metric.
    * @param not Whether or not this recursive iteration is in "not" mode.
    * @param filter The optional filter.
    * @return True if the metric satisfied the filter (or there wasn't a metric
    * filter) or false if the metric did not match.
    */
-  private boolean matchMetric(final String metric, 
-                              final boolean not, 
+  private boolean matchMetric(final String metric,
+                              final boolean not,
                               final QueryFilter filter) {
     if (filter == null) {
       return true;
     }
-    
+
     if (filter instanceof MetricFilter) {
       final boolean result = ((MetricFilter) filter).matches(metric);
       if (not) {
@@ -291,7 +291,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       }
       return result;
     }
-    
+
     if (filter instanceof AnyFieldRegexFilter) {
       final boolean result = ((AnyFieldRegexFilter) filter).matches(metric);
       if (not) {
@@ -299,11 +299,11 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       }
       return result;
     }
-    
+
     if (filter instanceof NotFilter) {
       return matchMetric(metric, !not, ((NotFilter) filter).getFilter());
     }
-    
+
     if (filter instanceof ChainFilter) {
       boolean matched = true;
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
@@ -312,16 +312,15 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
           break;
         }
       }
-      
+
       if (not) {
         return !matched;
       }
       return matched;
     }
-    
     return true;
   }
-  
+
   /**
    * A comparator for the UniqueKeyPair keys in lexical order.
    */
@@ -331,10 +330,10 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     public int compare(final UniqueKeyPair<String, ?> a, final UniqueKeyPair<String, ?> b) {
       return a.getKey().compareTo(b.getKey());
     }
-    
+
   }
   static final UniqueKeyPairComparator UniqueKeyPair_CMP = new UniqueKeyPairComparator();
-  
+
   /**
    * A comparator for the UniqueKeyPair keys in reverse lexical order.
    */
@@ -344,7 +343,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     public int compare(final UniqueKeyPair<String, ?> a, final UniqueKeyPair<String, ?> b) {
       return -a.getKey().compareTo(b.getKey());
     }
-    
+
   }
   static final ReverseUniqueKeyPairComparator REVERSE_UniqueKeyPair_CMP = new ReverseUniqueKeyPairComparator();
 }

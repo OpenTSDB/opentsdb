@@ -15,45 +15,23 @@
 package net.opentsdb.meta;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.UnitTestConfiguration;
-import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.MetaQuery;
-import net.opentsdb.meta.MetaQuery.QueryType;
-import net.opentsdb.query.filter.AnyFieldRegexFactory;
-import net.opentsdb.query.filter.ChainFilterFactory;
-import net.opentsdb.query.filter.QueryFilterFactory;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
-
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Map;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class TestDefaultMetaQuery {
   private static TSDB TSDB;
-  
+
   @BeforeClass
   public static void beforeClass() {
     TSDB = MockTSDBDefault.getMockTSDB();
   }
-  
+
   @Test
   public void parseQueryWithAllAggregate() throws Exception {
     String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
@@ -61,17 +39,16 @@ public class TestDefaultMetaQuery {
         + "\"AnyFieldRegex\",\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\","
         + "\"filter\":\"cpu\"}]},\"type\":\"TIMESERIES\"}";
     JsonNode node = JSON.getMapper().readTree(request);
-  
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
-  
+
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.TIMESERIES)
+      .build();
+
     assertNotNull(query);
-    assertEquals(0, query.from());
-    assertEquals(10, query.to());
     assertEquals("Test-Namespace", query.namespace());
     assertEquals("Chain" , query.filter().getType());
-    assertEquals(QueryType.TIMESERIES, query.type());
   }
-  
+
   @Test
   public void parseQueryWithMetricsAggregate() throws Exception {
     String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
@@ -79,17 +56,15 @@ public class TestDefaultMetaQuery {
         + "\"AnyFieldRegex\",\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\","
         + "\"filter\":\"cpu\"}]},\"type\":\"METRICS\"}";
     JsonNode node = JSON.getMapper().readTree(request);
-  
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
-  
+
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.METRICS).build();
+
     assertNotNull(query);
-    assertEquals(0, query.from());
-    assertEquals(10, query.to());
     assertEquals("Test-Namespace", query.namespace());
     assertEquals("Chain" , query.filter().getType());
-    assertEquals(QueryType.METRICS, query.type());
   }
-  
+
   @Test
   public void parseQueryWithtagKeysAggregate() throws Exception {
     String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
@@ -97,17 +72,16 @@ public class TestDefaultMetaQuery {
         + "\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\",\"filter\":"
         + "\"cpu\"}]},\"type\":\"TAG_KEYS\"}";
     JsonNode node = JSON.getMapper().readTree(request);
-    
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
-  
+
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.TAG_KEYS)
+      .build();
+
     assertNotNull(query);
-    assertEquals(0, query.from());
-    assertEquals(10, query.to());
     assertEquals("Test-Namespace", query.namespace());
     assertEquals("Chain" , query.filter().getType());
-    assertEquals(QueryType.TAG_KEYS, query.type());
   }
-  
+
   @Test
   public void parseQueryWithtagValuesAggregate() throws Exception {
     String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
@@ -115,15 +89,28 @@ public class TestDefaultMetaQuery {
         + "\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\",\"filter\":"
         + "\"cpu\"}]},\"type\":\"TAG_VALUES\"}";
     JsonNode node = JSON.getMapper().readTree(request);
-    
-    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node).build();
-  
+
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.TAG_VALUES)
+      .build();
+
     assertNotNull(query);
-    assertEquals(0, query.from());
-    assertEquals(10, query.to());
     assertEquals("Test-Namespace", query.namespace());
     assertEquals("Chain" , query.filter().getType());
-    assertEquals(QueryType.TAG_VALUES, query.type());
   }
-  
+
+  @Test
+  public void parseQueryWithNamespaceAggregateNoFilters() throws Exception {
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+      + "\"type\":\"NAMESPACES\"}";
+    JsonNode node = JSON.getMapper().readTree(request);
+
+    MetaQuery query = DefaultMetaQuery.parse(TSDB, JSON.getMapper(), node,
+      BatchMetaQuery.QueryType.NAMESPACES)
+      .build();
+
+    assertNotNull(query);
+    assertEquals("Test-Namespace", query.namespace());
+  }
+
 }

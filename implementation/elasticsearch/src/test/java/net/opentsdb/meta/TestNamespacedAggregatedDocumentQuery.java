@@ -14,32 +14,40 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import net.opentsdb.meta.MetaQuery.QueryType;
-import net.opentsdb.query.filter.*;
+import com.google.common.collect.Lists;
+import net.opentsdb.query.filter.ChainFilter;
+import net.opentsdb.query.filter.ExplicitTagsFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import java.util.Map;
 
-import java.util.Arrays;
+import static org.junit.Assert.assertTrue;
 
 public class TestNamespacedAggregatedDocumentQuery {
 
   @Test
   public void testTagValueRegexQuery() {
-    MetaQuery query = DefaultMetaQuery.newBuilder()
-        .setFrom(0)
-        .setTo(5)
+    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
         .setNamespace("Yahoo")
         .setFilter(TagValueRegexFilter.newBuilder().setFilter("cpu")
             .setTagKey("host").build())
-        .setType(QueryType.TIMESERIES)
         .build();
 
-    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder
+    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+         .setMetaQuery(Lists.newArrayList(meta_query))
+         .setFrom(0)
+         .setTo(5)
+         .setType(BatchMetaQuery.QueryType.TIMESERIES)
+         .build();
+
+    Map<String, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
         .newBuilder(query)
         .build();
+
+    SearchSourceBuilder source = sources.entrySet().iterator().next().getValue();
 
     String s = source.toString().replaceAll("\n","")
             .replaceAll(" ", "");
@@ -58,18 +66,24 @@ public class TestNamespacedAggregatedDocumentQuery {
     QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
         .addFilter(TagValueRegexFilter.newBuilder().setFilter("cpu").setTagKey("host").build())
         .build();
-    MetaQuery query = DefaultMetaQuery.newBuilder()
-        .setFrom(0)
-        .setTo(5)
+
+    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
         .setNamespace("Yahoo")
         .setFilter( ExplicitTagsFilter.newBuilder().setFilter(chainFil).build())
-        .setType(QueryType.TIMESERIES)
         .build();
 
-    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder
+    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+      .setMetaQuery(Lists.newArrayList(meta_query))
+      .setFrom(0)
+      .setTo(5)
+      .setType(BatchMetaQuery.QueryType.TIMESERIES)
+      .build();
+
+    Map<String, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
         .newBuilder(query)
         .build();
 
+    SearchSourceBuilder source = sources.entrySet().iterator().next().getValue();
     String s = source.toString().replaceAll("\n","")
         .replaceAll(" ", "");
     System.out.println(s);

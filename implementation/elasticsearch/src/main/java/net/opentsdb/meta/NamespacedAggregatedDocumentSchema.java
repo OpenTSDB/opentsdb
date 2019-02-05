@@ -22,16 +22,19 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
-import net.opentsdb.meta.MetaQuery.QueryType;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.*;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.stats.Span;
-import net.opentsdb.utils.Pair;
+
 
 import net.opentsdb.utils.UniqueKeyPair;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.base.Strings;
 import org.elasticsearch.search.SearchHit;
@@ -44,10 +47,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.naming.Context;
+import java.util.*;
 
 /**
  * Run the Meta Query on Meta Store with schema and form the results.
@@ -58,21 +58,21 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         MetaDataStorageSchema {
   private static final Logger LOG = LoggerFactory.getLogger(
       NamespacedAggregatedDocumentSchema.class);
-  
+
   public static final String TYPE = "NamespacedAggregatedDocumentSchema";
-  
+
   public static final String MAX_CARD_KEY = "tsd.meta.max.cardinality";
   public static final String QUERY_TIMEOUT_KEY = "es.query_timeout";
   public static final String FALLBACK_ON_EX_KEY = "es.fallback.exception";
   public static final String FALLBACK_ON_NO_DATA_KEY = "es.fallback.nodata";
   public static final String MAX_RESULTS_KEY = "es.query.results.max";
   public static final String TAGS_STRING = "tags";
-  
+
   private TSDB tsdb;
 
   /** The elastic search client to use */
   private ESClient client;
-  
+
   @Override
   public String type() {
     return TYPE;
@@ -109,7 +109,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       tsdb.getConfig().register(MAX_RESULTS_KEY, 4096,
           true, "The maximum number of results to return in a multi-get query.");
     }
-    
+
     return Deferred.fromResult(null);
   }
 
@@ -124,8 +124,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   }
 
   @Override
-  public Deferred<MetaDataStorageResult> runQuery(final MetaQuery query,
-                                                  final Span span) {
+  public Deferred<Map<String, MetaDataStorageResult>> runQuery(final BatchMetaQuery query,
+                                                          final Span span) {
     final Span child;
     if (span != null) {
       child = span.newChild(getClass().getSimpleName() + ".runQuery")
@@ -133,143 +133,163 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     } else {
       child = null;
     }
-    
-    SearchSourceBuilder search_source_builder = 
-        NamespacedAggregatedDocumentQueryBuilder.newBuilder(query).build();
-    search_source_builder.timeout(tsdb.getConfig().getString
-        (QUERY_TIMEOUT_KEY));
 
+    Map<String, SearchSourceBuilder> search_source_builder =
+        NamespacedAggregatedDocumentQueryBuilder.newBuilder(query).build();
+
+
+    LOG.info("Running ES Query: " + search_source_builder);
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Running ES Query: " + search_source_builder.toString());
+      LOG.trace("Running ES Query: " + search_source_builder);
     }
 
-    class ResultCB implements Callback<MetaDataStorageResult,
-            List<SearchResponse>> {
+    class ResultCB implements Callback<Map<String, MetaDataStorageResult>,
+            Map<String, MultiSearchResponse>> {
 
       @Override
-      public MetaDataStorageResult call(final List<SearchResponse> results)
-              throws Exception {
-        NamespacedAggregatedDocumentResult result = null;
-        int size = query.to() - query.from();
-        search_source_builder.size(size);
-        
-        long max_hits = 0;
-        for (final SearchResponse response : results) {
-          if (response.getHits().getTotalHits() > max_hits) {
-            max_hits = response.getHits().getTotalHits();
-          }
+      public Map<String, MetaDataStorageResult> call(final Map<String,
+              MultiSearchResponse> results) throws Exception {
+        //int size = query.to() - query.from();
+        //search_source_builder.size(size);
+        final Map<String, MetaDataStorageResult> final_results = new
+                LinkedHashMap<>();
 
-          if (LOG.isTraceEnabled()) {
-            LOG.trace("Got response in " + response.getTookInMillis() + "ms");
+        for (int i = 0; i < query.metaQueries().size(); i++) {
+          long max_hits = 0;
+          MetaQuery meta_query = query.metaQueries().get(i);
+          NamespacedAggregatedDocumentResult result = null;
+          for (final Map.Entry<String, MultiSearchResponse> search_response: results.entrySet()) {
+            final MultiSearchResponse.Item[] responses= search_response.getValue().getResponses();
+            final SearchResponse response = responses[i].getResponse();
+            if (response.getHits().getTotalHits() > max_hits) {
+              max_hits = response.getHits().getTotalHits();
+            }
+
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Got response in " + response.getTookInMillis() + "ms");
+            }
+            long startTime = System.currentTimeMillis();
+            switch (query.type()) {
+              case NAMESPACES:
+                if (response.getAggregations() == null ||
+                        response.getAggregations().get(
+                                NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG) == null) {
+                  break;
+                }
+                if (result == null) {
+                  result = parseNamespaces(query, meta_query, response
+                          .getAggregations()
+                          .get(
+                                  NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), null);
+                } else {
+                  parseNamespaces(query, meta_query, response.getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), result);
+                }
+                break;
+              case METRICS:
+                if (response.getAggregations() == null ||
+                        response.getAggregations().get(
+                                NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
+                  break;
+                }
+                if (result == null) {
+                  result = parseMetrics(query, meta_query, response
+                          .getAggregations().get(
+                                  NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), null);
+                } else {
+                  parseMetrics(query, meta_query, response.getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), result);
+                }
+                break;
+              case TAG_KEYS:
+                if (response.getAggregations() == null ||
+                        response.getAggregations().get(
+                                NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG) == null) {
+                  break;
+                }
+                if (result == null) {
+                  result = parseTagKeys(query, meta_query, response
+                          .getAggregations().get(
+                                  NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), null);
+                } else {
+                  parseTagKeys(query, meta_query, response.getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), result);
+                }
+                break;
+              case TAG_VALUES:
+                if (response.getAggregations() == null ||
+                        response.getAggregations().get(
+                                NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG) == null) {
+                  break;
+                }
+                if (result == null) {
+                  result = parseTagValues(query, meta_query, response
+                          .getAggregations().get(
+                                  NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), null);
+                } else {
+                  parseTagValues(query, meta_query, response.getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), result);
+                }
+                break;
+              case TAG_KEYS_AND_VALUES:
+                if (response.getAggregations() == null ||
+                        response.getAggregations().get(
+                                NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG) == null) {
+                  break;
+                }
+                if (result == null) {
+                  result = parseTagKeysAndValues(query, meta_query, response
+                          .getAggregations
+                                  ().get(
+                                  NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), null);
+                } else {
+                  parseTagKeysAndValues(query, meta_query, response
+                          .getAggregations().get(
+                                  NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), result);
+                }
+              case TIMESERIES:
+                if (result == null) {
+                  result = parseTimeseries(query, meta_query, response, null);
+                } else {
+                  parseTimeseries(query, meta_query, response, result);
+                }
+                break;
+              default:
+                final_results.put(meta_query.namespace(), new
+                        NamespacedAggregatedDocumentResult
+                        (MetaResult
+                                .NO_DATA,
+                        query, meta_query));
+                return final_results;
+            }
+
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Time took to parse out results == " + (System
+                      .currentTimeMillis() - startTime) + " ms");
+            }
           }
-          long startTime = System.currentTimeMillis();
-          switch (query.type()) {
-          case NAMESPACES:
-            if (response.getAggregations() == null || 
-                response.getAggregations().get(
-                    NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG) == null) {
-              break;
-            }
-            if (result == null) {
-              result = parseNamespaces(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), null);
-            } else {
-              parseNamespaces(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), result);
-            }
-            break;
-          case METRICS:
-            if (response.getAggregations() == null ||
-                response.getAggregations().get(
-                    NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
-              break;
-            }
-            if (result == null) {
-              result = parseMetrics(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), null);
-            } else {
-              parseMetrics(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), result);
-            }
-            break;
-          case TAG_KEYS:
-            if (response.getAggregations() == null || 
-                response.getAggregations().get(
-                    NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG) == null) {
-              break;
-            }
-            if (result == null) {
-              result = parseTagKeys(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), null);
-            } else {
-              parseTagKeys(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), result);
-            }
-            break;
-          case TAG_VALUES:
-            if (response.getAggregations() == null || 
-                response.getAggregations().get(
-                    NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG) == null) {
-              break;
-            }
-            if (result == null) {
-              result = parseTagValues(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), null);
-            } else {
-              parseTagValues(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), result);
-            }
-            break;
-          case TAG_KEYS_AND_VALUES:
-            if (response.getAggregations() == null || 
-                response.getAggregations().get(
-                    NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG) == null) {
-              break;
-            }
-            if (result == null) {
-              result = parseTagKeysAndValues(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), null);
-            } else {
-              parseTagKeysAndValues(query, response.getAggregations().get(
-                  NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), result);
-            }
-          case TIMESERIES:
-            if (result == null) {
-              result = parseTimeseries(query, response, null);
-            } else {
-              parseTimeseries(query, response, result);
-            }
-            break;
-          default:
-            return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+          if (result == null) {
+            result = new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+                    query, meta_query);
           }
-          
-          if (LOG.isTraceEnabled()) {
-            LOG.trace("Time took to parse out results == " + (System
-                    .currentTimeMillis() - startTime) + " ms");
-          }
+          result.setTotalHits(max_hits);
+          final_results.put(meta_query.namespace(), result);
         }
 
-        if (result == null) {
-          result = new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query); 
-        }
-        result.setTotalHits(max_hits);
-        if (LOG.isTraceEnabled()) {
-          LOG.trace("Total meta results: " + max_hits);
-        }
         if (child != null) {
           child.setSuccessTags()
-                  .setTag("result", result.result().toString())
+                  .setTag("result", final_results.toString())
                   .finish();
         }
-        return result;
+        return final_results;
       }
 
     }
 
-    class ErrorCB implements Callback<MetaDataStorageResult, Exception> {
+    class ErrorCB implements Callback<Map<String, MetaDataStorageResult>,
+            Exception> {
       @Override
-      public MetaDataStorageResult call(final Exception ex) throws Exception {
+      public Map<String, MetaDataStorageResult> call(final Exception ex) throws Exception {
         if (child != null) {
           child.setErrorTags(ex)
                   .finish();
@@ -277,22 +297,24 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         if (LOG.isDebugEnabled()) {
           LOG.debug("Returning exception from ES", ex);
         }
-        return new NamespacedAggregatedDocumentResult(MetaResult.EXCEPTION, ex, query);
+        Map<String, MetaDataStorageResult> final_result = new LinkedHashMap<>();
+        final_result.put("EXCEPTION",new NamespacedAggregatedDocumentResult
+                (MetaResult.EXCEPTION, ex, query));
+
+        return final_result;
       }
     }
 
-    return client.runQuery(search_source_builder, 
-        null,
-        query.type() == QueryType.NAMESPACES ? "all_namespace" : query.namespace()
-            .toLowerCase(), child)
+    return client.runQuery(search_source_builder,
+        null, child)
             .addCallback(new ResultCB())
             .addErrback(new ErrorCB());
   }
 
   @Override
   public Deferred<MetaDataStorageResult> runQuery(
-      final QueryPipelineContext queryPipelineContext, 
-      final TimeSeriesDataSourceConfig timeSeriesDataSourceConfig, 
+      final QueryPipelineContext queryPipelineContext,
+      final TimeSeriesDataSourceConfig timeSeriesDataSourceConfig,
       final Span span) {
     final Span child;
     if (span != null) {
@@ -301,16 +323,16 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     } else {
       child = null;
     }
-    
+
     try {
       // only one metric per query at this point. Strip the namespace.
       String temp = timeSeriesDataSourceConfig.getMetric().getMetric();
       int idx = temp.indexOf(".");
       String namespace = temp.substring(0, idx).toLowerCase();
       final String metric = temp.substring(idx + 1).toLowerCase();
-      
+
       QueryFilter filter = timeSeriesDataSourceConfig.getFilter();
-      if (filter == null && 
+      if (filter == null &&
           !Strings.isNullOrEmpty(timeSeriesDataSourceConfig.getFilterId())) {
         filter = queryPipelineContext.query().getFilter(
             timeSeriesDataSourceConfig.getFilterId());
@@ -335,30 +357,41 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       } else {
         buildFilter = builder.build();
       }
-      
-      final MetaQuery query = DefaultMetaQuery.newBuilder()
-          .setType(QueryType.TIMESERIES)
+
+      final MetaQuery meta_query = DefaultMetaQuery.newBuilder()
           .setNamespace(namespace)
           .setFilter(buildFilter)
           .build();
-      
-      SearchSourceBuilder search = NamespacedAggregatedDocumentQueryBuilder
+
+      final BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+              .setType(QueryType.TIMESERIES)
+              .setMetaQuery(Lists.newArrayList(meta_query))
+              .build();
+
+      Map<String, SearchSourceBuilder> search = NamespacedAggregatedDocumentQueryBuilder
           .newBuilder(query)
           .build();
-      search.size(tsdb.getConfig().getInt(MAX_RESULTS_KEY));
-      
-      class ResultCB implements Callback<MetaDataStorageResult, List<SearchResponse>> {
-        
+
+      for (final Map.Entry<String, SearchSourceBuilder> search_entry: search.entrySet()){
+        search_entry.getValue().size(tsdb.getConfig().getInt(MAX_RESULTS_KEY));
+      }
+
+      class ResultCB implements Callback<MetaDataStorageResult, Map<String,
+              MultiSearchResponse> > {
+
         @Override
-        public MetaDataStorageResult call(final List<SearchResponse> results) throws Exception {
-          NamespacedAggregatedDocumentResult result;
+        public MetaDataStorageResult call(final Map<String, MultiSearchResponse>
+                                                          results) throws Exception {
+          final NamespacedAggregatedDocumentResult result;
           // quick validation
           long max_hits = 0;
-          for (final SearchResponse response : results) {
+          for (final Map.Entry<String, MultiSearchResponse> response_entry:
+                  results.entrySet()) {
+            final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
             if (response.getHits().getTotalHits() > max_hits) {
               max_hits = response.getHits().getTotalHits();
             }
-            
+
             // if we have too many results, bail out with a no-data error.
             if (max_hits > tsdb.getConfig().getInt(MAX_CARD_KEY)) {
               if (LOG.isTraceEnabled()) {
@@ -366,13 +399,15 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               }
               if (queryPipelineContext.query().isDebugEnabled()) {
                 queryPipelineContext.queryContext().logDebug(
-                    "Total hits from ES: " + max_hits 
-                      + " exceeded the configured limit: " 
+                    "Total hits from ES: " + max_hits
+                      + " exceeded the configured limit: "
                       + tsdb.getConfig().getInt(MAX_CARD_KEY));
               }
               result = new NamespacedAggregatedDocumentResult(
-                  tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY) 
-                    ? MetaResult.NO_DATA_FALLBACK : MetaResult.NO_DATA, null);
+                      max_hits > 0 ? MetaResult.DATA :
+                       tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY)
+                        ? MetaResult.NO_DATA_FALLBACK : MetaResult.NO_DATA, null,
+                      query);
               result.setTotalHits(response.getHits().getTotalHits());
               if (child != null) {
                 child.setSuccessTags()
@@ -382,26 +417,28 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               return result;
             }
           }
-          
+
           result = new NamespacedAggregatedDocumentResult(
-              max_hits > 0 ? MetaResult.DATA : 
-                tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY) 
-                  ? MetaResult.NO_DATA_FALLBACK : MetaResult.NO_DATA, null);
+              max_hits > 0 ? MetaResult.DATA :
+                tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY)
+                  ? MetaResult.NO_DATA_FALLBACK : MetaResult.NO_DATA, null,
+                  query);
           if (max_hits > 0) {
-            for (final SearchResponse response : results) {
+            for (final Map.Entry<String, MultiSearchResponse> response_entry: results.entrySet()) {
+              final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
               parseTimeseries(
-                  query, 
-                  response, 
-                  timeSeriesDataSourceConfig.getMetric().getMetric(), 
+                  query,
+                  meta_query,
+                  response,
+                  timeSeriesDataSourceConfig.getMetric().getMetric(),
                   result);
             }
           }
           result.setTotalHits(max_hits);
-          
           if (LOG.isTraceEnabled()) {
             LOG.trace("Total meta results: " + result.timeSeries().size());
           }
-          
+
           if (child != null) {
             child.setSuccessTags()
                  .setTag("result", result.result().toString())
@@ -409,9 +446,9 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
           }
           return result;
         }
-        
+
       }
-      
+
       class ErrorCB implements Callback<MetaDataStorageResult, Exception> {
         @Override
         public MetaDataStorageResult call(final Exception ex) throws Exception {
@@ -423,16 +460,16 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
             LOG.debug("Returning exception from ES", ex);
           }
           return new NamespacedAggregatedDocumentResult(
-              tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_EX_KEY) ? 
+              tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_EX_KEY) ?
                   MetaResult.EXCEPTION_FALLBACK : MetaResult.EXCEPTION, ex, null);
         }
       }
-     
+
       if (LOG.isTraceEnabled()) {
         LOG.trace("Running ES Query: " + search.toString());
       }
-      
-      return client.runQuery(search, queryPipelineContext, namespace, child)
+
+      return client.runQuery(search, queryPipelineContext, child)
           .addCallback(new ResultCB())
           .addErrback(new ErrorCB());
     } catch (Exception e) {
@@ -445,27 +482,29 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   }
 
   NamespacedAggregatedDocumentResult parseNamespaces(
-      final MetaQuery query,
-      final Aggregation aggregation, 
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
       NamespacedAggregatedDocumentResult result) {
-    for (Terms.Bucket bucket : ((StringTerms) aggregation).getBuckets()) {
+    for (final Terms.Bucket bucket : ((StringTerms) aggregation).getBuckets()) {
       if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
+                query, meta_query);
       }
       result.addNamespace(bucket.getKey());
     }
     return result;
   }
-  
+
   NamespacedAggregatedDocumentResult parseMetrics(
-      final MetaQuery query,
-      final Aggregation aggregation, 
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
       NamespacedAggregatedDocumentResult result) {
     if (((InternalNested) aggregation).getDocCount() <= 0) {
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
 
     final Aggregation metrics = ((InternalFilter) ((InternalNested)
@@ -479,38 +518,42 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
-    
-    for (Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
+
+    for (final Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
       if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
+                query, meta_query);
       }
-      
+
       result.addMetric(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()));
     }
     return result;
   }
-  
+
   NamespacedAggregatedDocumentResult parseTagKeys(
-      final MetaQuery query,
-      final Aggregation aggregation, 
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
       NamespacedAggregatedDocumentResult result) {
     if (((InternalNested) aggregation).getDocCount() <= 0) {
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
-    
+
     final Aggregation tag_keys_filter = ((InternalNested) aggregation).getAggregations()
         .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
     if (tag_keys_filter == null) {
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
 
     final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
@@ -520,45 +563,50 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
-    
-    for (Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
+
+    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
       if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
+                query, meta_query);
       }
-      
+
       result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()));
     }
     return result;
   }
-  
+
   NamespacedAggregatedDocumentResult parseTagValues(
-      final MetaQuery query,
-      final Aggregation aggregation, 
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
       NamespacedAggregatedDocumentResult result) {
     if (((InternalNested) aggregation).getDocCount() <= 0) {
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
-    
+
     final Aggregation metrics = ((InternalNested) aggregation).getAggregations()
         .get(NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_UNIQUE);
     if (metrics == null) {
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
-    
-    for (Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
+
+    for (final Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
       if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
+                query, meta_query);
       }
-      
+
       result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
                 bucket.getDocCount()));
     }
@@ -566,16 +614,17 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   }
 
   NamespacedAggregatedDocumentResult parseTagKeysAndValues(
-      final MetaQuery query,
-      final Aggregation aggregation, 
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
       NamespacedAggregatedDocumentResult result) {
     if (((InternalNested) aggregation).getDocCount() <= 0) {
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
-    
+
     final Aggregation tag_keys_filter = ((InternalNested) aggregation)
             .getAggregations()
         .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
@@ -583,7 +632,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
     final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
             .get
@@ -593,12 +643,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       if (result != null) {
         return result;
       }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA, query);
+      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
+              query, meta_query);
     }
 
-    for (Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
+    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
       if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
+                query, meta_query);
       }
       Aggregation sub = bucket.getAggregations()
           .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_AGG);
@@ -621,20 +673,20 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                   bucket.getDocCount()), tag_values);
         }
       }
-      
+
     }
     return result;
   }
 
   NamespacedAggregatedDocumentResult parseTimeseries(
-      final MetaQuery query,
-      final SearchResponse response, 
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final SearchResponse response,
       NamespacedAggregatedDocumentResult result) {
-    return parseTimeseries(query, response, null, result);
+    return parseTimeseries(query, meta_query, response, null, result);
   }
-  
+
   NamespacedAggregatedDocumentResult parseTimeseries(
-      final MetaQuery query,
+      final BatchMetaQuery query, final MetaQuery meta_query,
       final SearchResponse response,
       final String metric,
       NamespacedAggregatedDocumentResult result) {
@@ -648,23 +700,29 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         if (metrics != null) {
           for (Map<String, String> m : metrics) {
             if (result == null) {
-              result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+              result = new NamespacedAggregatedDocumentResult(MetaResult
+                      .DATA, query, meta_query);
             }
-            result.addTimeSeries(buildTimeseries(m.get("name.raw"), tags));
+            result.addTimeSeries(buildTimeseries(m.get("name.raw"), tags),
+                    meta_query, m.get("name.raw"));
           }
         }
       } else {
+        String metric_without_namespace = metric.substring(metric.indexOf
+          (".") + 1);
         if (result == null) {
-          result = new NamespacedAggregatedDocumentResult(MetaResult.DATA, query);
+          result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
+                  query, meta_query);
         }
-        result.addTimeSeries(buildTimeseries(metric, tags));
+        result.addTimeSeries(buildTimeseries(metric, tags), meta_query, metric_without_namespace);
       }
     }
     return result;
   }
-  
+
   private TimeSeriesId buildTimeseries(final String metric, final
   List<Map<String, String>> tags) {
+
     final BaseTimeSeriesStringId.Builder builder =
             BaseTimeSeriesStringId.newBuilder();
     builder.setMetric(metric);
@@ -674,5 +732,4 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     BaseTimeSeriesStringId timeseries = builder.build();
     return timeseries;
   }
-  
 }

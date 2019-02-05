@@ -33,6 +33,7 @@ import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.utils.DateTime;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
@@ -41,7 +42,10 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds the ElasticSearch query
@@ -59,7 +63,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   public static final String QUERY_METRIC = "AM_nested.name.lowercase";
   public static final String RESULT_METRIC = "AM_nested.name.raw";
   public static final String RESULT_NAMESPACE = "namespace.raw";
-  
+
   public static final String LAST_SEEN = "lastSeenTime";
   public static final String NAMESPACE_AGG = "ns_agg";
   public static final String METRIC_AGG = "metric_agg";
@@ -72,18 +76,18 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   public static final String TAGS_UNIQUE = "unique_tags";
   public static final String TAGS_SUB_AGG = "tags_sub_agg";
   public static final String TAGS_SUB_UNIQUE = "unique_sub_tags";
-  
-  public final SearchSourceBuilder search_source_builder;
-  
-  private final MetaQuery query;
+
+  public final Map<String, SearchSourceBuilder> search_source_builders;
+
+  private final BatchMetaQuery query;
 
   private int num_tags;
-  
-  private NamespacedAggregatedDocumentQueryBuilder(final MetaQuery query) {
-    search_source_builder = new SearchSourceBuilder();
+
+  private NamespacedAggregatedDocumentQueryBuilder(final BatchMetaQuery query) {
+    this.search_source_builders = new HashMap<>();
     this.query = query;
   }
-  
+
   FilterBuilder setFilter(final QueryFilter filter) {
     if (filter == null) {
       return null;
@@ -96,20 +100,20 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof MetricFilter) {
       return getMetricFilter((MetricFilter) filter, true);
     }
-    
+
     if (filter instanceof TagKeyFilter) {
       return getTagKeyFilter((TagKeyFilter) filter, true);
     }
-    
+
     if (filter instanceof TagValueFilter) {
       num_tags++;
       return getTagValueFilter((TagValueFilter) filter, true);
     }
-    
+
     if (filter instanceof AnyFieldRegexFilter) {
       return getAnyFieldFilter((AnyFieldRegexFilter) filter);
     }
-    
+
     if (filter instanceof NotFilter) {
       return FilterBuilders.notFilter(
           setFilter(((NotFilter) filter).getFilter()));
@@ -129,12 +133,12 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       return builder;
     }
 
-    throw new UnsupportedOperationException("Unsupported filter: " 
+    throw new UnsupportedOperationException("Unsupported filter: "
         + filter.getClass().toString());
   }
 
   FilterBuilder getMetricFilter(final MetricFilter filter, final boolean nested) {
-    if (filter instanceof MetricLiteralFilter) {  
+    if (filter instanceof MetricLiteralFilter) {
       FilterBuilder builder =  FilterBuilders.boolFilter().must(
               FilterBuilders.termFilter(QUERY_METRIC,
                       filter.getMetric().toLowerCase()));
@@ -155,7 +159,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
               + filter.getClass().toString());
     }
   }
-  
+
   FilterBuilder getTagValueFilter(final TagValueFilter filter, final boolean nested) {
     if (filter instanceof TagValueLiteralOrFilter) {
       // handles the range filter as well.
@@ -183,7 +187,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       return builder;
     } else if (filter instanceof TagValueWildcardFilter) {
       final FilterBuilder builder = FilterBuilders.boolFilter()
-          .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, 
+          .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY,
               ((TagValueWildcardFilter) filter).getFilter()
                 .toLowerCase().replace("*", ".*")))
           .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey()));
@@ -192,7 +196,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       }
       return builder;
     } else {
-      throw new UnsupportedOperationException("Unsupported tag value filter: " 
+      throw new UnsupportedOperationException("Unsupported tag value filter: "
           + filter.getClass().toString());
     }
   }
@@ -218,22 +222,22 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   FilterBuilder getAnyFieldFilter(final AnyFieldRegexFilter filter) {
     final String pattern = convertToLuceneRegex(filter.pattern().toString());
     final BoolFilterBuilder builder = FilterBuilders.boolFilter();
-    
+
     // metric
-    builder.should(FilterBuilders.nestedFilter(METRIC_PATH, 
+    builder.should(FilterBuilders.nestedFilter(METRIC_PATH,
           FilterBuilders.boolFilter()
             .should(FilterBuilders.regexpFilter(RESULT_METRIC, pattern))
             .should(FilterBuilders.regexpFilter(QUERY_METRIC, pattern))));
-    
+
     // tags
-    builder.should(FilterBuilders.nestedFilter(TAG_PATH, 
+    builder.should(FilterBuilders.nestedFilter(TAG_PATH,
         FilterBuilders.boolFilter()
           .should(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, pattern))
           .should(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, pattern))));
     // TODO - verify this
     return builder;
   }
-  
+
   AggregationBuilder<?> metricAgg(final QueryFilter filter, final int size) {
     if (filter instanceof ExplicitTagsFilter) {
       return metricAgg(((ExplicitTagsFilter) filter).getFilter(), size);
@@ -256,10 +260,10 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 .subAggregation(AggregationBuilders.terms(METRIC_UNIQUE)
             .field(RESULT_METRIC)
             .size(size)
-            .order(query.order() == MetaQuery.Order.ASCENDING ? 
+            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
                 Order.term(true) : Order.term(false))));
   }
-  
+
   AggregationBuilder<?> tagKeyAgg(final QueryFilter filter, final int size) {
     if (filter instanceof ExplicitTagsFilter) {
       return tagKeyAgg(((ExplicitTagsFilter) filter).getFilter(), size);
@@ -285,10 +289,10 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 .subAggregation(AggregationBuilders.terms(TAG_KEY_UNIQUE)
                         .field(RESULT_TAG_KEY_KEY)
                         .size(size)
-                        .order(query.order() == MetaQuery.Order.ASCENDING ?
+                        .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
                                 Order.term(true) : Order.term(false))));
   }
-  
+
   AggregationBuilder<?> tagValueAgg(final QueryFilter filter, int size) {
     if (filter instanceof ExplicitTagsFilter) {
       return tagValueAgg(((ExplicitTagsFilter) filter).getFilter(), size);
@@ -298,10 +302,10 @@ public class NamespacedAggregatedDocumentQueryBuilder {
         .subAggregation(AggregationBuilders.terms(TAG_VALUE_UNIQUE)
             .field(RESULT_TAG_VALUE_KEY)
             .size(size)
-            .order(query.order() == MetaQuery.Order.ASCENDING ? 
+            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
                 Order.term(true) : Order.term(false)));
   }
-  
+
   AggregationBuilder<?> tagKeyAndValueAgg(final QueryFilter filter, final String
           field, final int size) {
     if (filter instanceof ExplicitTagsFilter) {
@@ -345,17 +349,17 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 .subAggregation(AggregationBuilders.terms(TAGS_UNIQUE)
             .field(RESULT_TAG_KEY_KEY)
             .size(0)
-            .order(query.order() == MetaQuery.Order.ASCENDING ?
+            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
                 Order.term(true) : Order.term(false))
             .subAggregation(AggregationBuilders.filter(TAGS_SUB_AGG)
                 .filter(pair_filter)
                 .subAggregation(AggregationBuilders.terms(TAGS_SUB_UNIQUE)
                     .field(RESULT_TAG_VALUE_KEY)
                     .size(size)
-                    .order(query.order() == MetaQuery.Order.ASCENDING ?
+                    .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
                         Order.term(true) : Order.term(false))))));
   }
-  
+
   FilterBuilder getTagPairFilter(final QueryFilter filter, final boolean
           use_must) {
     if (filter == null) {
@@ -365,27 +369,27 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof MetricFilter) {
       return getMetricFilter((MetricFilter) filter, false);
     }
-    
+
     if (filter instanceof TagValueFilter) {
       return getTagValueFilter((TagValueFilter) filter, false);
     }
-    
+
     if (filter instanceof TagKeyFilter) {
       return getTagKeyFilter((TagKeyFilter) filter, false);
     }
-    
+
     if (filter instanceof AnyFieldRegexFilter) {
       return FilterBuilders.boolFilter()
             .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, ".*"))
-            .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, 
+            .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY,
                 ((AnyFieldRegexFilter) filter).pattern().toString()));
     }
-    
+
     if (filter instanceof NotFilter) {
       return FilterBuilders.boolFilter().mustNot(
           getTagPairFilter(((NotFilter) filter).getFilter(), use_must));
     }
-    
+
     if (filter instanceof ChainFilter) {
       BoolFilterBuilder builder = FilterBuilders.boolFilter();
       // Metrics are should, tags_key_and_value is a must filter
@@ -401,90 +405,98 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       }
       return builder;
     }
-    
+
     return null;
   }
-  
+
   public static NamespacedAggregatedDocumentQueryBuilder newBuilder(
-      final MetaQuery query) {
+      final BatchMetaQuery query) {
     return new NamespacedAggregatedDocumentQueryBuilder(query);
   }
-  
-  public SearchSourceBuilder build() {
-    switch (query.type()) {
-    case NAMESPACES:
-      search_source_builder.query(FilterBuilders.boolFilter()
-          .must(FilterBuilders.regexpFilter(QUERY_NAMESPACE_KEY, 
-              convertToLuceneRegex(query.namespace())))
-          .buildAsBytes());
-      search_source_builder.aggregation(AggregationBuilders.terms(NAMESPACE_AGG)
-          .field(RESULT_NAMESPACE)
-          .size(0)
-          .order(query.order() == MetaQuery.Order.ASCENDING ? 
+
+  public Map<String, SearchSourceBuilder> build() {
+    for (final MetaQuery meta_query : query.metaQueries()) {
+      SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+      switch (query.type()) {
+        case NAMESPACES:
+          search_source_builder.query(FilterBuilders.boolFilter()
+            .must(FilterBuilders.regexpFilter(QUERY_NAMESPACE_KEY,
+              convertToLuceneRegex(meta_query.namespace())))
+            .buildAsBytes());
+          search_source_builder.aggregation(AggregationBuilders.terms(NAMESPACE_AGG)
+
+            .field(RESULT_NAMESPACE)
+            .size(0)
+            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
               Order.term(true) : Order.term(false)));
-      search_source_builder.size(0);
-      return search_source_builder;
-    case METRICS:
-      search_source_builder.aggregation(metricAgg(query.filter(), query.aggregationSize()));
-      search_source_builder.size(0);
-      break;
-    case TAG_KEYS:
-      search_source_builder.aggregation(tagKeyAgg(query.filter(), query.aggregationSize()));
-      search_source_builder.size(0);
-      break;
-    case TAG_VALUES:
-      search_source_builder.aggregation(tagValueAgg(query.filter(), query.aggregationSize()));
-      search_source_builder.size(0);
-      break;
-    case TAG_KEYS_AND_VALUES:
-      search_source_builder.aggregation(tagKeyAndValueAgg(query.filter(),
-              query.aggregationField(), query.aggregationSize()));
-      search_source_builder.size(0);
-      break;
-    case TIMESERIES:
-      search_source_builder.from(query.from());
-      search_source_builder.size(query.to() - query.from());
-      break;
-    default:
-      throw new UnsupportedOperationException(query.type() + " not implemented yet.");
-    }
+          search_source_builder.size(0);
+          search_source_builders.put("all_namespace", search_source_builder);
+          return search_source_builders;
+        case METRICS:
+          search_source_builder.aggregation(metricAgg(meta_query.filter(), query.aggregationSize()));
+          search_source_builder.size(0);
+          break;
+        case TAG_KEYS:
+          search_source_builder.aggregation(tagKeyAgg(meta_query.filter(), query.aggregationSize()));
+          search_source_builder.size(0);
+          break;
+        case TAG_VALUES:
+          search_source_builder.aggregation(tagValueAgg(meta_query.filter(), query.aggregationSize()));
+          search_source_builder.size(0);
+          break;
+        case TAG_KEYS_AND_VALUES:
+          search_source_builder.aggregation(tagKeyAndValueAgg(meta_query.filter(),
+            query.aggregationField(), query.aggregationSize()));
+          search_source_builder.size(0);
+          break;
+        case TIMESERIES:
+          search_source_builder.from(query.from());
+          search_source_builder.size(query.to() - query.from());
+          break;
+        default:
+          throw new UnsupportedOperationException(query.type() + " not implemented yet.");
+      }
 
 
-    if (query.filter() != null || query.start() != null || query.end() != null) {
-      if (query.start() != null || query.end() != null) {
-        FilterBuilder time_filter;
-        if (query.start() != null && query.end() != null) {
-          time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
+      if (meta_query.filter() != null || query.start() != null || query.end() !=
+        null) {
+        if (query.start() != null || query.end() != null) {
+          FilterBuilder time_filter;
+          if (query.start() != null && query.end() != null) {
+            time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
               .from(query.start().msEpoch())
               .to(query.end().msEpoch());
-        } else if (query.start() != null) {
-          time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
+          } else if (query.start() != null) {
+            time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
               .from(query.start().msEpoch())
               .to(DateTime.currentTimeMillis());
-        } else {
-          time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
+          } else {
+            time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
               .from(0)
               .to(query.end().epoch());
-        }
-        search_source_builder.query(FilterBuilders.boolFilter()
+          }
+          search_source_builder.query(FilterBuilders.boolFilter()
             .must(time_filter)
-            .must(setFilter(query.filter()))
+            .must(setFilter(meta_query.filter()))
             .buildAsBytes());
-      } else if (query.filter() instanceof ExplicitTagsFilter) {
-        FilterBuilder filters = setFilter(query.filter());
-        FilterBuilder explicit_filter = FilterBuilders.termFilter
-                ("tags_value", num_tags);
-        search_source_builder.query(FilterBuilders.boolFilter()
+        } else if (meta_query.filter() instanceof ExplicitTagsFilter) {
+          FilterBuilder filters = setFilter(meta_query.filter());
+          FilterBuilder explicit_filter = FilterBuilders.termFilter
+            ("tags_value", num_tags);
+          search_source_builder.query(FilterBuilders.boolFilter()
             .must(explicit_filter)
             .must(filters)
             .buildAsBytes());
-      } else {
-        search_source_builder.query(setFilter(query.filter()).buildAsBytes());
+        } else {
+          search_source_builder.query(setFilter(meta_query.filter()).buildAsBytes());
+        }
       }
+      search_source_builders.put(meta_query.namespace().toLowerCase(),
+        search_source_builder);
     }
-    return search_source_builder;
+    return search_source_builders;
   }
-  
+
   static String convertToLuceneRegex(final String value_str) throws
           RuntimeException {
     if (value_str == null || value_str.isEmpty()) {
@@ -502,19 +514,19 @@ public class NamespacedAggregatedDocumentQueryBuilder {
 
     if (result.startsWith("^")) {
       result = result.substring(1, length);
-    } else if (!result.startsWith("~") && 
+    } else if (!result.startsWith("~") &&
                !result.startsWith(".*")) {
       result = ".*" + result;
     }
     length = result.length();
     if (result.endsWith("$")) {
       result = result.substring(0, length - 1);
-    } else if (!result.startsWith("~") && 
+    } else if (!result.startsWith("~") &&
                !result.endsWith(".*")) {
       result = result + ".*";
     }
 
     return result;
   }
-  
+
 }
