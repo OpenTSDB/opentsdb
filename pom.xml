@@ -291,7 +291,6 @@
 	      </execution>
 	    </executions>
 	    <configuration>
-              <skip>true</skip>
 	      <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
 	      <prefix>git</prefix>
 	      <verbose>false</verbose>
