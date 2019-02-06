@@ -36,7 +36,8 @@ public class CommonVersion {
   public static final String RESOURCE = "opentsdb-common-version.json";
   public static JsonNode JSON;
   static {
-    final InputStream stream = CommonVersion.class.getResourceAsStream(RESOURCE);
+    final InputStream stream = ClassLoader.getSystemClassLoader()
+        .getResourceAsStream(RESOURCE);
     if (stream == null) {
       LOG.error("No such resource: " + RESOURCE);
     } else {
