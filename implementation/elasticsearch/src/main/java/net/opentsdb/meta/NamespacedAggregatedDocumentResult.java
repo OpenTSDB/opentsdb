@@ -190,7 +190,6 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
         !matchMetric(metric_only, false, meta_query.filter())) {
       return;
     }
-
     if (ids == null) {
       ids = Sets.newHashSet();
     }
@@ -320,7 +319,6 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       }
       return matched;
     }
-
     return true;
   }
 

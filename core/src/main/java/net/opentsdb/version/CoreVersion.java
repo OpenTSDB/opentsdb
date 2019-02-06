@@ -36,7 +36,8 @@ public class CoreVersion {
   public static final String RESOURCE = "opentsdb-core-version.json";
   public static JsonNode JSON;
   static {
-    final InputStream stream = CoreVersion.class.getResourceAsStream(RESOURCE);
+    final InputStream stream = ClassLoader.getSystemClassLoader()
+        .getResourceAsStream(RESOURCE);
     if (stream == null) {
       LOG.error("No such resource: " + RESOURCE);
     } else {
