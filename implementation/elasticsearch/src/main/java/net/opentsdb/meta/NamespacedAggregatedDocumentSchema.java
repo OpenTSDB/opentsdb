@@ -732,5 +732,4 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     BaseTimeSeriesStringId timeseries = builder.build();
     return timeseries;
   }
-
 }

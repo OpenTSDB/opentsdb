@@ -66,6 +66,7 @@ public class TestNamespacedAggregatedDocumentQuery {
     QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
         .addFilter(TagValueRegexFilter.newBuilder().setFilter("cpu").setTagKey("host").build())
         .build();
+
     MetaQuery meta_query = DefaultMetaQuery.newBuilder()
         .setNamespace("Yahoo")
         .setFilter( ExplicitTagsFilter.newBuilder().setFilter(chainFil).build())
