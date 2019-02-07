@@ -117,7 +117,6 @@ public interface BatchMetaQuery {
 
     public Builder setMetaQuery(final List<MetaQuery> meta_query) {
       this.meta_query = meta_query;
-      System.out.println("here" + this.meta_query);
       return this;
     }
 

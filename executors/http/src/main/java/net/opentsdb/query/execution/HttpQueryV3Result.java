@@ -87,8 +87,10 @@ public class HttpQueryV3Result implements QueryResult {
    * @param node The non-null parent node.
    * @param root The non-null root node.
    */
-  HttpQueryV3Result(final QueryNode node, final JsonNode root) {
-    this(node, root, null);
+  HttpQueryV3Result(final QueryNode node, 
+                    final JsonNode root, 
+                    final RollupConfig rollup_config) {
+    this(node, root, rollup_config, null);
   }
   
   /**
@@ -100,9 +102,11 @@ public class HttpQueryV3Result implements QueryResult {
    */
   HttpQueryV3Result(final QueryNode node, 
                     final JsonNode root, 
+                    final RollupConfig rollup_config,
                     final Exception exception) {
     this.node = node;
     this.exception = exception;
+    this.rollup_config = rollup_config;
     if (exception == null) {
       String temp = root.get("source").asText();
       data_source = temp.substring(temp.indexOf(":") + 1);
@@ -118,14 +122,15 @@ public class HttpQueryV3Result implements QueryResult {
         int i = 0;
         for (final JsonNode ts : n) {
           series.add(new HttpTimeSeries(ts));
-          
           if (i++ == 0) {
             // check for numerics
             JsonNode rollups = ts.get("NumericSummaryType");
-            if (rollups != null && !rollups.isNull()) {
-              rollup_config = new RollupData(ts);
-            } else {
-              rollup_config = null;
+            if (rollup_config == null) {
+              if (rollups != null && !rollups.isNull()) {
+                this.rollup_config = new RollupData(ts);
+              } else {
+                this.rollup_config = null;
+              }
             }
           }
         }

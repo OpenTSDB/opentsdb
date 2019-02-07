@@ -47,6 +47,8 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.filter.DefaultNamedFilter;
+import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -124,6 +126,13 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setMode(context.query().getMode())
         .setTimeZone(context.query().getTimezone())
         .setLogLevel(context.query().getLogLevel());
+    
+    if (!Strings.isNullOrEmpty(config.getFilterId())) {
+      builder.addFilter(DefaultNamedFilter.newBuilder()
+          .setId(config.getFilterId())
+          .setFilter(context.query().getFilter(config.getFilterId()))
+          .build());
+    }
     
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
@@ -296,7 +305,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             }
             
             for (final JsonNode result : results) {
-              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result));
+              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result, 
+                  ((HttpQueryV3Factory) factory).rollupConfig()));
             }
           }
         } catch (Exception e) {
