@@ -23,6 +23,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
@@ -34,14 +35,20 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
-
+  
   public static final String TYPE = "HttpQueryV3";
+  public static final String ROLLUP_KEY = "rollups.config";
   
   /** The path to hit. */
   protected String endpoint;
+
+  /** The rollup config. */
+  protected DefaultRollupConfig rollup_config;
   
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
@@ -55,6 +62,8 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
           @Override
           public Object call(final Object ignored) throws Exception {
             registerLocalConfigs(tsdb);
+            rollup_config = tsdb.getConfig().getTyped(getConfigKey(ROLLUP_KEY), 
+                DefaultRollupConfig.class);
             endpoint = tsdb.getConfig().getString(getConfigKey(ENDPOINT_KEY));
             return null;
           }
@@ -127,10 +136,26 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
                                  endpoint);
   }
 
+  RollupConfig rollupConfig() {
+    return rollup_config;
+  }
+  
   void registerLocalConfigs(final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(getConfigKey(ENDPOINT_KEY))) {
       tsdb.getConfig().register(getConfigKey(ENDPOINT_KEY), "/api/query/graph", true,
           "The endpoint to send queries to.");
+    }
+    // TEMP This is ugly. We should fetch the rollup config from the source.
+    if (!tsdb.getConfig().hasProperty(getConfigKey(ROLLUP_KEY))) {
+      tsdb.getConfig().register(
+          ConfigurationEntrySchema.newBuilder()
+          .setKey(getConfigKey(ROLLUP_KEY))
+          .setType(DefaultRollupConfig.class)
+          .setDescription("The JSON or YAML config with a mapping of "
+              + "aggregations to numeric IDs.")
+          .isNullable()
+          .setSource(getClass().getName())
+          .build());
     }
   }
   

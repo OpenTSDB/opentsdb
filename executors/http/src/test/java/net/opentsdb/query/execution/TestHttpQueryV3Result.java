@@ -36,7 +36,9 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.utils.JSON;
 
 public class TestHttpQueryV3Result {
@@ -55,7 +57,7 @@ public class TestHttpQueryV3Result {
     
     JsonNode node = JSON.getMapper().readTree(json);
     node = node.get("results").iterator().next();
-    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node);
+    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node, null);
     assertNull(result.timeSpecification());
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
@@ -132,7 +134,7 @@ public class TestHttpQueryV3Result {
     
     JsonNode node = JSON.getMapper().readTree(json);
     node = node.get("results").iterator().next();
-    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node);
+    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node, null);
     assertEquals(1540567560, result.timeSpecification().start().epoch());
     assertEquals(1540567740, result.timeSpecification().end().epoch());
     assertEquals("1m", result.timeSpecification().stringInterval());
@@ -205,7 +207,7 @@ public class TestHttpQueryV3Result {
     
     JsonNode node = JSON.getMapper().readTree(json);
     node = node.get("results").iterator().next();
-    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node);
+    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node, null);
     assertNull(result.timeSpecification());
     assertNull(result.error());
     assertNull(result.exception());
@@ -266,9 +268,50 @@ public class TestHttpQueryV3Result {
   }
   
   @Test
+  public void numericSummaryTypeRollupGiven() throws Exception {
+    String json = "{\"results\":[{\"source\":\"summarizer:m1\",\"data\":"
+        + "[{\"metric\":\"system.cpu.user\",\"tags\":{\"host\":\"web01\"},"
+        + "\"aggregateTags\":[],\"NumericSummaryType\":{\"aggregations\":"
+        + "[\"sum\",\"count\",\"min\",\"max\",\"avg\",\"first\","
+        + "\"last\"],\"data\":[{\"1540567560\":[407693.2907707449,"
+        + "60,6704.690003493801,6867.070027515292,6794.888179512415,"
+        + "6790.780004132539,6835.990010544658]}]}},{\"metric\":"
+        + "\"system.cpu.user\",\"tags\":{\"host\":\"web02\"},"
+        + "\"aggregateTags\":[],\"NumericSummaryType\":{\"aggregations\":"
+        + "[\"sum\",\"count\",\"min\",\"max\",\"avg\",\"first\","
+        + "\"last\"],\"data\":[{\"1540567560\":[407693.2907707449,60,"
+        + "6704.690003493801,6867.070027515292,6794.888179512415,"
+        + "6790.780004132539,6835.990010544658]}]}}]}]}";
+    
+    RollupConfig rollup_config = DefaultRollupConfig.newBuilder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addInterval(RollupInterval.builder()
+            .setInterval("1m")
+            .setRowSpan("1h")
+            .setTable("foo")
+            .setPreAggregationTable("foo"))
+        .build();
+    
+    JsonNode node = JSON.getMapper().readTree(json);
+    node = node.get("results").iterator().next();
+    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node, rollup_config);
+    assertNull(result.timeSpecification());
+    assertNull(result.error());
+    assertNull(result.exception());
+    assertEquals("m1", result.dataSource());
+    assertEquals(Const.TS_STRING_ID, result.idType());
+    
+    rollup_config = result.rollupConfig();
+    assertEquals(2, rollup_config.getAggregationIds().size());
+    assertEquals("sum", rollup_config.getAggregatorForId(0));
+    assertEquals("count", rollup_config.getAggregatorForId(1));
+  }
+  
+  @Test
   public void exception() throws Exception {
     RuntimeException ex = new RuntimeException("Boo!");
-    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), null, ex);
+    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), null, null, ex);
     assertNull(result.timeSpecification());
     assertTrue(result.timeSeries().isEmpty());
     assertEquals("Boo!", result.error());
