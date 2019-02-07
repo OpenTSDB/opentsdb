@@ -687,8 +687,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       final SearchResponse response,
       final String metric,
       NamespacedAggregatedDocumentResult result) {
-    int idx = metric.indexOf(".");
-    final String metric_only = metric.substring(idx + 1).toLowerCase();
+
     for (final SearchHit hit : response.getHits().hits()) {
       final Map<String, Object> source = hit.getSource();
       List<Map<String, String>> tags = (List<Map<String, String>>)
@@ -703,10 +702,12 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                       .DATA, query, meta_query);
             }
             result.addTimeSeries(buildTimeseries(m.get("name.raw"), tags),
-                    meta_query, metric_only);
+                    meta_query, m.get("name.raw"));
           }
         }
       } else {
+        int idx = metric.indexOf(".");
+        final String metric_only = metric.substring(idx + 1).toLowerCase();
         String metric_without_namespace = metric.substring(metric.indexOf
           (".") + 1);
         if (result == null) {

@@ -170,7 +170,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       }
       final FilterBuilder builder = FilterBuilders.boolFilter()
           .must(FilterBuilders.termsFilter(QUERY_TAG_VALUE_KEY, lower_case))
-          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey()));
+          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
+            ().toLowerCase()));
       if (nested) {
         return FilterBuilders.nestedFilter(TAG_PATH, builder);
       }
@@ -180,7 +181,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           ((TagValueRegexFilter) filter).getFilter());
       final FilterBuilder builder = FilterBuilders.boolFilter()
           .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, regexp))
-          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey()));
+          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
+            ().toLowerCase()));
       if (nested) {
         return FilterBuilders.nestedFilter(TAG_PATH, builder);
       }
@@ -190,7 +192,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY,
               ((TagValueWildcardFilter) filter).getFilter()
                 .toLowerCase().replace("*", ".*")))
-          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey()));
+          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
+            ().toLowerCase()));
       if (nested) {
         return FilterBuilders.nestedFilter(TAG_PATH, builder);
       }
@@ -206,11 +209,13 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof TagKeyLiteralOrFilter) {
       ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter
               (QUERY_TAG_VALUE_KEY, ".*"))
-              .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.filter()));
+              .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter
+                .filter().toLowerCase()));
 
     } else if (filter instanceof TagKeyRegexFilter) {
       ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, ".*"))
-              .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, filter.filter()));
+              .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, convertToLuceneRegex(filter
+                .filter())));
     }
     if (nested) {
       return FilterBuilders.nestedFilter(TAG_PATH, builder);
@@ -446,7 +451,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           break;
         case TAG_KEYS_AND_VALUES:
           search_source_builder.aggregation(tagKeyAndValueAgg(meta_query.filter(),
-            query.aggregationField(), query.aggregationSize()));
+            query.aggregationField().toLowerCase(), query.aggregationSize()));
           search_source_builder.size(0);
           break;
         case TIMESERIES:
