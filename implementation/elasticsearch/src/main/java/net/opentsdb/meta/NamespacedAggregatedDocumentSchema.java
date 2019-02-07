@@ -708,6 +708,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
           }
         }
       } else {
+        int idx = metric.indexOf(".");
+        final String metric_only = metric.substring(idx + 1).toLowerCase();
         String metric_without_namespace = metric.substring(metric.indexOf
           (".") + 1);
         if (result == null) {
