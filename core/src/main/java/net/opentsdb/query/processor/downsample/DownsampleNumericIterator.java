@@ -449,7 +449,7 @@ public class DownsampleNumericIterator implements QueryIterator {
       }
       
       if (value_idx < 1) {
-        dp.reset(interpolator.next(interval_ts));
+        dp.resetNull(interval_start);
       } else if (longs) {
         dp.resetTimestamp(interval_start);
         aggregator.run(long_values, 0, value_idx, dp);
