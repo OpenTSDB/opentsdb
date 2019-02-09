@@ -191,7 +191,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
       if (source_nodes.isEmpty()) {
         break;
       }
-      for (final QueryNodeConfig node : source_nodes) {
+      final List<QueryNodeConfig> srcs = Lists.newArrayList(source_nodes);
+      for (final QueryNodeConfig node : srcs) {
         modified = recursiveSetup(node, already_setup, satisfied_filters);
         if (modified) {
           break;
