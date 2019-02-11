@@ -122,8 +122,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   
   @Override
   public boolean pushDown() {
-    // TODO Auto-generated method stub
-    return false;
+    return true;
   }
   
   @Override

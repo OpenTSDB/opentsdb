@@ -223,27 +223,13 @@ public class DefaultQueryPlanner implements QueryPlanner {
           }
           
           final List<QueryNodeConfig> push_downs = Lists.newArrayList();
-          MutableGraph<QueryNodeConfig> clone = Graphs.copyOf(config_graph);
-          for (final QueryNodeConfig n : clone.predecessors(node)) {
-            final boolean pushed = pushDown(
+          for (final QueryNodeConfig n : config_graph.predecessors(node)) {
+            pushDown(
                 node, 
                 node, 
                 (TimeSeriesDataSourceFactory) factory, 
                 n, 
-                push_downs,
-                clone);
-            if (pushed) {
-              Set<QueryNodeConfig> predecessors = config_graph.predecessors(n);
-              for (final QueryNodeConfig predecessor : predecessors) {
-                config_graph.putEdge(predecessor, node);
-              }
-              config_graph.removeEdge(n, node);
-              push_downs.add(n);
-            }
-            
-            if (n != context_sink_config && config_graph.successors(n).isEmpty()) {
-              config_graph.removeNode(n);
-            }
+                push_downs);
           }
           
           if (!push_downs.isEmpty()) {
@@ -257,7 +243,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
         }
         
         // TODO clean out nodes that won't contribute to serialization.
-        
         // compute source IDs.
         serialization_sources = computeSerializationSources(context_node);
         
@@ -283,7 +268,20 @@ public class DefaultQueryPlanner implements QueryPlanner {
         // depth first initiation of the executors since we have to init
         // the ones without any downstream dependencies first.
         Set<QueryNode> initialized = Sets.newHashSet();
-        return recursiveInit(context_sink, initialized, span);
+        return recursiveInit(context_sink, initialized, span)
+            .addCallbackDeferring(new Callback<Deferred<Void>, Void>() {
+
+              @Override
+              public Deferred<Void> call(Void arg) throws Exception {
+                if (data_sources.isEmpty()) {
+                  LOG.error("WTF? No final node for query: " + context.query());
+                  return Deferred.<Void>fromError(new RuntimeException(
+                      "WTF? No data sources in the graph!!!!"));
+                }
+                return null;
+              }
+              
+            });
       }
       
     }
@@ -412,7 +410,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     for (final QueryNode successor : successors) {
       deferreds.add(recursiveInit(successor, initialized, span));
     }
-    
+
     class InitCB implements Callback<Deferred<Void>, Void> {
       @Override
       public Deferred<Void> call(final Void ignored) throws Exception {
@@ -440,58 +438,47 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param clone The clone to work from while mutating.
    * @return An edge to link with if the previous node was pushed down.
    */
-  private boolean pushDown(
+  private void pushDown(
       final QueryNodeConfig parent,
       final QueryNodeConfig source, 
       final TimeSeriesDataSourceFactory factory, 
       final QueryNodeConfig node,
-      final List<QueryNodeConfig> push_downs,
-      final MutableGraph<QueryNodeConfig> clone) {
+      final List<QueryNodeConfig> push_downs) {
     if (!factory.supportsPushdown(node.getClass())) {
-      if (!config_graph.hasEdgeConnecting(node, parent)) {
-        config_graph.putEdge(node, parent);
-        if (Graphs.hasCycle(config_graph)) {
-          throw new IllegalArgumentException("Cycle found linking node " 
-              + node.getId() + " to " + parent.getId());
-        }
-      }
-      return false;
+      return;
     }
     
     if (!node.pushDown()) {
-      // reached a node config that doesn't allow push downs.
-      return false;
+      return;
     }
     
-    // see if we can walk up for more
-    final Set<QueryNodeConfig> incoming = clone.predecessors(node);
-    if (!incoming.isEmpty()) {
-      List<QueryNodeConfig> nodes = Lists.newArrayList();
-      for (final QueryNodeConfig n : incoming) {
-        nodes.add(n);
-        boolean pushed = pushDown(parent, node, factory, n, push_downs, clone);
-        if (pushed) {
-          config_graph.removeEdge(n, node);
-        }
-      }
-      
-      for (final QueryNodeConfig n : nodes) {
-        if (clone.successors(n).isEmpty()) {
-          if (config_graph.removeNode(n)) {
-            push_downs.add(n);
-          }
-        }
+    // we can push this one down so add to the list and yank the edge.
+    push_downs.add(node);
+    config_graph.removeEdge(node, parent);
+    
+    Set<QueryNodeConfig> incoming = config_graph.predecessors(node);
+    for (final QueryNodeConfig n : incoming) {
+      config_graph.putEdge(n, parent);
+      if (Graphs.hasCycle(config_graph)) {
+        throw new IllegalArgumentException("Cycle found linking node " 
+            + node.getId() + " to " + parent.getId());
       }
     }
     
     // purge if we pushed everything down
     if (config_graph.successors(node).isEmpty()) {
-      if (config_graph.removeNode(node)) {
-        push_downs.add(node);
-      }
+      config_graph.removeNode(node);
     }
     
-    return true;
+    // see if we can walk up for more
+    if (!incoming.isEmpty()) {
+      incoming = Sets.newHashSet(incoming);
+      for (final QueryNodeConfig n : incoming) {
+        pushDown(parent, node, factory, n, push_downs);
+      }
+    }
+
+    return;
   }
 
   /**
@@ -556,7 +543,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
     for (final QueryNode source_node : sources) {
       graph.putEdge(query_node, source_node);
       if (Graphs.hasCycle(graph)) {
-        throw new IllegalArgumentException("WTF??");
+        throw new IllegalArgumentException("WTF?? Cycle adding " 
+            + query_node + " => " + source_node);
       }
     }
     
@@ -599,14 +587,13 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param node The non-null node to work from.
    * @return A set of unique results we should see.
    */
-  private Set<String> computeSerializationSources(
-      final QueryNodeConfig node) {
+  private Set<String> computeSerializationSources(final QueryNodeConfig node) {
     if (node instanceof TimeSeriesDataSourceConfig ||
         node.joins()) {
       return Sets.newHashSet(node.getId());
     }
     
-    final Set<String> ids = Sets.newHashSet();
+    final Set<String> ids = Sets.newHashSetWithExpectedSize(1);
     for (final QueryNodeConfig downstream : config_graph.successors(node)) {
       final Set<String> downstream_ids = computeSerializationSources(downstream);
       if (node == context_node) {
