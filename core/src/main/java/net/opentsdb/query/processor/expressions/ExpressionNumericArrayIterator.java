@@ -166,6 +166,11 @@ public class ExpressionNumericArrayIterator extends
   }
 
   @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericArrayType.TYPE;
+  }
+  
+  @Override
   public TypeToken<NumericArrayType> type() {
     return NumericArrayType.TYPE;
   }
