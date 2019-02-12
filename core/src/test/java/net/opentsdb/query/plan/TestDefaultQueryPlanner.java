@@ -66,6 +66,7 @@ import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.groupby.GroupBy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.merge.MergerConfig;
+import net.opentsdb.query.processor.summarizer.SummarizerConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
 
 public class TestDefaultQueryPlanner {
@@ -440,6 +441,72 @@ public class TestDefaultQueryPlanner {
     assertEquals(1, planner.serializationSources().size());
   }
 
+  @Test
+  public void oneMetricOneGraphTwoPushDowns() throws Exception {
+    when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
+      .thenReturn(true);
+    when(STORE_FACTORY.supportsPushdown(GroupByConfig.class))
+      .thenReturn(true);
+    
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .setSummaries(Lists.newArrayList("avg", "max", "count"))
+            .setId("sum")
+            .addSource("gb")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("sum")))
+        .build();
+    
+    when(STORE_FACTORY.supportsPushdown(any(Class.class))).thenReturn(true);
+    
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertSame(STORE_NODES.get(0), planner.sources().get(0));
+    assertEquals(3, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertNull(planner.nodeForId("ds"));
+    assertNull(planner.nodeForId("gb"));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("sum"), 
+        planner.nodes_map.get("m1")));
+    
+    assertEquals(2, planner.serializationSources().size());
+  }
+  
   @Test
   public void twoMetricsAlone() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
