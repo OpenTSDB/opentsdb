@@ -156,12 +156,10 @@ public class SummarizerNumericIterator implements QueryIterator {
 
         if (value.value() != null) {
 
-          Collection<Integer> integers =
+          Collection<Integer> summaries =
               ((TimeSeriesValue<NumericSummaryType>) value)
                   .value()
                   .summariesAvailable();
-          final List<Integer> summaries = Lists.newArrayList(integers);
-
           if (summaries == null) {
             throw new IllegalArgumentException("Summaries not found in the summarizer!");
           }
@@ -170,7 +168,7 @@ public class SummarizerNumericIterator implements QueryIterator {
             throw new IllegalArgumentException("Multiple or no summaries found! " + summaries);
           }
 
-          NumericType val = value.value().value(summaries.get(0));
+          NumericType val = value.value().value(summaries.iterator().next());
 
           if (val.isInteger()) {
             store(val.longValue());
