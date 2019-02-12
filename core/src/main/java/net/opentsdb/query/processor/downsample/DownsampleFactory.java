@@ -219,11 +219,13 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
         .setStart(context.query().getStart())
         .setEnd(context.query().getEnd())
         .setId(config.getId());
-    
+
+    QueryNodeConfig newConfig = builder.build();
+
     // and we need to find our sources if we have a rollup as well as set the 
     // padding.
     final List<QueryNodeConfig> sources = Lists.newArrayList(
-        plan.terminalSourceNodes(config));
+        plan.terminalSourceNodes(newConfig));
     for (final QueryNodeConfig source : sources) {
       if (!(source instanceof TimeSeriesDataSourceConfig)) {
         LOG.debug("Hmmm, wasn't a data source config? " + source);
@@ -232,18 +234,18 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
       TimeSeriesDataSourceConfig.Builder new_source = 
           (TimeSeriesDataSourceConfig.Builder)
             ((TimeSeriesDataSourceConfig) source).toBuilder();
-      new_source.setSummaryInterval(((DownsampleConfig) config).getInterval());
-      if (((DownsampleConfig) config).getAggregator().equalsIgnoreCase("avg")) {
+      new_source.setSummaryInterval(((DownsampleConfig) newConfig).getInterval());
+      if (((DownsampleConfig) newConfig).getAggregator().equalsIgnoreCase("avg")) {
         new_source.addSummaryAggregation("sum");
         new_source.addSummaryAggregation("count");
       } else {
-        new_source.addSummaryAggregation(((DownsampleConfig) config).getAggregator());
+        new_source.addSummaryAggregation(((DownsampleConfig) newConfig).getAggregator());
       }
       
       plan.replace(source, new_source.build());
     }
     
-    plan.replace(config, builder.build());
+    plan.replace(config, newConfig);
   }
   
   /**

@@ -240,6 +240,57 @@ public class TestSummarizerNumericIterator {
   }
 
   @Test
+  public void numericSummaryTypeWithNaNs() throws Exception {
+    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
+        .setMetric("foo")
+        .build());
+
+    long BASE_TIME = 1000;
+
+    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME));
+    v.resetNull(new MillisecondTimeStamp(BASE_TIME));
+    ((MockTimeSeries) series).addValue(v);
+
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
+    v.resetValue(1, 15);
+    ((MockTimeSeries) series).addValue(v);
+
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
+    v.resetValue(1, 12);
+    ((MockTimeSeries) series).addValue(v);
+
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
+    v.resetValue(0, 12.43);
+    ((MockTimeSeries) series).addValue(v);
+
+    SummarizerNumericIterator iterator =
+        new SummarizerNumericIterator(node, result, series);
+    assertTrue(iterator.hasNext());
+
+    TimeSeriesValue<NumericSummaryType> value =
+        (TimeSeriesValue<NumericSummaryType>) iterator.next();
+
+    assertEquals(1, value.timestamp().epoch());
+
+    NumericSummaryType summary = value.value();
+
+    System.out.println(summary);
+
+    assertEquals(5, summary.summariesAvailable().size());
+    assertEquals(39.43, summary.value(0).doubleValue(), 0.001);
+    assertEquals(3, summary.value(1).longValue());
+    assertEquals(15.0, summary.value(2).doubleValue(), 0.001);
+    assertEquals(12.0, summary.value(3).doubleValue(), 0.001);
+    assertEquals(13.1433, summary.value(5).doubleValue(), 0.001);
+
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
   public void numericTypeDoubles() throws Exception {
     TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")

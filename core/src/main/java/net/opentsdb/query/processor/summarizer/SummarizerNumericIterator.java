@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -148,26 +149,31 @@ public class SummarizerNumericIterator implements QueryIterator {
         final TimeSeriesValue<NumericSummaryType> value =
             (TimeSeriesValue<NumericSummaryType>) iterator.next();
 
-        final List<Integer> summaries = Lists.newArrayList(
-            ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable());
-
-        if (summaries == null) {
-          throw new IllegalArgumentException("Summaries not found in the summarizer!");
-        }
-
-        if (summaries.size() != 1) {
-          throw new IllegalArgumentException("Multiple or no summaries found! " + summaries);
-        }
-
         if (!got_timestamp) {
           dp.resetTimestamp(value.timestamp());
           got_timestamp = true;
         }
+
         if (value.value() != null) {
-          if (value.value().value(summaries.get(0)).isInteger()) {
-            store(value.value().value(summaries.get(0)).longValue());
+
+          Collection<Integer> summaries =
+              ((TimeSeriesValue<NumericSummaryType>) value)
+                  .value()
+                  .summariesAvailable();
+          if (summaries == null) {
+            throw new IllegalArgumentException("Summaries not found in the summarizer!");
+          }
+
+          if (summaries.size() != 1) {
+            throw new IllegalArgumentException("Multiple or no summaries found! " + summaries);
+          }
+
+          NumericType val = value.value().value(summaries.iterator().next());
+
+          if (val.isInteger()) {
+            store(val.longValue());
           } else {
-            store(value.value().value(summaries.get(0)).doubleValue());
+            store(val.doubleValue());
           }
         }
       }

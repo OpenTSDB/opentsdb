@@ -18,10 +18,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
+import net.opentsdb.query.processor.summarizer.Summarizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -435,8 +437,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     if (result.timeSpecification() != null) {
 
-      final List<Integer> summaries = Lists.newArrayList(
-          ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable());
+      Collection<Integer> summaries = null;
+      Integer summary = null;
 
       json.writeArrayFieldStart("NumericType");
       // just the values
@@ -445,14 +447,22 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           break;
         }
         if (value.value() == null) {
-          json.writeNull();
+          //TODO, should we use json.writeNull() instead?
+          json.writeNumber(Double.NaN);
         } else {
-          if (((TimeSeriesValue<NumericSummaryType>) value).value().value(summaries.get(0)).isInteger()) {
+
+          // Will fetch summaries from the first non null dps.
+          if (summaries == null) {
+            summaries =
+                ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable();
+            summary = summaries.iterator().next();
+          }
+          if (((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).isInteger()) {
             json.writeNumber(
-                ((TimeSeriesValue<NumericSummaryType>) value).value().value(summaries.get(0)).longValue());
+                ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).longValue());
           } else {
             json.writeNumber(
-                ((TimeSeriesValue<NumericSummaryType>) value).value().value(summaries.get(0)).doubleValue());
+                ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).doubleValue());
           }
         }
 
@@ -467,8 +477,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     }
 
-    final List<Integer> summaries = Lists.newArrayList(
-        ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable());
+    Collection<Integer> summaries = null;
+    Integer summary = null;
 
     // timestamp and values
     json.writeObjectFieldStart("NumericType");
@@ -480,15 +490,22 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           ? value.timestamp().msEpoch()
           : value.timestamp().msEpoch() / 1000;
       final String ts_string = Long.toString(ts);
+
+      if (summaries == null) {
+        summaries =
+            ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable();
+        summary = summaries.iterator().next();
+      }
+
       if (value.value() == null) {
         json.writeNullField(ts_string);
       } else {
-        if (((TimeSeriesValue<NumericSummaryType>) value).value().value(summaries.get(0)).isInteger()) {
+        if (((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).isInteger()) {
           json.writeNumberField(ts_string,
-              ((TimeSeriesValue<NumericSummaryType>) value).value().value(summaries.get(0)).longValue());
+              ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).longValue());
         } else {
           json.writeNumberField(ts_string,
-              ((TimeSeriesValue<NumericSummaryType>) value).value().value(summaries.get(0)).doubleValue());
+              ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).doubleValue());
         }
       }
 
@@ -511,16 +528,16 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     if (result.timeSpecification() != null) {
 
-      final List<Integer> summaries = Lists.newArrayList(
-          ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable());
-
-      if (summaries != null && summaries.size() == 1) {
-        // If the number of summaries are 1, going to force a NumericType on the data
-        // TODO: find a clean way of doing this
+      if (!(result.source() instanceof Summarizer)) {
         writeRollupNumeric((TimeSeriesValue<NumericSummaryType>) value, options, iterator, json,
             result);
         return;
       }
+
+      Collection<Integer> summaries =
+          ((TimeSeriesValue<NumericSummaryType>) value)
+              .value()
+              .summariesAvailable();
 
       value = (TimeSeriesValue<NumericSummaryType>) value;
 
@@ -572,14 +589,16 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
 
     // NOTE: This is assuming all values have the same summaries available.
-    final List<Integer> summaries = Lists.newArrayList(
-        ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable());
 
-    if (summaries != null && summaries.size() == 1) {
-      writeNumeric((TimeSeriesValue<NumericType>) value,
+    // Rollups result would typically be a groupby and not a summarizer
+    if (!(result.source() instanceof Summarizer)) {
+      writeRollupNumeric((TimeSeriesValue<NumericSummaryType>) value,
           options, iterator, json, result);
       return;
     }
+
+    Collection<Integer> summaries =
+        ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable();
 
     value = (TimeSeriesValue<NumericSummaryType>) value;
     json.writeObjectFieldStart("NumericSummaryType");
@@ -628,8 +647,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     json.writeEndArray();
     json.writeEndObject();
   }
-
-
 
   private void writeNumericArray(
       TimeSeriesValue<NumericArrayType> value,
