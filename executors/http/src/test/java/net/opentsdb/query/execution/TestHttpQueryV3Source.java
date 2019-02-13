@@ -327,8 +327,8 @@ public class TestHttpQueryV3Source {
     
     callback.failed(new UnitTestException());
     
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, times(1)).onError(any(UnitTestException.class));
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(UnitTestException.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
   
@@ -469,8 +469,8 @@ public class TestHttpQueryV3Source {
     
     callback.completed(response);
     
-    verify(upstream, never()).onNext(any(QueryResult.class));
-    verify(upstream, times(1)).onError(any(Throwable.class));
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
   

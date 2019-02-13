@@ -45,6 +45,7 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
+import net.opentsdb.query.processor.merge.MergerConfig;
 
 public class TestExpressionFactory {
 
@@ -568,4 +569,143 @@ public class TestExpressionFactory {
     }
     
   }
+  
+  @Test
+  public void setupGraphThroughJoinNodeMetricName() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("ha_m1")
+        .build();
+    QueryNodeConfig merger = MergerConfig.newBuilder()
+        .setAggregator("sum")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("m1")
+        .build();
+    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("downsample")
+        .build();
+    QueryNodeConfig exp = ExpressionConfig.newBuilder()
+        .setExpression("(sys.cpu.user * 1024)")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("expression")
+        .build();
+    
+    QueryPlanner plan = mock(QueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    
+    graph.putEdge(merger, m1);
+    graph.putEdge(ds, merger);
+    graph.putEdge(exp, ds);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(5, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(merger));
+    assertTrue(graph.nodes().contains(ds));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    assertTrue(graph.hasEdgeConnecting(merger, m1));
+    
+    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
+    assertEquals(1, expressions.size());
+    ExpressionParseNode p1 = (ExpressionParseNode) expressions.get(0);
+    assertTrue(graph.hasEdgeConnecting(p1, ds));
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1", p1.getLeftId());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+    assertNull(p1.getRightId());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
+    
+    assertTrue(graph.hasEdgeConnecting(SINK, p1));
+    assertEquals(1, graph.predecessors(p1).size());
+  }
+  
+  // TODO - this requires more work to function correctly. We need the expression
+  // node to take ANY metric from `m1` instead of a single metric.
+//  @Test
+//  public void setupGraphThroughJoinNodeId() throws Exception {
+//    ExpressionFactory factory = new ExpressionFactory();
+//    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+//        .allowsSelfLoops(false).build();
+//    
+//    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+//        .setMetric(MetricLiteralFilter.newBuilder()
+//            .setMetric("sys.cpu.user")
+//            .build())
+//        .setFilterId("f1")
+//        .setId("ha_m1")
+//        .build();
+//    QueryNodeConfig merger = MergerConfig.newBuilder()
+//        .setAggregator("sum")
+//        .addInterpolatorConfig(NUMERIC_CONFIG)
+//        .setId("m1")
+//        .build();
+//    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+//        .setAggregator("sum")
+//        .setInterval("1m")
+//        .addInterpolatorConfig(NUMERIC_CONFIG)
+//        .setId("downsample")
+//        .build();
+//    QueryNodeConfig exp = ExpressionConfig.newBuilder()
+//        .setExpression("(m1 * 1024)")
+//        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+//            .setJoinType(JoinType.NATURAL)
+//            .build())
+//        .addInterpolatorConfig(NUMERIC_CONFIG)
+//        .setId("expression")
+//        .build();
+//    
+//    QueryPlanner plan = mock(QueryPlanner.class);
+//    when(plan.configGraph()).thenReturn(graph);
+//    
+//    graph.putEdge(merger, m1);
+//    graph.putEdge(ds, merger);
+//    graph.putEdge(exp, ds);
+//    graph.putEdge(SINK, exp);
+//    
+//    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+//    assertEquals(5, graph.nodes().size());
+//    assertTrue(graph.nodes().contains(m1));
+//    assertTrue(graph.nodes().contains(merger));
+//    assertTrue(graph.nodes().contains(ds));
+//    assertFalse(graph.nodes().contains(exp));
+//    assertTrue(graph.nodes().contains(SINK));
+//    
+//    assertTrue(graph.hasEdgeConnecting(merger, m1));
+//    
+//    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
+//    assertEquals(1, expressions.size());
+//    ExpressionParseNode p1 = (ExpressionParseNode) expressions.get(0);
+//    assertTrue(graph.hasEdgeConnecting(p1, ds));
+//    assertEquals("expression", p1.getId());
+//    assertEquals("sys.cpu.user", p1.getLeft());
+//    assertEquals("m1", p1.getLeftId());
+//    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+//    assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+//    assertNull(p1.getRightId());
+//    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+//    assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
+//    
+//    assertTrue(graph.hasEdgeConnecting(SINK, p1));
+//    assertEquals(1, graph.predecessors(p1).size());
+//  }
+  
 }

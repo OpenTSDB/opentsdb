@@ -304,6 +304,73 @@ public class TestHACluster {
     verify(tsdb.query_timer.timeout, times(1)).cancel();
   }
   
+  @Test
+  public void onNextDataSourcesPrimaryFirstError() throws Exception {
+    HACluster node = new HACluster(mock(QueryNodeFactory.class), context, config);
+    assertNull(node.initialize(null).join(250));
+    
+    QueryResult r1 = mock(QueryResult.class);
+    when(r1.error()).thenReturn("Whoops");
+    QueryNode n1 = mock(TimeSeriesDataSource.class);
+    when(r1.source()).thenReturn(n1);
+    when(r1.dataSource()).thenReturn("s1");
+    
+    node.onNext(r1);
+    assertSame(r1, node.results.get("s1"));
+    assertNull(node.results.get("s2"));
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(tsdb.query_timer, never()).newTimeout(any(TimerTask.class), 
+        eq(5000L), eq(TimeUnit.MILLISECONDS));
+    
+    QueryResult r2 = mock(QueryResult.class);
+    QueryNode n2 = mock(TimeSeriesDataSource.class);
+    when(r2.source()).thenReturn(n2);
+    when(r2.dataSource()).thenReturn("s2");
+    
+    node.onNext(r2);
+    assertSame(r1, node.results.get("s1"));
+    assertSame(r2, node.results.get("s2"));
+    verify(upstream, times(2)).onNext(any(QueryResult.class));
+    verify(tsdb.query_timer, never()).newTimeout(any(TimerTask.class), 
+        eq(5000L), eq(TimeUnit.MILLISECONDS));
+  }
+  
+  @Test
+  public void onNextDataSourcesSecondaryFirstError() throws Exception {
+    List<String> sources = Lists.newArrayList("s1", "s2");
+    
+    when(context.downstreamSourcesIds(any(QueryNode.class)))
+      .thenReturn(sources);
+    HACluster node = new HACluster(mock(QueryNodeFactory.class), context, config);
+    assertNull(node.initialize(null).join(250));
+    
+    QueryResult r2 = mock(QueryResult.class);
+    when(r2.error()).thenReturn("Whoops");
+    QueryNode n2 = mock(TimeSeriesDataSource.class);
+    when(r2.source()).thenReturn(n2);
+    when(r2.dataSource()).thenReturn("s2");
+    
+    node.onNext(r2);
+    assertSame(r2, node.results.get("s2"));
+    assertNull(node.results.get("s1"));
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(tsdb.query_timer, never()).newTimeout(any(TimerTask.class), 
+        eq(10000L), eq(TimeUnit.MILLISECONDS));
+    
+    QueryResult r1 = mock(QueryResult.class);
+    QueryNode n1 = mock(TimeSeriesDataSource.class);
+    when(r1.source()).thenReturn(n1);
+    when(r1.dataSource()).thenReturn("s1");
+    
+    node.onNext(r1);
+    assertSame(r1, node.results.get("s1"));
+    assertSame(r2, node.results.get("s2"));
+    verify(upstream, times(2)).onNext(any(QueryResult.class));
+    verify(tsdb.query_timer, never()).newTimeout(any(TimerTask.class), 
+        eq(10000L), eq(TimeUnit.MILLISECONDS));
+  }
+  
   static class MockTimeout implements Timeout {
 
     TimerTask task;

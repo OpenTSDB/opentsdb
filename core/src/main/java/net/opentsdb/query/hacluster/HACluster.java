@@ -20,6 +20,10 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
@@ -49,7 +53,8 @@ import net.opentsdb.utils.DateTime;
  * @since 3.0
  */
 public class HACluster extends AbstractQueryNode {
-
+  private static final Logger LOG = LoggerFactory.getLogger(HACluster.class);
+  
   /** The config. */
   protected final HAClusterConfig config;
 
@@ -89,9 +94,18 @@ public class HACluster extends AbstractQueryNode {
 
   @Override
   public void onNext(final QueryResult next) {
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Result: " + next.source().config().getId() + ":" 
+          + next.dataSource() + " Expect: " + results.keySet());
+    }
+    
     // ignore sources we don't care about. They shouldn't be linked
     // to this node anyway.
     if (!results.containsKey(next.dataSource())) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Received unexpected data from: " 
+            + next.source().config().getId() + next.dataSource());
+      }
       if (context.query().isDebugEnabled()) {
         context.queryContext().logDebug(this, "Received unexpected data from: " 
             + next.source().config().getId() + next.dataSource());
@@ -101,14 +115,18 @@ public class HACluster extends AbstractQueryNode {
     
     boolean all_in = true;
     synchronized (results) {
-      if (results.putIfAbsent(next.dataSource(), next) != null) {
-        context.queryContext().logWarn(this, "Duplicate data from: " 
+      QueryResult extant = results.putIfAbsent(next.dataSource(), next);
+      if (extant != null) {
+        LOG.warn("Late result from source: " 
+            + next.source().config().getId() + ":" + next.dataSource());
+        context.queryContext().logWarn(this, "Late result from source: " 
             + next.source().config().getId() + next.dataSource());
         return;
       }
      
-      for (final QueryResult extant : results.values()) {
-        if (extant == null) {
+      for (final Entry<String, QueryResult> entry : results.entrySet()) {
+        if (entry.getValue() == null) {
+          LOG.trace("MISSING: " + entry.getKey());
           all_in = false;
           break;
         }
@@ -116,61 +134,61 @@ public class HACluster extends AbstractQueryNode {
     }
     
     if (all_in) {
-      if (context.query().isTraceEnabled()) {
-        context.queryContext().logTrace(this, "Received all the sources we expect.");
-      }
       complete(false);
       return;
     }
     
-    if (config.getDataSources().get(0).equals(next.dataSource())) {
-      if (context.query().isTraceEnabled()) {
-        context.queryContext().logTrace(this, "Received primary: " 
-            + next.source().config().getId() + next.dataSource());
-      }
-      synchronized (this) {
-        if (secondary_timer == null) {
-          // start timer!
-          secondary_timer = context.tsdb().getQueryTimer()
-            .newTimeout(new ResultTimeout(false), 
-                DateTime.parseDuration(config.getSecondaryTimeout()), 
-                TimeUnit.MILLISECONDS);
-        } else {
-          // got enough results! pop em up
-          complete(false);
-        }
-      }
-    } else {
-      boolean matched = false;
-      for (final String source : config.getDataSources()) {
-        if (next.dataSource().equals(source)) {
-          matched = true;
-          break;
-        }
-      }
-      
-      if (!matched) {
-        // WTF? 
-      } else {
+    // if the result was in error then don't start a timer so we can let the
+    // other sources respond.
+    if (Strings.isNullOrEmpty(next.error()) && next.exception() == null) {
+      if (config.getDataSources().get(0).equals(next.dataSource())) {
         if (context.query().isTraceEnabled()) {
-          context.queryContext().logTrace(this, "Received secondary: " 
+          context.queryContext().logTrace(this, "Received primary: " 
               + next.source().config().getId() + next.dataSource());
         }
         synchronized (this) {
-          if (primary_timer == null) {
-            // start it!
-            primary_timer = context.tsdb().getQueryTimer()
-              .newTimeout(new ResultTimeout(true), 
-                  DateTime.parseDuration(config.getPrimaryTimeout()), 
+          if (secondary_timer == null) {
+            // start timer!
+            secondary_timer = context.tsdb().getQueryTimer()
+              .newTimeout(new ResultTimeout(false), 
+                  DateTime.parseDuration(config.getSecondaryTimeout()), 
                   TimeUnit.MILLISECONDS);
           } else {
-            // got enough results, pop em up!
+            // got enough results! pop em up
             complete(false);
+          }
+        }
+      } else {
+        boolean matched = false;
+        for (final String source : config.getDataSources()) {
+          if (next.dataSource().equals(source)) {
+            matched = true;
+            break;
+          }
+        }
+        
+        if (!matched) {
+          // WTF? 
+        } else {
+          if (context.query().isTraceEnabled()) {
+            context.queryContext().logTrace(this, "Received secondary: " 
+                + next.source().config().getId() + next.dataSource());
+          }
+          synchronized (this) {
+            if (primary_timer == null) {
+              // start it!
+              primary_timer = context.tsdb().getQueryTimer()
+                .newTimeout(new ResultTimeout(true), 
+                    DateTime.parseDuration(config.getPrimaryTimeout()), 
+                    TimeUnit.MILLISECONDS);
+            } else {
+              // got enough results, pop em up!
+              complete(false);
+            }
           }
         }
       }
     }
-    
   }
   
   @Override
@@ -211,6 +229,11 @@ public class HACluster extends AbstractQueryNode {
     
     @Override
     public void run(final Timeout ignored) throws Exception {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Executing timeout for " 
+            + (is_primary ? "primary." : "secondary."));
+      }
+      
       if (!completed.compareAndSet(false, true)) {
         // Already sent upstream, lost the race.
         return;
@@ -254,6 +277,7 @@ public class HACluster extends AbstractQueryNode {
   
   void complete(final boolean timed_out) {
     if (!timed_out && !completed.compareAndSet(false, true)) {
+      LOG.warn("WTF? Already timed out??????");
       return;
     }
     

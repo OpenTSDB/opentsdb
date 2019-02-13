@@ -182,10 +182,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
     
     final Set<String> satisfied_filters = Sets.newHashSet();
-    
     // next we walk and let the factories update the graph as needed.
     // Note the clone to avoid concurrent modification of the graph.
-    Set<QueryNodeConfig> already_setup = Sets.newHashSet();
+    Set<Integer> already_setup = Sets.newHashSet();
     boolean modified = true;
     while (modified) {
       if (source_nodes.isEmpty()) {
@@ -208,7 +207,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
         // satisfied.
         for (final String key : sink_filter.keySet()) {
           if (!satisfied_filters.contains(key)) {
-            throw new IllegalArgumentException("Unsatisfied sink filter: " + key);
+            // it may have been added in a setup step so check for the node in the
+            // graph.
+            boolean found = false;
+            if (!found) {
+              throw new IllegalArgumentException("Unsatisfied sink filter: " + key);
+            }
           }
         }
         
@@ -245,11 +249,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
         // TODO clean out nodes that won't contribute to serialization.
         // compute source IDs.
         serialization_sources = computeSerializationSources(context_node);
-        
         // now go and build the node graph
         graph = GraphBuilder.directed()
             .allowsSelfLoops(false)
-            .build();//new DirectedAcyclicGraph<QueryNode, DefaultEdge>(DefaultEdge.class);
+            .build();
         graph.addNode(context_sink);
         nodes_map.put(context_sink_config.getId(), context_sink);
         
@@ -323,9 +326,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
    */
   private boolean recursiveSetup(
       final QueryNodeConfig node, 
-      final Set<QueryNodeConfig> already_setup, 
+      final Set<Integer> already_setup, 
       final Set<String> satisfied_filters) {
-    if (!already_setup.contains(node) && node != context_sink_config) {
+    if (!already_setup.contains(System.identityHashCode(node)) && 
+        node != context_sink_config) {
       // TODO - ugg!! There must be a better way to determine if the graph
       // has been modified.
       final MutableGraph<QueryNodeConfig> clone = Graphs.copyOf(config_graph);
@@ -370,14 +374,15 @@ public class DefaultQueryPlanner implements QueryPlanner {
             + node);
       }
       factory.setupGraph(context, node, this);
-      already_setup.add(node);
+      already_setup.add(System.identityHashCode(node));
       if (!config_graph.equals(clone)) {
         return true;
       }
     }
     
     // all done, move up.
-    for (final QueryNodeConfig upstream : config_graph.predecessors(node)) {
+    for (final QueryNodeConfig upstream : 
+        Sets.newHashSet(config_graph.predecessors(node))) {
       if (recursiveSetup(upstream, already_setup, satisfied_filters)) {
         return true;
       }
@@ -390,7 +395,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * Helper to DFS initialize the nodes.
    * @param node The non-null current node.
    * @param initialized A set of already initialized nodes.
-   * @param span An optioanl tracing span.
+   * @param span An optional tracing span.
    * @return A deferred resolving to null or an exception.
    */
   private Deferred<Void> recursiveInit(final QueryNode node, 
@@ -403,6 +408,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
     final Set<QueryNode> successors = graph.successors(node);
     if (successors.isEmpty()) {
       initialized.add(node);
+      if (node == context_sink) {
+        return Deferred.fromResult(null);
+      }
       return node.initialize(span);
     }
     
@@ -438,7 +446,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param clone The clone to work from while mutating.
    * @return An edge to link with if the previous node was pushed down.
    */
-  private void pushDown(
+  public void pushDown(
       final QueryNodeConfig parent,
       final QueryNodeConfig source, 
       final TimeSeriesDataSourceFactory factory, 
@@ -482,10 +490,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
   }
 
   /**
-   * Resursive helper to build and link the actual node graph.
+   * Recursive helper to build and link the actual node graph.
    * @param context The non-null context we're working with.
    * @param node The current node config.
-   * @param constructed A cache to determine if we've already instantated
+   * @param constructed A cache to determine if we've already instantiated
    * and linked the node.
    * @param nodes_map A map of instantiated nodes to use for linking.
    * @return A node to link with.
