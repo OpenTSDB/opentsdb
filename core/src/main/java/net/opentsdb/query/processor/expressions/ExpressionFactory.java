@@ -226,6 +226,15 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
         builder.setRightId(downstream.getId());
         return downstream.getId();
       }
+    } else if (depth > 0 && downstream.joins()) {
+      if (joinsRecursive(builder, left, downstream, plan, depth)) {
+        if (left) {
+          builder.setLeftId(downstream.getId());
+        } else {
+          builder.setRightId(downstream.getId());
+        }
+        return downstream.getId();
+      }
     }
     
     for (final QueryNodeConfig graph_node : 
@@ -242,6 +251,41 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     return null;
   }
 
+  static boolean joinsRecursive(final ExpressionParseNode.Builder builder, 
+                                final boolean left,
+                                final QueryNodeConfig config, 
+                                final QueryPlanner plan,
+                                final int depth) {
+    final String key = left ? (String) builder.left() : (String) builder.right();
+    if (config instanceof TimeSeriesDataSourceConfig) {
+      if (left && key.equals(config.getId())) {
+        builder.setLeft(((TimeSeriesDataSourceConfig) config)
+                 .getMetric().getMetric());
+        return true;
+      } else if (left && 
+          key.equals(((TimeSeriesDataSourceConfig) config)
+              .getMetric().getMetric())) {
+        return true;
+        // right
+      } else if (key.equals(config.getId())) {
+        builder.setRight(((TimeSeriesDataSourceConfig) config)
+                 .getMetric().getMetric());
+        return true;
+      } else if (key.equals(((TimeSeriesDataSourceConfig) config)
+          .getMetric().getMetric())) {
+        return true;
+      }
+    }
+    
+    for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
+      if (joinsRecursive(builder, left, successor, plan, depth + 1)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
   @Override
   public QueryNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("This node should have been "

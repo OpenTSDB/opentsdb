@@ -103,7 +103,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config, 
                          final QueryPlanner plan) {
-    // TODO Auto-generated method stub
+    // no-op
   }
   
   /**

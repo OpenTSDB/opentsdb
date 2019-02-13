@@ -48,7 +48,6 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.DefaultNamedFilter;
-import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -222,18 +221,19 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
 
       @Override
       public void completed(final HttpResponse response) {
-        final Header header = response.getFirstHeader("X-Served-By");
-        String host = HttpQueryV3Source.this.host;
-        if (header != null && header.getValue() != null) {
-          host = header.getValue();
-        }
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Response from endpoint: " + host + endpoint +" received: " 
-              + response.getStatusLine());
-        }
-
-        String json = null;
         try {
+          final Header header = response.getFirstHeader("X-Served-By");
+          String host = HttpQueryV3Source.this.host;
+          if (header != null && header.getValue() != null) {
+            host = header.getValue();
+          }
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Response from endpoint: " + host + endpoint +" received: " 
+                + response.getStatusLine());
+          }
+
+          String json = null;
+          
           if (response.getStatusLine().getStatusCode() != 200) {
             if (factory instanceof BaseHttpExecutorFactory) {
               ((BaseHttpExecutorFactory) factory).markHostAsBad(
@@ -260,25 +260,44 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   try {
                     DefaultSharedHttpClient.parseResponse(response, 0, host);
                   } catch (RemoteQueryExecutionException rqee) {
-                    sendUpstream(rqee);
+                    sendUpstream(BadQueryResult.newBuilder()
+                        .setNode(HttpQueryV3Source.this)
+                        .setException(rqee)
+                        .setDataSource(config.getId())
+                        .build());
                     return;
                   }
                 }
               }
             }
             
-            sendUpstream(new QueryExecutionException("WTF??", 
-                response.getStatusLine().getStatusCode()));
+            sendUpstream(BadQueryResult.newBuilder()
+                .setNode(HttpQueryV3Source.this)
+                .setException(new QueryExecutionException("WTF??", 
+                    response.getStatusLine().getStatusCode()))
+                .setDataSource(config.getId())
+                .build());
             return;
           }
           
           json = DefaultSharedHttpClient.parseResponse(response, 0, host);
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Response from host [" + host + endpoint + "]\n" + json);
+          }
           final JsonNode root = JSON.getMapper().readTree(json);
           JsonNode results = root.get("results");
           if (results == null) {
             // could be an error, parse it.
-            LOG.error("WTF? " + json);
+            LOG.error("WTF? No JSON results from: " + json);
+            sendUpstream(BadQueryResult.newBuilder()
+                .setNode(HttpQueryV3Source.this)
+                .setException(new QueryExecutionException(
+                    "WTF? No JSON results from: " + json, 500))
+                .setDataSource(config.getId())
+                .build());
           } else {
+            LOG.trace("Successful reseponse from [" + host + endpoint + "] after " 
+                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
             if (context.query().isDebugEnabled()) {
               context.queryContext().logDebug(HttpQueryV3Source.this, 
                   "Successful reseponse from [" + host + endpoint + "] after " 
@@ -309,7 +328,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   ((HttpQueryV3Factory) factory).rollupConfig()));
             }
           }
-        } catch (Exception e) {
+        } catch (Throwable t) {
           String content = null;
           try {
             content = EntityUtils.toString(response.getEntity());
@@ -317,33 +336,33 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             LOG.error("Failed to handle the error...", e1);
           }
           
-          if (e instanceof QueryExecutionException) {
+          if (t instanceof QueryExecutionException) {
             try {
               context.queryContext().logError(HttpQueryV3Source.this, 
                   "Error sending query to [" + host + endpoint + "] after " 
                   + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
-                      + e.getMessage());
+                      + t.getMessage());
               if (context.query().isTraceEnabled()) {
                 context.queryContext().logTrace(HttpQueryV3Source.this, 
                     "Original content: " + response + " => " + content);
               }
               sendUpstream(BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
-                  .setException(e)
+                  .setException(t)
                   .setDataSource(config.getId())
                   .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
-                  + this, e);
+                  + this, t);
             }
           } else {
             try {
               final Exception ex = new QueryExecutionException(
-                  "Unexepected exception: " + host + endpoint, 500, 0, e);
+                  "Unexepected exception: " + host + endpoint, 500, 0, t);
               context.queryContext().logError(HttpQueryV3Source.this, 
                   "Error sending query to [" + host + endpoint + "] after " 
                   + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
-                      + e.getMessage());
+                      + t.getMessage());
               if (context.query().isTraceEnabled()) {
                 context.queryContext().logTrace(HttpQueryV3Source.this, 
                     "Original content: " + response + " => " + content);
@@ -355,7 +374,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
-                  + this, e);
+                  + this, t);
             }
           }
         }
@@ -382,11 +401,17 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             return;
           }
         }
+        
+        LOG.error("Failed response from: [" + host + endpoint + "]", e);
         context.queryContext().logError(HttpQueryV3Source.this, 
             "Error sending query to [" + host + endpoint + "] after " 
             + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
                 + e.getMessage());
-        sendUpstream(e);
+        sendUpstream(BadQueryResult.newBuilder()
+            .setNode(HttpQueryV3Source.this)
+            .setException(e)
+            .setDataSource(config.getId())
+            .build());
       }
     }
     client.execute(post, new ResponseCallback());

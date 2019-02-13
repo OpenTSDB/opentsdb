@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.graph.Graphs;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
@@ -415,7 +416,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         // re-link
         planner.removeEdge(max.get(0), merger);
         predecessor = max.get(max.size() - 1);
-        predecessors = planner.configGraph().predecessors(predecessor);
+        predecessors = Sets.newHashSet(planner.configGraph().predecessors(predecessor));
         for (final QueryNodeConfig pred : predecessors) {
           planner.addEdge(pred, merger);
           planner.removeEdge(pred, predecessor);
@@ -679,7 +680,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
                            final TimeSeriesDataSourceFactory factory,
                            final List<QueryNodeConfig> push_downs,
                            final QueryPlanner planner) {
-    if (factory.supportsPushdown(current.getClass())) {
+    if (factory.supportsPushdown(current.getClass()) &&
+        current.pushDown()) {
       push_downs.add(current);
       final Set<QueryNodeConfig> predecessors = 
           planner.configGraph().predecessors(current);
