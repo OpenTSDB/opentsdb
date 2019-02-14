@@ -45,6 +45,7 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
@@ -81,7 +82,6 @@ import net.opentsdb.utils.DateTime;
  */
 public class HAClusterFactory extends BaseQueryNodeFactory implements 
     TimeSeriesDataSourceFactory {
-
   public static final String TYPE = "HACluster";
   
   public static final String KEY_PREFIX = "tsd.query.";
@@ -438,6 +438,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           List<QueryNodeConfig> renamed_pushdowns = 
               Lists.newArrayListWithExpectedSize(source_push_downs.size());
           for (final QueryNodeConfig pd : source_push_downs) {
+            if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(pd.getId())) {
+              ((DefaultQueryPlanner) planner).sinkFilters().remove(pd.getId());
+              ((DefaultQueryPlanner) planner).sinkFilters().put(merger.getId(), merger.getId());
+            }
             if (pd.getSources().contains(config.getId())) {
               renamed_pushdowns.add(pd.toBuilder()
                   .setSources(Lists.newArrayList(pushdown_id))

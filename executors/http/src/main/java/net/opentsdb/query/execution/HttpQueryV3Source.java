@@ -17,6 +17,7 @@ package net.opentsdb.query.execution;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 
 import org.apache.http.Header;
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeStamp;
@@ -47,7 +49,9 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -133,6 +137,17 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           .build());
     }
     
+    final Set<String> serdes_filters = Sets.newHashSet();
+    if (context.query().getSerdesConfigs() != null) {
+      for (final SerdesOptions serdes : context.query().getSerdesConfigs()) {
+        // TODO handle other options.
+        if (serdes.getFilter() != null) {
+          serdes_filters.addAll(serdes.getFilter());
+        }
+      }
+    }
+    List<String> pushdown_serdes = null;
+    
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
     pushdowns.put(config.getId(), 
@@ -159,7 +174,22 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             break;
           }
         }
+        
+        if (serdes_filters.contains(pushdown.getId())) {
+          if (pushdown_serdes == null) {
+            pushdown_serdes = Lists.newArrayList(pushdown.getId());
+          } else {
+            pushdown_serdes.add(pushdown.getId());
+          }
+        }
       }
+    }
+    
+    if (pushdown_serdes != null) {
+      builder.addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+          .setId("JsonV3QuerySerdes")
+          .setFilter(pushdown_serdes)
+          .build());
     }
     
     final HttpPost post = new HttpPost(host + endpoint);

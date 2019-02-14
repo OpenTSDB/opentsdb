@@ -463,6 +463,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // we can push this one down so add to the list and yank the edge.
     push_downs.add(node);
     config_graph.removeEdge(node, parent);
+    if (serialization_sources != null && 
+        serialization_sources.contains(node.getId())) {
+      serialization_sources.remove(node.getId());
+      serialization_sources.add(parent.getId());
+    }
     
     Set<QueryNodeConfig> incoming = config_graph.predecessors(node);
     for (final QueryNodeConfig n : incoming) {
@@ -581,6 +586,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /** @return The non-null list of result IDs to watch for. */
   public Set<String> serializationSources() {
     return serialization_sources;
+  }
+  
+  public Map<String, String> sinkFilters() {
+    return sink_filter;
   }
   
   @Override
