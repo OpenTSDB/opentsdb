@@ -35,6 +35,7 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.RefreshingSSLContext;
 import net.opentsdb.utils.RefreshingSSLContext.SourceType;
@@ -298,6 +299,11 @@ public class TSDMain {
       handler = new EncodingHandler.Builder()
           .build(null)
           .wrap(handler);
+      
+      if (tsdb.getStatsCollector() != null && 
+          !(tsdb.getStatsCollector() instanceof BlackholeStatsCollector)) {
+        handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
+      }
       
       final Builder builder = Undertow.builder()
           .setHandler(handler);
