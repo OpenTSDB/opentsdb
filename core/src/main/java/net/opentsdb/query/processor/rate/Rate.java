@@ -29,7 +29,6 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
@@ -119,71 +118,71 @@ public class Rate extends AbstractQueryNode {
       return Rate.this;
     }
     
-  }
-  
-  /**
-   * The super simple wrapper around the time series source that generates 
-   * iterators using the factory.
-   */
-  class RateTimeSeries implements TimeSeries {
-    /** The non-null source. */
-    private final TimeSeries source;
-    
     /**
-     * Default ctor.
-     * @param source The non-null source to pull data from.
+     * The super simple wrapper around the time series source that generates 
+     * iterators using the factory.
      */
-    private RateTimeSeries(final TimeSeries source) {
-      this.source = source;
-    }
-    
-    @Override
-    public TimeSeriesId id() {
-      return source.id();
-    }
-
-    @Override
-    public Optional<TypedTimeSeriesIterator> iterator(
-        final TypeToken<? extends TimeSeriesDataType> type) {
-      if (type == null) {
-        throw new IllegalArgumentException("Type cannot be null.");
+    class RateTimeSeries implements TimeSeries {
+      /** The non-null source. */
+      private final TimeSeries source;
+      
+      /**
+       * Default ctor.
+       * @param source The non-null source to pull data from.
+       */
+      private RateTimeSeries(final TimeSeries source) {
+        this.source = source;
       }
-      final TypedTimeSeriesIterator iterator = 
-          ((ProcessorFactory) Rate.this.factory()).newTypedIterator(
+      
+      @Override
+      public TimeSeriesId id() {
+        return source.id();
+      }
+
+      @Override
+      public Optional<TypedTimeSeriesIterator> iterator(
+          final TypeToken<? extends TimeSeriesDataType> type) {
+        if (type == null) {
+          throw new IllegalArgumentException("Type cannot be null.");
+        }
+        final TypedTimeSeriesIterator iterator = 
+            ((ProcessorFactory) Rate.this.factory()).newTypedIterator(
+                type, 
+                Rate.this, 
+                RateResult.this,
+                Lists.newArrayList(source));
+        if (iterator != null) {
+          return Optional.of(iterator);
+        }
+        return Optional.empty();
+      }
+      
+      @Override
+      public Collection<TypedTimeSeriesIterator> iterators() {
+        final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
+        final List<TypedTimeSeriesIterator> iterators =
+            Lists.newArrayListWithCapacity(types.size());
+        for (final TypeToken<? extends TimeSeriesDataType> type : types) {
+          iterators.add(((ProcessorFactory) Rate.this.factory()).newTypedIterator(
               type, 
               Rate.this, 
               null,
-              Lists.newArrayList(source));
-      if (iterator != null) {
-        return Optional.of(iterator);
+              Lists.newArrayList(source)));
+        }
+        return iterators;
       }
-      return Optional.empty();
-    }
-    
-    @Override
-    public Collection<TypedTimeSeriesIterator> iterators() {
-      final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
-      final List<TypedTimeSeriesIterator> iterators =
-          Lists.newArrayListWithCapacity(types.size());
-      for (final TypeToken<? extends TimeSeriesDataType> type : types) {
-        iterators.add(((ProcessorFactory) Rate.this.factory()).newTypedIterator(
-            type, 
-            Rate.this, 
-            null,
-            Lists.newArrayList(source)));
+
+      @Override
+      public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
+        return source.types();
       }
-      return iterators;
-    }
 
-    @Override
-    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericType.TYPE);
+      @Override
+      public void close() {
+        source.close();
+      }
+      
     }
-
-    @Override
-    public void close() {
-      source.close();
-    }
-    
   }
+  
 }

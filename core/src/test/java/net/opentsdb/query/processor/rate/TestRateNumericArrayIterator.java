@@ -195,7 +195,7 @@ public class TestRateNumericArrayIterator {
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) it.next();
     
-    assertArrayEquals(new double[] { Double.NaN, 1, 1, -1.966, 1, -1.05 }, 
+    assertArrayEquals(new double[] { Double.NaN, 1, 1, -1.883, 1, -0.05 }, 
         value.value().doubleArray(), 0.001);
     
     assertFalse(it.hasNext());
@@ -226,7 +226,7 @@ public class TestRateNumericArrayIterator {
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) it.next();
     
-    assertArrayEquals(new double[] { Double.NaN, 1, 1.833, 0, 1, -1.05 }, 
+    assertArrayEquals(new double[] { Double.NaN, 1, 1.833, -2.716, 1, -0.05 }, 
         value.value().doubleArray(), 0.001);
     
     assertFalse(it.hasNext());
