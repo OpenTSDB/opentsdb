@@ -256,11 +256,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
         graph.addNode(context_sink);
         nodes_map.put(context_sink_config.getId(), context_sink);
         
-        final List<Long> constructed = Lists.newArrayList();
         Traverser<QueryNodeConfig> traverser = Traverser.forGraph(config_graph);
         for (final QueryNodeConfig node : traverser.breadthFirst(context_node)) {
           if (config_graph.predecessors(node).isEmpty()) {
-            buildNodeGraph(context, node, constructed, nodes_map);
+            buildNodeGraph(context, node, nodes_map);
           }
         }
         
@@ -505,21 +504,14 @@ public class DefaultQueryPlanner implements QueryPlanner {
    */
   private QueryNode buildNodeGraph(
       final QueryPipelineContext context, 
-      final QueryNodeConfig node, 
-      final List<Long> constructed,
+      final QueryNodeConfig node,
       final Map<String, QueryNode> nodes_map) {
-    // short circuit initialized nodes.
-    if (constructed.contains(node.buildHashCode().asLong())) {
-      return nodes_map.get(node.getId());
-    }
-    
     // walk up the graph.
     final List<QueryNode> sources = Lists.newArrayList();
     for (final QueryNodeConfig n : config_graph.successors(node)) {
       sources.add(buildNodeGraph(
           context, 
-          n, 
-          constructed, 
+          n,
           nodes_map));
     }
     
@@ -534,23 +526,29 @@ public class DefaultQueryPlanner implements QueryPlanner {
       return context_sink;
     }
     
-    QueryNodeFactory factory = getFactory(node);
-    if (factory == null) {
-      throw new IllegalArgumentException("No node factory found for "
-          + "configuration " + node);
-    }
-    
-    QueryNode query_node = factory.newNode(context, node);
+    QueryNode query_node = nodes_map.get(node.getId());
     if (query_node == null) {
-      throw new IllegalStateException("Factory returned a null "
-          + "instance for " + node);
+      QueryNodeFactory factory = getFactory(node);
+      if (factory == null) {
+        throw new IllegalArgumentException("No node factory found for "
+            + "configuration " + node);
+      }
+      
+      query_node = factory.newNode(context, node);
+      if (query_node == null) {
+        throw new IllegalStateException("Factory returned a null "
+            + "instance for " + node);
+      }
+      graph.addNode(query_node);
+      nodes_map.put(query_node.config().getId(), query_node);
     }
-    graph.addNode(query_node);
-    nodes_map.put(query_node.config().getId(), query_node);
-    constructed.add(node.buildHashCode().asLong());
     
     if (query_node instanceof TimeSeriesDataSource) {
-      data_sources.add((TimeSeriesDataSource) query_node);
+      // TODO - make it a set but then convert to list as the pipeline
+      // needs indexing (or we can make it an iterator there).
+      if (!data_sources.contains((TimeSeriesDataSource) query_node)) {
+        data_sources.add((TimeSeriesDataSource) query_node);
+      }
     }
     
     for (final QueryNode source_node : sources) {

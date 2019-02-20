@@ -126,22 +126,35 @@ public class RateNumericArrayIterator implements QueryIterator,
         (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * 1000000000L /
         (double) options.duration().toNanos();
     
+    double delta;
     if (value.value().isInteger()) {
       long[] source = value.value().longArray();
       while (idx < value.value().end()) {
-        double_values[write_idx] = ((double) source[idx] - 
-            (double) source[idx - 1]) / denom;
-        if (options.isCounter() && double_values[write_idx] < 0) {
+        delta = (double) source[idx] - (double) source[idx - 1];
+        if (options.isCounter() && delta < 0) {
           if (options.getDropResets()) {
             double_values[write_idx] = 0;
-          } else {
-            double_values[write_idx] = ((double) options.getCounterMax() - 
-                (double) source[idx - 1]) / denom;
+            write_idx++;
+            idx++;
+            continue;
           }
+          
+          delta = options.getCounterMax() + (double) source[idx] - (double) source[idx - 1];
+          double_values[write_idx] = delta / denom;
+          
+          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && double_values[write_idx] > options.getResetValue()) {
+            double_values[write_idx] = 0;
+          }
+          write_idx++;
+          idx++;
+          continue;
         }
         
-        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
-            Math.abs(double_values[write_idx]) > options.getResetValue()) {
+        double_values[write_idx] = delta / denom;
+        
+        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+          && double_values[write_idx] > options.getResetValue()) {
           double_values[write_idx] = 0;
         }
         write_idx++;
@@ -150,18 +163,31 @@ public class RateNumericArrayIterator implements QueryIterator,
     } else {
       double[] source = value.value().doubleArray();
       while (idx < value.value().end()) {
-        double_values[write_idx] = (source[idx] - source[idx - 1]) / denom;
-        if (options.isCounter() && double_values[write_idx] < 0) {
+        delta = source[idx] - source[idx - 1];
+        if (options.isCounter() && delta < 0) {
           if (options.getDropResets()) {
             double_values[write_idx] = 0;
-          } else {
-            double_values[write_idx] = ((double) options.getCounterMax() - 
-                source[idx - 1]) / denom;
+            write_idx++;
+            idx++;
+            continue;
           }
+          
+          delta = options.getCounterMax() + source[idx] - source[idx - 1];
+          double_values[write_idx] = delta / denom;
+          
+          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && double_values[write_idx] > options.getResetValue()) {
+            double_values[write_idx] = 0;
+          }
+          write_idx++;
+          idx++;
+          continue;
         }
         
-        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
-            Math.abs(double_values[write_idx]) > options.getResetValue()) {
+        double_values[write_idx] = delta / denom;
+        
+        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+          && double_values[write_idx] > options.getResetValue()) {
           double_values[write_idx] = 0;
         }
         write_idx++;

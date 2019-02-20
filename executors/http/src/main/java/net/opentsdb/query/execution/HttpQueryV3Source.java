@@ -326,8 +326,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 .setDataSource(config.getId())
                 .build());
           } else {
-            LOG.trace("Successful reseponse from [" + host + endpoint + "] after " 
-                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Successful reseponse from [" + host + endpoint + "] after " 
+                    + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
+            }
             if (context.query().isDebugEnabled()) {
               context.queryContext().logDebug(HttpQueryV3Source.this, 
                   "Successful reseponse from [" + host + endpoint + "] after " 
@@ -450,8 +452,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           + host + endpoint + "] in " 
           + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " + json);
     }
-    if (LOG.isTraceEnabled()) {
-      LOG.trace("Sent Http query to a TSD: " + host + endpoint + ": " + json);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Sent Http query to a TSD: " + host + endpoint + ": " + json);
     }
   }
 
