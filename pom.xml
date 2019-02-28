@@ -89,16 +89,17 @@
     <module>common</module>
     <module>core</module>
     <module>executors/http</module>
-	<module>implementation/http-config</module>
+    <module>implementation/stormpot</module>
+    <module>implementation/http-config</module>
     <module>implementation/elasticsearch</module>
     <module>implementation/protobuf</module>
     <module>implementation/tracer-brave</module>
     <module>implementation/redis</module>
     <module>implementation/servlet</module>
     <module>implementation/server-undertow</module>
-	<module>implementation/aws-secrets</module>
+    <module>implementation/aws-secrets</module>
     <module>storage/asynchbase</module>
-	<module>storage/bigtable</module>
+    <module>storage/bigtable</module>
     <module>storage/googlepubsub</module>
     <module>distribution</module>
   </modules>
@@ -165,6 +166,12 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.2.1</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.openjdk.jol</groupId>
+            <artifactId>jol-core</artifactId>
+            <version>0.9</version>
         </dependency>
         
         <!-- test dependencies -->
