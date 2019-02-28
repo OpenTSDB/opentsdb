@@ -62,6 +62,11 @@
           <artifactId>opentsdb-elasticsearch-transportclient</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-stormpot</artifactId>
+          <version>${project.version}</version>
+        </dependency>
     </dependencies>
   
     <build>

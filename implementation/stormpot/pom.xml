@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+      <groupId>net.opentsdb</groupId>
+      <artifactId>opentsdb</artifactId>
+      <version>3.0.90-SNAPSHOT</version>
+      <relativePath>../../pom.xml</relativePath>
+    </parent>
+    
+    <artifactId>opentsdb-stormpot</artifactId>
+    <name>opentsdb-stormpot</name>
+    
+    <description>An object pool implementation using StormPot.</description>
+    
+    <packaging>jar</packaging>
+    
+    <properties>
+
+    </properties>
+    
+    <dependencyManagement>
+      <dependencies>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-common</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-core</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        
+        <dependency>
+          <groupId>javax.servlet</groupId>
+          <artifactId>javax.servlet-api</artifactId>
+          <version>3.1.0</version>
+        </dependency>
+        
+        <dependency>
+          <groupId>com.github.chrisvest</groupId>
+          <artifactId>stormpot</artifactId>
+          <version>2.4.1</version>
+        </dependency>
+        
+      </dependencies>
+    </dependencyManagement>
+    
+    <dependencies>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-common</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-core</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>com.github.chrisvest</groupId>
+        <artifactId>stormpot</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.openjdk.jol</groupId>
+        <artifactId>jol-core</artifactId>
+      </dependency>
+
+      <!-- TESTING Deps. -->
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-common</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-core</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <scope>test</scope>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.objenesis</groupId>
+        <artifactId>objenesis</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.powermock</groupId>
+        <artifactId>powermock-api-mockito</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.powermock</groupId>
+        <artifactId>powermock-module-junit4</artifactId>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+    
+    <build>
+  
+    </build>
+</project>

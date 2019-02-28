@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xml>
+<!-- This web.xml file is not required when using Servlet 3.0 container, 
+	see implementation details http://jersey.java.net/nonav/documentation/latest/jax-rs.html -->
+<web-app>
+	<servlet>
+		<servlet-name>OpenTSDB</servlet-name>
+		<servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
+		<init-param>
+			<param-name>jersey.config.server.provider.packages</param-name>
+			<param-value>net.opentsdb.servlet</param-value>
+		</init-param>
+		<init-param>
+			<param-name>javax.ws.rs.Application</param-name>
+			<param-value>net.opentsdb.servlet.applications.OpenTSDBApplication</param-value>
+		</init-param>
+		<async-supported>true</async-supported>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>OpenTSDB</servlet-name>
+		<url-pattern>/*</url-pattern>
+	</servlet-mapping>
+
+	<security-constraint>
+	</security-constraint>
+</web-app>
+
