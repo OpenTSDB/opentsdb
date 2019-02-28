@@ -50,7 +50,6 @@ public class TestStormPotPool {
       .setMaxCount(16)
       .build();
     StormPotPool pool = new StormPotPool(TSDB, config);
-    assertEquals(16, pool.stormpot.getTargetSize());
     pool.shutdown();
   }
   
@@ -64,7 +63,6 @@ public class TestStormPotPool {
       .setMaxCount(16)
       .build();
     StormPotPool pool = new StormPotPool(TSDB, config);
-    assertEquals(16, pool.stormpot.getTargetSize());
     
     List<PooledObject> objs = Lists.newArrayList();
     for (int i = 0; i < 16; i++) {
@@ -74,14 +72,12 @@ public class TestStormPotPool {
       objs.add(obj);
     }
     
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     
     // now they're all checked out. It will hit our counter.
     PooledObject obj = pool.claim();
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     
     for (final PooledObject o : objs) {
@@ -91,7 +87,6 @@ public class TestStormPotPool {
     obj = pool.claim();
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     
     pool.shutdown();
@@ -117,14 +112,12 @@ public class TestStormPotPool {
       objs.add(obj);
     }
     
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     
     // now they're all checked out. It will hit our counter.
     PooledObject obj = pool.claim(1, ChronoUnit.SECONDS);
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     
     for (final PooledObject o : objs) {
@@ -134,28 +127,24 @@ public class TestStormPotPool {
     obj = pool.claim(1, ChronoUnit.SECONDS);
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     obj.release();
     
     obj = pool.claim(1, ChronoUnit.MILLIS);
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     obj.release();
     
     obj = pool.claim(1, ChronoUnit.MICROS);
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     obj.release();
     
     obj = pool.claim(1, ChronoUnit.NANOS);
     assertNotNull(obj);
     assertTrue(obj.object() instanceof byte[]);
-    assertEquals(16, pool.stormpot.getAllocationCount());
     assertEquals(0, pool.stormpot.getFailedAllocationCount());
     obj.release();
     
