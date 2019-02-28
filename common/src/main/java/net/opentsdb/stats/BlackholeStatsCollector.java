@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
+import java.time.temporal.ChronoUnit;
+
 import net.opentsdb.core.BaseTSDBPlugin;
 
 /**
@@ -69,6 +71,14 @@ public class BlackholeStatsCollector extends BaseTSDBPlugin implements
     return TMR;
   }
 
+  public void addTime(final String metric, 
+                      final long duration, 
+                      final ChronoUnit units,
+                      final boolean histo,
+                      final String... tags) {
+    // Asta la vista!
+  }
+  
   static class BlackholeTimer implements StatsTimer {
     @Override
     public void stop(final String... tags) {
