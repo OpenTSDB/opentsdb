@@ -21,6 +21,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
@@ -88,6 +89,20 @@ public interface Registry {
    * object was null.
    */
   public Object registerSharedObject(final String id, final Object object);
+  
+  /**
+   * Registers the non-null object pool if no such pool with the given ID is
+   * present.
+   * @param pool A non-null pool with a non-null and non-empty ID.
+   */
+  public void registerObjectPool(final ObjectPool pool);
+  
+  /**
+   * Returns a pool if found, null if not.
+   * @param id A non-null and non-empty pool ID.
+   * @return A pool if found, null if not.
+   */
+  public ObjectPool getObjectPool(final String id);
   
   /**
    * Returns the shared object for this Id if it exists.
