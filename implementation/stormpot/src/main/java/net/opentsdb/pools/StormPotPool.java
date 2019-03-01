@@ -49,9 +49,6 @@ public class StormPotPool implements ObjectPool, TimerTask {
   
   protected final TSDB tsdb;
   
-  /** The allocator. */
-  protected final ObjectPoolAllocator allocator;
-  
   /** The pool. */
   protected final stormpot.BlazePool<SPPoolable> stormpot;
   
@@ -74,7 +71,6 @@ public class StormPotPool implements ObjectPool, TimerTask {
   protected StormPotPool(final TSDB tsdb, final ObjectPoolConfig config) {
     this.tsdb = tsdb;
     this.config = config;
-    allocator = config.allocator();
     stats = tsdb.getStatsCollector();
     stormpot.Config<SPPoolable> storm_pot_config = 
         new stormpot.Config<SPPoolable>()
@@ -107,7 +103,7 @@ public class StormPotPool implements ObjectPool, TimerTask {
     }
     // arg, missed a claim so we're allocating a new object.
     stats.incrementCounter("objectpool.claim.miss", "pool", config.id());
-    return new SPPoolable(allocator.allocate(), null);
+    return new SPPoolable(config.allocator().allocate(), null);
   }
 
   @Override
@@ -144,7 +140,7 @@ public class StormPotPool implements ObjectPool, TimerTask {
     }
     // arg, missed a claim so we're allocating a new object.
     stats.incrementCounter("objectpool.claim.miss", "pool", config.id());
-    return new SPPoolable(allocator.allocate(), null);
+    return new SPPoolable(config.allocator().allocate(), null);
   }
   
   @Override
@@ -229,13 +225,13 @@ public class StormPotPool implements ObjectPool, TimerTask {
 
     @Override
     public SPPoolable allocate(final Slot slot) throws Exception {
-      return new SPPoolable(allocator.allocate(), slot);
+      return new SPPoolable(config.allocator().allocate(), slot);
     }
 
     @Override
     public void deallocate(SPPoolable poolable) throws Exception {
       poolable.release();
-      allocator.deallocate(poolable.object);
+      config.allocator().deallocate(poolable.object);
     }
     
   }
