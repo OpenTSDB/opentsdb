@@ -17,7 +17,6 @@ package net.opentsdb.core;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 
@@ -102,29 +101,37 @@ public class PluginsConfig extends Validatable {
   /** The key used for finding the plugin directory. */
   public static final String PLUGIN_PATH_KEY = "tsd.core.plugin_path";
   
-  public static final List<String> DEFAULT_TYPES = Lists.newArrayList();
+  public static final List<List<String>> PRE_LOAD_DEFAULTS = Lists.newArrayList();
   static {
-    DEFAULT_TYPES.add("net.opentsdb.query.processor.ProcessorFactory");
-    DEFAULT_TYPES.add("net.opentsdb.query.filter.QueryFilterFactory");
-    DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
-    DEFAULT_TYPES.add("net.opentsdb.query.interpolation.QueryInterpolatorFactory");
-    DEFAULT_TYPES.add("net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory");
-    DEFAULT_TYPES.add("net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory");
-    DEFAULT_TYPES.add("net.opentsdb.storage.DatumIdValidator");
-    DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
-    DEFAULT_TYPES.add("net.opentsdb.query.serdes.SerdesFactory");
-    DEFAULT_TYPES.add("net.opentsdb.query.QuerySinkFactory");
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.query.processor.ProcessorFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.query.filter.QueryFilterFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.stats.StatsCollector"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.query.interpolation.QueryInterpolatorFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.storage.DatumIdValidator"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.uid.UniqueIdFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.query.serdes.SerdesFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.query.QuerySinkFactory"));
+    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
+        "net.opentsdb.query.interpolation.DefaultInterpolatorFactory"));    
   }
-  
-  public static final Map<String, String> DEFAULT_IMPLEMENTATIONS = 
-      Maps.newLinkedHashMap();
+
+  public static final List<List<String>> POST_LOAD_DEFAULTS = Lists.newArrayList();
   static {
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.interpolation.QueryInterpolatorFactory", 
-        "net.opentsdb.query.interpolation.DefaultInterpolatorFactory");    
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.SerdesFactory", 
-        "net.opentsdb.query.execution.serdes.JsonV2QuerySerdesFactory");
-    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.DatumIdValidator", 
-        "net.opentsdb.storage.DefaultDatumIdValidator");
+    POST_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.pools.ObjectPoolAllocator"));   
   }
   
   /** The list of plugin configs. */
@@ -139,17 +146,9 @@ public class PluginsConfig extends Validatable {
   /** Whether or not to shutdown plugins in reverse initialization order. */
   private boolean shutdown_reverse = true;
   
-  /** Whether or not to load the default types like TimeSeriesSerdes, 
-   * StatsCollector, etc. When true then regardless of the config, these 
-   * default plugins are scanned for and when found, instantiated and 
-   * loaded with their names. None are set as defaults though. Defined in
-   * {@link #getLoadDefaultTypes()} */
-  private boolean load_default_types = true;
-  
-  /** Whether or not to load the default instances defined in 
-   * {@link #getLoadDefaultInstances()}. These would be settings like 
-   * the AsyncHBase data store, Brave tracing, etc. */
-  private boolean load_default_instances = true;
+  /** Whethe or not to load the pre and post default plugins. */
+  private boolean pre_load_defaults = true;
+  private boolean post_load_defaults = true;
   
   /** The list of configured and instantiated plugins. */
   private List<TSDBPlugin> instantiated_plugins;
@@ -186,20 +185,16 @@ public class PluginsConfig extends Validatable {
     this.shutdown_reverse = shutdown_reverse;
   }
   
-  /** @param load_default_types Whether or not to load the default types 
-   * like TimeSeriesSerdes, StatsCollector, etc. When true then regardless 
-   * of the config, these default plugins are scanned for and when found, 
-   * instantiated and loaded with their names. None are set as defaults 
-   * though. Defined in {@link #getLoadDefaultTypes()}*/
-  public void setLoadDefaultTypes(final boolean load_default_types) {
-    this.load_default_types = load_default_types;
+  /** @param pre_load_defaults Whether or not to load the pre load defaults,
+   * those that will be loaded before the custom config. */
+  public void setPreLoadDefaults(final boolean pre_load_defaults) {
+    this.pre_load_defaults = pre_load_defaults;
   }
   
-  /** @param load_default_instances Whether or not to load the default 
-   * instances defined in {@link #getLoadDefaultInstances()}. These would 
-   * be settings like the AsyncHBase data store, Brave tracing, etc. */
-  public void setLoadDefaultInstances(final boolean load_default_instances) {
-    this.load_default_instances = load_default_instances;
+  /** @param post_load_defaults Whether or not to load the post load defaults,
+   * those that will be loaded after the custom config. */
+  public void setPostLoadDefaults(final boolean post_load_defaults) {
+    this.post_load_defaults = post_load_defaults;
   }
   
   /** @return An unmodifiable list of the configs. */
@@ -219,20 +214,14 @@ public class PluginsConfig extends Validatable {
     return shutdown_reverse;
   }
   
-  /** @return Whether or not to load the default types like 
-   * TimeSeriesSerdes, StatsCollector, etc. When true then regardless 
-   * of the config, these default plugins are scanned for and when found, 
-   * instantiated and loaded with their names. None are set as defaults 
-   * though. Defined in {@link #getLoadDefaultTypes()}*/
-  public boolean getLoadDefaultTypes() {
-    return load_default_types;
+  /** @return Whether or not the pre-load plugins should be loaded. */
+  public boolean getPreLoadDefaults() {
+    return pre_load_defaults;
   }
   
-  /** @return Whether or not to load the default 
-   * instances defined in {@link #getLoadDefaultInstances()}. These would 
-   * be settings like the AsyncHBase data store, Brave tracing, etc. */
-  public boolean getLoadDefaultInstances() {
-    return load_default_instances;
+  /** @return Whether or not the post-load plugins should be loaded. */
+  public boolean getPostLoadDefaults() {
+    return post_load_defaults;
   }
   
   /** @return A list of plugins and/or locations. */
@@ -362,12 +351,12 @@ public class PluginsConfig extends Validatable {
       }
     }
     
-    if (load_default_types) {
-      loadDefaultTypes();
+    if (pre_load_defaults) {
+      loadPreDefaults();
     }
     
-    if (load_default_instances) {
-      loadDefaultInstances();
+    if (post_load_defaults) {
+      loadPostDefaults();
     }
     
     if (configs == null || configs.isEmpty()) {
@@ -821,20 +810,33 @@ public class PluginsConfig extends Validatable {
     return instantiated_plugins;
   }
   
-  /** Loads the the {@link #DEFAULT_TYPES} */
-  void loadDefaultTypes() {
+  void loadPreDefaults() {
     final List<PluginConfig> config_clones = 
-        Lists.newArrayListWithExpectedSize(configs == null ? DEFAULT_TYPES.size() :
-          configs.size() + DEFAULT_TYPES.size());
-    for (final String type : DEFAULT_TYPES) {
-      final PluginConfig config = PluginConfig.newBuilder()
-          .setType(type)
-          .build();
+        Lists.newArrayListWithExpectedSize(configs == null ? PRE_LOAD_DEFAULTS.size() :
+          configs.size() + PRE_LOAD_DEFAULTS.size());
+    
+    if (configs == null) {
+      configs = Lists.newArrayListWithExpectedSize(PRE_LOAD_DEFAULTS.size());
+    }
+    for (final List<String> params : PRE_LOAD_DEFAULTS) {
+      final PluginConfig.Builder builder = PluginConfig.newBuilder()
+          .setType(params.get(0));
+      if (params.size() > 1) {
+        builder.setPlugin(params.get(1));
+      }
+      if (params.size() == 2) {
+        builder.setIsDefault(true);
+      } else if (params.size() == 3) {
+        builder.setId(params.get(2));
+      }
+      final PluginConfig config = builder.build();
       if (configs == null || !configs.contains(config)) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Will try to load default plugin type: " + type);
+          LOG.debug("Will try to load pre-default plugin implementation: " + config);
         }
         config_clones.add(config);
+      } else {
+        LOG.warn("Already have a config for " + config);
       }
     }
     if (configs != null) {
@@ -843,23 +845,29 @@ public class PluginsConfig extends Validatable {
     configs = config_clones;
   }
   
-  /** Loads the {@link #DEFAULT_IMPLEMENTATIONS} */
-  void loadDefaultInstances() {
+  void loadPostDefaults() {
     if (configs == null) {
-      configs = Lists.newArrayListWithExpectedSize(DEFAULT_IMPLEMENTATIONS.size());
+      configs = Lists.newArrayListWithExpectedSize(POST_LOAD_DEFAULTS.size());
     }
-    for (final Entry<String, String> type : DEFAULT_IMPLEMENTATIONS.entrySet()) {
-      final PluginConfig config = PluginConfig.newBuilder()
-          .setType(type.getKey())
-          .setPlugin(type.getValue())
-          .setIsDefault(true)
-          .build();
+    for (final List<String> params : POST_LOAD_DEFAULTS) {
+      final PluginConfig.Builder builder = PluginConfig.newBuilder()
+          .setType(params.get(0));
+      if (params.size() > 1) {
+        builder.setPlugin(params.get(1));
+      }
+      if (params.size() == 2) {
+        builder.setIsDefault(true);
+      } else if (params.size() == 3) {
+        builder.setId(params.get(2));
+      }
+      final PluginConfig config = builder.build();
       if (configs == null || !configs.contains(config)) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Will try to load default plugin implementation: " 
-              + type.getValue());
+          LOG.debug("Will try to load post-default plugin implementation: " + config);
         }
         configs.add(config);
+      } else {
+        LOG.warn("Already have a config for " + config);
       }
     }
   }
