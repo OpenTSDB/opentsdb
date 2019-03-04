@@ -141,8 +141,8 @@ public class TestPluginsConfig {
     assertTrue(json.contains("\"isDefault\":true"));
     assertTrue(json.contains("\"pluginLocations\":["));
     assertTrue(json.contains("\"nosuch.jar"));
-    assertTrue(json.contains("\"loadDefaultTypes\":true"));
-    assertTrue(json.contains("\"loadDefaultInstances\":true"));
+    assertTrue(json.contains("\"preLoadDefaults\":true"));
+    assertTrue(json.contains("\"postLoadDefaults\":true"));
     
     json = "{\"configs\":[{\"comment\":\"ignored\",\"type\":\""
         + "net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean\"},{\"plugin\":"
@@ -158,7 +158,7 @@ public class TestPluginsConfig {
         + "\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\",\"default\":true}],"
         + "\"pluginLocations\":[\"/tmp\"],"
         + "\"continueOnError\":false,\"shutdownReverse\":true,"
-        + "\"loadDefaultTypes\":false,\"loadDefaultInstances\":false}";
+        + "\"preLoadDefaults\":false,\"postLoadDefaults\":false}";
     
     config = JSON.parseToObject(json, PluginsConfig.class);
     
@@ -168,8 +168,8 @@ public class TestPluginsConfig {
     assertTrue(config.getConfigs().get(4).getIsDefault());
     assertEquals(1, config.getPluginLocations().size());
     assertEquals("/tmp", config.getPluginLocations().get(0));
-    assertFalse(config.getLoadDefaultInstances());
-    assertFalse(config.getLoadDefaultTypes());
+    assertFalse(config.getPreLoadDefaults());
+    assertFalse(config.getPostLoadDefaults());
   }
 
   @Test
@@ -540,16 +540,23 @@ public class TestPluginsConfig {
   }
   
   @Test
-  public void initializeNullList() throws Exception {
-    config.setLoadDefaultInstances(false);
+  public void initializePreOnly() throws Exception {
+    config.setPostLoadDefaults(false);
     assertNull(config.initialize(tsdb).join(1));
-    assertEquals(PluginsConfig.DEFAULT_TYPES.size(), config.configs.size());
+    assertEquals(PluginsConfig.PRE_LOAD_DEFAULTS.size(), config.configs.size());
+  }
+  
+  @Test
+  public void initializePostOnly() throws Exception {
+    config.setPreLoadDefaults(false);
+    assertNull(config.initialize(tsdb).join(1));
+    assertEquals(PluginsConfig.POST_LOAD_DEFAULTS.size(), config.configs.size());
   }
   
   @Test
   public void initializeNullListNoDefaults() throws Exception {
-    config.setLoadDefaultTypes(false);
-    config.setLoadDefaultInstances(false);
+    config.setPreLoadDefaults(false);
+    config.setPostLoadDefaults(false);
     assertNull(config.initialize(tsdb).join(1));
     assertNull(config.configs);
   }
@@ -557,16 +564,16 @@ public class TestPluginsConfig {
   @Test
   public void initializeEmptyList() throws Exception {
     config.setConfigs(Lists.<PluginConfig>newArrayList());
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     assertNull(config.initialize(tsdb).join(1));
-    assertEquals(PluginsConfig.DEFAULT_TYPES.size(), config.configs.size());
+    assertEquals(PluginsConfig.PRE_LOAD_DEFAULTS.size(), config.configs.size());
   }
   
   @Test
   public void initializeEmptyListNoDefaults() throws Exception {
     config.setConfigs(Lists.<PluginConfig>newArrayList());
-    config.setLoadDefaultTypes(false);
-    config.setLoadDefaultInstances(false);
+    config.setPreLoadDefaults(false);
+    config.setPostLoadDefaults(false);
     assertNull(config.initialize(tsdb).join(1));
     assertTrue(config.configs.isEmpty());
   }
@@ -581,7 +588,7 @@ public class TestPluginsConfig {
         .build();
     configs.add(c);
     
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     config.setConfigs(configs);
     
     assertNull(config.initialize(tsdb).join(1));
@@ -605,7 +612,7 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     
     assertNull(config.initialize(tsdb).join(1));
     
@@ -628,7 +635,7 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -653,7 +660,7 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -698,8 +705,8 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
-    config.setLoadDefaultTypes(false);
+    config.setPostLoadDefaults(false);
+    config.setPreLoadDefaults(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -721,8 +728,8 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
-    config.setLoadDefaultTypes(false);
+    config.setPostLoadDefaults(false);
+    config.setPreLoadDefaults(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -757,7 +764,7 @@ public class TestPluginsConfig {
         .build();
     configs.add(c);
     
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     config.setConfigs(configs);
     
     assertNull(config.initialize(tsdb).join(1));
@@ -805,7 +812,7 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -881,7 +888,7 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     
     try {
       config.initialize(tsdb).join(1);
@@ -909,10 +916,10 @@ public class TestPluginsConfig {
     configs.add(c);
     
     config.setConfigs(configs);
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     
     assertNull(config.initialize(tsdb).join(1));
-    assertEquals(PluginsConfig.DEFAULT_TYPES.size(), config.configs.size());
+    assertEquals(PluginsConfig.PRE_LOAD_DEFAULTS.size(), config.configs.size());
   }
   
   // TODO - restore when we can figure out why they aren't detected
@@ -925,8 +932,8 @@ public class TestPluginsConfig {
 //        .build();
 //    configs.add(c);
 //    
-//    config.setLoadDefaultInstances(false);
-//    config.setLoadDefaultTypes(false);
+//    config.setPostLoadDefaults(false);
+//    config.setPreLoadDefaults(false);
 //    config.setConfigs(configs);
 //    
 //    assertNull(config.initialize(tsdb).join(1));
@@ -952,7 +959,7 @@ public class TestPluginsConfig {
 //    configs.add(c);
 //    
 //    config.setConfigs(configs);
-//    config.setLoadDefaultInstances(false);
+//    config.setPostLoadDefaults(false);
 //    
 //    try {
 //      config.initialize(tsdb).join(1);
@@ -1256,7 +1263,7 @@ public class TestPluginsConfig {
         .build();
     configs.add(c);
     
-    config.setLoadDefaultInstances(false);
+    config.setPostLoadDefaults(false);
     config.setConfigs(configs);
     
     assertNull(config.initialize(tsdb).join(1));
