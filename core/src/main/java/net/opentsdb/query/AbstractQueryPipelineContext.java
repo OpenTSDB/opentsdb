@@ -32,6 +32,8 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.stats.Span;
@@ -319,11 +321,35 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
+  public void onComplete(final PartialTimeSeriesSet set) {
+    for (final QuerySink sink : sinks) {
+      try {
+        sink.onComplete(set);
+      } catch (Throwable e) {
+        LOG.error("Exception thrown passing results to sink: " + sink, e);
+        // TODO - should we kill the query here?
+      }
+    }
+  }
+  
+  @Override
   public void onNext(final QueryResult next) {
     final ResultWrapper wrapped = new ResultWrapper(next);
     for (final QuerySink sink : sinks) {
       try {
         sink.onNext(wrapped);
+      } catch (Throwable e) {
+        LOG.error("Exception thrown passing results to sink: " + sink, e);
+        // TODO - should we kill the query here?
+      }
+    }
+  }
+  
+  @Override
+  public void onNext(final PartialTimeSeries series) {
+    for (final QuerySink sink : sinks) {
+      try {
+        sink.onNext(series);
       } catch (Throwable e) {
         LOG.error("Exception thrown passing results to sink: " + sink, e);
         // TODO - should we kill the query here?

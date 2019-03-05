@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
@@ -86,6 +88,11 @@ public class ServletSink implements QuerySink {
       throw new IllegalArgumentException("Factory returned a null "
           + "instance for the type: " + config.serdesOptions().getType());
     }
+  }
+  
+  @Override
+  public void onComplete(final PartialTimeSeriesSet set) {
+    throw new IllegalStateException("Not implemented yet.");
   }
   
   @Override
@@ -194,6 +201,11 @@ public class ServletSink implements QuerySink {
     }
   }
 
+  @Override
+  public void onNext(final PartialTimeSeries next) {
+    throw new IllegalStateException("Not implemented yet.");
+  }
+  
   @Override
   public void onError(final Throwable t) {
     LOG.error("Exception for query: " 

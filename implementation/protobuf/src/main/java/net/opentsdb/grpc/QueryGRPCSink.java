@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.hash.HashCode;
 
 import io.grpc.stub.StreamObserver;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QuerySink;
@@ -83,6 +85,11 @@ public class QueryGRPCSink implements QuerySink {
   }
 
   @Override
+  public void onComplete(final PartialTimeSeriesSet set) {
+    throw new IllegalStateException("Not implemented yet.");
+  }
+  
+  @Override
   public void onNext(final net.opentsdb.query.QueryResult next) {
     try {
       config.observer.onNext(serdes.serializeResult(next));
@@ -91,6 +98,11 @@ public class QueryGRPCSink implements QuerySink {
           + JSON.serializeToString(context.query()), t);
       onError(t);
     }
+  }
+  
+  @Override
+  public void onNext(final PartialTimeSeries next) {
+    throw new IllegalStateException("Not implemented yet.");
   }
 
   @Override

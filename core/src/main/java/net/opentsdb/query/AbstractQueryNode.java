@@ -21,6 +21,8 @@ import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.stats.Span;
@@ -111,6 +113,16 @@ public abstract class AbstractQueryNode implements QueryNode {
   }
   
   @Override
+  public void onComplete(final PartialTimeSeriesSet set) {
+    throw new IllegalStateException("The node has not implemented this yet");
+  }
+  
+  @Override
+  public void onNext(final PartialTimeSeries next) {
+    throw new IllegalStateException("The node has not implemented this yet");
+  }
+  
+  @Override
   public void onError(final Throwable t) {
     for (final QueryNode us : upstream) {
       try {
@@ -144,7 +156,7 @@ public abstract class AbstractQueryNode implements QueryNode {
   protected void sendUpstream(final QueryResult result) 
         throws QueryUpstreamException {
     if (result == null) {
-      throw new IllegalArgumentException("Result cannot be null.");
+      throw new QueryUpstreamException("Result cannot be null.");
     }
     
     for (final QueryNode node : upstream) {
@@ -152,6 +164,31 @@ public abstract class AbstractQueryNode implements QueryNode {
         node.onNext(result);
       } catch (Exception e) {
         throw new QueryUpstreamException("Failed to send results "
+            + "upstream to node: " + node, e);
+      }
+    }
+  }
+  
+  /**
+   * Sends the series upstream to every node that's linked. If an upstream node
+   * throws an exception, it's caught and thrown as a 
+   * {@link QueryUpstreamException}.
+   * 
+   * @param series A non-null series to send upstream.
+   * @throws QueryUpstreamException If the series was null or an upstream node
+   * threw an exception.
+   */
+  protected void sendUpstream(final PartialTimeSeries series) 
+      throws QueryUpstreamException {
+    if (series == null) {
+      throw new QueryUpstreamException("Series cannot be null.");
+    }
+    
+    for (final QueryNode node : upstream) {
+      try {
+        node.onNext(series);
+      } catch (Exception e) {
+        throw new QueryUpstreamException("Failed to send series "
             + "upstream to node: " + node, e);
       }
     }
@@ -192,6 +229,26 @@ public abstract class AbstractQueryNode implements QueryNode {
     for (final QueryNode node : upstream) {
       try {
         node.onComplete(this, final_sequence, total_sequences);
+      } catch (Exception e) {
+        LOG.warn("Failed to mark upstream node complete: " + node, e);
+      }
+    }
+  }
+  
+  /**
+   * Passes the set upstream to all of the linked nodes. If one or more
+   * upstream consumers throws an exception, it's caught and logged as a warning.
+   * 
+   * @param set The non-null set to pass.
+   */
+  protected void completeUpstream(final PartialTimeSeriesSet set) {
+    if (set == null) {
+      throw new QueryUpstreamException("Set cannot be null.");
+    }
+    
+    for (final QueryNode node : upstream) {
+      try {
+        node.onComplete(set);
       } catch (Exception e) {
         LOG.warn("Failed to mark upstream node complete: " + node, e);
       }
