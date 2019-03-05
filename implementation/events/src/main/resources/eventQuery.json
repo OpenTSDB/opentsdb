@@ -1,0 +1,13 @@
+{
+  "start": 12000000,
+  "end": 12000000,
+  "namespace": "Yamas",
+  "filter": {
+    "type": "Chain",
+    "filters": [
+
+    ]
+  },
+
+  "isSummary": true
+}

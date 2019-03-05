@@ -42,11 +42,11 @@
             <version>${project.version}</version>
             <type>test-jar</type>
          </dependency>
-         <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <version>${es.version}</version>
-         </dependency>
+         <!--<dependency>-->
+            <!--<groupId>org.elasticsearch</groupId>-->
+            <!--<artifactId>elasticsearch</artifactId>-->
+            <!--<version>${es.version}</version>-->
+         <!--</dependency>-->
       </dependencies>
    </dependencyManagement>
    
@@ -59,10 +59,10 @@
          <groupId>net.opentsdb</groupId>
          <artifactId>opentsdb-core</artifactId>
       </dependency>
-      <dependency>
-         <groupId>org.elasticsearch</groupId>
-         <artifactId>elasticsearch</artifactId>
-      </dependency>
+      <!--<dependency>-->
+         <!--<groupId>org.elasticsearch</groupId>-->
+         <!--<artifactId>elasticsearch</artifactId>-->
+      <!--</dependency>-->
 	      
       <!-- TESTING Deps. -->
       <dependency>
