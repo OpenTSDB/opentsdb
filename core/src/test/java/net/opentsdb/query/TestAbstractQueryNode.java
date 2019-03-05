@@ -33,6 +33,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.utils.UnitTestException;
@@ -96,9 +98,25 @@ public class TestAbstractQueryNode {
     node.initialize(null);
     
     try {
+      node.sendUpstream((PartialTimeSeries) null);
+      fail("Expected QueryUpstreamException");
+    } catch (QueryUpstreamException e) { }
+    
+    final PartialTimeSeries series = mock(PartialTimeSeries.class);
+    node.sendUpstream(series);
+    verify(upstream.get(0), times(1)).onNext(series);
+    verify(upstream.get(1), times(1)).onNext(series);
+  }
+  
+  @Test
+  public void sendUpstreamQueryResult() throws Exception {
+    final TestAQ node = new TestAQ(factory, context);
+    node.initialize(null);
+    
+    try {
       node.sendUpstream((QueryResult) null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      fail("Expected QueryUpstreamException");
+    } catch (QueryUpstreamException e) { }
     
     final QueryResult result = mock(QueryResult.class);
     node.sendUpstream(result);
@@ -186,6 +204,22 @@ public class TestAbstractQueryNode {
   
   @Test
   public void completeUpstream() throws Exception {
+    final TestAQ node = new TestAQ(factory, context);
+    node.initialize(null);
+    
+    try {
+      node.completeUpstream((PartialTimeSeriesSet) null);
+      fail("Expected QueryUpstreamException");
+    } catch (QueryUpstreamException e) { }
+    
+    final PartialTimeSeriesSet set = mock(PartialTimeSeriesSet.class);
+    node.completeUpstream(set);
+    verify(upstream.get(0), times(1)).onComplete(set);
+    verify(upstream.get(1), times(1)).onComplete(set);
+  }
+  
+  @Test
+  public void completeUpstreamQueryResult() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
     node.initialize(null);
     

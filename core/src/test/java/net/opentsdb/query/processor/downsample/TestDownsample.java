@@ -137,12 +137,12 @@ public class TestDownsample {
     ds.initialize(null);
     
     ds.onNext(results);
-    verify(upstream, times(1)).onNext(any());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onNext(any(QueryResult.class));
     ds.onNext(results);
-    verify(upstream, times(2)).onNext(any());
+    verify(upstream, times(2)).onNext(any(QueryResult.class));
   }
   
   @Test
