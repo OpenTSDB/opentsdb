@@ -38,6 +38,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.rollup.RollupConfig;
 
 public class TestMergerResult {
   
@@ -46,6 +47,7 @@ public class TestMergerResult {
   private QueryResult result_a;
   private QueryResult result_b;
   private TimeSpecification time_spec;
+  private RollupConfig rollup_config;
   private NumericMillisecondShard ts1;
   private NumericMillisecondShard ts2;
   private NumericMillisecondShard ts3;
@@ -80,6 +82,7 @@ public class TestMergerResult {
     result_a = mock(QueryResult.class);
     result_b = mock(QueryResult.class);
     time_spec = mock(TimeSpecification.class);
+    rollup_config = mock(RollupConfig.class);
     
     when(node.config()).thenReturn(config);
     
@@ -121,8 +124,27 @@ public class TestMergerResult {
     
     when(result_a.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
     when(result_b.timeSeries()).thenReturn(Lists.newArrayList(ts3, ts4));
+    when(result_b.rollupConfig()).thenReturn(rollup_config);
     when(result_a.sequenceId()).thenReturn(42l);
     when(result_a.timeSpecification()).thenReturn(time_spec);
+  }
+  
+  @Test
+  public void addTimeSpec() throws Exception {
+    MergerResult merger = new MergerResult(node, result_b);
+    assertNull(merger.timeSpecification());
+    
+    merger.add(result_a);
+    assertSame(time_spec, merger.timeSpecification());
+  }
+  
+  @Test
+  public void addRollupConfig() throws Exception {
+    MergerResult merger = new MergerResult(node, result_a);
+    assertNull(merger.rollupConfig());
+    
+    merger.add(result_b);
+    assertSame(rollup_config, merger.rollupConfig());
   }
   
   @Test
