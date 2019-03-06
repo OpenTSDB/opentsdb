@@ -55,6 +55,12 @@ public class MergerResult implements QueryResult {
   /** The map of hash codes to groups. */
   protected final Map<Long, TimeSeries> groups;
   
+  /** The first non-null time specification. */
+  protected TimeSpecification time_spec;
+  
+  /** The first non-null rollup config. */
+  protected RollupConfig rollup_config;
+  
   /** Errors or exceptions from downstream. */
   protected String error;
   protected Throwable exception;
@@ -78,6 +84,8 @@ public class MergerResult implements QueryResult {
     this.next = Lists.newArrayList();
     this.next.add(next);
     groups = Maps.newHashMap();
+    time_spec = next.timeSpecification();
+    rollup_config = next.rollupConfig();
   }
   
   /**
@@ -86,6 +94,12 @@ public class MergerResult implements QueryResult {
    */
   void add(final QueryResult next) {
     this.next.add(next);
+    if (time_spec == null && next.timeSpecification() != null) {
+      time_spec = next.timeSpecification();
+    }
+    if (rollup_config == null && next.rollupConfig() != null) {
+      rollup_config = next.rollupConfig();
+    }
   }
   
   /**
@@ -119,7 +133,7 @@ public class MergerResult implements QueryResult {
   
   @Override
   public TimeSpecification timeSpecification() {
-    return next.get(0).timeSpecification();
+    return time_spec;
   }
 
   @Override
@@ -164,7 +178,7 @@ public class MergerResult implements QueryResult {
   
   @Override
   public RollupConfig rollupConfig() {
-    return next.get(0).rollupConfig();
+    return rollup_config;
   }
   
   @Override
