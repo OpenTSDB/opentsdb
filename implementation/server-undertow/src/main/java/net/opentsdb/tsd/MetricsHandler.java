@@ -46,8 +46,7 @@ public class MetricsHandler implements HttpHandler {
     if (!exchange.isComplete()) {
       final StatsTimer timer = stats_collector.startTimer(
           "undertow.request.latency", false);
-      stats_collector.incrementCounter("undertow.requests", 
-          "path", exchange.getRequestPath().replaceAll("\\P{Print}", ""));
+      stats_collector.incrementCounter("undertow.requests");
       
       // from io.undertow.server.handlers.MetricsHandler
       exchange.addExchangeCompleteListener(new ExchangeCompletionListener() {
@@ -55,10 +54,9 @@ public class MetricsHandler implements HttpHandler {
         public void exchangeEvent(final HttpServerExchange exchange, 
                                   final NextListener nextListener) {
           try {
-          timer.stop("path", exchange.getRequestPath().replaceAll("\\P{Print}", ""));
+          timer.stop();
           stats_collector.incrementCounter("undertow.response.statuscode", 
-              "code", Integer.toString(exchange.getStatusCode()),
-              "path", exchange.getRequestPath().replaceAll("\\P{Print}", ""));
+              "code", Integer.toString(exchange.getStatusCode()));
           } catch (Throwable t) {
             // we don't want to ruin the call if something goes pear shaped in
             // the stats collector code.
