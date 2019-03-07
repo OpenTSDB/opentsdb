@@ -304,7 +304,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     
     boolean wrote_values = false;
     for (final TypedTimeSeriesIterator iterator : series.iterators()) {
-      System.out.println("START: " + wrote_values);
       while (iterator.hasNext()) {
 
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
