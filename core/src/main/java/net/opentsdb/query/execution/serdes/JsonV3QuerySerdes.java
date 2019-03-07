@@ -642,62 +642,64 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           options, iterator, json, result, wrote_values);
     }
 
-    Collection<Integer> summaries =
-        ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable();
-
-    value = (TimeSeriesValue<NumericSummaryType>) value;
-    while (value != null) {
-      if (value.timestamp().compare(Op.GT, end)) {
-        break;
-      }
-      long ts = (options != null && options.getMsResolution()) 
-          ? value.timestamp().msEpoch() 
-          : value.timestamp().msEpoch() / 1000;
-      final String ts_string = Long.toString(ts);
-      
-      if (!wrote_values) {
-        json.writeStartObject();
-        wrote_values = true;
-      }
-      if (!wrote_type) {
-        json.writeObjectFieldStart("NumericSummaryType");
-        json.writeArrayFieldStart("aggregations");
-        for (final int summary : summaries) {
-          json.writeString(result.rollupConfig().getAggregatorForId(summary));
+    if (((TimeSeriesValue<NumericSummaryType>) value).value() != null) {
+      Collection<Integer> summaries =
+          ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable();
+  
+      value = (TimeSeriesValue<NumericSummaryType>) value;
+      while (value != null) {
+        if (value.timestamp().compare(Op.GT, end)) {
+          break;
         }
-        json.writeEndArray();
+        long ts = (options != null && options.getMsResolution()) 
+            ? value.timestamp().msEpoch() 
+            : value.timestamp().msEpoch() / 1000;
+        final String ts_string = Long.toString(ts);
         
-        json.writeArrayFieldStart("data");
-        wrote_type = true;
-      }
-      if (value.value() == null) {
-        json.writeNullField(ts_string);
-      } else {
-        json.writeStartObject();
-        final NumericSummaryType v = ((TimeSeriesValue<NumericSummaryType>) value).value();
-        json.writeArrayFieldStart(ts_string);
-        for (final int summary : summaries) {
-          final NumericType summary_value = v.value(summary);
-          if (summary_value == null) {
-            json.writeNull();
-          } else if (summary_value.isInteger()) {
-            json.writeNumber(summary_value.longValue());
-          } else {
-            json.writeNumber(summary_value.doubleValue());
-          }
+        if (!wrote_values) {
+          json.writeStartObject();
+          wrote_values = true;
         }
-        json.writeEndArray();
-        json.writeEndObject();
+        if (!wrote_type) {
+          json.writeObjectFieldStart("NumericSummaryType");
+          json.writeArrayFieldStart("aggregations");
+          for (final int summary : summaries) {
+            json.writeString(result.rollupConfig().getAggregatorForId(summary));
+          }
+          json.writeEndArray();
+          
+          json.writeArrayFieldStart("data");
+          wrote_type = true;
+        }
+        if (value.value() == null) {
+          json.writeNullField(ts_string);
+        } else {
+          json.writeStartObject();
+          final NumericSummaryType v = ((TimeSeriesValue<NumericSummaryType>) value).value();
+          json.writeArrayFieldStart(ts_string);
+          for (final int summary : summaries) {
+            final NumericType summary_value = v.value(summary);
+            if (summary_value == null) {
+              json.writeNull();
+            } else if (summary_value.isInteger()) {
+              json.writeNumber(summary_value.longValue());
+            } else {
+              json.writeNumber(summary_value.doubleValue());
+            }
+          }
+          json.writeEndArray();
+          json.writeEndObject();
+        }
+        
+        if (iterator.hasNext()) {
+          value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+        } else {
+          value = null;
+        }
       }
-      
-      if (iterator.hasNext()) {
-        value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      } else {
-        value = null;
-      }
+      json.writeEndArray();
+      json.writeEndObject();
     }
-    json.writeEndArray();
-    json.writeEndObject();
     return wrote_type;
   }
 

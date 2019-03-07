@@ -142,7 +142,6 @@ public class SummarizerNumericIterator implements QueryIterator {
         }
       }
     } else if (type == NumericSummaryType.TYPE) {
-
       long_values = new long[8];
       boolean got_timestamp = false;
       while (iterator.hasNext()) {
@@ -155,25 +154,26 @@ public class SummarizerNumericIterator implements QueryIterator {
         }
 
         if (value.value() != null) {
-
           Collection<Integer> summaries =
               ((TimeSeriesValue<NumericSummaryType>) value)
                   .value()
                   .summariesAvailable();
-          if (summaries == null) {
+          if (summaries == null || summaries.isEmpty()) {
             throw new IllegalArgumentException("Summaries not found in the summarizer!");
           }
 
-          if (summaries.size() != 1) {
-            throw new IllegalArgumentException("Multiple or no summaries found! " + summaries);
-          }
-
-          NumericType val = value.value().value(summaries.iterator().next());
-
-          if (val.isInteger()) {
-            store(val.longValue());
+          if (summaries.size() == 1) {
+            NumericType val = value.value().value(summaries.iterator().next());
+            if (val.isInteger()) {
+              store(val.longValue());
+            } else {
+              store(val.doubleValue());
+            }
           } else {
-            store(val.doubleValue());
+            // TODO
+            dp.resetNull(iterator.next().timestamp());
+            has_next = false;
+            return dp;
           }
         }
       }
