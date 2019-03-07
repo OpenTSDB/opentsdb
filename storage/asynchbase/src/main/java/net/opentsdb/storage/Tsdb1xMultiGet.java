@@ -468,7 +468,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     // if there are more things to run then do it
     if (outstanding < concurrency_multi_get && !advance()) {
       final int ts;
-      if (rollups_enabled) {
+      if (rollups_enabled && rollup_index > 0) {
         ts = (int) fallback_timestamp.epoch();
       } else {
         ts = (int) timestamp.epoch();
