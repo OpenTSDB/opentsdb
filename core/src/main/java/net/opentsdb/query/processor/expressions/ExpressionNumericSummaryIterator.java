@@ -201,7 +201,8 @@ public class ExpressionNumericSummaryIterator extends
           next_ts.update(right_interpolator.nextReal());
         }
       } else {
-        if (right_interpolator.nextReal().compare(Op.LT, next_ts)) {
+        if (right_interpolator.hasNext() && 
+            right_interpolator.nextReal().compare(Op.LT, next_ts)) {
           next_ts.update(right_interpolator.nextReal());
         }
       }
@@ -331,4 +332,8 @@ public class ExpressionNumericSummaryIterator extends
     return NumericSummaryType.TYPE;
   }
 
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
+  }
 }
