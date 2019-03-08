@@ -93,7 +93,7 @@ public class SumFactory extends BaseTSDBPlugin implements
       double sum = 0;
       int nans = 0;
       for (int i = start_offset; i < end_offset; i++) {
-        if (Double.isNaN(values[i]) && !infectious_nans) {
+        if (Double.isNaN(values[i])) {
           nans++;
           continue;
         }

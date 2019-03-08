@@ -86,10 +86,10 @@ public class MinFactory extends BaseTSDBPlugin implements
       if (end_offset < 1) {
         throw new IllegalDataException("End offset must be greater than 0");
       }
-      double min = values[start_offset];
+      double min = Double.MAX_VALUE;
       int nans = 0;
-      for (int i = start_offset + 1; i < end_offset; i++) {
-        if (Double.isNaN(values[i]) && infectious_nans) {
+      for (int i = start_offset; i < end_offset; i++) {
+        if (Double.isNaN(values[i])) {
           nans++;
           continue;
         }
