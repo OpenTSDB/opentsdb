@@ -78,10 +78,10 @@ public class FirstFactory extends BaseTSDBPlugin implements
       if (end_offset < 1) {
         throw new IllegalDataException("End offset must be greater than 0");
       }
-      if (infectious_nans) {
+      if (!infectious_nans) {
         for (int i = start_offset; i < end_offset; i++) {
-          if (Double.isNaN(values[i])) {
-            dp.resetValue(Double.NaN);
+          if (!Double.isNaN(values[i])) {
+            dp.resetValue(values[i]);
             return;
           }
         }

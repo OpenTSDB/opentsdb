@@ -89,7 +89,7 @@ public class MultiplyFactory extends BaseTSDBPlugin implements
       double product = 1;
       int nans = 0;
       for (int i = start_offset; i < end_offset; i++) {
-        if (Double.isNaN(values[i]) && !infectious_nans) {
+        if (Double.isNaN(values[i])) {
           nans++;
           continue;
         }
