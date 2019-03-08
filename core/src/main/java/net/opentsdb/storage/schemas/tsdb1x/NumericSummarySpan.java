@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import java.util.NoSuchElementException;
 
 import com.google.common.collect.Lists;
@@ -201,8 +202,8 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
       final NumericSummaryRowSeq row = rows.get(rows_idx);
       for (final Entry<Integer, byte[]> entry : row.summary_data.entrySet()) {
         final byte[] data = entry.getValue();
-        int row_idx = row_idxs.get(entry.getKey());
-        if (row_idx >= data.length) {
+        Integer row_idx = row_idxs.get(entry.getKey());
+        if (row_idx == null || row_idx >= data.length) {
           // Another entry had a value. Skip this one since we're at the end.
           data_points.put(entry.getKey(), null);
           continue;
@@ -285,8 +286,8 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
       long next_offset = reversed ? Long.MIN_VALUE : Long.MAX_VALUE;
       for (final Entry<Integer, byte[]> entry : seq.summary_data.entrySet()) {
         final byte[] data = entry.getValue();
-        final int row_idx = row_idxs.get(entry.getKey());
-        if (row_idx >= data.length) {
+        final Integer row_idx = row_idxs.get(entry.getKey());
+        if (row_idx == null || row_idx >= data.length) {
           continue;
         }
         long offset = RollupUtils.getOffsetFromRollupQualifier(data, row_idx, seq.interval);

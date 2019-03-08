@@ -223,13 +223,14 @@ public class NumericSummaryInterpolator implements
     // advance to the next real that has values for all summaries
     while (iterator.hasNext()) {
       next = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      if (next.value() == null) {
+      NumericSummaryType summary_value = next.value();
+      if (summary_value == null) {
         continue;
       }
       
       int present = 0;
-      for (final int summary : next.value().summariesAvailable()) {
-        final NumericType value = next.value().value(summary);
+      for (final int summary : summary_value.summariesAvailable()) {
+        final NumericType value = summary_value.value(summary);
         if (value == null) {
           continue;
         }
