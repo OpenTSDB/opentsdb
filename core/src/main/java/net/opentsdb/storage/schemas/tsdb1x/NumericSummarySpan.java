@@ -35,6 +35,7 @@ import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.rollup.RollupUtils;
 
 /**
@@ -232,10 +233,15 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
           dp = new MutableNumericType();
           data_points.put(entry.getKey(), dp);
         }
-        if (is_integer) {
-          dp.set(NumericCodec.extractIntegerValue(data, value_idx, flags));
-        } else {
-          dp.set(NumericCodec.extractFloatingPointValue(data, value_idx, flags));
+        try {
+          if (is_integer) {
+            dp.set(NumericCodec.extractIntegerValue(data, value_idx, flags));
+          } else {
+            dp.set(NumericCodec.extractFloatingPointValue(data, value_idx, flags));
+          }
+        } catch (IllegalDataException e) {
+          // TODO - WTF? What now?
+          dp.set(Double.NaN);
         }
         
         row_idxs.put(entry.getKey(), row_idx);
