@@ -92,7 +92,20 @@ public class ServletSink implements QuerySink {
   
   @Override
   public void onComplete(final PartialTimeSeriesSet set) {
-    throw new IllegalStateException("Not implemented yet.");
+    serdes.complete(set, null /** TODO */).addBoth(
+        new Callback<Object, Object>() {
+
+          @Override
+          public Object call(final Object arg) throws Exception {
+            if (arg != null && 
+                !(arg instanceof Throwable) && 
+                (boolean) arg == true) {
+              onComplete();
+            }
+            return null;
+          }
+      
+    });
   }
   
   @Override
@@ -203,7 +216,20 @@ public class ServletSink implements QuerySink {
 
   @Override
   public void onNext(final PartialTimeSeries next) {
-    throw new IllegalStateException("Not implemented yet.");
+    serdes.serialize(next, null /** TODO */).addBoth(
+        new Callback<Object, Object>() {
+
+          @Override
+          public Object call(final Object arg) throws Exception {
+            if (arg != null && 
+                !(arg instanceof Throwable) && 
+                (boolean) arg == true) {
+              onComplete();
+            }
+            return null;
+          }
+      
+    });
   }
   
   @Override
