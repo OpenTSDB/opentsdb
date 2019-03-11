@@ -34,12 +34,6 @@
         </dependency>
         
         <dependency>
-          <groupId>javax.servlet</groupId>
-          <artifactId>javax.servlet-api</artifactId>
-          <version>3.1.0</version>
-        </dependency>
-        
-        <dependency>
           <groupId>com.github.chrisvest</groupId>
           <artifactId>stormpot</artifactId>
           <version>2.4.1</version>
@@ -59,22 +53,8 @@
       </dependency>
       
       <dependency>
-        <groupId>javax.servlet</groupId>
-        <artifactId>javax.servlet-api</artifactId>
-      </dependency>
-      
-      <dependency>
         <groupId>com.github.chrisvest</groupId>
         <artifactId>stormpot</artifactId>
-      </dependency>
-      
-      <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-core</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
       </dependency>
       
       <dependency>
@@ -126,6 +106,36 @@
     </dependencies>
     
     <build>
-  
+      <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>2.3</version>
+            <configuration>
+               <artifactSet>
+                  <excludes>
+                     <exclude>net.opentsdb:opentsdb-common</exclude>
+                     <exclude>net.opentsdb:opentsdb-core</exclude>
+                     <exclude>ch.qos.logback:logback*</exclude>
+                     <exclude>com.fasterxml*:*</exclude>
+                     <exclude>javax*:*</exclude>
+                  </excludes>
+               </artifactSet>
+               <filters>
+                  <filter>
+                     <artifact>*:*</artifact>
+                  </filter>
+               </filters>
+            </configuration>
+            <executions>
+               <execution>
+                  <phase>package</phase>
+                  <goals>
+                     <goal>shade</goal>
+                  </goals>
+               </execution>
+            </executions>
+         </plugin>
+      </plugins>
     </build>
 </project>

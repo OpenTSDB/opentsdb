@@ -1,1 +1,1 @@
-net.opentsdb.servlet.pools.StormPotPoolFactory
+net.opentsdb.pools.StormPotPoolFactory
