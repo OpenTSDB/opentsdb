@@ -37,6 +37,8 @@ public class FilterUtils {
    * For non-tag handling filters, this method will return true.
    * @param filter The filter to evaluate.
    * @param tags The non-null (possibly empty) set of tags to evaluate.
+   * @param matched A set of tag keys used to determine if we've satisfied
+   * an explicit tags filter.
    * @return True if the filter(s) matched, false if not or true if the
    * filter(s) were not tag filters.
    */
