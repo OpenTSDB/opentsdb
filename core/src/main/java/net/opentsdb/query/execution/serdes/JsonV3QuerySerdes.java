@@ -18,9 +18,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import net.opentsdb.query.processor.summarizer.Summarizer;
@@ -29,14 +31,25 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import gnu.trove.iterator.TLongIterator;
+import gnu.trove.map.TIntObjectMap;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
 import net.opentsdb.common.Const;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -76,6 +89,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
+  
+  /** TEMP */
+  private Map<String, TIntObjectMap<SetWrapper>> partials = Maps.newHashMap();
+  private Map<String, TLongSet> ids = Maps.newHashMap();
   
   /**
    * Default ctor.
@@ -280,6 +297,127 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   }
   
   @Override
+  public Deferred<Object> serialize(final PartialTimeSeries series, 
+                                    final Span span) {
+    // TODO - break out
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    int count = 0;
+    try {
+      // simple serdes for a json fragment.
+      final TypedTimeSeriesIterator iterator = series.iterator();
+      while (iterator.hasNext()) {
+        if (count++ > 0) {
+          stream.write(',');
+        }
+        TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) iterator.next();
+        stream.write('"');
+        stream.write(Long.toString(v.timestamp().epoch()).getBytes());
+        stream.write('"');
+        stream.write(':');
+        if (v.value() == null) {
+          stream.write("null".getBytes());
+        } else if (v.value().isInteger()) {
+          stream.write(Long.toString(v.value().longValue()).getBytes());
+        } else {
+          if (Double.isNaN(v.value().doubleValue())) {
+            stream.write("NaN".getBytes());
+          } else {
+            // TODO - check for finite
+            stream.write(Double.toString(v.value().doubleValue()).getBytes());
+          }
+        }
+      }
+//      try {
+//        iterator.close();
+//      } catch (Exception e) {
+//        // TODO Auto-generated catch block
+//        e.printStackTrace();
+//      }
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    
+    synchronized (this) {
+      final String set_id = series.set().node().config().getId() + ":" 
+          + series.set().dataSource();
+      TLongSet group_ids = ids.get(set_id);
+      if (group_ids == null) {
+        group_ids = new TLongHashSet();
+        ids.put(set_id, group_ids);
+      }
+      group_ids.add(series.idHash());
+      
+      TIntObjectMap<SetWrapper> source_shards = partials.get(set_id);
+      if (source_shards == null) {
+        source_shards = new TIntObjectHashMap<SetWrapper>();
+        partials.put(set_id, source_shards);
+      }
+      
+      SetWrapper set = source_shards.get((int) series.set().start().epoch());
+      if (set == null) {
+        set = new SetWrapper();
+        source_shards.put((int) series.set().start().epoch(), set);
+      }
+      set.series.put(series.idHash(), stream.toByteArray());
+
+      try {
+        series.close();
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
+      
+      if (set.set == null) {
+        return Deferred.fromResult(null);
+      } else if (set.series.size() != set.set.timeSeriesCount()) {
+        return Deferred.fromResult(null);
+      }    }
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
+  public Deferred<Object> complete(final PartialTimeSeriesSet set, 
+                                   final Span span) {
+    final String set_id = set.node().config().getId() + ":" + set.dataSource();
+    synchronized (this) {
+      TIntObjectMap<SetWrapper> source_shards = partials.get(set_id);
+      if (source_shards == null) {
+        source_shards = new TIntObjectHashMap<SetWrapper>();
+        partials.put(set_id, source_shards);
+      }
+      
+      SetWrapper wrapper = source_shards.get((int) set.start().epoch());
+      if (wrapper == null) {
+        wrapper = new SetWrapper();
+        wrapper.set = set;
+        source_shards.put((int) set.start().epoch(), wrapper);
+      } else {
+        wrapper.set = set;
+      }
+      
+      if (source_shards.size() != set.totalSets()) {
+        return Deferred.fromResult(null);
+      }
+      
+      // TODO don't loop every time, maintain counter outside
+      for (final TIntObjectMap<SetWrapper> entry : partials.values()) {
+        for (final SetWrapper w : entry.valueCollection()) {
+          if (wrapper.set == null) {
+            return Deferred.fromResult(null);
+          }
+           if (wrapper.series.size() != w.set.timeSeriesCount()) {
+            return Deferred.fromResult(null);
+          }
+        }
+      }
+    }
+    
+    serializePush();
+    return Deferred.fromResult(true);
+  }
+  
+  @Override
   public void deserialize(final QueryNode node, 
                           final Span span) {
     node.onError(new UnsupportedOperationException("Not implemented for this "
@@ -339,7 +477,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
     
     if (wrote_values) {
-      System.out.println("      writing id...");
       // serialize the ID
       json.writeStringField("metric", id.metric());
       json.writeObjectFieldStart("tags");
@@ -738,4 +875,97 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     return wrote_type;
   }
 
+  /**
+   * Scratch class used to collect the serialized time series.
+   */
+  class SetWrapper {
+    public PartialTimeSeriesSet set;
+    public TLongObjectMap<byte[]> series = new TLongObjectHashMap<byte[]>();
+  }
+  
+  void serializePush() {
+    final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
+   
+    try {
+      json.writeStartObject();
+      json.writeArrayFieldStart("results");
+      
+      for (final Entry<String, TIntObjectMap<SetWrapper>> entry : partials.entrySet()) {
+        int[] keys = entry.getValue().keys();
+        Arrays.sort(keys);
+        
+        final SetWrapper shard = entry.getValue().get(keys[0]);
+        
+        json.writeStartObject();
+        json.writeStringField("source", shard.set.node().config().getId() + ":" 
+            + shard.set.dataSource());
+        // TODO - array of data sources
+        
+        // serdes time spec if present
+//        if (result.timeSpecification() != null) {
+//          json.writeObjectFieldStart("timeSpecification");
+//          // TODO - ms, second, nanos, etc
+//          json.writeNumberField("start", result.timeSpecification().start().epoch());
+//          json.writeNumberField("end", result.timeSpecification().end().epoch());
+//          json.writeStringField("intervalISO", result.timeSpecification().interval().toString());
+//          json.writeStringField("interval", result.timeSpecification().stringInterval());
+//          //json.writeNumberField("intervalNumeric", result.timeSpecification().interval().get(result.timeSpecification().units()));
+//          if (result.timeSpecification().timezone() != null) {
+//            json.writeStringField("timeZone", result.timeSpecification().timezone().toString());
+//          }
+//          json.writeStringField("units", result.timeSpecification().units().toString());
+//          json.writeEndObject();
+//        }
+        
+        json.writeArrayFieldStart("data");
+
+        TLongSet group_ids = ids.get(entry.getKey());
+        final TLongIterator iterator = group_ids.iterator();
+        while (iterator.hasNext()) {
+          final long id_hash = iterator.next();
+          // serialize the ID
+          json.writeStartObject();
+          TimeSeriesId raw_id = shard.set.id(id_hash);
+          if (raw_id == null) {
+            // MISSING! Fill
+            continue;
+          }
+          TimeSeriesStringId id = (TimeSeriesStringId) raw_id;
+          json.writeStringField("metric", id.metric());
+          json.writeObjectFieldStart("tags");
+          for (final Entry<String, String> pair : id.tags().entrySet()) {
+            json.writeStringField(pair.getKey(), pair.getValue());
+          }
+          json.writeEndObject();
+          json.writeArrayFieldStart("aggregateTags");
+          for (final String tag : id.aggregatedTags()) {
+            json.writeString(tag);
+          }
+          json.writeEndArray();
+          
+          json.writeObjectFieldStart("NumericType");
+          int count = 0;
+          for (final int idx : keys) {
+            final SetWrapper w = entry.getValue().get(idx);
+            byte[] s = w.series.get(id_hash);
+            if (s == null) {
+              // TODO - fill!!
+            } else {
+              if (count++ > 0) {
+                json.writeRaw(",");
+              }
+              json.writeRaw(new String(s));
+            }
+          }
+          json.writeEndObject();
+          json.writeEndObject();
+        }
+        json.writeEndArray();
+        json.writeEndObject();
+      }
+      
+    } catch (IOException e) {
+      throw new RuntimeException("WTF?", e);
+    }
+  }
 }

@@ -16,6 +16,7 @@ package net.opentsdb.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
@@ -46,6 +48,8 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDataSource;
@@ -64,6 +68,11 @@ import net.opentsdb.data.iterators.SlicedTimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.pools.BaseObjectPoolAllocator;
+import net.opentsdb.pools.CloseablePooledObject;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.ObjectPoolConfig;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -130,6 +139,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     } else {
       thread_pool = null;
     }
+    if (!tsdb.getConfig().hasProperty("MockDataStore.partials.enable")) {
+      tsdb.getConfig().register("MockDataStore.partials.enable", false, 
+          false, "Whether or not send the newer PartialTimeSeries upstream.");
+    }
     
     // TODO - we may not need this enable flag any more but we do want
     // a configurable mapping between IDs and agg names.
@@ -168,7 +181,9 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
   }
   
-  public Deferred<WriteStatus> write(final AuthState state, final TimeSeriesDatum datum, final Span span) {
+  public Deferred<WriteStatus> write(final AuthState state, 
+                                     final TimeSeriesDatum datum, 
+                                     final Span span) {
     MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
     if (data_span == null) {
       data_span = new MockSpan((TimeSeriesDatumStringId) datum.id());
@@ -178,7 +193,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     return Deferred.fromResult(WriteStatus.OK);
   }
   
-  public Deferred<List<WriteStatus>> write(final AuthState state, final TimeSeriesSharedTagsAndTimeData data, final Span span) {
+  public Deferred<List<WriteStatus>> write(
+      final AuthState state, 
+      final TimeSeriesSharedTagsAndTimeData data, 
+      final Span span) {
     int i = 0;
     for (final TimeSeriesDatum datum : data) {
       MockSpan data_span = database.get(datum.id());
@@ -399,13 +417,17 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           return;
         }
         
-        final LocalResult result = new LocalResult(context, this, config, 
-            sequence_id.getAndIncrement(), trace_span);
-        
-        if (thread_pool == null) {
-          result.run();
+        if (tsdb.getConfig().getBoolean("MockDataStore.partials.enable")) {
+          runPartials();
         } else {
-          thread_pool.submit(result);
+          final LocalResult result = new LocalResult(context, this, config, 
+              sequence_id.getAndIncrement(), trace_span);
+          
+          if (thread_pool == null) {
+            result.run();
+          } else {
+            thread_pool.submit(result);
+          }
         }
       } catch (Exception e) {
         e.printStackTrace();
@@ -456,6 +478,126 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     @Override
     public QueryNodeConfig config() {
       return config;
+    }
+    
+    void runPartials() {
+      final TimeStamp st = context.query().startTime().getCopy();
+      st.snapToPreviousInterval(3600, ChronoUnit.SECONDS);
+      TimeStamp e = context.query().endTime().getCopy();
+      e.snapToPreviousInterval(3600, ChronoUnit.SECONDS);
+      e.add(Duration.ofSeconds(3600));
+      final int total = (int) (e.epoch() - st.epoch()) / 3600;
+      
+      QueryFilter filter = config.getFilter();
+      if (filter == null && !Strings.isNullOrEmpty(config.getFilterId())) {
+        filter = context.query().getFilter(config.getFilterId());
+      }
+      
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Running the filter: " + filter);
+      }
+      
+      Map<Long, TimeSeriesId> ids = Maps.newHashMap();
+      
+      while (st.compare(Op.LT, context.query().endTime())) {
+        AtomicInteger cntr = new AtomicInteger();
+        final PartialTimeSeriesSet set = new PartialTimeSeriesSet() {
+          final TimeStamp start = st.getCopy();
+          TimeStamp end;
+          
+          @Override
+          public QueryNode node() {
+            return LocalNode.this;
+          }
+
+          @Override
+          public TimeStamp start() {
+            return start;
+          }
+
+          @Override
+          public TimeStamp end() {
+            if (end == null) {
+              synchronized(this) {
+                if (end == null) {
+                  end = start.getCopy();
+                  end.add(Duration.ofSeconds(3600));
+                }
+              }
+            }
+            return end;
+          }
+
+          @Override
+          public TimeSeriesId id(final long hash) {
+            return ids.get(hash);
+          }
+
+          @Override
+          public int totalSets() {
+            return total;
+          }
+
+          @Override
+          public String dataSource() {
+            return config.getId();
+          }
+
+          @Override
+          public int timeSeriesCount() {
+            return cntr.get();
+          }
+          
+          @Override
+          public void close() {
+            // TODO Auto-generated method stub
+            
+          }
+          
+          @Override
+          public TimeSpecification timeSpecification() {
+            // TODO Auto-generated method stub
+            return null;
+          }
+          
+        };
+        
+        for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : database.entrySet()) {
+          // TODO - handle filter types
+          if (!config.getMetric().matches(entry.getKey().metric())) {
+            continue;
+          }
+          
+          if (filter != null) {
+            if (!FilterUtils.matchesTags(filter, entry.getKey().tags(), Sets.newHashSet())) {
+              continue;
+            }
+          }
+          final long epoch = st.msEpoch();
+          
+          // matched the filters
+          for (final MockRow row : entry.getValue().rows) {
+            if (row.base_timestamp == epoch) {
+              final long id_hash = row.id().buildHashCode();
+              ids.putIfAbsent(id_hash, row.id());
+              
+              cntr.incrementAndGet();
+              
+              PooledMockPTS ppts = (PooledMockPTS) tsdb.getRegistry()
+                  .getObjectPool(PooledMockPTSPool.TYPE).claim().object();
+              ppts.id_hash = id_hash;
+              ppts.set = set;
+              ppts.row = row;
+              
+              sendUpstream(ppts);
+            }
+          }
+          
+        }
+        completeUpstream(set);
+        st.add(Duration.ofSeconds(3600));
+      }
+      
     }
     
   }
@@ -865,5 +1007,96 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     return "tsd.storage." + (Strings.isNullOrEmpty(id) || 
         id.equals(MockDataStoreFactory.TYPE) ? "" : id + ".")
           + suffix;
+  }
+
+  public static class PooledMockPTS implements PartialTimeSeries, 
+      CloseablePooledObject {
+    PooledObject pooled_object;
+    long id_hash;
+    PartialTimeSeriesSet set;
+    MockRow row;
+    
+    @Override
+    public void close() throws Exception {
+      release();
+    }
+
+    @Override
+    public Object object() {
+      return this;
+    }
+
+    @Override
+    public void release() {
+      if (pooled_object != null) {
+        pooled_object.release();
+      }
+    }
+
+    @Override
+    public void setPooledObject(final PooledObject pooled_object) {
+      this.pooled_object = pooled_object;
+    }
+
+    @Override
+    public long idHash() {
+      return id_hash;
+    }
+
+    @Override
+    public PartialTimeSeriesSet set() {
+      return set;
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return NumericType.TYPE;
+    }
+
+    @Override
+    public TypedTimeSeriesIterator iterator() {
+      return row.iterator(NumericType.TYPE).get();
+    }
+    
+  }
+
+  public static class PooledMockPTSPool extends BaseObjectPoolAllocator {
+    public static final String TYPE = "PooledMockPTS";
+    @Override
+    public Object allocate() {
+      return new PooledMockPTS();
+    }
+
+    @Override
+    public TypeToken<?> dataType() {
+      return TypeToken.of(PooledMockPTS.class);
+    }
+
+    @Override
+    public String type() {
+      return TYPE;
+    }
+
+    @Override
+    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      if (Strings.isNullOrEmpty(id)) {
+        this.id = TYPE;
+      } else {
+        this.id = id;
+      }
+      final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
+          .setAllocator(this)
+          .setInitialCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
+          .setMaxCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
+          .setId(this.id)
+          .build();
+      try {
+        createAndRegisterPool(tsdb, config, TYPE);
+        return Deferred.fromResult(null);
+      } catch (Exception e) {
+        return Deferred.fromError(e);
+      }
+    }
+    
   }
 }

@@ -16,6 +16,8 @@ package net.opentsdb.query.serdes;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.stats.Span;
@@ -37,6 +39,29 @@ public interface TimeSeriesSerdes {
    */
   public Deferred<Object> serialize(final QueryResult result,
                                     final Span span);
+  
+  /**
+   * Writes the given data to the stream.
+   * TODO - may change the response here a bit.
+   * @param series The non-null partial time series to serialize.
+   * @param span An optional tracer span.
+   * @return A non-null deferred resolving to a null on successful
+   * serialization or an exception if there was a failure.
+   */
+  public Deferred<Object> serialize(final PartialTimeSeries series, 
+                                    final Span span);
+  
+  /**
+   * Called when the set has finished fetching data and the total number of
+   * {@link PartialTimeSeries} is known.
+   * TODO - may change the response here a bit.
+   * @param set The non-null set that is done.
+   * @param span An optional tracing span.
+   * @return A non-null deferred resolving to a null on successful
+   * serialization or an exception if there was a failure.
+   */
+  public Deferred<Object> complete(final PartialTimeSeriesSet set, 
+                                   final Span span);
   
   /**
    * Called when serialization is complete so the implementation can 

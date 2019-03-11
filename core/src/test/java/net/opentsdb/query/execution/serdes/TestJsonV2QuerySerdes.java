@@ -323,7 +323,7 @@ public class TestJsonV2QuerySerdes {
     final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
     
     try {
-      serdes.serialize(null, null);
+      serdes.serialize((QueryResult) null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
