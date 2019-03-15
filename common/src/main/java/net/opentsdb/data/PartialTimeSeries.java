@@ -32,7 +32,7 @@ public interface PartialTimeSeries extends AutoCloseable {
   /** @return The type of data this series is returning. */
   public TypeToken<? extends TimeSeriesDataType> getType();
   
-  /** @return The iterator to use for accessing data in this series. */
-  public TypedTimeSeriesIterator iterator();
-  
+  /** @return The data for this timeseries. May be null. See {@link #getType()} 
+   * for decoding the data. */
+  public Object data();
 }

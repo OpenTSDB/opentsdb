@@ -36,7 +36,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
@@ -238,11 +237,6 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
     completeUpstream(final_sequence, total_sequences);
   }
 
-  @Override
-  public void onComplete(final PartialTimeSeriesSet set) {
-    throw new IllegalArgumentException("Not implemented yet.");
-  }
-  
   @Override
   public void onNext(final QueryResult next) {
     sendUpstream(next);

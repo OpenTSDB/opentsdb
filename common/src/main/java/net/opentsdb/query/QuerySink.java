@@ -15,7 +15,6 @@
 package net.opentsdb.query;
 
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 
 /**
  * An interface implemented by an upstream consumer or the final pipeline sink
@@ -53,17 +52,6 @@ public interface QuerySink {
   public void onComplete();
   
   /**
-   * Called by the downstream nodes when the partial time series set has found
-   * all of it's data and has the final count of time series. Note that as this
-   * may be asynchronous, this node should make sure it's received the right
-   * number of partial time series matching the number in this set. Some series
-   * may still be in-flight up the pipeline.
-   * 
-   * @param set A non-null set marking that all data has been found.
-   */
-  public void onComplete(final PartialTimeSeriesSet set);
-  
-  /**
    * Called by the pipeline when a new query result is available. The result is
    * always non-null but may have an empty result set. 
    * <b>NOTE:</b> Always call {@link QueryResult#close()} when finished with
@@ -77,8 +65,11 @@ public interface QuerySink {
    * Called by the downstream nodes when a new partial time series result is
    * ready.
    * @param next A non-null result (that may be empty).
+   * @param callback A non-null callback to execute when the sink is done with
+   * the series. Used instead of deferreds to avoid creating objects.
    */
-  public void onNext(final PartialTimeSeries next);
+  public void onNext(final PartialTimeSeries next,
+                     final QuerySinkCallback callback);
   
   /**
    * Called by the pipeline when an exception occurred at any point in processing.
@@ -86,4 +77,5 @@ public interface QuerySink {
    * @param t The exception that was thrown.
    */
   public void onError(final Throwable t);
+  
 }

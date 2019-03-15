@@ -23,14 +23,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
+import net.opentsdb.query.QuerySinkCallback;
+import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
@@ -44,7 +46,7 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class ServletSink implements QuerySink {
+public class ServletSink implements QuerySink, SerdesCallback {
   private static final Logger LOG = LoggerFactory.getLogger(
       ServletSink.class);
   private static final Logger QUERY_LOG = LoggerFactory.getLogger("QueryLog");
@@ -60,6 +62,9 @@ public class ServletSink implements QuerySink {
   
   /** TEMP - This sucks but we need to figure out proper async writes. */
   private final ByteArrayOutputStream stream;
+  
+  /** The query sink callback. Only one allowed. */
+  private QuerySinkCallback callback;
   
   /**
    * Default ctor.
@@ -88,24 +93,6 @@ public class ServletSink implements QuerySink {
       throw new IllegalArgumentException("Factory returned a null "
           + "instance for the type: " + config.serdesOptions().getType());
     }
-  }
-  
-  @Override
-  public void onComplete(final PartialTimeSeriesSet set) {
-    serdes.complete(set, null /** TODO */).addBoth(
-        new Callback<Object, Object>() {
-
-          @Override
-          public Object call(final Object arg) throws Exception {
-            if (arg != null && 
-                !(arg instanceof Throwable) && 
-                (boolean) arg == true) {
-              onComplete();
-            }
-            return null;
-          }
-      
-    });
   }
   
   @Override
@@ -215,21 +202,20 @@ public class ServletSink implements QuerySink {
   }
 
   @Override
-  public void onNext(final PartialTimeSeries next) {
-    serdes.serialize(next, null /** TODO */).addBoth(
-        new Callback<Object, Object>() {
-
-          @Override
-          public Object call(final Object arg) throws Exception {
-            if (arg != null && 
-                !(arg instanceof Throwable) && 
-                (boolean) arg == true) {
-              onComplete();
-            }
-            return null;
-          }
-      
-    });
+  public void onNext(final PartialTimeSeries next, 
+                     final QuerySinkCallback callback) {
+    if (this.callback == null) {
+      synchronized (this) {
+        if (this.callback == null) {
+          this.callback = callback;
+        }
+      }
+    }
+    
+    if (this.callback != callback) {
+      // TODO WTF?
+    }
+    serdes.serialize(next, this, null /** TODO */);
   }
   
   @Override
@@ -295,5 +281,15 @@ public class ServletSink implements QuerySink {
         .finish();        
       }
     }
+  }
+
+  @Override
+  public void onComplete(final PartialTimeSeries pts) {
+    callback.onComplete(pts);
+  }
+  
+  @Override
+  public void onError(final PartialTimeSeries pts, final Throwable t) {
+    callback.onError(pts, t);
   }
 }

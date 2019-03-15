@@ -38,7 +38,6 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -56,6 +55,7 @@ import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
@@ -384,16 +384,10 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
   }
   
   @Override
-  public Deferred<Object> serialize(final PartialTimeSeries series, 
-                                    final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
-        "Not implemented yet."));
-  }
-  
-  @Override
-  public Deferred<Object> complete(final PartialTimeSeriesSet set, 
-                                   final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
+  public void serialize(final PartialTimeSeries series, 
+                        final SerdesCallback callback,
+                        final Span span) {
+    callback.onError(series, new UnsupportedOperationException(
         "Not implemented yet."));
   }
   

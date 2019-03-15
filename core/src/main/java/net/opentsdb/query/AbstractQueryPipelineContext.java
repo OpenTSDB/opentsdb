@@ -31,9 +31,10 @@ import com.google.common.graph.Traverser;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.stats.Span;
@@ -59,7 +60,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public abstract class AbstractQueryPipelineContext implements QueryPipelineContext {
+public abstract class AbstractQueryPipelineContext implements QueryPipelineContext, QuerySinkCallback {
   private static final Logger LOG = LoggerFactory.getLogger(
       AbstractQueryPipelineContext.class);
   
@@ -79,6 +80,17 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /** Used to iterate over sources when in a client streaming mode. */
   protected int source_idx = 0;
   
+  /** A map of source IDs to maps of set timestamps to time series counters.
+   * i.e. <source_id, <timestamp, time series counter>> */
+  protected Map<String, TLongObjectMap<PartialTimeSetWrapper>> pts;
+  
+  /** A map of source IDs to counters of sets. Indicates when a source ID has
+   * sent all of it's sets. */
+  protected Map<String, AtomicInteger> finished_sources;
+  
+  /** A counter of completed sets. When this matches the plan sources we're done. */
+  protected AtomicInteger total_finished;
+  
   /**
    * Default ctor.
    * @param context The user's query context.
@@ -92,6 +104,9 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     plan = new DefaultQueryPlanner(this, (QueryNode) this);
     sinks = Lists.newArrayListWithExpectedSize(1);
     countdowns = Maps.newHashMap();
+    pts = Maps.newConcurrentMap();
+    finished_sources = Maps.newConcurrentMap();
+    total_finished = new AtomicInteger();
   }
   
   @Override
@@ -321,18 +336,6 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
-  public void onComplete(final PartialTimeSeriesSet set) {
-    for (final QuerySink sink : sinks) {
-      try {
-        sink.onComplete(set);
-      } catch (Throwable e) {
-        LOG.error("Exception thrown passing results to sink: " + sink, e);
-        // TODO - should we kill the query here?
-      }
-    }
-  }
-  
-  @Override
   public void onNext(final QueryResult next) {
     final ResultWrapper wrapped = new ResultWrapper(next);
     for (final QuerySink sink : sinks) {
@@ -349,10 +352,9 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   public void onNext(final PartialTimeSeries series) {
     for (final QuerySink sink : sinks) {
       try {
-        sink.onNext(series);
-      } catch (Throwable e) {
-        LOG.error("Exception thrown passing results to sink: " + sink, e);
-        // TODO - should we kill the query here?
+        sink.onNext(series, this);
+      } catch (Throwable t) {
+        LOG.error("Failed to send data to sink: " + sink, t);
       }
     }
   }
@@ -377,6 +379,81 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /** @return The planner. */
   public DefaultQueryPlanner plan() {
     return plan;
+  }
+  
+  @Override
+  public void onComplete(final PartialTimeSeries series) {
+    // TODO - need to track multiple sinks eventually.
+    try {
+      final String set_id = series.set().node().config().getId() + ":" 
+          + series.set().dataSource();
+      
+      TLongObjectMap<PartialTimeSetWrapper> sets = pts.get(set_id);
+      if (sets == null) {
+        sets = new TLongObjectHashMap<PartialTimeSetWrapper>();
+        TLongObjectMap<PartialTimeSetWrapper> extant = 
+            pts.putIfAbsent(set_id, sets);
+        if (extant != null) {
+          sets = extant;
+        }
+      }
+      
+      PartialTimeSetWrapper wrapper = null;
+      // Trove is not concurrent. sniff.
+      synchronized (sets) {
+        long ts = series.set().start().epoch();
+        wrapper = sets.get(ts);
+        if (wrapper == null) {
+          wrapper = new PartialTimeSetWrapper();
+          PartialTimeSetWrapper extant = sets.putIfAbsent(ts, wrapper);
+          if (extant != null) {
+            wrapper = extant;
+          }
+        }
+      }
+      
+      int cnt = 0;
+      int max = -1;
+      synchronized (wrapper) {
+        if (series.set().timeSeriesCount() > 0) {
+          cnt = ++wrapper.counter;
+        }
+        if (series.set().complete()) {
+          if (series.set().timeSeriesCount() > wrapper.max) {
+            wrapper.max = series.set().timeSeriesCount();
+          }
+        }
+        max = wrapper.max;
+      }
+      
+      if (max >= 0 && max == cnt) {
+        AtomicInteger ctr = finished_sources.get(set_id);
+        if (ctr == null) {
+          ctr = new AtomicInteger();
+          AtomicInteger extant = finished_sources.putIfAbsent(set_id, ctr);
+          if (extant != null) {
+            ctr = extant;
+          }
+        }
+        
+        final int f = ctr.incrementAndGet();
+        if (series.set().totalSets() == f) {
+          final int tf = total_finished.incrementAndGet();
+          if (tf == plan.serializationSources().size()) {
+            for (final QuerySink sink : sinks) {
+              sink.onComplete();
+            }
+          }
+        }
+      }
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception processing PTS post Sink", t);
+    }
+  }
+  
+  @Override
+  public void onError(final PartialTimeSeries pts, final Throwable t) {
+    
   }
   
   /**
@@ -411,6 +488,9 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
                   + config.getId());
             }
             sinks.add(sink);
+            if (sinks.size() > 1) {
+              throw new UnsupportedOperationException("Only one sink allowed for now, sorry!");
+            }
           }
         }
         
@@ -487,4 +567,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     }
   }
   
+  /**
+   * Simple class used to keep track of a partial time series set stats.
+   */
+  class PartialTimeSetWrapper {
+    int counter;
+    int max = -1;
+  }
 }

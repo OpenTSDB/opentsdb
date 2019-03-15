@@ -34,7 +34,6 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.utils.UnitTestException;
@@ -201,23 +200,7 @@ public class TestAbstractQueryNode {
     verify(upstream.get(0), times(1)).onError(ex);
     verify(upstream.get(1), times(1)).onError(ex);
   }
-  
-  @Test
-  public void completeUpstream() throws Exception {
-    final TestAQ node = new TestAQ(factory, context);
-    node.initialize(null);
     
-    try {
-      node.completeUpstream((PartialTimeSeriesSet) null);
-      fail("Expected QueryUpstreamException");
-    } catch (QueryUpstreamException e) { }
-    
-    final PartialTimeSeriesSet set = mock(PartialTimeSeriesSet.class);
-    node.completeUpstream(set);
-    verify(upstream.get(0), times(1)).onComplete(set);
-    verify(upstream.get(1), times(1)).onComplete(set);
-  }
-  
   @Test
   public void completeUpstreamQueryResult() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
