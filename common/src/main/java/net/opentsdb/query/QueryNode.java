@@ -17,7 +17,6 @@ package net.opentsdb.query;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.stats.Span;
 
 /**
@@ -66,17 +65,6 @@ public interface QueryNode {
   public void onComplete(final QueryNode downstream, 
                          final long final_sequence,
                          final long total_sequences);
-  
-  /**
-   * Called by the downstream nodes when the partial time series set has found
-   * all of it's data and has the final count of time series. Note that as this
-   * may be asynchronous, this node should make sure it's received the right
-   * number of partial time series matching the number in this set. Some series
-   * may still be in-flight up the pipeline.
-   * 
-   * @param set A non-null set marking that all data has been found.
-   */
-  public void onComplete(final PartialTimeSeriesSet set);
   
   /**
    * Called by the downstream nodes when a new result is ready.

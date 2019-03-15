@@ -36,7 +36,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
@@ -236,11 +235,6 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   }
 
   @Override
-  public void onComplete(final PartialTimeSeriesSet set) {
-    throw new IllegalArgumentException("Not implemented yet.");
-  }
-  
-  @Override
   public void onNext(final QueryResult next) {
     sendUpstream(next);
     if (executor.state() == State.COMPLETE) {
@@ -252,7 +246,6 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   public void onNext(final PartialTimeSeries series) {
     throw new IllegalArgumentException("Not implemented yet.");
   }
-
   
   @Override
   public void onError(final Throwable t) {

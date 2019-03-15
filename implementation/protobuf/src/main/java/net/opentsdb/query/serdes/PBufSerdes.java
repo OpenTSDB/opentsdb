@@ -26,7 +26,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.PBufQueryResult;
 import net.opentsdb.data.PBufTimeSeriesId;
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
@@ -168,16 +167,10 @@ public class PBufSerdes implements TimeSeriesSerdes {
   }
   
   @Override
-  public Deferred<Object> serialize(final PartialTimeSeries series, 
-                                    final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
-        "Not implemented yet."));
-  }
-  
-  @Override
-  public Deferred<Object> complete(final PartialTimeSeriesSet set, 
-                                   final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
+  public void serialize(final PartialTimeSeries series, 
+                        final SerdesCallback callback,
+                        final Span span) {
+    callback.onError(series, new UnsupportedOperationException(
         "Not implemented yet."));
   }
   

@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.stats.Span;
@@ -110,11 +109,6 @@ public abstract class AbstractQueryNode implements QueryNode {
         LOG.error("Failed to call upstream onComplete on Node: " + us, e);
       }
     }
-  }
-  
-  @Override
-  public void onComplete(final PartialTimeSeriesSet set) {
-    throw new IllegalStateException("The node has not implemented this yet");
   }
   
   @Override
@@ -229,26 +223,6 @@ public abstract class AbstractQueryNode implements QueryNode {
     for (final QueryNode node : upstream) {
       try {
         node.onComplete(this, final_sequence, total_sequences);
-      } catch (Exception e) {
-        LOG.warn("Failed to mark upstream node complete: " + node, e);
-      }
-    }
-  }
-  
-  /**
-   * Passes the set upstream to all of the linked nodes. If one or more
-   * upstream consumers throws an exception, it's caught and logged as a warning.
-   * 
-   * @param set The non-null set to pass.
-   */
-  protected void completeUpstream(final PartialTimeSeriesSet set) {
-    if (set == null) {
-      throw new QueryUpstreamException("Set cannot be null.");
-    }
-    
-    for (final QueryNode node : upstream) {
-      try {
-        node.onComplete(set);
       } catch (Exception e) {
         LOG.warn("Failed to mark upstream node complete: " + node, e);
       }

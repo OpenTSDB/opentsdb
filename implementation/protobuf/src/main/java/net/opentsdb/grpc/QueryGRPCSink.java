@@ -23,10 +23,10 @@ import com.google.common.hash.HashCode;
 
 import io.grpc.stub.StreamObserver;
 import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QuerySink;
+import net.opentsdb.query.QuerySinkCallback;
 import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.serdes.PBufSerdes;
 import net.opentsdb.query.serdes.SerdesFactory;
@@ -83,11 +83,6 @@ public class QueryGRPCSink implements QuerySink {
     }
     config.observer.onCompleted();
   }
-
-  @Override
-  public void onComplete(final PartialTimeSeriesSet set) {
-    throw new IllegalStateException("Not implemented yet.");
-  }
   
   @Override
   public void onNext(final net.opentsdb.query.QueryResult next) {
@@ -101,8 +96,9 @@ public class QueryGRPCSink implements QuerySink {
   }
   
   @Override
-  public void onNext(final PartialTimeSeries next) {
-    throw new IllegalStateException("Not implemented yet.");
+  public void onNext(final PartialTimeSeries next,
+                     final QuerySinkCallback callback) {
+    callback.onError(next, new IllegalStateException("Not implemented yet."));
   }
 
   @Override

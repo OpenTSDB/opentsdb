@@ -35,6 +35,10 @@ public interface PartialTimeSeriesSet extends AutoCloseable {
    * change between sets for the same query. */
   public int totalSets();
  
+  /** @return Whether or not the set has found all of the time series and
+   * {@link #timeSeriesCount()} is at the final value. */
+  public boolean complete();
+  
   /** @return The node this set came from. */
   public QueryNode node();
   
