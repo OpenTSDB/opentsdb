@@ -305,7 +305,9 @@ public class Tsdb1xScanner {
                  .finish();
           }
           
-          keys_to_ids.clear();
+          synchronized (keys_to_ids) {
+            keys_to_ids.clear();
+          }
           if (owner.hasException()) {
             owner.scannerDone();
             scanner.clearFilter();
@@ -609,7 +611,9 @@ public class Tsdb1xScanner {
       
       @Override
       public Object call(final ArrayList<Object> ignored) throws Exception {
-        keys_to_ids.clear();
+        synchronized (keys_to_ids) {
+          keys_to_ids.clear();
+        }
         if (owner.hasException()) {
           complete(child, 0);
         } else if (!result.isFull() && keep_going) {
@@ -670,13 +674,19 @@ public class Tsdb1xScanner {
    * clean up quicker. */
   private void clear() {
     if (keys_to_ids != null) {
-      keys_to_ids.clear();
+      synchronized (keys_to_ids) {
+        keys_to_ids.clear();
+      }
     }
     if (skips != null) {
-      skips.clear();
+      synchronized (skips) {
+        skips.clear();
+      }
     }
     if (keepers != null) {
-      keepers.clear();
+      synchronized (keepers) {
+        keepers.clear();
+      }
     }
   }
   
@@ -739,20 +749,22 @@ public class Tsdb1xScanner {
       }
     }
     
-    ResolvingId id = keys_to_ids.get(hash);
-    if (id == null) {
-      ResolvingId new_id = new ResolvingId(tsuid, hash);
-      final ResolvingId extant = keys_to_ids.putIfAbsent(hash, new_id);
-      if (extant == null) {
-        // start resolution of the tags to strings, then filter
-        return new_id.decode(span)
-            .addCallback(new ResolvedCB(row, result));
+    synchronized (keys_to_ids) {
+      ResolvingId id = keys_to_ids.get(hash);
+      if (id == null) {
+        ResolvingId new_id = new ResolvingId(tsuid, hash);
+        final ResolvingId extant = keys_to_ids.putIfAbsent(hash, new_id);
+        if (extant == null) {
+          // start resolution of the tags to strings, then filter
+          return new_id.decode(span)
+              .addCallback(new ResolvedCB(row, result));
+        } else {
+          // add it
+          return extant.deferred.addCallback(new ResolvedCB(row, result));
+        }
       } else {
-        // add it
-        return extant.deferred.addCallback(new ResolvedCB(row, result));
+        return id.deferred.addCallback(new ResolvedCB(row, result));
       }
-    } else {
-      return id.deferred.addCallback(new ResolvedCB(row, result));
     }
   }
   
