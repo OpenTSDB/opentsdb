@@ -277,13 +277,13 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   @Override
   public void serializeComplete(final Span span) {
-    if (partials.size() > 0) {
+    if (!initialized /* Onlyl on QueryResult */ && partials.size() > 0) {
       serializePush();
     }
     
     try {
       // TODO - other bits like the query and trace data
-      if (partials.isEmpty()) {
+      if (!initialized /* Onlyl on QueryResult */ && partials.isEmpty()) {
         json.writeStartObject();
         json.writeArrayFieldStart("results");
       }
