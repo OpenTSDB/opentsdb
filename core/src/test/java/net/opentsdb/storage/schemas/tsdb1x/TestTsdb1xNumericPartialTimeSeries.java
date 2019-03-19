@@ -43,7 +43,7 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 import net.opentsdb.utils.Bytes;
 
-public class TestNumericPartialTimeSeries {
+public class TestTsdb1xNumericPartialTimeSeries {
   private static final TimeStamp BASE_TIME = new SecondTimeStamp(1514764800);
   private static final byte[] APPEND_Q = 
       new byte[] { Schema.APPENDS_PREFIX, 0, 0 };
@@ -63,7 +63,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void addColumnPuts() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     pts.addColumn((byte) 0, 
         BASE_TIME,
         NumericCodec.buildSecondQualifier(0, (short) 0), 
@@ -216,7 +216,7 @@ public class TestNumericPartialTimeSeries {
 
   @Test
   public void addColumnAppends() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, 
         BASE_TIME,
@@ -367,7 +367,7 @@ public class TestNumericPartialTimeSeries {
 
   @Test
   public void addColumnMixed() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX,
         BASE_TIME,
@@ -439,7 +439,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void addColumnExceptionsAndBadData() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     try {
       pts.addColumn((byte) 0, 
           BASE_TIME,
@@ -514,7 +514,7 @@ public class TestNumericPartialTimeSeries {
         NumericCodec.buildSecondQualifier(180, (short) 0)
     );
     
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     pts.addColumn((byte) 0, 
         BASE_TIME,
         compacted_qualifier, 
@@ -574,7 +574,7 @@ public class TestNumericPartialTimeSeries {
         NumericCodec.buildMsQualifier(180000, (short) 0)
     );
     
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     pts.addColumn((byte) 0, 
         BASE_TIME,
         compacted_qualifier, 
@@ -620,7 +620,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void addColumnFixOldTSDIssues() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn((byte) 0, 
         BASE_TIME,
@@ -696,7 +696,7 @@ public class TestNumericPartialTimeSeries {
 
   @Test
   public void dedupeSortedSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, 
         BASE_TIME,
@@ -745,7 +745,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void dedupeSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -919,7 +919,7 @@ public class TestNumericPartialTimeSeries {
 
   @Test
   public void dedupeMilliSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1093,7 +1093,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void dedupeNanoSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1287,7 +1287,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void dedupeSortedMilliSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42),
@@ -1314,7 +1314,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void dedupeSortedNanoSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1344,7 +1344,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void dedupeMixed() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1471,7 +1471,7 @@ public class TestNumericPartialTimeSeries {
 
   @Test
   public void reverseOneCell() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     assertFalse(pts.needs_repair);
     
     // no-op
@@ -1514,7 +1514,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void reverseSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     // two
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
@@ -1583,7 +1583,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void reverseMilliSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     // two
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
@@ -1652,7 +1652,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void reverseNanoSeconds() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     // two
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
@@ -1730,7 +1730,7 @@ public class TestNumericPartialTimeSeries {
 
   @Test
   public void reverseMixed() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1769,7 +1769,7 @@ public class TestNumericPartialTimeSeries {
     array = new long[3];
     when(object.object()).thenReturn(array);
     
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
         pool, 42, SET);
@@ -1799,7 +1799,7 @@ public class TestNumericPartialTimeSeries {
   
   @Test
   public void setEmpty() throws Exception {
-    NumericPartialTimeSeries pts = new NumericPartialTimeSeries();
+    Tsdb1xNumericPartialTimeSeries pts = new Tsdb1xNumericPartialTimeSeries();
     pts.setEmpty(42,  SET);
     assertNull(pts.data());
     assertEquals(42, pts.idHash());

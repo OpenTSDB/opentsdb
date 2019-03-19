@@ -24,14 +24,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
-import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
 
@@ -43,10 +41,9 @@ import net.opentsdb.pools.PooledObject;
  * 
  * @since 3.0
  */
-public class NumericPartialTimeSeries implements PartialTimeSeries, 
-  CloseablePooledObject{
+public class Tsdb1xNumericPartialTimeSeries implements Tsdb1xPartialTimeSeries {
   private static final Logger LOG = LoggerFactory.getLogger(
-      NumericPartialTimeSeries.class);
+      Tsdb1xNumericPartialTimeSeries.class);
   
   /** Reference to the Object pool for this instance. */
   protected PooledObject pooled_object;
@@ -76,7 +73,7 @@ public class NumericPartialTimeSeries implements PartialTimeSeries,
   /**
    * Default ctor.
    */
-  public NumericPartialTimeSeries() {
+  public Tsdb1xNumericPartialTimeSeries() {
     reference_counter = new AtomicInteger();
   }
   
@@ -107,35 +104,21 @@ public class NumericPartialTimeSeries implements PartialTimeSeries,
     }
   }
   
-  /**
-   * Sets the ID hash and the set but leaves the array null.
-   * @param id_hash
-   * @param set
-   */
-  void setEmpty(final long id_hash, 
-                final PartialTimeSeriesSet set) {
+  @Override
+  public void setEmpty(final long id_hash, 
+                       final PartialTimeSeriesSet set) {
     this.id_hash = id_hash;
     this.set = set;
   }
   
-  /**
-   * Adds a column to the series.
-   * @param prefix The schema prefix so we know what kind of data we're dealing
-   * with.
-   * @param base_timestamp The base timestamp.
-   * @param qualifier The non-null qualifier.
-   * @param value The non-null value.
-   * @param long_array_pool The array pool to claim an array from.
-   * @param id_hash The hash for the time series Id.
-   * @param set The set this partial belongs to.
-   */
-  void addColumn(final byte prefix, 
-                 final TimeStamp base_timestamp,
-                 final byte[] qualifier, 
-                 final byte[] value,
-                 final ObjectPool long_array_pool, 
-                 final long id_hash, 
-                 final PartialTimeSeriesSet set) {
+  @Override
+  public void addColumn(final byte prefix, 
+                        final TimeStamp base_timestamp,
+                        final byte[] qualifier, 
+                        final byte[] value,
+                        final ObjectPool long_array_pool, 
+                        final long id_hash, 
+                        final PartialTimeSeriesSet set) {
     if (qualifier.length < 2) {
       throw new IllegalDataException("Qualifier was too short.");
     }
@@ -344,13 +327,7 @@ public class NumericPartialTimeSeries implements PartialTimeSeries,
     }
   }
   
-  /**
-   * Sorts, de-duplicates and optionally reverses the data in this series. Call
-   * it only after adding all of the data.
-   * @param keep_earliest Whether or not to keep the earliest duplicates in the
-   * array or the latest. 
-   * @param reverse Whether or not to reverse the data.
-   */
+  @Override
   public void dedupe(final boolean keep_earliest, final boolean reverse) {
     if (pooled_array == null) {
       // no-op
