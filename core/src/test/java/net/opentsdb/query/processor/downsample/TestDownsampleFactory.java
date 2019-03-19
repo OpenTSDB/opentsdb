@@ -706,7 +706,7 @@ public class TestDownsampleFactory {
     intervals.add(new Pair<Long, String>(86_400L * 30L * 1000L, "1d")); // 1n
     intervals.add(new Pair<Long, String>(86_400L * 7L * 1000L, "6h")); // 1w
     intervals.add(new Pair<Long, String>(86_400L * 1000L, "1h")); // 1d
-    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "15m")); // 6h
+    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "1m")); // 6h
     intervals.add(new Pair<Long, String>(0L, "1m")); // default
     
     assertEquals("1w", DownsampleFactory.getAutoInterval(
@@ -725,9 +725,9 @@ public class TestDownsampleFactory {
         (86_400L * 7L * 1000L) - 1, intervals));
     assertEquals("1h", DownsampleFactory.getAutoInterval(
         86_400L * 1000L, intervals));
-    assertEquals("15m", DownsampleFactory.getAutoInterval(
+    assertEquals("1m", DownsampleFactory.getAutoInterval(
         (86_400L * 1000L) - 1, intervals));
-    assertEquals("15m", DownsampleFactory.getAutoInterval(
+    assertEquals("1m", DownsampleFactory.getAutoInterval(
         3_600L * 6L * 1000L, intervals));
     assertEquals("1m", DownsampleFactory.getAutoInterval(
         (3_600L * 6L * 1000L) - 1, intervals));
