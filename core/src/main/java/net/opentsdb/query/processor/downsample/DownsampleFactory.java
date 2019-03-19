@@ -103,7 +103,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     intervals.add(new Pair<Long, String>(86_400L * 30L * 1000L, "1d")); // 1n
     intervals.add(new Pair<Long, String>(86_400L * 7L * 1000L, "6h")); // 1w
     intervals.add(new Pair<Long, String>(86_400L * 1000L, "1h")); // 1d
-    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "15m")); // 6h
+    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "1m")); // 6h
     intervals.add(new Pair<Long, String>(0L, "1m")); // default
     
     registerConfigs(tsdb);
