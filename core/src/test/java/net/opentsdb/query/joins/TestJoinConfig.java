@@ -75,15 +75,13 @@ public class TestJoinConfig {
     assertEquals(JoinType.CROSS, config.getJoinType());
     assertTrue(config.getJoins().isEmpty());
     
-    try {
-      JoinConfig.newBuilder()
+    config = (JoinConfig) JoinConfig.newBuilder()
         //.setType(JoinType.INNER)
         .addJoins("host", "Hostname")
         .addJoins("owner", "owner")
         .setId("join1")
         .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertEquals(JoinType.NATURAL_OUTER, config.getJoinType());
 
     try {
       JoinConfig.newBuilder()

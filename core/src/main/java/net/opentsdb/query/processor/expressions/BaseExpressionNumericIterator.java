@@ -75,8 +75,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param sources The non-null and non-empty list of sources.
    */
   BaseExpressionNumericIterator(final QueryNode node, 
-                         final QueryResult result,
-                         final Map<String, TimeSeries> sources) {
+                                final QueryResult result,
+                                final Map<String, TimeSeries> sources) {
     next_ts.setMax();
     this.node = (BinaryExpressionNode) node;
     infectious_nan = this.node.expressionConfig().getInfectiousNan();
@@ -139,6 +139,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   static NumericType buildLiteral(final Object literal, final OperandType type) {
     switch (type) {
     case NULL:
+    case VARIABLE:
+    case SUB_EXP:
       return null;
     case LITERAL_BOOL:
       return new MutableNumericType(((boolean) literal) ? 1L : 0L);

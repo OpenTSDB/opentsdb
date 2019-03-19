@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+
 import java.util.TreeMap;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -125,7 +126,8 @@ public class Joiner {
     
     if (results.get(0).idType() == Const.TS_BYTE_ID && 
         encoded_joins == null &&
-        config.getJoinType() != JoinType.NATURAL) {
+        config.getJoinType() != JoinType.NATURAL &&
+        config.getJoinType() != JoinType.NATURAL_OUTER) {
       throw new IllegalStateException("Received a result with encoded "
           + "IDs but the local encoded tags map was null.");
     }
@@ -244,7 +246,8 @@ public class Joiner {
     
     if (results.get(0).idType() == Const.TS_BYTE_ID && 
         encoded_joins == null &&
-        config.getJoinType() != JoinType.NATURAL) {
+        config.getJoinType() != JoinType.NATURAL &&
+        config.getJoinType() != JoinType.NATURAL_OUTER) {
       throw new IllegalStateException("Received a result with encoded "
           + "IDs but the local encoded tags map was null.");
     }
@@ -630,10 +633,13 @@ public class Joiner {
     
     switch (config.type) {
     case NATURAL:
+    case NATURAL_OUTER:
     case CROSS:
       // copy all the tag values for natural and cross IF no tags are
       // present.
-      if (config.joins.isEmpty() || config.type == JoinType.NATURAL) {
+      if (config.joins.isEmpty() || 
+          config.type == JoinType.NATURAL || 
+          config.type == JoinType.NATURAL_OUTER) {
         int matched_tags = 0;
         if (sorted_tags != null) {
           for (final Entry<String, String> entry : sorted_tags.entrySet()) {
@@ -704,10 +710,13 @@ public class Joiner {
     try {
       switch (config.type) {
       case NATURAL:
+      case NATURAL_OUTER:
       case CROSS:
         // copy all the tag values for natural and cross IF no tags are
         // present.
-        if (encoded_joins == null || config.type == JoinType.NATURAL) {
+        if (encoded_joins == null || 
+            config.type == JoinType.NATURAL ||
+            config.type == JoinType.NATURAL_OUTER) {
           int matched_tags = 0;
           if (id.tags() != null) {
             for (final Entry<byte[], byte[]> entry : id.tags().entrySet()) {
