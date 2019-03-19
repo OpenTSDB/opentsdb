@@ -18,7 +18,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -37,7 +36,6 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
@@ -197,15 +195,8 @@ public class TestBaseExpressionNumericIterator extends BaseNumericTest {
     assertFalse(literal.isInteger());
     assertEquals(42.75, literal.doubleValue(), 0.001);
     
-    try {
-      MockIterator.buildLiteral("a", OperandType.VARIABLE);
-      fail("Expected QueryDownstreamException");
-    } catch (QueryDownstreamException e) { }
-    
-    try {
-      MockIterator.buildLiteral("a", OperandType.SUB_EXP);
-      fail("Expected QueryDownstreamException");
-    } catch (QueryDownstreamException e) { }
+    assertNull(MockIterator.buildLiteral("a", OperandType.VARIABLE));
+    assertNull(MockIterator.buildLiteral("a", OperandType.SUB_EXP));
   }
   
   class MockIterator extends BaseExpressionNumericIterator<NumericType> {

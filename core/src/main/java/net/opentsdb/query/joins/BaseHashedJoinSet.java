@@ -56,6 +56,8 @@ public abstract class BaseHashedJoinSet implements
     case LEFT:
     case RIGHT:
       return new InnerJoin(this);
+    case NATURAL_OUTER:
+      return new NaturalOuterJoin(this);
     case OUTER:
       return new OuterJoin(this, false);
     case OUTER_DISJOINT:

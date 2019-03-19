@@ -61,6 +61,8 @@ public class JoinConfig extends BaseQueryNodeConfig {
     RIGHT_DISJOINT,
     /** Full tag join in both. No cross product */
     NATURAL,
+    /** A full outer based on the full tag set. No Cross Product. */
+    NATURAL_OUTER,
     /** A full cross-join. */
     CROSS,
   }
@@ -87,7 +89,9 @@ public class JoinConfig extends BaseQueryNodeConfig {
     }
     type = builder.joinType;
     if (builder.joins == null) {
-      if (type == JoinType.NATURAL || type == JoinType.CROSS) {
+      if (type == JoinType.NATURAL || 
+          type == JoinType.NATURAL_OUTER || 
+          type == JoinType.CROSS) {
         joins = Collections.emptyMap();
       } else {
         throw new IllegalArgumentException("One or more join tag pairs "
@@ -199,6 +203,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
     protected Builder() {
       setId("Join");
       setType("Join");
+      joinType = JoinType.NATURAL_OUTER;
     }
     
     public Builder setJoinType(final JoinType type) {
