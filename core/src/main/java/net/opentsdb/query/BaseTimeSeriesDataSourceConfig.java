@@ -103,6 +103,9 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   /** Map of dataSource() IDs to amounts. */
   protected final Map<String, Pair<Boolean, TemporalAmount>> amounts;
   
+  /** Whether or not this node has been setup already. */
+  protected final boolean has_been_setup;
+  
   /**
    * Private ctor for the builder.
    * @param builder The non-null builder.
@@ -128,6 +131,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         Collections.emptyList() : builder.rollup_intervals;
     pre_padding = builder.pre_padding;
     post_padding = builder.post_padding;
+    has_been_setup = builder.has_been_setup;
     
     if (!Strings.isNullOrEmpty(builder.interval) && 
         builder.amounts == null) {
@@ -260,6 +264,11 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   }
   
   @Override
+  public boolean hasBeenSetup() {
+    return has_been_setup;
+  }
+  
+  @Override
   public boolean joins() {
     return false;
   }
@@ -335,6 +344,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         .setPreviousIntervals(config.getPreviousIntervals())
         .setNextIntervals(config.getNextIntervals())
         .setTimeShifts(config.timeShifts())
+        .setHasBeenSetup(config.hasBeenSetup())
         // TODO - overrides if we keep em.
         .setType(config.getType())
         .setId(config.getId());
@@ -524,6 +534,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     @JsonProperty
     protected int next;
     protected Map<String, Pair<Boolean, TemporalAmount>> amounts; 
+    protected boolean has_been_setup;
     
     protected Builder() {
       setType(TimeSeriesDataSourceConfig.DEFAULT);
@@ -644,6 +655,12 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     
     public Builder setTimeShifts(final Map<String, Pair<Boolean, TemporalAmount>> amounts) {
       this.amounts = amounts;
+      return this;
+    }
+    
+    @Override
+    public Builder setHasBeenSetup(final boolean has_been_setup) {
+      this.has_been_setup = has_been_setup;
       return this;
     }
     

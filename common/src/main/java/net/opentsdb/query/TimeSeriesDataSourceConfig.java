@@ -89,6 +89,10 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
    * The values are <previous == true/post == false, TemporalAmount> */
   public Map<String, Pair<Boolean, TemporalAmount>> timeShifts();
   
+  /** @return Whether or not the node has been setup so we can avoid infinite
+   * loops when configuring the graph. */
+  public boolean hasBeenSetup();
+  
   /**
    * A base builder interface for data source configs.
    */
@@ -133,6 +137,8 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
     public Builder setPreviousIntervals(final int intervals);
     
     public Builder setNextIntervals(final int intervals);
+    
+    public Builder setHasBeenSetup(final boolean has_been_setup);
     
     public String id();
     

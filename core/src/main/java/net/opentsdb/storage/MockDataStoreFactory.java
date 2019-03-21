@@ -71,8 +71,8 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
-    if (config instanceof WrappedTimeSeriesDataSourceConfig) {
-      // this was an offset.
+    if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
+      // all done.
       return;
     }
     
@@ -85,14 +85,6 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
       }
       
       final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
-      // ugly way to see if we've been setup already
-      for (final QueryNodeConfig predecessor : predecessors) {
-        for (final QueryNodeConfig successor : planner.configGraph().successors(predecessor)) {
-          if (((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(successor.getId())) {
-            return;
-          }
-        }
-      }
       final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
           .setConfig((TimeSeriesDataSourceConfig) config)
           .setId(config.getId() + "-time-shift")
@@ -107,7 +99,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
       
       for (final String new_id : ((TimeSeriesDataSourceConfig) config).timeShifts().keySet()) {
         final TimeSeriesDataSourceConfig new_config = 
-            new WrappedTimeSeriesDataSourceConfig(new_id, (TimeSeriesDataSourceConfig) config);
+            new WrappedTimeSeriesDataSourceConfig(new_id, (TimeSeriesDataSourceConfig) config, true);
         planner.addEdge(shift_config, new_config);
       }
     }

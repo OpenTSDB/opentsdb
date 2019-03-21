@@ -540,6 +540,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         throw new IllegalStateException("Factory returned a null "
             + "instance for " + node);
       }
+      
       graph.addNode(query_node);
       nodes_map.put(query_node.config().getId(), query_node);
     }
@@ -594,6 +595,20 @@ public class DefaultQueryPlanner implements QueryPlanner {
   @Override
   public QueryNode nodeForId(final String id) {
     return nodes_map.get(id);
+  }
+  
+  /**
+   * Helper for unit testing.
+   * @param id A non-null ID to search for.
+   * @return The matching config node if found, null if not.
+   */
+  public QueryNodeConfig configNodeForId(final String id) {
+    for (final QueryNodeConfig config : config_graph.nodes()) {
+      if (config.getId().equals(id)) {
+        return config;
+      }
+    }
+    return null;
   }
   
   /**

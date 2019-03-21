@@ -40,6 +40,9 @@ public class WrappedTimeSeriesDataSourceConfig implements
   /** The source config. */
   private final TimeSeriesDataSourceConfig config;
   
+  /** Whether or not we've been setup. */
+  public final boolean has_been_setup;
+  
   /**
    * Default ctor.
    * @param id A non-null and non-empty ID.
@@ -47,12 +50,14 @@ public class WrappedTimeSeriesDataSourceConfig implements
    */
   public WrappedTimeSeriesDataSourceConfig(
       final String id, 
-      final TimeSeriesDataSourceConfig config) {
+      final TimeSeriesDataSourceConfig config,
+      final boolean has_been_setup) {
     if (Strings.isNullOrEmpty(id)) {
       throw new IllegalArgumentException("ID cannot be null or empty.");
     }
     this.id = id;
     this.config = config;
+    this.has_been_setup = has_been_setup;
   }
   
   @Override
@@ -212,6 +217,11 @@ public class WrappedTimeSeriesDataSourceConfig implements
     return config.getNextIntervals();
   }
 
+  @Override
+  public boolean hasBeenSetup() {
+    return has_been_setup;
+  }
+  
   @Override
   public Map<String, Pair<Boolean, TemporalAmount>> timeShifts() {
     return config.timeShifts();
