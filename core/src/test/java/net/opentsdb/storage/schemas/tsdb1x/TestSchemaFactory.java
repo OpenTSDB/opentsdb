@@ -15,6 +15,7 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -39,15 +40,22 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
+import net.opentsdb.query.processor.timeshift.TimeShiftFactory;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.uid.UniqueIdType;
@@ -55,20 +63,25 @@ import net.opentsdb.uid.UniqueIdType;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ SchemaFactory.class })
 public class TestSchemaFactory extends SchemaBase {
-
-  private MockTSDB tsdb;
+  
   private Tsdb1xDataStore store;
-  private QueryNode node;
+  private TimeSeriesDataSource node;
   
   @Before
   public void before() throws Exception {
-    tsdb = new MockTSDB();
     store = mock(Tsdb1xDataStore.class);
-    node = mock(QueryNode.class);
+    node = mock(TimeSeriesDataSource.class);
     
-    when(store.newNode(any(QueryPipelineContext.class), 
-        any(QueryNodeConfig.class)))
-      .thenReturn(node);
+    when(store.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
+      .thenAnswer(new Answer<QueryNode>() {
+        @Override
+        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
+          System.out.println("     INIT: " + "");
+          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
+          when(node.initialize(any(Span.class))).thenReturn(Deferred.fromResult(null));
+          return node;
+        }
+      });
     
     PowerMockito.whenNew(Schema.class).withAnyArguments()
       .thenAnswer(new Answer<Schema>() {
@@ -113,21 +126,10 @@ public class TestSchemaFactory extends SchemaBase {
         .setId("m1")
         .build();
     
-    QueryNodeConfig[] configs = new QueryNodeConfig[1];
-    when(store.newNode(any(QueryPipelineContext.class), 
-        any(QueryNodeConfig.class)))
-      .thenAnswer(new Answer<QueryNode>() {
-        @Override
-        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          configs[0] = (QueryNodeConfig) invocation.getArguments()[1];
-          return null;
-        }
-      });
-    
     SchemaFactory factory = new SchemaFactory();
     factory.initialize(tsdb, null).join(1);
     factory.newNode(mock(QueryPipelineContext.class), config);
-    TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) configs[0];
+    TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) node.config();
     assertEquals("1h", new_config.getPrePadding());
     assertEquals("30m", new_config.getPostPadding());
     assertEquals("1h", new_config.getSummaryInterval());
@@ -152,17 +154,6 @@ public class TestSchemaFactory extends SchemaBase {
     when(rollup_config.getPossibleIntervals("1h"))
       .thenReturn(Lists.newArrayList("1h", "30m"));
     
-    QueryNodeConfig[] configs = new QueryNodeConfig[1];
-    when(store.newNode(any(QueryPipelineContext.class), 
-        any(QueryNodeConfig.class)))
-      .thenAnswer(new Answer<QueryNode>() {
-        @Override
-        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          configs[0] = (QueryNodeConfig) invocation.getArguments()[1];
-          return null;
-        }
-      });
-    
     SchemaFactory factory = new SchemaFactory();
     factory.registerConfigs(tsdb);
     tsdb.config.override(factory.getConfigKey(
@@ -173,7 +164,7 @@ public class TestSchemaFactory extends SchemaBase {
     factory.initialize(tsdb, null).join(1);
     factory.newNode(mock(QueryPipelineContext.class), config);
     
-    TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) configs[0];
+    TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) node.config();
     assertEquals("1h", new_config.getPrePadding());
     assertEquals("30m", new_config.getPostPadding());
     assertEquals("1h", new_config.getSummaryInterval());
@@ -212,5 +203,95 @@ public class TestSchemaFactory extends SchemaBase {
     factory.encodeJoinMetrics(Lists.newArrayList(), null);
     verify(factory.schema, times(1)).getIds(
         eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+  }
+
+  @Test
+  public void setupWithOutOffsets() throws Exception {
+    SchemaFactory factory = new SchemaFactory();
+    factory.initialize(tsdb, null).join(1);
+    
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
+        .setId("m1")
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .addExecutionGraphNode(config)
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .build();
+    
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
+    when(context.tsdb()).thenReturn(tsdb);
+    when(tsdb.getRegistry().getQueryNodeFactory(null)).thenReturn(factory);
+    when(tsdb.getRegistry().getQueryNodeFactory("timeshift"))
+      .thenReturn(new TimeShiftFactory());
+    QueryNode sink = mock(QueryNode.class);
+    DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
+    plan.plan(null).join();
+    
+    assertEquals(2, plan.configGraph().nodes().size());
+    QueryNodeConfig node = plan.configNodeForId("m1");
+    assertSame(config, node);
+  }
+  
+  @Test
+  public void setupWithOffsets() throws Exception {
+    SchemaFactory factory = new SchemaFactory();
+    factory.initialize(tsdb, null).join(1);
+    
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
+        .setTimeShiftInterval("1d")
+        .setPreviousIntervals(2)
+        .setNextIntervals(1)
+        .setId("m1")
+        .build();
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .addExecutionGraphNode(config)
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .build();
+    
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
+    when(context.tsdb()).thenReturn(tsdb);
+    when(tsdb.getRegistry().getQueryNodeFactory(null)).thenReturn(factory);
+    when(tsdb.getRegistry().getQueryNodeFactory("timeshift"))
+      .thenReturn(new TimeShiftFactory());
+    QueryNode sink = mock(QueryNode.class);
+    DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
+    plan.plan(null).join();
+    
+    assertEquals(6, plan.configGraph().nodes().size());
+    QueryNodeConfig node = plan.configNodeForId("m1");
+    assertSame(config, node);
+    
+    QueryNodeConfig shift = plan.configNodeForId("m1-time-shift");
+    assertTrue(shift instanceof TimeShiftConfig);
+    assertFalse(plan.configGraph().hasEdgeConnecting(shift, config));
+    
+    node = plan.configNodeForId("m1-previous-P1D");
+    assertTrue(node instanceof WrappedTimeSeriesDataSourceConfig);
+    assertSame(config.timeShifts(), ((WrappedTimeSeriesDataSourceConfig) node).timeShifts());
+    assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
+    
+    node = plan.configNodeForId("m1-previous-P2D");
+    assertTrue(node instanceof WrappedTimeSeriesDataSourceConfig);
+    assertSame(config.timeShifts(), ((WrappedTimeSeriesDataSourceConfig) node).timeShifts());
+    assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
+    
+    node = plan.configNodeForId("m1-next-P1D");
+    assertTrue(node instanceof WrappedTimeSeriesDataSourceConfig);
+    assertSame(config.timeShifts(), ((WrappedTimeSeriesDataSourceConfig) node).timeShifts());
+    assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
   }
 }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.List;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,9 +37,10 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
@@ -125,7 +127,38 @@ public class SchemaFactory extends BaseTSDBPlugin
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
-    // No-op
+    if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
+      // all done.
+      return;
+    }
+    
+    // TODO - Make this a shared method
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null &&
+        !((TimeSeriesDataSourceConfig) config).timeShifts().isEmpty()) {
+      if (((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(config.getId())) {
+        // child who has already been initialized.
+        return;
+      }
+      
+      final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
+      final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+          .setConfig((TimeSeriesDataSourceConfig) config)
+          .setId(config.getId() + "-time-shift")
+          .build();
+      if (planner.configGraph().nodes().contains(shift_config)) {
+        return;
+      }
+      
+      for (final QueryNodeConfig predecessor : predecessors) {
+        planner.addEdge(predecessor, shift_config);
+      }
+      
+      for (final String new_id : ((TimeSeriesDataSourceConfig) config).timeShifts().keySet()) {
+        final TimeSeriesDataSourceConfig new_config = 
+            new WrappedTimeSeriesDataSourceConfig(new_id, (TimeSeriesDataSourceConfig) config, true);
+        planner.addEdge(shift_config, new_config);
+      }
+    }
   }
 
   @Override
@@ -168,7 +201,6 @@ public class SchemaFactory extends BaseTSDBPlugin
         builder.setPostPadding("30m");
       }
       
-      //planner.replace(source_config, builder.build());
       source_config = builder.build();
     }
     
