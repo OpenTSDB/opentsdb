@@ -66,6 +66,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -385,7 +386,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   }
 
   @Test
-  public void ctoreTimestamps() throws Exception {
+  public void ctorTimestamps() throws Exception {
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(END_TS))
@@ -409,6 +410,33 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     mget = new Tsdb1xMultiGet(node, source_config, tsuids);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
+  }
+  
+  @Test
+  public void ctorTimestampsOffset() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(END_TS))
+        .setEnd(Integer.toString(END_TS + 3600))
+        .setExecutionGraph(Collections.emptyList())
+        .build();
+    
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+        "m1-previous-P1D",
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(METRIC_STRING)
+                .build())
+            .addSummaryAggregation("max")
+            .setTimeShiftInterval("1d")
+            .setPreviousIntervals(2)
+            .setId("m1")
+            .build(),
+        true);
+    when(context.query()).thenReturn(query);
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
   }
 
   @Test
