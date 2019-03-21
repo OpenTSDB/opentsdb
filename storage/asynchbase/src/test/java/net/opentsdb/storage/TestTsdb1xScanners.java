@@ -70,6 +70,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.DefaultNamedFilter;
@@ -361,6 +362,25 @@ public class TestTsdb1xScanners extends UTBase {
     scanners = new Tsdb1xScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
+    
+    // offset
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+        "m1-previous-P1D",
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(METRIC_STRING)
+                .build())
+            .addSummaryAggregation("max")
+            .setPrePadding("2h")
+            .setPostPadding("2h")
+            .setTimeShiftInterval("1d")
+            .setPreviousIntervals(2)
+            .setId("m1")
+            .build(),
+        true);
+    scanners = new Tsdb1xScanners(node, source_config);
+    start = scanners.setStartKey(METRIC_BYTES, null, null);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
   }
   
   @Test
@@ -430,6 +450,25 @@ public class TestTsdb1xScanners extends UTBase {
     scanners = new Tsdb1xScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 10800), null), stop);
+    
+    // offset
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+        "m1-previous-P1D",
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(METRIC_STRING)
+                .build())
+            .addSummaryAggregation("max")
+            .setPrePadding("2h")
+            .setPostPadding("2h")
+            .setTimeShiftInterval("1d")
+            .setPreviousIntervals(2)
+            .setId("m1")
+            .build(),
+        true);
+    scanners = new Tsdb1xScanners(node, source_config);
+    stop = scanners.setStopKey(METRIC_BYTES, null);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900 - 86400 + 10800, null), stop);
   }
 
   @Test

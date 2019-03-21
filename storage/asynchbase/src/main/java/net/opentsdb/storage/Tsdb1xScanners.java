@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import com.stumbleupon.async.Callback;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -63,6 +65,7 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Pair;
 
 /**
  * The owner/container for one or more HBase scanners used to execute a
@@ -417,7 +420,21 @@ public class Tsdb1xScanners implements HBaseExecutor {
   byte[] setStartKey(final byte[] metric, 
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
-    long start = node.pipelineContext().query().startTime().epoch();
+    long start;
+    if (source_config.timeShifts() == null || 
+        !source_config.timeShifts().containsKey(source_config.getId())) {
+      start = node.pipelineContext().query().startTime().epoch();
+    } else {
+      TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts().get(source_config.getId());
+      if (pair.getKey()) {
+        ts.subtract(pair.getValue());
+      } else {
+        ts.add(pair.getValue());
+      }
+      start = ts.epoch();
+    }
     
     final Collection<QueryNode> rates = 
         node.pipelineContext().upstreamOfType(node, Rate.class);
@@ -471,7 +488,21 @@ public class Tsdb1xScanners implements HBaseExecutor {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
-    long end = node.pipelineContext().query().endTime().epoch();
+    long end;
+    if (source_config.timeShifts() == null || 
+        !source_config.timeShifts().containsKey(source_config.getId())) {
+      end = node.pipelineContext().query().endTime().epoch();
+    } else {
+      TimeStamp ts = node.pipelineContext().query().endTime().getCopy();
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts().get(source_config.getId());
+      if (pair.getKey()) {
+        ts.subtract(pair.getValue());
+      } else {
+        ts.add(pair.getValue());
+      }
+      end = ts.epoch();
+    }
     
     if (rollup_interval != null) {
       // TODO - need rollup end time here
