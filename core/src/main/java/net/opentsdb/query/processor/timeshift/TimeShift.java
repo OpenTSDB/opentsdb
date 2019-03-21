@@ -1,135 +1,79 @@
-package net.opentsdb.query.expression;
+// This file is part of OpenTSDB.
+// Copyright (C) 2019  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.query.processor.timeshift;
+
+import java.time.temporal.TemporalAmount;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.utils.Pair;
+
 /**
- * Copyright 2015 The opentsdb Authors
- * <p/>
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * A node for wrapping QueryResults and shifting the timestamps to align with
+ * the query for period over period comparisons.
+ * 
+ * @since 3.0
  */
+public class TimeShift extends AbstractQueryNode {
+  private static final Logger LOG = LoggerFactory.getLogger(TimeShift.class);
+  
+  private final TimeShiftConfig config;
+  
+  public TimeShift(final QueryNodeFactory factory, 
+                   final QueryPipelineContext context,
+                   final QueryNodeConfig config) {
+    super(factory, context);
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
+    }
+    this.config = (TimeShiftConfig) config;
+  }
 
-import net.opentsdb.core.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-public class TimeShift implements Expression {
-  /**
-   * in place modify of TsdbResult array to increase timestamps by timeshift
-   * @param data_query
-   * @param results
-   * @param params
-   * @return
-   */
   @Override
-  public DataPoints[] evaluate(TSQuery data_query, List<DataPoints[]> results, List<String> params) {
-    //not 100% sure what to do here -> do I need to think of the case where I have no data points
-    if(results == null || results.isEmpty()) {
-      return new DataPoints[]{};
-    }
-    if(params == null || results.isEmpty()) {
-      throw new IllegalArgumentException("Need amount of timeshift to perform timeshift");
-    }
-
-    String param = params.get(0);
-    if (param == null || param.length() == 0) {
-      throw new IllegalArgumentException("Invalid timeshift='" + param + "'");
-    }
-
-    param = param.trim();
-
-    long timeshift = -1;
-    if (param.startsWith("'") && param.endsWith("'")) {
-      timeshift = parseParam(param) / 1000;
-    } else {
-      throw new RuntimeException("Invalid timeshift parameter: eg '10min'");
-    }
-
-    if (timeshift <= 0) {
-      throw new RuntimeException("timeshift <= 0");
-    }
-
-    DataPoints[] inputPoints = results.get(0);
-    DataPoints[] outputPoints = new DataPoints[inputPoints.length];
-    for(int n = 0; n < inputPoints.length; n++) {
-      outputPoints[n] = shift(inputPoints[n], timeshift);
-    }
-    return outputPoints;
+  public QueryNodeConfig config() {
+    return config;
   }
-
-  public static long parseParam(String param) {
-    char[] chars = param.toCharArray();
-    int tuIndex = 0;
-    for (int c = 1; c < chars.length; c++) {
-      if (Character.isDigit(chars[c])) {
-        tuIndex++;
-      } else {
-        break;
-      }
-    }
-
-    if (tuIndex == 0) {
-      throw new RuntimeException("Invalid Parameter: " + param);
-    }
-
-    int time = Integer.parseInt(param.substring(1, tuIndex + 1));
-    String unit = param.substring(tuIndex + 1, param.length() - 1);
-    if ("sec".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.SECONDS);
-    } else if ("min".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.MINUTES);
-    } else if ("hr".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.HOURS);
-    } else if ("day".equals(unit) || "days".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.DAYS);
-    } else if ("week".equals(unit) || "weeks".equals(unit)) {
-      //didn't have week so small cheat here
-      return TimeUnit.MILLISECONDS.convert(time*7, TimeUnit.DAYS);
-    }
-    else {
-      throw new RuntimeException("unknown time unit=" + unit);
-    }
+  
+  @Override
+  public void close() {
+    // TODO Auto-generated method stub
   }
-
-  /**
-   * Adjusts the timestamp of each datapoint by timeshift
-   * @param points The data points to factor
-   * @param timeshift The factor to multiply by
-   * @return The resulting data points
-   */
-  private DataPoints shift(final DataPoints points, final long timeshift) {
-    // TODO(cl) - Using an array as the size function may not return the exact
-    // results and we should figure a way to avoid copying data anyway.
-    final List<DataPoint> dps = new ArrayList<DataPoint>();
-    final boolean shift_is_int = (timeshift == Math.floor(timeshift)) &&
-            !Double.isInfinite(timeshift);
-    final SeekableView view = points.iterator();
-    while (view.hasNext()) {
-      DataPoint pt = view.next();
-      if (shift_is_int) {
-        dps.add(MutableDataPoint.ofLongValue(pt.timestamp() + timeshift,
-                pt.longValue()));
-      } else {
-        // NaNs are fine here, they'll just be re-computed as NaN
-        dps.add(MutableDataPoint.ofDoubleValue(pt.timestamp() + timeshift,
-                timeshift * pt.toDouble()));
-      }
+  
+  @Override
+  public void onNext(final QueryResult next) {
+    final Pair<Boolean, TemporalAmount> amount = 
+        config.getConfig().timeShifts().get(next.dataSource());
+    if (amount == null) {
+      // whoops. We got something we don't deal with.
+      LOG.warn("Received a result at node " + config.getId() 
+        + " that we didn't expect: " + next.source().config().getId() + ":" 
+          + next.dataSource());
+      return;
     }
-    final DataPoint[] results = new DataPoint[dps.size()];
-    dps.toArray(results);
-    return new PostAggregatedDataPoints(points, results);
+    final TimeShiftResult results = new TimeShiftResult(
+        this, 
+        next, 
+        amount.getKey(), 
+        amount.getValue());
+    sendUpstream(results);
   }
-
-    @Override
-  public String writeStringField(List<String> params, String inner_expression) {
-      return "timeshift(" + inner_expression + ")";
-  }
+  
 }

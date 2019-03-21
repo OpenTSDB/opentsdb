@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -83,8 +84,8 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery.LogLevel;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
@@ -93,6 +94,7 @@ import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 
 /**
  * A simple store that generates a set of time series to query as well as stores
@@ -391,12 +393,12 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
   class LocalNode extends AbstractQueryNode implements TimeSeriesDataSource {
     private AtomicInteger sequence_id = new AtomicInteger();
     private AtomicBoolean completed = new AtomicBoolean();
-    private BaseTimeSeriesDataSourceConfig config;
+    private TimeSeriesDataSourceConfig config;
     private final net.opentsdb.stats.Span trace_span;
     private final ObjectPool pool;
     
     public LocalNode(final QueryPipelineContext context,
-                     final BaseTimeSeriesDataSourceConfig config) {
+                     final TimeSeriesDataSourceConfig config) {
       super(null, context);
       this.config = config;
       if (context.queryContext().stats() != null && 
@@ -724,7 +726,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
   }
   
   class LocalResult implements QueryResult, Runnable {
-    final BaseTimeSeriesDataSourceConfig config;
+    final TimeSeriesDataSourceConfig config;
     final SemanticQuery query;
     final QueryPipelineContext context;
     final LocalNode pipeline;
@@ -734,7 +736,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     
     LocalResult(final QueryPipelineContext context, 
                 final LocalNode pipeline, 
-                final BaseTimeSeriesDataSourceConfig config, 
+                final TimeSeriesDataSourceConfig config, 
                 final long sequence_id,
                 final net.opentsdb.stats.Span trace_span) {
       this.context = context;
@@ -798,12 +800,35 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           return;
         }
         
-        long start_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
-            query.startTime().msEpoch() : 
-              query.endTime().msEpoch() - ((sequence_id + 1) * ROW_WIDTH);
-        long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
-            query.endTime().msEpoch() : 
-              query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
+        final long start_ts;
+        final long end_ts;
+        if (config.timeShifts() == null || 
+            !config.timeShifts().containsKey(config.getId())) {
+          start_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
+              query.startTime().msEpoch() : 
+                query.endTime().msEpoch() - ((sequence_id + 1) * ROW_WIDTH);
+          end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
+              query.endTime().msEpoch() : 
+                query.endTime().msEpoch() - (sequence_id * ROW_WIDTH);
+        } else {
+          TimeStamp ts = query.startTime().getCopy();
+          final Pair<Boolean, TemporalAmount> pair = 
+              config.timeShifts().get(config.getId());
+          if (pair.getKey()) {
+            ts.subtract(pair.getValue());
+          } else {
+            ts.add(pair.getValue());
+          }
+          start_ts = ts.msEpoch();
+          
+          ts = query.endTime().getCopy();
+          if (pair.getKey()) {
+            ts.subtract(pair.getValue());
+          } else {
+            ts.add(pair.getValue());
+          }
+          end_ts = ts.msEpoch();
+        }
         
         QueryFilter filter = config.getFilter();
         if (filter == null && !Strings.isNullOrEmpty(config.getFilterId())) {
@@ -970,6 +995,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
 
     boolean hasNext(final long seqid) {
+      // TODO - handle offsets?
       long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
           query.endTime().msEpoch() : 
             query.endTime().msEpoch() - (seqid * ROW_WIDTH);
@@ -1090,6 +1116,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           Iterator<TimeSeriesValue<?>> it = opt.get();
           while (it.hasNext()) {
             value = it.next();
+            // Offsets don't affect last point right now.
             if (value.timestamp().compare(Op.LTE, query.startTime())) {
               inc++;
             } else {
@@ -1247,7 +1274,6 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
     
   }
-
 
   public static class PooledMockPTSPool extends BaseObjectPoolAllocator {
     public static final String TYPE = "PooledMockPTS";
