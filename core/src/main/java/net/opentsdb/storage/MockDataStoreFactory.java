@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import java.util.List;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,10 +34,11 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -69,8 +71,46 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
-    // TODO Auto-generated method stub
+    if (config instanceof WrappedTimeSeriesDataSourceConfig) {
+      // this was an offset.
+      return;
+    }
     
+    // TODO - Make this a shared method
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null &&
+        !((TimeSeriesDataSourceConfig) config).timeShifts().isEmpty()) {
+      if (((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(config.getId())) {
+        // child who has already been initialized.
+        return;
+      }
+      
+      final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
+      // ugly way to see if we've been setup already
+      for (final QueryNodeConfig predecessor : predecessors) {
+        for (final QueryNodeConfig successor : planner.configGraph().successors(predecessor)) {
+          if (((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(successor.getId())) {
+            return;
+          }
+        }
+      }
+      final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+          .setConfig((TimeSeriesDataSourceConfig) config)
+          .setId(config.getId() + "-time-shift")
+          .build();
+      if (planner.configGraph().nodes().contains(shift_config)) {
+        return;
+      }
+      
+      for (final QueryNodeConfig predecessor : predecessors) {
+        planner.addEdge(predecessor, shift_config);
+      }
+      
+      for (final String new_id : ((TimeSeriesDataSourceConfig) config).timeShifts().keySet()) {
+        final TimeSeriesDataSourceConfig new_config = 
+            new WrappedTimeSeriesDataSourceConfig(new_id, (TimeSeriesDataSourceConfig) config);
+        planner.addEdge(shift_config, new_config);
+      }
+    }
   }
 
   @Override
@@ -82,7 +122,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   @Override
   public QueryNode newNode(final QueryPipelineContext context, 
                            final QueryNodeConfig config) {
-    return mds.new LocalNode(context, (BaseTimeSeriesDataSourceConfig) config);
+    return mds.new LocalNode(context, (TimeSeriesDataSourceConfig) config);
   }
   
   @Override

@@ -20,6 +20,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+import java.time.temporal.TemporalAmount;
+
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,7 +32,9 @@ import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.processor.topn.TopNConfig;
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 
 public class TestBaseTimeSeriesSourceQueryConfig {
 
@@ -48,6 +52,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .addSummaryAggregation("sum")
         .setPrePadding("30m")
         .setPostPadding("1h")
+        .setTimeShiftInterval("1d")
+        .setPreviousIntervals(2)
+        .setNextIntervals(1)
         .setId("UT")
         .build();
     assertEquals("HBase", config.getSourceId());
@@ -63,7 +70,19 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
     assertFalse(config.pushDown());
-    
+    assertEquals(3, config.timeShifts().size());
+    Pair<Boolean, TemporalAmount> pair = config.timeShifts().get("UT-previous-P1D");
+    assertTrue(pair.getKey());
+    assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
+    pair = config.timeShifts().get("UT-previous-P2D");
+    assertTrue(pair.getKey());
+    assertEquals(DateTime.parseDuration2("2d"), pair.getValue());
+    pair = config.timeShifts().get("UT-next-P1D");
+    assertFalse(pair.getKey());
+    assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
+    assertEquals(2, config.getPreviousIntervals());
+    assertEquals(1, config.getNextIntervals());
+        
     try {
       UTConfig.newBuilder()
         //.setMetric("system.cpu.user")
@@ -88,6 +107,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .addSummaryAggregation("sum")
         .setPrePadding("30m")
         .setPostPadding("1h")
+        .setTimeShiftInterval("1d")
+        .setPreviousIntervals(2)
+        .setNextIntervals(1)
         .setId("UT")
         .build();
     
@@ -111,6 +133,18 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(config.getSummaryAggregations().contains("sum"));
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
+    assertEquals(3, config.timeShifts().size());
+    Pair<Boolean, TemporalAmount> pair = config.timeShifts().get("UT-previous-P1D");
+    assertTrue(pair.getKey());
+    assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
+    pair = config.timeShifts().get("UT-previous-P2D");
+    assertTrue(pair.getKey());
+    assertEquals(DateTime.parseDuration2("2d"), pair.getValue());
+    pair = config.timeShifts().get("UT-next-P1D");
+    assertFalse(pair.getKey());
+    assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
+    assertEquals(2, config.getPreviousIntervals());
+    assertEquals(1, config.getNextIntervals());
   }
 
   @Test
@@ -138,6 +172,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .addSummaryAggregation("sum")
         .setPrePadding("30m")
         .setPostPadding("1h")
+        .setTimeShiftInterval("1d")
+        .setPreviousIntervals(2)
+        .setNextIntervals(1)
         .setId("UT")
         .build();
     
@@ -158,6 +195,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"summaryAggregations\":[\"sum\"]"));
     assertTrue(json.contains("\"prePadding\":\"30m\""));
     assertTrue(json.contains("\"postPadding\":\"1h\""));
+    assertTrue(json.contains("\"timeShiftInterval\":\"1d\""));
+    assertTrue(json.contains("\"previousIntervals\":2"));
+    assertTrue(json.contains("\"nextIntervals\":1"));
     
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode root = JSON.getMapper().readTree(json);
@@ -181,6 +221,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(config.getSummaryAggregations().contains("sum"));
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
+    assertEquals("1d", config.getTimeShiftInterval());
+    assertEquals(2, config.getPreviousIntervals());
+    assertEquals(1, config.getNextIntervals());
   }
   
   static class UTConfig extends BaseTimeSeriesDataSourceConfig {
@@ -205,7 +248,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
       public TimeSeriesDataSourceConfig build() {
         return new UTConfig(this);
       }
-
       
       @Override
       public String id() {
@@ -220,7 +262,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
       }
       
     }
-
     
   }
 }
