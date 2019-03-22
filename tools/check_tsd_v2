@@ -139,7 +139,7 @@ def _process_metric(m, args, comparisons, now):
     """
     value_count = len(m["dps"])
     mresult = {"crit": 0, "crit_alarm": False, "warn_alarm": False, "warn": 0,
-               "crit_percent": 0, "warn_percent": 0, "empty": False}
+               "crit_percent": 0, "warn_percent": 0, "empty": False, "metric_avg": 0}
     if args.tag:
         keys = [t.split("=")[0] for t in args.tag]
         mresult["tags"] = [v for k, v in m["tags"].items() if k in keys]
@@ -147,6 +147,7 @@ def _process_metric(m, args, comparisons, now):
         mresult["empty"] = True
         return mresult
 
+    avglist = []
     for ts, d in m["dps"].items():
         # handle out-of-time metrics
         if args.ignore_recent:
@@ -160,12 +161,13 @@ def _process_metric(m, args, comparisons, now):
             if delta >= args.ignore_recent:
                 log.debug("Timestamp outside evaluation range: {}".format(ts))
                 continue
+        avglist.append(d)
         for comparison in comparisons:
             comparator, value, alarm = comparison
             if comparator(d, value):
                 mresult[alarm] += 1
                 break
-
+    mresult["metric_avg"] = sum(avglist)/len(avglist)
     mresult["crit_percent"] = mresult["crit"] / value_count * 100
     mresult["warn_percent"] = mresult["warn"] / value_count * 100
     if mresult["crit"] > 0:
@@ -283,8 +285,8 @@ def main():
             warn = True
         alerts = r["crit"] + r["warn"]
         perc = r["crit_percent"] + r["warn_percent"]
-        log.debug("{} => alarmed {} times in range. ({}% alarms).".format(",".join(r["tags"]),
-                                                                          alerts, perc))
+        log.info("{} => alarmed {} times in range. ({}% alarms). Avg. Value: {}".format(",".join(r["tags"]),
+                                                                                        alerts, perc, r["metric_avg"]))
     log.info("{} total metrics processed".format(len(total)))
     crit_count = len(crits)
     warn_count = len(warns)
