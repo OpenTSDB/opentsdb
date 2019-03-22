@@ -61,15 +61,14 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
@@ -79,9 +78,6 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -380,6 +376,25 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
+    
+    // offset
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+        "m1-previous-P1D",
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(METRIC_STRING)
+                .build())
+            .addSummaryAggregation("max")
+            .setPrePadding("2h")
+            .setPostPadding("2h")
+            .setTimeShiftInterval("1d")
+            .setPreviousIntervals(2)
+            .setId("m1")
+            .build(),
+        true);
+    scanners = new Tsdb1xBigtableScanners(node, source_config);
+    start = scanners.setStartKey(METRIC_BYTES, null, null);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
   }
   
   @Test
@@ -449,6 +464,25 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 10800), null), stop);
+    
+    // offset
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+        "m1-previous-P1D",
+        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(METRIC_STRING)
+                .build())
+            .addSummaryAggregation("max")
+            .setPrePadding("2h")
+            .setPostPadding("2h")
+            .setTimeShiftInterval("1d")
+            .setPreviousIntervals(2)
+            .setId("m1")
+            .build(),
+        true);
+    scanners = new Tsdb1xBigtableScanners(node, source_config);
+    stop = scanners.setStopKey(METRIC_BYTES, null);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900 - 86400 + 10800, null), stop);
   }
 
   @Test
