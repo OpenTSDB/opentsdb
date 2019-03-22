@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
@@ -58,8 +59,11 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
   
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+    return (Builder) new Builder()
+      .setAggregator(aggregator)
+      .setInfectiousNan(infectious_nan)
+      .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+      .setId(id);
   }
   
   @Override
