@@ -272,6 +272,7 @@ def main():
             continue
         if args.alarm_empty and r["empty"]:
             log.info("{} => no data returned in range.".format(",".join(r["tags"])))
+            crits.append(r["tags"])
             crit = True
             continue
         if r["crit_alarm"]:
