@@ -138,6 +138,9 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
     
     public Builder setNextIntervals(final int intervals);
     
+    public Builder setTimeShifts(
+        final Map<String, Pair<Boolean, TemporalAmount>> amounts);
+    
     public Builder setHasBeenSetup(final boolean has_been_setup);
     
     public String id();

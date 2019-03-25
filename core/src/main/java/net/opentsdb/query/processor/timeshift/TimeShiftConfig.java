@@ -83,7 +83,7 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
 
   @Override
   public boolean pushDown() {
-    return true;
+    return false;
   }
 
   @Override

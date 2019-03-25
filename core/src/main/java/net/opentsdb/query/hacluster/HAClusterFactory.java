@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
+import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,6 +43,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.hacluster.HAClusterConfig.Builder;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -50,8 +52,10 @@ import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Pair;
 
 /**
  * A factory that modifies the execution graph with nodes to execute an
@@ -169,15 +173,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
+    if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
+      return;
+    }
+    
     final HAClusterConfig.Builder builder;
     boolean needs_id_converter = false;
     
     if (config instanceof HAClusterConfig) {
       final HAClusterConfig cluster_config = (HAClusterConfig) config;
-      if (cluster_config.getHasBeenSetup()) {
-        return;
-      }
-      builder = ((HAClusterConfig) config).toBuilder()
+      builder = (Builder) ((HAClusterConfig) config).toBuilder()
           .setHasBeenSetup(true);
       
       if (Strings.isNullOrEmpty(cluster_config.getMergeAggregator())) {
@@ -236,6 +241,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .setId(config.getId())
             .build();
         planner.replace(config, rebuilt);
+        
+        // Check for time offsets.
+        setupTimeShiftSingleNode((TimeSeriesDataSourceConfig) rebuilt, planner);
         return;
       }
       
@@ -245,6 +253,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             + "or empty for the config override: " 
             + builder.dataSourceConfigs().get(0));
       }
+      
       TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig)
          builder.dataSourceConfigs().get(0).toBuilder()
             .setId(config.getId())
@@ -254,6 +263,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         context.queryContext().logTrace("Only one source available for query: " 
             + rebuilt.getSourceId());
       }
+      
+      // Check for time offsets.
+      setupTimeShiftSingleNode(rebuilt, planner);
       return;
     }
     
@@ -269,8 +281,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
               + "or empty for the config override: " + source);
         }
         // we have to fix the ID here to avoid dupes and collisions.
-        TimeSeriesDataSourceConfig.Builder rebuilt = 
-            (TimeSeriesDataSourceConfig.Builder) source.toBuilder()
+        TimeSeriesDataSourceConfig.Builder rebuilt = (TimeSeriesDataSourceConfig.Builder)
+            ((TimeSeriesDataSourceConfig.Builder) source.toBuilder())
+              .setTimeShiftInterval(null)
+              .setPreviousIntervals(0)
+              .setNextIntervals(0)
               .setId(new_id + "_" + source.getSourceId());
         for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
           if (extant.id().equals(rebuilt.id())) {
@@ -310,9 +325,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       
       factories.put(source, factory);
       
-      TimeSeriesDataSourceConfig.Builder rebuilt = 
-          (TimeSeriesDataSourceConfig.Builder)
+      TimeSeriesDataSourceConfig.Builder rebuilt = (TimeSeriesDataSourceConfig.Builder)
             ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
+            .setTimeShiftInterval(null)
+            .setPreviousIntervals(0)
+            .setNextIntervals(0)
             .setSourceId(source)
             .setId(new_id + "_" + source);
       for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
@@ -468,6 +485,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         }
         
         // don't fall through!
+        setupTimeShiftMultiNode(rebuilt, planner, merger);
         return;
       }
     }
@@ -520,6 +538,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             + rebuilt.getSourceId());
       }
     }
+    setupTimeShiftMultiNode(rebuilt, planner, merger);
   }
 
   @Override
@@ -694,6 +713,151 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       }
       
       canPushDown(predecessors.iterator().next(), factory, push_downs, planner);
+    }
+  }
+  
+  /**
+   * Clones the config and creates time offset nodes.
+   * @param config The non-null original config.
+   * @param planner The non-null planner.
+   */
+  private void setupTimeShiftSingleNode(final TimeSeriesDataSourceConfig config, 
+                                        final QueryPlanner planner) {
+    if (config.timeShifts() == null || config.timeShifts().isEmpty()) {
+      return;
+    }
+    
+    // since we're cloning, purge the original
+    TimeSeriesDataSourceConfig shiftless = ((TimeSeriesDataSourceConfig.Builder) 
+        config.toBuilder())
+        .setTimeShiftInterval(null)
+        .setPreviousIntervals(0)
+        .setNextIntervals(0)
+        .build();
+    planner.replace(config, shiftless);
+    
+    if (config.timeShifts().containsKey(config.getId())) {
+      // child who has already been initialized.
+      return;
+    }
+    
+    final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
+    final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+        .setConfig((TimeSeriesDataSourceConfig) config)
+        .setId(config.getId() + "-time-shift")
+        .build();
+    if (planner.configGraph().nodes().contains(shift_config)) {
+      return;
+    }
+    
+    for (final QueryNodeConfig predecessor : predecessors) {
+      planner.addEdge(predecessor, shift_config);
+    }
+    
+    for (final String shift_id : config.timeShifts().keySet()) {
+      final Map<String, Pair<Boolean, TemporalAmount>> amounts = 
+          Maps.newHashMapWithExpectedSize(1);
+      amounts.put(shift_id, config.timeShifts().get(shift_id));
+      QueryNodeConfig rebuilt = ((TimeSeriesDataSourceConfig.Builder)
+          config.toBuilder())
+          .setTimeShifts(amounts)
+          .setId(shift_id)
+          .build();
+      planner.addEdge(shift_config, rebuilt);
+    }
+  }
+  
+  /**
+   * Handles cloning a sub-graph of HA node configs (group bys, downsamples etc)
+   * for each time shift offset that we have to query.
+   * @param config The non-null parent config.
+   * @param planner The planner.
+   * @param merger The merger.
+   */
+  private void setupTimeShiftMultiNode(final TimeSeriesDataSourceConfig config, 
+                                       final QueryPlanner planner,
+                                       final MergerConfig merger) {
+    if (config.timeShifts() == null || config.timeShifts().isEmpty()) {
+      return;
+    }
+    
+    // since we're cloning, purge the original
+    TimeSeriesDataSourceConfig shiftless = ((TimeSeriesDataSourceConfig.Builder) 
+        config.toBuilder())
+        .setTimeShiftInterval(null)
+        .setPreviousIntervals(0)
+        .setNextIntervals(0)
+        .build();
+    planner.replace(config, shiftless);
+    
+    final Set<QueryNodeConfig> shift_predecessors = 
+        planner.configGraph().predecessors(merger);
+    final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+        .setConfig((TimeSeriesDataSourceConfig) config)
+        .setId(merger.getId() + "-time-shift")
+        .build();
+    for (final QueryNodeConfig predecessor : shift_predecessors) {
+      planner.addEdge(predecessor, shift_config);
+    }
+    
+    // now for each time shift we have to duplicate the sub-graph from the 
+    // merger to the destinations. *sigh*.
+    // TODO - make this cleaner some day. This is SUPER ugly. For now we do it
+    // so that we have the proper timeouts and distribute the query load.
+    for (final String shift_id : config.timeShifts().keySet()) {
+      final MergerConfig merger_shift = (MergerConfig) merger.toBuilder()
+          .setId(shift_id)
+          .build();
+      planner.addEdge(shift_config, merger_shift);
+      
+      final Set<QueryNodeConfig> successors = 
+          Sets.newHashSet(planner.configGraph().successors(merger));
+      for (final QueryNodeConfig successor : successors) {
+        recursiveTimeShift(planner, 
+                           merger_shift, 
+                           merger_shift, 
+                           successor, 
+                           config.timeShifts(), 
+                           shift_id);
+      }
+    }
+  }
+  
+  /**
+   * Recursive walker for sub-graphs to create time shift offsets.
+   * @param planner The non-null planner.
+   * @param parent the NEW time shifted parent to link to.
+   * @param config The old config to clone.
+   * @param shifts The shifts to pass down.
+   * @param shift_id The shift ID to append to IDs.
+   */
+  private void recursiveTimeShift(final QueryPlanner planner,
+                                  final QueryNodeConfig parent,
+                                  final QueryNodeConfig new_parent,
+                                  final QueryNodeConfig config, 
+                                  final Map<String, Pair<Boolean, TemporalAmount>> shifts,
+                                  final String shift_id) {
+    final QueryNodeConfig shift;
+    if (config instanceof TimeSeriesDataSourceConfig) {
+      // for the shift to happen properly we need to rename the shift node and
+      // send that to the query target.
+      final Map<String, Pair<Boolean, TemporalAmount>> amounts = 
+          Maps.newHashMapWithExpectedSize(1);
+      amounts.put(config.getId() + "-" + shift_id, shifts.get(shift_id));
+      shift = ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
+          .setTimeShifts(amounts)
+          .setId(config.getId() + "-" + shift_id)
+          .build();
+    } else {
+      shift = config.toBuilder().setId(config.getId() + "-" + shift_id)
+          .build();
+    }
+    
+    planner.addEdge(new_parent, shift);
+    final Set<QueryNodeConfig> successors = 
+        Sets.newHashSet(planner.configGraph().successors(config));
+    for (final QueryNodeConfig successor : successors) {
+      recursiveTimeShift(planner, config, shift, successor, shifts, shift_id);
     }
   }
   
