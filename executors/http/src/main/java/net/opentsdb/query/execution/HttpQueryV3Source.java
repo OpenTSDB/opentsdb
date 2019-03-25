@@ -15,6 +15,7 @@
 package net.opentsdb.query.execution;
 
 import java.io.UnsupportedEncodingException;
+import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +50,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -57,6 +59,7 @@ import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.DefaultSharedHttpClient;
 
 /**
@@ -130,6 +133,36 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setTimeZone(context.query().getTimezone())
         .setLogLevel(context.query().getLogLevel());
     
+    TimeSeriesDataSourceConfig.Builder source_builder = 
+        (Builder) ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
+        .setPushDownNodes(null)
+        .setSourceId(null) // TODO - we may want to make this configurable
+        .setType("TimeSeriesDataSource");
+    
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null && 
+        ((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(config.getId())) {
+      // we need to shift
+      Pair<Boolean, TemporalAmount> shift = ((TimeSeriesDataSourceConfig) config).timeShifts().get(config.getId());
+      final TimeStamp start_ts = context.query().startTime().getCopy();
+      final TimeStamp end_ts = context.query().endTime().getCopy();
+      if (shift.getKey()) {
+        start_ts.subtract(shift.getValue());
+        end_ts.subtract(shift.getValue());
+      } else {
+        start_ts.add(shift.getValue());
+        end_ts.add(shift.getValue());
+      }
+      
+      // TODO - handle nanos
+      // clear out the intervals and shift so the target doesn't re-compute
+      // the shifts.
+      builder.setStart(Long.toString(start_ts.msEpoch()));
+      builder.setEnd(Long.toString(end_ts.msEpoch()));
+      source_builder.setNextIntervals(0)
+                    .setPreviousIntervals(0)
+                    .setTimeShiftInterval(null);
+    }
+    
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
       builder.addFilter(DefaultNamedFilter.newBuilder()
           .setId(config.getFilterId())
@@ -150,12 +183,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
-    pushdowns.put(config.getId(), 
-        ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-          .setPushDownNodes(null)
-          .setSourceId(null) // TODO - we may want to make this configurable
-          .setType("TimeSeriesDataSource")
-          .build());
+    pushdowns.put(config.getId(), source_builder.build());
     for (final QueryNodeConfig pushdown : config.getPushDownNodes()) {
       pushdowns.put(pushdown.getId(), pushdown);
     }

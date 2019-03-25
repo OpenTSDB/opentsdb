@@ -198,7 +198,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"timeShiftInterval\":\"1d\""));
     assertTrue(json.contains("\"previousIntervals\":2"));
     assertTrue(json.contains("\"nextIntervals\":1"));
-    
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode root = JSON.getMapper().readTree(json);
     UTConfig.Builder builder = UTConfig.newBuilder();
@@ -224,6 +223,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("1d", config.getTimeShiftInterval());
     assertEquals(2, config.getPreviousIntervals());
     assertEquals(1, config.getNextIntervals());
+    assertEquals(3, config.timeShifts().size());
   }
   
   static class UTConfig extends BaseTimeSeriesDataSourceConfig {

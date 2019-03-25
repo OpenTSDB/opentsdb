@@ -263,9 +263,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
           }
         }
         
+        if (LOG.isTraceEnabled()) {
+          LOG.trace(printConfigGraph());          
+        }
+        
         if (context.query().isTraceEnabled()) {
           context.queryContext().logTrace(printConfigGraph());
-          LOG.trace(printConfigGraph());
         }
         
         // depth first initiation of the executors since we have to init

@@ -52,6 +52,7 @@ import net.opentsdb.utils.Pair;
 @JsonDeserialize(builder = BaseTimeSeriesDataSourceConfig.Builder.class)
 public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig 
     implements TimeSeriesDataSourceConfig {
+
   /** The source provider ID. */
   private final String source_id;
   
@@ -653,7 +654,9 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
       return this;
     }
     
-    public Builder setTimeShifts(final Map<String, Pair<Boolean, TemporalAmount>> amounts) {
+    @Override
+    public Builder setTimeShifts(
+        final Map<String, Pair<Boolean, TemporalAmount>> amounts) {
       this.amounts = amounts;
       return this;
     }

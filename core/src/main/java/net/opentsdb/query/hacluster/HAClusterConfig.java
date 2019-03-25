@@ -64,10 +64,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
    * returns first. */
   private final String primary_timeout;
   
-  /** A flag indicating whether this config has gone through the planner
-   * setup step or not. */
-  private final boolean has_been_setup;
-  
   /**
    * Default ctor.
    * @param builder A non-null builder.
@@ -83,7 +79,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
     primary_timeout = builder.primaryTimeout;
-    has_been_setup = builder.hasBeenSetup;
     
     // validate the timeouts
     if (!Strings.isNullOrEmpty(secondary_timeout)) {
@@ -176,7 +171,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   
   @Override
   public Builder toBuilder() {
-    final Builder builder = new Builder()
+    final Builder builder = (Builder) new Builder()
         .setMergeAggregator(merge_aggregator)
         .setSecondaryTimeout(secondary_timeout)
         .setPrimaryTimeout(primary_timeout)
@@ -208,8 +203,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     private String secondaryTimeout;
     @JsonProperty
     private String primaryTimeout;
-    @JsonProperty
-    private boolean hasBeenSetup;
     
     Builder() {
       setType("HAClusterConfig");
@@ -273,11 +266,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
      */
     public Builder setPrimaryTimeout(final String primary_timeout) {
       primaryTimeout = primary_timeout;
-      return this;
-    }
-    
-    public Builder setHasBeenSetup(final boolean has_been_setup) {
-      hasBeenSetup = has_been_setup;
       return this;
     }
     
