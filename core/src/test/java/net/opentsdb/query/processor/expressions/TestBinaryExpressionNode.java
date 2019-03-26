@@ -57,6 +57,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.expressions.BinaryExpressionNode.FailedQueryResult;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.stats.Span;
@@ -898,4 +899,19 @@ public class TestBinaryExpressionNode {
     assertNull(node.joiner.encodedJoins());
     assertEquals(0, ((ExpressionResult) node.result).results.size());
   }
+
+  @Test
+  public void onNextError() throws Exception {
+    BinaryExpressionNode node = new BinaryExpressionNode(
+        factory, context, expression_config);
+    node.initialize(null);
+    
+    QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
+    when(r1.error()).thenReturn("Boo!");
+    
+    node.onNext(r1);
+    verify(upstream, times(1)).onNext(any(FailedQueryResult.class));
+  }
+  
 }

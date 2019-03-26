@@ -986,6 +986,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
           // similar to the above, if all of the values were null we have
           // a bad query.
           if (tag_values.isEmpty()) {
+            // TODO - if we're part of an OR chain then we can safely ignore this
+            // if the config is set to skip tagvs. To do this efficiently each
+            // filter will need it's parent.
             final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
                     ((TagValueLiteralOrFilter) filter.filter()).literals().get(0));
             throw ex;
