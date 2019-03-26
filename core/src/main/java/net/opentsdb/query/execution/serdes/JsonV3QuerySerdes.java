@@ -115,7 +115,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     try {
       json = JSON.getFactory().createGenerator(stream);
     } catch (IOException e) {
-      throw new RuntimeException("WTF? Failed to instantiate a JSON "
+      throw new RuntimeException("Failed to instantiate a JSON "
           + "generator", e);
     }
     start = context.query().startTime();
@@ -136,7 +136,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         json.writeStartObject();
         json.writeArrayFieldStart("results");
       } catch (IOException e) {
-        throw new RuntimeException("WTF?", e);
+        throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
       }
       initialized = true;
     }
@@ -971,7 +971,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       }
       
     } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+      throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
     }
   }
 }

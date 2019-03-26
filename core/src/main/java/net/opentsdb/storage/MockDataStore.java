@@ -990,7 +990,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           }
         }
       } catch (Exception e) {
-        LOG.error("WTF? Shouldn't be here", e);
+        LOG.error("Unexpected exception: " + e.getMessage(), e);
       }
     }
 

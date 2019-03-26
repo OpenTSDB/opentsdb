@@ -331,7 +331,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             
             sendUpstream(BadQueryResult.newBuilder()
                 .setNode(HttpQueryV3Source.this)
-                .setException(new QueryExecutionException("WTF??", 
+                .setException(new QueryExecutionException("Unexpected exception: " 
+                    + EntityUtils.toString(response.getEntity()), 
                     response.getStatusLine().getStatusCode()))
                 .setDataSource(config.getId())
                 .build());
@@ -346,11 +347,11 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           JsonNode results = root.get("results");
           if (results == null) {
             // could be an error, parse it.
-            LOG.error("WTF? No JSON results from: " + json);
+            LOG.error("No JSON results from: " + json);
             sendUpstream(BadQueryResult.newBuilder()
                 .setNode(HttpQueryV3Source.this)
                 .setException(new QueryExecutionException(
-                    "WTF? No JSON results from: " + json, 500))
+                    "No JSON results from: " + json, 500))
                 .setDataSource(config.getId())
                 .build());
           } else {

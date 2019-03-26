@@ -343,7 +343,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           throw new StorageException("Result list returned was null");
         }
         if (results.size() != ids.size()) {
-          throw new StorageException("WTF? Result size was: " 
+          throw new StorageException("Result size was: " 
               + results.size() + " when the names size was: " 
               + ids.size() + ". Should never happen!");
         }
@@ -520,7 +520,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           throw new StorageException("Result list returned was null");
         }
         if (results.size() != names.size()) {
-          throw new StorageException("WTF? Result size was: " 
+          throw new StorageException("Result size was: " 
               + results.size() + " when the names size was: " 
               + names.size() + ". Should never happen!");
         }

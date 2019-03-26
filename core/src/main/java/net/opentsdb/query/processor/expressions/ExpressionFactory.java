@@ -115,7 +115,8 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
           builder.addSource(ds);
           last_source = ds;
         } else {
-          throw new RuntimeException("WTF? No node for left?");
+          throw new RuntimeException("Failed to find a data source for the "
+              + "left operand: " + parse_node.getLeft());
         }
       }
       
@@ -127,7 +128,8 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
             builder.addSource(ds);
           }
         } else {
-          throw new RuntimeException("WTF? No node for right?");
+          throw new RuntimeException("Failed to find a data source for the "
+              + "right operand: " + parse_node.getRight());
         }
       }
       final ExpressionParseNode rebuilt = 

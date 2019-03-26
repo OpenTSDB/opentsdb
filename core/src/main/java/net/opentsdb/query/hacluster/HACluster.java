@@ -277,7 +277,8 @@ public class HACluster extends AbstractQueryNode {
   
   void complete(final boolean timed_out) {
     if (!timed_out && !completed.compareAndSet(false, true)) {
-      LOG.warn("WTF? Already timed out??????");
+      LOG.warn("HA cluster node was trying to mark as complete but has "
+          + "already timed out.");
       return;
     }
     

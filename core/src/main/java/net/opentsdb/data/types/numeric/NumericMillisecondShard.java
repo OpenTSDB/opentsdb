@@ -374,7 +374,7 @@ public class NumericMillisecondShard implements TimeSeries,
       stream.write(Bytes.fromInt(write_value_idx));
       stream.write(values, 0, write_value_idx);
     } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+      throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
     }
   }
   
@@ -420,7 +420,7 @@ public class NumericMillisecondShard implements TimeSeries,
       
       return shard;
     } catch (IOException e) {
-      throw new RuntimeException("WTF?", e);
+      throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
     }
   }
   

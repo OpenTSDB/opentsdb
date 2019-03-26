@@ -134,7 +134,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
             } else if (split.length == 1) {
               sink_filter.put(split[0], null);
             } else {
-              throw new RuntimeException("WTF?? Invalid filter: " + filter);
+              throw new RuntimeException("Invalid filter: " + filter);
             }
           }
         }
@@ -280,9 +280,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
               @Override
               public Deferred<Void> call(Void arg) throws Exception {
                 if (data_sources.isEmpty()) {
-                  LOG.error("WTF? No final node for query: " + context.query());
+                  LOG.error("No data sources in the final graph for: " 
+                      + context.query() + " " + printConfigGraph());
                   return Deferred.<Void>fromError(new RuntimeException(
-                      "WTF? No data sources in the graph!!!!"));
+                      "No data sources in the final graph for: " 
+                          + context.query() + " " + printConfigGraph()));
                 }
                 return null;
               }
@@ -559,7 +561,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     for (final QueryNode source_node : sources) {
       graph.putEdge(query_node, source_node);
       if (Graphs.hasCycle(graph)) {
-        throw new IllegalArgumentException("WTF?? Cycle adding " 
+        throw new IllegalArgumentException("Cycle adding " 
             + query_node + " => " + source_node);
       }
     }
