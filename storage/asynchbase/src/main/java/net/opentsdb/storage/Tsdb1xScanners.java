@@ -694,7 +694,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
             fuzzy_key, 
             fuzzy_mask);
         if (Strings.isNullOrEmpty(regex)) {
-          throw new RuntimeException("WTF????");
+          throw new RuntimeException("Failed to compile the row key regular "
+              + "expression for HBase.");
         }
         if (LOG.isDebugEnabled()) {
           LOG.debug("Scanner regular expression: " + 

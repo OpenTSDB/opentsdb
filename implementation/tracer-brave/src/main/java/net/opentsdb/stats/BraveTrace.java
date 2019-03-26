@@ -180,7 +180,7 @@ public class BraveTrace implements net.opentsdb.stats.Trace {
     final brave.opentracing.BraveSpan span = 
         (brave.opentracing.BraveSpan) first_span.implementationSpan();
     if (span.context() == null) {
-      throw new IllegalStateException("WTF? Span context was null.");
+      throw new IllegalStateException("Span context was null.");
     }
     if (!(span.context() instanceof brave.opentracing.BraveSpanContext)) {
       throw new IllegalArgumentException("Span context was not a Brave span "

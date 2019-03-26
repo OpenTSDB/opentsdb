@@ -358,7 +358,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
 //              cache_span.finish();
 //            }
 //          } catch (Exception e) {
-//            LOG.error("WTF?", e);
+//            LOG.error("Unexpected exception: " + e.getMessage(), e);
 //            if (cache_span != null) {
 //              cache_span.setTag("status", "Error");
 //              cache_span.setTag("finalThread", Thread.currentThread().getName());

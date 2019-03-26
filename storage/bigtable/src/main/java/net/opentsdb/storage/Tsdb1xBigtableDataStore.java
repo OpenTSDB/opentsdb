@@ -210,7 +210,7 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
               config.getString(getConfigKey(id, DATA_TABLE_KEY))));
       mutation_buffer = session.createBulkMutation(data_table_name);
     } catch (IOException e) {
-      throw new StorageException("WTF?", e);
+      throw new StorageException("Unexpected exception: " + e.getMessage(), e);
     }
     
     uid_store = new Tsdb1xBigtableUniqueIdStore(this);

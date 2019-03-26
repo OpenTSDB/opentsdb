@@ -390,7 +390,7 @@ public class NumericRowSeq implements RowSeq {
     if (write_idx > 0) {
       // this shouldn't happen as we should have skipped any compacted 
       // column sentinels in the value!
-      throw new RuntimeException("WTF? Write index was " + write_idx
+      throw new RuntimeException("Write index was " + write_idx
           + " when it should have been " + data.length);
     }
     data = reversed;

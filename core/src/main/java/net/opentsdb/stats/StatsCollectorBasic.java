@@ -229,7 +229,7 @@ public abstract class StatsCollectorBasic {
         addExtraTag("host", InetAddress.getLocalHost().getHostName());
       }
     } catch (UnknownHostException x) {
-      LOG.error("WTF?  Can't find hostname for localhost!", x);
+      LOG.error("Can't find hostname for localhost!", x);
       addExtraTag("host", "(unknown)");
     }
   }

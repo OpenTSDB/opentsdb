@@ -555,7 +555,8 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
           result.source().config().joins()) {
         AtomicInteger cntr = countdowns.get(result.dataSource());
         if (cntr == null) {
-          LOG.error("WTF? No counter for: " + result.dataSource());
+          LOG.error("Unexpected result source, no counter for: " 
+              + result.dataSource());
         } else {
           cntr.decrementAndGet();
         }
@@ -563,7 +564,8 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         AtomicInteger cntr = countdowns.get(result.source().config().getId() + ":" 
             + result.dataSource());
         if (cntr == null) {
-          LOG.error("WTF? No counter for: " + result.source().config().getId() + ":" 
+          LOG.error("Unexpected result source, noo counter for: " 
+              + result.source().config().getId() + ":" 
               + result.dataSource());
         } else {
           cntr.decrementAndGet();

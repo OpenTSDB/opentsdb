@@ -168,7 +168,7 @@ public class ByteIdOverride implements TimeSeriesByteId {
       }
       return LongHashFunction.xx_r39().hashChars(buf.toString());
     } catch (IOException e) {
-      throw new RuntimeException("WTF? Shouldn't have happened.", e);
+      throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
     }
   }
 

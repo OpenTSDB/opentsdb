@@ -705,7 +705,8 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
             fuzzy_key, 
             fuzzy_mask);
         if (Strings.isNullOrEmpty(regex)) {
-          throw new RuntimeException("WTF????");
+          throw new RuntimeException("Unable to compile the regular "
+              + "expression for Bigtable.");
         }
         if (LOG.isDebugEnabled()) {
           LOG.debug("Scanner regular expression: " + 
