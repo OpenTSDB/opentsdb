@@ -638,6 +638,80 @@ public class TestExpressionFactory {
     assertEquals(1, graph.predecessors(p1).size());
   }
   
+  @Test
+  public void setupGraphNestedExpression() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("m1")
+        .build();
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.busy")
+            .build())
+        .setFilterId("f1")
+        .setId("m2")
+        .build();
+    QueryNodeConfig ds1 = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("ds1")
+        .build();
+    QueryNodeConfig ds2 = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("ds2")
+        .build();
+    QueryNodeConfig exp = ExpressionConfig.newBuilder()
+        .setExpression("m1 + m2 / 100")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("expression")
+        .build();
+    QueryNodeConfig exp2 = ExpressionConfig.newBuilder()
+        .setExpression("m1 / expression")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("expression")
+        .build();
+    
+    QueryPlanner plan = mock(QueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    
+    graph.putEdge(ds1, m1);
+    graph.putEdge(ds2, m2);
+    graph.putEdge(exp, ds1);
+    graph.putEdge(exp, ds2);
+    graph.putEdge(exp2, exp);
+    graph.putEdge(exp2, ds1);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(8, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(ds1));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    QueryNodeConfig b1 = graph.predecessors(ds1).iterator().next();
+    assertEquals("Expression", b1.getType());
+    assertTrue(graph.hasEdgeConnecting(ds1, m1));
+    assertTrue(graph.hasEdgeConnecting(b1, ds1));
+    assertFalse(graph.hasEdgeConnecting(SINK, b1));
+  }
+  
   // TODO - this requires more work to function correctly. We need the expression
   // node to take ANY metric from `m1` instead of a single metric.
 //  @Test
