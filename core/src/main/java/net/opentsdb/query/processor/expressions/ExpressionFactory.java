@@ -116,7 +116,8 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
           last_source = ds;
         } else {
           throw new RuntimeException("Failed to find a data source for the "
-              + "left operand: " + parse_node.getLeft());
+              + "left operand: " + parse_node.getLeft() + "  for " 
+              + config.getId());
         }
       }
       
@@ -129,7 +130,8 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
           }
         } else {
           throw new RuntimeException("Failed to find a data source for the "
-              + "right operand: " + parse_node.getRight());
+              + "right operand: " + parse_node.getRight() + "  for " 
+              + config.getId());
         }
       }
       final ExpressionParseNode rebuilt = 
@@ -189,7 +191,9 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     final String key = left ? (String) builder.left() : (String) builder.right();
     final String node_id = Strings.isNullOrEmpty(downstream.getType()) ? 
         downstream.getId() : downstream.getType();
-    if (depth > 0 && node_id.toLowerCase().equals("expression")) {
+    
+    if (depth > 0 && (node_id.toLowerCase().equals("expression") || 
+        node_id.toLowerCase().equals("binaryexpression"))) {
       if (left && key.equals(downstream.getId())) {
         if (downstream instanceof ExpressionConfig) {
           builder.setLeft(((ExpressionConfig) downstream).getAs());
