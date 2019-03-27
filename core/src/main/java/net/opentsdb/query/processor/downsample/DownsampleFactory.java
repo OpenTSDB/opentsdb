@@ -231,18 +231,48 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
         LOG.debug("Hmmm, wasn't a data source config? " + source);
         continue;
       }
-      TimeSeriesDataSourceConfig.Builder new_source = 
-          (TimeSeriesDataSourceConfig.Builder)
-            ((TimeSeriesDataSourceConfig) source).toBuilder();
-      new_source.setSummaryInterval(((DownsampleConfig) newConfig).getInterval());
+      TimeSeriesDataSourceConfig.Builder new_source = null;
+      if (((TimeSeriesDataSourceConfig) source).getSummaryInterval() == null ||
+          !((TimeSeriesDataSourceConfig) source).getSummaryInterval().equals(
+              ((DownsampleConfig) newConfig).getInterval())) {
+        new_source = 
+            (TimeSeriesDataSourceConfig.Builder)
+              ((TimeSeriesDataSourceConfig) source).toBuilder();
+        new_source.setSummaryInterval(((DownsampleConfig) newConfig).getInterval());
+      }
+      
       if (((DownsampleConfig) newConfig).getAggregator().equalsIgnoreCase("avg")) {
-        new_source.addSummaryAggregation("sum");
-        new_source.addSummaryAggregation("count");
-      } else {
+        if (!((TimeSeriesDataSourceConfig) source).getSummaryAggregations().contains("sum")) {
+          if (new_source == null) {
+            new_source = 
+                (TimeSeriesDataSourceConfig.Builder)
+                  ((TimeSeriesDataSourceConfig) source).toBuilder();
+          }
+          new_source.addSummaryAggregation("sum");
+        }
+        
+        if (!((TimeSeriesDataSourceConfig) source).getSummaryAggregations().contains("count")) {
+          if (new_source == null) {
+            new_source = 
+                (TimeSeriesDataSourceConfig.Builder)
+                  ((TimeSeriesDataSourceConfig) source).toBuilder();
+          }
+          new_source.addSummaryAggregation("count");
+        }
+
+      } else if (!((TimeSeriesDataSourceConfig) source).getSummaryAggregations().contains(
+          ((DownsampleConfig) newConfig).getAggregator())) {
+        if (new_source == null) {
+          new_source = 
+              (TimeSeriesDataSourceConfig.Builder)
+                ((TimeSeriesDataSourceConfig) source).toBuilder();
+        }
         new_source.addSummaryAggregation(((DownsampleConfig) newConfig).getAggregator());
       }
       
-      plan.replace(source, new_source.build());
+      if (new_source != null) {
+        plan.replace(source, new_source.build());
+      }
     }
     
     plan.replace(config, newConfig);
