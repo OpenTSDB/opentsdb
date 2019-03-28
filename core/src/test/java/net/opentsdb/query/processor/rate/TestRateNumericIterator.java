@@ -398,9 +398,20 @@ public class TestRateNumericIterator {
     setupMock();
     RateNumericIterator it = new RateNumericIterator(node, result,
          Lists.newArrayList(source));
-
+    
+    
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+
+    assertTrue(it.hasNext());
+     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
     assertEquals(2.0, v.value().doubleValue(), 0.001);
 
@@ -457,6 +468,16 @@ public class TestRateNumericIterator {
     assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
     assertEquals(0.005, v.value().doubleValue(), 0.001);
 
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+    
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
@@ -520,6 +541,10 @@ public class TestRateNumericIterator {
     assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
     assertEquals(2.0, v.value().doubleValue(), 0.001);
     
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
     assertFalse(it.hasNext());
   }
   

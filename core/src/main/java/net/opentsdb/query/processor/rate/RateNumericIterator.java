@@ -134,11 +134,6 @@ public class RateNumericIterator implements QueryIterator {
           (Double.isNaN(next.value().doubleValue())))) {
         // If the upstream sent a null (ex:downsample), create a null entry here too..
         next_rate.reset(next);
-        if (prev_data == null) {
-          prev_data = new MutableNumericValue(next);
-        } else {
-          prev_data.reset(next);
-        }
         
         has_next = true;
         return;
@@ -177,6 +172,7 @@ public class RateNumericIterator implements QueryIterator {
         if (options.isCounter() && value_delta < 0) {
           if (options.getDropResets()) {
             prev_data.reset(next);
+
             continue;
           }
           
