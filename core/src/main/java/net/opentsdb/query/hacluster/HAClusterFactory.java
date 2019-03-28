@@ -413,8 +413,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           planner.addEdge(rebuilt, last);
         }
         
-        // re-link
-        planner.removeEdge(max.get(0), merger);
+//        // re-link
+//        planner.removeEdge(max.get(0), merger);
         predecessor = max.get(max.size() - 1);
         predecessors = Sets.newHashSet(planner.configGraph().predecessors(predecessor));
         for (final QueryNodeConfig pred : predecessors) {
@@ -422,6 +422,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           planner.removeEdge(pred, predecessor);
         }
         
+        // re-link
+        planner.removeEdge(max.get(0), merger);
+                
         // we can shuffle the graph
         for (int i = 0; i < new_sources.size(); i++) {
           final List<QueryNodeConfig> source_push_downs = push_downs.get(i);
@@ -443,7 +446,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
               ((DefaultQueryPlanner) planner).sinkFilters().put(merger.getId(), merger.getId());
             }
             if (pd.getSources().contains(config.getId())) {
-              renamed_pushdowns.add(pd.toBuilder()
+              renamed_pushdowns.add(
+                  pd.toBuilder()
                   .setSources(Lists.newArrayList(pushdown_id))
                   .build());
             } else {
