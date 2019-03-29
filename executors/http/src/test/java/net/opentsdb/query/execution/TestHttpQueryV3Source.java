@@ -69,6 +69,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UnitTestException;
@@ -98,6 +99,8 @@ public class TestHttpQueryV3Source {
     TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
     when(ctx.tsdb()).thenReturn(tsdb);
+    BlackholeStatsCollector stats = new BlackholeStatsCollector();
+    when(tsdb.getStatsCollector()).thenReturn(stats);
     
     when(ctx.queryContext()).thenReturn(context);
     when(ctx.upstream(any(QueryNode.class)))
@@ -323,6 +326,8 @@ public class TestHttpQueryV3Source {
     Configuration cfg = mock(Configuration.class);
     when(tsdb.getConfig()).thenReturn(cfg);
     when(ctx.tsdb()).thenReturn(tsdb);
+    BlackholeStatsCollector stats = new BlackholeStatsCollector();
+    when(tsdb.getStatsCollector()).thenReturn(stats);
     when(cfg.getString(anyString())).thenReturn("X-OpenTSDB-User");
     when(auth.getTokenType()).thenReturn("Cookie");
     when(auth.getToken()).thenReturn("MyCookie".getBytes(Const.UTF8_CHARSET));
