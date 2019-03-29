@@ -15,6 +15,7 @@
 package net.opentsdb.query.execution;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map;
@@ -221,19 +222,19 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     }
     
     final HttpPost post = new HttpPost(host + endpoint);
-    post.setHeader("Content-Type", "application/json");
+    post.addHeader("Content-Type", "application/json");
     final String user_header_key = context.tsdb().getConfig().getString(
         ((HttpQueryV3Factory) factory).getConfigKey(BaseHttpExecutorFactory.HEADER_USER_KEY));
     if (!Strings.isNullOrEmpty(user_header_key) && 
         context.queryContext().authState() != null) {
-      post.setHeader(user_header_key, context.queryContext().authState().getUser());
+      post.addHeader(user_header_key, context.queryContext().authState().getUser());
     }
     
     // may need to pass down a cookie.
     if (context.queryContext().authState() != null && 
         !Strings.isNullOrEmpty(context.queryContext().authState().getTokenType()) &&
         context.queryContext().authState().getTokenType().equalsIgnoreCase("cookie")) {
-      post.setHeader("Cookie", new String(
+      post.addHeader("Cookie", new String(
           context.queryContext().authState().getToken(), Const.UTF8_CHARSET));
     }
     
@@ -302,10 +303,9 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 retries++;
                 try {
                   final String new_host = ((BaseHttpExecutorFactory) factory).nextHost();
-                  final HttpPost retry = new HttpPost(new_host + endpoint);
-                  retry.setEntity(post.getEntity());
+                  post.setURI(URI.create(new_host));
                   EntityUtils.consume(response.getEntity());
-                  client.execute(retry, this);
+                  client.execute(post, this);
                   context.queryContext().logWarn(HttpQueryV3Source.this, 
                       "Retrying query to [" + new_host + endpoint + "] after " 
                       + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
@@ -450,9 +450,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               retries < ((BaseHttpExecutorFactory) factory).retries()) {
             retries++;
             final String host = ((BaseHttpExecutorFactory) factory).nextHost();
-            final HttpPost retry = new HttpPost(host + endpoint);
-            retry.setEntity(post.getEntity());
-            client.execute(retry, this);
+            post.setURI(URI.create(host));
+            client.execute(post, this);
             context.queryContext().logWarn(HttpQueryV3Source.this, 
                 "Retrying query to [" + host + endpoint + "] after " 
                 + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
@@ -475,6 +474,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             .build());
       }
     }
+    
     client.execute(post, new ResponseCallback());
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace(this, "Compiled and sent query to [" 
