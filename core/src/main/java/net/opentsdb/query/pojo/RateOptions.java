@@ -38,6 +38,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.processor.downsample.DownsampleConfig.Builder;
 import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.utils.DateTime;
 
@@ -180,14 +181,22 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+    return (Builder) new Builder()
+        .setInterval(interval)
+        .setSources(sources)
+        .setType(type)
+        .setInterval(interval)
+        .setDropResets(drop_resets)
+        .setCounter(counter)
+        .setCounterMax(counter_max)
+        .setOverrides(overrides)
+        .setResetValue(reset_value)
+        .setId(id);
   }
   
   @Override
   public boolean pushDown() {
-    // TODO Auto-generated method stub
-    return false;
+    return true;
   }
   
   @Override

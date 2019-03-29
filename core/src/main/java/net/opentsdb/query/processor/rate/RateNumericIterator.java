@@ -50,13 +50,13 @@ public class RateNumericIterator implements QueryIterator {
   
   /** The previous raw value to calculate the rate. */
   private MutableNumericValue prev_data;
-  
+
   /** The rate that will be returned at the {@link #next} call. */
   private final MutableNumericValue next_rate = new MutableNumericValue();
   
   /** Users see this rate after they called next. */
   private final MutableNumericValue prev_rate = new MutableNumericValue();
-  
+
   /** Whether or not the iterator has another real or filled value. */
   private boolean has_next;
   
@@ -99,6 +99,7 @@ public class RateNumericIterator implements QueryIterator {
     } else {
       this.source = null;
     }
+    
   }
 
   /** @return True if there is a valid next value. */
@@ -125,15 +126,20 @@ public class RateNumericIterator implements QueryIterator {
   private void populateNextRate() {
     has_next = false;
     
+    
     while (source.hasNext()) {
       final TimeSeriesValue<NumericType> next = 
           (TimeSeriesValue<NumericType>) source.next();
       if (next.value() == null || (!next.value().isInteger() && 
           (Double.isNaN(next.value().doubleValue())))) {
-        continue;
+        // If the upstream sent a null (ex:downsample), create a null entry here too..
+        next_rate.reset(next);
+        
+        has_next = true;
+        return;
       }
-      
-      if (prev_data == null) {
+
+      if (prev_data == null || prev_data.value() == null) {
         prev_data = new MutableNumericValue(next);
         continue;
       }
@@ -166,6 +172,7 @@ public class RateNumericIterator implements QueryIterator {
         if (options.isCounter() && value_delta < 0) {
           if (options.getDropResets()) {
             prev_data.reset(next);
+
             continue;
           }
           
@@ -193,6 +200,7 @@ public class RateNumericIterator implements QueryIterator {
         if (options.isCounter() && value_delta < 0) {
           if (options.getDropResets()) {
             prev_data.reset(next);
+
             continue;
           }
           
