@@ -141,6 +141,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     if (LOG.isTraceEnabled()) {
       LOG.trace("Running ES Query: " + search_source_builder);
     }
+    LOG.info("Running ES Query: " + search_source_builder);
 
     class ResultCB implements Callback<Map<String, MetaDataStorageResult>,
             Map<String, MultiSearchResponse>> {

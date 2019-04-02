@@ -180,13 +180,7 @@ public class EventRpc {
         EventsStorageResult result = eventsStoreEntry.getValue();
         Map<String, List<Bucket>> buckets = result.buckets();
         System.out.println(buckets);
-//      List<Bucket> buckets = new ArrayList<>();
-//      Bucket bucket1 = new Bucket("2019-02-27:00:00", 10);
-//      Bucket bucket2 = new Bucket("2019-02-27:00:05", 10);
-//      Bucket bucket3 = new Bucket("2019-02-27:00:10", 10);
-//      buckets.add(bucket1);
-//      buckets.add(bucket2);
-//      buckets.add(bucket3);
+
 
 
       // if (result.buckets().size() != 0) {
@@ -220,113 +214,6 @@ public class EventRpc {
       response.getOutputStream().write(data);
       response.getOutputStream().close();
       stream.close();
-
-
-//      for (Map.Entry<String, MetaDataStorageResult> metadata_result :
-//        metaDataStorageResults.entrySet() ) {
-//        MetaDataStorageResult metadata_storage_result = metadata_result
-//          .getValue();
-//        if (metadata_storage_result.result() == MetaResult.EXCEPTION) {
-//          throw metadata_storage_result.exception();
-//        }
-//
-//
-//        json.writeStartObject();
-//        json.writeNumberField("totalHits", metadata_storage_result.totalHits());
-//
-//        json.writeFieldName("namespaces");
-//        json.writeStartArray();
-//        for (final String namespace : metadata_storage_result.namespaces()) {
-//          json.writeString(namespace);
-//        }
-//        json.writeEndArray();
-//
-//        json.writeFieldName("timeseries");
-//        json.writeStartArray();
-//        for (TimeSeriesId timeSeriesId : metadata_storage_result.timeSeries()) {
-//          json.writeStartObject();
-//          BaseTimeSeriesStringId id = (BaseTimeSeriesStringId) timeSeriesId;
-//          json.writeStringField("metric", id.metric());
-//          json.writeObjectFieldStart("tags");
-//
-//          for (final Map.Entry<String, String> entry : id.tags().entrySet()) {
-//            json.writeStringField(entry.getKey(), entry.getValue());
-//          }
-//          json.writeEndObject();
-//          json.writeEndObject();
-//        }
-//        json.writeEndArray();
-//
-//        json.writeFieldName("metrics");
-//        json.writeStartArray();
-//        if (metadata_storage_result.metrics() != null) {
-//          for (final Pair<String, Long> metric : metadata_storage_result.metrics()) {
-//            json.writeStartObject();
-//            json.writeStringField(NAME, metric.getKey());
-//            json.writeNumberField(COUNT, metric.getValue());
-//            json.writeEndObject();
-//          }
-//        }
-//        json.writeEndArray();
-//
-//        json.writeObjectFieldStart("tagKeysAndValues");
-//        if (metadata_storage_result.tags() != null) {
-//          for (final Map.Entry<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>>
-//
-//            tags :
-//            metadata_storage_result.tags().entrySet()) {
-//            json.writeObjectFieldStart(tags.getKey().getKey());
-//            json.writeNumberField("hits", tags.getKey().getValue());
-//            json.writeArrayFieldStart("values");
-//            if (tags.getValue() != null) {
-//              for (final Pair<String, Long> tagv : tags.getValue()) {
-//                json.writeStartObject();
-//                json.writeStringField(NAME, tagv.getKey());
-//                json.writeNumberField(COUNT, tagv.getValue());
-//                json.writeEndObject();
-//              }
-//            }
-//            json.writeEndArray();
-//            json.writeEndObject();
-//          }
-//        }
-//        json.writeEndObject();
-//
-//        json.writeFieldName("tagKeys");
-//        json.writeStartArray();
-//        if (query.type() == QueryType.TAG_KEYS &&
-//          metadata_storage_result.tagKeysOrValues() != null) {
-//          for (final Pair<String, Long> key_or_value : metadata_storage_result.tagKeysOrValues()) {
-//            json.writeStartObject();
-//            json.writeStringField(NAME, key_or_value.getKey());
-//            json.writeNumberField(COUNT, key_or_value.getValue());
-//            json.writeEndObject();
-//          }
-//        }
-//        json.writeEndArray();
-//
-//        json.writeFieldName("tagValues");
-//        json.writeStartArray();
-//        if (query.type() == QueryType.TAG_VALUES &&
-//          metadata_storage_result.tagKeysOrValues() != null) {
-//          for (final Pair<String, Long> key_or_value : metadata_storage_result.tagKeysOrValues()) {
-//            json.writeStartObject();
-//            json.writeStringField(NAME, key_or_value.getKey());
-//            json.writeNumberField(COUNT, key_or_value.getValue());
-//            json.writeEndObject();
-//          }
-//        }
-//        json.writeEndArray();
-//        json.writeEndObject();
-//
-//      }
-//      json.writeEndArray();
-//      json.writeEndObject();
-//      json.close();
-//      final byte[] data = stream.toByteArray();
-//      response.getOutputStream().write(data);
-//      response.getOutputStream().close();
-//      stream.close();
 
     } catch (Throwable t) {
       LOG.error("Unexpected exception triggering query.", t);

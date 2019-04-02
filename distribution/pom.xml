@@ -58,6 +58,11 @@
           <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-events</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
           <groupId>net.opentsdb</groupId>
           <artifactId>opentsdb-elasticsearch-transportclient</artifactId>
           <version>${project.version}</version>

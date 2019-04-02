@@ -145,7 +145,9 @@ public class DefaultBatchEventQuery implements BatchEventQuery {
     builder.setStartTimestamp(n.asLong());
 
     n = node.get("end");
-    builder.setEndTimestamp(n.asLong());
+    if (n != null) {
+      builder.setEndTimestamp(n.asLong());
+    }
 
     n = node.get("queries");
 

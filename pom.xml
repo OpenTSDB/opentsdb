@@ -92,6 +92,7 @@
     <module>implementation/stormpot</module>
     <module>implementation/http-config</module>
     <module>implementation/elasticsearch</module>
+    <module>implementation/events</module>
     <module>implementation/protobuf</module>
     <module>implementation/tracer-brave</module>
     <module>implementation/redis</module>

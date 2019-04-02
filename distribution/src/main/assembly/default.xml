@@ -28,6 +28,7 @@
         <include>net.opentsdb:opentsdb-asynchbase</include>
         <include>net.opentsdb:opentsdb-executors-http</include>
         <include>net.opentsdb:opentsdb-elasticsearch-transportclient</include>
+        <include>net.opentsdb:opentsdb-events</include>
         <include>net.opentsdb:opentsdb-stormpot</include>
       </includes>
       <outputDirectory>lib</outputDirectory>
