@@ -21,10 +21,12 @@ import java.util.Map.Entry;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
@@ -194,10 +196,26 @@ public class BinaryExpressionNode extends AbstractQueryNode {
         }
       }
       
-      ((TimeSeriesByteId) next.timeSeries().iterator().next().id())
-        .dataStore().encodeJoinMetrics(metrics, null /* TODO */)
-        .addCallback(new ResolveCB())
-        .addErrback(new ErrorCB());
+      if (next.timeSeries() == null || next.timeSeries().isEmpty()) {
+        onNext(new BaseWrappedQueryResult(next) {
+          
+          @Override
+          public QueryNode source() {
+            return BinaryExpressionNode.this;
+          }
+          
+          @Override
+          public TypeToken<? extends TimeSeriesId> idType() {
+            return Const.TS_STRING_ID;
+          }
+          
+        });
+      } else {
+        ((TimeSeriesByteId) next.timeSeries().iterator().next().id())
+          .dataStore().encodeJoinMetrics(metrics, null /* TODO */)
+          .addCallback(new ResolveCB())
+          .addErrback(new ErrorCB());
+      }
       return;
     }
     

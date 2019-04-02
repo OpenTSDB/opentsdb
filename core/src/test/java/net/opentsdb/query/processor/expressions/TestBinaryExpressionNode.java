@@ -285,6 +285,8 @@ public class TestBinaryExpressionNode {
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -382,6 +384,8 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
@@ -556,6 +560,8 @@ public class TestBinaryExpressionNode {
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -636,6 +642,8 @@ public class TestBinaryExpressionNode {
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -714,6 +722,7 @@ public class TestBinaryExpressionNode {
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -780,6 +789,8 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
@@ -857,6 +868,8 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
