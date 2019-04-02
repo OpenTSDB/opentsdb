@@ -22,7 +22,6 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.QueryPipelineContext;
@@ -34,7 +33,6 @@ import net.opentsdb.stats.Span;
 
 import net.opentsdb.utils.UniqueKeyPair;
 import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.base.Strings;
 import org.elasticsearch.search.SearchHit;
@@ -160,12 +158,22 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
           for (final Map.Entry<String, MultiSearchResponse> search_response: results.entrySet()) {
             final MultiSearchResponse.Item[] responses= search_response.getValue().getResponses();
             final SearchResponse response = responses[i].getResponse();
+            if (response == null) {
+              LOG.warn("Null response from " + search_response.getKey());
+              final_results.put(meta_query.namespace(), new
+                  NamespacedAggregatedDocumentResult
+                  (MetaResult
+                          .NO_DATA,
+                  query, meta_query));
+              return final_results;
+            }
             if (response.getHits().getTotalHits() > max_hits) {
               max_hits = response.getHits().getTotalHits();
             }
 
             if (LOG.isTraceEnabled()) {
-              LOG.trace("Got response in " + response.getTookInMillis() + "ms");
+              LOG.trace("Got response in " + response.getTookInMillis() 
+                + "ms from " + search_response.getKey());
             }
             long startTime = System.currentTimeMillis();
             switch (query.type()) {
@@ -264,7 +272,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
             if (LOG.isTraceEnabled()) {
               LOG.trace("Time took to parse out results == " + (System
-                      .currentTimeMillis() - startTime) + " ms");
+                      .currentTimeMillis() - startTime) + " ms from " + search_response.getKey());
             }
           }
           if (result == null) {
