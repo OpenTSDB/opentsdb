@@ -54,12 +54,6 @@
           <version>${undertow.version}</version>
         </dependency>
         
-        <dependency>
-          <groupId>com.stijndewitt.undertow.cors</groupId>
-          <artifactId>undertow-cors-filter</artifactId>
-          <version>0.4.0</version>
-        </dependency>
- 
       </dependencies>
     </dependencyManagement>
     
@@ -99,11 +93,6 @@
         <artifactId>logback-classic</artifactId>
       </dependency>
       
-      <dependency>
-        <groupId>com.stijndewitt.undertow.cors</groupId>
-        <artifactId>undertow-cors-filter</artifactId>
-      </dependency>
-    
       <!-- TESTING Deps. -->
       <dependency>
         <groupId>junit</groupId>
