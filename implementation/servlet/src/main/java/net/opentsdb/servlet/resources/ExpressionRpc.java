@@ -57,6 +57,7 @@ import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.utils.JSON;
 
 @Path("query/exp")
@@ -109,8 +110,12 @@ public class ExpressionRpc {
     }
     final TSDB tsdb = (TSDB) obj;
     
+    final StatsTimer timer;
     if (tsdb.getStatsCollector() != null) {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "2x");
+      timer = tsdb.getStatsCollector().startTimer("query.user.latency", true);
+    } else {
+      timer = null;
     }
     
     // check auth. 
@@ -240,6 +245,7 @@ public class ExpressionRpc {
             .setSerdesOptions(serdes)
             .setRequest(request)
             .setAsync(async)
+            .setStatsTimer(timer)
             .build())
         .build();
     

@@ -243,6 +243,12 @@ public class ServletSink implements QuerySink, SerdesCallback {
   }
   
   void logComplete(final Throwable t) {
+    if (config.statsTimer() != null) {
+      config.statsTimer().stop("user", context.authState() != null ? 
+          context.authState().getUser() : "Unkown", "endpoint", 
+          config.request().getRequestURI() /* TODO - trim */);
+    }
+    
     LOG.info("Completing query=" 
       + JSON.serializeToString(ImmutableMap.<String, Object>builder()
       // TODO - possible upstream headers

@@ -30,6 +30,7 @@ import com.google.common.hash.HashCode;
 
 import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
 
 /**
  * A simple sink config for the Servlet resources.
@@ -45,6 +46,7 @@ public class ServletSinkConfig implements QuerySinkConfig {
   private final AsyncContext async;
   private final HttpServletResponse response;
   private final HttpServletRequest request;
+  private final StatsTimer stats_timer;
   
   ServletSinkConfig(final Builder builder) {
     id = builder.id;
@@ -52,6 +54,7 @@ public class ServletSinkConfig implements QuerySinkConfig {
     async = builder.async;
     response = builder.response;
     request = builder.request;
+    stats_timer = builder.stats_timer;
   }
   
   @Override
@@ -82,6 +85,10 @@ public class ServletSinkConfig implements QuerySinkConfig {
     return request;
   }
   
+  public StatsTimer statsTimer() {
+    return stats_timer;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -102,6 +109,7 @@ public class ServletSinkConfig implements QuerySinkConfig {
     private AsyncContext async;
     private HttpServletResponse response;
     private HttpServletRequest request;
+    private StatsTimer stats_timer;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -125,6 +133,11 @@ public class ServletSinkConfig implements QuerySinkConfig {
     
     public Builder setRequest(final HttpServletRequest request) {
       this.request = request;
+      return this;
+    }
+    
+    public Builder setStatsTimer(final StatsTimer stats_timer) {
+      this.stats_timer = stats_timer;
       return this;
     }
     
