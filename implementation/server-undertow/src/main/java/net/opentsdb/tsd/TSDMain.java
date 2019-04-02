@@ -295,13 +295,10 @@ public class TSDMain {
           .addPrefixPath(root, handler);
       
       if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CORS_PATTERN_KEY))) {
-        handler = new com.stijndewitt.undertow.cors.Filter(handler);
-        ((com.stijndewitt.undertow.cors.Filter) handler).setUrlPattern(
-            tsdb.getConfig().getString(CORS_PATTERN_KEY));
-        ((com.stijndewitt.undertow.cors.Filter) handler).setAllowHeaders(
-            tsdb.getConfig().getString(CORS_HEADERS_KEY));
-        ((com.stijndewitt.undertow.cors.Filter) handler)
-          .setPolicyClass("com.stijndewitt.undertow.cors.AllowAll");
+        // TODO - flesh out settings.
+        handler = CORSHandler.newBuilder().setNext(handler)
+            .setOriginPattern(tsdb.getConfig().getString(CORS_PATTERN_KEY))
+            .build();
       }
       
       // support compression!
