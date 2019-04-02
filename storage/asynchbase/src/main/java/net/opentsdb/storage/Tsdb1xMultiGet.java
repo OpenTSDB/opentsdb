@@ -509,6 +509,24 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         } else {
           rollup_index++;
         }
+        
+        if (rollup_index >= tables.size()) {
+          // no fallback, we're done.
+          final QueryResult result = current_result;
+          current_result = null;
+          if (child != null) {
+            child.setSuccessTags().finish();
+          }
+          if (node.pipelineContext().query().isTraceEnabled()) {
+            node.pipelineContext().queryContext().logTrace(node, 
+                "Finished multi-get query in: " 
+                    + DateTime.msFromNanoDiff(DateTime.nanoTime(), fetch_start));
+          }
+          state = State.COMPLETE;
+          node.onNext(result);
+          return;
+        }
+        
         while (outstanding < concurrency_multi_get && !advance() && !has_failed) {
           outstanding++;
           nextBatch(tsuid_idx, (int) fallback_timestamp.epoch(), child);

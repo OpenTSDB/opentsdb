@@ -1167,6 +1167,52 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   }
   
   @Test
+  public void onCompleteFallbackNoData() throws Exception {
+    setMultiRollupQuery();
+    
+    Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
+    mget.current_result = result;
+    mget.outstanding = 0;
+    mget.timestamp = new MillisecondTimeStamp((END_TS + 3600 - 900) * 1000L);
+    assertEquals(0, mget.rollup_index);
+    
+    // fires off up to concurrency_multi_get gets
+    mget.onComplete();
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, START_TS - 900, null);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
+    assertEquals(START_TS  + (3600 * 6) - 900, mget.fallback_timestamp.epoch());
+    assertEquals(1, mget.rollup_index);
+    
+    // fall to raw
+    mget.outstanding = 0;
+    mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(2)).nextBatch(0, START_TS - 900, null);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
+    assertEquals(END_TS  - 900, mget.fallback_timestamp.epoch());
+    assertEquals(2, mget.rollup_index);
+    
+    mget.outstanding = 0;
+    mget.onComplete();
+    assertEquals(State.COMPLETE, mget.state());
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(2)).nextBatch(0, START_TS - 900, null);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
+    assertNull(mget.fallback_timestamp);
+    assertEquals(3, mget.rollup_index);
+  }
+  
+  @Test
   public void onCompleteFallbackRaw() throws Exception {
     setMultiRollupQuery();
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_FALLBACK_RAW);
