@@ -55,6 +55,7 @@ import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.Bytes;
@@ -101,8 +102,12 @@ public class RawQueryRpc {
     }
     final TSDB tsdb = (TSDB) obj;
     
+    final StatsTimer timer;
     if (tsdb.getStatsCollector() != null) {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "3x");
+      timer = tsdb.getStatsCollector().startTimer("query.user.latency", true);
+    } else {
+      timer = null;
     }
     
     // check auth. 
@@ -199,9 +204,9 @@ public class RawQueryRpc {
         .addSink(ServletSinkConfig.newBuilder()
             .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)
-            //.setResponse(response)
             .setRequest(request)
             .setAsync(async)
+            .setStatsTimer(timer)
             .build())
         .build();
     
