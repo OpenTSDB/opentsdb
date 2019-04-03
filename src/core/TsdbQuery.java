@@ -1544,14 +1544,15 @@ final class TsdbQuery implements Query {
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
-  private long getScanEndTimeSeconds() {
+  @VisibleForTesting
+  protected long getScanEndTimeSeconds() {
     // Begin with the raw query end time.
     long end = getEndTime();
 
     // Convert to seconds if we have a query in ms.
     if ((end & Const.SECOND_MASK) != 0L) {
       end /= 1000L;
-      if (end - (end * 1000) < 1) {
+      if (end == 0) {
         // handle an edge case where a user may request a ms time between
         // 0 and 1 seconds. Just bump it a second.
         end++;
