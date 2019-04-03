@@ -234,16 +234,28 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   public void onComplete(final QueryNode downstream, 
                          final long final_sequence,
                          final long total_sequences) {
-    completeUpstream(final_sequence, total_sequences);
+    context.tsdb().getQueryThreadPool().submit(new Runnable() {
+      @Override
+      public void run() {
+        completeUpstream(final_sequence, total_sequences);
+      }
+    });
   }
 
   @Override
   public void onNext(final QueryResult next) {
-    sendUpstream(next);
-    if (executor.state() == State.COMPLETE || 
-        executor.state() == State.EXCEPTION) {
-      completeUpstream(sequence_id.get(), sequence_id.get());
-    }
+    context.tsdb().getQueryThreadPool().submit(new Runnable() {
+      final State state = executor.state();
+      
+      @Override
+      public void run() {
+        sendUpstream(next);
+        if (state == State.COMPLETE || 
+            state == State.EXCEPTION) {
+          completeUpstream(sequence_id.get(), sequence_id.get());
+        }
+      }
+    });
   }
   
   @Override
@@ -253,7 +265,12 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
 
   @Override
   public void onError(final Throwable t) {
-    sendUpstream(t);
+    context.tsdb().getQueryThreadPool().submit(new Runnable() {
+      @Override
+      public void run() {
+        sendUpstream(t);        
+      }
+    });
   }
 
   @Override

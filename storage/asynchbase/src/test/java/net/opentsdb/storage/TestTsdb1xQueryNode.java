@@ -386,6 +386,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     node.onComplete(node, 1, 1);
     
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
+    
     verify(upstream_a, times(1)).onComplete(node, 1, 1);
     verify(upstream_b, times(1)).onComplete(node, 1, 1);
   }
@@ -399,6 +403,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(node.executor.state()).thenReturn(State.CONTINUE);
     
     node.onNext(result);
+    
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
     
     verify(upstream_a, times(1)).onNext(result);
     verify(upstream_b, times(1)).onNext(result);
@@ -418,6 +426,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     node.onNext(result);
     
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
+    
     verify(upstream_a, times(1)).onNext(result);
     verify(upstream_b, times(1)).onNext(result);
     verify(upstream_a, times(1)).onComplete(any(QueryNode.class), 
@@ -434,6 +446,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     UnitTestException ex = new UnitTestException();
     
     node.onError(ex);
+
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
     
     verify(upstream_a, times(1)).onError(ex);
     verify(upstream_b, times(1)).onError(ex);
@@ -484,6 +500,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     node.initialize(null);
     
     node.new MetaCB(null).call(meta_result);
+    
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
     
     Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
     assertEquals(2, gets.tsuids.size());
@@ -592,6 +612,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     node.resolveMeta(meta_result, null);
     
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
+    
     Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
     assertEquals(2, gets.tsuids.size());
     assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
@@ -696,6 +720,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     node.resolveMeta(meta_result, null);
     
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
+    
     Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
     assertEquals(1, gets.tsuids.size());
     assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
@@ -770,6 +798,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     node.resolveMeta(meta_result, null);
     
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
+    
     Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
     assertEquals(1, gets.tsuids.size());
     assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
@@ -837,6 +869,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     node.initialize(null);
     
     node.resolveMeta(meta_result, null);
+    
+    assertEquals(1, tsdb.runnables.size());
+    tsdb.runnables.get(0).run();
+    tsdb.runnables.clear();
     
     Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
     assertEquals(2, gets.tsuids.size());
