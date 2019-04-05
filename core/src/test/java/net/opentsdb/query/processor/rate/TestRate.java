@@ -24,6 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -118,5 +119,14 @@ public class TestRate {
       .onError(any(Throwable.class));
     ds.onError(ex);
     verify(upstream, times(2)).onError(ex);
+  }
+
+  @Test
+  public void verifydups() {
+    RateOptions config1 = RateOptions.newBuilder()
+        .setId("foo1")
+        .setInterval("15s")
+        .build();
+    Assert.assertNotEquals(config1, config);
   }
 }

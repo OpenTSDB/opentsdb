@@ -343,7 +343,8 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
        && Objects.equal(drop_resets, options.drop_resets)
        && Objects.equal(counter_max, options.counter_max)
        && Objects.equal(reset_value, options.reset_value)
-       && Objects.equal(interval, options.interval);
+       && Objects.equal(interval, options.interval)
+       && Objects.equal(id, options.id);
   }
   
   @Override
@@ -358,6 +359,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
         .putBoolean(drop_resets)
         .putLong(counter_max)
         .putLong(reset_value)
+        .putString(id, Const.UTF8_CHARSET)
         .putString(interval, Const.UTF8_CHARSET)
         .hash();
   }
