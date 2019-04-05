@@ -167,12 +167,15 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                     .setPreviousIntervals(0)
                     .setTimeShiftInterval(null);
     }
-    
+
+    System.out.println(config.getFilterId());
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
-      builder.addFilter(DefaultNamedFilter.newBuilder()
-          .setId(config.getFilterId())
-          .setFilter(context.query().getFilter(config.getFilterId()))
-          .build());
+      if (!config.getFilterId().equalsIgnoreCase("null")) {
+        builder.addFilter(DefaultNamedFilter.newBuilder()
+            .setId(config.getFilterId())
+            .setFilter(context.query().getFilter(config.getFilterId()))
+            .build());
+      }
     }
     
     final Set<String> serdes_filters = Sets.newHashSet();
@@ -492,7 +495,6 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             .build());
       }
     }
-    
     client.execute(post, new ResponseCallback());
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace(this, "Compiled and sent query to [" 
