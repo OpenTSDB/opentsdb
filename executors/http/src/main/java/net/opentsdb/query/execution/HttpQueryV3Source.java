@@ -14,30 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.time.temporal.TemporalAmount;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.RejectedExecutionException;
-
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
@@ -60,9 +41,26 @@ import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.storage.SourceNode;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.DefaultSharedHttpClient;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
-import net.opentsdb.utils.DefaultSharedHttpClient;
+import org.apache.http.Header;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.time.temporal.TemporalAmount;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * An executor that fires an HTTP query against a V3 endpoint for a metric,
@@ -168,14 +166,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                     .setTimeShiftInterval(null);
     }
 
-    System.out.println(config.getFilterId());
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
-      if (!config.getFilterId().equalsIgnoreCase("null")) {
-        builder.addFilter(DefaultNamedFilter.newBuilder()
-            .setId(config.getFilterId())
-            .setFilter(context.query().getFilter(config.getFilterId()))
-            .build());
-      }
+      builder.addFilter(DefaultNamedFilter.newBuilder()
+          .setId(config.getFilterId())
+          .setFilter(context.query().getFilter(config.getFilterId()))
+          .build());
+
     }
     
     final Set<String> serdes_filters = Sets.newHashSet();
