@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import java.time.temporal.TemporalAmount;
 import java.util.Map;
 
+import net.opentsdb.query.filter.QueryFilter;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -251,6 +252,47 @@ public class TestHttpQueryV3Source {
     assertTrue(json.contains("\"sources\":[\"m1\"]"));
     assertTrue(json.contains("\"filters\":["));
     assertTrue(json.contains("\"id\":\"f1\""));
+    assertTrue(json.contains("\"type\":\"TagValueLiteralOr\""));
+    assertTrue(json.contains("\"filter\":\"web01\""));
+  }
+
+  @Test
+  public void requestFilterNoOrNullFilterId() throws Exception {
+
+    QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
+        .setFilter("web01")
+        .setTagKey("host")
+        .build();
+
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("system.cpu.user")
+                .build())
+            .setQueryFilter(filter)
+            .setFilterId(null)
+            .setId("m1")
+            .build();
+
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1h-ago")
+        .addExecutionGraphNode(config)
+        .build();
+
+    when(ctx.query()).thenReturn(query);
+    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
+    src.fetchNext(null);
+
+    verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
+    assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
+    assertNull(request.getFirstHeader("Cookie"));
+    String json = EntityUtils.toString(((HttpPost) request).getEntity());
+    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.contains("\"mode\":\"SINGLE\""));
+    assertTrue(json.contains("\"id\":\"m1\""));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+    assertTrue(json.contains("\"filters\":["));
     assertTrue(json.contains("\"type\":\"TagValueLiteralOr\""));
     assertTrue(json.contains("\"filter\":\"web01\""));
   }

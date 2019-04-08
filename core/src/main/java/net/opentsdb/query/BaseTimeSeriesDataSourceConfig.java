@@ -406,7 +406,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     }
     
     n = node.get("filterId");
-    if (n != null && !Strings.isNullOrEmpty(n.asText())) {
+    if (n != null && !n.isNull()) {
       builder.setFilterId(n.asText());
     } else {
       n = node.get("filter");
@@ -415,12 +415,12 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         if (type_node == null) {
           throw new IllegalArgumentException("Missing the filter type field.");
         }
-        
+
         type = type_node.asText();
         if (Strings.isNullOrEmpty(type)) {
           throw new IllegalArgumentException("Filter type field cannot be null or empty.");
         }
-        
+
         factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
         if (factory == null) {
           throw new IllegalArgumentException("No query filter factory found for: " + type);
