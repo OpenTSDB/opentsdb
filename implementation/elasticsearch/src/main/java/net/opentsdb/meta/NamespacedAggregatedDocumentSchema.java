@@ -155,104 +155,102 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
           long max_hits = 0;
           MetaQuery meta_query = query.metaQueries().get(i);
           NamespacedAggregatedDocumentResult result = null;
-          for (final Map.Entry<String, MultiSearchResponse> search_response: results.entrySet()) {
-            final MultiSearchResponse.Item[] responses= search_response.getValue().getResponses();
+          int null_results = 0;
+          for (final Map.Entry<String, MultiSearchResponse> search_response : results.entrySet()) {
+            final MultiSearchResponse.Item[] responses = search_response.getValue().getResponses();
             final SearchResponse response = responses[i].getResponse();
             if (response == null) {
-              LOG.warn("Null response from " + search_response.getKey());
-              final_results.put(meta_query.namespace(), new
-                  NamespacedAggregatedDocumentResult
-                  (MetaResult
-                          .NO_DATA,
-                  query, meta_query));
-              return final_results;
-            }
+              LOG.warn("Null response from " + search_response.getKey() + " for query " + meta_query);
+              tsdb.getStatsCollector().incrementCounter("es.client.query.nullResponse", "colo",
+                  search_response.getKey());
+              null_results++;
+            } else {
             if (response.getHits().getTotalHits() > max_hits) {
               max_hits = response.getHits().getTotalHits();
             }
 
             if (LOG.isTraceEnabled()) {
-              LOG.trace("Got response in " + response.getTookInMillis() 
-                + "ms from " + search_response.getKey());
+              LOG.trace("Got response in " + response.getTookInMillis()
+                  + "ms from " + search_response.getKey());
             }
             long startTime = System.currentTimeMillis();
             switch (query.type()) {
               case NAMESPACES:
                 if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                                NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG) == null) {
+                    response.getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG) == null) {
                   break;
                 }
                 if (result == null) {
                   result = parseNamespaces(query, meta_query, response
-                          .getAggregations()
-                          .get(
-                                  NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), null);
+                      .getAggregations()
+                      .get(
+                          NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), null);
                 } else {
                   parseNamespaces(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), result);
+                      NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), result);
                 }
                 break;
               case METRICS:
                 if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                                NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
+                    response.getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
                   break;
                 }
                 if (result == null) {
                   result = parseMetrics(query, meta_query, response
-                          .getAggregations().get(
-                                  NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), null);
+                      .getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), null);
                 } else {
                   parseMetrics(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), result);
+                      NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), result);
                 }
                 break;
               case TAG_KEYS:
                 if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                                NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG) == null) {
+                    response.getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG) == null) {
                   break;
                 }
                 if (result == null) {
                   result = parseTagKeys(query, meta_query, response
-                          .getAggregations().get(
-                                  NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), null);
+                      .getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), null);
                 } else {
                   parseTagKeys(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), result);
+                      NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), result);
                 }
                 break;
               case TAG_VALUES:
                 if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                                NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG) == null) {
+                    response.getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG) == null) {
                   break;
                 }
                 if (result == null) {
                   result = parseTagValues(query, meta_query, response
-                          .getAggregations().get(
-                                  NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), null);
+                      .getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), null);
                 } else {
                   parseTagValues(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), result);
+                      NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), result);
                 }
                 break;
               case TAG_KEYS_AND_VALUES:
                 if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                                NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG) == null) {
+                    response.getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG) == null) {
                   break;
                 }
                 if (result == null) {
                   result = parseTagKeysAndValues(query, meta_query, response
-                          .getAggregations
-                                  ().get(
-                                  NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), null);
+                      .getAggregations
+                          ().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), null);
                 } else {
                   parseTagKeysAndValues(query, meta_query, response
-                          .getAggregations().get(
-                                  NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), result);
+                      .getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), result);
                 }
               case TIMESERIES:
                 if (result == null) {
@@ -263,17 +261,25 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                 break;
               default:
                 final_results.put(meta_query.namespace(), new
-                        NamespacedAggregatedDocumentResult
-                        (MetaResult
-                                .NO_DATA,
+                    NamespacedAggregatedDocumentResult
+                    (MetaResult
+                        .NO_DATA,
                         query, meta_query));
                 return final_results;
             }
 
             if (LOG.isTraceEnabled()) {
               LOG.trace("Time took to parse out results == " + (System
-                      .currentTimeMillis() - startTime) + " ms from " + search_response.getKey());
+                  .currentTimeMillis() - startTime) + " ms from " + search_response.getKey());
             }
+          }
+        }
+          if (null_results == results.size()) {
+            final_results.put(meta_query.namespace(), new
+                  NamespacedAggregatedDocumentResult
+                  (MetaResult
+                      .NO_DATA,
+                      query, meta_query));
           }
           if (result == null) {
             result = new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
