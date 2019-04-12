@@ -27,6 +27,8 @@ public interface MetaQuery {
   public String namespace();
 
   public QueryFilter filter();
+
+  public String id();
   
   /**
    * Builder through which the query is parsed and parameters are set
@@ -34,6 +36,7 @@ public interface MetaQuery {
   public static abstract class Builder {
     protected String namespace;
     protected QueryFilter filter;
+    protected String id;
 
     public Builder setNamespace(final String namespace) {
       this.namespace = namespace;
@@ -44,7 +47,12 @@ public interface MetaQuery {
       this.filter = filter;
       return this;
     }
-    
+
+    public Builder setId(final String id) {
+      this.id = id;
+      return this;
+    }
+
     public abstract MetaQuery build();
 
   }
