@@ -664,21 +664,29 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       if (summaries == null) {
         summaries =
             ((TimeSeriesValue<NumericSummaryType>) value).value().summariesAvailable();
-        summary = summaries.iterator().next();
+       // summary = summaries.iterator().next();
       }
 
-      if (value.value() == null) {
-        json.writeNullField(ts_string);
-      } else {
-        if (((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).isInteger()) {
-          json.writeNumberField(ts_string,
-              ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).longValue());
+      Iterator<Integer> iterator1 = summaries.iterator();
+      json.writeFieldName(ts_string);
+      long[] long_summary = new long[summaries.size()];
+      double[] double_summary = new double[summaries.size()];
+      int i = 0;
+      while(iterator1.hasNext()) {
+         summary = iterator1.next();
+        if (value.value() == null) {
+          json.writeNullField(ts_string);
         } else {
-          json.writeNumberField(ts_string,
-              ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).doubleValue());
+          if (((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).isInteger()) {
+            long_summary[i] = ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).longValue();
+          } else {
+            double_summary[i] =
+                ((TimeSeriesValue<NumericSummaryType>) value).value().value(summary).doubleValue();
+          }
         }
+      i++;
       }
-
+      json.writeArray(long_summary, 0, long_summary.length);
       if (iterator.hasNext()) {
         value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
       } else {

@@ -83,7 +83,7 @@ public class BaseNumericSummaryTest {
         (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
       .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
       .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
-      .setExpectedSummaries(Lists.newArrayList(0, 2))
+      .setExpectedSummaries(Lists.newArrayList(0, 1, 2,3,4,5,6))
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     
@@ -154,7 +154,7 @@ public class BaseNumericSummaryTest {
         v.resetValue(0, Double.NaN);
       }
       if (left_counts[i] >= 0) {
-        v.resetValue(2, left_counts[i]);
+        v.resetValue(1, left_counts[i]);
       } else if (nans) {
         v.resetValue(2, Double.NaN);
       }
@@ -183,6 +183,66 @@ public class BaseNumericSummaryTest {
       right.addValue(v);
       timestamp += 2000;
       
+    }
+  }
+
+  protected void setupData(long[] left_sums, long[] left_counts,
+                           long[] right_sums, long[] right_counts,
+                           long[] left_avg, long[] right_avg, boolean nans) {
+    left = new MockTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+            .setMetric("a")
+            .build());
+
+    long timestamp = 1000;
+    for (int i = 0; i < left_sums.length; i++) {
+      MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+      v.resetTimestamp(new MillisecondTimeStamp(timestamp));
+      if (left_sums[i] >= 0) {
+        v.resetValue(0, left_sums[i]);
+      } else if (nans) {
+        v.resetValue(0, Double.NaN);
+      }
+      if (left_counts[i] >= 0) {
+        v.resetValue(1, left_counts[i]);
+      } else if (nans) {
+        v.resetValue(1, Double.NaN);
+      }
+      if (left_avg[i] >= 0) {
+        v.resetValue(4, left_avg[i]);
+      } else if (nans) {
+        v.resetValue(4, Double.NaN);
+      }
+      left.addValue(v);
+      timestamp += 2000;
+    }
+
+    timestamp = 1000;
+    right = new MockTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+            .setMetric("a")
+            .build());
+    for (int i = 0; i < right_sums.length; i++) {
+      MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+      v.resetTimestamp(new MillisecondTimeStamp(timestamp));
+      if (right_sums[i] >= 0) {
+        v.resetValue(0, right_sums[i]);
+      } else if (nans) {
+        v.resetValue(0, Double.NaN);
+      }
+      if (right_counts[i] >= 0) {
+        v.resetValue(1, right_counts[i]);
+      } else if (nans) {
+        v.resetValue(1, Double.NaN);
+      }
+      if (right_avg[i] >= 0) {
+        v.resetValue(4, right_avg[i]);
+      } else if (nans) {
+        v.resetValue(4, Double.NaN);
+      }
+      right.addValue(v);
+      timestamp += 2000;
+
     }
   }
   

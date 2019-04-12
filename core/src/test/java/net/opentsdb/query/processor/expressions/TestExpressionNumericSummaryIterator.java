@@ -56,13 +56,18 @@ public class TestExpressionNumericSummaryIterator
     when(rollup_config.getAggregationIds()).thenReturn(
         (Map) ImmutableMap.builder()
           .put("sum", 0)
-          .put("count", 2)
-          .put("avg", 5)
+          .put("count", 1)
+          .put("min", 2)
+          .put("max", 3)
+          .put("avg", 4)
+          .put("first", 5)
+          .put("last", 6)
           .build());
     when(RESULT.rollupConfig()).thenReturn(rollup_config);
     
     setupData(new long[] { 1, 5, 2 }, new long[] { 1, 2, 2 }, 
-        new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false);
+        new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 },
+        new long[] {1, 2, 3}, new long[] {1, 2, 3}, false);
     
     // others test regular interpolator configs, here test fallback 
     // to numeric type config.
@@ -70,7 +75,7 @@ public class TestExpressionNumericSummaryIterator
       .setExpression("a + b + c")
       .setJoinConfig(JOIN_CONFIG)
       .addInterpolatorConfig(NUMERIC_CONFIG)
-      //.addInterpolatorConfig(NUMERIC_SUMMARY_CONFIG) // doh!
+     // .addInterpolatorConfig(NUMERIC_SUMMARY_CONFIG) // doh!
       .setId("e1")
       .build();
     when(node.expressionConfig()).thenReturn(config);
@@ -84,7 +89,7 @@ public class TestExpressionNumericSummaryIterator
     NumericSummaryInterpolatorConfig nsic = 
         (NumericSummaryInterpolatorConfig) iterator.left_interpolator
           .fillPolicy().config();
-    assertEquals(3, nsic.getExpectedSummaries().size());
+    assertEquals(7, nsic.getExpectedSummaries().size());
     assertTrue(nsic.getExpectedSummaries().contains(0));
     assertTrue(nsic.getExpectedSummaries().contains(2));
     assertTrue(nsic.getExpectedSummaries().contains(5));
@@ -110,8 +115,9 @@ public class TestExpressionNumericSummaryIterator
   
   @Test
   public void longLong() throws Exception {
-    setupData(new long[] { 1, 5, 2 }, new long[] { 1, 2, 2 }, 
-              new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false);
+    setupData(new long[] { 1, 5, 2 }, new long[] { 1, 2, 2 },
+        new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 },
+        new long[] {1, 2, 3}, new long[] {1, 2, 3}, false);
 
     ExpressionNumericSummaryIterator iterator = 
         new ExpressionNumericSummaryIterator(node, RESULT, 
@@ -122,19 +128,26 @@ public class TestExpressionNumericSummaryIterator
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
+
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(5, value.value().value(0).longValue());
-    assertEquals(2, value.value().value(2).longValue());
-    
+    assertEquals(2, value.value().value(1).longValue());
+    assertEquals(2, value.value().value(4).longValue());
+
+
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(15, value.value().value(0).longValue());
-    assertEquals(4, value.value().value(2).longValue());
-    
+    assertEquals(4, value.value().value(1).longValue());
+    assertEquals(4, value.value().value(4).longValue());
+
+
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(10, value.value().value(0).longValue());
-    assertEquals(4, value.value().value(2).longValue());
+    assertEquals(4, value.value().value(1).longValue());
+    assertEquals(6, value.value().value(4).longValue());
+
     assertFalse(iterator.hasNext());
     
     // subtract
@@ -158,17 +171,20 @@ public class TestExpressionNumericSummaryIterator
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(-3, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
+    assertEquals(0, value.value().value(1).longValue());
+    assertEquals(0, value.value().value(4).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(-5, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
-    
+    assertEquals(0, value.value().value(1).longValue());
+    assertEquals(0, value.value().value(4).longValue());
+
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(-6, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
+    assertEquals(0, value.value().value(1).longValue());
+    assertEquals(0, value.value().value(4).longValue());
     assertFalse(iterator.hasNext());
   }
   
@@ -561,10 +577,12 @@ public class TestExpressionNumericSummaryIterator
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
+
+
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(46, value.value().value(0).longValue());
     assertEquals(43, value.value().value(2).longValue());
-    
+
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(52, value.value().value(0).longValue());
@@ -825,4 +843,6 @@ public class TestExpressionNumericSummaryIterator
     assertEquals(5000, value.timestamp().msEpoch());
     assertNull(value.value());
   }
+
+
 }

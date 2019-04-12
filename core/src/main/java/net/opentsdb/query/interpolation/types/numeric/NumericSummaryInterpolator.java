@@ -31,6 +31,7 @@ import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
@@ -87,9 +88,13 @@ public class NumericSummaryInterpolator implements
     }
     this.config = (NumericSummaryInterpolatorConfig) config;
     fill_policy = ((NumericSummaryInterpolatorConfig) config).queryFill();
-    final Optional<TypedTimeSeriesIterator> optional = 
-        source.iterator(NumericSummaryType.TYPE);
-    if (optional.isPresent()) {
+    Optional<TypedTimeSeriesIterator> optional;
+
+    if ((optional = source.iterator(NumericType.TYPE)).isPresent()) {
+      iterator = optional.get();
+    } else if ((optional = source.iterator(NumericArrayType.TYPE)).isPresent()){
+      iterator = optional.get();
+    } else if ((optional = source.iterator(NumericSummaryType.TYPE)).isPresent()){
       iterator = optional.get();
     } else {
       iterator = null;
@@ -258,6 +263,7 @@ public class NumericSummaryInterpolator implements
    */
   @SuppressWarnings("unchecked")
   private void initialize() {
+
     data = Maps.newHashMapWithExpectedSize(config.getExpectedSummaries().size());
     for (final int summary : config.getExpectedSummaries()) {
       data.put(summary, new ReadAheadNumericInterpolator(config.queryFill(summary)));
