@@ -40,10 +40,16 @@ public class DefaultMetaQuery implements MetaQuery {
    * Filters for the query. Can be a chained filter or a single filter
    */
   private QueryFilter filters;
-  
+
+  /**
+   * Unique id of the query
+   */
+  private String id;
+
   protected DefaultMetaQuery(final Builder builder) {
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
     filters = builder.filter;
+    id = builder.id;
     if (builder.namespace == null) {
       throw new IllegalArgumentException("Please set a namespace");
     }
@@ -56,7 +62,11 @@ public class DefaultMetaQuery implements MetaQuery {
   public QueryFilter filter() {
     return filters;
   }
-  
+
+  public String id() {
+    return id;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -96,6 +106,11 @@ public class DefaultMetaQuery implements MetaQuery {
     }
     builder.setNamespace(n.asText());
 
+    n = node.get("id");
+    if (n == null || n.isNull()) {
+      throw new IllegalArgumentException("ID cannot be null");
+    }
+    builder.setId(n.asText());
 
     if (query_type != QueryType.NAMESPACES) {
       n = node.get("filter");

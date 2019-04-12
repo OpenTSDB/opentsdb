@@ -37,6 +37,8 @@ public interface MetaDataStorageResult {
     EXCEPTION_FALLBACK,
     EXCEPTION
   }
+
+  public String id();
   
   public long totalHits();
   

@@ -187,6 +187,7 @@ public class MetaRpc {
 
             json.writeStartObject();
             json.writeNumberField("totalHits", metadata_storage_result.totalHits());
+            json.writeStringField("id", metadata_storage_result.id());
 
             json.writeFieldName("namespaces");
             json.writeStartArray();
