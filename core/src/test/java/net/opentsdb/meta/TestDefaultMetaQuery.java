@@ -34,7 +34,7 @@ public class TestDefaultMetaQuery {
 
   @Test
   public void parseQueryWithAllAggregate() throws Exception {
-    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\", \"id\": \"1\","
         + "\"filter\":{\"type\":\"Chain\",\"filters\":[{\"type\":"
         + "\"AnyFieldRegex\",\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\","
         + "\"filter\":\"cpu\"}]},\"type\":\"TIMESERIES\"}";
@@ -51,7 +51,7 @@ public class TestDefaultMetaQuery {
 
   @Test
   public void parseQueryWithMetricsAggregate() throws Exception {
-    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\", \"id\": \"1\","
         + "\"filter\":{\"type\":\"Chain\",\"filters\":[{\"type\":"
         + "\"AnyFieldRegex\",\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\","
         + "\"filter\":\"cpu\"}]},\"type\":\"METRICS\"}";
@@ -67,7 +67,7 @@ public class TestDefaultMetaQuery {
 
   @Test
   public void parseQueryWithtagKeysAggregate() throws Exception {
-    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\", \"id\": \"1\","
         + "\"filter\":{\"type\":\"Chain\",\"filters\":[{\"type\":\"AnyFieldRegex\","
         + "\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\",\"filter\":"
         + "\"cpu\"}]},\"type\":\"TAG_KEYS\"}";
@@ -84,7 +84,7 @@ public class TestDefaultMetaQuery {
 
   @Test
   public void parseQueryWithtagValuesAggregate() throws Exception {
-    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\", \"id\": \"1\","
         + "\"filter\":{\"type\":\"chain\",\"filters\":[{\"type\":\"AnyFieldRegex\","
         + "\"filter\":\"sys|bf\"},{\"type\":\"AnyFieldRegex\",\"filter\":"
         + "\"cpu\"}]},\"type\":\"TAG_VALUES\"}";
@@ -101,7 +101,7 @@ public class TestDefaultMetaQuery {
 
   @Test
   public void parseQueryWithNamespaceAggregateNoFilters() throws Exception {
-    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\","
+    String request = "{\"from\":0,\"to\":10,\"namespace\":\"Test-Namespace\", \"id\": \"1\","
       + "\"type\":\"NAMESPACES\"}";
     JsonNode node = JSON.getMapper().readTree(request);
 
