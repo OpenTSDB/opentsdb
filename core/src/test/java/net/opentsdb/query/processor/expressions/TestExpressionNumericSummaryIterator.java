@@ -216,17 +216,17 @@ public class TestExpressionNumericSummaryIterator
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(-5, value.value().value(0).longValue());
-    assertEquals(-2, value.value().value(2).longValue());
+    assertEquals(-2, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(-15, value.value().value(0).longValue());
-    assertEquals(-4, value.value().value(2).longValue());
+    assertEquals(-4, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(-10, value.value().value(0).longValue());
-    assertEquals(-4, value.value().value(2).longValue());
+    assertEquals(-4, value.value().value(1).longValue());
     assertFalse(iterator.hasNext());
     
     // subtract
@@ -251,17 +251,17 @@ public class TestExpressionNumericSummaryIterator
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(3, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
+    assertEquals(0, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(5, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
+    assertEquals(0, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(6, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
+    assertEquals(0, value.value().value(1).longValue());
     assertFalse(iterator.hasNext());
   }
   
@@ -581,17 +581,17 @@ public class TestExpressionNumericSummaryIterator
 
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(46, value.value().value(0).longValue());
-    assertEquals(43, value.value().value(2).longValue());
+    assertEquals(43, value.value().value(1).longValue());
 
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(52, value.value().value(0).longValue());
-    assertEquals(44, value.value().value(2).longValue());
+    assertEquals(44, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(50, value.value().value(0).longValue());
-    assertEquals(44, value.value().value(2).longValue());
+    assertEquals(44, value.value().value(1).longValue());
     
     // subtract
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
@@ -613,17 +613,17 @@ public class TestExpressionNumericSummaryIterator
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(-38, value.value().value(0).longValue());
-    assertEquals(-41, value.value().value(2).longValue());
+    assertEquals(-41, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(-32, value.value().value(0).longValue());
-    assertEquals(-40, value.value().value(2).longValue());
+    assertEquals(-40, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(-34, value.value().value(0).longValue());
-    assertEquals(-40, value.value().value(2).longValue());
+    assertEquals(-40, value.value().value(1).longValue());
     assertFalse(iterator.hasNext());
   }
 
@@ -726,17 +726,17 @@ public class TestExpressionNumericSummaryIterator
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(5, value.value().value(0).longValue());
-    assertEquals(2, value.value().value(2).longValue());
+    assertEquals(2, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(11, value.value().value(0).longValue());
-    assertEquals(3, value.value().value(2).longValue());
+    assertEquals(3, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(9, value.value().value(0).longValue());
-    assertEquals(3, value.value().value(2).longValue());
+    assertEquals(3, value.value().value(1).longValue());
     
     // subtract
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
@@ -758,17 +758,17 @@ public class TestExpressionNumericSummaryIterator
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
     assertEquals(3, value.value().value(0).longValue());
-    assertEquals(0, value.value().value(2).longValue());
+    assertEquals(0, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
     assertEquals(9, value.value().value(0).longValue());
-    assertEquals(1, value.value().value(2).longValue());
+    assertEquals(1, value.value().value(1).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(7, value.value().value(0).longValue());
-    assertEquals(1, value.value().value(2).longValue());
+    assertEquals(1, value.value().value(1).longValue());
     assertFalse(iterator.hasNext());
   }
 
