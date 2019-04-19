@@ -145,9 +145,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
       @Override
       public Map<String, MetaDataStorageResult> call(final Map<String,
-              MultiSearchResponse> results) throws Exception {
-        //int size = query.to() - query.from();
-        //search_source_builder.size(size);
+              MultiSearchResponse> results) {
+
         final Map<String, MetaDataStorageResult> final_results = new
                 LinkedHashMap<>();
 
