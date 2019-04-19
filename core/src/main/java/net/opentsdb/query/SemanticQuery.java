@@ -12,6 +12,7 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.DateTime;
@@ -347,6 +349,10 @@ public class SemanticQuery implements TimeSeriesQuery {
         if (temp != null && !temp.isNull()) {
           config_factory = tsdb.getRegistry()
               .getQueryNodeFactory(temp.asText());
+          if (config_factory instanceof DownsampleFactory) {
+            ((ObjectNode) config).put("start", builder.start);
+            ((ObjectNode) config).put("end", builder.end == null? null : builder.end);
+          }
           // could be default data source so lets double check that.
           if (temp.asText().toLowerCase()
               .equals(TimeSeriesDataSourceConfig.DEFAULT.toLowerCase())) {
