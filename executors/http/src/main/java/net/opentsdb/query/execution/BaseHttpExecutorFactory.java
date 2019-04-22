@@ -148,6 +148,11 @@ public abstract class BaseHttpExecutorFactory implements
    * @param code An HTTP status code for debugging.
    */
   public void markHostAsBad(final String host, final int code) {
+    // ignore all 400's but if the host is redirecting something is wrong.
+    if ((code >= 300 && code < 400) || code >= 500) {
+      return;
+    }
+    
     boolean marked = false;
     synchronized (hosts) {
       for (final Pair<String, Boolean> extant : hosts) {
