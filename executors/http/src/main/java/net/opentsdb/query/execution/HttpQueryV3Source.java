@@ -35,6 +35,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
@@ -188,8 +189,20 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
     pushdowns.put(config.getId(), source_builder.build());
-    for (final QueryNodeConfig pushdown : config.getPushDownNodes()) {
+    int index = 0;
+    for (QueryNodeConfig pushdown : config.getPushDownNodes()) {
+      if (pushdown instanceof DownsampleConfig) {
+        DownsampleConfig.Builder b = DownsampleConfig
+            .newBuilder((DownsampleConfig) pushdown)
+            .setStart(context.query().getStart())
+            .setEnd(context.query().getEnd())
+            .setId(pushdown.getId());
+
+        pushdown = b.build();
+        config.getPushDownNodes().set(index, pushdown);
+      }
       pushdowns.put(pushdown.getId(), pushdown);
+      index++;
     }
     
     for (final QueryNodeConfig pushdown : pushdowns.values()) {
