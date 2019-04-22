@@ -243,7 +243,7 @@ public class TestHttpQueryV3Source {
     assertTrue(json.contains("\"start\":\"24h-ago\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
-    assertTrue(json.contains("\"interval\":\"1h\""));
+    assertTrue(json.contains("\"interval\":\"15m\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
     assertFalse(json.contains("pushDownNodes"));
     assertTrue(json.contains("\"id\":\"gb\""));
