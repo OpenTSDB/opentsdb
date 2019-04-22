@@ -239,11 +239,13 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     
     final HttpPost post = new HttpPost(host + endpoint);
     post.addHeader("Content-Type", "application/json");
-    final String user_header_key = context.tsdb().getConfig().getString(
-        ((HttpQueryV3Factory) factory).getConfigKey(BaseHttpExecutorFactory.HEADER_USER_KEY));
-    if (!Strings.isNullOrEmpty(user_header_key) && 
-        context.queryContext().authState() != null) {
-      post.addHeader(user_header_key, context.queryContext().authState().getUser());
+    if (factory instanceof HttpQueryV3Factory) {
+      final String user_header_key = context.tsdb().getConfig().getString(
+          ((HttpQueryV3Factory) factory).getConfigKey(BaseHttpExecutorFactory.HEADER_USER_KEY));
+      if (!Strings.isNullOrEmpty(user_header_key) && 
+          context.queryContext().authState() != null) {
+        post.addHeader(user_header_key, context.queryContext().authState().getUser());
+      }
     }
     
     // may need to pass down a cookie.
