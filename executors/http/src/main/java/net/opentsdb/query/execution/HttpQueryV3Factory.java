@@ -136,7 +136,8 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
                                  endpoint);
   }
 
-  RollupConfig rollupConfig() {
+  @Override
+  public RollupConfig rollupConfig() {
     return rollup_config;
   }
   

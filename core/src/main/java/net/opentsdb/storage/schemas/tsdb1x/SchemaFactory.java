@@ -41,6 +41,7 @@ import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
@@ -226,6 +227,11 @@ public class SchemaFactory extends BaseTSDBPlugin
       final List<String> join_metrics, 
       final Span span) {
     return schema.getIds(UniqueIdType.METRIC, join_metrics, span);
+  }
+  
+  @Override
+  public RollupConfig rollupConfig() {
+    return rollup_config;
   }
   
   void registerConfigs(final TSDB tsdb) {

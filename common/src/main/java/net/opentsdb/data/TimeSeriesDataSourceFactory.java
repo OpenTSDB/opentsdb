@@ -24,6 +24,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -104,4 +105,10 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
       final List<String> join_metrics, 
       final Span span);
   
+  /** 
+   * Return a rollup config for the source.
+   * @return A potentially null rollup config for the source.
+   */
+  public RollupConfig rollupConfig();
+
 }

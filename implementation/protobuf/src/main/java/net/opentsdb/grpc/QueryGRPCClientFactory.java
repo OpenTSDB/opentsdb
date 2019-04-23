@@ -46,6 +46,7 @@ import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -163,6 +164,11 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
     throw new UnsupportedOperationException();
   }
 
+  @Override
+  public RollupConfig rollupConfig() {
+    return null;
+  }
+  
   void registerConfig(final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(PORT_KEY)) {
       tsdb.getConfig().register(PORT_KEY, 4243, false, 

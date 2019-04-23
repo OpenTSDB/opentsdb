@@ -53,6 +53,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
@@ -627,6 +628,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       final List<String> join_metrics,
       final Span span) {
     // TODO - need to make sure downstream returns identical types.
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  public RollupConfig rollupConfig() {
+    // TODO - need to make sure downstream returns identical configs.
     throw new UnsupportedOperationException();
   }
   
