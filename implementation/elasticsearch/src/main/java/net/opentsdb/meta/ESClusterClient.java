@@ -30,6 +30,7 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -214,7 +215,7 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
       
       class QueryTimer implements TimerTask {
         @Override
-        public void run(final Timeout timeout) throws Exception {
+        public void run(final Timeout timeout) {
           synchronized (timeouts) {
             timeouts.set(idx, null);
             
@@ -231,8 +232,13 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
               context.queryContext().logError("Meta data query "
                   + "to Elastic Search timed out: " + clusters.get(idx) + " after " 
                   + tsdb.getConfig().getInt(QUERY_TIMEOUT_KEY) + "ms");
-            }          
-            
+            }
+
+            if (tsdb.getStatsCollector() != null) {
+              tsdb.getStatsCollector().incrementCounter("es.client.query.exception", "cluster", clusters.get(idx),
+                  "timeout", "true");
+            }
+
             if (latch.decrementAndGet() < 1) {
               if (results.isEmpty()) {
                 if (child != null) {
@@ -265,8 +271,11 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
             context.queryContext().logError("Exception from ES cluster " 
                 + clusters.get(idx) + ": " + e.getMessage());
           }
-          
-          tsdb.getStatsCollector().incrementCounter("es.client.query.exception");
+
+          if (tsdb.getStatsCollector() != null) {
+            tsdb.getStatsCollector().incrementCounter("es.client.query.exception", "cluster", clusters.get(idx),
+                "timeout", "false");
+          }
           LOG.error("Unexpected failure from ES client", e);
           if (latch.decrementAndGet() < 1) {
             if (LOG.isDebugEnabled()) {
@@ -296,7 +305,7 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
             }
             timeouts.get(idx).cancel();
           }
-          
+
           if (local != null) {
             local.setSuccessTags()
                  .setTag("responses", response.getResponses().length)
@@ -308,8 +317,14 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
                 + clusters.get(idx) + " had " + response.getResponses().length
                 + " responses");
           }
-          
-          tsdb.getStatsCollector().incrementCounter("es.client.query.success");
+
+          if (tsdb.getStatsCollector() != null) {
+            for (MultiSearchResponse.Item each_response : response.getResponses()) {
+            SearchHit[] hits = each_response.getResponse().getHits().hits();
+            tsdb.getStatsCollector().incrementCounter("es.client.query.success", "namespace",
+                 hits[0].getIndex(), "cluster", clusters.get(idx));
+            }
+          }
           synchronized (results) {
             results.put(clusters.get(idx), response);
           }
@@ -328,6 +343,10 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
         for (final Map.Entry<String, SearchSourceBuilder>
                 search_source_builder : query
                 .entrySet()) {
+          if (tsdb.getStatsCollector() != null) {
+            tsdb.getStatsCollector().incrementCounter("es.client.query.new", "endpoint", "meta", "namespace",
+                search_source_builder.getKey(), "cluster", clusters.get(idx));
+          }
           final SearchRequestBuilder request_builder = client
                   .prepareSearch(search_source_builder.getKey())
                   .setSearchType(SearchType.DEFAULT)

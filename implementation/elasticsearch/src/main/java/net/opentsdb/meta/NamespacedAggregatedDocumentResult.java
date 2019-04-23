@@ -14,21 +14,12 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.BatchMetaQuery.Order;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
@@ -37,6 +28,13 @@ import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.UniqueKeyPair;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A meta query result that handles filtering, storing and sorting the results.
@@ -55,6 +53,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   private Map<Integer, UniqueKeyPair<String, Long>> tag_keys_or_values;
   private MetaResult result;
   private final BatchMetaQuery query;
+  private final MetaQuery meta_query;
 
   /**
    * Package private ctor to construct a good query. Populates the namespaces
@@ -71,6 +70,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
         query.type() != QueryType.NAMESPACES) {
       namespaces = Sets.newHashSet(meta_query.namespace());
     }
+    this.meta_query = meta_query;
   }
 
   NamespacedAggregatedDocumentResult(final MetaResult result,
@@ -79,6 +79,12 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     this.result = result;
     this.throwable = throwable;
     this.query = query;
+    this.meta_query = null;
+  }
+
+  @Override
+  public String id() {
+    return meta_query != null ? meta_query.id() : null;
   }
 
   @Override
