@@ -61,9 +61,7 @@ public class ArrayFirstFactory extends BaseArrayFactory {
         return;
       }
       
-      if (long_accumulator != null) {
-        // no-op
-      } else {
+      if (long_accumulator == null) {
         if (to - from != double_accumulator.length) {
           throw new IllegalArgumentException("Values of length " 
               + (to - from) + " did not match the original lengh of " 
