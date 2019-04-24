@@ -39,6 +39,7 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -168,4 +169,8 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
     return Deferred.fromError(new UnsupportedOperationException());
   }
   
+  @Override
+  public RollupConfig rollupConfig() {
+    return null;
+  }
 }

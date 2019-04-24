@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import net.opentsdb.common.Const;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -414,7 +415,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             
             for (final JsonNode result : results) {
               sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result, 
-                  ((HttpQueryV3Factory) factory).rollupConfig()));
+                  ((TimeSeriesDataSourceFactory) factory).rollupConfig()));
             }
           }
         } catch (Throwable t) {

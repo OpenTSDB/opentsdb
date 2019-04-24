@@ -49,6 +49,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.router.TimeRouterConfigEntry.MatchType;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -211,6 +212,11 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
         "This node should have been removed from the graph."));
   }
 
+  @Override
+  public RollupConfig rollupConfig() {
+    return null;
+  }
+  
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
