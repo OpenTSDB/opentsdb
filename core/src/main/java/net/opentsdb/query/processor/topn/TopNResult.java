@@ -14,26 +14,20 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
-import java.time.temporal.ChronoUnit;
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.TreeMap;
-
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * Implements top-n functionality by iterating over each of the time series,
@@ -75,8 +69,8 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         return;
       }
       
-      final TreeMap<Double, TimeSeries> sorted_results = 
-          new TreeMap<Double, TimeSeries>();
+      final TreeMap<Double, List<TimeSeries>> sorted_results =
+          new TreeMap<>();
       for (final TimeSeries ts : result.timeSeries()) {
         // TODO - parallelize
         
@@ -102,13 +96,13 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         }
         
         if (value.isInteger()) {
-          sorted_results.put(value.toDouble(), ts);
+          sorted_results.computeIfAbsent(value.toDouble(), k -> new ArrayList<>()).add(ts);
         } else {
-          sorted_results.put(value.doubleValue(), ts);
+          sorted_results.computeIfAbsent(value.doubleValue(), k -> new ArrayList<>()).add(ts);
         }
       }
       
-      final Iterator<Entry<Double, TimeSeries>> iterator = 
+      final Iterator<Entry<Double, List<TimeSeries>>> iterator =
           ((TopNConfig) node.config()).getTop() ?
               sorted_results.descendingMap().entrySet().iterator() :
                 sorted_results.entrySet().iterator();
@@ -117,8 +111,10 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         if (!iterator.hasNext()) {
           break;
         }
-        
-        results.add(iterator.next().getValue());
+        Entry<Double, List<TimeSeries>> next = iterator.next();
+        for (TimeSeries ts : next.getValue()) {
+          results.add(ts);
+        }
       }
       node.onNext(this);
     } catch (Exception e) {

@@ -153,7 +153,7 @@ public class TestTopNResult {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
   }
-  
+
   @Test
   public void evaluateTopN100with2SeriesLong() throws Exception {
     config = (TopNConfig) TopNConfig.newBuilder()
@@ -270,6 +270,52 @@ public class TestTopNResult {
     verify(node, never()).onNext(topn);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, times(1)).onError(any(Throwable.class));
+  }
+
+  @Test
+  public void evaluateTopNWithMultipleSameValues() throws Exception {
+    config = (TopNConfig) TopNConfig.newBuilder()
+        .setAggregator("sum")
+        .setCount(2)
+        .setTop(true)
+        .setId("top")
+        .build();
+    when(node.config()).thenReturn(config);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(
+        makeSeries("web01",
+            new MutableNumericValue(new MillisecondTimeStamp(0L), 100),
+            new MutableNumericValue(new MillisecondTimeStamp(1000L), 100),
+            new MutableNumericValue(new MillisecondTimeStamp(2000L), 100)),
+        makeSeries("web02",
+            new MutableNumericValue(new MillisecondTimeStamp(0L), 100),
+            new MutableNumericValue(new MillisecondTimeStamp(1000L), 100),
+            new MutableNumericValue(new MillisecondTimeStamp(2000L), 100))
+    ));
+    TopNResult topn = new TopNResult(node, result);
+    topn.run();
+    assertEquals(2, topn.results.size());
+    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
+    assertEquals("web02", ((TimeSeriesStringId) topn.results.get(1).id()).tags().get("host"));
+    verify(node, times(1)).onNext(topn);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+
+    // bottom n
+    config = (TopNConfig) TopNConfig.newBuilder()
+        .setAggregator("sum")
+        .setCount(2)
+        .setTop(false)
+        .setId("top")
+        .build();
+    when(node.config()).thenReturn(config);
+    topn = new TopNResult(node, result);
+    topn.run();
+    assertEquals(2, topn.results.size());
+    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
+    assertEquals("web02", ((TimeSeriesStringId) topn.results.get(1).id()).tags().get("host"));
+    verify(node, times(1)).onNext(topn);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
   }
   
   MockTimeSeries makeSeries(final String host, final MutableNumericValue ...values) {

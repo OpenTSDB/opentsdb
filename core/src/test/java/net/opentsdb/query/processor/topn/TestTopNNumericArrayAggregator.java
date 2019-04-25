@@ -135,7 +135,7 @@ public class TestTopNNumericArrayAggregator {
         new TopNNumericArrayAggregator(node, result, source);
     assertEquals(7, aggregator.run().longValue());
   }
-  
+
   @Test
   public void runDoubles() throws Exception {
     setSource(
