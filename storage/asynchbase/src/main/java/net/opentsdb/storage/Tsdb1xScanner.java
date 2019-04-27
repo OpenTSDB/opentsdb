@@ -783,7 +783,7 @@ public class Tsdb1xScanner {
       if (matched != null && matched) {
         result.decode(row, rollup_interval);
       }
-      return null;
+      return matched; // for the callback chain. We were dropping earlier.
     }
     
   }
