@@ -46,6 +46,9 @@ public class DefaultMetaQuery implements MetaQuery {
    */
   private String id;
 
+  private static String default_id = "-1";
+
+
   protected DefaultMetaQuery(final Builder builder) {
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
     filters = builder.filter;
@@ -75,7 +78,7 @@ public class DefaultMetaQuery implements MetaQuery {
    * Builder through which the query is parsed and parameters are set
    */
   public static class Builder extends MetaQuery.Builder {
-    
+
     public MetaQuery build() {
       return new DefaultMetaQuery(this);
     }
@@ -108,9 +111,10 @@ public class DefaultMetaQuery implements MetaQuery {
 
     n = node.get("id");
     if (n == null || n.isNull()) {
-      throw new IllegalArgumentException("ID cannot be null");
+      builder.setId(default_id);
+    } else {
+      builder.setId(n.asText());
     }
-    builder.setId(n.asText());
 
     if (query_type != QueryType.NAMESPACES) {
       n = node.get("filter");
