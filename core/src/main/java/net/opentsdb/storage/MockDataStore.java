@@ -1242,7 +1242,6 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         throw new UnsupportedOperationException("TODO - mock data "
             + "store needs to be able to grow the arrays.");
       }
-      array[idx] = NumericLongArrayType.TERIMNAL_FLAG;
     }
 
     @Override

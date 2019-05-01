@@ -58,9 +58,6 @@ public interface NumericLongArrayType extends TimeSeriesDataType {
    * straight long. */
   public static final long FLOAT_FLAG = 0x8000000000000000L;
   
-  /** Indicates this is the last long in the set. */
-  public static final long TERIMNAL_FLAG = 0x1000000000000000L;
-  
   /** A mask to zero out the flag bits before reading the timestamp. */
   public static final long TIMESTAMP_MASK = 0xFFFFFFFFFFFFFFFL;
   

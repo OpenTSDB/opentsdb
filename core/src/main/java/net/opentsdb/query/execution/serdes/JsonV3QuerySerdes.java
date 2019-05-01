@@ -319,14 +319,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     int count = 0;
     try {
       long[] values = ((NumericLongArrayType) series.value()).data();
-      int idx = 0;
+      int idx = ((NumericLongArrayType) series.value()).offset();
       
-      while (true) {
-        if ((values[idx] & NumericLongArrayType.TERIMNAL_FLAG) != 0) {
-          // terminal
-          break;
-        }
-        
+      while (idx < ((NumericLongArrayType) series.value()).end()) {
         long ts = 0;
         if((values[idx] & NumericLongArrayType.MILLISECOND_FLAG) != 0) {
           ts = (values[idx] & NumericLongArrayType.TIMESTAMP_MASK) / 1000;

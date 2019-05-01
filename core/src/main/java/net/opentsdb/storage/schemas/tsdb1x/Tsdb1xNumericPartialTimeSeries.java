@@ -312,7 +312,6 @@ public class Tsdb1xNumericPartialTimeSeries implements
   
   @Override
   public NumericLongArrayType value() {
-    reference_counter.incrementAndGet();
     return this;
   }
   
@@ -321,9 +320,6 @@ public class Tsdb1xNumericPartialTimeSeries implements
     if (pooled_array == null) {
       // no-op
       return;
-    }
-    if (write_idx + 1 >= ((long[]) pooled_array.object()).length) {
-      new ReAllocatedArray();
     }
     
     if (!needs_repair) {
@@ -358,7 +354,6 @@ public class Tsdb1xNumericPartialTimeSeries implements
         
         System.arraycopy(new_array, 0, array, 0, write_idx);
       }
-      ((long[]) pooled_array.object())[write_idx] = NumericLongArrayType.TERIMNAL_FLAG;
       return;
     }
     
@@ -436,7 +431,6 @@ public class Tsdb1xNumericPartialTimeSeries implements
     // copy back
     write_idx = idx;
     System.arraycopy(new_array, 0, array, 0, idx);
-    ((long[]) pooled_array.object())[write_idx] = NumericLongArrayType.TERIMNAL_FLAG;
     needs_repair = false;
   }
   
@@ -453,6 +447,7 @@ public class Tsdb1xNumericPartialTimeSeries implements
   @Override
   public long[] data() {
     if (pooled_array != null) {
+      reference_counter.incrementAndGet();
       return (long[]) pooled_array.object();
     }
     return null;

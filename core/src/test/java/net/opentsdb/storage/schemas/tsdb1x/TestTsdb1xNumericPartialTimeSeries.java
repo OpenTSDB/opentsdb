@@ -663,7 +663,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(0, array[6]); // no terminal
     assertFalse(pts.needs_repair);
 
-    pts.value();
+    pts.data();
     pts.close(); // reset!
     pts.addColumn((byte) 0, 
         BASE_TIME,
@@ -739,7 +739,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[3]);
     assertEquals(BASE_TIME.epoch() + 180, array[4]); // no flags here
     assertEquals(1, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]); // no terminal
     assertFalse(pts.needs_repair);
   }
   
@@ -771,11 +770,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[5]);
     assertEquals(BASE_TIME.epoch() + 180, array[6]); // no flags here
     assertEquals(1, array[7]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[8]);
     assertFalse(pts.needs_repair);
 
     // reset to reverse in the tree
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -801,11 +799,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[5]);
     assertEquals(BASE_TIME.epoch() + 30, array[6]); // no flags here
     assertEquals(2, array[7]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[8]);
     assertFalse(pts.needs_repair);
     
     // consecutive dupe
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -829,11 +826,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[3]);
     assertEquals(BASE_TIME.epoch() + 120, array[4]); // no flags here
     assertEquals(24, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -857,11 +853,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(1, array[3]);
     assertEquals(BASE_TIME.epoch() + 120, array[4]); // no flags here
     assertEquals(24, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
     
     // non-consecutive dupe
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -885,11 +880,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[3]);
     assertEquals(BASE_TIME.epoch() + 120, array[4]); // no flags here
     assertEquals(24, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -913,7 +907,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[3]);
     assertEquals(BASE_TIME.epoch() + 120, array[4]); // no flags here
     assertEquals(1, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
   }
 
@@ -945,11 +938,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[5]);
     assertEquals(BASE_TIME.msEpoch() + 1000 + NumericLongArrayType.MILLISECOND_FLAG, array[6]);
     assertEquals(1, array[7]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[8]);
     assertFalse(pts.needs_repair);
 
     // reset to reverse in the tree
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -975,11 +967,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[5]);
     assertEquals(BASE_TIME.msEpoch() + 250 + NumericLongArrayType.MILLISECOND_FLAG, array[6]);
     assertEquals(2, array[7]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[8]);
     assertFalse(pts.needs_repair);
 
     // consecutive dupe
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1003,11 +994,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(1, array[3]);
     assertEquals(BASE_TIME.msEpoch() + 750 + NumericLongArrayType.MILLISECOND_FLAG, array[4]);
     assertEquals(24, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
 
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1031,11 +1021,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[3]);
     assertEquals(BASE_TIME.msEpoch() + 750 + NumericLongArrayType.MILLISECOND_FLAG, array[4]);
     assertEquals(24, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
     
     // non-consecutive dupe
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1059,11 +1048,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[3]);
     assertEquals(BASE_TIME.msEpoch() + 750 + NumericLongArrayType.MILLISECOND_FLAG, array[4]);
     assertEquals(1, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
 
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1087,7 +1075,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, array[3]);
     assertEquals(BASE_TIME.msEpoch() + 750 + NumericLongArrayType.MILLISECOND_FLAG, array[4]);
     assertEquals(24, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
   }
   
@@ -1123,11 +1110,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[9]);
     assertEquals(1000, array[10]);
     assertEquals(1, array[11]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[12]);
     assertFalse(pts.needs_repair);
 
     // reset to reverse in the tree
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1157,11 +1143,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[9]);
     assertEquals(250, array[10]);
     assertEquals(2, array[11]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[12]);
     assertFalse(pts.needs_repair);
     
     // consecutive dupe
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1188,11 +1173,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[6]);
     assertEquals(750, array[7]);
     assertEquals(24, array[8]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1219,11 +1203,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[6]);
     assertEquals(750, array[7]);
     assertEquals(24, array[8]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     assertFalse(pts.needs_repair);
     
     // non-consecutive dupe
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1250,11 +1233,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[6]);
     assertEquals(750, array[7]);
     assertEquals(1, array[8]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1281,7 +1263,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[6]);
     assertEquals(750, array[7]);
     assertEquals(24, array[8]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     assertFalse(pts.needs_repair);
   }
   
@@ -1308,7 +1289,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[3]);
     assertEquals(BASE_TIME.msEpoch() + 750 + NumericLongArrayType.MILLISECOND_FLAG, array[4]);
     assertEquals(1, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     assertFalse(pts.needs_repair);
   }
   
@@ -1338,7 +1318,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + NumericLongArrayType.NANOSECOND_FLAG, array[6]);
     assertEquals(750, array[7]);
     assertEquals(-42, array[8]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     assertFalse(pts.needs_repair);
   }
   
@@ -1375,11 +1354,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(1, array[7]);
     assertEquals((BASE_TIME.msEpoch() + 120_000L) | NumericLongArrayType.MILLISECOND_FLAG, array[8]);
     assertEquals(-42, array[9]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[10]);
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1410,11 +1388,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(1, array[7]);
     assertEquals(BASE_TIME.epoch() + 120, array[8]);
     assertEquals(24, array[9]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[10]);
     assertFalse(pts.needs_repair);
     
     // all the same
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, 42),
@@ -1437,11 +1414,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(2, pts.write_idx);
     assertEquals((BASE_TIME.msEpoch() + 120_000) | NumericLongArrayType.MILLISECOND_FLAG, array[0]);
     assertEquals(-42, array[1]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[2]);
     assertFalse(pts.needs_repair);
 
     // keep earliest
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, 42),
@@ -1465,7 +1441,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() + 120 | NumericLongArrayType.NANOSECOND_FLAG, array[0]);
     assertEquals(0, array[1]);
     assertEquals(42, array[2]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[3]);
     assertFalse(pts.needs_repair);
   }
 
@@ -1486,10 +1461,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(2, pts.write_idx);
     assertEquals(BASE_TIME.epoch(), array[0]);
     assertEquals(42, array[1]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[2]);
     
     // millis
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn((byte) 0, BASE_TIME, NumericCodec.buildMsQualifier(500, (short) 0), 
         new byte[] { 1 }, pool, 42, SET);
@@ -1497,10 +1471,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(2, pts.write_idx);
     assertEquals(BASE_TIME.msEpoch() + 500 | NumericLongArrayType.MILLISECOND_FLAG, array[0]);
     assertEquals(1, array[1]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[2]);
     
     // nanos
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn((byte) 0, BASE_TIME, NumericCodec.buildNanoQualifier(25000, (short) 0), 
         new byte[] { -1 }, pool, 42, SET);
@@ -1509,7 +1482,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() | NumericLongArrayType.NANOSECOND_FLAG, array[0]);
     assertEquals(25000, array[1]);
     assertEquals(-1, array[2]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[3]);
   }
   
   @Test
@@ -1529,10 +1501,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[1]);
     assertEquals(BASE_TIME.epoch() + 60, array[2]);
     assertEquals(42, array[3]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[4]);
     
     // three
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
@@ -1551,10 +1522,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[3]);
     assertEquals(BASE_TIME.epoch() + 60, array[4]);
     assertEquals(42, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     
     // four
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
@@ -1578,7 +1548,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[5]);
     assertEquals(BASE_TIME.epoch() + 60, array[6]);
     assertEquals(42, array[7]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[8]);
   }
   
   @Test
@@ -1598,10 +1567,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[1]);
     assertEquals(BASE_TIME.msEpoch() + 250 | NumericLongArrayType.MILLISECOND_FLAG, array[2]);
     assertEquals(42, array[3]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[4]);
     
     // three
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42),
@@ -1620,10 +1588,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[3]);
     assertEquals(BASE_TIME.msEpoch() + 250 | NumericLongArrayType.MILLISECOND_FLAG, array[4]);
     assertEquals(42, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     
     // four
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42),
@@ -1647,7 +1614,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(24, array[5]);
     assertEquals(BASE_TIME.msEpoch() + 250 | NumericLongArrayType.MILLISECOND_FLAG, array[6]);
     assertEquals(42, array[7]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[8]);
   }
   
   @Test
@@ -1669,10 +1635,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() | NumericLongArrayType.NANOSECOND_FLAG, array[3]);
     assertEquals(250, array[4]);
     assertEquals(42, array[5]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     
     // three
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1694,10 +1659,9 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() | NumericLongArrayType.NANOSECOND_FLAG, array[6]);
     assertEquals(250, array[7]);
     assertEquals(42, array[8]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     
     // four
-    pts.value();
+    pts.data();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1725,7 +1689,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() | NumericLongArrayType.NANOSECOND_FLAG, array[9]);
     assertEquals(250, array[10]);
     assertEquals(42, array[11]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[12]);
   }
 
   @Test
@@ -1761,7 +1724,6 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(BASE_TIME.epoch() | NumericLongArrayType.NANOSECOND_FLAG, array[9]);
     assertEquals(250, array[10]);
     assertEquals(42, array[11]);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[12]);
   }
 
   @Test
@@ -1788,12 +1750,10 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(42, ((long[]) pts.pooled_array.object())[1]);
     assertEquals(BASE_TIME.epoch() + 120, ((long[]) pts.pooled_array.object())[2]);
     assertEquals(24, ((long[]) pts.pooled_array.object())[3]);
-    assertEquals(0, ((long[]) pts.pooled_array.object())[4]); // no terminal
+    assertEquals(0, ((long[]) pts.pooled_array.object())[4]);
     assertEquals(18, ((long[])pts.pooled_array.object()).length);
     
     pts.dedupe(false, false);
-    assertEquals(NumericLongArrayType.TERIMNAL_FLAG, 
-        ((long[]) pts.pooled_array.object())[4]); // terminated
     assertEquals(18, ((long[])pts.pooled_array.object()).length);
   }
   
