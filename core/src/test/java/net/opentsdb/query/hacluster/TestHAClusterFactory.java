@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import net.opentsdb.query.processor.timeshift.TimeShift;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -873,7 +875,7 @@ public class TestHAClusterFactory {
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
         planner.nodeForId("gb")));
   }
-  
+
   @Test
   public void setupGraphPushDownS1_S2Offsets() throws Exception {
     SemanticQuery query = SemanticQuery.newBuilder()
@@ -886,6 +888,120 @@ public class TestHAClusterFactory {
                 .build())
             .setTimeShiftInterval("1h")
             .setPreviousIntervals(2)
+            .setId("m1")
+            .build())
+        .addExecutionGraphNode(DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build())
+        .addExecutionGraphNode(GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build())
+        .build();
+
+    QueryContext ctx = mock(QueryContext.class);
+    when(ctx.stats()).thenReturn(mock(QueryStats.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(TSDB);
+    when(context.query()).thenReturn(query);
+    when(context.queryContext()).thenReturn(ctx);
+    when(context.downstreamSources(any(QueryNode.class)))
+        .thenReturn(Lists.newArrayList(SRC_MOCK));
+    QueryNode ctx_node = mock(QueryNode.class);
+    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
+    planner.plan(null).join(250);
+    System.out.println(planner.printConfigGraph());
+    assertEquals(18, planner.graph().nodes().size());
+    assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
+    QueryNode node = planner.nodeForId("ha_m1_s1");
+
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in",
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    assertTrue(((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().isEmpty());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
+
+    node = planner.nodeForId("ha_m1_s2");
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in",
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().size());
+    assertTrue(((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0) instanceof DownsampleConfig);
+    assertEquals("ha_m1_s2", ((TimeSeriesDataSourceConfig) node.config())
+        .getPushDownNodes().get(0).getSources().get(0));
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
+
+    assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
+    assertTrue(planner.nodeForId("m1") instanceof Merger);
+    assertTrue(planner.nodeForId("ha_m1_ds") instanceof Downsample);
+
+    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
+        planner.nodeForId("ha_m1_s1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1_ds"),
+        planner.nodeForId("ha_m1_s1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
+        planner.nodeForId("ha_m1_ds")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
+        planner.nodeForId("ha_m1_s2")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
+        planner.nodeForId("ha_m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
+        planner.nodeForId("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
+        planner.nodeForId("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
+        planner.nodeForId("m1-time-shift")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-time-shift"),
+        planner.nodeForId("m1-previous-PT1H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-time-shift"),
+        planner.nodeForId("m1-previous-PT2H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-previous-PT1H"),
+        planner.nodeForId("ha_m1-m1-previous-PT1H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-previous-PT2H"),
+        planner.nodeForId("ha_m1-m1-previous-PT2H")));
+    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT1H"),
+        planner.nodeForId("ha_m1_s1-m1-previous-PT1H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT1H"),
+        planner.nodeForId("ha_m1_ds-m1-previous-PT1H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1_ds-m1-previous-PT1H"),
+        planner.nodeForId("ha_m1_s1-m1-previous-PT1H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT1H"),
+        planner.nodeForId("ha_m1_s2-m1-previous-PT1H")));
+    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"),
+        planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"),
+        planner.nodeForId("ha_m1_ds-m1-previous-PT2H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1_ds-m1-previous-PT2H"),
+        planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"),
+        planner.nodeForId("ha_m1_s2-m1-previous-PT2H")));
+  }
+  
+  @Test
+  public void setupGraphPushDownS3S4_2Offsets() throws Exception {
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("s3", "s4"))
+            .setMergeAggregator("max")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.if.in")
+                .build())
+            .setTimeShiftInterval("1h")
+            .setPreviousIntervals(1)
             .setId("m1")
             .build())
         .addExecutionGraphNode(DownsampleConfig.newBuilder()
@@ -916,75 +1032,54 @@ public class TestHAClusterFactory {
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
     System.out.println(planner.printConfigGraph());
-    assertEquals(18, planner.graph().nodes().size());
+
+    assertEquals(10, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
-    QueryNode node = planner.nodeForId("ha_m1_s1");
-    
+    QueryNode node = planner.nodeForId("ha_m1_s4");
     assertTrue(node instanceof TimeSeriesDataSource);
     assertEquals("sys.if.in", 
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertEquals("s4", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertTrue(((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().isEmpty());
+    assertFalse(((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().isEmpty());
+    for(QueryNodeConfig pushdown :((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes()) {
+      if (pushdown instanceof DownsampleConfig) {
+        List<String> sources = pushdown.getSources();
+        assertTrue(sources.contains(node.config().getId()));
+      }
+    }
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
-    
-    node = planner.nodeForId("ha_m1_s2");
+
+    node = planner.nodeForId("ha_m1_s3-m1-previous-PT1H");
+
     assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
+    assertEquals("sys.if.in",
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().size());
-    assertTrue(((TimeSeriesDataSourceConfig) node.config())
-        .getPushDownNodes().get(0) instanceof DownsampleConfig);
-    assertEquals("ha_m1_s2", ((TimeSeriesDataSourceConfig) node.config())
-        .getPushDownNodes().get(0).getSources().get(0));
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
-        
-    assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
-    assertTrue(planner.nodeForId("ha_m1_ds") instanceof Downsample);
-    
-    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
-        planner.nodeForId("ha_m1_s1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1_ds"), 
-        planner.nodeForId("ha_m1_s1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
-        planner.nodeForId("ha_m1_ds")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
-        planner.nodeForId("ha_m1_s2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
-        planner.nodeForId("ha_m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"), 
-        planner.nodeForId("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
-        planner.nodeForId("gb")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"), 
-        planner.nodeForId("m1-time-shift")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-time-shift"), 
-        planner.nodeForId("m1-previous-PT1H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-time-shift"), 
-        planner.nodeForId("m1-previous-PT2H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-previous-PT1H"), 
-        planner.nodeForId("ha_m1-m1-previous-PT1H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-previous-PT2H"), 
-        planner.nodeForId("ha_m1-m1-previous-PT2H")));
-    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT1H"), 
-        planner.nodeForId("ha_m1_s1-m1-previous-PT1H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT1H"), 
-        planner.nodeForId("ha_m1_ds-m1-previous-PT1H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1_ds-m1-previous-PT1H"), 
-        planner.nodeForId("ha_m1_s1-m1-previous-PT1H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT1H"), 
-        planner.nodeForId("ha_m1_s2-m1-previous-PT1H")));
-    assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"), 
-        planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"), 
-        planner.nodeForId("ha_m1_ds-m1-previous-PT2H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1_ds-m1-previous-PT2H"), 
-        planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"), 
-        planner.nodeForId("ha_m1_s2-m1-previous-PT2H")));
+    assertFalse(((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().isEmpty());
+    for(QueryNodeConfig pushdown :((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes()) {
+      if (pushdown instanceof DownsampleConfig) {
+        List<String> sources = pushdown.getSources();
+        assertTrue(sources.contains(node.config().getId()));
+      }
+    }
+
+    node = planner.nodeForId("ha_m1_s4-m1-previous-PT1H");
+
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in",
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s4", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    System.out.println(((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes());
+    assertFalse(((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().isEmpty());
+    for(QueryNodeConfig pushdown :((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes()) {
+      if (pushdown instanceof DownsampleConfig) {
+        List<String> sources = pushdown.getSources();
+        assertTrue(sources.contains(node.config().getId()));
+      }
+    }
   }
   
   @Test
@@ -1362,7 +1457,7 @@ public class TestHAClusterFactory {
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
         planner.nodeForId("m1")));
   }
-  
+
   @Test
   public void setupGraphIdConverterNeeded() throws Exception {
     SemanticQuery query = SemanticQuery.newBuilder()

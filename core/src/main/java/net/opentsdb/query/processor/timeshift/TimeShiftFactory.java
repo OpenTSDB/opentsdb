@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.timeshift;
 
+import com.google.common.graph.MutableGraph;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,6 +31,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -53,6 +56,8 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
   public TimeShiftFactory() {
     super();
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
+    registerIteratorFactory(NumericArrayType.TYPE, new NumericArrayIteratorFactory());
+
   }
   
   @Override
@@ -105,7 +110,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new TimeShiftNumericIterator(result, 
+      return new TimeShiftNumericIterator(result,
                                           sources.iterator().next());
     }
 
@@ -114,14 +119,44 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new TimeShiftNumericIterator(result, 
+      return new TimeShiftNumericIterator(result,
                                           sources.values().iterator().next());
     }
 
     @Override
     public Collection<TypeToken<?>> types() {
-      return Lists.newArrayList(NumericSummaryType.TYPE);
+      return Lists.newArrayList(NumericType.TYPE);
     }
-        
+
+  }
+
+  /**
+   * The default numeric iterator factory.
+   */
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+        final QueryResult result,
+        final Collection<TimeSeries> sources,
+        final TypeToken<? extends TimeSeriesDataType> type) {
+      return new TimeShiftNumericArrayIterator(result,
+          sources.iterator().next());
+    }
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+        final QueryResult result,
+        final Map<String, TimeSeries> sources,
+        final TypeToken<? extends TimeSeriesDataType> type) {
+      return new TimeShiftNumericArrayIterator(result,
+          sources.values().iterator().next());
+    }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericArrayType.TYPE);
+    }
+
   }
 }

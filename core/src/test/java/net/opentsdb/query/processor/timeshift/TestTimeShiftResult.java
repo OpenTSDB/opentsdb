@@ -95,6 +95,6 @@ public class TestTimeShiftResult {
     assertEquals(1546218000L, shift.timeSpecification().start().epoch());
     assertEquals(1546221600L, shift.timeSpecification().end().epoch());
     TimeSeries ts = shift.timeSeries().iterator().next();
-    assertSame(SERIES, ts);
+    assertSame(SERIES.types(), ts.types());
   }
 }
