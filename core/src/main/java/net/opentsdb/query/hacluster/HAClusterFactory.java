@@ -14,11 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
-import java.time.temporal.TemporalAmount;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -29,7 +24,11 @@ import com.google.common.collect.Sets;
 import com.google.common.graph.Graphs;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
+import java.time.temporal.TemporalAmount;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.TSDB;
@@ -38,6 +37,7 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
@@ -45,7 +45,6 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.hacluster.HAClusterConfig.Builder;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -242,7 +241,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .setId(config.getId())
             .build();
         planner.replace(config, rebuilt);
-        
         // Check for time offsets.
         setupTimeShiftSingleNode((TimeSeriesDataSourceConfig) rebuilt, planner);
         return;
@@ -732,7 +730,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
    * @param config The non-null original config.
    * @param planner The non-null planner.
    */
-  private void setupTimeShiftSingleNode(final TimeSeriesDataSourceConfig config, 
+  private void setupTimeShiftSingleNode(final TimeSeriesDataSourceConfig config,
                                         final QueryPlanner planner) {
     if (config.timeShifts() == null || config.timeShifts().isEmpty()) {
       return;
@@ -757,6 +755,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         .setConfig((TimeSeriesDataSourceConfig) config)
         .setId(config.getId() + "-time-shift")
         .build();
+
     if (planner.configGraph().nodes().contains(shift_config)) {
       return;
     }
@@ -769,13 +768,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       final Map<String, Pair<Boolean, TemporalAmount>> amounts = 
           Maps.newHashMapWithExpectedSize(1);
       amounts.put(shift_id, config.timeShifts().get(shift_id));
-      QueryNodeConfig rebuilt = ((TimeSeriesDataSourceConfig.Builder)
+      QueryNodeConfig.Builder rebuilt_builder = ((TimeSeriesDataSourceConfig.Builder)
           config.toBuilder())
           .setTimeShifts(amounts)
-          .setId(shift_id)
-          .build();
+          .setId(shift_id);
+      rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
+      QueryNodeConfig rebuilt = rebuilt_builder.build();
       planner.addEdge(shift_config, rebuilt);
     }
+
+
   }
   
   /**
@@ -807,6 +809,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         .setConfig((TimeSeriesDataSourceConfig) config)
         .setId(merger.getId() + "-time-shift")
         .build();
+
     for (final QueryNodeConfig predecessor : shift_predecessors) {
       planner.addEdge(predecessor, shift_config);
     }
@@ -849,18 +852,21 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
                                   final Map<String, Pair<Boolean, TemporalAmount>> shifts,
                                   final String shift_id) {
     final QueryNodeConfig shift;
+    final String timeshift_id = config.getId() + "-" + shift_id;
     if (config instanceof TimeSeriesDataSourceConfig) {
       // for the shift to happen properly we need to rename the shift node and
       // send that to the query target.
       final Map<String, Pair<Boolean, TemporalAmount>> amounts = 
           Maps.newHashMapWithExpectedSize(1);
-      amounts.put(config.getId() + "-" + shift_id, shifts.get(shift_id));
-      shift = ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
+      amounts.put(timeshift_id, shifts.get(shift_id));
+      QueryNodeConfig.Builder shift_builder = ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
           .setTimeShifts(amounts)
-          .setId(config.getId() + "-" + shift_id)
-          .build();
+          .setId(timeshift_id);
+
+      rebuildPushDownNodesForTimeShift(config, shift_builder, timeshift_id);
+      shift = shift_builder.build();
     } else {
-      shift = config.toBuilder().setId(config.getId() + "-" + shift_id)
+      shift = config.toBuilder().setId(timeshift_id)
           .build();
     }
     
@@ -869,6 +875,36 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         Sets.newHashSet(planner.configGraph().successors(config));
     for (final QueryNodeConfig successor : successors) {
       recursiveTimeShift(planner, config, shift, successor, shifts, shift_id);
+    }
+  }
+
+
+  /**
+   * Rebuilds the pushdowns for timeshift query. We have to clone the original pushdowns,
+   * change sources whereever necessary (to match with the timeshift id)
+   * @param original the original query
+   * @param time_shift_config_builder config builder for the new timeshift query
+   * @param timeshift_id the timeshift id
+   */
+  private void rebuildPushDownNodesForTimeShift(QueryNodeConfig original,
+      QueryNodeConfig.Builder time_shift_config_builder, String timeshift_id) {
+    List<QueryNodeConfig> pushdowns = ((TimeSeriesDataSourceConfig) original)
+        .getPushDownNodes();
+    if (!pushdowns.isEmpty()) {
+      List<QueryNodeConfig> pushdown_clone = new ArrayList<>();
+      for (QueryNodeConfig pushdown : pushdowns) { //cloning the pushdowns
+        pushdown_clone.add(
+            pushdown.toBuilder().setSources((ArrayList) ((ArrayList) pushdown.getSources()).clone())
+                .build());
+      }
+      for (QueryNodeConfig pushdown : pushdown_clone) {
+        if (pushdown.getSources().contains(original.getId())) {
+          pushdown.getSources().remove(original.getId());
+          pushdown.getSources().add(timeshift_id);
+        }
+      }
+      ((TimeSeriesDataSourceConfig.Builder) time_shift_config_builder)
+          .setPushDownNodes(pushdown_clone);
     }
   }
   

@@ -71,7 +71,11 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
       // WOOT! Downsampled arrays so we just need to tweak the spec and push it
       // up!
       time_spec = new WrappedTimeSpecification(result.timeSpecification());
-      time_series = null;
+
+      time_series = Lists.newArrayListWithExpectedSize(result.timeSeries().size());
+      for (final TimeSeries ts : result.timeSeries()) {
+        time_series.add(new TimeShiftTimeSeries(ts));
+      }
     } else {
       time_series = Lists.newArrayListWithExpectedSize(result.timeSeries().size());
       for (final TimeSeries ts : result.timeSeries()) {
@@ -88,10 +92,7 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
   
   @Override
   public Collection<TimeSeries> timeSeries() {
-    if (time_series != null) {
-      return time_series;
-    }
-    return result.timeSeries();
+    return time_series;
   }
   
   @Override
