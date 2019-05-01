@@ -22,13 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
@@ -41,7 +37,9 @@ import net.opentsdb.pools.PooledObject;
  * 
  * @since 3.0
  */
-public class Tsdb1xNumericPartialTimeSeries implements Tsdb1xPartialTimeSeries {
+public class Tsdb1xNumericPartialTimeSeries implements 
+    Tsdb1xPartialTimeSeries<NumericLongArrayType>, 
+    NumericLongArrayType{
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xNumericPartialTimeSeries.class);
   
@@ -311,20 +309,11 @@ public class Tsdb1xNumericPartialTimeSeries implements Tsdb1xPartialTimeSeries {
   public PartialTimeSeriesSet set() {
     return set;
   }
-
-  @Override
-  public TypeToken<? extends TimeSeriesDataType> getType() {
-    return NumericType.TYPE;
-  }
   
   @Override
-  public Object data() {
-    if (pooled_array != null) {
-      reference_counter.incrementAndGet();
-      return pooled_array.object();
-    } else {
-      return null;
-    }
+  public NumericLongArrayType value() {
+    reference_counter.incrementAndGet();
+    return this;
   }
   
   @Override
@@ -449,6 +438,24 @@ public class Tsdb1xNumericPartialTimeSeries implements Tsdb1xPartialTimeSeries {
     System.arraycopy(new_array, 0, array, 0, idx);
     ((long[]) pooled_array.object())[write_idx] = NumericLongArrayType.TERIMNAL_FLAG;
     needs_repair = false;
+  }
+  
+  @Override
+  public int offset() {
+    return 0;
+  }
+  
+  @Override
+  public int end() {
+    return write_idx;
+  }
+  
+  @Override
+  public long[] data() {
+    if (pooled_array != null) {
+      return (long[]) pooled_array.object();
+    }
+    return null;
   }
   
   private void add(final long timestamp, final long nanos, final double value) {

@@ -308,7 +308,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   public void serialize(final PartialTimeSeries series, 
                         final SerdesCallback callback,
                         final Span span) {
-    if (series.set().timeSeriesCount() < 1) {
+    if (series.set().timeSeriesCount() < 1 || series.value() == null) {
       // no data
       callback.onComplete(series);
       return;
@@ -318,7 +318,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     int count = 0;
     try {
-      long[] values = (long[]) series.data();
+      long[] values = ((NumericLongArrayType) series.value()).data();
       int idx = 0;
       
       while (true) {

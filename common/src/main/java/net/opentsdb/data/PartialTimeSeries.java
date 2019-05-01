@@ -12,8 +12,6 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
-import com.google.common.reflect.TypeToken;
-
 /**
  * Represents data for a single type for a single time series for a slice of
  * time as defined in the {@link PartialTimeSeriesSet}. This will be pushed
@@ -21,7 +19,7 @@ import com.google.common.reflect.TypeToken;
  * 
  * @since 3.0
  */
-public interface PartialTimeSeries extends AutoCloseable {
+public interface PartialTimeSeries<T extends TimeSeriesDataType> extends AutoCloseable {
 
   /** @return A hash to the time series ID. */
   public long idHash();
@@ -29,10 +27,8 @@ public interface PartialTimeSeries extends AutoCloseable {
   /** @return The non-null set this series is a part of. */
   public PartialTimeSeriesSet set();
   
-  /** @return The type of data this series is returning. */
-  public TypeToken<? extends TimeSeriesDataType> getType();
+  /** @return The data for this timeseries. May be null. See 
+   * {@link TimeSeriesDataType#type()} for decoding the data. */
+  public TimeSeriesDataType value();
   
-  /** @return The data for this timeseries. May be null. See {@link #getType()} 
-   * for decoding the data. */
-  public Object data();
 }

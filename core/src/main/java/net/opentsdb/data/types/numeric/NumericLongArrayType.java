@@ -69,4 +69,26 @@ public interface NumericLongArrayType extends TimeSeriesDataType {
     return TYPE;
   }
   
+  /**
+   * The starting offset into the array where data begins for this value. Used
+   * for shared arrays. For non-shared arrays this should always be zero.
+   * @return The starting offset into the array.
+   */
+  public int offset();
+
+  /**
+   * The index into the array where data is no longer valid. E.g. for a 
+   * while loop you'd write {code for (int i = offset(); i < end(); i++)}. So
+   * stop reading at end() - 1.
+   * @return The index into the array where data is no longer valid.
+   */
+  public int end();
+
+  /**
+   * The array of encoded data. This may be null or empty in which case 
+   * {@link offset()} must equal {@link end()}.
+   * @return The array of data, may be null or empty.
+   */
+  public long[] data();
+  
 }

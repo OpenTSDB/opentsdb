@@ -663,7 +663,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(0, array[6]); // no terminal
     assertFalse(pts.needs_repair);
 
-    pts.data();
+    pts.value();
     pts.close(); // reset!
     pts.addColumn((byte) 0, 
         BASE_TIME,
@@ -775,7 +775,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // reset to reverse in the tree
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -805,7 +805,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // consecutive dupe
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -833,7 +833,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -861,7 +861,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // non-consecutive dupe
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -889,7 +889,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -949,7 +949,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // reset to reverse in the tree
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -979,7 +979,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // consecutive dupe
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1007,7 +1007,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1035,7 +1035,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // non-consecutive dupe
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1063,7 +1063,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -1127,7 +1127,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // reset to reverse in the tree
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1161,7 +1161,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // consecutive dupe
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1192,7 +1192,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1223,7 +1223,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // non-consecutive dupe
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1254,7 +1254,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -1379,7 +1379,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // keep first
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1414,7 +1414,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
     
     // all the same
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, 42),
@@ -1441,7 +1441,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertFalse(pts.needs_repair);
 
     // keep earliest
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, 42),
@@ -1489,7 +1489,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[2]);
     
     // millis
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn((byte) 0, BASE_TIME, NumericCodec.buildMsQualifier(500, (short) 0), 
         new byte[] { 1 }, pool, 42, SET);
@@ -1500,7 +1500,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[2]);
     
     // nanos
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn((byte) 0, BASE_TIME, NumericCodec.buildNanoQualifier(25000, (short) 0), 
         new byte[] { -1 }, pool, 42, SET);
@@ -1532,7 +1532,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[4]);
     
     // three
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
@@ -1554,7 +1554,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     
     // four
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
@@ -1601,7 +1601,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[4]);
     
     // three
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42),
@@ -1623,7 +1623,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     
     // four
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42),
@@ -1672,7 +1672,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[6]);
     
     // three
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),
@@ -1697,7 +1697,7 @@ public class TestTsdb1xNumericPartialTimeSeries {
     assertEquals(NumericLongArrayType.TERIMNAL_FLAG, array[9]);
     
     // four
-    pts.data();
+    pts.value();
     pts.release();
     pts.addColumn(Schema.APPENDS_PREFIX, BASE_TIME, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42),

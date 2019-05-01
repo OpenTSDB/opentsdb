@@ -1157,13 +1157,15 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           + suffix;
   }
 
-  public static class PooledMockPTS implements PartialTimeSeries, 
-      CloseablePooledObject {
+  public static class PooledMockPTS implements PartialTimeSeries<NumericLongArrayType>, 
+      CloseablePooledObject,
+      NumericLongArrayType {
     private PooledObject pooled_object;
     private long id_hash;
     private PartialTimeSeriesSet set;
     private AtomicInteger counter;
     private PooledObject pooled_array;
+    private int idx;
     
     public PooledMockPTS() {
       counter = new AtomicInteger();
@@ -1209,7 +1211,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         throw new IllegalStateException("The pooled array was null!");
       }
       long[] array = (long[]) pooled_array.object();
-      int idx = 0;
+      idx = 0;
       Iterator<TimeSeriesValue<?>> it = row.iterator(NumericType.TYPE).get();
       while (it.hasNext()) {
         TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -1257,20 +1259,29 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     public PartialTimeSeriesSet set() {
       return set;
     }
-
+    
     @Override
-    public TypeToken<? extends TimeSeriesDataType> getType() {
-      return NumericType.TYPE;
+    public NumericLongArrayType value() {
+      return this;
     }
     
     @Override
-    public Object data() {
+    public int offset() {
+      return 0;
+    }
+    
+    @Override
+    public int end() {
+      return idx;
+    }
+    
+    @Override
+    public long[] data() {
       if (pooled_array != null) {
         counter.incrementAndGet();
-        return pooled_array.object();
-      } else {
-        return null;
+        return (long[]) pooled_array.object();
       }
+      return null;
     }
     
   }
