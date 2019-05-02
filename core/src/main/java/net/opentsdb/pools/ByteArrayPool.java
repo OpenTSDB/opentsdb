@@ -50,7 +50,7 @@ public class ByteArrayPool extends BaseObjectPoolAllocator {
     
     registerConfigs(tsdb.getConfig(), TYPE);
     length = tsdb.getConfig().getInt(configKey(LENGTH_KEY, TYPE));
-    size = (8 * length) +  + 16 /* 64-bit overhead */;
+    size = length + 16 /* 64-bit overhead */;
     
     final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setAllocator(this)
