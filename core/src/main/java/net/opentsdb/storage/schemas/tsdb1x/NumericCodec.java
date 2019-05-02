@@ -435,7 +435,7 @@ public class NumericCodec implements Codec {
       throw new IllegalArgumentException("Offset + encoding exceeds "
           + "offsets length.");
     }
-    return (byte) (offsets[offset + (encoded_on - 1)]);
+    return (byte) ((offsets[offset + (encoded_on - 1)]) & FLAGS_MASK);
   }
   
   /**
