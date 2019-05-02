@@ -212,6 +212,112 @@ public final class RollupUtils {
   }
   
   /**
+   * Builds a rollup column qualifier, prepending the appender as a string
+   * along with a colon as delimiter
+   * @param aggregator The aggregator used to generate the data
+   * @param timestamp The raw timestamp we'll snap to an interval
+   * @param flags The length and type (float || int) flags for the value
+   * @param interval The RollupInterval object with data about the interval
+   * @return An n byte array with a string prefix.
+   */
+  public static byte[] buildStringRollupQualifier(final String aggregator,
+                                                  final long timestamp,
+                                                  final short flags,
+                                                  final RollupInterval interval) {
+    return buildStringRollupQualifier(aggregator, timestamp, 
+        getRollupBasetime(timestamp, interval), flags, interval);
+  }
+  
+  /**
+   * Builds a rollup column qualifier, prepending the appender as a string
+   * along with a colon as delimiter
+   * @param aggregator The aggregator used to generate the data
+   * @param timestamp The raw timestamp we'll snap to an interval
+   * @param basetime The base timestamp to calculate the offset from 
+   * @param flags The length and type (float || int) flags for the value
+   * @param interval The RollupInterval object with data about the interval
+   * @return An n byte array with a string prefix.
+   */
+  public static byte[] buildStringRollupQualifier(final String aggregator,
+                                                  final long timestamp,
+                                                  final int basetime,
+                                                  final short flags,
+                                                  final RollupInterval interval) {
+    final String prefix = aggregator.toLowerCase() + ROLLUP_QUAL_DELIM;
+    final byte[] qualifier = new byte[prefix.length() + 2];
+    System.arraycopy(prefix.getBytes(Const.ASCII_CHARSET), 0, qualifier, 
+        0, prefix.length());
+    final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
+        timestamp / 1000 : timestamp);
+    // we shouldn't have a divide by 0 here as the rollup config validator makes
+    // sure the interval is positive
+    int offset = (time_seconds - basetime) / interval.getIntervalSeconds();
+    if (offset >= interval.getIntervals()) {
+      throw new IllegalArgumentException("Offset of " + offset + " was greater "
+          + "than the configured intervals " + interval.getIntervals());
+    }
+    
+    // shift the offset over 4 bits then apply the flag
+    offset = offset << NumericCodec.FLAG_BITS;
+    offset = offset | flags;
+    System.arraycopy(Bytes.fromShort((short) offset), 0, qualifier, prefix.length(), 2);
+    
+    return qualifier;
+  }
+  
+  /**
+   * Builds an append value with the offset then value in one byte array that 
+   * should be sent to storage as an "append" value.
+   * @param timestamp The raw timestamp that will be snapped to an interval.
+   * @param flags The flags showing how the value is encoded.
+   * @param interval The interval.
+   * @param value The value to write.
+   * @return A concatenated byte array.
+   */
+  public static byte[] buildAppendRollupValue(final long timestamp,
+                                              final short flags,
+                                              final RollupInterval interval,
+                                              final byte[] value) {
+    return buildAppendRollupValue(timestamp, 
+        getRollupBasetime(timestamp, interval), flags, interval, value);
+  }
+  
+  /**
+   * Builds an append value with the offset then value in one byte array that 
+   * should be sent to storage as an "append" value.
+   * @param timestamp The raw timestamp that will be snapped to an interval.
+   * @param basetime The base time snapped to an interval.
+   * @param flags The flags showing how the value is encoded.
+   * @param interval The interval.
+   * @param value The value to write.
+   * @return A concatenated byte array.
+   */
+  public static byte[] buildAppendRollupValue(final long timestamp,
+                                              final int basetime,
+                                              final short flags,
+                                              final RollupInterval interval,
+                                              final byte[] value) {
+    final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
+    timestamp / 1000 : timestamp);
+    
+    // we shouldn't have a divide by 0 here as the rollup config validator makes
+    // sure the interval is positive
+    int offset = (time_seconds - basetime) / interval.getIntervalSeconds();
+    if (offset >= interval.getIntervals()) {
+      throw new IllegalArgumentException("Offset of " + offset + " was greater "
+          + "than the configured intervals " + interval.getIntervals());
+    }
+    
+    // shift the offset over 4 bits then apply the flag
+    offset = offset << NumericCodec.FLAG_BITS;
+    offset = offset | flags;
+    byte[] result = new byte[2 + value.length];
+    Bytes.setShort(result, (short) offset);
+    System.arraycopy(value, 0, result, 2, value.length);
+    return result;
+  }
+  
+  /**
    * Returns the absolute timestamp of a data point qualifier in milliseconds
    * @param qualifier The qualifier to parse
    * @param base_time The base time, in seconds, from the row key
@@ -284,17 +390,6 @@ public final class RollupUtils {
       offset = (qualifier & 0xFFFF) >>> NumericCodec.FLAG_BITS;
     }
     return offset * interval.getIntervalSeconds() * 1000;
-  }
-
-  /**
-   * Builds a rollup column qualifier prefix,prepending the appender as a string
-   * along with a colon as delimiter
-   * @param aggregator The aggregator used to generate the data
-   * @return An n byte array to use as the qualifier prefix
-   */
-  public static byte[] getRollupQualifierPrefix(final String aggregator) {
-    return (aggregator.toLowerCase() + ROLLUP_QUAL_DELIM)
-            .getBytes(Const.ASCII_CHARSET);
   }
 
   /**
