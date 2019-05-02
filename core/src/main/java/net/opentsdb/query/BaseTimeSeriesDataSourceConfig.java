@@ -332,15 +332,18 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         .setFilterId(config.getFilterId())
         .setQueryFilter(config.getFilter())
         .setFetchLast(config.getFetchLast())
-        .setRollupIntervals(config.getRollupIntervals().isEmpty() ? 
-            null : config.getRollupIntervals())
+        .setRollupIntervals(config.getRollupIntervals() == null || 
+          config.getRollupIntervals().isEmpty() ? 
+            null : Lists.newArrayList(config.getRollupIntervals()))
         .setSummaryInterval(config.getSummaryInterval())
-        .setSummaryAggregations(config.getSummaryAggregations().isEmpty() ? 
-            null : config.getSummaryAggregations())
+        .setSummaryAggregations(config.getRollupIntervals() == null || 
+          config.getSummaryAggregations().isEmpty() ? 
+            null : Lists.newArrayList(config.getSummaryAggregations()))
         .setPrePadding(config.getPrePadding())
         .setPostPadding(config.getPostPadding())
-        .setPushDownNodes(config.getPushDownNodes().isEmpty() ? 
-            null : config.getPushDownNodes())
+        .setPushDownNodes(config.getPushDownNodes() == null || 
+          config.getPushDownNodes().isEmpty() ? 
+            null : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .setPreviousIntervals(config.getPreviousIntervals())
         .setNextIntervals(config.getNextIntervals())
