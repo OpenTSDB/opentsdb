@@ -70,6 +70,6 @@ public interface NumericByteArraySummaryType extends TimeSeriesDataType {
    * {@link offset()} must equal {@link end()}.
    * @return The array of data, may be null or empty.
    */
-  public long[] data();
+  public byte[] data();
   
 }

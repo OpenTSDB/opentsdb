@@ -14,17 +14,65 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.pools.PooledObject;
+import net.opentsdb.rollup.RollupInterval;
 
-public interface Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType> extends 
-    PartialTimeSeries<T>, 
-    CloseablePooledObject {
+/**
+ * The base class for a Tsdb1x Partial Time Series to be populated by 1x style
+ * schemas.
+ * 
+ * @param <T> The type of {@link TimeSeriesDataType}.
+ * 
+ * @since 3.0
+ */
+public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType> 
+    implements PartialTimeSeries<T>, CloseablePooledObject {
+  
+  /** Reference to the Object pool for this instance. */
+  protected PooledObject pooled_object;
+  
+  /** A hash for the time series ID. */
+  protected long id_hash;
+  
+  /** The set we currently belong to. */
+  protected PartialTimeSeriesSet set;
+  
+  /** A reference counter for the array to determine when we can return it to
+   * the pool. */
+  protected AtomicInteger reference_counter;
+  
+  /** An array to store the data in. */
+  protected PooledObject pooled_array;
+  
+  /** The current write index for array stores. */
+  protected int write_idx;
 
+  /** The base row timestamp. */
+  protected TimeStamp base_timestamp;
+  
+  /** The pool we use for fetching arrays. */
+  protected ObjectPool array_pool;
+  
+  /** The optional rollup interval. */
+  protected RollupInterval interval;
+  
+  /**
+   * Local ctor.
+   */
+  protected Tsdb1xPartialTimeSeries() {
+    reference_counter = new AtomicInteger();
+    base_timestamp = new SecondTimeStamp(0);
+  }
+  
   /**
    * Sorts, de-duplicates and optionally reverses the data in this series. Call
    * it only after adding all of the data.
@@ -32,31 +80,87 @@ public interface Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType> extends
    * array or the latest. 
    * @param reverse Whether or not to reverse the data.
    */
-  public void dedupe(final boolean keep_earliest, final boolean reverse);
+  public abstract void dedupe(final boolean keep_earliest, final boolean reverse);
  
   /**
-   * Sets the ID hash and the set but leaves the array null.
-   * @param id_hash
-   * @param set
+   * Called on the first time this is fetched from a pool to setup the base 
+   * information for the series.
+   * @param base_timestamp A non-null base timestamp.
+   * @param id_hash The hash ID for the series.
+   * @param array_pool An optional array pool.
+   * @param set The non-null set.
+   * @param interval An optional interval.
+   * @throws IllegalArgumentException if the base timestamp, array pool or set
+   * were null.
    */
-  public void setEmpty(final long id_hash, final PartialTimeSeriesSet set);
+  public void reset(final TimeStamp base_timestamp, 
+                    final long id_hash, 
+                    final ObjectPool array_pool,
+                    final PartialTimeSeriesSet set,
+                    final RollupInterval interval) {
+    if (base_timestamp == null) {
+      throw new IllegalArgumentException("Base timestamp cannot be null.");
+    }
+    if (set == null) {
+      throw new IllegalArgumentException("Set cannot be null.");
+    }
+
+    this.id_hash = id_hash;
+    this.set = set;
+    this.base_timestamp.update(base_timestamp);
+    this.array_pool = array_pool;
+    this.interval = interval;
+    reference_counter.set(0);
+    write_idx = 0;
+    if (pooled_array != null) {
+      pooled_array.release();
+      pooled_array = null;
+    }
+  }
   
   /**
    * Adds a column to the series.
    * @param prefix The schema prefix so we know what kind of data we're dealing
    * with.
-   * @param base_timestamp The base timestamp.
    * @param qualifier The non-null qualifier.
    * @param value The non-null value.
-   * @param long_array_pool The array pool to claim an array from.
-   * @param id_hash The hash for the time series Id.
-   * @param set The set this partial belongs to.
    */
-  public void addColumn(final byte prefix, 
-                        final TimeStamp base_timestamp,
-                        final byte[] qualifier, 
-                        final byte[] value,
-                        final ObjectPool long_array_pool, 
-                        final long id_hash, 
-                        final PartialTimeSeriesSet set);
+  public abstract void addColumn(final byte prefix,
+                                 final byte[] qualifier, 
+                                 final byte[] value);
+
+  /**
+   * Determines if the hash is the same as that given.
+   * @param hash The hash to compare.
+   * @return True if the hashes are the same, false if not.
+   */
+  public boolean sameHash(final long hash) {
+    return id_hash == hash;
+  }
+  
+  @Override
+  public Object object() {
+    return this;
+  }
+  
+  @Override
+  public void close() throws Exception {
+    release();
+  }
+  
+  @Override
+  public void setPooledObject(final PooledObject pooled_object) {
+    this.pooled_object = pooled_object;
+  }
+
+  @Override
+  public long idHash() {
+    return id_hash;
+  }
+  
+  @Override
+  public PartialTimeSeriesSet set() {
+    return set;
+  }
+  
 }

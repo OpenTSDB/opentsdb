@@ -28,39 +28,21 @@ import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
+import net.opentsdb.rollup.RollupInterval;
 
 /**
  * An implementation that converts the column from a 1x schema into the
  * {@link NumericLongArrayType}. 
  * <b>NOTE:</b> You MUST call {@link #dedupe(boolean, boolean)} on this object
- * before passing it upstream so that the terminal long is written.
+ * before passing it upstream to clean up the data.
  * 
  * @since 3.0
  */
-public class Tsdb1xNumericPartialTimeSeries implements 
-    Tsdb1xPartialTimeSeries<NumericLongArrayType>, 
-    NumericLongArrayType{
+public class Tsdb1xNumericPartialTimeSeries extends 
+    Tsdb1xPartialTimeSeries<NumericLongArrayType> 
+      implements NumericLongArrayType{
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xNumericPartialTimeSeries.class);
-  
-  /** Reference to the Object pool for this instance. */
-  protected PooledObject pooled_object;
-  
-  /** A hash for the time series ID. */
-  protected long id_hash;
-  
-  /** The set we currently belong to. */
-  protected PartialTimeSeriesSet set;
-  
-  /** A reference counter for the array to determine when we can return it to
-   * the pool. */
-  protected AtomicInteger reference_counter;
-  
-  /** An array to store the data in. */
-  protected PooledObject pooled_array;
-  
-  /** The current write index. */
-  protected int write_idx;
   
   /** Whether or not the array has out-of-order or duplicate data. */
   protected boolean needs_repair;
@@ -72,22 +54,12 @@ public class Tsdb1xNumericPartialTimeSeries implements
    * Default ctor.
    */
   public Tsdb1xNumericPartialTimeSeries() {
-    reference_counter = new AtomicInteger();
+    super();
   }
   
   @Override
-  public void close() throws Exception {
-    release();
-  }
-
-  @Override
-  public Object object() {
-    return this;
-  }
-
-  @Override
   public void release() {
-    if (reference_counter.decrementAndGet() == 0) {
+    if (reference_counter.decrementAndGet() <= 0) {
       if (pooled_array != null) {
         pooled_array.release();
         pooled_array = null;
@@ -103,33 +75,37 @@ public class Tsdb1xNumericPartialTimeSeries implements
   }
   
   @Override
-  public void setEmpty(final long id_hash, 
-                       final PartialTimeSeriesSet set) {
-    this.id_hash = id_hash;
-    this.set = set;
+  public void reset(final TimeStamp base_timestamp, 
+      final long id_hash, 
+      final ObjectPool array_pool,
+      final PartialTimeSeriesSet set,
+      final RollupInterval interval) {
+    super.reset(base_timestamp, id_hash, array_pool, set, interval);
+    needs_repair = false;
+    last_offset = -1;
   }
   
   @Override
   public void addColumn(final byte prefix, 
-                        final TimeStamp base_timestamp,
                         final byte[] qualifier, 
-                        final byte[] value,
-                        final ObjectPool long_array_pool, 
-                        final long id_hash, 
-                        final PartialTimeSeriesSet set) {
-    if (qualifier.length < 2) {
+                        final byte[] value) {
+    if (qualifier == null || qualifier.length < 2) {
       throw new IllegalDataException("Qualifier was too short.");
     }
-    if (value.length < 1) {
+    if (value == null || value.length < 1) {
       throw new IllegalDataException("Value was too short.");
     }
-    this.id_hash = id_hash;
-    this.set = set;
-    
+    if (set == null) {
+      throw new IllegalStateException("Call reset before trying to add data.");
+    }
     if (pooled_array == null) {
-      pooled_array = long_array_pool.claim();
-      if (pooled_array == null) {
-        throw new IllegalStateException("The pooled array was null!");
+      if (array_pool != null) {
+        pooled_array = array_pool.claim();
+        if (pooled_array == null) {
+          throw new IllegalStateException("The pooled array was null!");
+        }
+      } else {
+        pooled_array = new ReAllocatedArray(2048);
       }
     }
     
@@ -296,21 +272,6 @@ public class Tsdb1xNumericPartialTimeSeries implements
   }
 
   @Override
-  public void setPooledObject(final PooledObject pooled_object) {
-    this.pooled_object = pooled_object;
-  }
-
-  @Override
-  public long idHash() {
-    return id_hash;
-  }
-
-  @Override
-  public PartialTimeSeriesSet set() {
-    return set;
-  }
-  
-  @Override
   public NumericLongArrayType value() {
     return this;
   }
@@ -407,8 +368,15 @@ public class Tsdb1xNumericPartialTimeSeries implements
       }
     }
     
-    // TODO - see if we can checkout another array
-    long[] new_array = new long[write_idx];
+    long[] new_array;
+    final PooledObject new_pooled_obj;
+    if (array_pool != null && !(pooled_array instanceof ReAllocatedArray)) {
+      new_pooled_obj = array_pool.claim();
+      new_array = (long[]) new_pooled_obj.object();
+    } else {
+      new_array = new long[write_idx];
+      new_pooled_obj = null;
+    }
     final Iterator<Entry<Long, Integer>> iterator;
     if (reverse) {
       iterator = map.descendingMap().entrySet().iterator();
@@ -432,6 +400,10 @@ public class Tsdb1xNumericPartialTimeSeries implements
     write_idx = idx;
     System.arraycopy(new_array, 0, array, 0, idx);
     needs_repair = false;
+    
+    if (new_pooled_obj != null) {
+      new_pooled_obj.release();
+    }
   }
   
   @Override
@@ -453,13 +425,29 @@ public class Tsdb1xNumericPartialTimeSeries implements
     return null;
   }
   
+  /**
+   * Helper to write a floating point value.
+   * @param timestamp The full timestamp.
+   * @param nanos The optional nanos. < 0 means don't write.
+   * @param value The value.
+   */
   private void add(final long timestamp, final long nanos, final double value) {
     add(timestamp, nanos, Double.doubleToRawLongBits(value));
   }
   
+  /**
+   * Helper to write an integer value or converted double.
+   * @param timestamp The full timestamp.
+   * @param nanos The optional nanos. < 0 means don't write.
+   * @param value The value.
+   */
   private void add(final long timestamp, final long nanos, final long value) {
     if (((long[]) pooled_array.object()).length <= (write_idx + (nanos >= 0 ? 3 : 2))) {
-      new ReAllocatedArray();
+      if (pooled_array instanceof ReAllocatedArray) {
+        ((ReAllocatedArray) pooled_array).grow();
+      } else {
+        new ReAllocatedArray();
+      }
     }
     
     ((long[]) pooled_array.object())[write_idx++] = timestamp;
@@ -470,7 +458,7 @@ public class Tsdb1xNumericPartialTimeSeries implements
   }
   
   /**
-   * A simple class used when we exceede the size of the pooled array.
+   * A simple class used when we exceed the size of the pooled array.
    */
   class ReAllocatedArray implements PooledObject {
     
@@ -480,15 +468,23 @@ public class Tsdb1xNumericPartialTimeSeries implements
      * Copies and adds 16 longs to the array.
      */
     ReAllocatedArray() {
-      array = new long[write_idx + 16];
-      System.arraycopy(((long[]) pooled_array.object()), 0, array, 0, write_idx);
+      this(write_idx + 16);
+    }
+    
+    ReAllocatedArray(final int amount) {
+      array = new long[amount];
+      if (pooled_array != null) {
+        System.arraycopy(((long[]) pooled_array.object()), 0, array, 0, write_idx);
+      }
       try {
-        pooled_array.release();
+        if (pooled_array != null) {
+          pooled_array.release();
+        }
       } catch (Throwable t) {
         LOG.error("Whoops, issue releasing pooled array", t);
       }
-      pooled_array = this;
       // TODO - log this
+      pooled_array = this;
     }
     
     @Override
@@ -501,5 +497,15 @@ public class Tsdb1xNumericPartialTimeSeries implements
       // no-op
     }
     
+    private void grow() {
+      array = new long[write_idx + 16];
+      System.arraycopy(((long[]) pooled_array.object()), 0, array, 0, write_idx);
+      try {
+        pooled_array.release();
+      } catch (Throwable t) {
+        LOG.error("Whoops, issue releasing pooled array", t);
+      }
+      // TODO - log this
+    }
   }
 }

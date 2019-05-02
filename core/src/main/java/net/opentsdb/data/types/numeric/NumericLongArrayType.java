@@ -31,7 +31,6 @@ import net.opentsdb.data.TimeSeriesDataType;
  * The flags are:
  * 64 - 0 == raw long, 1 == double value
  * 63 + 62 - 00 == seconds, 10 == milliseconds, 01 == nanoseconds
- * 61 - terminal entry. 
  * 
  * TODO - probably a better way. E.g. we can do the delta of delta of timestamps
  * like Gorilla though we need the external ref and another calculation. Gotta
