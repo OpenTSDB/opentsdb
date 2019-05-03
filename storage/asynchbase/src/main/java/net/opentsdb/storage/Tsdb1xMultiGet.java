@@ -418,13 +418,17 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     } else if (tsuid_idx >= 0) {
       tsuid_idx += batch_size;
-      if (fallback_timestamp == null) {
-        fallback_timestamp = getInitialTimestamp(rollup_index);
+      if (ts == null) {
+        if (fallback_timestamp == null) {
+          fallback_timestamp = getInitialTimestamp(rollup_index);
+        }
       }
     } else {
       tsuid_idx = 0;
-      if (fallback_timestamp == null) {
-        fallback_timestamp = getInitialTimestamp(rollup_index);
+      if (ts == null) {
+        if (fallback_timestamp == null) {
+          fallback_timestamp = getInitialTimestamp(rollup_index);
+        }
       }
     }
     
