@@ -336,7 +336,11 @@ final public class QueryRpc {
 
       @Override
       public void onComplete(final AsyncEvent event) throws IOException {
-        // no-op
+        try {
+          ctx.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override
@@ -363,6 +367,11 @@ final public class QueryRpc {
       @Override
       public void onError(final AsyncEvent event) throws IOException {
         LOG.error("WTF? An error for the AsyncTimeout?: " + event);
+        try {
+          ctx.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override

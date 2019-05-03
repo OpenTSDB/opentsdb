@@ -253,7 +253,11 @@ public class ExpressionRpc {
 
       @Override
       public void onComplete(final AsyncEvent event) throws IOException {
-        // no-op
+        try {
+          context.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override
@@ -280,6 +284,11 @@ public class ExpressionRpc {
       @Override
       public void onError(final AsyncEvent event) throws IOException {
         LOG.error("WTF? An error for the AsyncTimeout?: " + event);
+        try {
+          context.close();
+        } catch (Throwable t) {
+          LOG.error("Failed to close the query context", t);
+        }
       }
 
       @Override
