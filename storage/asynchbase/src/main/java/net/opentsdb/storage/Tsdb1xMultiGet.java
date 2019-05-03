@@ -499,7 +499,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           rollups_enabled && node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
         // we can fallback!
         if (node.pipelineContext().query().isDebugEnabled()) {
-          node.pipelineContext().queryContext().logDebug(node, 
+          node.pipelineContext().queryContext().logDebug(node,
               "Falling back to next highest resolution.");
         }
         tsuid_idx = 0;
@@ -508,6 +508,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           rollup_index = node.rollupIntervals().size();
         } else {
           rollup_index++;
+        }
+
+        if (fallback_timestamp == null) {
+          // initialize the timestamp
+          fallback_timestamp = getInitialTimestamp(rollup_index);
         }
         
         if (rollup_index >= tables.size()) {
