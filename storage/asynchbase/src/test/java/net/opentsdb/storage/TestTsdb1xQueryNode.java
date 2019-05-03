@@ -56,6 +56,8 @@ import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
+import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -101,6 +103,12 @@ public class TestTsdb1xQueryNode extends UTBase {
     meta_deferred = new Deferred<MetaDataStorageResult>();
     upstream_a = mock(QueryNode.class);
     upstream_b = mock(QueryNode.class);
+    
+    ObjectPool scanners_pool = mock(ObjectPool.class);
+    when(scanners_pool.claim()).thenReturn(scanners);
+    when(scanners.object()).thenReturn(scanners);
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xScannersPool.TYPE))
+      .thenReturn(scanners_pool);
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)

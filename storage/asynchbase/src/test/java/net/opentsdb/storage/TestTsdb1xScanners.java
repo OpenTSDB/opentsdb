@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -154,16 +154,17 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void ctorDefaults() throws Exception {
     try {
-      new Tsdb1xScanners(null, source_config);
+      new Tsdb1xScanners().reset(null, source_config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Tsdb1xScanners(node, null);
+      new Tsdb1xScanners().reset(node, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     assertSame(node, scanners.node);
     assertSame(source_config, scanners.source_config);
     assertFalse(scanners.pre_aggregate);
@@ -210,7 +211,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     assertSame(node, scanners.node);
     assertSame(source_config, scanners.source_config);
     assertTrue(scanners.pre_aggregate);
@@ -260,7 +262,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     assertEquals(State.CONTINUE, scanners.state());
   }
 
@@ -273,7 +276,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setRowSpan("1d")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     byte[] start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
@@ -300,7 +304,8 @@ public class TestTsdb1xScanners extends UTBase {
             .build())
         .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
@@ -320,7 +325,8 @@ public class TestTsdb1xScanners extends UTBase {
             .build())
         .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
     
@@ -344,7 +350,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setPostPadding("1h")
         .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
     
@@ -359,7 +366,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setPostPadding("2h")
         .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
@@ -378,7 +386,8 @@ public class TestTsdb1xScanners extends UTBase {
             .setId("m1")
             .build(),
         true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
   }
@@ -392,7 +401,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setRowSpan("1d")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     byte[] stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS + (3600 - 900), null), stop);
     
@@ -415,7 +425,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, interval);
     assertArrayEquals(makeRowKey(METRIC_BYTES, 1514851200, null), stop);
     
@@ -431,7 +442,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setPostPadding("1h")
         .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 7200), null), stop);
     
@@ -447,7 +459,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setPostPadding("2h")
         .setId("m1")
         .build();
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 10800), null), stop);
     
@@ -466,7 +479,8 @@ public class TestTsdb1xScanners extends UTBase {
             .setId("m1")
             .build(),
         true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900 - 86400 + 10800, null), stop);
   }
@@ -476,7 +490,8 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -497,7 +512,8 @@ public class TestTsdb1xScanners extends UTBase {
       .fetchNext(any(Tsdb1xQueryResult.class), any());
     
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".setupScanners");
   }
@@ -507,7 +523,8 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(saltedNode(), source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -535,7 +552,8 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     setConfig(true, null, false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -564,7 +582,8 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     setConfig(true, null, false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(saltedNode(), source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(saltedNode(), source_config);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -626,7 +645,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
     FilterCB filter_cb = mock(FilterCB.class);
     Whitebox.setInternalState(filter_cb, "explicit_tags", true);
@@ -661,7 +681,8 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     setConfig(false, "sum", false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(3, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -729,7 +750,8 @@ public class TestTsdb1xScanners extends UTBase {
     setConfig(false, "sum", false);
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -777,7 +799,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(3, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -852,7 +875,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(2, scanners.scanners.size());
     assertEquals(1, scanners.scanners.get(0).length);
@@ -915,7 +939,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(2, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -988,7 +1013,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(2, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -1047,7 +1073,8 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     setConfig(true, "sum", false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1128,7 +1155,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1224,7 +1252,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
     FilterCB filter_cb = mock(FilterCB.class);
     Whitebox.setInternalState(filter_cb, "explicit_tags", true);
@@ -1313,7 +1342,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1361,7 +1391,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.current_result = results;
     cb = scanners.new FilterCB(METRIC_BYTES, null);
     Whitebox.setInternalState(scanners, "filter_cb", cb);
@@ -1410,7 +1441,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1458,7 +1490,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.current_result = results;
     cb = scanners.new FilterCB(METRIC_BYTES, null);
     Whitebox.setInternalState(scanners, "filter_cb", cb);
@@ -1501,7 +1534,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1518,7 +1552,8 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(1, scanners.scanners.size());
     
     // under the cardinality threshold.
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "max_multi_get_cardinality", 1);
     cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1567,7 +1602,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1598,7 +1634,8 @@ public class TestTsdb1xScanners extends UTBase {
       .build();
     setConfig(filter, null, false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
     Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
@@ -1650,7 +1687,8 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     setConfig(filter, null, false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1661,7 +1699,8 @@ public class TestTsdb1xScanners extends UTBase {
     } catch (NoSuchUniqueName e) { }
     
     // skipping works
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
     cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1692,7 +1731,8 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     setConfig(filter, null, false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     Whitebox.setInternalState(scanners, "expansion_limit", 3);
@@ -1714,7 +1754,8 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void filterCBCurrentResultsNull() throws Exception {
     QueryFilter filter = setConfig(true, null, false);
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
     Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
@@ -1766,7 +1807,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1818,7 +1860,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
@@ -1841,7 +1884,8 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(null);
     
     assertNull(scanners.row_key_literals);
@@ -1856,7 +1900,8 @@ public class TestTsdb1xScanners extends UTBase {
       .fetchNext(any(Tsdb1xQueryResult.class), any());
     
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 3);
   }
@@ -1871,7 +1916,8 @@ public class TestTsdb1xScanners extends UTBase {
           .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
           .build();
     setConfig(filter, null, false);
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(null);
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1902,7 +1948,8 @@ public class TestTsdb1xScanners extends UTBase {
         .setId("m1")
         .build();
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     scanners.current_result = result;
     
@@ -1918,7 +1965,8 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
   }
   
@@ -1939,7 +1987,8 @@ public class TestTsdb1xScanners extends UTBase {
           .build())
         .build();
     setConfig(filter, null, false);
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     scanners.current_result = result;
     scanners.initialize(null);
@@ -1954,7 +2003,8 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     // can't ignore with explicit tags
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.current_result = result;
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
@@ -1970,7 +2020,8 @@ public class TestTsdb1xScanners extends UTBase {
     
     // tracing
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
         NoSuchUniqueName.class, 10);
@@ -1987,7 +2038,8 @@ public class TestTsdb1xScanners extends UTBase {
              .build())
           .build();
     setConfig(filter, null, false);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.current_result = result;
     Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
     scanners.initialize(null);
@@ -2017,7 +2069,8 @@ public class TestTsdb1xScanners extends UTBase {
            .build())
         .build();
     setConfig(filter, null, false);
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     scanners.current_result = result;
     scanners.initialize(null);
@@ -2033,7 +2086,8 @@ public class TestTsdb1xScanners extends UTBase {
     
     // tracing
     trace = new MockTrace(true);
-    scanners = new Tsdb1xScanners(node, source_config);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
         NoSuchUniqueName.class, 9);
@@ -2043,7 +2097,8 @@ public class TestTsdb1xScanners extends UTBase {
   public void fetchNext() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     
     Tsdb1xQueryResult results = null;
     try {
@@ -2097,7 +2152,8 @@ public class TestTsdb1xScanners extends UTBase {
     final List<Scanner> caught = Lists.newArrayList();
     catchTsdb1xScanners(caught);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2122,7 +2178,8 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     
     Tsdb1xQueryNode node = saltedNode();
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2163,7 +2220,8 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     setConfig(false, "sum", false);
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2194,7 +2252,8 @@ public class TestTsdb1xScanners extends UTBase {
     
     doThrow(new UnitTestException()).when(node).onNext(any(QueryResult.class));
     
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
     
@@ -2215,7 +2274,8 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scanNext() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     scanners.current_result = result;
     Tsdb1xScanner scanner = mock(Tsdb1xScanner.class);
@@ -2242,7 +2302,8 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scanNextSalted() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     scanners.current_result = result;
     Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
@@ -2272,7 +2333,8 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scanNextSaltedPartial() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
     scanners.current_result = results;
     Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
@@ -2302,7 +2364,8 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void exception() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     scanners.current_result = result;
     assertFalse(scanners.hasException());
@@ -2321,7 +2384,8 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void close() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xScanner scanner = mock(Tsdb1xScanner.class);
     Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
     Tsdb1xScanner scanner3 = mock(Tsdb1xScanner.class);
@@ -2335,6 +2399,10 @@ public class TestTsdb1xScanners extends UTBase {
     verify(scanner2, times(1)).close();
     verify(scanner3, times(1)).close();
     
+    scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(
+        new Tsdb1xScanner[] { scanner, scanner2 },
+        new Tsdb1xScanner[] { scanner3 }
+        );
     doThrow(new UnitTestException()).when(scanner2).close();
     scanners.close();
     verify(scanner, times(2)).close();
@@ -2344,7 +2412,8 @@ public class TestTsdb1xScanners extends UTBase {
 
   @Test
   public void state() throws Exception {
-    Tsdb1xScanners scanners = new Tsdb1xScanners(node, source_config);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
     Tsdb1xScanner[] array = new Tsdb1xScanner[] {
         mock(Tsdb1xScanner.class),
         mock(Tsdb1xScanner.class)

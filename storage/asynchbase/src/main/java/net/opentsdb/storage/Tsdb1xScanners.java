@@ -40,6 +40,8 @@ import com.stumbleupon.async.Callback;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.pools.CloseablePooledObject;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -91,41 +93,44 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Tsdb1xScanners implements HBaseExecutor {
+public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xScanners.class);
   
+  /** Reference to the Object pool for this instance. */
+  protected PooledObject pooled_object;
+  
   /** The upstream query node that owns this scanner set. */
-  protected final Tsdb1xQueryNode node;
+  protected Tsdb1xQueryNode node;
   
   /** The data source config. */
-  protected final TimeSeriesDataSourceConfig source_config;
+  protected TimeSeriesDataSourceConfig source_config;
   
   /** Search the query on pre-aggregated table directly instead of post fetch 
    * aggregation. */
-  protected final boolean pre_aggregate;
+  protected boolean pre_aggregate;
   
   /** Whether or not to skip NoSuchUniqueName errors for tag keys on resolution. */
-  protected final boolean skip_nsun_tagks;
+  protected boolean skip_nsun_tagks;
   
   /** Whether or not to skip NoSuchUniqueName errors for tag values on resolution. */
-  protected final boolean skip_nsun_tagvs;
+  protected boolean skip_nsun_tagvs;
 
   /** The limit on literal tag value expansion when crafting the scanner
    * filter to send to HBase. */
-  protected final int expansion_limit;
+  protected int expansion_limit;
   
   /** The number of rows to scan per call to {@link Scanner#nextRows()} */
-  protected final int rows_per_scan;
+  protected int rows_per_scan;
   
   /** Whether or not to enable the fuzzy filter. */
-  protected final boolean enable_fuzzy_filter;
+  protected boolean enable_fuzzy_filter;
   
   /** Whether or not we're scanning in reverse. */
-  protected final boolean reverse_scan;
+  protected boolean reverse_scan;
   
   /** The maximum cardinality to allow in determining if we can switch to
    * multi-gets. */
-  protected final int max_multi_get_cardinality;
+  protected int max_multi_get_cardinality;
   
   /** Whether or not the scanners have been initialized. */
   protected volatile boolean initialized;
@@ -161,14 +166,14 @@ public class Tsdb1xScanners implements HBaseExecutor {
   protected volatile boolean has_failed;
   
   /**
-   * Default ctor.
+   * Resets the cached scanners object.
    * @param node A non-null parent node.
    * @param source_config A non-null query with a single metric and optional filter
    * matching the metric.
    * @throws IllegalArgumentException if the node or query were null.
    */
-  public Tsdb1xScanners(final Tsdb1xQueryNode node, 
-                        final TimeSeriesDataSourceConfig source_config) {
+  public void reset(final Tsdb1xQueryNode node, 
+                    final TimeSeriesDataSourceConfig source_config) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -235,6 +240,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
       max_multi_get_cardinality = node.parent()
           .dynamicInt(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
     }
+    initialized = false;
+    scanner_index = 0;
+    scanners_done = 0;
+    has_failed = false;
   }
   
   /**
@@ -388,6 +397,15 @@ public class Tsdb1xScanners implements HBaseExecutor {
         }
       }
     }
+    if (row_key_literals != null) {
+      row_key_literals.clear();
+    }
+    if (scanners != null) {
+      scanners.clear();
+    }
+    filter_cb = null;
+    current_result = null;
+    release();
   }
   
   @Override
@@ -408,6 +426,23 @@ public class Tsdb1xScanners implements HBaseExecutor {
       }
     }
     return State.COMPLETE;
+  }
+  
+  @Override
+  public Object object() {
+    return this;
+  }
+  
+  @Override
+  public void setPooledObject(final PooledObject pooled_object) {
+    this.pooled_object = pooled_object;
+  }
+  
+  @Override
+  public void release() {
+    if (pooled_object != null) {
+      pooled_object.release();
+    }
   }
   
   /**

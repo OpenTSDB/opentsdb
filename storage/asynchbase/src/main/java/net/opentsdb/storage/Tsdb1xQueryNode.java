@@ -204,6 +204,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   @Override
   public void close() {
     if (executor != null) {
+      // releases it to the pool.
       executor.close();
     }
   }
@@ -448,7 +449,9 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
           .addErrback(new MetaErrorCB(span));
     } else {
       synchronized (this) {
-        executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, config);
+        executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
+            Tsdb1xScannersPool.TYPE).claim().object();
+        ((Tsdb1xScanners) executor).reset(Tsdb1xQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
@@ -547,7 +550,9 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
       }
       
       synchronized (Tsdb1xQueryNode.this) {
-        executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, config);
+        executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
+            Tsdb1xScannersPool.TYPE).claim().object();
+        ((Tsdb1xScanners) executor).reset(Tsdb1xQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
