@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.security.acl.Owner;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.Collection;
@@ -806,7 +807,10 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
               LOG.debug("Instantiating rollup: " + scanner);
             }
             
-            array[x] = new Tsdb1xScanner(this, scanner, x, interval);
+            final Tsdb1xScanner scnr = (Tsdb1xScanner) node.parent().tsdb()
+                .getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE).claim().object();
+            scnr.reset(this, scanner, x, interval);
+            array[x] = scnr;
           }
           idx++;
           
@@ -856,7 +860,10 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
             LOG.debug("Instantiating raw table scanner: " + scanner);
           }
           
-          array[i] = new Tsdb1xScanner(this, scanner, i, null);
+          final Tsdb1xScanner scnr = (Tsdb1xScanner) node.parent().tsdb()
+              .getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE).claim().object();            
+          scnr.reset(this, scanner, i, null);
+          array[i] = scnr;
         }
       }
       initialized = true;
@@ -865,7 +872,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
         child.setErrorTags(e)
              .finish();
       }
-      e.printStackTrace();
+      LOG.error("Unexpected exception", e);
       throw e;
     }
     
@@ -1135,6 +1142,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
           child.setErrorTags(e)
                .finish();
         }
+        LOG.error("Unexpected exception", e);
         throw e;
       }
       return null;

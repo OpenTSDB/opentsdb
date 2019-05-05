@@ -64,6 +64,7 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -112,14 +113,19 @@ public class TestTsdb1xScanners extends UTBase {
     rollup_config = mock(DefaultRollupConfig.class);
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
-    PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
+    ObjectPool scanner_pool = mock(ObjectPool.class);
+    when(scanner_pool.claim())
       .thenAnswer(new Answer<Tsdb1xScanner>() {
         @Override
         public Tsdb1xScanner answer(InvocationOnMock invocation)
             throws Throwable {
-          return mock(Tsdb1xScanner.class);
+          Tsdb1xScanner scnr = mock(Tsdb1xScanner.class);
+          when(scnr.object()).thenReturn(scnr);
+          return scnr;
         }
       });
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE))
+      .thenReturn(scanner_pool);
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -521,10 +527,9 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void setupScannersNoRollupNoFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    catchTsdb1xScanners(caught);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners();
-    scanners.reset(saltedNode(), source_config);
+    scanners.reset(saltedNode(caught), source_config);
     scanners.setupScanners(METRIC_BYTES, null);
     assertEquals(1, scanners.scanners.size());
     assertEquals(6, scanners.scanners.get(0).length);
@@ -579,11 +584,10 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void setupScannersNoRollupRegexpFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    catchTsdb1xScanners(caught);
     setConfig(true, null, false);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners();
-    scanners.reset(saltedNode(), source_config);
+    scanners.reset(saltedNode(caught), source_config);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -924,8 +928,7 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void setupScannersRollupNoFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    catchTsdb1xScanners(caught);
-    Tsdb1xQueryNode node = saltedNode();
+    Tsdb1xQueryNode node = saltedNode(caught);
     final List<byte[]> tables = Lists.newArrayList();
     final List<ScanFilter> filters = Lists.newArrayList();
     catchTables(node, tables, filters);
@@ -998,8 +1001,7 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void setupScannersRollupAvgNoFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    catchTsdb1xScanners(caught);
-    Tsdb1xQueryNode node = saltedNode();
+    Tsdb1xQueryNode node = saltedNode(caught);
     final List<byte[]> tables = Lists.newArrayList();
     final List<ScanFilter> filters = Lists.newArrayList();
     catchTables(node, tables, filters);
@@ -2175,9 +2177,8 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void scannerDoneWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    catchTsdb1xScanners(caught);
     
-    Tsdb1xQueryNode node = saltedNode();
+    Tsdb1xQueryNode node = saltedNode(caught);
     Tsdb1xScanners scanners = new Tsdb1xScanners();
     scanners.reset(node, source_config);
     scanners.initialize(null);
@@ -2433,7 +2434,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(State.EXCEPTION, scanners.state());
   }
   
-  Tsdb1xQueryNode saltedNode() throws Exception {
+  Tsdb1xQueryNode saltedNode(final List<Scanner> scanners) throws Exception {
     TSDB tsdb = mock(TSDB.class);
     Registry registry = mock(Registry.class);
     HBaseClient client = mock(HBaseClient.class);
@@ -2446,6 +2447,30 @@ public class TestTsdb1xScanners extends UTBase {
     when(data_store.dataTable()).thenReturn("tsdb".getBytes(Const.ASCII_CHARSET));
     when(data_store.uidTable()).thenReturn(UID_TABLE);
     when(data_store.client()).thenReturn(client);
+    
+    ObjectPool scanner_pool = mock(ObjectPool.class);
+    when(scanner_pool.claim()).thenAnswer(new Answer<Tsdb1xScanner>() {
+      @Override
+      public Tsdb1xScanner answer(InvocationOnMock invocation)
+          throws Throwable {
+        Tsdb1xScanner mock_scanner = mock(Tsdb1xScanner.class);
+        doAnswer(new Answer<Void>() {
+
+          @Override
+          public Void answer(InvocationOnMock invocation) throws Throwable {
+            scanners.add((Scanner) invocation.getArguments()[1]);
+            return null;
+          }
+          
+        }).when(mock_scanner).reset(any(Tsdb1xScanners.class), 
+            any(Scanner.class), anyInt(), any(RollupInterval.class));
+        when(mock_scanner.state()).thenReturn(State.CONTINUE);
+        when(mock_scanner.object()).thenReturn(mock_scanner);
+        return mock_scanner;
+      }
+    });
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE))
+      .thenReturn(scanner_pool);
     
     Schema schema = mock(Schema.class);
     when(schema.saltBuckets()).thenReturn(6);
@@ -2500,17 +2525,29 @@ public class TestTsdb1xScanners extends UTBase {
   }
   
   void catchTsdb1xScanners(final List<Scanner> scanners) throws Exception {
-    PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
-      .thenAnswer(new Answer<Tsdb1xScanner>() {
-        @Override
-        public Tsdb1xScanner answer(InvocationOnMock invocation)
-            throws Throwable {
-          scanners.add((Scanner) invocation.getArguments()[1]);
-          Tsdb1xScanner mock_scanner = mock(Tsdb1xScanner.class);
-          when(mock_scanner.state()).thenReturn(State.CONTINUE);
-          return mock_scanner;
-        }
+    ObjectPool scanner_pool = mock(ObjectPool.class);
+    when(scanner_pool.claim()).thenAnswer(new Answer<Tsdb1xScanner>() {
+      @Override
+      public Tsdb1xScanner answer(InvocationOnMock invocation)
+          throws Throwable {
+        Tsdb1xScanner mock_scanner = mock(Tsdb1xScanner.class);
+        doAnswer(new Answer<Void>() {
+
+          @Override
+          public Void answer(InvocationOnMock invocation) throws Throwable {
+            scanners.add((Scanner) invocation.getArguments()[1]);
+            return null;
+          }
+          
+        }).when(mock_scanner).reset(any(Tsdb1xScanners.class), 
+            any(Scanner.class), anyInt(), any(RollupInterval.class));
+        when(mock_scanner.state()).thenReturn(State.CONTINUE);
+        when(mock_scanner.object()).thenReturn(mock_scanner);
+        return mock_scanner;
+      }
     });
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE))
+      .thenReturn(scanner_pool);
   }
 
   private QueryFilter setConfig(final boolean with_filter, final String ds, final boolean pre_agg) {

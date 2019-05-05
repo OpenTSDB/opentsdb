@@ -93,12 +93,12 @@ public class TestTsdb1xScanner extends UTBase {
   public void ctorIllegalArguments() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     try {
-      new Tsdb1xScanner(null, hbase_scanner, 0, null);
+      new Tsdb1xScanner().reset(null, hbase_scanner, 0, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Tsdb1xScanner(owner, null, 0, null);
+      new Tsdb1xScanner().reset(owner, null, 0, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -113,7 +113,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     trace = new MockTrace(true);
     
     scanner.fetchNext(results, trace.newSpan("UT").start());
@@ -149,7 +150,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     trace = new MockTrace(true);
     
     scanner.fetchNext(results, trace.newSpan("UT").start());
@@ -184,7 +186,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -212,7 +215,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.skipNSUI()).thenReturn(true);
     scanner.fetchNext(results, null);
     
@@ -240,7 +244,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(config.getFilter()).thenReturn(filter);
     
     Scanner hbase_scanner = metricStartStopScanner(Series.MULTI_SERIES_EX, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -269,7 +274,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -298,7 +304,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -340,7 +347,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
         int count = 0;
@@ -383,7 +391,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
         int count = 0;
@@ -425,7 +434,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       @Override
@@ -463,7 +473,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       @Override
@@ -501,7 +512,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -542,7 +554,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     when(node.sequenceEnd()).thenReturn(
         new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + (long) TS_DOUBLE_SERIES_INTERVAL) * 1000));
@@ -579,7 +592,8 @@ public class TestTsdb1xScanner extends UTBase {
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     when(node.sequenceEnd()).thenReturn(
         new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + 
@@ -616,7 +630,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(4);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     when(node.sequenceEnd()).thenReturn(
         new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + ((long) TS_DOUBLE_SERIES_INTERVAL * 2)) * 1000));
@@ -653,7 +668,8 @@ public class TestTsdb1xScanner extends UTBase {
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setReversed(true);
     hbase_scanner.setMaxNumRows(4);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     when(node.sequenceEnd()).thenReturn(
         new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + 
@@ -682,7 +698,8 @@ public class TestTsdb1xScanner extends UTBase {
   @Test
   public void scanNoFilters() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     trace = new MockTrace(true);
     
     scanner.fetchNext(results, trace.newSpan("UT").start());
@@ -705,7 +722,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersMultiScans() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -723,7 +741,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersThrownException() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -754,7 +773,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -786,7 +806,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersFullSingle() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -817,7 +838,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -847,7 +869,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersFullOnRowBoundarySingle() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -877,7 +900,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersOwnerException() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     doAnswer(new Answer<Void>() {
       int count = 0;
@@ -907,7 +931,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersSequenceEnd() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd()).thenReturn(
         new MillisecondTimeStamp((TS_SINGLE_SERIES + 3600L) * 1000));
         
@@ -931,7 +956,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void scanNoFiltersSequenceEndMidRow() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd()).thenReturn(new MillisecondTimeStamp((TS_SINGLE_SERIES + 7200L) * 1000));
     
     scanner.fetchNext(results, null);
@@ -952,7 +978,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void fetchNextOwnerException() throws Exception {
     when(owner.hasException()).thenReturn(true);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -971,7 +998,8 @@ public class TestTsdb1xScanner extends UTBase {
     when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     when(results.isFull()).thenReturn(true);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -989,7 +1017,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void fetchNextOwnerFullSingle() throws Exception {
     when(results.isFull()).thenReturn(true);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     
     scanner.fetchNext(results, null);
     
@@ -1014,7 +1043,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + 
           (long) TS_DOUBLE_SERIES_INTERVAL) * 1000));
@@ -1083,7 +1113,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES) * 1000));
     
@@ -1155,7 +1186,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.skipNSUI()).thenReturn(true);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp(((long) TS_NSUI_SERIES) * 1000));
@@ -1226,7 +1258,8 @@ public class TestTsdb1xScanner extends UTBase {
     
     Scanner hbase_scanner = metricStartStopScanner(Series.NSUI_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(6);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp(((long) TS_NSUI_SERIES) * 1000));
     
@@ -1271,7 +1304,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void fetchNextNoFiltersBuffer() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp((TS_SINGLE_SERIES + 7200L) * 1000));
     
@@ -1326,7 +1360,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void fetchNextNoFiltersBufferSequenceEndInBuffer() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp((TS_SINGLE_SERIES + 3600L) * 1000));
     
@@ -1381,7 +1416,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void fetchNextNoFiltersBufferFullInBuffer() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp((TS_SINGLE_SERIES + 3600L) * 1000));
     
@@ -1447,7 +1483,8 @@ public class TestTsdb1xScanner extends UTBase {
   public void fetchNextNoFiltersBufferException() throws Exception {
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
-    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
     when(node.sequenceEnd())
       .thenReturn(new MillisecondTimeStamp((TS_SINGLE_SERIES + 3600L) * 1000));
     

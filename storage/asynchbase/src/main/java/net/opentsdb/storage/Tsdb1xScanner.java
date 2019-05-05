@@ -40,6 +40,8 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.pools.CloseablePooledObject;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.FilterUtils;
@@ -71,20 +73,23 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Tsdb1xScanner {
+public class Tsdb1xScanner implements CloseablePooledObject {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xScanner.class);
   
+  /** Reference to the Object pool for this instance. */
+  protected PooledObject pooled_object;
+  
   /** The scanner owner to report to. */
-  private final Tsdb1xScanners owner;
+  private Tsdb1xScanners owner;
   
   /** The actual HBase scanner to execute. */
-  private final Scanner scanner;
+  private Scanner scanner;
   
   /** The 0 based index amongst salt buckets. */
-  private final int idx;
+  private int idx;
   
   /** An optional rollup interval. */
-  private final RollupInterval rollup_interval;
+  private RollupInterval rollup_interval;
   
   /** The current state of this scanner. */
   private State state;
@@ -110,17 +115,27 @@ public class Tsdb1xScanner {
   protected TimeStamp base_ts;
   
   /**
-   * Default ctor.
+   * Ctor.
+   */
+  public Tsdb1xScanner() {
+    keys_to_ids = new TLongObjectHashMap<ResolvingId>();
+    skips = new TLongHashSet();
+    keepers = new TLongHashSet();
+    base_ts = new MillisecondTimeStamp(0);
+  }
+  
+  /**
+   * Reset the pooled object.
    * @param owner A non-null owner with configuration and reporting.
    * @param scanner A non-null HBase scanner to work with.
    * @param idx A zero based index when multiple salt scanners are in
    * use.
    * @throws IllegalArgumentException if the owner or scanner was null.
    */
-  public Tsdb1xScanner(final Tsdb1xScanners owner, 
-                       final Scanner scanner, 
-                       final int idx,
-                       final RollupInterval rollup_interval) {
+  public void reset(final Tsdb1xScanners owner, 
+                    final Scanner scanner, 
+                    final int idx,
+                    final RollupInterval rollup_interval) {
     if (owner == null) {
       throw new IllegalArgumentException("Owner cannot be null.");
     }
@@ -132,13 +147,7 @@ public class Tsdb1xScanner {
     this.idx = idx;
     this.rollup_interval = rollup_interval;
     state = State.CONTINUE;
-    base_ts = new MillisecondTimeStamp(0);
-    
-    if (owner.filterDuringScan()) {
-      keys_to_ids = new TLongObjectHashMap<ResolvingId>();
-      skips = new TLongHashSet();
-      keepers = new TLongHashSet();
-    }
+    base_ts.updateEpoch(0);
   }
   
   /**
@@ -193,6 +202,23 @@ public class Tsdb1xScanner {
       
       scanner.nextRows()
         .addCallbacks(new ScannerCB(result, child), new ErrorCB(child));
+    }
+  }
+  
+  @Override
+  public Object object() {
+    return this;
+  }
+  
+  @Override
+  public void setPooledObject(final PooledObject pooled_object) {
+    this.pooled_object = pooled_object;
+  }
+  
+  @Override
+  public void release() {
+    if (pooled_object != null) {
+      pooled_object.release();
     }
   }
   
@@ -660,14 +686,15 @@ public class Tsdb1xScanner {
     return state;
   }
   
-  /** Closes the scanner. */
-  void close() {
+  @Override
+  public void close() {
     try {
       scanner.close();
     } catch (Exception e) {
       LOG.error("Failed to close scanner", e);
     }
     clear();
+    release();
   }
   
   /** Clears the filter map and sets when the scanner is done so GC can
@@ -687,6 +714,9 @@ public class Tsdb1xScanner {
       synchronized (keepers) {
         keepers.clear();
       }
+    }
+    if (row_buffer != null) {
+      row_buffer.clear();
     }
   }
   
