@@ -39,7 +39,7 @@ public interface MetaDataStorageSchema {
    * an exception if something went very wrong. It's better to return
    * a result with the exception set.
    */
-  public Deferred<Map<String, MetaDataStorageResult>> runQuery(
+  public Deferred<Map<NamespacedKey, MetaDataStorageResult>> runQuery(
       final BatchMetaQuery query,
       final Span span);
 

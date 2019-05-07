@@ -161,7 +161,7 @@ public class MetaRpc {
         }
         
         try {
-          final Map<String, MetaDataStorageResult> metaDataStorageResults =
+          final Map<NamespacedKey, MetaDataStorageResult> metaDataStorageResults =
                   tsdb.getRegistry().getDefaultPlugin(
                   MetaDataStorageSchema.class).runQuery(query, query_span)
                   .join();
@@ -176,7 +176,7 @@ public class MetaRpc {
           json.writeStartObject();
 
           json.writeArrayFieldStart("results");
-          for (Map.Entry<String, MetaDataStorageResult> metadata_result :
+          for (Map.Entry<NamespacedKey, MetaDataStorageResult> metadata_result :
                   metaDataStorageResults.entrySet() ) {
             MetaDataStorageResult metadata_storage_result = metadata_result
                     .getValue();

@@ -75,7 +75,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   public static final String TAGS_SUB_AGG = "tags_sub_agg";
   public static final String TAGS_SUB_UNIQUE = "unique_sub_tags";
 
-  public final Map<String, SearchSourceBuilder> search_source_builders;
+  public final Map<NamespacedKey, SearchSourceBuilder> search_source_builders;
 
   private final BatchMetaQuery query;
 
@@ -420,7 +420,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return new NamespacedAggregatedDocumentQueryBuilder(query);
   }
 
-  public Map<String, SearchSourceBuilder> build() {
+  public Map<NamespacedKey, SearchSourceBuilder> build() {
     for (final MetaQuery meta_query : query.metaQueries()) {
       SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
       switch (query.type()) {
@@ -436,7 +436,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
             .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
               Order.term(true) : Order.term(false)));
           search_source_builder.size(0);
-          search_source_builders.put("all_namespace", search_source_builder);
+          search_source_builders.put(new NamespacedKey("all_namespace", "-1"), search_source_builder);
           return search_source_builders;
         case METRICS:
           search_source_builder.aggregation(metricAgg(meta_query.filter(), query.aggregationSize()));
@@ -497,7 +497,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           search_source_builder.query(setFilter(meta_query.filter()).buildAsBytes());
         }
       }
-      search_source_builders.put(meta_query.namespace().toLowerCase(),
+      search_source_builders.put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
         search_source_builder);
     }
     return search_source_builders;

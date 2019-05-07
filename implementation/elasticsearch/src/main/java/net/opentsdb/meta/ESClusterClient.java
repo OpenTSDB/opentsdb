@@ -14,12 +14,22 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.google.common.collect.Maps;
+import net.opentsdb.configuration.ConfigurationException;
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.stats.Span;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.MultiSearchRequestBuilder;
 import org.elasticsearch.action.search.MultiSearchResponse;
@@ -34,19 +44,6 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import net.opentsdb.configuration.ConfigurationException;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.stats.Span;
 
 /**
  * A single cluster client.
@@ -176,7 +173,7 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
   }
   
   @Override
-  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<String,
+  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<NamespacedKey,
           SearchSourceBuilder> query,
                                                  final QueryPipelineContext context,
                                                  final Span span) {
@@ -320,9 +317,11 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
 
           if (tsdb.getStatsCollector() != null) {
             for (MultiSearchResponse.Item each_response : response.getResponses()) {
-            SearchHit[] hits = each_response.getResponse().getHits().hits();
-            tsdb.getStatsCollector().incrementCounter("es.client.query.success", "namespace",
-                 hits[0].getIndex(), "cluster", clusters.get(idx));
+              SearchHit[] hits = each_response.getResponse().getHits().hits();
+              if (hits.length > 0) {
+                tsdb.getStatsCollector().incrementCounter("es.client.query.success", "namespace",
+                    hits[0].getIndex(), "cluster", clusters.get(idx));
+              }
             }
           }
           synchronized (results) {
@@ -340,15 +339,15 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
       try {
         final MultiSearchRequestBuilder multi_search = client
                 .prepareMultiSearch();
-        for (final Map.Entry<String, SearchSourceBuilder>
+        for (final Map.Entry<NamespacedKey, SearchSourceBuilder>
                 search_source_builder : query
                 .entrySet()) {
           if (tsdb.getStatsCollector() != null) {
             tsdb.getStatsCollector().incrementCounter("es.client.query.new", "endpoint", "meta", "namespace",
-                search_source_builder.getKey(), "cluster", clusters.get(idx));
+                search_source_builder.getKey().namespace(), "cluster", clusters.get(idx));
           }
           final SearchRequestBuilder request_builder = client
-                  .prepareSearch(search_source_builder.getKey())
+                  .prepareSearch(search_source_builder.getKey().namespace())
                   .setSearchType(SearchType.DEFAULT)
                   .setExtraSource(search_source_builder.getValue().toString())
                   .setTimeout(TimeValue.timeValueMillis(
