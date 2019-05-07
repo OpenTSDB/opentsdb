@@ -100,11 +100,14 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
         .build();
     planner.replace(config, shiftless);
 
+  setupTimeShift(config, planner);
+  }
+
+  public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
     if (config.timeShifts().containsKey(config.getId())) {
       // child who has already been initialized.
       return;
     }
-
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
         .setConfig((TimeSeriesDataSourceConfig) config)
@@ -131,7 +134,6 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
       QueryNodeConfig rebuilt = rebuilt_builder.build();
       planner.addEdge(shift_config, rebuilt);
     }
-
 
   }
 
@@ -241,7 +243,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
    * @param time_shift_config_builder config builder for the new timeshift query
    * @param timeshift_id the timeshift id
    */
-  private static void rebuildPushDownNodesForTimeShift(QueryNodeConfig original,
+  protected static void rebuildPushDownNodesForTimeShift(QueryNodeConfig original,
       QueryNodeConfig.Builder time_shift_config_builder, String timeshift_id) {
     List<QueryNodeConfig> pushdowns = ((TimeSeriesDataSourceConfig) original)
         .getPushDownNodes();

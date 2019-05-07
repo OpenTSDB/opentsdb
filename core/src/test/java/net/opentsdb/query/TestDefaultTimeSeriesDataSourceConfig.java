@@ -11,12 +11,7 @@ import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
 public class TestDefaultTimeSeriesDataSourceConfig {
 
   private DefaultQueryPlanner planner;
@@ -63,9 +58,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
         .build();
 
     DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) build, planner);
-    PowerMockito.verifyStatic(Mockito.times(1));
-    DefaultTimeSeriesDataSourceConfig.rebuildPushDownNodesForTimeShift(build, build.toBuilder(), "UT-previous-PT1H");
-
   }
 
 }
