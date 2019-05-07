@@ -43,7 +43,7 @@ public class TestNamespacedAggregatedDocumentQuery {
          .setType(BatchMetaQuery.QueryType.TIMESERIES)
          .build();
 
-    Map<String, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
+    Map<NamespacedKey, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
         .newBuilder(query)
         .build();
 
@@ -79,7 +79,7 @@ public class TestNamespacedAggregatedDocumentQuery {
       .setType(BatchMetaQuery.QueryType.TIMESERIES)
       .build();
 
-    Map<String, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
+    Map<NamespacedKey, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
         .newBuilder(query)
         .build();
 

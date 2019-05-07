@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.QueryFilter;
 
 /**

@@ -122,7 +122,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   }
 
   @Override
-  public Deferred<Map<String, MetaDataStorageResult>> runQuery(final BatchMetaQuery query,
+  public Deferred<Map<NamespacedKey, MetaDataStorageResult>> runQuery(final BatchMetaQuery query,
                                                           final Span span) {
     final Span child;
     if (span != null) {
@@ -132,22 +132,23 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       child = null;
     }
 
-    Map<String, SearchSourceBuilder> search_source_builder =
+    Map<NamespacedKey, SearchSourceBuilder> search_source_builder =
         NamespacedAggregatedDocumentQueryBuilder.newBuilder(query).build();
 
 
+    LOG.info("Running ES Query: " + search_source_builder);
     if (LOG.isTraceEnabled()) {
       LOG.trace("Running ES Query: " + search_source_builder);
     }
 
-    class ResultCB implements Callback<Map<String, MetaDataStorageResult>,
+    class ResultCB implements Callback<Map<NamespacedKey, MetaDataStorageResult>,
             Map<String, MultiSearchResponse>> {
 
       @Override
-      public Map<String, MetaDataStorageResult> call(final Map<String,
+      public Map<NamespacedKey, MetaDataStorageResult> call(final Map<String,
               MultiSearchResponse> results) {
 
-        final Map<String, MetaDataStorageResult> final_results = new
+        final Map<NamespacedKey, MetaDataStorageResult> final_results = new
                 LinkedHashMap<>();
 
         for (int i = 0; i < query.metaQueries().size(); i++) {
@@ -259,7 +260,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                 }
                 break;
               default:
-                final_results.put(meta_query.namespace(), new
+                final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), new
                     NamespacedAggregatedDocumentResult
                     (MetaResult
                         .NO_DATA,
@@ -274,7 +275,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
           }
         }
           if (null_results == results.size()) {
-            final_results.put(meta_query.namespace(), new
+            final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), new
                   NamespacedAggregatedDocumentResult
                   (MetaResult
                       .NO_DATA,
@@ -285,7 +286,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                     query, meta_query);
           }
           result.setTotalHits(max_hits);
-          final_results.put(meta_query.namespace(), result);
+          final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), result);
         }
 
         if (child != null) {
@@ -298,10 +299,10 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
     }
 
-    class ErrorCB implements Callback<Map<String, MetaDataStorageResult>,
+    class ErrorCB implements Callback<Map<NamespacedKey, MetaDataStorageResult>,
             Exception> {
       @Override
-      public Map<String, MetaDataStorageResult> call(final Exception ex) throws Exception {
+      public Map<NamespacedKey, MetaDataStorageResult> call(final Exception ex) throws Exception {
         if (child != null) {
           child.setErrorTags(ex)
                   .finish();
@@ -309,8 +310,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         if (LOG.isDebugEnabled()) {
           LOG.debug("Returning exception from ES", ex);
         }
-        Map<String, MetaDataStorageResult> final_result = new LinkedHashMap<>();
-        final_result.put("EXCEPTION",new NamespacedAggregatedDocumentResult
+        Map<NamespacedKey, MetaDataStorageResult> final_result = new LinkedHashMap<>();
+        final_result.put(new NamespacedKey("EXCEPTION", "-1"),new NamespacedAggregatedDocumentResult
                 (MetaResult.EXCEPTION, ex, query));
 
         return final_result;
@@ -380,11 +381,11 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               .setMetaQuery(Lists.newArrayList(meta_query))
               .build();
 
-      Map<String, SearchSourceBuilder> search = NamespacedAggregatedDocumentQueryBuilder
+      Map<NamespacedKey, SearchSourceBuilder> search = NamespacedAggregatedDocumentQueryBuilder
           .newBuilder(query)
           .build();
 
-      for (final Map.Entry<String, SearchSourceBuilder> search_entry: search.entrySet()){
+      for (final Map.Entry<NamespacedKey, SearchSourceBuilder> search_entry: search.entrySet()){
         search_entry.getValue().size(tsdb.getConfig().getInt(MAX_RESULTS_KEY));
       }
 
