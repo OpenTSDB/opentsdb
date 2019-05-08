@@ -372,6 +372,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     TimeStamp ts;
     if (rollups_enabled && rollup_index > 0) {
       ts = fallback_timestamp;
+
     } else {
       // raw
       ts = timestamp;
@@ -391,7 +392,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       // DONE with query!
       return true;
     }
-    
+
     if (tsuid_idx >= 0 && tsuid_idx + batch_size >= tsuids.size()) {
       tsuid_idx = 0;
       
@@ -405,6 +406,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
             node.sequenceEnd())) {
           tsuid_idx = -1;
           // DONE with segment
+
           return true;
         }
       }
@@ -416,8 +418,18 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     } else if (tsuid_idx >= 0) {
       tsuid_idx += batch_size;
+      if (ts == null) {
+        if (fallback_timestamp == null) {
+          fallback_timestamp = getInitialTimestamp(rollup_index);
+        }
+      }
     } else {
       tsuid_idx = 0;
+      if (ts == null) {
+        if (fallback_timestamp == null) {
+          fallback_timestamp = getInitialTimestamp(rollup_index);
+        }
+      }
     }
     
     return false;
@@ -499,7 +511,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           rollups_enabled && node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
         // we can fallback!
         if (node.pipelineContext().query().isDebugEnabled()) {
-          node.pipelineContext().queryContext().logDebug(node, 
+          node.pipelineContext().queryContext().logDebug(node,
               "Falling back to next highest resolution.");
         }
         tsuid_idx = 0;
@@ -509,7 +521,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         } else {
           rollup_index++;
         }
-        
+
         if (rollup_index >= tables.size()) {
           // no fallback, we're done.
           final QueryResult result = current_result;
@@ -526,7 +538,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           node.onNext(result);
           return;
         }
-        
         while (outstanding < concurrency_multi_get && !advance() && !has_failed) {
           outstanding++;
           nextBatch(tsuid_idx, (int) fallback_timestamp.epoch(), child);
@@ -685,7 +696,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       
       final GetRequest request = new GetRequest(table, key, 
           Tsdb1xHBaseDataStore.DATA_FAMILY);
-      if (rollup_index > -1 && 
+      if (rollup_index > -1 &&
           rollup_index < node.rollupIntervals().size() && 
           filter != null) {
         request.setFilter(filter);
@@ -733,11 +744,12 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           // initialize the timestamp
           fallback_timestamp = getInitialTimestamp(rollup_index);
         } else if (rollup_index >= node.rollupIntervals().size()) {
+
           // it's raw
           fallback_timestamp.add(Duration.of(
               (reversed ? - 1 : 1), ChronoUnit.HOURS));
         } else {
-          final RollupInterval interval = 
+          final RollupInterval interval =
               node.rollupIntervals().get(rollup_index);
           if (reversed) {
             fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(

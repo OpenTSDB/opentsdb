@@ -1113,7 +1113,6 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void onCompleteFallback() throws Exception {
     setMultiRollupQuery();
-    
     Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -1121,7 +1120,6 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget.outstanding = 0;
     mget.timestamp = new MillisecondTimeStamp((END_TS + 3600 - 900) * 1000L);
     assertEquals(0, mget.rollup_index);
-    
     // fires off up to concurrency_multi_get gets
     mget.onComplete();
     verify(node, never()).onNext(result);
@@ -1131,7 +1129,6 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
     assertEquals(START_TS  + (3600 * 6) - 900, mget.fallback_timestamp.epoch());
     assertEquals(1, mget.rollup_index);
-    
     // should fallback to raw now
     mget.outstanding = 0;
     mget.onComplete();
@@ -1149,7 +1146,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   public void onCompleteFallbackRaw() throws Exception {
     setMultiRollupQuery();
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_FALLBACK_RAW);
-    
+
     Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -1165,6 +1162,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
+
     verify(mget, times(1)).nextBatch(0, START_TS - 900, null);
     verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
     assertEquals(END_TS  - 900, mget.fallback_timestamp.epoch());
@@ -1174,7 +1172,6 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void onCompleteFallbackRawNoData() throws Exception {
     setMultiRollupQuery();
-    
     Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);

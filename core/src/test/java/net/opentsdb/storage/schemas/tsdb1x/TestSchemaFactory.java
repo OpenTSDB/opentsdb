@@ -279,18 +279,12 @@ public class TestSchemaFactory extends SchemaBase {
     assertFalse(plan.configGraph().hasEdgeConnecting(shift, config));
     
     node = plan.configNodeForId("m1-previous-P1D");
-    assertTrue(node instanceof WrappedTimeSeriesDataSourceConfig);
-    assertSame(config.timeShifts(), ((WrappedTimeSeriesDataSourceConfig) node).timeShifts());
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
     
     node = plan.configNodeForId("m1-previous-P2D");
-    assertTrue(node instanceof WrappedTimeSeriesDataSourceConfig);
-    assertSame(config.timeShifts(), ((WrappedTimeSeriesDataSourceConfig) node).timeShifts());
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
     
     node = plan.configNodeForId("m1-next-P1D");
-    assertTrue(node instanceof WrappedTimeSeriesDataSourceConfig);
-    assertSame(config.timeShifts(), ((WrappedTimeSeriesDataSourceConfig) node).timeShifts());
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
   }
 }
