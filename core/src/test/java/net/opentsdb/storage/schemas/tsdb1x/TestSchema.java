@@ -47,6 +47,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDatum;
@@ -57,7 +58,16 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
+import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
+import net.opentsdb.data.types.numeric.NumericLongArrayType;
+import net.opentsdb.pools.ByteArrayPool;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.DummyObjectPool;
+import net.opentsdb.pools.LongArrayPool;
+import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
@@ -1122,5 +1132,68 @@ public class TestSchema extends SchemaBase {
       schema.encode(null, false, 1262304000, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void newSeries() throws Exception {
+    ObjectPool numeric_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+          .setAllocator(new Tsdb1xNumericPartialTimeSeriesPool())
+          .setId(Tsdb1xNumericPartialTimeSeriesPool.TYPE)
+          .build());
+    ObjectPool summary_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+          .setAllocator(new Tsdb1xNumericSummaryPartialTimeSeriesPool())
+          .setId(Tsdb1xNumericSummaryPartialTimeSeriesPool.TYPE)
+          .build());
+    ObjectPool long_array_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+          .setAllocator(new LongArrayPool())
+          .setId(LongArrayPool.TYPE)
+          .build());
+    ObjectPool byte_array_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+          .setAllocator(new ByteArrayPool())
+          .setId(ByteArrayPool.TYPE)
+          .build());
+    when(tsdb.registry.getObjectPool(Tsdb1xNumericPartialTimeSeriesPool.TYPE))
+      .thenReturn(numeric_pool);
+    when(tsdb.registry.getObjectPool(Tsdb1xNumericSummaryPartialTimeSeriesPool.TYPE))
+      .thenReturn(summary_pool);
+    when(tsdb.registry.getObjectPool(LongArrayPool.TYPE))
+      .thenReturn(long_array_pool);
+    when(tsdb.registry.getObjectPool(ByteArrayPool.TYPE))
+      .thenReturn(byte_array_pool);
+    Schema schema = schema();
+    PartialTimeSeriesSet set = mock(PartialTimeSeriesSet.class);
+    TimeStamp timestamp = new SecondTimeStamp(1546300800);
+    assertTrue(schema.pool_cache.isEmpty());
+    
+    Tsdb1xPartialTimeSeries pts = schema.newSeries(NumericLongArrayType.TYPE, 
+        timestamp, 42, set, null);
+    assertTrue(pts instanceof Tsdb1xNumericPartialTimeSeries);
+    assertEquals(2, schema.pool_cache.size());
+    assertSame(numeric_pool, schema.pool_cache.get(NumericLongArrayType.TYPE));
+    assertSame(long_array_pool, schema.pool_cache.get(LongArrayPool.TYPE_TOKEN));
+    
+    // cache hit
+    pts = schema.newSeries(NumericLongArrayType.TYPE, 
+        timestamp, 42, set, null);
+    assertTrue(pts instanceof Tsdb1xNumericPartialTimeSeries);
+    assertEquals(2, schema.pool_cache.size());
+    
+    // summary
+    pts = schema.newSeries(NumericByteArraySummaryType.TYPE, 
+        timestamp, 42, set, mock(RollupInterval.class));
+    assertTrue(pts instanceof Tsdb1xNumericSummaryPartialTimeSeries);
+    assertEquals(4, schema.pool_cache.size());
+    assertSame(summary_pool, schema.pool_cache.get(NumericByteArraySummaryType.TYPE));
+    assertSame(byte_array_pool, schema.pool_cache.get(ByteArrayPool.TYPE_TOKEN));
+    
+    try {
+      schema.newSeries(AnnotationType.TYPE, 
+          timestamp, 42, set, mock(RollupInterval.class));
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
   }
 }

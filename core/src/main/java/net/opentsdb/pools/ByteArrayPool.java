@@ -28,7 +28,7 @@ import net.opentsdb.core.TSDB;
  */
 public class ByteArrayPool extends BaseObjectPoolAllocator {
   public static final String TYPE = "ByteArrayPool";
-  public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(long[].class);
+  public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(byte[].class);
   
   private static final String LENGTH_KEY = "primitive.array.length";
   

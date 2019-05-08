@@ -35,6 +35,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
@@ -43,9 +44,14 @@ import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
+import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.meta.MetaDataStorageSchema;
+import net.opentsdb.pools.ByteArrayPool;
+import net.opentsdb.pools.LongArrayPool;
+import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -114,6 +120,8 @@ public class Schema implements WritableTimeSeriesDataStore {
   
   protected final boolean timeless_salting;
   protected final boolean old_salting;
+
+  protected final Map<TypeToken<?>, ObjectPool> pool_cache;
   
   protected Map<TypeToken<?>, Codec> codecs;
   
@@ -247,6 +255,7 @@ public class Schema implements WritableTimeSeriesDataStore {
     
     id_validator = tsdb.getRegistry().getDefaultPlugin(
         DatumIdValidator.class);
+    pool_cache = Maps.newConcurrentMap();
   }
   
   @Override
@@ -1181,4 +1190,58 @@ public class Schema implements WritableTimeSeriesDataStore {
     }
   }
   
+  /**
+   * Helper to build a PTS from pooled objects.
+   * @param type The type of time series data.
+   * @param base_timestamp The base timestamp.
+   * @param id_hash The hash of the ID.
+   * @param set The set to associate with this PTS.
+   * @param interval An optional interval.
+   * @return A non-null PTS.
+   */
+  public Tsdb1xPartialTimeSeries newSeries(
+      final TypeToken<? extends TimeSeriesDataType> type,
+      final TimeStamp base_timestamp, 
+      final long id_hash, 
+      final PartialTimeSeriesSet set,
+      final RollupInterval interval) {
+    ObjectPool type_pool = pool_cache.get(type);
+    ObjectPool array_pool = null;
+    if (type_pool == null) {
+       // see if we can grab it from the registry
+      if (type == NumericLongArrayType.TYPE) {
+        type_pool = tsdb.getRegistry().getObjectPool(
+            Tsdb1xNumericPartialTimeSeriesPool.TYPE);
+      } else if (type == NumericByteArraySummaryType.TYPE) {
+        type_pool = tsdb.getRegistry().getObjectPool(
+            Tsdb1xNumericSummaryPartialTimeSeriesPool.TYPE);
+      }
+      
+      if (type_pool == null) {
+        throw new IllegalStateException("Unable to find an object pool for "
+            + "type: " + type);
+      }
+      // race but no biggie
+      pool_cache.putIfAbsent(type, type_pool);
+    }
+    
+    if (type == NumericLongArrayType.TYPE) {
+      array_pool = pool_cache.get(LongArrayPool.TYPE_TOKEN);
+      if (array_pool == null) {
+        array_pool = tsdb.getRegistry().getObjectPool(LongArrayPool.TYPE);
+        pool_cache.putIfAbsent(LongArrayPool.TYPE_TOKEN, array_pool);
+      }
+    } else if (type == NumericByteArraySummaryType.TYPE) {
+      array_pool = pool_cache.get(ByteArrayPool.TYPE_TOKEN);
+      if (array_pool == null) {
+        array_pool = tsdb.getRegistry().getObjectPool(ByteArrayPool.TYPE);
+        pool_cache.putIfAbsent(ByteArrayPool.TYPE_TOKEN, array_pool);
+      }
+    }
+    
+    final Tsdb1xPartialTimeSeries series = (Tsdb1xPartialTimeSeries) 
+        type_pool.claim().object();
+    series.reset(base_timestamp, id_hash, array_pool, set, interval);
+    return series;
+  }
 }
