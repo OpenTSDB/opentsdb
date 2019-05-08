@@ -28,9 +28,9 @@ import net.opentsdb.core.TSDB;
  */
 public class LongArrayPool extends BaseObjectPoolAllocator {
   public static final String TYPE = "LongArrayPool";
+  public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(long[].class);
   
   private static final String LENGTH_KEY = "primitive.array.length";
-  private static final TypeToken<?> TYPE_TOKEN = TypeToken.of(long[].class);
   
   /** The length of each array to allocate. */
   private int length;
