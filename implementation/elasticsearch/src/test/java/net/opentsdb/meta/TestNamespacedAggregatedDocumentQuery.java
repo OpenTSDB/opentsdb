@@ -14,17 +14,21 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Map;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagKeyRegexFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Test;
-
-import java.util.Map;
-
-import static org.junit.Assert.assertTrue;
 
 public class TestNamespacedAggregatedDocumentQuery {
 
@@ -37,26 +41,27 @@ public class TestNamespacedAggregatedDocumentQuery {
         .build();
 
     BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
-         .setMetaQuery(Lists.newArrayList(meta_query))
-         .setFrom(0)
-         .setTo(5)
-         .setType(BatchMetaQuery.QueryType.TIMESERIES)
-         .build();
-
-    Map<NamespacedKey, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
-        .newBuilder(query)
+        .setMetaQuery(Lists.newArrayList(meta_query))
+        .setFrom(0)
+        .setTo(5)
+        .setType(BatchMetaQuery.QueryType.TIMESERIES)
         .build();
 
-    SearchSourceBuilder source = sources.entrySet().iterator().next().getValue();
+    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
+        .newBuilder(query)
+        .build();
+    List<SearchSourceBuilder> source = sources.entrySet().iterator().next().getValue();
 
-    String s = source.toString().replaceAll("\n","")
-            .replaceAll(" ", "");
-    System.out.println(s);
+    assertEquals(1, source.size());
+
+    String s = source.get(0).toString().replaceAll("\n", "")
+        .replaceAll(" ", "");
     assertTrue(s.contains("\"from\":0"));
     assertTrue(s.contains("\"size\":5"));
-    assertTrue(s.contains("\"query\":{\"nested\":{\"filter\":{\"bool\":"
-        + "{\"must\":[{\"regexp\":{\"tags.value\":\".*cpu.*\"}},"
-        + "{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},\"path\":\"tags\"}}"));
+    assertTrue(s.contains(
+        "\"query\":{\"bool\":{\"must\":{\"nested\":{\"filter\":{\"bool\":{\"must\":[{\"regexp\":"
+            + "{\"tags.value\":\".*cpu.*\"}},{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},"
+            + "\"path\":\"tags\"}}"));
 
   }
 
@@ -69,31 +74,136 @@ public class TestNamespacedAggregatedDocumentQuery {
 
     MetaQuery meta_query = DefaultMetaQuery.newBuilder()
         .setNamespace("Yahoo")
-        .setFilter( ExplicitTagsFilter.newBuilder().setFilter(chainFil).build())
+        .setFilter(ExplicitTagsFilter.newBuilder().setFilter(chainFil).build())
         .build();
 
     BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
-      .setMetaQuery(Lists.newArrayList(meta_query))
-      .setFrom(0)
-      .setTo(5)
-      .setType(BatchMetaQuery.QueryType.TIMESERIES)
-      .build();
+        .setMetaQuery(Lists.newArrayList(meta_query))
+        .setFrom(0)
+        .setTo(5)
+        .setType(BatchMetaQuery.QueryType.TIMESERIES)
+        .build();
 
-    Map<NamespacedKey, SearchSourceBuilder> sources = NamespacedAggregatedDocumentQueryBuilder
+    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
         .newBuilder(query)
         .build();
 
-    SearchSourceBuilder source = sources.entrySet().iterator().next().getValue();
-    String s = source.toString().replaceAll("\n","")
+    List<SearchSourceBuilder> source = sources.entrySet().iterator().next().getValue();
+    assertEquals(1, source.size());
+    String s = source.get(0).toString().replaceAll("\n", "")
         .replaceAll(" ", "");
     System.out.println(s);
     assertTrue(s.contains("\"from\":0"));
     assertTrue(s.contains("\"size\":5"));
     assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"term\":{\"tags_value\":1}},{\"bool\":"
         + "{\"must\":{\"nested\":{\"filter\":{\"bool\":{\"must\":[{\"regexp\":"
-        + "{\"tags.value\":\".*cpu.*\"}},{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},"
-        + "\"path\":\"tags\"}}}}]}}"));
+        + "{\"tags.value\":\".*cpu.*\"}},{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},\"path\":\"tags\"}}}}]}}"));
 
+  }
+
+  @Test
+  public void testTagKeysAND() {
+
+    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
+        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
+        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
+        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
+        .build();
+
+    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
+        .setNamespace("Yahoo")
+        .setFilter(chainFil)
+        .build();
+
+    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+        .setMetaQuery(Lists.newArrayList(meta_query))
+        .setFrom(0)
+        .setTo(5)
+        .setType(QueryType.TAG_KEYS)
+        .build();
+
+    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
+        .newBuilder(query)
+        .build();
+
+    List<SearchSourceBuilder> source = sources.entrySet().iterator().next().getValue();
+    assertEquals(2, source.size());
+    String s = source.get(0).toString().replaceAll("\n", "")
+        .replaceAll(" ", "");
+    assertTrue(s.contains("\"size\":0"));
+    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":"
+        + "{\"bool\":{\"must\":[{\"regexp\":{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":"
+        + "\".*\"}}]}},\"path\":\"tags\"}}}},{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":"
+        + "{\"AM_nested.name.lowercase\":[\"system.cpu.busy\"]}}}},\"path\":\"AM_nested\"}}]}},"
+        + "\"aggregations\":{\"tagk_agg\":{\"nested\":{\"path\":\"tags\"},\"aggregations\":"
+        + "{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":{\"must\":[{\"regexp\":"
+        + "{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":\".*\"}}]}}}},\"aggregations\":"
+        + "{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}"));
+
+    s = source.get(1).toString().replaceAll("\n", "")
+        .replaceAll(" ", "");
+    assertTrue(s.contains("\"size\":0"));
+    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":"
+        + "{\"bool\":{\"must\":[{\"regexp\":{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":"
+        + "\".*\"}}]}},\"path\":\"tags\"}}}},{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":"
+        + "{\"AM_nested.name.lowercase\":[\"system.cpu.idle\"]}}}},\"path\":\"AM_nested\"}}]}},"
+        + "\"aggregations\":{\"tagk_agg\":{\"nested\":{\"path\":\"tags\"},\"aggregations\":"
+        + "{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":{\"must\":[{\"regexp\":"
+        + "{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":\".*\"}}]}}}},\"aggregations\":"
+        + "{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}"));
+
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testTagKeysAndValueANDNotSupported() {
+
+    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
+        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
+        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
+        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
+        .build();
+
+    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
+        .setNamespace("Yahoo")
+        .setFilter(chainFil)
+        .build();
+
+    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+        .setMetaQuery(Lists.newArrayList(meta_query))
+        .setFrom(0)
+        .setTo(5)
+        .setType(QueryType.TAG_KEYS_AND_VALUES)
+        .build();
+
+    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
+        .newBuilder(query)
+        .build();
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMetricsANDNotSupported() {
+
+    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
+        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
+        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
+        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
+        .build();
+
+    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
+        .setNamespace("Yahoo")
+        .setFilter(chainFil)
+        .build();
+
+    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+        .setMetaQuery(Lists.newArrayList(meta_query))
+        .setFrom(0)
+        .setTo(5)
+        .setType(QueryType.METRICS)
+        .build();
+
+    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
+        .newBuilder(query)
+        .build();
   }
 //
 //  @Test

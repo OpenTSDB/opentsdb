@@ -16,6 +16,10 @@ package net.opentsdb.meta;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
@@ -40,10 +44,6 @@ import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Builds the ElasticSearch query
@@ -75,36 +75,31 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   public static final String TAGS_SUB_AGG = "tags_sub_agg";
   public static final String TAGS_SUB_UNIQUE = "unique_sub_tags";
 
-  public final Map<NamespacedKey, SearchSourceBuilder> search_source_builders;
+  public final Map<NamespacedKey, List<SearchSourceBuilder>> search_source_builders;
 
   private final BatchMetaQuery query;
 
-  private int num_tags;
 
   private NamespacedAggregatedDocumentQueryBuilder(final BatchMetaQuery query) {
     this.search_source_builders = new LinkedHashMap<>();
     this.query = query;
   }
 
-  FilterBuilder setFilter(final QueryFilter filter) {
+  FilterBuilder setFilter(final QueryFilter filter, final List<FilterBuilder> metric_filters) {
     if (filter == null) {
       return null;
     }
 
     if (filter instanceof ExplicitTagsFilter) {
-      return setFilter(((ExplicitTagsFilter) filter).getFilter());
+      return setFilter(((ExplicitTagsFilter) filter).getFilter(), metric_filters);
     }
 
-    if (filter instanceof MetricFilter) {
-      return getMetricFilter((MetricFilter) filter, true);
-    }
 
     if (filter instanceof TagKeyFilter) {
       return getTagKeyFilter((TagKeyFilter) filter, true);
     }
 
     if (filter instanceof TagValueFilter) {
-      num_tags++;
       return getTagValueFilter((TagValueFilter) filter, true);
     }
 
@@ -114,25 +109,34 @@ public class NamespacedAggregatedDocumentQueryBuilder {
 
     if (filter instanceof NotFilter) {
       return FilterBuilders.notFilter(
-          setFilter(((NotFilter) filter).getFilter()));
+          setFilter(((NotFilter) filter).getFilter(), metric_filters));
+    }
+
+    if (filter instanceof MetricFilter) {
+      metric_filters.add(getMetricFilter((MetricFilter) filter, true));
+      return null;
     }
 
     if (filter instanceof ChainFilter) {
       BoolFilterBuilder builder = FilterBuilders.boolFilter();
       if (((ChainFilter) filter).getOp() == FilterOp.AND) {
         for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-          builder.must(setFilter(sub_filter));
+          if (sub_filter instanceof MetricFilter) {
+            setFilter(sub_filter, metric_filters);
+          } else {
+            builder.must(setFilter(sub_filter, metric_filters));
+          }
         }
       } else {
         for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-          builder.should(setFilter(sub_filter));
+          builder.should(setFilter(sub_filter, metric_filters));
         }
       }
       return builder;
     }
 
     throw new UnsupportedOperationException("Unsupported filter: "
-        + filter.getClass().toString());
+        + filter.getClass().toString() + " and " + ((MetricFilter)filter).getMetric());
   }
 
   FilterBuilder getMetricFilter(final MetricFilter filter, final boolean nested) {
@@ -420,88 +424,154 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return new NamespacedAggregatedDocumentQueryBuilder(query);
   }
 
-  public Map<NamespacedKey, SearchSourceBuilder> build() {
+  public Map<NamespacedKey, List<SearchSourceBuilder>> build() {
     for (final MetaQuery meta_query : query.metaQueries()) {
-      SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-      switch (query.type()) {
-        case NAMESPACES:
-          search_source_builder.query(FilterBuilders.boolFilter()
-            .must(FilterBuilders.regexpFilter(QUERY_NAMESPACE_KEY,
-              convertToLuceneRegex(meta_query.namespace())))
-            .buildAsBytes());
-          search_source_builder.aggregation(AggregationBuilders.terms(NAMESPACE_AGG)
-
-            .field(RESULT_NAMESPACE)
-            .size(0)
-            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
-              Order.term(true) : Order.term(false)));
-          search_source_builder.size(0);
-          search_source_builders.put(new NamespacedKey("all_namespace", "-1"), search_source_builder);
-          return search_source_builders;
-        case METRICS:
-          search_source_builder.aggregation(metricAgg(meta_query.filter(), query.aggregationSize()));
-          search_source_builder.size(0);
-          break;
-        case TAG_KEYS:
-          search_source_builder.aggregation(tagKeyAgg(meta_query.filter(), query.aggregationSize()));
-          search_source_builder.size(0);
-          break;
-        case TAG_VALUES:
-          search_source_builder.aggregation(tagValueAgg(meta_query.filter(), query.aggregationSize()));
-          search_source_builder.size(0);
-          break;
-        case TAG_KEYS_AND_VALUES:
-          search_source_builder.aggregation(tagKeyAndValueAgg(meta_query.filter(),
-            query.aggregationField().toLowerCase(), query.aggregationSize()));
-          search_source_builder.size(0);
-          break;
-        case TIMESERIES:
-          search_source_builder.from(query.from());
-          search_source_builder.size(query.to() - query.from());
-          break;
-        default:
-          throw new UnsupportedOperationException(query.type() + " not implemented yet.");
-      }
-
-
+      List<SearchSourceBuilder> search_source_builders_list = new ArrayList<>();
       if (meta_query.filter() != null || query.start() != null || query.end() !=
-        null) {
+          null) {
+        List<FilterBuilder> metric_filters = new ArrayList<>();
         if (query.start() != null || query.end() != null) {
           FilterBuilder time_filter;
           if (query.start() != null && query.end() != null) {
             time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
-              .from(query.start().msEpoch())
-              .to(query.end().msEpoch());
+                .from(query.start().msEpoch())
+                .to(query.end().msEpoch());
           } else if (query.start() != null) {
             time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
-              .from(query.start().msEpoch())
-              .to(DateTime.currentTimeMillis());
+                .from(query.start().msEpoch())
+                .to(DateTime.currentTimeMillis());
           } else {
             time_filter = FilterBuilders.rangeFilter(LAST_SEEN)
-              .from(0)
-              .to(query.end().epoch());
+                .from(0)
+                .to(query.end().epoch());
           }
-          search_source_builder.query(FilterBuilders.boolFilter()
-            .must(time_filter)
-            .must(setFilter(meta_query.filter()))
-            .buildAsBytes());
+
+          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
+          if (! metric_filters.isEmpty()) {
+            for (FilterBuilder each_metric_filter : metric_filters) {
+              SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+              search_source_builder.query(FilterBuilders.boolFilter()
+                  .must(time_filter)
+                  .must(tag_filters)
+                  .must(each_metric_filter)
+                  .buildAsBytes());
+              search_source_builders_list.add(search_source_builder);
+            }
+          } else {
+            SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+            search_source_builder.query(FilterBuilders.boolFilter()
+                .must(time_filter)
+                .must(tag_filters)
+                .buildAsBytes());
+            search_source_builders_list.add(search_source_builder);
+          }
         } else if (meta_query.filter() instanceof ExplicitTagsFilter) {
-          FilterBuilder filters = setFilter(meta_query.filter());
+          FilterBuilder filters = setFilter(meta_query.filter(), metric_filters);
           FilterBuilder explicit_filter = FilterBuilders.termFilter
-            ("tags_value", num_tags);
-          search_source_builder.query(FilterBuilders.boolFilter()
-            .must(explicit_filter)
-            .must(filters)
-            .buildAsBytes());
+              ("tags_value", NamespacedAggregatedDocumentSchema.countTagValueFilters(meta_query.filter(), 0));
+          if (! metric_filters.isEmpty()) {
+            for (FilterBuilder each_metric_filter : metric_filters) { // create a query for each MetricLiteral query
+              SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+              search_source_builder.query(FilterBuilders.boolFilter()
+                  .must(explicit_filter)
+                  .must(filters)
+                  .must(each_metric_filter)
+                  .buildAsBytes());
+              search_source_builders_list.add(search_source_builder);
+            }
+          } else {
+            SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+            search_source_builder.query(FilterBuilders.boolFilter()
+                .must(explicit_filter)
+                .must(filters)
+                .buildAsBytes());
+            search_source_builders_list.add(search_source_builder);
+          }
         } else {
-          search_source_builder.query(setFilter(meta_query.filter()).buildAsBytes());
+          FilterBuilder filters = setFilter(meta_query.filter(), metric_filters);
+          if (! metric_filters.isEmpty()) {
+            for (FilterBuilder each_metric_filter : metric_filters) {
+              SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+              search_source_builder.query(FilterBuilders.boolFilter()
+                  .must(filters)
+                  .must(each_metric_filter)
+                  .buildAsBytes());
+              search_source_builders_list.add(search_source_builder);
+            }
+          } else {
+            SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+            search_source_builder.query(FilterBuilders.boolFilter()
+                .must(filters)
+                .buildAsBytes());
+            search_source_builders_list.add(search_source_builder);
+          }
         }
       }
-      search_source_builders.put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
-        search_source_builder);
+      search_source_builders
+          .put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
+              search_source_builders_list);
+
+      for (SearchSourceBuilder search_source_builder : search_source_builders_list) {
+        switch (query.type()) {
+          case NAMESPACES:
+            search_source_builder.query(FilterBuilders.boolFilter()
+                .must(FilterBuilders.regexpFilter(QUERY_NAMESPACE_KEY,
+                    convertToLuceneRegex(meta_query.namespace())))
+                .buildAsBytes());
+            search_source_builder.aggregation(AggregationBuilders.terms(NAMESPACE_AGG)
+
+                .field(RESULT_NAMESPACE)
+                .size(0)
+                .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
+                    Order.term(true) : Order.term(false)));
+            search_source_builder.size(0);
+            search_source_builders.computeIfAbsent(new NamespacedKey("all_namespace", "-1"),
+                k -> new ArrayList<>()).add(search_source_builder);
+            return search_source_builders;
+          case METRICS:
+            if (search_source_builders_list.size() > 1) {
+              throw new IllegalArgumentException("Query not supported with AND operation. Don't use multiple MetricLiterals");
+            }
+            search_source_builder
+                .aggregation(metricAgg(meta_query.filter(), query.aggregationSize()));
+            search_source_builder.size(0);
+            break;
+          case TAG_KEYS:
+            search_source_builder
+                .aggregation(tagKeyAgg(meta_query.filter(), query.aggregationSize()));
+            search_source_builder.size(0);
+            break;
+          case TAG_VALUES:
+            if (search_source_builders_list.size() > 1) {
+              throw new IllegalArgumentException("Query not supported with AND operation. Don't use multiple MetricLiterals");
+            }
+            search_source_builder
+                .aggregation(tagValueAgg(meta_query.filter(), query.aggregationSize()));
+            search_source_builder.size(0);
+            break;
+          case TAG_KEYS_AND_VALUES:
+            if (search_source_builders_list.size() > 1) {
+              throw new IllegalArgumentException("Query not supported with AND operation. Don't use multiple MetricLiterals");
+            }
+            search_source_builder.aggregation(tagKeyAndValueAgg(meta_query.filter(),
+                query.aggregationField().toLowerCase(), query.aggregationSize()));
+            search_source_builder.size(0);
+            break;
+          case TIMESERIES:
+            if (search_source_builders_list.size() > 1) {
+              throw new IllegalArgumentException("Query not supported with AND operation. Don't use multiple MetricLiterals");
+            }
+            search_source_builder.from(query.from());
+            search_source_builder.size(query.to() - query.from());
+            break;
+          default:
+            throw new UnsupportedOperationException(query.type() + " not implemented yet.");
+        }
+      }
     }
     return search_source_builders;
   }
+
 
   static String convertToLuceneRegex(final String value_str) throws
           RuntimeException {
