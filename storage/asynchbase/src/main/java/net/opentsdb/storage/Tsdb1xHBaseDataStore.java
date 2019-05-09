@@ -87,6 +87,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
   public static final String ENABLE_APPENDS_KEY = "tsd.storage.enable_appends";
   public static final String ENABLE_COPROC_APPENDS_KEY = "tsd.storage.enable_appends_coproc";
+  public static final String ENABLE_PUSH_KEY = "tsd.storage.enable_push";
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
@@ -251,6 +252,10 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
       }
       if (!config.hasProperty(ENABLE_COPROC_APPENDS_KEY)) {
         config.register(ENABLE_COPROC_APPENDS_KEY, false, false,
+            "TODO");
+      }
+      if (!config.hasProperty(ENABLE_PUSH_KEY)) {
+        config.register(ENABLE_PUSH_KEY, false, false,
             "TODO");
       }
     }
