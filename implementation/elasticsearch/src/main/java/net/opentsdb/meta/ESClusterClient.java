@@ -171,12 +171,12 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
   public String version() {
     return "3.0.0";
   }
-  
+
   @Override
   public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<NamespacedKey,
-          SearchSourceBuilder> query,
-                                                 final QueryPipelineContext context,
-                                                 final Span span) {
+      List<SearchSourceBuilder>> query,
+      final QueryPipelineContext context,
+      final Span span) {
     if (query == null) {
       return Deferred.fromError(new IllegalArgumentException(
           "Query cannot be null."));
@@ -339,25 +339,30 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
       try {
         final MultiSearchRequestBuilder multi_search = client
                 .prepareMultiSearch();
-        for (final Map.Entry<NamespacedKey, SearchSourceBuilder>
-                search_source_builder : query
+        for (final Map.Entry<NamespacedKey, List<SearchSourceBuilder>>
+                search_source_builders : query
                 .entrySet()) {
-          if (tsdb.getStatsCollector() != null) {
-            tsdb.getStatsCollector().incrementCounter("es.client.query.new", "endpoint", "meta", "namespace",
-                search_source_builder.getKey().namespace(), "cluster", clusters.get(idx));
+
+          for (SearchSourceBuilder search_source_builder : search_source_builders.getValue()) {
+            if (tsdb.getStatsCollector() != null) {
+              tsdb.getStatsCollector()
+                  .incrementCounter("es.client.query.new", "endpoint", "meta", "namespace",
+                      search_source_builders.getKey().namespace(), "cluster", clusters.get(idx));
+            }
+            final SearchRequestBuilder request_builder = client
+                .prepareSearch(search_source_builders.getKey().namespace())
+                .setSearchType(SearchType.DEFAULT)
+                .setExtraSource(search_source_builder.toString())
+                .setTimeout(TimeValue.timeValueMillis(
+                    tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
+            multi_search.add(request_builder);
+
+            if (context != null) {
+              if (excludes != null && excludes.length > 0) {
+                request_builder.setFetchSource(null, excludes);
+              }
+            }
           }
-          final SearchRequestBuilder request_builder = client
-                  .prepareSearch(search_source_builder.getKey().namespace())
-                  .setSearchType(SearchType.DEFAULT)
-                  .setExtraSource(search_source_builder.getValue().toString())
-                  .setTimeout(TimeValue.timeValueMillis(
-                          tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
-          multi_search.add(request_builder);
-        if (context != null) {
-          if (excludes != null && excludes.length > 0) {
-            request_builder.setFetchSource(null, excludes);
-          }
-        }
         if (LOG.isTraceEnabled()) {
           LOG.trace("[" + clusters.get(idx) + "] Sending ES Query: "
               + query.toString());

@@ -43,7 +43,7 @@ public interface ESClient {
    * @return A deferred resolving to a list of search response objects
    * or an exception if the query couldn't execute.
    */
-  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<NamespacedKey, SearchSourceBuilder> query,
+  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<NamespacedKey, List<SearchSourceBuilder>> query,
                                                              final QueryPipelineContext context,
                                                              final Span span);
 

@@ -258,13 +258,13 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       tag_keys_or_values = Maps.newHashMap();
     }
 
-    if (tag_keys_or_values.containsKey(value.hashCode())) {
-      if ((long)tag_keys_or_values.get(value.hashCode()).getValue() < value.getValue()) {
+      if (tag_keys_or_values.containsKey(value.hashCode())) {
+        if ((long) tag_keys_or_values.get(value.hashCode()).getValue() < value.getValue()) {
+          tag_keys_or_values.put(value.hashCode(), value);
+        }
+      } else {
         tag_keys_or_values.put(value.hashCode(), value);
       }
-    } else {
-      tag_keys_or_values.put(value.hashCode(), value);
-    }
   }
 
   /**
