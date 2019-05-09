@@ -51,13 +51,14 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -444,6 +445,28 @@ public class TestTsdb1xQueryNode extends UTBase {
         anyLong(), anyLong());
     verify(upstream_b, times(1)).onComplete(any(QueryNode.class), 
         anyLong(), anyLong());
+  }
+  
+  @Test
+  public void onNextPTS() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.initialize(null);
+    
+    PartialTimeSeries pts = mock(PartialTimeSeries.class);
+    node.onNext(pts);
+    
+    verify(upstream_a, times(1)).onNext(pts);
+    verify(upstream_b, times(1)).onNext(pts);
+    verify(upstream_a, never()).onComplete(any(QueryNode.class), 
+        anyLong(), anyLong());
+    verify(upstream_b, never()).onComplete(any(QueryNode.class), 
+        anyLong(), anyLong());
+    
+    try {
+      node.onNext((PartialTimeSeries) null);
+      fail("Expected QueryUpstreamException");
+    } catch (QueryUpstreamException e) { }
   }
   
   @Test
@@ -929,4 +952,17 @@ public class TestTsdb1xQueryNode extends UTBase {
     verify(upstream_a, never()).onError(any());
     verify(upstream_b, never()).onError(any());
   }
+
+  @Test
+  public void sentData() {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.initialize(null);
+    
+    assertFalse(node.sentData());
+    
+    node.setSentData();
+    assertTrue(node.sentData());
+  }
+  
 }

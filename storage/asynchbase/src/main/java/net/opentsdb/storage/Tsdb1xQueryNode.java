@@ -120,9 +120,15 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   /** Whether or not to delete the data found by this query. */
   protected final boolean delete;
   
+  /** Whether or not to push data. */
+  protected final boolean push;
+  
   /** Rollup fallback mode. */
   protected final RollupUsage rollup_usage;
   
+  /** When pushing, whether or not real data was sent. */
+  protected final AtomicBoolean sent_data;
+
   /** Rollup intervals matching the query downsampler if applicable. */
   protected List<RollupInterval> rollup_intervals;
   
@@ -158,7 +164,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
     sequence_id = new AtomicLong();
     initialized = new AtomicBoolean();
     initializing = new AtomicBoolean();
-    
+    sent_data = new AtomicBoolean();
     if (config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
       skip_nsun_tagks = config.getBoolean(context.tsdb().getConfig(), 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
@@ -194,6 +200,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
       rollup_usage = RollupUsage.parse(parent
           .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     }
+    push = parent.dynamicBoolean(Tsdb1xHBaseDataStore.ENABLE_PUSH_KEY);
   }
 
   @Override
@@ -261,7 +268,21 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   
   @Override
   public void onNext(final PartialTimeSeries series) {
-    throw new IllegalArgumentException("Not implemented yet.");
+    if (series == null) {
+      throw new QueryUpstreamException("Series cannot be null.");
+    }
+  
+    for (final QueryNode node : upstream) {
+      try {
+        // no need for an executor here as the Tsdb1x PTS set will run the
+        // dedupe in the query thread pool so this will be called from there
+        // instead of the AsyncHBase threads.
+        node.onNext(series);
+      } catch (Exception e) {
+        throw new QueryUpstreamException("Failed to send series "
+            + "upstream to node: " + node, e);
+      }
+    }
   }
 
   @Override
@@ -323,6 +344,16 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
   @Override
   public QueryPipelineContext pipelineContext() {
     return context;
+  }
+  
+  /** Sets the sentData flag. */
+  public void setSentData() {
+    sent_data.set(true);
+  }
+  
+  /** @return Whether or not the node sent data in push node. */
+  public boolean sentData() {
+    return sent_data.get();
   }
   
   /**
@@ -427,6 +458,11 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
     return delete;
   }
 
+  /** @return Whether or not to push data up the stack. */
+  boolean push() {
+    return push;
+  }
+  
   /** @return A list of applicable rollup intervals. May be null. */
   List<RollupInterval> rollupIntervals() {
     return rollup_intervals;
