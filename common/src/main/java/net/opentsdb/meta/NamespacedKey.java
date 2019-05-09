@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.google.common.base.Objects;
 
 /**
  * Key with Namespace and Id of the meta query
@@ -46,4 +47,21 @@ public class NamespacedKey {
     return id;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    NamespacedKey that = (NamespacedKey) o;
+    return Objects.equal(namespace, that.namespace) &&
+        Objects.equal(id, that.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(namespace, id);
+  }
 }
