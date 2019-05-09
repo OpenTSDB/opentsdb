@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
@@ -426,6 +427,22 @@ public class NamespacedAggregatedDocumentQueryBuilder {
 
   public Map<NamespacedKey, List<SearchSourceBuilder>> build() {
     for (final MetaQuery meta_query : query.metaQueries()) {
+      if (query.type() == QueryType.NAMESPACES) {
+        SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+        search_source_builder.query(FilterBuilders.boolFilter()
+            .must(FilterBuilders.regexpFilter(QUERY_NAMESPACE_KEY,
+                convertToLuceneRegex(meta_query.namespace())))
+            .buildAsBytes());
+        search_source_builder.aggregation(AggregationBuilders.terms(NAMESPACE_AGG)
+
+            .field(RESULT_NAMESPACE)
+            .size(0)
+            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
+                Order.term(true) : Order.term(false)));
+        search_source_builder.size(0);
+        search_source_builders.computeIfAbsent(new NamespacedKey("all_namespace", "-1"),
+            k -> new ArrayList<>()).add(search_source_builder);
+      }
       List<SearchSourceBuilder> search_source_builders_list = new ArrayList<>();
       if (meta_query.filter() != null || query.start() != null || query.end() !=
           null) {
@@ -506,28 +523,14 @@ public class NamespacedAggregatedDocumentQueryBuilder {
             search_source_builders_list.add(search_source_builder);
           }
         }
+        search_source_builders
+            .put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
+                search_source_builders_list);
       }
-      search_source_builders
-          .put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
-              search_source_builders_list);
+
 
       for (SearchSourceBuilder search_source_builder : search_source_builders_list) {
         switch (query.type()) {
-          case NAMESPACES:
-            search_source_builder.query(FilterBuilders.boolFilter()
-                .must(FilterBuilders.regexpFilter(QUERY_NAMESPACE_KEY,
-                    convertToLuceneRegex(meta_query.namespace())))
-                .buildAsBytes());
-            search_source_builder.aggregation(AggregationBuilders.terms(NAMESPACE_AGG)
-
-                .field(RESULT_NAMESPACE)
-                .size(0)
-                .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
-                    Order.term(true) : Order.term(false)));
-            search_source_builder.size(0);
-            search_source_builders.computeIfAbsent(new NamespacedKey("all_namespace", "-1"),
-                k -> new ArrayList<>()).add(search_source_builder);
-            return search_source_builders;
           case METRICS:
             if (search_source_builders_list.size() > 1) {
               throw new IllegalArgumentException("Query not supported with AND operation. Don't use multiple MetricLiterals");

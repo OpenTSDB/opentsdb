@@ -184,7 +184,6 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     Map<NamespacedKey, List<SearchSourceBuilder>> search_source_builder =
         NamespacedAggregatedDocumentQueryBuilder.newBuilder(query).build();
 
-
     if (LOG.isTraceEnabled()) {
       LOG.trace("Running ES Query: " + search_source_builder);
     }
@@ -212,9 +211,13 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
             Set<UniqueKeyPair> tag_keys = null; // will be initialized if we have multiple metricliteral's
                                                 // doing an AND.
-
+            SearchResponse response = null;
+            if (count == 0) {
+              response = responses[i].getResponse();
+            }
             for (int k = i; k < i + count; k++) { // we have one query per metric so go through them accordingly
-              final SearchResponse response = responses[k].getResponse();
+              response = responses[k].getResponse();
+            }
               if (response == null) {
                 LOG.warn(
                     "Null response from " + search_response.getKey() + " for query " + meta_query);
@@ -343,7 +346,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
                       .currentTimeMillis() - startTime) + " ms from " + search_response.getKey());
                 }
               }
-            }
+
 
 
             if (tag_keys != null) {
