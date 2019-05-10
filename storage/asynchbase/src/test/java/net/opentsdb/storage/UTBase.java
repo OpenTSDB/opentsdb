@@ -31,14 +31,21 @@ import org.junit.BeforeClass;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.google.common.collect.Lists;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.MockTrace;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaBase;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 import net.opentsdb.uid.LRUUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
@@ -82,6 +89,11 @@ public class UTBase {
   public static final int TS_SINGLE_SERIES_COUNT = 16;
   public static final int TS_SINGLE_SERIES_INTERVAL = 3600;
   
+  public static final int TS_SINGLE_SERIES_GAP = 1530403200;
+  public static final int TS_SINGLE_SERIES_GAP_COUNT = 16;
+  public static final int TS_SINGLE_SERIES_GAP_SIZE = 5;
+  public static final int TS_SINGLE_SERIES_GAP_INTERVAL = 3600;
+  
   public static final int TS_DOUBLE_SERIES = 1522540800;
   public static final int TS_DOUBLE_SERIES_COUNT = 16;
   public static final int TS_DOUBLE_SERIES_INTERVAL = 3600;
@@ -91,12 +103,29 @@ public class UTBase {
   public static final int TS_MULTI_SERIES_EX_INDEX = 7;
   public static final int TS_MULTI_SERIES_INTERVAL = 3600;
   
+  public static final int TS_MULTI_COLUMN_SERIES = 1530662400;
+  public static final int TS_MULTI_COLUMN_SERIES_COUNT = 16;
+  public static final int TS_MULTI_COLUMN_SERIES_INTERVAL = 3600;
+  
   public static final int TS_NSUI_SERIES = 1527811200;
   public static final int TS_NSUI_SERIES_COUNT = 16;
   public static final int TS_NSUI_SERIES_INTERVAL = 3600;
   
+  public static final int TS_APPEND_SERIES = 1531008000;
+  public static final int TS_APPEND_SERIES_COUNT = 16;
+  public static final int TS_APPEND_SERIES_INTERVAL = 3600;
+  
+  public static final int TS_ROLLUP_SERIES = 1533081600;
+  public static final int TS_ROLLUP_SERIES_COUNT = 4;
+  public static final int TS_ROLLUP_SERIES_INTERVAL = 86400;
+  
+  public static final int TS_ROLLUP_APPEND_SERIES = 1535760000;
+  public static final int TS_ROLLUP_APPEND_SERIES_COUNT = 4;
+  public static final int TS_ROLLUP_APPEND_SERIES_INTERVAL = 86400;
+  
   public static final byte[] DATA_TABLE = "tsdb".getBytes(Const.ISO_8859_CHARSET);
   public static final byte[] UID_TABLE = "tsdb-uid".getBytes(Const.ISO_8859_CHARSET);
+  public static final byte[] ROLLUP_TABLE = "tsdb-rollup-1h".getBytes(Const.ISO_8859_CHARSET);
   
   // GMT: Monday, January 1, 2018 12:15:00 AM
   public static final int START_TS = 1514765700;
@@ -109,14 +138,30 @@ public class UTBase {
     /** Two metrics but one series each. */
     SINGLE_SERIES,
     
+    /** Two metrics but one series each with a time gap in the middle. */
+    SINGLE_SERIES_GAP,
+    
     /** Two metrics and two series each. */
     DOUBLE_SERIES,
     
     /** Two metrics, two series, and an exception is returned at a point. */
     MULTI_SERIES_EX,
     
-    /** Two metrics, three series with one incorporating a non-assigned tag value ID. */
+    /** Two metrics, four series with one of each metric incorporating a 
+     * non-assigned tag value ID. */
     NSUI_SERIES,
+
+    /** Two metrics with multiple separate columns each. */
+    MULTI_COLUMN_SERIES,
+    
+    /** One metric with Append columns. */
+    APPEND_SERIES,
+    
+    /** Two metric with rollup data, 4 values per day, both sum and count. */
+    ROLLUP_SERIES,
+    
+    /** Two metric with rollup data, 4 values per day, both sum and count. */
+    ROLLUP_APPEND_SERIES,
   }
   
   protected static MockTSDB tsdb;
@@ -126,6 +171,7 @@ public class UTBase {
   protected static Tsdb1xHBaseDataStore data_store;
   protected static UniqueIdFactory uid_factory;
   protected static UniqueIdStore uid_store;
+  protected static RollupInterval HOURLY_INTERVAL;
   
   protected static Schema schema;
   protected static SchemaFactory schema_factory;
@@ -176,9 +222,22 @@ public class UTBase {
     schema = spy(new Schema(schema_factory, tsdb, null));
     when(data_store.schema()).thenReturn(schema);
     
+    HOURLY_INTERVAL = RollupInterval.builder()
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .setTable(new String(ROLLUP_TABLE))
+        .setPreAggregationTable(new String(ROLLUP_TABLE))
+        .build();
+    HOURLY_INTERVAL.setConfig(DefaultRollupConfig.newBuilder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addInterval(HOURLY_INTERVAL)
+        .build());
+    
     storage = new MockBase(client, true, true, true, true);
     loadUIDTable();
     loadRawData();
+    loadRollupData();
   }
   
   /**
@@ -300,6 +359,30 @@ public class UTBase {
         new byte[] { 1 });
     }
     
+    for (int i = 0; i < TS_SINGLE_SERIES_GAP_COUNT; i++) {
+      storage.addColumn(table, makeRowKey(
+          METRIC_BYTES, 
+          TS_SINGLE_SERIES_GAP + (i * TS_SINGLE_SERIES_GAP_INTERVAL), 
+          TAGK_BYTES,
+          TAGV_BYTES), 
+        Tsdb1xHBaseDataStore.DATA_FAMILY, 
+        new byte[2], 
+        new byte[] { 1 });
+      
+      if (i == TS_SINGLE_SERIES_GAP_SIZE) {
+        i += TS_SINGLE_SERIES_GAP_SIZE;
+      }
+      
+      storage.addColumn(table, makeRowKey(
+          METRIC_B_BYTES, 
+          TS_SINGLE_SERIES_GAP + (i * TS_SINGLE_SERIES_GAP_INTERVAL), 
+          TAGK_BYTES,
+          TAGV_BYTES), 
+        Tsdb1xHBaseDataStore.DATA_FAMILY, 
+        new byte[2], 
+        new byte[] { 1 });
+    }
+    
     for (int i = 0; i < TS_DOUBLE_SERIES_COUNT; i++) {
       storage.addColumn(table, makeRowKey(
           METRIC_BYTES, 
@@ -392,6 +475,30 @@ public class UTBase {
       }
     }
     
+    for (int i = 0; i < TS_MULTI_COLUMN_SERIES_COUNT; i++) {
+      for (int x = 0; x < 5; x++) {
+        short offset = (short) (x * 60);
+        offset <<= NumericCodec.FLAG_BITS;
+        storage.addColumn(table, makeRowKey(
+            METRIC_BYTES, 
+            TS_MULTI_COLUMN_SERIES + (i * TS_MULTI_COLUMN_SERIES_INTERVAL), 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          Bytes.fromShort(offset),
+          new byte[] { (byte) x });
+        
+        storage.addColumn(table, makeRowKey(
+            METRIC_B_BYTES, 
+            TS_MULTI_COLUMN_SERIES + (i * TS_MULTI_COLUMN_SERIES_INTERVAL), 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          Bytes.fromShort(offset),
+          new byte[] { (byte) x });
+      }
+    }
+    
     for (int i = 0; i < TS_NSUI_SERIES_COUNT; i++) {
       storage.addColumn(table, makeRowKey(
           METRIC_BYTES, 
@@ -432,6 +539,117 @@ public class UTBase {
           Tsdb1xHBaseDataStore.DATA_FAMILY, 
           new byte[2], 
           new byte[] { 1 });
+      }
+    }
+    
+    for (int i = 0; i < TS_APPEND_SERIES_COUNT; i++) {
+      storage.addColumn(table, makeRowKey(
+          METRIC_BYTES, 
+          TS_APPEND_SERIES + (i * TS_APPEND_SERIES_INTERVAL), 
+          TAGK_BYTES,
+          TAGV_BYTES), 
+        Tsdb1xHBaseDataStore.DATA_FAMILY, 
+        new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    }
+  }
+  
+  public static void loadRollupData() throws Exception {
+    storage.addTable(ROLLUP_TABLE, Lists.newArrayList(Tsdb1xHBaseDataStore.DATA_FAMILY));
+    for (int i = 0; i < TS_ROLLUP_SERIES_COUNT; i++) {
+      // every 6 hours
+      for (int x = 0; x < 4; x++) {
+        // sum and count
+        int base_ts = TS_ROLLUP_SERIES + (i * TS_ROLLUP_SERIES_INTERVAL);
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          RollupUtils.buildRollupQualifier((base_ts + (x * 21600)), (short) 0, 0, HOURLY_INTERVAL),
+          new byte[] { (byte) x });
+        
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          RollupUtils.buildStringRollupQualifier("count", (base_ts + (x * 21600)), (short) 0, HOURLY_INTERVAL),
+          new byte[] { 1 });
+        
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_B_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          RollupUtils.buildRollupQualifier((base_ts + (x * 21600)), (short) 0, 0, HOURLY_INTERVAL),
+          new byte[] { (byte) x });
+        
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_B_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          RollupUtils.buildStringRollupQualifier("count", (base_ts + (x * 21600)), (short) 0, HOURLY_INTERVAL),
+          new byte[] { 1 });
+      }
+    }
+    
+    for (int i = 0; i < TS_ROLLUP_APPEND_SERIES_COUNT; i++) {
+      int base_ts = TS_ROLLUP_APPEND_SERIES + (i * TS_ROLLUP_APPEND_SERIES_INTERVAL);
+      // every 6 hours
+      byte[] sums = new byte[0];
+      byte[] counts = new byte[0];
+      
+      for (int x = 0; x < 4; x++) {
+        sums = com.google.common.primitives.Bytes.concat(
+            sums, RollupUtils.buildAppendRollupValue((base_ts + (x * 21600)), (short) 0, HOURLY_INTERVAL, 
+            new byte[] { (byte) x }));
+        counts = com.google.common.primitives.Bytes.concat(
+            counts, RollupUtils.buildAppendRollupValue((base_ts + (x * 21600)), (short) 0, HOURLY_INTERVAL, 
+            new byte[] { 1 }));
+      }
+        // sum and count
+      for (int agg = 0; agg < 2; agg++) {
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          new byte[1],
+          sums);
+        
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          new byte[] { 1 },
+          counts);
+        
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_B_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          new byte[1],
+          sums);
+        
+        storage.addColumn(ROLLUP_TABLE, makeRowKey(
+            METRIC_B_BYTES, 
+            base_ts, 
+            TAGK_BYTES,
+            TAGV_BYTES), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          new byte[] { 1 },
+          counts);
       }
     }
   }
