@@ -14,9 +14,11 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -26,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -36,9 +40,13 @@ import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
+import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
@@ -49,7 +57,10 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.TSUID;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeries;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Exceptions;
@@ -75,6 +86,9 @@ import net.opentsdb.utils.Exceptions;
  */
 public class Tsdb1xScanner implements CloseablePooledObject {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xScanner.class);
+  
+  private static final Deferred<ArrayList<KeyValue>> SKIP_DEFERRED = 
+      Deferred.fromResult(null);
   
   /** Reference to the Object pool for this instance. */
   protected PooledObject pooled_object;
@@ -114,6 +128,14 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   /** A singleton base timestamp for this scanner. */
   protected TimeStamp base_ts;
   
+  /** A singleton previous timestamp for this scanner to determine when we hit
+   * the next hour or interval. */
+  protected TimeStamp last_ts;
+  
+  /** Map used for holding the previous push series. */
+  protected Map<TypeToken<? extends TimeSeriesDataType>, 
+    Tsdb1xPartialTimeSeries> last_pts;
+  
   /**
    * Ctor.
    */
@@ -121,7 +143,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     keys_to_ids = new TLongObjectHashMap<ResolvingId>();
     skips = new TLongHashSet();
     keepers = new TLongHashSet();
-    base_ts = new MillisecondTimeStamp(0);
+    base_ts = new SecondTimeStamp(0);
+    last_ts = new SecondTimeStamp(-1);
   }
   
   /**
@@ -147,7 +170,11 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     this.idx = idx;
     this.rollup_interval = rollup_interval;
     state = State.CONTINUE;
-    base_ts.updateEpoch(0);
+    base_ts.updateEpoch(-1);
+    last_ts.updateEpoch(-1);
+    if (owner.node().push() && last_pts == null) {
+      last_pts = Maps.newHashMap();
+    }
   }
   
   /**
@@ -168,7 +195,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       return;
     }
     
-    if (result.isFull()) {
+    if (!owner.node().push() && result.isFull()) {
       if (owner.node().pipelineContext().queryContext().mode() == 
           QueryMode.SINGLE) {
         state = State.EXCEPTION;
@@ -201,7 +228,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       }
       
       scanner.nextRows()
-        .addCallbacks(new ScannerCB(result, child), new ErrorCB(child));
+        .addCallback(new ScannerCB(result, child))
+        .addErrback(new ErrorCB(child));
     }
   }
   
@@ -247,7 +275,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       while (it.hasNext()) {
         final ArrayList<KeyValue> row = it.next();
         owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
-        if (result.isFull() || owner.node().sequenceEnd() != null && 
+        
+        if ((!owner.node().push() && result.isFull()) || 
+            owner.node().sequenceEnd() != null && 
             base_ts.compare(
                 (scanner.isReversed() ? Op.LT : Op.GT), 
                   owner.node().sequenceEnd())) {
@@ -265,7 +295,11 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         }
         
         it.remove();
-        result.decode(row, rollup_interval);
+        if (owner.node().push()) {
+          processPushRow(row);
+        } else {
+          result.decode(row, rollup_interval);
+        }
       }
       
     } catch (Exception e) {
@@ -286,7 +320,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     }
     // all good, keep going with the scanner now.
     scanner.nextRows()
-      .addCallbacks(new ScannerCB(result, span), new ErrorCB(span));
+      .addCallback(new ScannerCB(result, span))
+      .addErrback(new ErrorCB(span));
   }
   
   /**
@@ -312,12 +347,12 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       final List<ArrayList<KeyValue>> row_buffer = this.row_buffer;
       this.row_buffer = null;
       
-      final List<Deferred<Object>> deferreds = 
+      final List<Deferred<ArrayList<KeyValue>>> deferreds = 
           Lists.newArrayListWithCapacity(row_buffer.size());
       final Iterator<ArrayList<KeyValue>> it = row_buffer.iterator();
       
       /** Executed after all of the resolutions are complete. */
-      class GroupResolutionCB implements Callback<Object, ArrayList<Object>> {
+      class GroupResolutionCB implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
         final boolean keep_going;
         
         GroupResolutionCB(final boolean keep_going) {
@@ -325,22 +360,31 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         }
         
         @Override
-        public Object call(final ArrayList<Object> ignored) throws Exception {
+        public Object call(final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
+          for (final ArrayList<KeyValue> row : rows) {
+            if (row != null) {
+              if (owner.node().push()) {
+                processPushRow(row);
+              } else {
+                result.decode(row, rollup_interval);
+              }
+            }
+          }
+          
           if (child != null) {
             child.setSuccessTags()
                  .finish();
           }
           
-          synchronized (keys_to_ids) {
-            keys_to_ids.clear();
-          }
+          keys_to_ids.clear();
           if (owner.hasException()) {
             owner.scannerDone();
             scanner.clearFilter();
             state = State.COMPLETE;
-          } else if (!result.isFull() && keep_going) {
+          } else if ((owner.node().push() || !result.isFull()) && keep_going) {
             return scanner.nextRows()
-                .addCallbacks(new ScannerCB(result, span), new ErrorCB(span));
+                .addCallback(new ScannerCB(result, span))
+                .addErrback(new ErrorCB(span));
           } else {
             // told not to keep going.
             owner.scannerDone();
@@ -366,7 +410,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
             this.row_buffer = row_buffer;
             keep_going = false;
             break;
-          } else if (result.isFull()) {
+          } else if (!owner.node().push() && result.isFull()) {
             if (owner.node().pipelineContext().queryContext().mode() == 
                   QueryMode.SINGLE) {
               throw new QueryExecutionException(
@@ -388,8 +432,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         }
       }
       
-      Deferred.group(deferreds)
-        .addCallbacks(new GroupResolutionCB(keep_going), new ErrorCB(child));
+      Deferred.groupInOrder(deferreds)
+        .addCallback(new GroupResolutionCB(keep_going))
+        .addErrback(new ErrorCB(child));
     } catch (Exception e) {
       if (child != null) {
         child.setErrorTags()
@@ -456,7 +501,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       try {
         rows_scanned += rows.size();
         if (owner.filterDuringScan()) {
-          final List<Deferred<Object>> deferreds = 
+          final List<Deferred<ArrayList<KeyValue>>> deferreds = 
               Lists.newArrayListWithCapacity(rows.size());
           boolean keep_going = true;
           for (int i = 0; i < rows.size(); i++) {
@@ -482,7 +527,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
               buffer(i, rows, false);
               keep_going = false;
               break;
-            } else if (result.isFull()) {
+            } else if (!owner.node().push() && result.isFull()) {
               if (owner.node().pipelineContext().queryContext().mode() == 
                   QueryMode.SINGLE) {
                 throw new QueryExecutionException(
@@ -501,12 +546,15 @@ public class Tsdb1xScanner implements CloseablePooledObject {
             deferreds.add(resolveAndFilter(tsuid, row, result, child));
           }
           
-          return Deferred.group(deferreds)
-              .addCallbacks(new GroupResolutionCB(keep_going, child), new ErrorCB(child));
+          return Deferred.groupInOrder(deferreds)
+              .addCallback(new GroupResolutionCB(keep_going, child))
+              .addErrback(new ErrorCB(child));
         } else {
           // load all
           for (int i = 0; i < rows.size(); i++) {
             final ArrayList<KeyValue> row = rows.get(i);
+            TimeStamp t = new SecondTimeStamp(0);
+            owner.node().schema().baseTimestamp(row.get(0).key(), t);
             if (row.isEmpty()) {
               // should never happen
               if (LOG.isDebugEnabled()) {
@@ -528,7 +576,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
               }
               buffer(i, rows, true);
               return null;
-            } else if (result.isFull()) {
+            } else if (!owner.node().push() && result.isFull()) {
               if (owner.node().pipelineContext().queryContext().mode() == 
                   QueryMode.SINGLE) {
                 throw new QueryExecutionException(
@@ -542,11 +590,15 @@ public class Tsdb1xScanner implements CloseablePooledObject {
               return null;
             }
             
-            result.decode(row, rollup_interval);
+            if (owner.node().push()) {
+              processPushRow(row);
+            } else {
+              result.decode(row, rollup_interval);
+            }
           }
         }
         
-        if (!result.isFull()) {
+        if (owner.node().push() || !result.isFull()) {
           // keep going!
           if (child != null) {
             child.setSuccessTags()
@@ -554,7 +606,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                  .setTag("buffered", row_buffer == null ? 0 : row_buffer.size())
                  .finish();
           }
-          return scanner.nextRows().addCallbacks(this, new ErrorCB(span));
+          return scanner.nextRows().addCallback(this)
+              .addErrback(new ErrorCB(span));
         } else if (owner.node().pipelineContext().queryContext().mode() == 
               QueryMode.SINGLE) {
           throw new QueryExecutionException(
@@ -568,9 +621,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
           // is full
           owner.scannerDone();
         }
-      } catch (Exception e) {
-        LOG.error("Unexpected exception", e);
-        complete(e, child, rows.size());
+      } catch (Throwable t) {
+        LOG.error("Unexpected exception", t);
+        complete(t, child, rows.size());
       }
       
       return null;
@@ -587,23 +640,53 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     
     /**
      * Marks the scanner as complete, closing it and reporting to the owner
-     * @param e An exception, may be null. If not null, calls 
+     * @param t An exception, may be null. If not null, calls 
      * {@link Tsdb1xScanners#exception(Throwable)}
      * @param child An optional tracing span.
      * @param rows The number of rows found in this result set.
      */
-    void complete(final Exception e, final Span child, final int rows) {
-      if (e != null) {
+    void complete(Throwable t, final Span child, final int rows) {
+      if (owner.node().push() && t == null && !owner.hasException()) {
+        try {
+          // this will let the flush complete the last set.
+          base_ts.updateEpoch(0L);
+          final boolean complete = owner.scannerIndex() + 1 == owner.scannersSize();
+          if (last_pts.isEmpty()) {
+            // never had any data so for the parent, mark everything as complete 
+            // for this salt
+            for (final Tsdb1xPartialTimeSeriesSet set : 
+              owner.currentSets().valueCollection()) {
+              set.setCompleteAndEmpty(complete);
+            }
+          } else {
+            flushPartials();
+            if (last_ts.compare(Op.NE, owner.currentTimestamps().getValue())) {
+              final Duration duration = owner.currentDuration();
+              // We need to fill the end of the period
+              last_ts.add(duration);
+              while (last_ts.compare(Op.LT, owner.currentTimestamps().getValue())) {
+                owner.getSet(last_ts).setCompleteAndEmpty(complete);
+                last_ts.add(duration);
+              }
+            }
+          }
+        } catch (Throwable t1) {
+          LOG.error("Failed to complete push query", t1);
+          t = t1;
+        }
+      }
+      
+      if (t != null) {
         if (child != null) {
-          child.setErrorTags(e)
+          child.setErrorTags(t)
                .finish();
         }
         if (span != null) {
-          span.setErrorTags(e)
+          span.setErrorTags(t)
               .finish();
         }
         state = State.EXCEPTION;
-        owner.exception(e);
+        owner.exception(t);
       } else {
         if (child != null) {
           child.setSuccessTags()
@@ -626,7 +709,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     }
     
     /** Called when the filter resolution is complete. */
-    class GroupResolutionCB implements Callback<Object, ArrayList<Object>> {
+    class GroupResolutionCB implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
       final boolean keep_going;
       final Span child;
       
@@ -636,15 +719,25 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       }
       
       @Override
-      public Object call(final ArrayList<Object> ignored) throws Exception {
-        synchronized (keys_to_ids) {
-          keys_to_ids.clear();
+      public Object call(final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
+        for (final ArrayList<KeyValue> row : rows) {
+          if (row != null) {
+            if (owner.node().push()) {
+              processPushRow(row);
+            } else {
+              result.decode(row, rollup_interval);
+            }
+          }
         }
+        
+        keys_to_ids.clear();
         if (owner.hasException()) {
           complete(child, 0);
-        } else if (!result.isFull() && keep_going) {
-          return scanner.nextRows().addCallbacks(ScannerCB.this, new ErrorCB(span));
-        } else if (result.isFull() && 
+        } else if ((owner.node().push() || !result.isFull()) && keep_going) {
+          return scanner.nextRows()
+              .addCallback(ScannerCB.this)
+              .addErrback(new ErrorCB(span));
+        } else if ((!owner.node().push() && result.isFull()) && 
             owner.node().pipelineContext().queryContext().mode() == 
               QueryMode.SINGLE) {
           complete(new QueryExecutionException(
@@ -718,6 +811,221 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     if (row_buffer != null) {
       row_buffer.clear();
     }
+    if (last_pts != null) {
+      last_pts.clear();
+    }
+  }
+
+  /**
+   * WARNING: Only call this single threaded!
+   * @param row
+   */
+  private void processPushRow(final ArrayList<KeyValue> row) {
+    try {
+      owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
+      if (base_ts.compare(Op.NE, last_ts)) {
+        final Duration duration = owner.currentDuration();
+        final boolean complete = owner.scannerIndex() + 1 == 
+            owner.scannersSize();
+        if (last_ts.epoch() == -1) {
+          // we found the first value. So if we don't match the first 
+          // set then we need to fill
+          if (base_ts.compare(Op.NE, owner.currentTimestamps().getKey())) {
+            TimeStamp ts = owner.currentTimestamps().getKey().getCopy();
+            while (ts.compare(Op.LT, base_ts)) {
+              owner.getSet(ts).setCompleteAndEmpty(complete);
+              ts.add(duration);
+            }
+          }
+        } else {
+          TimeStamp ts = last_ts.getCopy();
+          ts.add(duration);
+          if (ts.compare(Op.NE, base_ts)) {
+            // FILL
+            flushPartials();
+            while (ts.compare(Op.LT, base_ts)) {
+              owner.getSet(ts).setCompleteAndEmpty(complete);
+              ts.add(duration);
+            }
+          }
+        }
+        
+        // flush em!
+        flushPartials();
+      }
+      last_ts.update(base_ts);
+      
+      final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
+      final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+  
+      // TODO - find a better spot. We may not pull any data from this row so we
+      // shouldn't bother putting it in the ids.
+      if (!owner.idsContainsKey(hash)) {
+        owner.putId(hash, new TSUID(tsuid, owner.node().schema()));
+      }
+      
+      Tsdb1xPartialTimeSeries pts = rollup_interval != null ? 
+          last_pts.get(NumericByteArraySummaryType.TYPE)
+          : last_pts.get(NumericLongArrayType.TYPE);
+      for (final KeyValue column : row) {
+        if (rollup_interval == null && (column.qualifier().length & 1) == 0) {
+          // it's a NumericDataType
+          if (!owner.node().fetchDataType((byte) 0)) {
+            // filter doesn't want #'s
+            // TODO - dropped counters
+            continue;
+          }
+          
+          if (pts == null) {
+            pts = owner.node().schema().newSeries(
+                NumericLongArrayType.TYPE, 
+                base_ts, 
+                hash, 
+                owner.getSet(base_ts), 
+                rollup_interval);
+            last_pts.put(NumericLongArrayType.TYPE, pts);
+          } else if (pts.value().type() != NumericLongArrayType.TYPE) {
+            pts = last_pts.get(NumericLongArrayType.TYPE);
+            if (pts == null) {
+              pts = owner.node().schema().newSeries(
+                  NumericLongArrayType.TYPE, 
+                  base_ts, 
+                  hash, 
+                  owner.getSet(base_ts), 
+                  rollup_interval);
+              last_pts.put(NumericLongArrayType.TYPE, pts);
+            }
+          }
+          
+          if (!pts.sameHash(hash)) {
+            flushPartials();
+            pts = owner.node().schema().newSeries(
+                NumericLongArrayType.TYPE, 
+                base_ts, 
+                hash, 
+                owner.getSet(base_ts), 
+                rollup_interval);
+            last_pts.put(NumericLongArrayType.TYPE, pts);
+          }
+          
+          pts.addColumn((byte) 0,
+                        column.qualifier(), 
+                        column.value());
+        } else if (rollup_interval == null) {
+          final byte prefix = column.qualifier()[0];
+          
+          if (prefix == Schema.APPENDS_PREFIX) {
+            if (!owner.node().fetchDataType((byte) 1)) {
+              // filter doesn't want #'s
+              continue;
+            } else {
+              if (pts == null) {
+                pts = owner.node().schema().newSeries(
+                    NumericLongArrayType.TYPE, 
+                    base_ts, 
+                    hash, 
+                    owner.getSet(base_ts), 
+                    rollup_interval);
+                last_pts.put(NumericLongArrayType.TYPE, pts);
+              } else if (pts.value().type() != NumericLongArrayType.TYPE) {
+                pts = last_pts.get(NumericLongArrayType.TYPE);
+                if (pts == null) {
+                  pts = owner.node().schema().newSeries(
+                      NumericLongArrayType.TYPE, 
+                      base_ts, 
+                      hash, 
+                      owner.getSet(base_ts), 
+                      rollup_interval);
+                  last_pts.put(NumericLongArrayType.TYPE, pts);
+                }
+              }
+  
+              if (!pts.sameHash(hash)) {
+                flushPartials();
+                pts = owner.node().schema().newSeries(
+                    NumericLongArrayType.TYPE, 
+                    base_ts, 
+                    hash, 
+                    owner.getSet(base_ts), 
+                    rollup_interval);
+                last_pts.put(NumericLongArrayType.TYPE, pts);
+              }
+              
+              pts.addColumn(Schema.APPENDS_PREFIX, 
+                            column.qualifier(), 
+                            column.value());
+            }
+          } else if (owner.node().fetchDataType(prefix)) {
+            // TODO - find the right type
+          } else {
+            // TODO - log drop
+          }
+        } else {
+          // Only numerics are rolled up right now. And we shouldn't have
+          // a rollup query if the user doesn't want rolled-up data.
+          pts = last_pts.get(NumericByteArraySummaryType.TYPE);
+          if (pts == null) {
+            pts = owner.node().schema().newSeries(
+                NumericByteArraySummaryType.TYPE, 
+                base_ts, hash, 
+                owner.getSet(base_ts), 
+                rollup_interval);
+            last_pts.put(NumericByteArraySummaryType.TYPE, pts);
+          } else if (pts.value().type() != NumericByteArraySummaryType.TYPE) {
+            pts = last_pts.get(NumericByteArraySummaryType.TYPE);
+            if (pts == null) {
+              pts = owner.node().schema().newSeries(
+                  NumericByteArraySummaryType.TYPE, 
+                  base_ts, 
+                  hash, 
+                  owner.getSet(base_ts), 
+                  rollup_interval);
+              last_pts.put(NumericByteArraySummaryType.TYPE, pts);
+            }
+          }
+  
+          if (!pts.sameHash(hash)) {
+            flushPartials();
+            pts = owner.node().schema().newSeries(
+                NumericByteArraySummaryType.TYPE, 
+                base_ts, 
+                hash, 
+                owner.getSet(base_ts), 
+                rollup_interval);
+            last_pts.put(NumericByteArraySummaryType.TYPE, pts);
+          }
+          
+          pts.addColumn(Schema.APPENDS_PREFIX, 
+                        column.qualifier(), 
+                        column.value());
+        }
+      }
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception processing a row", t);
+      throw t;
+    }
+  }
+  
+  /**
+   * Runs through the cached PTSs and sends them to the set.
+   */
+  private void flushPartials() {
+    try {
+      final Iterator<Tsdb1xPartialTimeSeries> iterator = 
+          last_pts.values().iterator();
+      while (iterator.hasNext()) {
+        Tsdb1xPartialTimeSeries series = iterator.next();
+        if (!iterator.hasNext() && series.set().start().compare(Op.NE, base_ts)) {
+          ((Tsdb1xPartialTimeSeriesSet) series.set()).increment(series, true);
+        } else {
+          ((Tsdb1xPartialTimeSeriesSet) series.set()).increment(series, false);
+        }
+        iterator.remove();
+      }
+    } catch (Throwable t) {
+      LOG.error("Failed to flush partial PTSs", t);
+      owner.exception(t);
+    }
   }
   
   /** The error back used to catch all kinds of exceptions. Closes out 
@@ -759,61 +1067,71 @@ public class Tsdb1xScanner implements CloseablePooledObject {
    * @param span An optional tracing span.
    * @return A deferred to wait on before starting the next fetch.
    */
-  final Deferred<Object> resolveAndFilter(final byte[] tsuid, 
+  final Deferred<ArrayList<KeyValue>> resolveAndFilter(final byte[] tsuid, 
                                           final ArrayList<KeyValue> row, 
                                           final Tsdb1xQueryResult result, 
                                           final Span span) {
     final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    boolean skip_or_keep;
     synchronized (skips) {
-      if (skips.contains(hash)) {
-        // discard
-        // TODO - counters
-        return Deferred.fromResult(null);
-      }
+      skip_or_keep = skips.contains(hash);
+    }
+    if (skip_or_keep) {
+      // discard
+      // TODO - counters
+      return SKIP_DEFERRED;
     }
     
     synchronized (keepers) {
-      if (keepers.contains(hash)) {
-        result.decode(row, rollup_interval);
-        return Deferred.fromResult(null);
-      }
+      skip_or_keep = keepers.contains(hash);
+    }
+    if (skip_or_keep) {
+      return Deferred.fromResult(row);
     }
     
+    final Deferred<Boolean> d = new Deferred<Boolean>();
+    ResolvingId id = null;
     synchronized (keys_to_ids) {
-      ResolvingId id = keys_to_ids.get(hash);
-      if (id == null) {
-        ResolvingId new_id = new ResolvingId(tsuid, hash);
-        final ResolvingId extant = keys_to_ids.putIfAbsent(hash, new_id);
-        if (extant == null) {
-          // start resolution of the tags to strings, then filter
-          return new_id.decode(span)
-              .addCallback(new ResolvedCB(row, result));
-        } else {
-          // add it
-          return extant.deferred.addCallback(new ResolvedCB(row, result));
-        }
-      } else {
-        return id.deferred.addCallback(new ResolvedCB(row, result));
+      id = keys_to_ids.get(hash);
+    }
+    
+    if (id == null) {
+      ResolvingId new_id = new ResolvingId(tsuid, hash);
+      final ResolvingId extant;
+      // check for a race to avoid resolving the same ID multiple times.
+      synchronized (keys_to_ids) {
+        extant = keys_to_ids.putIfAbsent(hash, new_id);
       }
+      if (extant == null) {
+        // start resolution of the tags to strings, then filter
+        new_id.addCallback(d);
+        new_id.decode(span);
+        return d.addCallback(new ResolvedCB(row));
+      } else {
+        // add it
+        extant.addCallback(d);
+        return d.addCallback(new ResolvedCB(row));
+      }
+    } else {
+      id.addCallback(d);
+      return d.addCallback(new ResolvedCB(row));
     }
   }
   
   /** Simple class for rows waiting on resolution. */
-  class ResolvedCB implements Callback<Object, Boolean> {
+  class ResolvedCB implements Callback<ArrayList<KeyValue>, Boolean> {
     private final ArrayList<KeyValue> row;
-    private final Tsdb1xQueryResult result;
     
-    ResolvedCB(final ArrayList<KeyValue> row, final Tsdb1xQueryResult result) {
+    ResolvedCB(final ArrayList<KeyValue> row) {
       this.row = row;
-      this.result = result;
     }
     
     @Override
-    public Object call(final Boolean matched) throws Exception {
+    public ArrayList<KeyValue> call(final Boolean matched) throws Exception {
       if (matched != null && matched) {
-        result.decode(row, rollup_interval);
+        return row;
       }
-      return matched; // for the callback chain. We were dropping earlier.
+      return null;
     }
     
   }
@@ -834,8 +1152,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     /** The computed hash of the TSUID. */
     private final long hash;
     
-    /** The resolution deferred for others to wait on. */
-    private Deferred<Boolean> deferred;
+    private boolean complete;
+    private Object result;
+    private List<Deferred<Boolean>> deferreds;
     
     /** A child tracing span. */
     private Span child;
@@ -848,9 +1167,22 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     public ResolvingId(final byte[] tsuid, final long hash) {
       super(tsuid, owner.node().schema());
       this.hash = hash;
-      deferred = new Deferred<Boolean>();
+      deferreds = Lists.newArrayList();
     }
 
+    synchronized void addCallback(final Deferred<Boolean> cb) {
+      if (complete) {
+        try {
+          cb.callback(result);
+        } catch (Exception e) {
+          LOG.error("Failed to execute callback on: " + cb, e);
+          cb.callback(e);
+        }
+      } else {
+        deferreds.add(cb);
+      }
+    }
+    
     /**
      * Starts decoding the TSUID into a string and returns the deferred 
      * for other TSUIDs to wait on.
@@ -860,7 +1192,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
      * the scan filters, false if not. Or an exception if something went
      * pear shaped.
      */
-    Deferred<Boolean> decode(final Span span) {
+    void decode(final Span span) {
       if (span != null && span.isDebug()) {
         child = span.newChild(getClass().getName() + "_" + idx)
             .start();
@@ -870,7 +1202,6 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       decode(false, child)
           .addCallback(this)
           .addErrback(new ErrorCB(null));
-      return deferred;
     }
     
     @Override
@@ -896,7 +1227,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
           child.setErrorTags(ex)
                .finish();
         }
-        deferred.callback(ex);
+        complete(ex);
+        return null;
       }
       
       if (FilterUtils.matchesTags(filter, id.tags(), null)) {
@@ -915,7 +1247,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                .setTag("matched", "true")
                .finish();
         }
-        deferred.callback(true);
+        complete(true);
+        return null;
       } else {
         synchronized (skips) {
           skips.add(hash);
@@ -932,9 +1265,22 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                .setTag("matched", "false")
                .finish();
         }
-        deferred.callback(false);
+        complete(false);
+        return null;
       }
-      return null;
+    }
+    
+    synchronized void complete(final Object result) {
+      this.result = result;
+      for (final Deferred<Boolean> cb : deferreds) {
+        try {
+          cb.callback(result);
+        } catch (Exception e) {
+          LOG.error("Unexpected exception processing filter callback", e);
+          owner.exception(e);
+        }
+      }
+      complete = true;
     }
     
     class ErrorCB implements Callback<Void, Exception> {
@@ -964,7 +1310,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                  .setTag("resolved", "false")
                  .finish();
           }
-          deferred.callback(false);
+          complete(false);
           return null;
         }
         if (grand_child != null) {
@@ -977,7 +1323,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                .setTag("resolved", "false")
                .finish();
         }
-        deferred.callback(ex);
+        complete(ex);
         return null;
       }
     }

@@ -33,8 +33,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.Bytes.ByteMap;
@@ -50,7 +52,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
@@ -59,15 +60,22 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
 import com.stumbleupon.async.Deferred;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.DummyObjectPool;
+import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -86,10 +94,14 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.MockBase.MockScanner;
 import net.opentsdb.storage.Tsdb1xScanners.FilterCB;
+import net.opentsdb.storage.schemas.tsdb1x.PooledPartialTimeSeriesRunnablePool;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
@@ -120,6 +132,7 @@ public class TestTsdb1xScanners extends UTBase {
         public Tsdb1xScanner answer(InvocationOnMock invocation)
             throws Throwable {
           Tsdb1xScanner scnr = mock(Tsdb1xScanner.class);
+          when(scnr.state()).thenReturn(State.CONTINUE);
           when(scnr.object()).thenReturn(scnr);
           return scnr;
         }
@@ -155,6 +168,7 @@ public class TestTsdb1xScanners extends UTBase {
     when(context.query()).thenReturn(query);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
+    tsdb.runnables.clear();
   }
   
   @Test
@@ -1313,6 +1327,272 @@ public class TestTsdb1xScanners extends UTBase {
   }
   
   @Test
+  public void setupPushNoRollupNoSalt() throws Exception {
+    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    when(cfg.getId()).thenReturn("Mock");
+    when(node.config()).thenReturn(cfg);
+    setupPush(tsdb);
+    when(node.push()).thenReturn(true);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.setupScanners(METRIC_BYTES, null);
+    
+    assertEquals(1, scanners.sets.size());
+    assertEquals(2, scanners.currentSets().size());
+    Tsdb1xPartialTimeSeriesSet set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514768400, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(1, (int) Whitebox.getInternalState(set, "latch"));
+    
+    set = scanners.getSet(new SecondTimeStamp(1514768400));
+    assertEquals(1514768400, set.start().epoch());
+    assertEquals(1514772000, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(1, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertEquals(1, scanners.timestamps.size());
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514772000, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(1, scanners.durations.size());
+    assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+    assertEquals(0, scanners.scannerIndex());
+    assertEquals(1, scanners.scannersSize());
+  }
+  
+  @Test
+  public void setupPushNoRollupSalt() throws Exception {
+    Tsdb1xQueryNode node = saltedNode(null);
+    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    when(cfg.getId()).thenReturn("Mock");
+    when(node.config()).thenReturn(cfg);
+    setupPush(node.parent().tsdb());
+    when(node.push()).thenReturn(true);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.setupScanners(METRIC_BYTES, null);
+    
+    assertEquals(1, scanners.sets.size());
+    assertEquals(2, scanners.currentSets().size());
+    Tsdb1xPartialTimeSeriesSet set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514768400, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+    
+    set = scanners.getSet(new SecondTimeStamp(1514768400));
+    assertEquals(1514768400, set.start().epoch());
+    assertEquals(1514772000, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertEquals(1, scanners.timestamps.size());
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514772000, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(1, scanners.durations.size());
+    assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+    assertEquals(0, scanners.scannerIndex());
+    assertEquals(1, scanners.scannersSize());
+  }
+  
+  @Test
+  public void setupPushRollupNoSalt() throws Exception {
+    setConfig(false, "sum", true);
+    
+    when(node.rollupIntervals())
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build(),
+        RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("12h")
+          .build()));
+    
+    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    when(cfg.getId()).thenReturn("Mock");
+    when(node.config()).thenReturn(cfg);
+    setupPush(tsdb);
+    when(node.push()).thenReturn(true);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.setupScanners(METRIC_BYTES, null);
+    
+    assertEquals(3, scanners.sets.size());
+    assertEquals(1, scanners.currentSets().size());
+    Tsdb1xPartialTimeSeriesSet set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514851200, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(1, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertNull(scanners.getSet(new SecondTimeStamp(1514768400)));
+    
+    assertEquals(3, scanners.timestamps.size());
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514851200, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(3, scanners.durations.size());
+    assertEquals(Duration.ofSeconds(86400), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+    assertEquals(0, scanners.scannerIndex());
+    assertEquals(3, scanners.scannersSize());
+    
+    // advance scanner index
+    scanners.scanner_index = 1;
+    assertEquals(1, scanners.currentSets().size());
+    set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514808000, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(1, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514808000, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(Duration.ofSeconds(43200), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+    
+    // advance scanner index to raw
+    scanners.scanner_index = 2;
+    assertEquals(2, scanners.currentSets().size());
+    set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514768400, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(1, (int) Whitebox.getInternalState(set, "latch"));
+    
+    set = scanners.getSet(new SecondTimeStamp(1514768400));
+    assertEquals(1514768400, set.start().epoch());
+    assertEquals(1514772000, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(1, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514772000, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+  }
+
+  @Test
+  public void setupPushRollupSalt() throws Exception {
+    Tsdb1xQueryNode node = saltedNode(null);
+    setConfig(false, "sum", true);
+    
+    when(node.rollupIntervals())
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build(),
+        RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("12h")
+          .build()));
+    
+    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    when(cfg.getId()).thenReturn("Mock");
+    when(node.config()).thenReturn(cfg);
+    setupPush(node.parent().tsdb());
+    when(node.push()).thenReturn(true);
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.setupScanners(METRIC_BYTES, null);
+    
+    assertEquals(3, scanners.sets.size());
+    assertEquals(1, scanners.currentSets().size());
+    Tsdb1xPartialTimeSeriesSet set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514851200, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertNull(scanners.getSet(new SecondTimeStamp(1514768400)));
+    
+    assertEquals(3, scanners.timestamps.size());
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514851200, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(3, scanners.durations.size());
+    assertEquals(Duration.ofSeconds(86400), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+    assertEquals(0, scanners.scannerIndex());
+    assertEquals(3, scanners.scannersSize());
+    
+    // advance scanner index
+    scanners.scanner_index = 1;
+    assertEquals(1, scanners.currentSets().size());
+    set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514808000, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514808000, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(Duration.ofSeconds(43200), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+    
+    // advance scanner index to raw
+    scanners.scanner_index = 2;
+    assertEquals(2, scanners.currentSets().size());
+    set = scanners.getSet(new SecondTimeStamp(1514764800));
+    assertEquals(1514764800, set.start().epoch());
+    assertEquals(1514768400, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+    
+    set = scanners.getSet(new SecondTimeStamp(1514768400));
+    assertEquals(1514768400, set.start().epoch());
+    assertEquals(1514772000, set.end().epoch());
+    assertSame(node, set.node());
+    assertFalse(set.complete());
+    assertEquals("Mock", set.dataSource());
+    assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+    
+    assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
+    assertEquals(1514772000, scanners.currentTimestamps().getValue().epoch());
+    
+    assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
+    assertTrue(scanners.ts_ids.isEmpty());
+  }
+  
+  @Test
   public void filterCBNoKeepers() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
@@ -1755,6 +2035,19 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void filterCBCurrentResultsNull() throws Exception {
+    ObjectPool scanner_pool = mock(ObjectPool.class);
+    when(scanner_pool.claim())
+      .thenAnswer(new Answer<Tsdb1xScanner>() {
+        @Override
+        public Tsdb1xScanner answer(InvocationOnMock invocation)
+            throws Throwable {
+          Tsdb1xScanner scnr = mock(Tsdb1xScanner.class);
+          when(scnr.object()).thenReturn(scnr);
+          return scnr;
+        }
+      });
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE))
+      .thenReturn(scanner_pool);
     QueryFilter filter = setConfig(true, null, false);
     Tsdb1xScanners scanners = new Tsdb1xScanners();
     scanners.reset(node, source_config);
@@ -2274,6 +2567,237 @@ public class TestTsdb1xScanners extends UTBase {
   }
   
   @Test
+  public void scannerDonePushNoSaltSent() throws Exception {
+    setupPush(tsdb);
+    when(node.sentData()).thenReturn(true);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.initialize(null);
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    // pretend scanners called in
+    for (final Tsdb1xPartialTimeSeriesSet set : scanners.currentSets().valueCollection()) {
+      set.setCompleteAndEmpty(true);
+    }
+    
+    scanners.scannerDone();
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(2, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+  }
+  
+  @Test
+  public void scannerDonePushSaltSent() throws Exception {
+    Tsdb1xQueryNode node = saltedNode(null);
+    setupPush(node.parent().tsdb());
+    when(node.sentData()).thenReturn(true);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.initialize(null);
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    // pretend 1 scanner called in
+    for (final Tsdb1xPartialTimeSeriesSet set : scanners.currentSets().valueCollection()) {
+      assertEquals(6, (int) Whitebox.getInternalState(set, "latch"));
+      set.setCompleteAndEmpty(true);
+    }
+    
+    scanners.scannerDone();
+    assertEquals(1, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node.parent().tsdb().getQueryThreadPool(), never()).submit(any(Runnable.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    
+    // finish the rest
+    for (int i = 0; i < 5; i++) {
+      for (final Tsdb1xPartialTimeSeriesSet set : scanners.currentSets().valueCollection()) {
+        set.setCompleteAndEmpty(true);
+      }
+      scanners.scannerDone();
+    }
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node.parent().tsdb().getQueryThreadPool(), times(2)).submit(any(Runnable.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+  }
+  
+  @Test
+  public void scannerDonePushNotComplete() throws Exception {
+    setupPush(tsdb);
+    when(node.sentData()).thenReturn(true);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.initialize(null);
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    scanners.scannerDone();
+    assertEquals(0, scanners.scanners_done);
+    verify(node, times(1)).onError(any(RuntimeException.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+  }
+  
+  @Test
+  public void scannerDonePushNotSentNoSalt() throws Exception {
+    setupPush(tsdb);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.initialize(null);
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    scanners.scannerDone();
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(RuntimeException.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(2, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+  }
+  
+  @Test
+  public void scannerDonePushNotSentSalt() throws Exception {
+    Tsdb1xQueryNode node = saltedNode(null);
+    setupPush(node.parent().tsdb());
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.initialize(null);
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    scanners.scannerDone();
+    assertEquals(1, scanners.scanners_done);
+    verify(node, never()).onError(any(RuntimeException.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node.parent().tsdb().getQueryThreadPool(), never()).submit(any(Runnable.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    
+    for (int i = 0; i < 5; i++) {
+      scanners.scannerDone();
+    }
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(RuntimeException.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node.parent().tsdb().getQueryThreadPool(), times(2)).submit(any(Runnable.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertNull(scanners.current_result);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+  }
+  
+  @Test
+  public void scannerDonePushFallbackNoSalt() throws Exception {
+    setupPush(tsdb);
+    setConfig(false, "sum", false);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.initialize(null);
+    
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    // first failover
+    scanners.scannerDone();
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertEquals(1, scanners.scanner_index);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    verify(scanners.scanners.get(1)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    verify(scanners.scanners.get(2)[0], never())
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    
+    // next failover
+    scanners.scannerDone();
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(0, tsdb.runnables.size());
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertEquals(2, scanners.scanner_index);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    verify(scanners.scanners.get(1)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    verify(scanners.scanners.get(2)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    
+    // finally nothing found
+    scanners.scannerDone();
+    assertEquals(0, scanners.scanners_done);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    assertEquals(1, tsdb.runnables.size()); // used rollup set.
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    assertEquals(2, scanners.scanner_index);
+    verify(scanners.scanners.get(0)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    verify(scanners.scanners.get(1)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+    verify(scanners.scanners.get(2)[0], times(1))
+      .fetchNext(any(Tsdb1xQueryResult.class), any());
+  }
+  
+  @Test
   public void scanNext() throws Exception {
     Tsdb1xScanners scanners = new Tsdb1xScanners();
     scanners.reset(node, source_config);
@@ -2409,6 +2933,30 @@ public class TestTsdb1xScanners extends UTBase {
     verify(scanner, times(2)).close();
     verify(scanner2, times(2)).close();
     verify(scanner3, times(2)).close();
+    
+    // close with sets
+    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    setupPush(tsdb);
+    when(node.push()).thenReturn(true);
+    scanners = new Tsdb1xScanners();
+    scanners.reset(node, source_config);
+    scanners.setupScanners(METRIC_BYTES, null);
+    
+    assertEquals(2, scanners.currentSets().size());
+    TLongObjectMap<Tsdb1xPartialTimeSeriesSet> clone = 
+        new TLongObjectHashMap<Tsdb1xPartialTimeSeriesSet>(scanners.currentSets());
+    for (final Tsdb1xPartialTimeSeriesSet set : clone.valueCollection()) {
+      assertSame(node, set.node());
+    }
+    
+    scanners.close();
+    for (final Tsdb1xPartialTimeSeriesSet set : clone.valueCollection()) {
+      assertNull(set.node()); // nulled on close.
+    }
+    assertTrue(scanners.sets.isEmpty());
+    assertTrue(scanners.timestamps.isEmpty());
+    assertTrue(scanners.durations.isEmpty());
+    assertTrue(scanners.ts_ids.isEmpty());
   }
 
   @Test
@@ -2434,8 +2982,38 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(State.EXCEPTION, scanners.state());
   }
   
+  void setupPush(final TSDB tsdb) throws Exception {
+    ObjectPool runnable_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new PooledPartialTimeSeriesRunnablePool())
+        .setId(PooledPartialTimeSeriesRunnablePool.TYPE)
+        .build());
+    ObjectPool no_data_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new NoDataPartialTimeSeriesPool())
+        .setId(NoDataPartialTimeSeriesPool.TYPE)
+        .build());
+    Tsdb1xPartialTimeSeriesSetPool allocator = new Tsdb1xPartialTimeSeriesSetPool();
+    allocator.initialize(tsdb, null).join();
+    ObjectPool set_pool = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(allocator)
+        .setId(Tsdb1xPartialTimeSeriesSetPool.TYPE)
+        .build());
+    when(tsdb.getRegistry().getObjectPool(PooledPartialTimeSeriesRunnablePool.TYPE))
+      .thenReturn(runnable_pool);
+    when(tsdb.getRegistry().getObjectPool(NoDataPartialTimeSeriesPool.TYPE))
+      .thenReturn(no_data_pool);
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xPartialTimeSeriesSetPool.TYPE))
+      .thenReturn(set_pool);
+    when(node.push()).thenReturn(true);
+  }
+  
   Tsdb1xQueryNode saltedNode(final List<Scanner> scanners) throws Exception {
     TSDB tsdb = mock(TSDB.class);
+    ExecutorService service = mock(ExecutorService.class);
+    when(tsdb.getQueryThreadPool()).thenReturn(service);
+    when(tsdb.getStatsCollector()).thenReturn(mock(StatsCollector.class));
     Registry registry = mock(Registry.class);
     HBaseClient client = mock(HBaseClient.class);
     Configuration config = UnitTestConfiguration.getConfiguration();
@@ -2458,7 +3036,9 @@ public class TestTsdb1xScanners extends UTBase {
 
           @Override
           public Void answer(InvocationOnMock invocation) throws Throwable {
-            scanners.add((Scanner) invocation.getArguments()[1]);
+            if (scanners != null) {
+              scanners.add((Scanner) invocation.getArguments()[1]);
+            }
             return null;
           }
           

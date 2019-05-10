@@ -193,7 +193,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(results, times(TS_NSUI_SERIES_COUNT)).decode(
+    verify(results, never()).decode(
         any(ArrayList.class), any(RollupInterval.class));
     verify(owner, never()).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
@@ -1292,7 +1292,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(results, times(3)).decode(
+    verify(results, times(1)).decode(
         any(ArrayList.class), any(RollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));

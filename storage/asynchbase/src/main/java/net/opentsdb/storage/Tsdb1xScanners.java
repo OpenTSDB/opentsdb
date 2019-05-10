@@ -14,12 +14,13 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import java.security.acl.Owner;
+import java.time.Duration;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
@@ -38,8 +39,12 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
@@ -63,6 +68,8 @@ import net.opentsdb.storage.schemas.tsdb1x.ResolvedPassThroughFilter;
 import net.opentsdb.storage.schemas.tsdb1x.ResolvedQueryFilter;
 import net.opentsdb.storage.schemas.tsdb1x.ResolvedTagValueFilter;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteSet;
@@ -166,6 +173,24 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
    * should close. */
   protected volatile boolean has_failed;
   
+  /** A pre-populated list of sets for each scanner set with a map keyed on the
+   * aligned start timestamp of the set. */
+  protected List<TLongObjectMap<Tsdb1xPartialTimeSeriesSet>> sets;
+  
+  /** A list of timestamp pairs for each scanner set reflecting the aligned start
+   * and stop time of the query. */
+  protected List<Pair<TimeStamp, TimeStamp>> timestamps;
+  
+  /** A list of durations for each scanner set reflecting the interval between
+   * rows. */
+  protected List<Duration> durations;
+  
+  /** A map of hashes to time series IDs for the sets. */
+  protected TLongObjectMap<TimeSeriesId> ts_ids;
+  
+  /** Used for fallbacks. */
+  protected AtomicBoolean had_data;
+  
   /**
    * Resets the cached scanners object.
    * @param node A non-null parent node.
@@ -245,6 +270,20 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     scanner_index = 0;
     scanners_done = 0;
     has_failed = false;
+    if (node.push()) {
+      if (sets == null) {
+        sets = Lists.newArrayList();
+      }
+      if (timestamps == null) {
+        timestamps = Lists.newArrayList();
+      }
+      if (durations == null) {
+        durations = Lists.newArrayList();
+      }
+      if (ts_ids == null) {
+        ts_ids = new TLongObjectHashMap<TimeSeriesId>();
+      }
+    }
   }
   
   /**
@@ -297,7 +336,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     synchronized (this) {
       scanners_done++;
       if (scanners_done >= scanners.get(scanner_index).length) {
-        if (current_result == null) {
+        if (!node.push() && current_result == null) {
           throw new IllegalStateException("Current result was null but "
               + "all scanners were finished.");
         }
@@ -308,18 +347,18 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     if (send_upstream) {
       try {
         scanners_done = 0;
-        if (scanners.size() == 1 || scanner_index + 1 >= scanners.size()) {
-          // swap and null
-          final Tsdb1xQueryResult result;
-          synchronized (this) {
-            result = current_result;
-            current_result = null;
-          }
-          node.onNext(result);
-        } else {
-          if ((current_result.timeSeries() == null || 
-              current_result.timeSeries().isEmpty()) && 
-              scanner_index + 1 < scanners.size()) {
+        if (node.push()) {
+          if (node.sentData()) {
+            for (final Tsdb1xPartialTimeSeriesSet set : 
+                  sets.get(scanner_index).valueCollection()) {
+              if (!set.complete()) {
+                throw new RuntimeException("Set " + set + " was not marked as "
+                    + "complete at the end of the query. This was an "
+                    + "implementation error.");
+              }
+            }
+          } else if (node.rollup_usage != RollupUsage.ROLLUP_NOFALLBACK && 
+                     scanner_index + 1 < scanners.size()) {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Scanner index at [" + scanner_index 
                   + "] returned an empty set, falling back.");
@@ -329,12 +368,43 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
             scanners_done = 0;
             scanNext(null /** TODO - span */);
           } else {
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Final scan returned nothing. Filling with empty results.");
+            }
+            // we need to force sending data. Use the lowest resolution to save time.
+            for (final Tsdb1xPartialTimeSeriesSet set : sets.get(0).valueCollection()) {
+              set.sendEmpty();
+            }
+          }
+        } else {
+          if (scanners.size() == 1 || scanner_index + 1 >= scanners.size()) {
+            // swap and null
             final Tsdb1xQueryResult result;
             synchronized (this) {
               result = current_result;
               current_result = null;
             }
             node.onNext(result);
+          } else {
+            if ((current_result.timeSeries() == null || 
+                current_result.timeSeries().isEmpty()) && 
+                scanner_index + 1 < scanners.size()) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Scanner index at [" + scanner_index 
+                    + "] returned an empty set, falling back.");
+              }
+              // fall back!
+              scanner_index++;
+              scanners_done = 0;
+              scanNext(null /** TODO - span */);
+            } else {
+              final Tsdb1xQueryResult result;
+              synchronized (this) {
+                result = current_result;
+                current_result = null;
+              }
+              node.onNext(result);
+            }
           }
         }
       } catch (Exception e) {
@@ -406,6 +476,27 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     }
     filter_cb = null;
     current_result = null;
+    if (sets != null) {
+      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
+        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
+          try {
+            set.close();
+          } catch (Exception e) {
+            LOG.error("Unexpected exception closing set: " + set, e);
+          }
+        }
+      }
+      sets.clear();
+    }
+    if (timestamps != null) {
+      timestamps.clear();
+    }
+    if (durations != null) {
+      durations.clear();
+    }
+    if (ts_ids != null) {
+      ts_ids.clear();
+    }
     release();
   }
   
@@ -456,6 +547,27 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   byte[] setStartKey(final byte[] metric, 
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
+    final long start = computeStartTimestamp(rollup_interval);
+    final byte[] start_key;
+    if (fuzzy_key != null) {
+      start_key = Arrays.copyOf(fuzzy_key, fuzzy_key.length);
+    } else {
+      start_key = new byte[node.schema().saltWidth() + 
+                           node.schema().metricWidth() +
+                           Schema.TIMESTAMP_BYTES];
+    }
+    System.arraycopy(metric, 0, start_key, node.schema().saltWidth(), metric.length);
+    Bytes.setInt(start_key, (int) start, (node.schema().saltWidth() + 
+                                          node.schema().metricWidth()));
+    return start_key;
+  }
+
+  /**
+   * Computes the inclusive start time for the scanners.
+   * @param rollup_interval An optional rollup interval.
+   * @return The last timestamp in seconds.
+   */
+  long computeStartTimestamp(final RollupInterval rollup_interval) {
     long start;
     if (source_config.timeShifts() == null || 
         !source_config.timeShifts().containsKey(source_config.getId())) {
@@ -502,21 +614,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     
     // Don't return negative numbers.
     start = start > 0L ? start : 0L;
-    
-    final byte[] start_key;
-    if (fuzzy_key != null) {
-      start_key = Arrays.copyOf(fuzzy_key, fuzzy_key.length);
-    } else {
-      start_key = new byte[node.schema().saltWidth() + 
-                           node.schema().metricWidth() +
-                           Schema.TIMESTAMP_BYTES];
-    }
-    System.arraycopy(metric, 0, start_key, node.schema().saltWidth(), metric.length);
-    Bytes.setInt(start_key, (int) start, (node.schema().saltWidth() + 
-                                          node.schema().metricWidth()));
-    return start_key;
+    return start;
   }
-
+  
   /**
    * Configures the stop row key for a scanner with room for salt.
    * @param metric A non-null and non-empty metric UID.
@@ -524,6 +624,22 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
+    final long end = computeStopTimestamp(rollup_interval);
+    final byte[] end_key = new byte[node.schema().saltWidth() + 
+                                    node.schema().metricWidth() +
+                                    Schema.TIMESTAMP_BYTES];
+    System.arraycopy(metric, 0, end_key, node.schema().saltWidth(), metric.length);
+    Bytes.setInt(end_key, (int) end, (node.schema().saltWidth() + 
+                                      node.schema().metricWidth()));
+    return end_key;
+  }
+
+  /**
+   * Computes the last timestamp to stop scanning exclusive.
+   * @param rollup_interval An optional rollup interval.
+   * @return The last timestamp in seconds.
+   */
+  long computeStopTimestamp(final RollupInterval rollup_interval) {
     long end;
     if (source_config.timeShifts() == null || 
         !source_config.timeShifts().containsKey(source_config.getId())) {
@@ -589,16 +705,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
         end += (Schema.MAX_RAW_TIMESPAN - timespan_offset);
       }
     }
-    
-    final byte[] end_key = new byte[node.schema().saltWidth() + 
-                                      node.schema().metricWidth() +
-                                      Schema.TIMESTAMP_BYTES];
-    System.arraycopy(metric, 0, end_key, node.schema().saltWidth(), metric.length);
-    Bytes.setInt(end_key, (int) end, (node.schema().saltWidth() + 
-                                      node.schema().metricWidth()));
-    return end_key;
+    return end;
   }
-
+  
   /**
    * Initializes the scanners on the first call to 
    * {@link #fetchNext(Tsdb1xQueryResult, Span)}. Starts with resolving
@@ -776,6 +885,12 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
           final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
               node.schema().saltBuckets() : 1];
           scanners.add(array);
+          if (node.push()) {
+            sets.add(null);
+            timestamps.add(null);
+            durations.add(null);
+            setupSets(interval, idx);
+          }
           final byte[] start_key = setStartKey(metric, interval, fuzzy_key);
           final byte[] stop_key = setStopKey(metric, interval);
           
@@ -829,6 +944,12 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
         final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
             node.schema().saltBuckets() : 1];
         scanners.add(array);
+        if (node.push()) {
+          sets.add(null);
+          timestamps.add(null);
+          durations.add(null);
+          setupSets(null, idx);
+        }
         
         final byte[] start_key = setStartKey(metric, null, fuzzy_key);
         final byte[] stop_key = setStopKey(metric, null);
@@ -885,6 +1006,66 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
           + scanners.get(0).length + " scanners per set.");
     }
     scanNext(span);
+  }
+  
+  /**
+   * Configures the sets we need for this query.
+   * @param interval An optional rollup interval.
+   * @param scanners_index The current inde that needs setting up.
+   */
+  void setupSets(final RollupInterval interval, 
+                 final int scanners_index) {
+    final long start_epoch = computeStartTimestamp(interval);
+    final long end_epoch = computeStopTimestamp(interval);
+    
+    int num_sets;
+    if (interval != null) {
+      num_sets = (int) (end_epoch - start_epoch) / 
+          (interval.getIntervals() * interval.getIntervalSeconds());
+      if (num_sets <= 0) {
+        num_sets = 1;
+      }
+    } else {
+      num_sets = (int) (end_epoch - start_epoch) / 3600;
+      if (num_sets <= 0) {
+        num_sets = 1;
+      }
+    }
+    
+    TimeStamp start_ts = new SecondTimeStamp(start_epoch);
+    TimeStamp end_ts = new SecondTimeStamp(end_epoch);
+    timestamps.set(scanners_index, new Pair<TimeStamp, TimeStamp>(start_ts, end_ts));
+    final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map = 
+        new TLongObjectHashMap<Tsdb1xPartialTimeSeriesSet>();
+    
+    final Duration duration = interval == null ? Duration.ofSeconds(3600) : 
+        Duration.ofSeconds(interval.getIntervals() * interval.getIntervalSeconds());
+    durations.set(scanners_index, duration);
+    TimeStamp start = new SecondTimeStamp(start_epoch);
+    TimeStamp end = start.getCopy();
+    if (interval == null) {
+      end.add(duration);
+    } else {
+      end.add(duration);
+    }
+    final int num_scanners = scanners.get(scanners_index).length;
+    while (start.epoch() < end_epoch) {
+      Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+          node.parent().tsdb().getRegistry()
+          .getObjectPool(Tsdb1xPartialTimeSeriesSetPool.TYPE)
+          .claim().object();
+      set.reset(node, 
+          start, 
+          end, 
+          node.rollupUsage(),
+          num_scanners, 
+          num_sets, 
+          ts_ids);
+      map.put(start.epoch(), set);
+      start.add(duration);
+      end.add(duration);
+    }
+    sets.set(scanners_index, map);
   }
   
   /**
@@ -1195,5 +1376,55 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   /** @return The parent node. */
   Tsdb1xQueryNode node() {
     return node;
+  }
+
+  /**
+   * Returns the set for the aligned timestamp.
+   * @param start The non-null aligned timestamp.
+   * @return The set if found, null if not.
+   */
+  Tsdb1xPartialTimeSeriesSet getSet(final TimeStamp start) {
+    return sets.get(scanner_index).get(start.epoch());
+  }
+
+  /** @return The current scanner index. */
+  int scannerIndex() {
+    return scanner_index;
+  }
+  
+  /** @return The number of scanners, i.e. rollups and raw. */
+  int scannersSize() {
+    return scanners.size();
+  }
+  
+  /** @return The timestamps for the current scanner index. */
+  Pair<TimeStamp, TimeStamp> currentTimestamps() {
+    return timestamps.get(scanner_index);
+  }
+  
+  /** @return The current duration. */
+  Duration currentDuration() {
+    return durations.get(scanner_index);
+  }
+  
+  /** @return The scanner sets for this scanner. */
+  TLongObjectMap<Tsdb1xPartialTimeSeriesSet> currentSets() {
+    return sets.get(scanner_index);
+  }
+
+  boolean idsContainsKey(final long hash) {
+    synchronized (ts_ids) {
+      return ts_ids.containsKey(hash);
+    }
+  }
+  
+  void putId(final long hash, final TimeSeriesId id) {
+    synchronized (ts_ids) {
+      ts_ids.putIfAbsent(hash, id);
+    }
+  }
+  
+  TLongObjectMap<TimeSeriesId> tsIds() {
+    return ts_ids;
   }
 }
