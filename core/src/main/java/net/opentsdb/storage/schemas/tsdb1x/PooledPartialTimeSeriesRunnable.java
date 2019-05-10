@@ -102,4 +102,13 @@ public class PooledPartialTimeSeriesRunnable implements Runnable, CloseablePoole
     this.pooled_object = pooled_object;
   }
   
+  /** @return The configured PTS. */
+  public PartialTimeSeries pts() {
+    return pts;
+  }
+  
+  /** @return The query node. */
+  public QueryNode node() {
+    return node;
+  }
 }
