@@ -111,7 +111,7 @@ import net.opentsdb.utils.UnitTestException;
   Tsdb1xScanner.class })
 public class TestTsdb1xScanners extends UTBase {
 
-  private Tsdb1xQueryNode node;
+  private Tsdb1xHBaseQueryNode node;
   private TimeSeriesDataSourceConfig source_config;
   private DefaultRollupConfig rollup_config;
   private QueryPipelineContext context;
@@ -119,7 +119,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Before
   public void before() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.schema()).thenReturn(schema);
     when(node.parent()).thenReturn(data_store);
     rollup_config = mock(DefaultRollupConfig.class);
@@ -942,7 +942,7 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void setupScannersRollupNoFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    Tsdb1xQueryNode node = saltedNode(caught);
+    Tsdb1xHBaseQueryNode node = saltedNode(caught);
     final List<byte[]> tables = Lists.newArrayList();
     final List<ScanFilter> filters = Lists.newArrayList();
     catchTables(node, tables, filters);
@@ -1015,7 +1015,7 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void setupScannersRollupAvgNoFilterWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
-    Tsdb1xQueryNode node = saltedNode(caught);
+    Tsdb1xHBaseQueryNode node = saltedNode(caught);
     final List<byte[]> tables = Lists.newArrayList();
     final List<ScanFilter> filters = Lists.newArrayList();
     catchTables(node, tables, filters);
@@ -1368,7 +1368,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void setupPushNoRollupSalt() throws Exception {
-    Tsdb1xQueryNode node = saltedNode(null);
+    Tsdb1xHBaseQueryNode node = saltedNode(null);
     QueryNodeConfig cfg = mock(QueryNodeConfig.class);
     when(cfg.getId()).thenReturn("Mock");
     when(node.config()).thenReturn(cfg);
@@ -1501,7 +1501,7 @@ public class TestTsdb1xScanners extends UTBase {
 
   @Test
   public void setupPushRollupSalt() throws Exception {
-    Tsdb1xQueryNode node = saltedNode(null);
+    Tsdb1xHBaseQueryNode node = saltedNode(null);
     setConfig(false, "sum", true);
     
     when(node.rollupIntervals())
@@ -2471,7 +2471,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void scannerDoneWithSalt() throws Exception {
     final List<Scanner> caught = Lists.newArrayList();
     
-    Tsdb1xQueryNode node = saltedNode(caught);
+    Tsdb1xHBaseQueryNode node = saltedNode(caught);
     Tsdb1xScanners scanners = new Tsdb1xScanners();
     scanners.reset(node, source_config);
     scanners.initialize(null);
@@ -2599,7 +2599,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scannerDonePushSaltSent() throws Exception {
-    Tsdb1xQueryNode node = saltedNode(null);
+    Tsdb1xHBaseQueryNode node = saltedNode(null);
     setupPush(node.parent().tsdb());
     when(node.sentData()).thenReturn(true);
     
@@ -2700,7 +2700,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scannerDonePushNotSentSalt() throws Exception {
-    Tsdb1xQueryNode node = saltedNode(null);
+    Tsdb1xHBaseQueryNode node = saltedNode(null);
     setupPush(node.parent().tsdb());
     
     Tsdb1xScanners scanners = new Tsdb1xScanners();
@@ -3009,7 +3009,7 @@ public class TestTsdb1xScanners extends UTBase {
     when(node.push()).thenReturn(true);
   }
   
-  Tsdb1xQueryNode saltedNode(final List<Scanner> scanners) throws Exception {
+  Tsdb1xHBaseQueryNode saltedNode(final List<Scanner> scanners) throws Exception {
     TSDB tsdb = mock(TSDB.class);
     ExecutorService service = mock(ExecutorService.class);
     when(tsdb.getQueryThreadPool()).thenReturn(service);
@@ -3071,7 +3071,7 @@ public class TestTsdb1xScanners extends UTBase {
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY)).thenReturn(4096);
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY)).thenReturn(1024);
     
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.schema()).thenReturn(schema);
     when(node.parent()).thenReturn(data_store);
     when(schema.rollupConfig()).thenReturn(rollup_config);
@@ -3085,7 +3085,7 @@ public class TestTsdb1xScanners extends UTBase {
     return node;
   }
   
-  void catchTables(final Tsdb1xQueryNode node, final List<byte[]> tables, final List<ScanFilter> filters) {
+  void catchTables(final Tsdb1xHBaseQueryNode node, final List<byte[]> tables, final List<ScanFilter> filters) {
     when(((Tsdb1xHBaseDataStore) node.parent()).client()
         .newScanner(any(byte[].class))).thenAnswer(new Answer<Scanner>() {
           @Override

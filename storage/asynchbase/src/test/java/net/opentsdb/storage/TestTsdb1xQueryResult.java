@@ -66,7 +66,7 @@ public class TestTsdb1xQueryResult extends UTBase {
   // GMT: Monday, January 1, 2018 1:15:00 AM
   public static final int END_TS = 1514769300;
  
-  private Tsdb1xQueryNode node;
+  private Tsdb1xHBaseQueryNode node;
   private Schema schema; 
   private TimeSeriesDataSourceConfig source_config;
   private DefaultRollupConfig rollup_config;
@@ -74,7 +74,7 @@ public class TestTsdb1xQueryResult extends UTBase {
   
   @Before
   public void before() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     schema = spy(new Schema(schema_factory, tsdb, null));
 
     query = SemanticQuery.newBuilder()

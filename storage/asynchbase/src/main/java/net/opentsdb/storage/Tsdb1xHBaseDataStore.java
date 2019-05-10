@@ -313,7 +313,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
                            final QueryNodeConfig config) {
-    return new Tsdb1xQueryNode(this, context, (TimeSeriesDataSourceConfig) config);
+    return new Tsdb1xHBaseQueryNode(this, context, (TimeSeriesDataSourceConfig) config);
   }
   
   @Override

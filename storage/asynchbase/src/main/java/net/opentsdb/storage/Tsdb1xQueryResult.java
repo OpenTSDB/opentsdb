@@ -71,7 +71,7 @@ public class Tsdb1xQueryResult extends
     final long base_timestamp = schema.baseTimestamp(row.get(0).key());
     final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
     final RowSeq numerics;
-    if (((Tsdb1xQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
+    if (((Tsdb1xHBaseQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {
         numerics = new NumericSummaryRowSeq(base_timestamp, interval);
       } else {
@@ -85,7 +85,7 @@ public class Tsdb1xQueryResult extends
     for (final KeyValue kv : row) {
       if (interval == null && (kv.qualifier().length & 1) == 0) {
         // it's a NumericDataType
-        if (!((Tsdb1xQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
+        if (!((Tsdb1xHBaseQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
           // filter doesn't want #'s
           // TODO - dropped counters
           continue;
@@ -94,14 +94,14 @@ public class Tsdb1xQueryResult extends
       } else if (interval == null) {
         final byte prefix = kv.qualifier()[0];
         if (prefix == Schema.APPENDS_PREFIX) {
-          if (!((Tsdb1xQueryNode) node).fetchDataType((byte) 1)) {
+          if (!((Tsdb1xHBaseQueryNode) node).fetchDataType((byte) 1)) {
             // filter doesn't want #'s
             continue;
           } else {
             numerics.addColumn(Schema.APPENDS_PREFIX, kv.qualifier(), 
                 kv.value());
           }
-        } else if (((Tsdb1xQueryNode) node).fetchDataType(prefix)) {
+        } else if (((Tsdb1xHBaseQueryNode) node).fetchDataType(prefix)) {
           if (row_sequences == null) {
             row_sequences = Maps.newHashMapWithExpectedSize(1);
           }

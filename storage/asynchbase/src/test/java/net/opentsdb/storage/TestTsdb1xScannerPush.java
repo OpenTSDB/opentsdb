@@ -94,7 +94,7 @@ public class TestTsdb1xScannerPush extends UTBase {
   private static ObjectPool NUMERIC_SUMMARY_POOL;
   
   private Tsdb1xScanners owner;
-  private Tsdb1xQueryNode node;
+  private Tsdb1xHBaseQueryNode node;
   private Schema schema; 
   private QueryContext context;
   private TimeSeriesDataSourceConfig config;
@@ -161,7 +161,7 @@ public class TestTsdb1xScannerPush extends UTBase {
   
   @Before
   public void before() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.push()).thenReturn(true);
     owner = mock(Tsdb1xScanners.class);
     schema = spy(new Schema(schema_factory, tsdb, null));

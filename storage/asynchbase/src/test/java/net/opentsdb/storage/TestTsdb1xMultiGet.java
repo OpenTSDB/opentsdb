@@ -89,7 +89,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   public static final TimeStamp BASE_TS = new MillisecondTimeStamp(0L);
   
-  public Tsdb1xQueryNode node;
+  public Tsdb1xHBaseQueryNode node;
   public TimeSeriesDataSourceConfig source_config;
   public DefaultRollupConfig rollup_config;
   public QueryPipelineContext context;
@@ -98,7 +98,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Before
   public void before() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     context = mock(QueryPipelineContext.class);
     when(node.schema()).thenReturn(schema);
     when(node.pipelineContext()).thenReturn(context);
@@ -441,7 +441,7 @@ public class TestTsdb1xMultiGet extends UTBase {
 
   @Test
   public void ctorTimedSalt() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
@@ -463,7 +463,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void ctorTimelessSalt() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
@@ -851,7 +851,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     
     // salting
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
@@ -880,7 +880,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void nextBatchTimedSalt() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);
@@ -910,7 +910,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void nextBatchTimelessSalt() throws Exception {
-    node = mock(Tsdb1xQueryNode.class);
+    node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
     Schema schema = mock(Schema.class);

@@ -69,9 +69,9 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
+public class Tsdb1xHBaseQueryNode implements TimeSeriesDataSource, SourceNode {
   private static final Logger LOG = LoggerFactory.getLogger(
-      Tsdb1xQueryNode.class);
+      Tsdb1xHBaseQueryNode.class);
 
   private static final Deferred<Void> INITIALIZED = 
       Deferred.fromResult(null);
@@ -141,7 +141,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
    * @param context A non-null query pipeline context.
    * @param config A non-null config.
    */
-  public Tsdb1xQueryNode(final Tsdb1xHBaseDataStore parent, 
+  public Tsdb1xHBaseQueryNode(final Tsdb1xHBaseDataStore parent, 
                          final QueryPipelineContext context,
                          final TimeSeriesDataSourceConfig config) {
     if (parent == null) {
@@ -232,7 +232,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
 
     executor.fetchNext(new Tsdb1xQueryResult(
           sequence_id.getAndIncrement(), 
-          Tsdb1xQueryNode.this, 
+          Tsdb1xHBaseQueryNode.this, 
           parent.schema()), 
     span);
 
@@ -487,11 +487,11 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
       synchronized (this) {
         executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
             Tsdb1xScannersPool.TYPE).claim().object();
-        ((Tsdb1xScanners) executor).reset(Tsdb1xQueryNode.this, config);
+        ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
-              Tsdb1xQueryNode.this, 
+              Tsdb1xHBaseQueryNode.this, 
               parent.schema()), 
           span);
         } else {
@@ -556,7 +556,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
           LOG.debug("No data returned from meta store.");
         }
         initialized.compareAndSet(false, true);
-        sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xQueryNode.this, 
+        sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xHBaseQueryNode.this, 
             parent.schema()));
         completeUpstream(0, 0);
         return null;
@@ -585,14 +585,14 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
         return null;
       }
       
-      synchronized (Tsdb1xQueryNode.this) {
+      synchronized (Tsdb1xHBaseQueryNode.this) {
         executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
             Tsdb1xScannersPool.TYPE).claim().object();
-        ((Tsdb1xScanners) executor).reset(Tsdb1xQueryNode.this, config);
+        ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
-              Tsdb1xQueryNode.this, 
+              Tsdb1xHBaseQueryNode.this, 
               parent.schema()), 
           span);
         } else {
@@ -655,7 +655,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
       }
       
       synchronized (this) {
-        executor = new Tsdb1xMultiGet(Tsdb1xQueryNode.this, config, tsuids);
+        executor = new Tsdb1xMultiGet(Tsdb1xHBaseQueryNode.this, config, tsuids);
         if (initialized.compareAndSet(false, true)) {
           if (child != null) {
             child.setSuccessTags()
@@ -663,7 +663,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
           }
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
-              Tsdb1xQueryNode.this, 
+              Tsdb1xHBaseQueryNode.this, 
               parent.schema()), 
           span);
         } else {
@@ -852,7 +852,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
           // TODO - what happens if we didn't resolve anything???
           synchronized (this) {
             executor = new Tsdb1xMultiGet(
-                Tsdb1xQueryNode.this, 
+                Tsdb1xHBaseQueryNode.this, 
                 config, 
                 tsuids);
             if (initialized.compareAndSet(false, true)) {
@@ -862,7 +862,7 @@ public class Tsdb1xQueryNode implements TimeSeriesDataSource, SourceNode {
               }
               executor.fetchNext(new Tsdb1xQueryResult(
                   sequence_id.incrementAndGet(), 
-                  Tsdb1xQueryNode.this, 
+                  Tsdb1xHBaseQueryNode.this, 
                   parent.schema()), 
               span);
             } else {

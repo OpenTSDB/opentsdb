@@ -94,7 +94,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xMultiGet.class);
   
   /** The upstream query node that owns this scanner set. */
-  protected final Tsdb1xQueryNode node;
+  protected final Tsdb1xHBaseQueryNode node;
   
   /** The query config from the node. */
   protected final TimeSeriesDataSourceConfig source_config;
@@ -138,7 +138,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
    * we're querying when falling back. May be null. */
   protected volatile TimeStamp fallback_timestamp;
   
-  /** Index into the {@link Tsdb1xQueryNode#rollupIntervals()} that we're
+  /** Index into the {@link Tsdb1xHBaseQueryNode#rollupIntervals()} that we're
    * working on. -1 means we're query raw only, 0 or more means we're
    * working with rollups. A value >= the rollup intervals size means we've
    * fallen back to the raw table.
@@ -172,7 +172,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
    * @param tsuids A non-null and non-empty list of TSUIDs.
    * @throws IllegalArgumentException if the params were null or empty.
    */
-  public Tsdb1xMultiGet(final Tsdb1xQueryNode node, 
+  public Tsdb1xMultiGet(final Tsdb1xHBaseQueryNode node, 
                         final TimeSeriesDataSourceConfig source_config, 
                         final List<byte[]> tsuids) {
     if (node == null) {
