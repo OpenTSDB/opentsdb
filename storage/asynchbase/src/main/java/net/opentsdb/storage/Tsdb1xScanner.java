@@ -56,6 +56,7 @@ import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.TSUID;
@@ -89,6 +90,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   
   private static final Deferred<ArrayList<KeyValue>> SKIP_DEFERRED = 
       Deferred.fromResult(null);
+  
+  private static final String SCAN_METRIC = "hbase.scanner.next.latency";
   
   /** Reference to the Object pool for this instance. */
   protected PooledObject pooled_object;
@@ -136,6 +139,10 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   protected Map<TypeToken<? extends TimeSeriesDataType>, 
     Tsdb1xPartialTimeSeries> last_pts;
   
+  /** A timer to measure how long we waited for a response from HBase, including
+   *  the request sent time. */
+  protected StatsTimer scan_wait_timer;
+    
   /**
    * Ctor.
    */
@@ -227,6 +234,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         child = span;
       }
       
+      scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
+          .startTimer(SCAN_METRIC, true);
       scanner.nextRows()
         .addCallback(new ScannerCB(result, child))
         .addErrback(new ErrorCB(child));
@@ -319,6 +328,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
            .finish();
     }
     // all good, keep going with the scanner now.
+    scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
+        .startTimer(SCAN_METRIC, true);
     scanner.nextRows()
       .addCallback(new ScannerCB(result, span))
       .addErrback(new ErrorCB(span));
@@ -382,6 +393,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
             scanner.clearFilter();
             state = State.COMPLETE;
           } else if ((owner.node().push() || !result.isFull()) && keep_going) {
+            scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
+                .startTimer(SCAN_METRIC, true);
             return scanner.nextRows()
                 .addCallback(new ScannerCB(result, span))
                 .addErrback(new ErrorCB(span));
@@ -479,6 +492,11 @@ public class Tsdb1xScanner implements CloseablePooledObject {
 
     @Override
     public Object call(final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
+      if (scan_wait_timer != null) {
+        scan_wait_timer.stop();
+        scan_wait_timer = null;
+      }
+      
       if (rows == null) {
         complete(null, 0);
         return null;
@@ -606,6 +624,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                  .setTag("buffered", row_buffer == null ? 0 : row_buffer.size())
                  .finish();
           }
+          scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
+              .startTimer(SCAN_METRIC, true);
           return scanner.nextRows().addCallback(this)
               .addErrback(new ErrorCB(span));
         } else if (owner.node().pipelineContext().queryContext().mode() == 
@@ -734,6 +754,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         if (owner.hasException()) {
           complete(child, 0);
         } else if ((owner.node().push() || !result.isFull()) && keep_going) {
+          scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
+              .startTimer(SCAN_METRIC, true);
           return scanner.nextRows()
               .addCallback(ScannerCB.this)
               .addErrback(new ErrorCB(span));
