@@ -1457,10 +1457,12 @@ public final class MockBase {
     private byte[] family = null;
     private ScanFilter filter = null;
     private int max_num_rows = Scanner.DEFAULT_MAX_NUM_ROWS;
+    private int max_kvs = Scanner.DEFAULT_MAX_NUM_KVS;
     private ByteMap<Iterator<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>>>
       cursors;
     private ByteMap<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>> cf_rows;
     private byte[] last_row;
+    private Iterator<Entry<byte[], TreeMap<Long, byte[]>>> column_cursor;
     private boolean is_reversed;
 
     /**
@@ -1590,6 +1592,14 @@ public final class MockBase {
         }
       }).when(mock_scanner).setMaxNumRows(anyInt());
     
+      doAnswer(new Answer<Void>() {
+        @Override
+        public Void answer(InvocationOnMock invocation) throws Throwable {
+          max_kvs = (int) invocation.getArguments()[0];
+          return null;
+        }
+      }).when(mock_scanner).setMaxNumKeyValues(anyInt());
+      
       doAnswer(new Answer<Boolean>() {
         @Override
         public Boolean answer(InvocationOnMock invocation) throws Throwable {
@@ -1699,10 +1709,11 @@ public final class MockBase {
         }
       }
 
-      // return all matches
+      // start scanning
       final ArrayList<ArrayList<KeyValue>> results =
         new ArrayList<ArrayList<KeyValue>>();
       int rows_read = 0;
+      int columns_read = 0;
       while (hasNext()) {
         advance();
 
@@ -1749,14 +1760,16 @@ public final class MockBase {
             continue;
           }
 
-          for (final Entry<byte[], TreeMap<Long, byte[]>> column :
-            row.getValue().getValue().entrySet()) {
+          if (column_cursor == null) {
+            column_cursor = row.getValue().getValue().entrySet().iterator();
+          }
+          while(column_cursor.hasNext()) {
+            final Entry<byte[], TreeMap<Long, byte[]>> column = column_cursor.next();
             // if the qualifier isn't in the set, continue
             if (scnr_qualifiers != null &&
                 !scnr_qualifiers.contains(bytesToString(column.getKey()))) {
               continue;
             }
-
 
             // handle qualifier filters. 
             if (filter != null) {
@@ -1810,14 +1823,24 @@ public final class MockBase {
             kvs.add(new KeyValue(row.getValue().getKey(), row.getKey(),
                 column.getKey(), column.getValue().firstKey(),
                 column.getValue().firstEntry().getValue()));
+            if (++columns_read >= max_kvs) {
+              if (!column_cursor.hasNext()) {
+                column_cursor = null;
+              }
+              results.add(kvs);
+              return Deferred.fromResult(results);
+            }
+            
           }
+          // end of column so flush it.
+          column_cursor = null;
         }
 
         if (!kvs.isEmpty()) {
           results.add(kvs);
         }
         rows_read++;
-
+        
         if (rows_read >= max_num_rows) {
           Thread.sleep(10); // this is here for time based unit tests
           break;
@@ -1832,6 +1855,10 @@ public final class MockBase {
 
     /** @return Returns true if any of the CF iterators have another value */
     private boolean hasNext() {
+      if (column_cursor != null && column_cursor.hasNext()) {
+        return true;
+      }
+      
       for (final Iterator<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>> cursor :
           cursors.values()) {
         if (cursor.hasNext()) {
@@ -1843,6 +1870,10 @@ public final class MockBase {
 
     /** Insanely inefficient and ugly way of advancing the cursors */
     private void advance() {
+      if (column_cursor != null && column_cursor.hasNext()) {
+        return;
+      }
+      
       // first time to get the ceiling
       if (last_row == null) {
         for (final Entry<byte[],
