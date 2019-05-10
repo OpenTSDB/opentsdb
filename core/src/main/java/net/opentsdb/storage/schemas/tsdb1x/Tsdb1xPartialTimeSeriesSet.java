@@ -26,7 +26,6 @@ import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 
 /**
@@ -61,7 +60,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
   protected final ObjectPool no_data_pool;
   
   /** The current node. */
-  protected QueryNode node;
+  protected Tsdb1xQueryNode node;
   
   /** The start time of the set. */
   protected TimeStamp start;
@@ -116,7 +115,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
    * @param total_sets The total number of sets.
    * @param ids The ref to IDs.
    */
-  public void reset(final QueryNode node, 
+  public void reset(final Tsdb1xQueryNode node, 
                     final TimeStamp start, 
                     final TimeStamp end, 
                     final RollupUsage rollup_usage,
@@ -153,7 +152,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
   }
 
   @Override
-  public QueryNode node() {
+  public Tsdb1xQueryNode node() {
     return node;
   }
 
@@ -204,8 +203,6 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
       if (--latch == 0) {
         complete = this.complete = true;
         pts = null; // for others
-        // TODO - when we make a base/interface for the Tsdb1xQueryNode
-        //node.sentData();
       }
     }
     
@@ -255,8 +252,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
       } else {
         this.pts = pts;
       }
-      // TODO - when we make a base/interface for the Tsdb1xQueryNode
-      //node.sentData();
+      node.setSentData();
     }
     
     if (extant != null) {

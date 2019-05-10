@@ -41,7 +41,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 
@@ -50,7 +49,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
   private static ObjectPool RUNNABLE_POOL;
   private static ObjectPool NO_DATA_POOL;
   
-  private QueryNode node;
+  private Tsdb1xQueryNode node;
   private TLongObjectMap<TimeSeriesId> ids;
   
   @BeforeClass
@@ -81,7 +80,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
   
   @Before
   public void before() throws Exception {
-    node = mock(QueryNode.class);
+    node = mock(Tsdb1xQueryNode.class);
     ids = mock(TLongObjectMap.class);
     QueryNodeConfig config = mock(QueryNodeConfig.class);
     when(config.getId()).thenReturn("Mock");
@@ -143,6 +142,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     set.increment(pts, false);
     
     verify(node, never()).onNext(pts);
+    verify(node, times(1)).setSentData();
     assertEquals(1, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -162,6 +162,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     set.increment(pts, true);
     
     verify(node, never()).onNext(pts);
+    verify(node, times(1)).setSentData();
     assertEquals(0, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -188,6 +189,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     verify(node, never()).onNext(pts1);
     verify(node, never()).onNext(pts2);
+    verify(node, times(1)).setSentData();
     assertEquals(1, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -198,6 +200,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     verify(node, never()).onNext(pts1);
     verify(node, never()).onNext(pts2);
+    verify(node, times(2)).setSentData();
     assertEquals(1, set.latch);
     assertEquals(2, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -226,6 +229,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     verify(node, never()).onNext(pts1);
     verify(node, never()).onNext(pts2);
+    verify(node, times(1)).setSentData();
     assertEquals(1, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -236,6 +240,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     verify(node, never()).onNext(pts1);
     verify(node, never()).onNext(pts2);
+    verify(node, times(2)).setSentData();
     assertEquals(0, set.latch);
     assertEquals(2, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -265,6 +270,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     verify(node, never()).onNext(pts1);
     verify(node, never()).onNext(pts2);
+    verify(node, times(1)).setSentData();
     assertEquals(2, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -275,6 +281,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     verify(node, never()).onNext(pts1);
     verify(node, never()).onNext(pts2);
+    verify(node, times(2)).setSentData();
     assertEquals(1, set.latch);
     assertEquals(2, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -310,6 +317,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         RollupUsage.ROLLUP_FALLBACK, 
         1, 1, ids);
     set.setCompleteAndEmpty(false);
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -325,6 +333,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         RollupUsage.ROLLUP_FALLBACK, 
         1, 1, ids);
     set.setCompleteAndEmpty(true);
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -344,6 +353,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         RollupUsage.ROLLUP_NOFALLBACK, 
         1, 1, ids);
     set.setCompleteAndEmpty(false);
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -365,6 +375,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         1, 1, ids);
     set.pts = pts;
     set.setCompleteAndEmpty(false);
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -387,6 +398,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         1, 1, ids);
     set.pts = pts;
     set.setCompleteAndEmpty(true);
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -409,6 +421,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         1, 1, ids);
     set.pts = pts;
     set.setCompleteAndEmpty(false);
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -429,6 +442,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         RollupUsage.ROLLUP_FALLBACK, 
         2, 1, ids);
     set.setCompleteAndEmpty(false);
+    verify(node, never()).setSentData();
     assertEquals(1, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertFalse(set.complete());
@@ -446,6 +460,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         2, 1, ids);
     set.increment(pts, true);
     
+    verify(node, times(1)).setSentData();
     verify(node, never()).onNext(pts);
     assertEquals(1, set.latch);
     assertEquals(1, set.timeSeriesCount());
@@ -454,6 +469,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     assertSame(pts, set.pts);
     
     set.setCompleteAndEmpty(false);
+    verify(node, times(1)).setSentData();
     assertEquals(0, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -477,6 +493,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         2, 1, ids);
     set.setCompleteAndEmpty(false);
     
+    verify(node, never()).setSentData();
     verify(node, never()).onNext(pts);
     assertEquals(1, set.latch);
     assertEquals(0, set.timeSeriesCount());
@@ -486,6 +503,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
     
     set.increment(pts, true);
     
+    verify(node, times(1)).setSentData();
     assertEquals(0, set.latch);
     assertEquals(1, set.timeSeriesCount());
     assertTrue(set.complete());
@@ -508,6 +526,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         1, 1, ids);
     set.sendEmpty();
     
+    verify(node, never()).setSentData();
     assertEquals(0, set.latch);
     assertEquals(0, set.timeSeriesCount());
     assertTrue(set.complete());
