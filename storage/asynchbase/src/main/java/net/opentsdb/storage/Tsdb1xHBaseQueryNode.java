@@ -55,6 +55,7 @@ import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryNode;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
@@ -69,7 +70,7 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseQueryNode implements TimeSeriesDataSource, SourceNode {
+public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xHBaseQueryNode.class);
 
@@ -346,12 +347,12 @@ public class Tsdb1xHBaseQueryNode implements TimeSeriesDataSource, SourceNode {
     return context;
   }
   
-  /** Sets the sentData flag. */
+  @Override
   public void setSentData() {
     sent_data.set(true);
   }
   
-  /** @return Whether or not the node sent data in push node. */
+  @Override
   public boolean sentData() {
     return sent_data.get();
   }
