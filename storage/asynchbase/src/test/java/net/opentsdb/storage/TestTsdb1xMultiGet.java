@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2018  The OpenTSDB Authors.
+// Copyright (C) 2016-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -153,26 +153,27 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void ctorDefaults() throws Exception {
     try {
-      new Tsdb1xMultiGet(null, source_config, tsuids);
+      new Tsdb1xMultiGet().reset(null, source_config, tsuids);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Tsdb1xMultiGet(node, null, tsuids);
+      new Tsdb1xMultiGet().reset(node, null, tsuids);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Tsdb1xMultiGet(node, source_config, null);
+      new Tsdb1xMultiGet().reset(node, source_config, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new Tsdb1xMultiGet(node, source_config, Lists.newArrayList());
+      new Tsdb1xMultiGet().reset(node, source_config, Lists.newArrayList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertSame(node, mget.node);
     assertSame(source_config, mget.source_config);
     assertSame(tsuids, mget.tsuids);
@@ -184,7 +185,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertFalse(mget.pre_aggregate);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(-1, mget.rollup_index);
     assertEquals(1, mget.tables.size());
     assertArrayEquals(DATA_TABLE, mget.tables.get(0));
@@ -224,7 +225,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertSame(node, mget.node);
     assertSame(source_config, mget.source_config);
     assertSame(tsuids, mget.tsuids);
@@ -236,7 +238,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertTrue(mget.pre_aggregate);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(END_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(-1, mget.rollup_index);
     assertEquals(1, mget.tables.size());
     assertArrayEquals(DATA_TABLE, mget.tables.get(0));
@@ -272,7 +274,8 @@ public class TestTsdb1xMultiGet extends UTBase {
           .setRowSpan("1d")
           .build()));
 
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertTrue(mget.rollups_enabled);
     assertFalse(mget.pre_aggregate);
     assertEquals(3, mget.tables.size());
@@ -281,7 +284,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(DATA_TABLE, mget.tables.get(2));
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     FilterList filter = (FilterList) mget.filter;
@@ -310,7 +313,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertTrue(mget.rollups_enabled);
     assertTrue(mget.pre_aggregate);
     assertEquals(3, mget.tables.size());
@@ -319,7 +323,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(DATA_TABLE, mget.tables.get(2));
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     filter = (FilterList) mget.filter;
@@ -346,8 +350,10 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertTrue(mget.rollups_enabled);
     assertFalse(mget.pre_aggregate);
     assertEquals(3, mget.tables.size());
@@ -356,7 +362,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(DATA_TABLE, mget.tables.get(2));
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     filter = (FilterList) mget.filter;
@@ -367,7 +373,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     // no fallback (still populates all the tables since it's small)
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
     
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertTrue(mget.rollups_enabled);
     assertFalse(mget.pre_aggregate);
     assertEquals(3, mget.tables.size());
@@ -376,7 +383,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(DATA_TABLE, mget.tables.get(2));
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     filter = (FilterList) mget.filter;
@@ -405,10 +412,12 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900 - 3600, mget.timestamp.epoch());
     
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
   }
   
@@ -435,7 +444,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         true);
     when(context.query()).thenReturn(query);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
   }
 
@@ -449,7 +459,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     when(node.schema()).thenReturn(schema);
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     
     assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
         mget.tsuids.get(0));
@@ -471,7 +482,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     when(node.schema()).thenReturn(schema);
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     
     assertArrayEquals(Bytes.concat(new byte[1], METRIC_BYTES, 
         new byte[4], TAGK_BYTES, TAGV_BYTES), 
@@ -489,7 +501,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void advanceNoRollups() throws Exception {
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     
@@ -511,7 +524,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     // sequence end
     when(node.sequenceEnd()).thenReturn(
         new MillisecondTimeStamp((START_TS - 900) * 1000L));
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     
@@ -551,7 +565,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     // previous tests had a batch size matching the tsuids size. Now
     // we verify odd offsets.
     when(node.sequenceEnd()).thenReturn(null);
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 3);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
@@ -586,66 +601,69 @@ public class TestTsdb1xMultiGet extends UTBase {
   public void advanceRollups() throws Exception {
     setMultiRollupQuery();
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertTrue(mget.rollups_enabled);
     assertEquals(0, mget.rollup_index);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     assertFalse(mget.advance());
     assertEquals(0, mget.rollup_index);
     assertEquals(0, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     assertTrue(mget.advance());
     assertEquals(0, mget.rollup_index);
     assertEquals(0, mget.tsuid_idx);
     assertEquals(START_TS + 86400 - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     // previous tests had a batch size matching the tsuids size. Now
     // we verify odd offsets.
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 3);
     
     assertTrue(mget.rollups_enabled);
     assertEquals(0, mget.rollup_index);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     assertFalse(mget.advance());
     assertEquals(0, mget.rollup_index);
     assertEquals(0, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     assertFalse(mget.advance());
     assertEquals(0, mget.rollup_index);
     assertEquals(3, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     assertTrue(mget.advance());
     assertEquals(0, mget.rollup_index);
     assertEquals(0, mget.tsuid_idx);
     assertEquals(START_TS + 86400 - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
   }
   
   @Test
   public void incrementTimeStampRollups() throws Exception {
     setMultiRollupQuery();
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     mget.incrementTimestamp();
     assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     // fallback resets to the original
     mget.rollup_index = 1;
@@ -663,7 +681,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(START_TS + (3600 * 12) - 900, mget.fallback_timestamp.epoch());
     
     // fallback to raw now. The onComplete() method has null the fallback timestamp
-    mget.fallback_timestamp = null;
+    mget.fallback_timestamp.updateEpoch(-1);
     mget.rollup_index = 2;
     mget.incrementTimestamp();
     assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
@@ -697,30 +715,32 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     mget.incrementTimestamp();
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     mget.incrementTimestamp();
     assertEquals(START_TS - (3600) - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
   }
   
   @Test
   public void incrementTimeStampRollupsReversed() throws Exception {
     setMultiRollupQuery(true);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     mget.incrementTimestamp();
     assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     
     // fallback resets to the original
     mget.rollup_index = 1;
@@ -738,7 +758,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(START_TS - (3600 * 12) - 900, mget.fallback_timestamp.epoch());
     
     // fallback to raw now. The onComplete() method has null the fallback timestamp
-    mget.fallback_timestamp = null;
+    mget.fallback_timestamp.updateEpoch(-1);
     mget.rollup_index = 2;
     mget.incrementTimestamp();
     assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
@@ -760,7 +780,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     when(result.isFull()).thenReturn(true);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     mget.nextBatch(0, START_TS, null);
     assertEquals(4, storage.getLastMultiGets().size());
     List<GetRequest> gets = storage.getLastMultiGets();
@@ -779,7 +800,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     
     // smaller batch size
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 3);
     mget.nextBatch(0, START_TS, null);
     assertEquals(3, storage.getLastMultiGets().size());
@@ -811,7 +833,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     // rollup tables
     setMultiRollupQuery();
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     mget.current_result = result;
     mget.nextBatch(0, START_TS, null);
     assertEquals(4, storage.getLastMultiGets().size());
@@ -858,7 +881,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     when(node.schema()).thenReturn(schema);
-    mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     mget.current_result = result;
     mget.nextBatch(0, START_TS, null);
     assertEquals(4, storage.getLastMultiGets().size());
@@ -888,7 +912,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     when(node.schema()).thenReturn(schema);
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     
     mget.nextBatch(0, START_TS, null);
     assertEquals(4, storage.getLastMultiGets().size());
@@ -918,7 +943,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     when(node.schema()).thenReturn(schema);
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     
     mget.nextBatch(0, START_TS, null);
     assertEquals(4, storage.getLastMultiGets().size());
@@ -941,7 +967,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void onError() throws Exception {
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     assertFalse(mget.has_failed);
     verify(node, never()).onError(any(Throwable.class));
     
@@ -961,7 +988,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void responseCB() throws Exception {
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     when(result.isFull()).thenReturn(true);
     mget.current_result = result;
@@ -1018,7 +1046,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void onCompleteFull() throws Exception {
     int gets = storage.getMultiGets().size();
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     when(result.isFull()).thenReturn(true);
     mget.current_result = result;
@@ -1047,7 +1076,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void onCompleteBusy() throws Exception {
     int gets = storage.getMultiGets().size();
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     mget.current_result = result;
     mget.outstanding = 2;
@@ -1064,7 +1094,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void onCompleteNextBatch() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet());
+    mget.reset(node, source_config, tsuids);
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     mget.current_result = result;
@@ -1113,7 +1144,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void onCompleteFallback() throws Exception {
     setMultiRollupQuery();
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet());
+    mget.reset(node, source_config, tsuids);
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     mget.current_result = result;
@@ -1147,7 +1179,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     setMultiRollupQuery();
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_FALLBACK_RAW);
 
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet());
+    mget.reset(node, source_config, tsuids);
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     mget.current_result = result;
@@ -1172,7 +1205,8 @@ public class TestTsdb1xMultiGet extends UTBase {
   @Test
   public void onCompleteFallbackRawNoData() throws Exception {
     setMultiRollupQuery();
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet());
+    mget.reset(node, source_config, tsuids);
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     mget.current_result = result;
@@ -1210,7 +1244,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(node, never()).onError(any(Throwable.class));
     verify(mget, times(2)).nextBatch(0, START_TS - 900, null);
     verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(3, mget.rollup_index);
   }
   
@@ -1219,7 +1253,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     setMultiRollupQuery();
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
     
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet());
+    mget.reset(node, source_config, tsuids);
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     mget.current_result = result;
@@ -1236,13 +1271,14 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(node, never()).onError(any(Throwable.class));
     verify(mget, never()).nextBatch(0, START_TS - 900, null);
     verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900, null);
-    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.fallback_timestamp.epoch());
     assertEquals(0, mget.rollup_index);
   }
   
   @Test
   public void fetchNext() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, source_config, tsuids));
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet());
+    mget.reset(node, source_config, tsuids);
     doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     
@@ -1294,7 +1330,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     
     mget.fetchNext(result, trace.newSpan("UT").start());
@@ -1326,7 +1363,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, source_config, tsuids);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     
     mget.fetchNext(result, trace.newSpan("UT").start());
@@ -1338,6 +1376,37 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(result, times(28)).decode(any(ArrayList.class), 
         any(RollupInterval.class));
     verifySpan(Tsdb1xMultiGet.class.getName() + ".fetchNext", UnitTestException.class, 9);
+  }
+  
+  @Test
+  public void close() throws Exception {
+    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(result.isFull()).thenReturn(true);
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.nextBatch(0, START_TS, null);
+    
+    assertEquals(1514764800, mget.timestamp.epoch());
+    assertEquals(END_TS, mget.end_timestamp.epoch());
+    assertSame(tsuids, mget.tsuids);
+    assertSame(source_config, mget.source_config);
+    assertSame(node, mget.node);
+    assertEquals(1, mget.tables.size());
+    assertEquals(-1, mget.outstanding);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(-1, mget.rollup_index);
+    
+    mget.close();
+    assertEquals(-1, mget.timestamp.epoch());
+    assertEquals(-1, mget.end_timestamp.epoch());
+    assertNull(mget.tsuids);
+    assertNull(mget.source_config);
+    assertNull(mget.node);
+    assertEquals(0, mget.tables.size());
+    assertEquals(0, mget.outstanding);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(-1, mget.rollup_index);
   }
   
   void setMultiRollupQuery() throws Exception {

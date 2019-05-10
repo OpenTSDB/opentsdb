@@ -513,6 +513,7 @@ public class TestTsdb1xQueryNode extends UTBase {
 
   @Test
   public void metaCBWithData() throws Exception {
+    setupMultigetPool();
     List<TimeSeriesId> ids = Lists.newArrayList();
     ids.add(BaseTimeSeriesStringId.newBuilder()
         .setMetric(METRIC_STRING)
@@ -965,4 +966,11 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertTrue(node.sentData());
   }
   
+  void setupMultigetPool() {
+    ObjectPool mget_pool = mock(ObjectPool.class);
+    Tsdb1xMultiGet executor = new Tsdb1xMultiGet();
+    when(mget_pool.claim()).thenReturn(executor);
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xMultiGetPool.TYPE))
+      .thenReturn(mget_pool);
+  }
 }

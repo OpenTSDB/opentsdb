@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2018  The OpenTSDB Authors.
+// Copyright (C) 2016-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,9 +41,11 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
-import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.pools.CloseablePooledObject;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -90,40 +92,43 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 2.4
  */
-public class Tsdb1xMultiGet implements HBaseExecutor {
+public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xMultiGet.class);
   
+  /** Reference to the Object pool for this instance. */
+  protected PooledObject pooled_object;
+  
   /** The upstream query node that owns this scanner set. */
-  protected final Tsdb1xHBaseQueryNode node;
+  protected Tsdb1xHBaseQueryNode node;
   
   /** The query config from the node. */
-  protected final TimeSeriesDataSourceConfig source_config;
+  protected TimeSeriesDataSourceConfig source_config;
   
   /** The list of TSUIDs to work one. */
-  protected final List<byte[]> tsuids;
+  protected List<byte[]> tsuids;
   
   /** The number of get requests batches allowed to be outstanding at
    * any given time. */
-  protected final int concurrency_multi_get;
+  protected int concurrency_multi_get;
   
   /** Whether or not we're fetching rows in reverse. */
-  protected final boolean reversed;
+  protected boolean reversed;
   
   /** The number of get requests in each batch. */
-  protected final int batch_size;
+  protected int batch_size;
   
   /** A rollup column filter when fetching rollup data. */
-  protected final ScanFilter filter;
+  protected ScanFilter filter;
   
   /** Whether or not rollups were enabled for this query. */
-  protected final boolean rollups_enabled;
+  protected boolean rollups_enabled;
   
   /** The list of rollup/pre-agg and raw tables we need to query. */
-  protected final List<byte[]> tables;
+  protected List<byte[]> tables;
   
   /** Search the query on pre-aggregated table directly instead of post fetch 
    * aggregation. */
-  protected final boolean pre_aggregate;
+  protected boolean pre_aggregate;
 
   /** The current index in the TSUID list we're working on. */
   protected volatile int tsuid_idx;
@@ -131,7 +136,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   /** The current timestamp for the lowest resolution data we're querying. */
   protected volatile TimeStamp timestamp;
   
-  /** The final timestamp with optional padding. */
+  /** The timestamp with optional padding. */
   protected volatile TimeStamp end_timestamp;
   
   /** The current fallback timestamp for the next highest resolution data
@@ -165,16 +170,26 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   protected long fetch_start;
   
   /**
-   * Default ctor that parses the query, sets up rollups and sorts (and
-   * optionally salts) the TSUIDs.
+   * Default ctor.
+   */
+  public Tsdb1xMultiGet() {
+    timestamp = new SecondTimeStamp(-1);
+    end_timestamp = new SecondTimeStamp(-1);
+    fallback_timestamp = new SecondTimeStamp(-1);
+    tables = Lists.newArrayList();
+  }
+  
+  /**
+   * Reset that parses the query, sets up rollups and sorts (and optionally 
+   * salts) the TSUIDs.
    * @param node A non-null query node that owns this getter.
    * @param source_config A non-null source config.
    * @param tsuids A non-null and non-empty list of TSUIDs.
    * @throws IllegalArgumentException if the params were null or empty.
    */
-  public Tsdb1xMultiGet(final Tsdb1xHBaseQueryNode node, 
-                        final TimeSeriesDataSourceConfig source_config, 
-                        final List<byte[]> tsuids) {
+  public void reset(final Tsdb1xHBaseQueryNode node, 
+                    final TimeSeriesDataSourceConfig source_config, 
+                    final List<byte[]> tsuids) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -281,9 +296,12 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     
     // sentinel
     tsuid_idx = -1;
-    timestamp = getInitialTimestamp(rollup_index);
-    end_timestamp = reversed ? node.pipelineContext().query().startTime().getCopy() :
-        node.pipelineContext().query().endTime().getCopy();
+    setInitialTimestamp(rollup_index, timestamp);
+    if (reversed) {
+      end_timestamp.update(node.pipelineContext().query().startTime());
+    } else {
+      end_timestamp.update(node.pipelineContext().query().endTime());
+    }
     if (source_config.timeShifts() != null && 
         source_config.timeShifts().containsKey(source_config.getId())) {
       final Pair<Boolean, TemporalAmount> pair = 
@@ -300,7 +318,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     }
     
     if (rollups_enabled) {
-      tables = Lists.newArrayListWithCapacity(node.rollupIntervals().size() + 1);
       for (final RollupInterval interval : node.rollupIntervals()) {
         if (pre_aggregate) {
           tables.add(interval.getGroupbyTable());
@@ -310,7 +327,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
       tables.add(node.parent().dataTable());
     } else {
-      tables = Lists.newArrayList(node.parent().dataTable());
+      tables.add(node.parent().dataTable());
     }
     state = State.CONTINUE;
   }
@@ -353,12 +370,41 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   
   @Override
   public void close() {
-    // no-op
+    node = null;
+    source_config = null;
+    tsuids = null;
+    filter = null;
+    tables.clear();
+    current_result = null;
+    timestamp.updateEpoch(-1);
+    end_timestamp.updateEpoch(-1);
+    fallback_timestamp.updateEpoch(-1);
+    has_failed = false;
+    child = null;
+    outstanding = 0;
+    release();
   }
   
   @Override
   public State state() {
     return state;
+  }
+  
+  @Override
+  public Object object() {
+    return this;
+  }
+  
+  @Override
+  public void setPooledObject(final PooledObject pooled_object) {
+    this.pooled_object = pooled_object;
+  }
+  
+  @Override
+  public void release() {
+    if (pooled_object != null) {
+      pooled_object.release();
+    }
   }
   
   /**
@@ -418,16 +464,16 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     } else if (tsuid_idx >= 0) {
       tsuid_idx += batch_size;
-      if (ts == null) {
-        if (fallback_timestamp == null) {
-          fallback_timestamp = getInitialTimestamp(rollup_index);
+      if (ts.epoch() < 0) {
+        if (fallback_timestamp.epoch() < 0) {
+           setInitialTimestamp(rollup_index, fallback_timestamp);
         }
       }
     } else {
       tsuid_idx = 0;
-      if (ts == null) {
-        if (fallback_timestamp == null) {
-          fallback_timestamp = getInitialTimestamp(rollup_index);
+      if (ts.epoch() < 0) {
+        if (fallback_timestamp.epoch() < 0) {
+           setInitialTimestamp(rollup_index, fallback_timestamp);
         }
       }
     }
@@ -515,7 +561,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
               "Falling back to next highest resolution.");
         }
         tsuid_idx = 0;
-        fallback_timestamp = null;
+        fallback_timestamp.updateEpoch(-1);
         if (node.rollupUsage() == RollupUsage.ROLLUP_FALLBACK_RAW) {
           rollup_index = node.rollupIntervals().size();
         } else {
@@ -740,9 +786,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
               (interval.getIntervalSeconds() * interval.getIntervals()), interval));
         }
       } else {
-        if (fallback_timestamp == null) {
+        if (fallback_timestamp.epoch() < 0) {
           // initialize the timestamp
-          fallback_timestamp = getInitialTimestamp(rollup_index);
+          setInitialTimestamp(rollup_index, fallback_timestamp);
         } else if (rollup_index >= node.rollupIntervals().size()) {
 
           // it's raw
@@ -773,13 +819,15 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
    * either the raw table or a rollup table.
    * @param rollup_index An index determining if we work on the raw or
    * rollup table.
-   * @return The base timestamp.
+   * @param timestamp The timestamp to update.
    */
   @VisibleForTesting
-  TimeStamp getInitialTimestamp(final int rollup_index) {
-    final TimeStamp timestamp = reversed ? 
-        node.pipelineContext().query().endTime().getCopy() : 
-          node.pipelineContext().query().startTime().getCopy();
+  void setInitialTimestamp(final int rollup_index, final TimeStamp timestamp) {
+    if (reversed) {
+      timestamp.update(node.pipelineContext().query().endTime());
+    } else {
+      timestamp.update(node.pipelineContext().query().startTime().getCopy());
+    }
     if (source_config.timeShifts() != null && 
         source_config.timeShifts().containsKey(source_config.getId())) {
       final Pair<Boolean, TemporalAmount> pair = 
@@ -797,12 +845,12 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           .upstreamOfType(node, Rate.class);
       final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
-        return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval) * 1000L);      
+        timestamp.updateEpoch(RollupUtils.getRollupBasetime(
+            (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));     
       } else {
-        return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
+        timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
             (reversed ? node.pipelineContext().query().endTime().epoch() : 
-              node.pipelineContext().query().startTime().epoch()), interval) * 1000L);
+              node.pipelineContext().query().startTime().epoch()), interval));
       }
     } else {
       long ts = timestamp.epoch();
@@ -821,7 +869,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       
       // Don't return negative numbers.
       ts = ts > 0L ? ts : 0L;
-      return new MillisecondTimeStamp(ts * 1000);
+      timestamp.updateEpoch(ts);
     }
   }
 }
