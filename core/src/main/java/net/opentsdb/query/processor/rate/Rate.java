@@ -166,7 +166,7 @@ public class Rate extends AbstractQueryNode {
           iterators.add(((ProcessorFactory) Rate.this.factory()).newTypedIterator(
               type, 
               Rate.this, 
-              null,
+              RateResult.this,
               Lists.newArrayList(source)));
         }
         return iterators;
