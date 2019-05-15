@@ -1614,7 +1614,8 @@ final class TsdbQuery extends AbstractQuery {
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
-  long getScanEndTimeSeconds() {
+  @VisibleForTesting
+  protected long getScanEndTimeSeconds() {
     // Begin with the raw query end time.
     long end = getEndTime();
 
