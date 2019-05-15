@@ -241,30 +241,51 @@ public final class Internal {
       final byte[] qual = kv.qualifier();
       final int len = qual.length;
       final byte[] val = kv.value();
-      
-      if (len % 2 != 0) {
-        // skip a non data point column
-        continue;
-      } else if (len == 2) {  // Single-value cell.
-        // Maybe we need to fix the flags in the qualifier.
-        final byte[] actual_val = fixFloatingPointValue(qual[1], val);
-        final byte q = fixQualifierFlags(qual[1], actual_val.length);
-        final byte[] actual_qual;
-        
-        if (q != qual[1]) {  // We need to fix the qualifier.
-          actual_qual = new byte[] { qual[0], q };  // So make a copy.
-        } else {
-          actual_qual = qual;  // Otherwise use the one we already have.
+
+      // when enable_appends set to true, should get qualifier and value from the HBase Column Value
+      if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+        int idx = 0;
+        int q_length = 0;
+        int v_length = 0;
+        while (idx < kv.value().length) {
+          q_length = Internal.getQualifierLength(kv.value(), idx);
+          v_length = Internal.getValueLengthFromQualifier(kv.value(), idx);
+          final byte[] q = new byte[q_length];
+          final byte[] v = new byte[v_length];
+          System.arraycopy(kv.value(),idx,q,0,q_length);
+          System.arraycopy(kv.value(),idx + q_length,v, 0, v_length);
+          idx += q_length + v_length;
+
+          final Cell cell = new Cell(q, v);
+          cells.add(cell);
         }
-        
-        final Cell cell = new Cell(actual_qual, actual_val);
-        cells.add(cell);
         continue;
-      } else if (len == 4 && inMilliseconds(qual[0])) {
-        // since ms support is new, there's nothing to fix
-        final Cell cell = new Cell(qual, val);
-        cells.add(cell);
-        continue;
+      } else {
+
+        if (len % 2 != 0) {
+          // skip a non data point column
+          continue;
+        } else if (len == 2) {  // Single-value cell.
+          // Maybe we need to fix the flags in the qualifier.
+          final byte[] actual_val = fixFloatingPointValue(qual[1], val);
+          final byte q = fixQualifierFlags(qual[1], actual_val.length);
+          final byte[] actual_qual;
+
+          if (q != qual[1]) {  // We need to fix the qualifier.
+            actual_qual = new byte[]{qual[0], q};  // So make a copy.
+          } else {
+            actual_qual = qual;  // Otherwise use the one we already have.
+          }
+
+          final Cell cell = new Cell(actual_qual, actual_val);
+          cells.add(cell);
+          continue;
+        } else if (len == 4 && inMilliseconds(qual[0])) {
+          // since ms support is new, there's nothing to fix
+          final Cell cell = new Cell(qual, val);
+          cells.add(cell);
+          continue;
+        }
       }
       
       // Now break it down into Cells.
