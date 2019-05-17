@@ -83,6 +83,8 @@ import net.opentsdb.utils.Exceptions;
  * When resolving filters, it's possible to ignore UIDs that fail to
  * resolve to a name by setting the {@link #skip_nsui} flag.
  * 
+ * TODO - handle reverse scanning for push queries.
+ * 
  * @since 3.0
  */
 public class Tsdb1xScanner implements CloseablePooledObject {
@@ -840,7 +842,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
 
   /**
    * WARNING: Only call this single threaded!
-   * @param row
+   * @param row the row to process.
    */
   private void processPushRow(final ArrayList<KeyValue> row) {
     try {

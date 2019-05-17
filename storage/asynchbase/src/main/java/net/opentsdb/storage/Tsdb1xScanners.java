@@ -187,10 +187,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   
   /** A map of hashes to time series IDs for the sets. */
   protected TLongObjectMap<TimeSeriesId> ts_ids;
-  
-  /** Used for fallbacks. */
-  protected AtomicBoolean had_data;
-  
+    
   /**
    * Resets the cached scanners object.
    * @param node A non-null parent node.
@@ -1026,7 +1023,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
         num_sets = 1;
       }
     } else {
-      num_sets = (int) (end_epoch - start_epoch) / 3600;
+      num_sets = (int) (end_epoch - start_epoch) / Schema.MAX_RAW_TIMESPAN;
       if (num_sets <= 0) {
         num_sets = 1;
       }
@@ -1038,7 +1035,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map = 
         new TLongObjectHashMap<Tsdb1xPartialTimeSeriesSet>();
     
-    final Duration duration = interval == null ? Duration.ofSeconds(3600) : 
+    final Duration duration = interval == null ? Duration.ofSeconds(Schema.MAX_RAW_TIMESPAN) : 
         Duration.ofSeconds(interval.getIntervals() * interval.getIntervalSeconds());
     durations.set(scanners_index, duration);
     TimeStamp start = new SecondTimeStamp(start_epoch);

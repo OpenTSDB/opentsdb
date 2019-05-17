@@ -17,16 +17,22 @@ package net.opentsdb.storage;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.CompareFilter;
 import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
 import org.hbase.async.GetResultOrException;
+import org.hbase.async.KeyValue;
 import org.hbase.async.QualifierFilter;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.FilterList.Operator;
@@ -39,11 +45,17 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
+import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryNode;
@@ -55,6 +67,10 @@ import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.TSUID;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeries;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
@@ -89,6 +105,8 @@ import net.opentsdb.utils.Pair;
  * TODO - room for optimization here. E.g. we expect a decent number of
  * TSUIDs. If it's small then we'd potentially have only one or two 
  * GetRequests per batch.
+ * TODO - fix push for reverse.
+ * TODO - fix segment start/end
  * 
  * @since 2.4
  */
@@ -119,10 +137,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   
   /** A rollup column filter when fetching rollup data. */
   protected ScanFilter filter;
-  
-  /** Whether or not rollups were enabled for this query. */
-  protected boolean rollups_enabled;
-  
+    
   /** The list of rollup/pre-agg and raw tables we need to query. */
   protected List<byte[]> tables;
   
@@ -139,10 +154,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   /** The timestamp with optional padding. */
   protected volatile TimeStamp end_timestamp;
   
-  /** The current fallback timestamp for the next highest resolution data
-   * we're querying when falling back. May be null. */
-  protected volatile TimeStamp fallback_timestamp;
-  
   /** Index into the {@link Tsdb1xHBaseQueryNode#rollupIntervals()} that we're
    * working on. -1 means we're query raw only, 0 or more means we're
    * working with rollups. A value >= the rollup intervals size means we've
@@ -151,11 +162,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   protected volatile int rollup_index;
   
   /** The number of outstanding batches inflight. */
-  protected volatile int outstanding;
+  protected AtomicInteger outstanding;
   
   /** Whether or not the query has failed, i.e. a batch returned an
    * exception. */
-  protected volatile boolean has_failed;
+  protected AtomicBoolean has_failed;
   
   /** The current result to write data into. */
   protected volatile Tsdb1xQueryResult current_result;
@@ -169,14 +180,41 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   /** Tracking time. */
   protected long fetch_start;
   
+  /** A flag to determine whether or not all of the batches were sent for this
+   * request. */
+  protected AtomicBoolean all_batches_sent;
+  
+  /** The aligned start timestamp of the query, used for indices calculations. */
+  protected TimeStamp start_ts;
+  
+  /** The interval used for indices calculations. */
+  protected long interval;
+  
+  /** The array of sets. */
+  protected AtomicReferenceArray<Tsdb1xPartialTimeSeriesSet> sets;
+  
+  /** How many batches were sent per set. Used to determine if we've seen all
+   * of the results for a set and whether or not we should fill. */
+  protected AtomicIntegerArray batches_per_set;
+  
+  /** How many batches have responded. */
+  protected AtomicIntegerArray finished_batches_per_set;
+  
+  /** A map of hashes to time series IDs for the sets. */
+  protected TLongObjectMap<TimeSeriesId> ts_ids;
+  
   /**
    * Default ctor.
    */
   public Tsdb1xMultiGet() {
+    start_ts = new SecondTimeStamp(-1);
     timestamp = new SecondTimeStamp(-1);
     end_timestamp = new SecondTimeStamp(-1);
-    fallback_timestamp = new SecondTimeStamp(-1);
     tables = Lists.newArrayList();
+    has_failed = new AtomicBoolean();
+    all_batches_sent = new AtomicBoolean();
+    outstanding = new AtomicInteger();
+    ts_ids = new TLongObjectHashMap<TimeSeriesId>();
   }
   
   /**
@@ -268,7 +306,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     if (node.rollupIntervals() != null && 
         !node.rollupIntervals().isEmpty() && 
         node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
-      rollups_enabled = true;
       rollup_index = 0;
       
       final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
@@ -290,34 +327,20 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       }
     } else {
       rollup_index = -1;
-      rollups_enabled = false;
       filter = null;
     }
     
-    // sentinel
-    tsuid_idx = -1;
-    setInitialTimestamp(rollup_index, timestamp);
-    if (reversed) {
-      end_timestamp.update(node.pipelineContext().query().startTime());
-    } else {
-      end_timestamp.update(node.pipelineContext().query().endTime());
-    }
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
-      if (pair.getKey()) {
-        end_timestamp.subtract(pair.getValue());
-      } else {
-        end_timestamp.add(pair.getValue());
-      }
+    has_failed.set(false);
+    outstanding.set(0);
+    tsuid_idx = 0;
+    setInitialTimestamp();
+    setEndTimestamps();
+    
+    if (node.push()) {
+      setupSets();
     }
     
-    if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
-      end_timestamp.add(DateTime.parseDuration2(source_config.getPostPadding()));
-    }
-    
-    if (rollups_enabled) {
+    if (rollup_index >= 0) {
       for (final RollupInterval interval : node.rollupIntervals()) {
         if (pre_aggregate) {
           tables.add(interval.getGroupbyTable());
@@ -333,15 +356,15 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   }
   
   @Override
-  public synchronized void fetchNext(final Tsdb1xQueryResult result, 
-                                     final Span span) {
+  public void fetchNext(final Tsdb1xQueryResult result, 
+                        final Span span) {
     if (fetch_start == 0) {
       fetch_start = DateTime.nanoTime();
     }
-    if (result == null) {
+    if (!node.push() && result == null) {
       throw new IllegalArgumentException("Result cannot be null.");
     }
-    if (current_result != null) {
+    if (!node.push() && current_result != null) {
       throw new IllegalStateException("Result cannot be set!");
     }
     current_result = result;
@@ -355,16 +378,10 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           + tsuids.size() + " TSUIDs and a concurrency of " + concurrency_multi_get);
     }
     
-    while (outstanding < concurrency_multi_get && !advance() && !has_failed) {
-      outstanding++;
-      nextBatch(tsuid_idx, (int) timestamp.epoch(), child);
-    }
-    
-    // see if we're all done
-    if (outstanding == 0 && current_result != null && !has_failed) {
-      final Tsdb1xQueryResult temp = current_result;
-      current_result = null;
-      node.onNext(temp);
+    while (outstanding.get() < concurrency_multi_get && 
+           !all_batches_sent.get() && 
+           !has_failed.get()) {
+      nextBatch(child);
     }
   }
   
@@ -378,10 +395,23 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     current_result = null;
     timestamp.updateEpoch(-1);
     end_timestamp.updateEpoch(-1);
-    fallback_timestamp.updateEpoch(-1);
-    has_failed = false;
+    all_batches_sent.set(false);
+    has_failed.set(false);
     child = null;
-    outstanding = 0;
+    outstanding.set(0);
+    tsuid_idx = -1;
+    if (sets != null) {
+      for (int i = 0; i < sets.length(); i++) {
+        final Tsdb1xPartialTimeSeriesSet set = sets.get(i);
+        if (set != null) {
+          try {
+            set.close();
+          } catch (Exception e) {
+            LOG.error("Failed to close out set", e);
+          }
+        }
+      }
+    }
     release();
   }
   
@@ -408,102 +438,32 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   }
   
   /**
-   * Increments the timestamp(s) and/or {@link #tsuid_idx}.
-   * @return True if there is more data to fetch, false if we should 
-   * stop due to either reaching the end of the query or the end of
-   * the segment.
-   */
-  @VisibleForTesting
-  boolean advance() {
-    TimeStamp ts;
-    if (rollups_enabled && rollup_index > 0) {
-      ts = fallback_timestamp;
-
-    } else {
-      // raw
-      ts = timestamp;
-    }
-    
-    if (node.sequenceEnd() != null) {
-      if (ts != null && ts.compare((reversed ? Op.LT : Op.GT), 
-          node.sequenceEnd())) {
-        tsuid_idx = -1;
-        // DONE with segment
-        return true;
-      }
-    }
-    if (ts != null && (reversed ? 
-        ts.compare(Op.LT, end_timestamp) : 
-        ts.compare(Op.GT, end_timestamp))) {
-      // DONE with query!
-      return true;
-    }
-
-    if (tsuid_idx >= 0 && tsuid_idx + batch_size >= tsuids.size()) {
-      tsuid_idx = 0;
-      
-      incrementTimestamp();
-      if (ts == null) {
-        ts = fallback_timestamp;
-      }
-      
-      if (node.sequenceEnd() != null) {
-        if (ts.compare((reversed ? Op.LT : Op.GT), 
-            node.sequenceEnd())) {
-          tsuid_idx = -1;
-          // DONE with segment
-
-          return true;
-        }
-      }
-      if (reversed ? 
-          ts.compare(Op.LT, end_timestamp) : 
-          ts.compare(Op.GT, end_timestamp)) {
-        // DONE with query!
-        return true;
-      }
-    } else if (tsuid_idx >= 0) {
-      tsuid_idx += batch_size;
-      if (ts.epoch() < 0) {
-        if (fallback_timestamp.epoch() < 0) {
-           setInitialTimestamp(rollup_index, fallback_timestamp);
-        }
-      }
-    } else {
-      tsuid_idx = 0;
-      if (ts.epoch() < 0) {
-        if (fallback_timestamp.epoch() < 0) {
-           setInitialTimestamp(rollup_index, fallback_timestamp);
-        }
-      }
-    }
-    
-    return false;
-  }
-  
-  /**
    * Called when a batch encountered or threw an exception.
    * @param t A non-null exception.
    */
   @VisibleForTesting
-  synchronized void onError(final Throwable t) {
-    if (!has_failed) {
-      has_failed = true;
+  void onError(final Throwable t) {
+    if (has_failed.compareAndSet(false, true)) {
       if (child != null) {
         child.setErrorTags(t)
              .finish();
       }
+      LOG.error("Unexpected exception", t);
       node.pipelineContext().queryContext().logError(node, 
           "Multiget query failed with exception: " + t.getMessage());
       state = State.EXCEPTION;
-      current_result.setException(t);
-      final QueryResult result = current_result;
-      current_result = null;
-      outstanding = 0;
-      node.onNext(result);
+        if (!node.push()) {
+        current_result.setException(t);
+        final QueryResult result = current_result;
+        current_result = null;
+        outstanding.set(0);
+        node.onNext(result);
+      } else {
+        node.onError(t);
+      }
     } else {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Exception from followup get", t);
+        LOG.debug("Exception from follow up get", t);
       }
     }
   }
@@ -514,99 +474,89 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
    * also handles fallback to higher resolution data.
    */
   @VisibleForTesting
-  synchronized void onComplete() {
-    if (has_failed || current_result == null) {
-      // nothing to do if we already failed or called upstream.
-      return;
-    }
-    
-    if (current_result.isFull()) {
-      if (outstanding <= 0) {
-        final QueryResult result = current_result;
-        current_result = null;
-        if (child != null) {
-          child.setSuccessTags().finish();
-        }
-        state = State.COMPLETE;
-        node.onNext(result);
+  void onComplete(final int index) {
+    try {
+      if (has_failed.get() || (!node.push() && current_result == null)) {
+        // nothing to do if we already failed or called upstream.
+        return;
       }
       
-      // if we sent upstream, good. If not then we need to wait for the
-      // remaining runs to complete
-      return;
-    }
-    
-    // if there are more things to run then do it
-    if (outstanding < concurrency_multi_get && !advance()) {
-      final int ts;
-      if (rollups_enabled && rollup_index > 0) {
-        ts = (int) fallback_timestamp.epoch();
-      } else {
-        ts = (int) timestamp.epoch();
-      }
-      final int idx = tsuid_idx;
-      outstanding++;
-      nextBatch(idx, ts, child);
-      return;
-    }
-    
-    if (outstanding <= 0) {
-      // we're done. Possibly....
-      if ((current_result.timeSeries() == null || 
-          current_result.timeSeries().isEmpty()) && 
-          rollups_enabled && node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
-        // we can fallback!
-        if (node.pipelineContext().query().isDebugEnabled()) {
-          node.pipelineContext().queryContext().logDebug(node,
-              "Falling back to next highest resolution.");
-        }
-        tsuid_idx = 0;
-        fallback_timestamp.updateEpoch(-1);
-        if (node.rollupUsage() == RollupUsage.ROLLUP_FALLBACK_RAW) {
-          rollup_index = node.rollupIntervals().size();
-        } else {
-          rollup_index++;
-        }
-
-        if (rollup_index >= tables.size()) {
-          // no fallback, we're done.
+      if (!node.push() && current_result.isFull()) {
+        if (outstanding.get() <= 0) {
           final QueryResult result = current_result;
           current_result = null;
           if (child != null) {
             child.setSuccessTags().finish();
           }
-          if (node.pipelineContext().query().isTraceEnabled()) {
-            node.pipelineContext().queryContext().logTrace(node, 
-                "Finished multi-get query in: " 
-                    + DateTime.msFromNanoDiff(DateTime.nanoTime(), fetch_start));
-          }
           state = State.COMPLETE;
           node.onNext(result);
-          return;
         }
-        while (outstanding < concurrency_multi_get && !advance() && !has_failed) {
-          outstanding++;
-          nextBatch(tsuid_idx, (int) fallback_timestamp.epoch(), child);
-        }
-      } else {
-        // no fallback, we're done.
-        final QueryResult result = current_result;
-        current_result = null;
-        if (child != null) {
-          child.setSuccessTags().finish();
-        }
-        if (node.pipelineContext().query().isTraceEnabled()) {
-          node.pipelineContext().queryContext().logTrace(node, 
-              "Finished multi-get query in: " 
-                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), fetch_start));
-        }
-        state = State.COMPLETE;
-        node.onNext(result);
+        
+        // if we sent upstream, good. If not then we need to wait for the
+        // remaining runs to complete
         return;
       }
+      
+      // if there are more things to run then do it
+      if (outstanding.get() < concurrency_multi_get && !all_batches_sent.get()) {
+        nextBatch(child);
+        
+        // Make sure this happens AFTER we send another batch as we want to
+        // avoid the race to inc and dec.
+        if (node.push() && index >= 0) {
+          if (batches_per_set.get(index) == 
+              finished_batches_per_set.incrementAndGet(index)) {
+            getSet(index).setCompleteAndEmpty(rollup_index < 0);
+          }
+        }
+        return;
+      }
+      
+      if (outstanding.get() <= 0 && all_batches_sent.get()) {
+        // if no data, see if we can fallback
+        if (!haveData() && 
+            rollup_index >= 0 && 
+            node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
+          fallback();
+        } else if (!has_failed.get()) {
+          // all done
+          if (node.push()) {
+            for (int i = 0; i < sets.length(); i++) {
+              final Tsdb1xPartialTimeSeriesSet set = getSet(i);
+              if (!set.complete()) {
+                set.setCompleteAndEmpty(true);
+              }
+            }
+            if (node.pipelineContext().query().isTraceEnabled()) {
+              node.pipelineContext().queryContext().logTrace(node, 
+                  "Finished multi-get query in: " 
+                      + DateTime.msFromNanoDiff(DateTime.nanoTime(), fetch_start));
+            }
+            state = State.COMPLETE;
+          } else {
+            // no fallback, we're done.
+            final QueryResult result = current_result;
+            current_result = null;
+            if (child != null) {
+              child.setSuccessTags().finish();
+            }
+            if (node.pipelineContext().query().isTraceEnabled()) {
+              node.pipelineContext().queryContext().logTrace(node, 
+                  "Finished multi-get query in: " 
+                      + DateTime.msFromNanoDiff(DateTime.nanoTime(), fetch_start));
+            }
+            state = State.COMPLETE;
+            node.onNext(result);
+          }
+        }
+      }
+      // otherwise don't fire another one off till more have completed.
+    } catch (Throwable t) {
+      t.printStackTrace();
+      System.out.println("WTF?");
+//      LOG.error("Failure trying to complete a batch", t);
+//      onError(t);
     }
-    
-    // otherwise don't fire another one off till more have completed.
   }
 
   /**
@@ -626,13 +576,13 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     @Override
     public Void call(final List<GetResultOrException> results)
         throws Exception {
-      synchronized (Tsdb1xMultiGet.this) {
-        outstanding--;
-      }
-      if (has_failed) {
+      outstanding.decrementAndGet();
+      if (has_failed.get()) {
         return null;
       }
       
+      int index = -1;
+      TimeStamp base_ts = new SecondTimeStamp(0);
       for (final GetResultOrException result : results) {
         if (result.getException() != null) {
           if (span != null) {
@@ -646,18 +596,26 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           continue;
         }
         
-        if (current_result != null) {
-          current_result.decode(result.getCells(), 
-              (rollup_index < 0 || 
-               rollup_index >= node.rollupIntervals().size() 
-                 ? null : node.rollupIntervals().get(rollup_index)));
+        if (node.push()) {
+          if (index < 0) {
+            node.schema().baseTimestamp(result.getCells().get(0).key(), base_ts);
+            index = (int) ((base_ts.epoch() - start_ts.epoch()) / interval);
+          }
+          processPushRow(result.getCells(), index, base_ts);
+        } else {
+          if (current_result != null) {
+            current_result.decode(result.getCells(), 
+                (rollup_index < 0 || 
+                 rollup_index >= node.rollupIntervals().size() 
+                   ? null : node.rollupIntervals().get(rollup_index)));
+          }
         }
       }
       
       if (span != null) {
         span.setSuccessTags().finish();
       }
-      onComplete();
+      onComplete(index);
       return null;
     }
   }
@@ -680,7 +638,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     @Override
     public Object call(final Exception ex) throws Exception {
       synchronized (Tsdb1xMultiGet.this) {
-        outstanding--;
+        outstanding.decrementAndGet();
       }
       
       if (span != null) {
@@ -699,38 +657,67 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
    * @param timestamp The timestamp for each row key.
    */
   @VisibleForTesting
-  void nextBatch(final int tsuid_idx, 
-                 final int timestamp, 
-                 final Span span) {
+  void nextBatch(final Span span) {
+    int idx;
+    int local_ts;
+    synchronized (this) {
+      if (tsuid_idx < 0) {
+        // sentinel to increment the timestamp
+        incrementTimestamp();
+        tsuid_idx = 0;
+        if (timestamp.compare(Op.GT, end_timestamp)) {
+          // finished the whole query
+          all_batches_sent.set(true);
+          onComplete(-1);
+          return;
+        }
+        
+        if (node.sequenceEnd() != null && 
+            timestamp.compare(Op.EQ, node.sequenceEnd())) {
+          // finished a sequence so don't launch any more.
+          return;
+        }
+      }
+      
+      idx = tsuid_idx;
+      if (tsuid_idx + batch_size >= tsuids.size()) {
+        // this is the last set of TSUIDs for this timestamp.
+        tsuid_idx = -1;
+      } else {
+        tsuid_idx += batch_size;
+      }
+      local_ts = (int) timestamp.epoch();
+    }
+    
     final Span child;
     if (span != null) {
       child = span.newChild(getClass() + "nextBatch()")
           .withTag("batchSize", batch_size)
           .withTag("startTsuidIdx", tsuid_idx)
-          .withTag("startTimestamp", timestamp)
+          .withTag("startTimestamp", timestamp.epoch())
           .start();
     } else {
       child = null;
     }
     final List<GetRequest> requests = Lists.newArrayListWithCapacity(batch_size);
-    final byte[] table = rollups_enabled ? tables.get(rollup_index) : tables.get(0);
-    
+    final byte[] table = rollup_index >= 0 ? tables.get(rollup_index) : 
+      tables.get(tables.size() - 1);
     // TODO - it would be extra nice to know the region splits so we 
     // can batch better. In this case we may have some split between regions.
-    for (int i = tsuid_idx; i < tsuid_idx + batch_size && i < tsuids.size(); i++) {
+    for (int i = idx; i < idx + batch_size && i < tsuids.size(); i++) {
       final byte[] tsuid = tsuids.get(i);
       
       final byte[] key;
       if (node.schema().saltWidth() > 0 && node.schema().timelessSalting()) {
         key = Arrays.copyOf(tsuid, tsuid.length);
-        node.schema().setBaseTime(key, timestamp);
+        node.schema().setBaseTime(key, local_ts);
       } else {
         key = new byte[tsuid.length + node.schema().saltWidth() + 
                                       Schema.TIMESTAMP_BYTES];
         
         System.arraycopy(tsuid, 0, key, node.schema().saltWidth(), 
             node.schema().metricWidth());
-        System.arraycopy(Bytes.fromInt((int) timestamp), 0, key, 
+        System.arraycopy(Bytes.fromInt(local_ts), 0, key, 
             node.schema().saltWidth() + node.schema().metricWidth(), 
               Schema.TIMESTAMP_BYTES);
         System.arraycopy(tsuid, node.schema().metricWidth(), key, 
@@ -739,7 +726,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
             tsuid.length - node.schema().metricWidth());
         node.schema().prefixKeyWithSalt(key);
       }
-      
       final GetRequest request = new GetRequest(table, key, 
           Tsdb1xHBaseDataStore.DATA_FAMILY);
       if (rollup_index > -1 &&
@@ -750,6 +736,12 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       requests.add(request);
     }
     
+    outstanding.incrementAndGet();
+    if (node.push()) {
+      int index = (int) ((local_ts - start_ts.epoch()) / interval);
+      batches_per_set.incrementAndGet(index);
+    }
+    
     try {
       final Deferred<List<GetResultOrException>> deferred = 
           node.parent().client().get(requests);
@@ -758,7 +750,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
                 .addErrback(error_cb);
       } else {
         deferred.addCallback(new ResponseCB(child))
-        .addErrback(new ErrorCB(child));
+                .addErrback(new ErrorCB(child));
       }
     } catch (Exception e) {
       LOG.error("Unexpected exception", e);
@@ -772,62 +764,36 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
    */
   @VisibleForTesting
   void incrementTimestamp() {
-    if (rollups_enabled) {
-      if (rollup_index == 0) {
-        final RollupInterval interval = 
-            node.rollupIntervals().get(rollup_index);
-        if (reversed) {
-          timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-              timestamp.epoch() - 
-              (interval.getIntervalSeconds() * interval.getIntervals()), interval));
-        } else {
-          timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-              timestamp.epoch() + 
-              (interval.getIntervalSeconds() * interval.getIntervals()), interval));
-        }
+    if (rollup_index >= 0) {
+      final RollupInterval interval = 
+          node.rollupIntervals().get(rollup_index);
+      if (reversed) {
+        timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
+            timestamp.epoch() - 
+            (interval.getIntervalSeconds() * interval.getIntervals()), interval));
       } else {
-        if (fallback_timestamp.epoch() < 0) {
-          // initialize the timestamp
-          setInitialTimestamp(rollup_index, fallback_timestamp);
-        } else if (rollup_index >= node.rollupIntervals().size()) {
-
-          // it's raw
-          fallback_timestamp.add(Duration.of(
-              (reversed ? - 1 : 1), ChronoUnit.HOURS));
-        } else {
-          final RollupInterval interval =
-              node.rollupIntervals().get(rollup_index);
-          if (reversed) {
-            fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-                fallback_timestamp.epoch() - 
-                (interval.getIntervalSeconds() * interval.getIntervals()), interval));
-          } else {
-            fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-                fallback_timestamp.epoch() + 
-                (interval.getIntervalSeconds() * interval.getIntervals()), interval));
-          }
-        }
+        timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
+            timestamp.epoch() + 
+            (interval.getIntervalSeconds() * interval.getIntervals()), interval));
       }
     } else {
       timestamp.add(Duration.of(
-          (reversed ? -1 : 1), ChronoUnit.HOURS));
+          (reversed ? - 1 : 1), ChronoUnit.HOURS));
     }
   }
   
   /**
    * Generates the initial timestamp based on the query and aligned to
    * either the raw table or a rollup table.
-   * @param rollup_index An index determining if we work on the raw or
-   * rollup table.
-   * @param timestamp The timestamp to update.
    */
   @VisibleForTesting
-  void setInitialTimestamp(final int rollup_index, final TimeStamp timestamp) {
+  void setInitialTimestamp() {
     if (reversed) {
       timestamp.update(node.pipelineContext().query().endTime());
     } else {
-      timestamp.update(node.pipelineContext().query().startTime().getCopy());
+      timestamp.update(node.pipelineContext().query().startTime());
     }
+    
     if (source_config.timeShifts() != null && 
         source_config.timeShifts().containsKey(source_config.getId())) {
       final Pair<Boolean, TemporalAmount> pair = 
@@ -839,7 +805,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       }
     }
     
-    if (rollups_enabled && rollup_index >= 0 && 
+    if (rollup_index >= 0 && 
         rollup_index < node.rollupIntervals().size()) {
       final Collection<QueryNode> rates = node.pipelineContext()
           .upstreamOfType(node, Rate.class);
@@ -855,21 +821,256 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     } else {
       long ts = timestamp.epoch();
       if (!(Strings.isNullOrEmpty(source_config.getPrePadding()))) {
-        final long interval = DateTime.parseDuration(source_config.getPrePadding());
-        if (interval > 0) {
-          final long interval_offset = (1000L * ts) % interval;
-          ts -= interval_offset / 1000L;
+        final long padding = DateTime.parseDuration(source_config.getPrePadding());
+        if (padding > 0) {
+          ts -= padding / 1000L;
         }
       }
       
       // Then snap that timestamp back to its representative value for the
       // timespan in which it appears.
-      final long timespan_offset = ts % Schema.MAX_RAW_TIMESPAN;
-      ts -= timespan_offset;
+      ts -= ts % Schema.MAX_RAW_TIMESPAN;
       
       // Don't return negative numbers.
       ts = ts > 0L ? ts : 0L;
       timestamp.updateEpoch(ts);
+    }
+  }
+  
+  /**
+   * Method to fallback to the next highest resolution and/or raw table.
+   */
+  private void fallback() {
+    // we can fallback!
+    if (node.pipelineContext().query().isDebugEnabled()) {
+      node.pipelineContext().queryContext().logDebug(node,
+          "Falling back to next highest resolution.");
+    }
+    
+    if (++rollup_index >= node.rollupIntervals().size()) {
+      rollup_index = -1;
+    }
+    setInitialTimestamp();
+    setEndTimestamps();
+    tsuid_idx = 0;
+    all_batches_sent.set(false);
+    
+    if (node.pipelineContext().query().isTraceEnabled()) {
+      node.pipelineContext().queryContext().logTrace(node, "Falling back to get "
+          + "data from " + new String(
+              rollup_index >= 0 ? tables.get(rollup_index) : tables.get(0)));
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Falling back to get "
+          + "data from " + new String(
+              rollup_index >= 0 ? tables.get(rollup_index) : tables.get(0)));
+      }
+    }
+    
+    if (node.push()) {
+      for (int i = 0; i < sets.length(); i++) {
+        try {
+          if (sets.get(i) != null) {
+            sets.get(i).close();
+          }
+        } catch (Exception e) {
+          LOG.error("Unexpected exception closing set", e);
+        }
+      }
+      
+      setupSets();
+    }
+    
+    while (outstanding.get() < concurrency_multi_get && 
+           !all_batches_sent.get() &&
+           !has_failed.get()) {
+      nextBatch(child);
+    }
+  }
+  
+  /**
+   * Processes data for a push row.
+   * @param row The non-null row to process.
+   * @param index The computed set index.
+   * @param base_ts The base timestamp from the row key.
+   */
+  private void processPushRow(final ArrayList<KeyValue> row, 
+                              final int index, 
+                              final TimeStamp base_ts) {
+    try {
+      final byte[] tsuid = node.schema().getTSUID(row.get(0).key());
+      final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+      
+      synchronized (ts_ids) {
+        if (!ts_ids.containsKey(hash)) {
+          ts_ids.put(hash, new TSUID(tsuid, node.schema()));
+        }
+      }
+      final RollupInterval interval = rollup_index >= 0 ? 
+          node.rollupIntervals().get(rollup_index) : null;
+      
+      Tsdb1xPartialTimeSeriesSet set = getSet(index);
+      Tsdb1xPartialTimeSeries pts = null;
+      for (final KeyValue column : row) {
+        if (rollup_index < 0 && (column.qualifier().length & 1) == 0) {
+          // it's a NumericDataType
+          if (!node.fetchDataType((byte) 0)) {
+            // filter doesn't want #'s
+            // TODO - dropped counters
+            continue;
+          }
+          if (pts == null) {
+            pts = node.schema().newSeries(
+                NumericLongArrayType.TYPE, 
+                base_ts, 
+                hash, 
+                set, 
+                interval);
+          }
+          pts.addColumn((byte) 0,
+                        column.qualifier(), 
+                        column.value());
+        } else if (rollup_index < 0) {
+          final byte prefix = column.qualifier()[0];
+          
+          if (prefix == Schema.APPENDS_PREFIX) {
+            if (!node.fetchDataType((byte) 1)) {
+              // filter doesn't want #'s
+              continue;
+            } else {
+              if (pts == null) {
+                pts = node.schema().newSeries(
+                    NumericLongArrayType.TYPE, 
+                    base_ts, 
+                    hash, 
+                    set, 
+                    null);
+              }
+              pts.addColumn(Schema.APPENDS_PREFIX,
+                            column.qualifier(), 
+                            column.value());
+            }
+          } else if (node.fetchDataType(prefix)) {
+            // TODO - find the right type
+          } else {
+            // TODO - log drop
+          }
+        } else {
+          // Only numerics are rolled up right now. And we shouldn't have
+          // a rollup query if the user doesn't want rolled-up data.
+          if (pts == null) {
+            pts = node.schema().newSeries(
+                NumericByteArraySummaryType.TYPE, 
+                base_ts, 
+                hash, 
+                set, 
+                interval);
+          }
+          pts.addColumn((byte) 0,
+                        column.qualifier(), 
+                        column.value());
+        }
+      }
+      set.increment(pts, false);
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception processing a row", t);
+      throw t;
+    }
+  }
+  
+  /** @return Whether or not data was found during the gets. */
+  private boolean haveData() {
+    if (node.push()) {
+      return node.sentData();
+    } else {
+      return current_result.timeSeries() != null && 
+             !current_result.timeSeries().isEmpty();
+    }
+  }
+  
+  /**
+   * Fetches or creates the proper set at the given index.
+   * @param index The index of the set.
+   * @return A set.
+   */
+  private Tsdb1xPartialTimeSeriesSet getSet(final int index) {
+    Tsdb1xPartialTimeSeriesSet set = sets.get(index);
+    if (set == null) {
+      TimeStamp start = new SecondTimeStamp(start_ts.epoch() + (interval * index));
+      TimeStamp end = new SecondTimeStamp(start_ts.epoch() + (interval * index) + interval);
+      set = (Tsdb1xPartialTimeSeriesSet) 
+          node.parent().tsdb().getRegistry()
+          .getObjectPool(Tsdb1xPartialTimeSeriesSetPool.TYPE)
+          .claim().object();
+      set.reset(node, 
+          start, 
+          end, 
+          node.rollupUsage(),
+          1, 
+          sets.length(), 
+          ts_ids);
+      if (!sets.compareAndSet(index, null, set)) {
+        // lost the race
+        try {
+          set.close();
+        } catch (Exception e) {
+          LOG.error("Failed to close a set.", e);
+        }
+        set = sets.get(index);
+      }
+    }
+    return set;
+  }
+  
+  /**
+   * When pushing data, computes the size of arrays and snaps the end timestamp
+   * to the proper value.
+   */
+  private void setupSets() {
+    if (reversed) {
+      throw new UnsupportedOperationException("Reverse not supported yet.");
+    }
+    start_ts.update(timestamp);
+    // snap end
+    if (rollup_index >= 0) {
+      final RollupInterval rollup_interval = node.rollupIntervals().get(rollup_index);
+      interval = rollup_interval.getIntervalSeconds() * 
+          rollup_interval.getIntervals();
+      end_timestamp.updateEpoch(RollupUtils.getRollupBasetime(
+          end_timestamp.epoch(), rollup_interval));
+    } else {
+      interval = Schema.MAX_RAW_TIMESPAN;
+      long end = end_timestamp.epoch();
+      end_timestamp.updateEpoch(end - (end % Schema.MAX_RAW_TIMESPAN));
+    }
+    
+    final long indices = ((end_timestamp.epoch() - start_ts.epoch()) / interval) + 1;
+    sets = new AtomicReferenceArray<Tsdb1xPartialTimeSeriesSet>((int) indices);
+    batches_per_set = new AtomicIntegerArray((int) indices);
+    finished_batches_per_set = new AtomicIntegerArray((int) indices);
+  }
+  
+  /**
+   * Helper to set the end timestamp.
+   */
+  private void setEndTimestamps() {
+    if (reversed) {
+      end_timestamp.update(node.pipelineContext().query().startTime());
+    } else {
+      end_timestamp.update(node.pipelineContext().query().endTime());
+    }
+    if (source_config.timeShifts() != null && 
+        source_config.timeShifts().containsKey(source_config.getId())) {
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts().get(source_config.getId());
+      if (pair.getKey()) {
+        end_timestamp.subtract(pair.getValue());
+      } else {
+        end_timestamp.add(pair.getValue());
+      }
+    }
+    
+    if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
+      end_timestamp.add(DateTime.parseDuration2(source_config.getPostPadding()));
     }
   }
 }

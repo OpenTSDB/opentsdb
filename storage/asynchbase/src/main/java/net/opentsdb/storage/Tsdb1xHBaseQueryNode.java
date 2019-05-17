@@ -231,12 +231,15 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
       }
     }
 
-    executor.fetchNext(new Tsdb1xQueryResult(
-          sequence_id.getAndIncrement(), 
-          Tsdb1xHBaseQueryNode.this, 
-          parent.schema()), 
-    span);
-
+    if (push) {
+      executor.fetchNext(null, span);
+    } else {
+      executor.fetchNext(new Tsdb1xQueryResult(
+            sequence_id.getAndIncrement(), 
+            Tsdb1xHBaseQueryNode.this, 
+            parent.schema()), 
+      span);
+    }
   }
   
   @Override
@@ -656,22 +659,26 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
       }
       
       synchronized (this) {
-        executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
-            Tsdb1xMultiGetPool.TYPE).claim().object();
-        ((Tsdb1xMultiGet) executor).reset(
-            Tsdb1xHBaseQueryNode.this, 
-            config, 
-            tsuids);
         if (initialized.compareAndSet(false, true)) {
           if (child != null) {
             child.setSuccessTags()
                  .finish();
           }
-          executor.fetchNext(new Tsdb1xQueryResult(
-              sequence_id.incrementAndGet(), 
+          executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
+              Tsdb1xMultiGetPool.TYPE).claim().object();
+          ((Tsdb1xMultiGet) executor).reset(
               Tsdb1xHBaseQueryNode.this, 
-              parent.schema()), 
-          span);
+              config, 
+              tsuids);
+          if (push) {
+            executor.fetchNext(null, span);
+          } else {
+            executor.fetchNext(new Tsdb1xQueryResult(
+                sequence_id.incrementAndGet(), 
+                Tsdb1xHBaseQueryNode.this, 
+                parent.schema()), 
+            span);
+          }
         } else {
           LOG.error("WTF? We lost an initialization race??");
         }
@@ -857,22 +864,26 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
           
           // TODO - what happens if we didn't resolve anything???
           synchronized (this) {
-            executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
-                Tsdb1xMultiGetPool.TYPE).claim().object();
-            ((Tsdb1xMultiGet) executor).reset(
-                Tsdb1xHBaseQueryNode.this, 
-                config, 
-                tsuids);
             if (initialized.compareAndSet(false, true)) {
               if (child != null) {
                 child.setSuccessTags()
                      .finish();
               }
-              executor.fetchNext(new Tsdb1xQueryResult(
-                  sequence_id.incrementAndGet(), 
+              executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
+                  Tsdb1xMultiGetPool.TYPE).claim().object();
+              ((Tsdb1xMultiGet) executor).reset(
                   Tsdb1xHBaseQueryNode.this, 
-                  parent.schema()), 
-              span);
+                  config, 
+                  tsuids);
+              if (push) {
+                executor.fetchNext(null, span);
+              } else {
+                executor.fetchNext(new Tsdb1xQueryResult(
+                    sequence_id.incrementAndGet(), 
+                    Tsdb1xHBaseQueryNode.this, 
+                    parent.schema()), 
+                span);
+              }
             } else {
               LOG.error("WTF? We lost an initialization race??");
             }
