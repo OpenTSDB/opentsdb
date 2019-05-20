@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.SortedMap;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.GetRequest;
@@ -690,7 +691,7 @@ public class TestMultiGetQuery extends BaseTsdbTest {
         start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
         0, max_bytes, false, multiget_no_meta);
     
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
+    final SortedMap<byte[], Span> results = mgq.fetch().join();
     assertSame(spans, results);
     verify(client, times(1)).get(anyList());
     System.out.println(spans);
@@ -705,7 +706,7 @@ public class TestMultiGetQuery extends BaseTsdbTest {
         start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
         0, max_bytes, false, multiget_no_meta);
     
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
+    final SortedMap<byte[], Span> results = mgq.fetch().join();
     assertSame(spans, results);
     verify(client, times(1)).get(anyList());
     System.out.println(spans);
@@ -719,7 +720,7 @@ public class TestMultiGetQuery extends BaseTsdbTest {
     MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
         start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
         0, max_bytes, false, multiget_no_meta);
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
+    final SortedMap<byte[], Span> results = mgq.fetch().join();
   }
   
   @Test
@@ -730,7 +731,7 @@ public class TestMultiGetQuery extends BaseTsdbTest {
         start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
         0, max_bytes, false, multiget_no_meta);
     
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
+    final SortedMap<byte[], Span> results = mgq.fetch().join();
     assertSame(spans, results);
     assertTrue(spans.isEmpty());
     verify(client, times(1)).get(anyList());
@@ -745,7 +746,7 @@ public class TestMultiGetQuery extends BaseTsdbTest {
         start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
         0, max_bytes, false, multiget_no_meta);
     
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
+    final SortedMap<byte[], Span> results = mgq.fetch().join();
     assertSame(spans, results);
     verify(client, times(4)).get(anyList());
     validateSpans();
@@ -761,7 +762,7 @@ public class TestMultiGetQuery extends BaseTsdbTest {
         start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
         0, max_bytes, false, multiget_no_meta);
     
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
+    final SortedMap<byte[], Span> results = mgq.fetch().join();
     assertSame(spans, results);
     verify(client, times(4)).get(anyList());
     validateSpans();
