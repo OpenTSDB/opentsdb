@@ -113,6 +113,62 @@ public class TestExpressionNumericArrayIteratorLogical extends BaseNumericTest {
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
+
+  @Test
+  public void longLongWithRate() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID,
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(0);
+    ((NumericArrayTimeSeries) left).add(2);
+
+    right = new NumericArrayTimeSeries(RIGHT_ID,
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(0);
+
+    ExpressionNumericArrayIterator iterator =
+        new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                .put(ExpressionTimeSeries.LEFT_KEY, left)
+                .put(ExpressionTimeSeries.RIGHT_KEY, right)
+                .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value =
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 1, 1 },
+        value.value().longArray());
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(2, value.value().end());
+    assertFalse(iterator.hasNext());
+
+    // AND
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.AND)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
+        (Map) ImmutableMap.builder()
+            .put(ExpressionTimeSeries.LEFT_KEY, left)
+            .put(ExpressionTimeSeries.RIGHT_KEY, right)
+            .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 0, 0 },
+        value.value().longArray());
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(2, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
   
   @Test
   public void longLongNot() throws Exception {

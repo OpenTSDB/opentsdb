@@ -102,49 +102,58 @@ public class ExpressionNumericArrayIterator extends
             right_literal);
     }
     next_ts.update(left != null ? left_value.timestamp() : right_value.timestamp());
-    
+
+    int left_offset = 0;
+    int right_offset = 0;
+    if (left_value.value().end() < right_value.value().end()) {
+      right_offset = right_value.value().end() - left_value.value().end();
+    }
+    else if (left_value.value().end() > right_value.value().end()) {
+      left_offset = left_value.value().end() - right_value.value().end();
+    }
+
     switch (((ExpressionParseNode) node.config()).getOperator()) {
     // logical
     case OR:
-      runOr(left_value, right_value);
+      runOr(left_value, right_value, left_offset, right_offset);
       break;
     case AND:
-      runAnd(left_value, right_value);
+      runAnd(left_value, right_value, left_offset, right_offset);
       break;
     // relational
     case EQ:
-      runEQ(left_value, right_value);
+      runEQ(left_value, right_value, left_offset, right_offset);
       break;
     case NE:
-      runNE(left_value, right_value);
+      runNE(left_value, right_value, left_offset, right_offset);
       break;
     case LE:
-      runLE(left_value, right_value);
+      runLE(left_value, right_value, left_offset, right_offset);
       break;
     case GE:
-      runGE(left_value, right_value);
+      runGE(left_value, right_value, left_offset, right_offset);
       break;
     case LT:
-      runLT(left_value, right_value);
+      runLT(left_value, right_value, left_offset, right_offset);
       break;
     case GT:
-      runGT(left_value, right_value);
+      runGT(left_value, right_value, left_offset, right_offset);
       break;
     // arithmetic
     case ADD:
-      runAdd(left_value, right_value);
+      runAdd(left_value, right_value, left_offset, right_offset);
       break;
     case SUBTRACT:
-      runSubtract(left_value, right_value);
+      runSubtract(left_value, right_value, left_offset, right_offset);
       break;
     case DIVIDE:
-      runDivide(left_value, right_value);
+      runDivide(left_value, right_value, left_offset, right_offset);
       break;
     case MULTIPLY:
-      runMultiply(left_value, right_value);
+      runMultiply(left_value, right_value, left_offset, right_offset);
       break;
     case MOD:
-      runMod(left_value, right_value);
+      runMod(left_value, right_value, left_offset, right_offset);
       break;
     default:
       throw new QueryDownstreamException("Expression iterator was "
@@ -212,23 +221,24 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runOr(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > 0 || 
               right[right_idx]  > 0 ? 0 : 1;
           right_idx++;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > 0 || 
               right[right_idx] > 0 ? 1 : 0;
@@ -241,7 +251,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
             long_values[idx++] = 0;
@@ -253,7 +263,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
             long_values[idx++] = 1;
@@ -280,23 +290,24 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runAnd(final TimeSeriesValue<NumericArrayType> left_value, 
-              final TimeSeriesValue<NumericArrayType> right_value) {
+              final TimeSeriesValue<NumericArrayType> right_value,
+              final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > 0 && 
               right[right_idx]  > 0 ? 0 : 1;
           right_idx++;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > 0 && 
               right[right_idx] > 0 ? 1 : 0;
@@ -309,7 +320,7 @@ public class ExpressionNumericArrayIterator extends
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
             long_values[idx++] = 0;
@@ -321,7 +332,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
             long_values[idx++] = 1;
@@ -347,22 +358,23 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runEQ(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] == right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] == right[right_idx++] ? 1 : 0;
         }
@@ -374,12 +386,12 @@ public class ExpressionNumericArrayIterator extends
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] == right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] == right[right_idx++] ? 1 : 0;
         }
@@ -398,22 +410,23 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runNE(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] != right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] != right[right_idx++] ? 1 : 0;
         }
@@ -425,12 +438,12 @@ public class ExpressionNumericArrayIterator extends
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] != right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] != right[right_idx++] ? 1 : 0;
         }
@@ -450,22 +463,23 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runLE(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] <= right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] <= right[right_idx++] ? 1 : 0;
         }
@@ -477,12 +491,12 @@ public class ExpressionNumericArrayIterator extends
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] <= right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] <= right[right_idx++] ? 1 : 0;
         }
@@ -502,22 +516,23 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runGE(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] >= right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] >= right[right_idx++] ? 1 : 0;
         }
@@ -529,12 +544,12 @@ public class ExpressionNumericArrayIterator extends
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] >= right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] >= right[right_idx++] ? 1 : 0;
         }
@@ -553,22 +568,23 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runLT(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] < right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] < right[right_idx++] ? 1 : 0;
         }
@@ -580,12 +596,12 @@ public class ExpressionNumericArrayIterator extends
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] < right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] < right[right_idx++] ? 1 : 0;
         }
@@ -604,22 +620,23 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runGT(final TimeSeriesValue<NumericArrayType> left_value, 
-             final TimeSeriesValue<NumericArrayType> right_value) {
+             final TimeSeriesValue<NumericArrayType> right_value,
+             final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    long_values = new long[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    long_values = new long[left_value.value().end() - left_offset];
     
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
       
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > right[right_idx++] ? 1 : 0;
         }
@@ -631,12 +648,12 @@ public class ExpressionNumericArrayIterator extends
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       // let the ieee 754 standard handle NaNs
       if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > right[right_idx++] ? 0 : 1;
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] > right[right_idx++] ? 1 : 0;
         }
@@ -658,35 +675,36 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runAdd(final TimeSeriesValue<NumericArrayType> left_value, 
-              final TimeSeriesValue<NumericArrayType> right_value) {
+              final TimeSeriesValue<NumericArrayType> right_value,
+              final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    
+    int right_idx = right_offset;
+
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
-      long_values = new long[left_value.value().end() - left_value.value().offset()];
+      long_values = new long[left_value.value().end() - left_offset];
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
 
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = -(left[left_idx] + right[right_idx++]);
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] + right[right_idx++];
         }
       }
       
     } else {
-      double_values = new double[left_value.value().end() - left_value.value().offset()];
+      double_values = new double[left_value.value().end() - left_offset];
       double[] left = left_value.value().isInteger() ? 
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
             double_values[idx++] = -(left[left_idx] + right[right_idx++]);
@@ -699,7 +717,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
             double_values[idx++] = left[left_idx] + right[right_idx++];
@@ -730,34 +748,35 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runSubtract(final TimeSeriesValue<NumericArrayType> left_value, 
-                   final TimeSeriesValue<NumericArrayType> right_value) {
+                   final TimeSeriesValue<NumericArrayType> right_value,
+                   final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    
+    int right_idx = right_offset;
+
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
-      long_values = new long[left_value.value().end() - left_value.value().offset()];
+      long_values = new long[left_value.value().end() - left_offset];
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
 
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = -(left[left_idx] - right[right_idx++]);
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] - right[right_idx++];
         }
       }
     } else {
-      double_values = new double[left_value.value().end() - left_value.value().offset()];
+      double_values = new double[left_value.value().end() - left_offset];
       double[] left = left_value.value().isInteger() ? 
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
             double_values[idx++] = -(left[left_idx] - right[right_idx++]);
@@ -770,7 +789,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
             double_values[idx++] = left[left_idx] - right[right_idx++];
@@ -802,16 +821,17 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runDivide(final TimeSeriesValue<NumericArrayType> left_value, 
-                 final TimeSeriesValue<NumericArrayType> right_value) {
+                 final TimeSeriesValue<NumericArrayType> right_value,
+                 final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    double_values = new double[left_value.value().end() - left_value.value().offset()];
+    int right_idx = right_offset;
+    double_values = new double[left_value.value().end() - left_offset];
     double[] left = left_value.value().isInteger() ? 
         convert(left_value.value().longArray()) : left_value.value().doubleArray();
     double[] right = right_value.value().isInteger() ?
         convert(right_value.value().longArray()) : right_value.value().doubleArray();
     if (((ExpressionParseNode) node.config()).getNegate()) {
-      for (int left_idx = left_value.value().offset(); 
+      for (int left_idx = left_offset;
             left_idx < left_value.value().end(); left_idx++) {
         if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
           double_values[idx++] = 0;
@@ -827,7 +847,7 @@ public class ExpressionNumericArrayIterator extends
         }
       }
     } else {
-      for (int left_idx = left_value.value().offset(); 
+      for (int left_idx = left_offset;
             left_idx < left_value.value().end(); left_idx++) {
         if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
           double_values[idx++] = 0;
@@ -861,35 +881,36 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runMultiply(final TimeSeriesValue<NumericArrayType> left_value, 
-                   final TimeSeriesValue<NumericArrayType> right_value) {
+                   final TimeSeriesValue<NumericArrayType> right_value,
+                   final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    
+    int right_idx = right_offset;
+
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
-      long_values = new long[left_value.value().end() - left_value.value().offset()];
+      long_values = new long[left_value.value().end() - left_offset];
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
 
       // TODO - deal with overflow
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
             left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = -(left[left_idx] * right[right_idx++]);
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
             left_idx < left_value.value().end(); left_idx++) {
           long_values[idx++] = left[left_idx] * right[right_idx++];
         }        
       }
     } else {
-      double_values = new double[left_value.value().end() - left_value.value().offset()];
+      double_values = new double[left_value.value().end() - left_offset];
       double[] left = left_value.value().isInteger() ? 
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
             double_values[idx++] = -(left[left_idx] * right[right_idx++]);
@@ -902,7 +923,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (infectious_nan) {
             double_values[idx++] = left[left_idx] * right[right_idx++];
@@ -932,18 +953,19 @@ public class ExpressionNumericArrayIterator extends
    * @param right_value The right operand.
    */
   void runMod(final TimeSeriesValue<NumericArrayType> left_value, 
-              final TimeSeriesValue<NumericArrayType> right_value) {
+              final TimeSeriesValue<NumericArrayType> right_value,
+              final int left_offset, final int right_offset) {
     int idx = 0;
-    int right_idx = right_value.value().offset();
-    
+    int right_idx = right_offset;
+
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
-      long_values = new long[left_value.value().end() - left_value.value().offset()];
+      long_values = new long[left_value.value().end() - left_offset];
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
 
       // TODO - deal with overflow
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
             left_idx < left_value.value().end(); left_idx++) {
           if (right[right_idx] == 0) {
             long_values[idx++] = 0;
@@ -953,7 +975,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
             left_idx < left_value.value().end(); left_idx++) {
           if (right[right_idx] == 0) {
             long_values[idx++] = 0;
@@ -964,13 +986,13 @@ public class ExpressionNumericArrayIterator extends
         }        
       }
     } else {
-      double_values = new double[left_value.value().end() - left_value.value().offset()];
+      double_values = new double[left_value.value().end() - left_offset];
       double[] left = left_value.value().isInteger() ? 
           convert(left_value.value().longArray()) : left_value.value().doubleArray();
       double[] right = right_value.value().isInteger() ?
           convert(right_value.value().longArray()) : right_value.value().doubleArray();
       if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
             double_values[idx++] = 0;
@@ -986,7 +1008,7 @@ public class ExpressionNumericArrayIterator extends
           }
         }
       } else {
-        for (int left_idx = left_value.value().offset(); 
+        for (int left_idx = left_offset;
               left_idx < left_value.value().end(); left_idx++) {
           if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
             double_values[idx++] = 0;
