@@ -107,7 +107,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param context The non-null context to pull the query from.
    * @param context_sink The non-null context pass-through node.
    */
-  public DefaultQueryPlanner(final QueryPipelineContext context,
+ public DefaultQueryPlanner(final QueryPipelineContext context,
                              final QueryNode context_sink) {
     this.context = context;
     this.context_sink = context_sink;
@@ -305,14 +305,29 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     final List<Deferred<Void>> deferreds = 
         Lists.newArrayListWithExpectedSize(source_nodes.size());
+    ByteToStringIdConverterConfig.Builder converter_builder = null;
     for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
       // see if we need to insert a byte Id converter upstream.
-      needByteIdConverter(c);
+      TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
+      if (factory.idType() != Const.TS_STRING_ID) {
+        if (converter_builder == null) {
+          converter_builder = ByteToStringIdConverterConfig.newBuilder();
+        }
+        converter_builder.addDataSource(c.getId(), factory);
+      }
       
       if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
         deferreds.add(((TimeSeriesDataSourceConfig) c)
             .getFilter().initialize(span));
       }
+    }
+    
+    if (converter_builder != null) {
+      final QueryNodeConfig converter = converter_builder
+          .setId("IDConverter")
+          .build();
+      replace(context_sink_config, converter);
+      addEdge(context_sink_config, converter);
     }
     
     return Deferred.group(deferreds)

@@ -1506,15 +1506,15 @@ public class TestDefaultQueryPlanner {
     assertEquals(5, planner.graph().nodes().size());
     assertEquals(4, planner.graph().edges().size());
     assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("Merger")));
+        SINK, planner.nodeForId("IDConverter")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger"), 
-        planner.nodeForId("Merger_IdConverter")));
+        planner.nodeForId("IDConverter"), 
+        planner.nodeForId("Merger")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger_IdConverter"),
+        planner.nodeForId("Merger"),
         planner.nodeForId("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger_IdConverter"),
+        planner.nodeForId("Merger"),
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());
@@ -1564,10 +1564,12 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(4, planner.graph().nodes().size());
-    assertEquals(3, planner.graph().edges().size());
+    assertEquals(5, planner.graph().nodes().size());
+    assertEquals(4, planner.graph().edges().size());
     assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("Merger")));
+        SINK, planner.nodeForId("IDConverter")));
+    assertTrue(planner.graph().hasEdgeConnecting(
+        planner.nodeForId("IDConverter"), planner.nodeForId("Merger")));
     assertTrue(planner.graph().hasEdgeConnecting(
         planner.nodeForId("Merger"), 
         planner.nodeForId("m1")));
@@ -1624,15 +1626,15 @@ public class TestDefaultQueryPlanner {
     assertEquals(5, planner.graph().nodes().size());
     assertEquals(4, planner.graph().edges().size());
     assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("Merger")));
+        SINK, planner.nodeForId("IDConverter")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger"), 
-        planner.nodeForId("Merger_IdConverter")));
+        planner.nodeForId("IDConverter"), 
+        planner.nodeForId("Merger")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger_IdConverter"),
+        planner.nodeForId("Merger"),
         planner.nodeForId("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger_IdConverter"),
+        planner.nodeForId("Merger"),
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());
@@ -1696,27 +1698,24 @@ public class TestDefaultQueryPlanner {
     assertEquals(3, planner.sources().size());
     assertTrue(planner.sources().contains(STORE_NODES.get(0)));
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(8, planner.graph().nodes().size());
-    assertEquals(7, planner.graph().edges().size());
+    assertEquals(7, planner.graph().nodes().size());
+    assertEquals(6, planner.graph().edges().size());
     assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("Merger2")));
+        SINK, planner.nodeForId("IDConverter")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger2"), 
-        planner.nodeForId("Merger2_IdConverter")));
+        planner.nodeForId("IDConverter"), 
+        planner.nodeForId("Merger2")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger2_IdConverter"),
+        planner.nodeForId("Merger2"),
         planner.nodeForId("m3")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger2_IdConverter"),
+        planner.nodeForId("Merger2"),
         planner.nodeForId("Merger1")));
     assertTrue(planner.graph().hasEdgeConnecting(
         planner.nodeForId("Merger1"),
-        planner.nodeForId("Merger1_IdConverter")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger1_IdConverter"),
         planner.nodeForId("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger1_IdConverter"),
+        planner.nodeForId("Merger1"),
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());

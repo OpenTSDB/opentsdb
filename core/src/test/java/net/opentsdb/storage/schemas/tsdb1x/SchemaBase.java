@@ -33,6 +33,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.idconverter.ByteToStringIdConverterFactory;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.DatumIdValidator;
 import net.opentsdb.uid.LRUUniqueId;
@@ -134,6 +135,8 @@ public class SchemaBase {
       .thenReturn(uid_factory);
     when(tsdb.registry.getDefaultPlugin(DatumIdValidator.class))
       .thenReturn(id_validator);
+    when(tsdb.registry.getQueryNodeFactory("bytetostringidconverter"))
+      .thenReturn(new ByteToStringIdConverterFactory());
     
     metrics = new LRUUniqueId(tsdb, null, UniqueIdType.METRIC, uid_store);
     tag_names = new LRUUniqueId(tsdb, null, UniqueIdType.TAGK, uid_store);

@@ -329,6 +329,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   
   /** Called by a child when the scanner has finished it's current run. */
   void scannerDone() {
+    if (has_failed) {
+      return;
+    }
     boolean send_upstream = false;
     synchronized (this) {
       scanners_done++;
@@ -454,6 +457,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
 
   @Override
   public void close() {
+    LOG.info("    CLOSING SCANNERS!!!!!!!!", new RuntimeException("BOO!"));
     if (scanners != null) {
       for (final Tsdb1xScanner[] scnrs : scanners) {
         for (final Tsdb1xScanner scanner : scnrs) {
@@ -474,15 +478,15 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     filter_cb = null;
     current_result = null;
     if (sets != null) {
-      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
-        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
-          try {
-            set.close();
-          } catch (Exception e) {
-            LOG.error("Unexpected exception closing set: " + set, e);
-          }
-        }
-      }
+//      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
+//        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
+//          try {
+//            set.close();
+//          } catch (Exception e) {
+//            LOG.error("Unexpected exception closing set: " + set, e);
+//          }
+//        }
+//      }
       sets.clear();
     }
     if (timestamps != null) {
@@ -1381,7 +1385,8 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
    * @return The set if found, null if not.
    */
   Tsdb1xPartialTimeSeriesSet getSet(final TimeStamp start) {
-    return sets.get(scanner_index).get(start.epoch());
+    Tsdb1xPartialTimeSeriesSet set = sets.get(scanner_index).get(start.epoch());
+    return set;
   }
 
   /** @return The current scanner index. */
