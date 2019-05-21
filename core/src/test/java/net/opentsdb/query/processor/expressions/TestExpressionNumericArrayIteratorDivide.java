@@ -87,6 +87,36 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
+
+  @Test
+  public void longLongWithRate() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID,
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(4);
+    ((NumericArrayTimeSeries) left).add(2);
+
+    right = new NumericArrayTimeSeries(RIGHT_ID, //rate has one dp less than regular
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(2);
+
+    ExpressionNumericArrayIterator iterator =
+        new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                .put(ExpressionTimeSeries.LEFT_KEY, left)
+                .put(ExpressionTimeSeries.RIGHT_KEY, right)
+                .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value =
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 1, 1 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(2, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
   
   @Test
   public void longLongNegate() throws Exception {
@@ -233,6 +263,36 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  public void doubleDoubleWithRate() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID,
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1.1);
+    ((NumericArrayTimeSeries) left).add(5.33);
+    ((NumericArrayTimeSeries) left).add(2.66);
+
+    right = new NumericArrayTimeSeries(RIGHT_ID,
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4.5);
+    ((NumericArrayTimeSeries) right).add(10.75);
+
+    ExpressionNumericArrayIterator iterator =
+        new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                .put(ExpressionTimeSeries.LEFT_KEY, left)
+                .put(ExpressionTimeSeries.RIGHT_KEY, right)
+                .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value =
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 1.1844444444,  0.2474418605},
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(2, value.value().end());
     assertFalse(iterator.hasNext());
   }
   
