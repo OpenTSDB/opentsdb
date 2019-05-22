@@ -233,7 +233,7 @@ public class TestSchemaFactory extends SchemaBase {
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
     
-    assertEquals(3, plan.configGraph().nodes().size());
+    assertEquals(2, plan.configGraph().nodes().size());
     QueryNodeConfig node = plan.configNodeForId("m1");
     assertSame(config, node);
   }
@@ -270,7 +270,7 @@ public class TestSchemaFactory extends SchemaBase {
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
     
-    assertEquals(7, plan.configGraph().nodes().size());
+    assertEquals(6, plan.configGraph().nodes().size());
     QueryNodeConfig node = plan.configNodeForId("m1");
     assertSame(config, node);
     
