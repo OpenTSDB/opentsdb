@@ -27,8 +27,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
-import net.opentsdb.query.processor.timeshift.TimeShift;
-import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -1485,7 +1483,7 @@ public class TestHAClusterFactory {
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
     
-    assertEquals(7, planner.graph().nodes().size());
+    assertEquals(6, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("ha_m1_s3");
     assertTrue(node instanceof TimeSeriesDataSource);
@@ -1503,7 +1501,7 @@ public class TestHAClusterFactory {
     
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
     assertTrue(planner.nodeForId("m1") instanceof Merger);
-    assertTrue(planner.nodeForId("IDConverter") instanceof ByteToStringIdConverter);
+    assertTrue(planner.nodeForId("m1_converter") instanceof ByteToStringIdConverter);
     
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
         planner.nodeForId("ha_m1_s3")));
@@ -1516,8 +1514,6 @@ public class TestHAClusterFactory {
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
         planner.nodeForId("m1_converter")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
-        planner.nodeForId("IDConverter")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("IDConverter"), 
         planner.nodeForId("m1")));
   }
   
