@@ -72,6 +72,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /** A reference to the sink config. */
   protected final ContextNodeConfig context_sink_config;
   
+  /** A list of filters to be satisfied. */
   protected final Map<String, String> sink_filter;
   
   /** The roots (sent to sinks) of the user given graph. */
@@ -306,14 +307,20 @@ public class DefaultQueryPlanner implements QueryPlanner {
     final List<Deferred<Void>> deferreds = 
         Lists.newArrayListWithExpectedSize(source_nodes.size());
     ByteToStringIdConverterConfig.Builder converter_builder = null;
+    boolean push_mode = context.tsdb().getConfig().hasProperty("tsd.storage.enable_push") &&
+        context.tsdb().getConfig().getBoolean("tsd.storage.enable_push");
     for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
       // see if we need to insert a byte Id converter upstream.
-      TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
-      if (factory.idType() != Const.TS_STRING_ID) {
-        if (converter_builder == null) {
-          converter_builder = ByteToStringIdConverterConfig.newBuilder();
+      if (push_mode) {
+        TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
+        if (factory.idType() != Const.TS_STRING_ID) {
+          if (converter_builder == null) {
+            converter_builder = ByteToStringIdConverterConfig.newBuilder();
+          }
+          converter_builder.addDataSource(c.getId(), factory);
         }
-        converter_builder.addDataSource(c.getId(), factory);
+      } else {
+        needByteIdConverter(c);
       }
       
       if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
@@ -322,7 +329,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
     }
     
-    if (converter_builder != null) {
+    if (push_mode && converter_builder != null) {
       final QueryNodeConfig converter = converter_builder
           .setId("IDConverter")
           .build();
