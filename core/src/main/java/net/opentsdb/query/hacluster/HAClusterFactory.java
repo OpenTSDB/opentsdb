@@ -24,11 +24,10 @@ import com.google.common.collect.Sets;
 import com.google.common.graph.Graphs;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-import java.time.temporal.TemporalAmount;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.TSDB;
@@ -52,11 +51,9 @@ import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
-import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.Pair;
 
 /**
  * A factory that modifies the execution graph with nodes to execute an
@@ -243,7 +240,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             .build();
         planner.replace(config, rebuilt);
         // Check for time offsets.
-        DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode((TimeSeriesDataSourceConfig) rebuilt, planner);
+        DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(
+            (TimeSeriesDataSourceConfig) rebuilt, planner);
         return;
       }
       
@@ -302,6 +300,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           throw new IllegalArgumentException("No data source found for: " 
               + source.getSourceId());
         }
+        
+        if (!factory.supportsQuery(context.query(), source)) {
+          continue;
+        }
         if (factory.idType() != Const.TS_STRING_ID) {
           needs_id_converter = true;
         }
@@ -317,6 +319,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       if (factory == null) {
         throw new IllegalArgumentException("No data source found for: " 
           + source);
+      }
+      
+      if (!factory.supportsQuery(context.query(), (TimeSeriesDataSourceConfig) config)) {
+        continue;
       }
       
       if (factory.idType() != Const.TS_STRING_ID) {
@@ -339,6 +345,17 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         }
       }
       new_sources.add(rebuilt);
+    }
+    
+    if (new_sources.size() == 1) {
+      TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig) new_sources.get(0)
+          .setId(config.getId())
+          .build();
+      planner.replace(config, rebuilt);
+      // Check for time offsets.
+      DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(
+          (TimeSeriesDataSourceConfig) rebuilt, planner);
+      return;
     }
     
     // Pull down, e.g. if we send to remote sources then we can merge

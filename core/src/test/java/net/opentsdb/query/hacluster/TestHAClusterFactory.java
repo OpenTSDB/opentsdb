@@ -97,11 +97,14 @@ public class TestHAClusterFactory {
         DownsampleConfig.class, GroupByConfig.class));
     MockFactory s5 = new MockFactory("s5", Lists.newArrayList(
         DownsampleConfig.class), Const.TS_BYTE_ID);
+    MockFactory s6 = new MockFactory("s6", Lists.newArrayList(), 
+        Const.TS_STRING_ID, false);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s1", s1);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s2", s2);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s3", s3);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s4", s4);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s5", s5);
+    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s6", s6);
     
     FACTORY = new HAClusterFactory();
     FACTORY.registerConfigs(TSDB);
@@ -1518,6 +1521,46 @@ public class TestHAClusterFactory {
   }
   
   @Test
+  public void setupGraphOverride2SourcesOneSupportsQuery() throws Exception {
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setStart("1h-ago")
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(HAClusterConfig.newBuilder()
+            .setMergeAggregator("max")
+            .setDataSources(Lists.newArrayList("s1", "s6"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.if.in")
+                .build())
+            .setId("m1")
+            .build())
+        .build();
+    
+    QueryContext ctx = mock(QueryContext.class);
+    when(ctx.stats()).thenReturn(mock(QueryStats.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(TSDB);
+    when(context.query()).thenReturn(query);
+    when(context.queryContext()).thenReturn(ctx);
+    when(context.downstreamSources(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(SRC_MOCK));
+    QueryNode ctx_node = mock(QueryNode.class);
+    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
+    planner.plan(null).join(250);
+    
+    assertEquals(2, planner.graph().nodes().size());
+    assertTrue(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
+    QueryNode node = planner.nodeForId("m1");
+    assertTrue(node instanceof TimeSeriesDataSource);
+    assertEquals("sys.if.in", 
+        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
+    assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
+    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
+    
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+        planner.nodeForId("m1")));
+  }
+  
+  @Test
   public void newNode() throws Exception {
     final HAClusterConfig config = mock(HAClusterConfig.class);
     HACluster node = (HACluster) FACTORY.newNode(mock(QueryPipelineContext.class), 
@@ -1582,7 +1625,7 @@ public class TestHAClusterFactory {
   public void supportsQueryNotSupported() throws Exception {
     HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
         .setMergeAggregator("max")
-        .setDataSources(Lists.newArrayList("s1"))
+        .setDataSources(Lists.newArrayList("s6"))
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.if.in")
             .build())
@@ -1602,11 +1645,13 @@ public class TestHAClusterFactory {
 
     final List<Class<? extends QueryNodeConfig>> pushdowns;
     final TypeToken<? extends TimeSeriesId> id_type;
+    final boolean supports_query;
 
     MockFactory(final String id, final List<Class<? extends QueryNodeConfig>> pushdowns) {
       this.id = id;
       this.pushdowns = pushdowns;
       id_type = Const.TS_STRING_ID;
+      supports_query = true;
     }
     
     MockFactory(final String id, 
@@ -1615,6 +1660,17 @@ public class TestHAClusterFactory {
       this.id = id;
       this.pushdowns = pushdowns;
       this.id_type = id_type;
+      supports_query = true;
+    }
+    
+    MockFactory(final String id, 
+                final List<Class<? extends QueryNodeConfig>> pushdowns,
+                final TypeToken<? extends TimeSeriesId> id_type,
+                final boolean supports_query) {
+      this.id = id;
+      this.pushdowns = pushdowns;
+      this.id_type = id_type;
+      this.supports_query = supports_query;
     }
     
     @Override
@@ -1626,10 +1682,7 @@ public class TestHAClusterFactory {
     @Override
     public boolean supportsQuery(final TimeSeriesQuery query, 
                                  final TimeSeriesDataSourceConfig config) {
-      if (pushdowns != null && pushdowns.size() > 0) {
-        return true;
-      }
-      return false;
+      return supports_query;
     }
     
     @Override
