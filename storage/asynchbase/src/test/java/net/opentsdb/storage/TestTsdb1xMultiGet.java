@@ -1261,8 +1261,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertSame(source_config, mget.source_config);
     assertSame(node, mget.node);
     assertEquals(1, mget.tables.size());
-    assertEquals(0, mget.outstanding.get());
-    assertEquals(0, mget.tsuid_idx);
+    assertEquals(1, mget.outstanding.get());
+    assertEquals(-1, mget.tsuid_idx);
     assertEquals(-1, mget.rollup_index);
     
     mget.close();

@@ -149,10 +149,10 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   protected volatile int tsuid_idx;
   
   /** The current timestamp for the lowest resolution data we're querying. */
-  protected volatile TimeStamp timestamp;
+  protected final TimeStamp timestamp;
   
   /** The timestamp with optional padding. */
-  protected volatile TimeStamp end_timestamp;
+  protected final TimeStamp end_timestamp;
   
   /** Index into the {@link Tsdb1xHBaseQueryNode#rollupIntervals()} that we're
    * working on. -1 means we're query raw only, 0 or more means we're
@@ -162,11 +162,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   protected volatile int rollup_index;
   
   /** The number of outstanding batches inflight. */
-  protected AtomicInteger outstanding;
+  protected final AtomicInteger outstanding;
   
   /** Whether or not the query has failed, i.e. a batch returned an
    * exception. */
-  protected AtomicBoolean has_failed;
+  protected final AtomicBoolean has_failed;
   
   /** The current result to write data into. */
   protected volatile Tsdb1xQueryResult current_result;
@@ -182,26 +182,26 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   
   /** A flag to determine whether or not all of the batches were sent for this
    * request. */
-  protected AtomicBoolean all_batches_sent;
+  protected final AtomicBoolean all_batches_sent;
   
   /** The aligned start timestamp of the query, used for indices calculations. */
-  protected TimeStamp start_ts;
+  protected volatile TimeStamp start_ts;
   
   /** The interval used for indices calculations. */
-  protected long interval;
+  protected volatile long interval;
   
   /** The array of sets. */
-  protected AtomicReferenceArray<Tsdb1xPartialTimeSeriesSet> sets;
+  protected volatile AtomicReferenceArray<Tsdb1xPartialTimeSeriesSet> sets;
   
   /** How many batches were sent per set. Used to determine if we've seen all
    * of the results for a set and whether or not we should fill. */
-  protected AtomicIntegerArray batches_per_set;
+  protected volatile AtomicIntegerArray batches_per_set;
   
   /** How many batches have responded. */
-  protected AtomicIntegerArray finished_batches_per_set;
+  protected volatile AtomicIntegerArray finished_batches_per_set;
   
   /** A map of hashes to time series IDs for the sets. */
-  protected TLongObjectMap<TimeSeriesId> ts_ids;
+  protected volatile TLongObjectMap<TimeSeriesId> ts_ids;
   
   /**
    * Default ctor.
@@ -481,8 +481,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         return;
       }
       
+      final int outstanding = (index >= 0 || !node.push()) ? 
+          this.outstanding.decrementAndGet() : 
+            this.outstanding.get();
       if (!node.push() && current_result.isFull()) {
-        if (outstanding.get() <= 0) {
+        if (outstanding <= 0) {
           final QueryResult result = current_result;
           current_result = null;
           if (child != null) {
@@ -498,7 +501,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       }
       
       // if there are more things to run then do it
-      if (outstanding.get() < concurrency_multi_get && !all_batches_sent.get()) {
+      if (outstanding < concurrency_multi_get && !all_batches_sent.get()) {
         nextBatch(child);
         
         // Make sure this happens AFTER we send another batch as we want to
@@ -512,7 +515,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         return;
       }
       
-      if (outstanding.get() <= 0 && all_batches_sent.get()) {
+      if (outstanding <= 0 && all_batches_sent.get()) {
         // if no data, see if we can fallback
         if (!haveData() && 
             rollup_index >= 0 && 
@@ -552,10 +555,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       }
       // otherwise don't fire another one off till more have completed.
     } catch (Throwable t) {
-      t.printStackTrace();
-      System.out.println("WTF?");
-//      LOG.error("Failure trying to complete a batch", t);
-//      onError(t);
+      LOG.error("Unexpected exception completing multiget", t);
+      onError(t);
     }
   }
 
@@ -568,20 +569,20 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
    */
   class ResponseCB implements Callback<Void, List<GetResultOrException>> {
     final Span span;
+    final int index;
     
-    ResponseCB(final Span span) {
+    ResponseCB(final int index, final Span span) {
+      this.index = index;
       this.span = span;
     }
     
     @Override
     public Void call(final List<GetResultOrException> results)
         throws Exception {
-      outstanding.decrementAndGet();
       if (has_failed.get()) {
         return null;
       }
       
-      int index = -1;
       TimeStamp base_ts = new SecondTimeStamp(0);
       for (final GetResultOrException result : results) {
         if (result.getException() != null) {
@@ -597,9 +598,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         }
         
         if (node.push()) {
-          if (index < 0) {
+          if (base_ts.epoch() == 0) {
             node.schema().baseTimestamp(result.getCells().get(0).key(), base_ts);
-            index = (int) ((base_ts.epoch() - start_ts.epoch()) / interval);
           }
           processPushRow(result.getCells(), index, base_ts);
         } else {
@@ -619,7 +619,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       return null;
     }
   }
-  final ResponseCB response_cb = new ResponseCB(null);
   
   /**
    * A callback attached to the multi-gets to catch exceptions and call
@@ -658,6 +657,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
    */
   @VisibleForTesting
   void nextBatch(final Span span) {
+    if (all_batches_sent.get()) {
+      LOG.warn("Multiget query was already completed but nextBatch was still called.");
+      return;
+    }
+    
     int idx;
     int local_ts;
     synchronized (this) {
@@ -668,6 +672,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         if (timestamp.compare(Op.GT, end_timestamp)) {
           // finished the whole query
           all_batches_sent.set(true);
+          tsuid_idx = -1;
           onComplete(-1);
           return;
         }
@@ -693,7 +698,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     if (span != null) {
       child = span.newChild(getClass() + "nextBatch()")
           .withTag("batchSize", batch_size)
-          .withTag("startTsuidIdx", tsuid_idx)
+          .withTag("startTsuidIdx", idx)
           .withTag("startTimestamp", timestamp.epoch())
           .start();
     } else {
@@ -737,8 +742,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     }
     
     outstanding.incrementAndGet();
+    int index = -1;
     if (node.push()) {
-      int index = (int) ((local_ts - start_ts.epoch()) / interval);
+      index = (int) ((local_ts - start_ts.epoch()) / interval);
       batches_per_set.incrementAndGet(index);
     }
     
@@ -746,10 +752,10 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       final Deferred<List<GetResultOrException>> deferred = 
           node.parent().client().get(requests);
       if (child == null || !child.isDebug()) {
-        deferred.addCallback(response_cb)
+        deferred.addCallback(new ResponseCB(index, child))
                 .addErrback(error_cb);
       } else {
-        deferred.addCallback(new ResponseCB(child))
+        deferred.addCallback(new ResponseCB(index, child))
                 .addErrback(new ErrorCB(child));
       }
     } catch (Exception e) {

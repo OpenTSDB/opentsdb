@@ -706,7 +706,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    
+
     TimeStamp ts = new SecondTimeStamp(START_TS - 900);
     validateDoubleSeries(HASH_A, 0, ts);
     validateDoubleSeries(HASH_B, 1, ts);
@@ -1746,7 +1746,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     assertSame(node, mget.node);
     assertEquals(1, mget.tables.size());
     assertEquals(0, mget.outstanding.get());
-    assertEquals(0, mget.tsuid_idx);
+    assertEquals(-1, mget.tsuid_idx);
     assertEquals(-1, mget.rollup_index);
     
     mget.close();
