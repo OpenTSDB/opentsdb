@@ -2950,9 +2950,6 @@ public class TestTsdb1xScanners extends UTBase {
     }
     
     scanners.close();
-    for (final Tsdb1xPartialTimeSeriesSet set : clone.valueCollection()) {
-      assertNull(set.node()); // nulled on close.
-    }
     assertTrue(scanners.sets.isEmpty());
     assertTrue(scanners.timestamps.isEmpty());
     assertTrue(scanners.durations.isEmpty());

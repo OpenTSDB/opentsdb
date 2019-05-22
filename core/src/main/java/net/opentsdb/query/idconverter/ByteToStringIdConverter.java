@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,16 +17,20 @@ package net.opentsdb.query.idconverter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -51,6 +55,9 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
   /** The config. */
   private final ByteToStringIdConverterConfig config;
   
+  /** A map of converters keyed on the source. */
+  protected Map<String, ByteToStringConverterForSource> converters;
+  
   /**
    * Default ctor.
    * @param factory The parent factory.
@@ -62,6 +69,7 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
                                  final ByteToStringIdConverterConfig config) {
     super(factory, context);
     this.config = config;
+    converters = Maps.newConcurrentMap();
   }
 
   @Override
@@ -115,6 +123,37 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
       .addCallbacks(new ResolveCB(), new ErrorCB());
   }
 
+  @Override
+  public void onNext(final PartialTimeSeries next) {
+    if (next.set().timeSeriesCount() < 1) {      
+      super.sendUpstream(next);
+      return;
+    }
+    
+    final TimeSeriesDataSourceFactory factory = 
+        ((ByteToStringIdConverterConfig) config).getFactory(
+            next.set().dataSource());
+    if (factory == null) {
+      // TODO - make sure expressions work since the source ID changes. But it
+      // return string ids so we may be OK.
+      super.sendUpstream(next);
+      return;
+    }
+    
+    ByteToStringConverterForSource converter = converters.get(
+        next.set().dataSource());
+    if (converter == null) {
+      converter = new ByteToStringConverterForSource(this);
+      ByteToStringConverterForSource extant = converters.putIfAbsent(
+          next.set().dataSource(), converter);
+      if (extant != null) {
+        // lost the race, let the old one die
+        converter = extant;
+      }
+    }
+    converter.resolve(next);
+  }
+  
   /** Simple wrapped result. */
   class ConvertedResult extends BaseWrappedQueryResult {
 
@@ -186,5 +225,13 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
       source.close();
     }
     
+  }
+
+  /**
+   * Method to call the abstracts sendUpstream from another class.
+   * @param pts The non-null PTs.
+   */
+  protected void sendUpstream(final PartialTimeSeries pts) {
+    super.sendUpstream(pts);
   }
 }

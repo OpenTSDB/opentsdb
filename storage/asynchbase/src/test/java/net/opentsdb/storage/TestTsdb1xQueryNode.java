@@ -60,6 +60,7 @@ import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
@@ -96,6 +97,8 @@ public class TestTsdb1xQueryNode extends UTBase {
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
+    QueryContext query_context = mock(QueryContext.class);
+    when(context.queryContext()).thenReturn(query_context);
     
     rollup_config = mock(DefaultRollupConfig.class);
     result = mock(Tsdb1xQueryResult.class);
@@ -139,6 +142,12 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream_a, upstream_b));
     when(context.tsdb()).thenReturn(tsdb);
+    
+    when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY))
+      .thenReturn(2);
+    when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY))
+      .thenReturn(4);
+    tsdb.runnables.clear();
   }
   
   @Test
@@ -513,6 +522,7 @@ public class TestTsdb1xQueryNode extends UTBase {
 
   @Test
   public void metaCBWithData() throws Exception {
+    setupMultigetPool();
     List<TimeSeriesId> ids = Lists.newArrayList();
     ids.add(BaseTimeSeriesStringId.newBuilder()
         .setMetric(METRIC_STRING)
@@ -635,6 +645,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .addTags(TAGK_STRING, TAGV_B_STRING)
         .build());
     
+    setupMultigetPool();
     MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
@@ -743,6 +754,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .addTags(TAGK_STRING, TAGV_B_STRING)
         .build());
     
+    setupMultigetPool();
     MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
@@ -821,6 +833,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .addTags(TAGK_STRING, NSUN_TAGV)
         .build());
     
+    setupMultigetPool();
     MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
@@ -887,6 +900,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .addTags(TAGK_BYTES, TAGV_B_BYTES)
         .build());
     
+    setupMultigetPool();
     MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
     when(meta_result.timeSeries()).thenReturn(ids);
     when(meta_result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -965,4 +979,11 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertTrue(node.sentData());
   }
   
+  void setupMultigetPool() {
+    ObjectPool mget_pool = mock(ObjectPool.class);
+    Tsdb1xMultiGet executor = new Tsdb1xMultiGet();
+    when(mget_pool.claim()).thenReturn(executor);
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xMultiGetPool.TYPE))
+      .thenReturn(mget_pool);
+  }
 }

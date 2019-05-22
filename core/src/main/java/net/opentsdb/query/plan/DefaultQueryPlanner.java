@@ -72,6 +72,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /** A reference to the sink config. */
   protected final ContextNodeConfig context_sink_config;
   
+  /** A list of filters to be satisfied. */
   protected final Map<String, String> sink_filter;
   
   /** The roots (sent to sinks) of the user given graph. */
@@ -107,7 +108,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param context The non-null context to pull the query from.
    * @param context_sink The non-null context pass-through node.
    */
-  public DefaultQueryPlanner(final QueryPipelineContext context,
+ public DefaultQueryPlanner(final QueryPipelineContext context,
                              final QueryNode context_sink) {
     this.context = context;
     this.context_sink = context_sink;
@@ -305,14 +306,35 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     final List<Deferred<Void>> deferreds = 
         Lists.newArrayListWithExpectedSize(source_nodes.size());
+    ByteToStringIdConverterConfig.Builder converter_builder = null;
+    boolean push_mode = context.tsdb().getConfig().hasProperty("tsd.storage.enable_push") &&
+        context.tsdb().getConfig().getBoolean("tsd.storage.enable_push");
     for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
       // see if we need to insert a byte Id converter upstream.
-      needByteIdConverter(c);
+      if (push_mode) {
+        TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
+        if (factory.idType() != Const.TS_STRING_ID) {
+          if (converter_builder == null) {
+            converter_builder = ByteToStringIdConverterConfig.newBuilder();
+          }
+          converter_builder.addDataSource(c.getId(), factory);
+        }
+      } else {
+        needByteIdConverter(c);
+      }
       
       if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
         deferreds.add(((TimeSeriesDataSourceConfig) c)
             .getFilter().initialize(span));
       }
+    }
+    
+    if (push_mode && converter_builder != null) {
+      final QueryNodeConfig converter = converter_builder
+          .setId("IDConverter")
+          .build();
+      replace(context_sink_config, converter);
+      addEdge(context_sink_config, converter);
     }
     
     return Deferred.group(deferreds)

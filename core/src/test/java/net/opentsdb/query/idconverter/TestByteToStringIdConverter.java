@@ -17,7 +17,9 @@ package net.opentsdb.query.idconverter;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -37,6 +39,9 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
@@ -46,6 +51,8 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestByteToStringIdConverter {
@@ -53,11 +60,20 @@ public class TestByteToStringIdConverter {
   private QueryPipelineContext context;
   private QueryNode upstream;
   private ByteToStringIdConverterConfig config;
+  private TimeSeriesDataSourceFactory factory_a;
+  private TimeSeriesDataSourceFactory factory_b;
+  private PartialTimeSeriesSet set_a;
+  private PartialTimeSeriesSet set_b;
   
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
     upstream = mock(QueryNode.class);
+    factory_a = mock(TimeSeriesDataSourceFactory.class);
+    factory_b = mock(TimeSeriesDataSourceFactory.class);
+    set_a = mock(PartialTimeSeriesSet.class);
+    set_b = mock(PartialTimeSeriesSet.class);
+    
     config = (ByteToStringIdConverterConfig)
         ByteToStringIdConverterConfig.newBuilder()
           .setId("cvtr")
@@ -65,6 +81,10 @@ public class TestByteToStringIdConverter {
     
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
+    when(set_a.start()).thenReturn(new SecondTimeStamp(1546300800));
+    when(set_a.dataSource()).thenReturn("m1");
+    when(set_b.start()).thenReturn(new SecondTimeStamp(1546300800));
+    when(set_b.dataSource()).thenReturn("m2");
   }
   
   @Test
@@ -230,4 +250,108 @@ public class TestByteToStringIdConverter {
     assertNull(from_upstream[0]);
   }
   
+  @Test
+  public void onNextPTSEmptyTimeSeries() throws Exception {
+    config = (ByteToStringIdConverterConfig)
+        ByteToStringIdConverterConfig.newBuilder()
+          .addDataSource("m1", factory_a)
+          .addDataSource("m2", factory_b)
+          .setId("cvtr")
+          .build();
+    
+    ByteToStringIdConverter node = new ByteToStringIdConverter(
+        mock(QueryNodeFactory.class), 
+        context, 
+        config);
+    node.initialize(null).join();
+    
+    PartialTimeSeries pts_a = mock(PartialTimeSeries.class);
+    TimeSeriesByteId id_a = getByteId(42, pts_a, set_a, factory_a);
+    node.onNext(pts_a);
+    verify(upstream, times(1)).onNext(pts_a);
+    verify(upstream, never()).onError(any(Throwable.class));
+    assertTrue(node.converters.isEmpty());
+  }
+  
+  @Test
+  public void onNextPTSNotListed() throws Exception {
+    config = (ByteToStringIdConverterConfig)
+        ByteToStringIdConverterConfig.newBuilder()
+          .addDataSource("m1", factory_a)
+          .addDataSource("m2", factory_b)
+          .setId("cvtr")
+          .build();
+    
+    ByteToStringIdConverter node = new ByteToStringIdConverter(
+        mock(QueryNodeFactory.class), 
+        context, 
+        config);
+    node.initialize(null).join();
+    
+    PartialTimeSeries pts_a = mock(PartialTimeSeries.class);
+    when(set_a.timeSeriesCount()).thenReturn(100);
+    when(set_a.dataSource()).thenReturn("m3");
+    TimeSeriesByteId id_a = getByteId(42, pts_a, set_a, factory_a);
+    node.onNext(pts_a);
+    verify(upstream, times(1)).onNext(pts_a);
+    verify(upstream, never()).onError(any(Throwable.class));
+    assertTrue(node.converters.isEmpty());
+  }
+  
+  @Test
+  public void onNextPTS() throws Exception {
+    config = (ByteToStringIdConverterConfig)
+        ByteToStringIdConverterConfig.newBuilder()
+          .addDataSource("m1", factory_a)
+          .addDataSource("m2", factory_b)
+          .setId("cvtr")
+          .build();
+    
+    ByteToStringIdConverter node = new ByteToStringIdConverter(
+        mock(QueryNodeFactory.class), 
+        context, 
+        config);
+    node.initialize(null).join();
+    
+    PartialTimeSeries pts_a = mock(PartialTimeSeries.class);
+    when(set_a.timeSeriesCount()).thenReturn(100);
+    TimeSeriesByteId id_a = getByteId(42, pts_a, set_a, factory_a);
+    node.onNext(pts_a);
+    verify(upstream, never()).onNext(pts_a);
+    verify(upstream, never()).onError(any(Throwable.class));
+    assertEquals(1, node.converters.size());
+    ByteToStringConverterForSource src = node.converters.get("m1");
+    Resolver resolver = src.resolvers.get(42);
+    assertSame(pts_a, resolver.series.get(0));
+    
+    PartialTimeSeries pts_b = mock(PartialTimeSeries.class);
+    when(set_b.timeSeriesCount()).thenReturn(100);
+    TimeSeriesByteId id_b = getByteId(-1, pts_b, set_b, factory_b);
+    node.onNext(pts_b);
+    verify(upstream, never()).onNext(pts_a);
+    verify(upstream, never()).onNext(pts_b);
+    verify(upstream, never()).onError(any(Throwable.class));
+    assertEquals(2, node.converters.size());
+    src = node.converters.get("m1");
+    resolver = src.resolvers.get(42);
+    assertSame(pts_a, resolver.series.get(0));
+    
+    src = node.converters.get("m2");
+    resolver = src.resolvers.get(-1);
+    assertSame(pts_b, resolver.series.get(0));
+  }
+  
+  TimeSeriesByteId getByteId(final long hash, 
+                             final PartialTimeSeries pts, 
+                             final PartialTimeSeriesSet set,
+                             final TimeSeriesDataSourceFactory factory) {
+    TimeSeriesByteId id = mock(TimeSeriesByteId.class);
+    when(set.id(anyLong())).thenReturn(id);
+    when(id.dataStore()).thenReturn(factory);
+    when(factory.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
+      .thenReturn(new Deferred<TimeSeriesStringId>());
+    when(pts.set()).thenReturn(set);
+    when(pts.idHash()).thenReturn(hash);
+    return id;
+  }
 }

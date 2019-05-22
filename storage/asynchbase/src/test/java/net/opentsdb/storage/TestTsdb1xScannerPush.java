@@ -175,6 +175,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     when(context.mode()).thenReturn(QueryMode.SINGLE);
     QueryPipelineContext qpc = mock(QueryPipelineContext.class);
     when(qpc.queryContext()).thenReturn(context);
+    when(qpc.tsdb()).thenReturn(tsdb);
     when(node.pipelineContext()).thenReturn(qpc);
     tsdb.runnables.clear();
   }

@@ -447,7 +447,14 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         }
       }
     } catch (Throwable t) {
-      LOG.error("Unexpected exception processing PTS post Sink", t);
+      LOG.error("Unexpected exception processing PTS post Sink: " + series + "  SET: " + series.set(), t);
+      onError(t);
+    } finally {
+      try {
+        series.close();
+      } catch (Exception e) {
+        LOG.error("Failed to close series", e);
+      }
     }
   }
   

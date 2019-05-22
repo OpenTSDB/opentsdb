@@ -15,7 +15,10 @@
 package net.opentsdb.query.idconverter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
@@ -23,19 +26,27 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.utils.JSON;
 
 public class TestByteToStringIdConverterConfig {
 
   @Test
   public void builder() throws Exception {
+    TimeSeriesDataSourceFactory m1 = mock(TimeSeriesDataSourceFactory.class);
+    TimeSeriesDataSourceFactory m2 = mock(TimeSeriesDataSourceFactory.class);
     ByteToStringIdConverterConfig config = 
         (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
+        .addDataSource("m1", m1)
+        .addDataSource("m2", m2)
         .setId("cvtr")
         .build();
     
     assertEquals("cvtr", config.getId());
     assertEquals(ByteToStringIdConverterFactory.TYPE, config.getType());
+    assertSame(m1, config.getFactory("m1"));
+    assertSame(m2, config.getFactory("m2"));
+    assertNull(config.getFactory("m3"));
   }
   
   @Test

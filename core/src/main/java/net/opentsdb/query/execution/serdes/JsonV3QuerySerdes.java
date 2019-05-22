@@ -388,18 +388,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         }
       }
       
-      set.series.put(series.set().start().epoch(), stream.toByteArray());
-
-      try {
-        series.close();
-      } catch (Exception e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-      }
-      
-//      if (set.set == null) {
-//        return Deferred.fromResult(null);
-//      }   
+      set.series.put(series.set().start().epoch(), stream.toByteArray()); 
     }
     callback.onComplete(series);
   }

@@ -14,11 +14,9 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.hbase.async.AppendRequest;
-import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.PleaseThrottleException;
 import org.hbase.async.PutRequest;
@@ -39,7 +37,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;

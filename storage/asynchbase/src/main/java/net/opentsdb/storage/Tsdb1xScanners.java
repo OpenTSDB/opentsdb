@@ -187,10 +187,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   
   /** A map of hashes to time series IDs for the sets. */
   protected TLongObjectMap<TimeSeriesId> ts_ids;
-  
-  /** Used for fallbacks. */
-  protected AtomicBoolean had_data;
-  
+    
   /**
    * Resets the cached scanners object.
    * @param node A non-null parent node.
@@ -332,6 +329,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   
   /** Called by a child when the scanner has finished it's current run. */
   void scannerDone() {
+    if (has_failed) {
+      return;
+    }
     boolean send_upstream = false;
     synchronized (this) {
       scanners_done++;
@@ -457,6 +457,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
 
   @Override
   public void close() {
+    LOG.info("    CLOSING SCANNERS!!!!!!!!", new RuntimeException("BOO!"));
     if (scanners != null) {
       for (final Tsdb1xScanner[] scnrs : scanners) {
         for (final Tsdb1xScanner scanner : scnrs) {
@@ -477,15 +478,15 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     filter_cb = null;
     current_result = null;
     if (sets != null) {
-      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
-        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
-          try {
-            set.close();
-          } catch (Exception e) {
-            LOG.error("Unexpected exception closing set: " + set, e);
-          }
-        }
-      }
+//      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
+//        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
+//          try {
+//            set.close();
+//          } catch (Exception e) {
+//            LOG.error("Unexpected exception closing set: " + set, e);
+//          }
+//        }
+//      }
       sets.clear();
     }
     if (timestamps != null) {
@@ -1026,7 +1027,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
         num_sets = 1;
       }
     } else {
-      num_sets = (int) (end_epoch - start_epoch) / 3600;
+      num_sets = (int) (end_epoch - start_epoch) / Schema.MAX_RAW_TIMESPAN;
       if (num_sets <= 0) {
         num_sets = 1;
       }
@@ -1038,7 +1039,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map = 
         new TLongObjectHashMap<Tsdb1xPartialTimeSeriesSet>();
     
-    final Duration duration = interval == null ? Duration.ofSeconds(3600) : 
+    final Duration duration = interval == null ? Duration.ofSeconds(Schema.MAX_RAW_TIMESPAN) : 
         Duration.ofSeconds(interval.getIntervals() * interval.getIntervalSeconds());
     durations.set(scanners_index, duration);
     TimeStamp start = new SecondTimeStamp(start_epoch);
@@ -1384,7 +1385,8 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
    * @return The set if found, null if not.
    */
   Tsdb1xPartialTimeSeriesSet getSet(final TimeStamp start) {
-    return sets.get(scanner_index).get(start.epoch());
+    Tsdb1xPartialTimeSeriesSet set = sets.get(scanner_index).get(start.epoch());
+    return set;
   }
 
   /** @return The current scanner index. */

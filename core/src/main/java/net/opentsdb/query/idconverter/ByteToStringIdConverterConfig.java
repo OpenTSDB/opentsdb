@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,22 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
 
 /**
- * Simple config wherein all we need is the ID. Nothing else is configurable.
+ * Simple config wherein all we need is the ID and some factories. 
+ * Nothing else is configurable.
  * 
  * @since 3.0
  */
@@ -32,10 +37,26 @@ import net.opentsdb.query.QueryNodeConfig;
 @JsonDeserialize(builder = ByteToStringIdConverterConfig.Builder.class)
 public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
   
+  /** The map of data sources to factories. */
+  private Map<String, TimeSeriesDataSourceFactory> data_sources;
+  
   protected ByteToStringIdConverterConfig(final Builder builder) {
     super(builder);
+    data_sources = builder.data_sources;
   }
-
+  
+  /**
+   * Returns the factory for a source if found.
+   * @param source The non-null source to look for.
+   * @return A factory for the source, null if not found.
+   */
+  public TimeSeriesDataSourceFactory getFactory(final String source) {
+    if (data_sources == null) {
+      return null;
+    }
+    return data_sources.get(source);
+  }
+  
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
@@ -46,7 +67,7 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
 
   @Override
   public boolean pushDown() {
-    return true;
+    return false;
   }
 
   @Override
@@ -92,9 +113,25 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
   }
   
   public static class Builder extends BaseQueryNodeConfig.Builder {
-
+    protected Map<String, TimeSeriesDataSourceFactory> data_sources;
+    
     Builder() {
       setType(ByteToStringIdConverterFactory.TYPE);
+    }
+    
+    public Builder setDataSources(
+        final Map<String, TimeSeriesDataSourceFactory> data_sources) {
+      this.data_sources = data_sources;
+      return this;
+    }
+    
+    public Builder addDataSource(final String source, 
+                                 final TimeSeriesDataSourceFactory factory) {
+      if (data_sources == null) {
+        data_sources = Maps.newHashMap();
+      }
+      data_sources.put(source, factory);
+      return this;
     }
     
     @Override

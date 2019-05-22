@@ -23,13 +23,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,6 +37,7 @@ import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.QualifierFilter;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
@@ -51,9 +50,17 @@ import org.powermock.reflect.Whitebox;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
 
+import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.NoDataPartialTimeSeries;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.pools.ByteArrayPool;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.DummyObjectPool;
+import net.opentsdb.pools.LongArrayPool;
+import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
+import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
@@ -68,20 +75,39 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.storage.HBaseExecutor.State;
+import net.opentsdb.storage.schemas.tsdb1x.PooledPartialTimeSeriesRunnable;
+import net.opentsdb.storage.schemas.tsdb1x.PooledPartialTimeSeriesRunnablePool;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xNumericPartialTimeSeries;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xNumericPartialTimeSeriesPool;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xNumericSummaryPartialTimeSeries;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xNumericSummaryPartialTimeSeriesPool;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
 import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ HBaseClient.class })
-public class TestTsdb1xMultiGet extends UTBase {
+public class TestTsdb1xMultiGetPush extends UTBase {
 
-  //GMT: Sunday, April 1, 2018 12:15:00 AM
+  // GMT: Sunday, April 1, 2018 12:15:00 AM
   public static final int START_TS = TS_DOUBLE_SERIES + 900;
- 
+  
   // GMT: Sunday, april 1, 2018 1:15:00 AM
   public static final int END_TS = TS_DOUBLE_SERIES + 900 + 3600;
   
   public static final TimeStamp BASE_TS = new MillisecondTimeStamp(0L);
+  private static ObjectPool RUNNABLE_POOL;
+  private static ObjectPool NO_DATA_POOL;
+  private static ObjectPool SET_POOL;
+  private static ObjectPool LONG_ARRAY_POOL;
+  private static ObjectPool NUMERIC_POOL;
+  private static ObjectPool BYTE_ARRAY_POOL;
+  private static ObjectPool NUMERIC_SUMMARY_POOL;
+  private static long HASH_A;
+  private static long HASH_B;
+  private static long HASH_C;
+  private static long HASH_D;
   
   public Tsdb1xHBaseQueryNode node;
   public TimeSeriesDataSourceConfig source_config;
@@ -89,6 +115,92 @@ public class TestTsdb1xMultiGet extends UTBase {
   public QueryPipelineContext context;
   public List<byte[]> tsuids;
   public SemanticQuery query;
+  
+  @BeforeClass
+  public static void beforeClassLocal() throws Exception {
+    RUNNABLE_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new PooledPartialTimeSeriesRunnablePool())
+        .setId(PooledPartialTimeSeriesRunnablePool.TYPE)
+        .build());
+    NO_DATA_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new NoDataPartialTimeSeriesPool())
+        .setId(NoDataPartialTimeSeriesPool.TYPE)
+        .build());
+    Tsdb1xPartialTimeSeriesSetPool allocator = new Tsdb1xPartialTimeSeriesSetPool();
+    allocator.initialize(tsdb, null).join();
+    SET_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(allocator)
+        .setId(Tsdb1xPartialTimeSeriesSetPool.TYPE)
+        .build());
+    
+    NUMERIC_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new Tsdb1xNumericPartialTimeSeriesPool())
+        .setId(Tsdb1xNumericPartialTimeSeriesPool.TYPE)
+        .build());
+    NUMERIC_SUMMARY_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new Tsdb1xNumericSummaryPartialTimeSeriesPool())
+        .setId(Tsdb1xNumericSummaryPartialTimeSeriesPool.TYPE)
+        .build());
+    LONG_ARRAY_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new LongArrayPool())
+        .setId(LongArrayPool.TYPE)
+        .build());
+    BYTE_ARRAY_POOL = new DummyObjectPool(tsdb, 
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new ByteArrayPool())
+        .setId(ByteArrayPool.TYPE)
+        .build());
+    
+    when(tsdb.getRegistry().getObjectPool(PooledPartialTimeSeriesRunnablePool.TYPE))
+      .thenReturn(RUNNABLE_POOL);
+    when(tsdb.getRegistry().getObjectPool(NoDataPartialTimeSeriesPool.TYPE))
+      .thenReturn(NO_DATA_POOL);
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xPartialTimeSeriesSetPool.TYPE))
+      .thenReturn(SET_POOL);
+    
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xNumericPartialTimeSeriesPool.TYPE))
+      .thenReturn(NUMERIC_POOL);
+    when(tsdb.getRegistry().getObjectPool(Tsdb1xNumericSummaryPartialTimeSeriesPool.TYPE))
+      .thenReturn(NUMERIC_SUMMARY_POOL);
+    when(tsdb.getRegistry().getObjectPool(LongArrayPool.TYPE))
+      .thenReturn(LONG_ARRAY_POOL);
+    when(tsdb.getRegistry().getObjectPool(ByteArrayPool.TYPE))
+      .thenReturn(BYTE_ARRAY_POOL);
+    
+    final byte[] tsuid_a = schema.getTSUID(makeRowKey(
+        METRIC_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_BYTES));
+    HASH_A = LongHashFunction.xx_r39().hashBytes(tsuid_a);
+    
+    final byte[] tsuid_b = schema.getTSUID(makeRowKey(
+        METRIC_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_B_BYTES));
+    HASH_B = LongHashFunction.xx_r39().hashBytes(tsuid_b);
+    
+    final byte[] tsuid_c = schema.getTSUID(makeRowKey(
+        METRIC_B_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_BYTES));
+    HASH_C = LongHashFunction.xx_r39().hashBytes(tsuid_c);
+    
+    final byte[] tsuid_d = schema.getTSUID(makeRowKey(
+        METRIC_B_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_B_BYTES));
+    HASH_D = LongHashFunction.xx_r39().hashBytes(tsuid_d);
+  }
   
   @Before
   public void before() throws Exception {
@@ -104,6 +216,8 @@ public class TestTsdb1xMultiGet extends UTBase {
       .thenReturn(Collections.emptyList());
     when(context.queryContext()).thenReturn(mock(QueryContext.class));
     when(context.query()).thenReturn(mock(TimeSeriesQuery.class));
+    when(node.push()).thenReturn(true);
+    tsdb.runnables.clear();
     
     PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
       .thenAnswer(new Answer<Tsdb1xScanner>() {
@@ -142,7 +256,6 @@ public class TestTsdb1xMultiGet extends UTBase {
     tsuids.add(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES));
     tsuids.add(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES));
     tsuids.add(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES));
-    
     storage.getMultiGets().clear();
   }
   
@@ -198,12 +311,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
         mget.tsuids.get(3));
     
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(END_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(3600, mget.interval);
+    assertEquals(2, mget.sets.length());
+    assertEquals(2, mget.batches_per_set.length());
+    assertEquals(2, mget.finished_batches_per_set.length());
   }
   
   @Test
@@ -220,23 +333,36 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
-    mget.reset(node, source_config, tsuids);
-    assertSame(node, mget.node);
-    assertSame(source_config, mget.source_config);
-    assertSame(tsuids, mget.tsuids);
-    assertEquals(8, mget.concurrency_multi_get);
-    assertTrue(mget.reversed);
-    assertEquals(16, mget.batch_size);
-    assertNull(mget.filter);
-    assertTrue(mget.pre_aggregate);
-    assertEquals(0, mget.tsuid_idx);
-    assertEquals(END_TS - 900, mget.timestamp.epoch());
-    assertEquals(-1, mget.rollup_index);
-    assertEquals(1, mget.tables.size());
-    assertArrayEquals(DATA_TABLE, mget.tables.get(0));
-    assertEquals(0, mget.outstanding.get());
-    assertNull(mget.current_result);
-    assertEquals(State.CONTINUE, mget.state());
+    try {
+      mget.reset(node, source_config, tsuids);
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
+//    assertSame(node, mget.node);
+//    assertSame(source_config, mget.source_config);
+//    assertSame(tsuids, mget.tsuids);
+//    assertEquals(8, mget.concurrency_multi_get);
+//    assertTrue(mget.reversed);
+//    assertEquals(16, mget.batch_size);
+//    assertNull(mget.filter);
+//    assertFalse(mget.rollups_enabled);
+//    assertTrue(mget.pre_aggregate);
+//    assertEquals(-1, mget.tsuid_idx);
+//    assertEquals(END_TS - 900, mget.timestamp.epoch());
+//    assertEquals(-1, mget.fallback_timestamp.epoch());
+//    assertEquals(-1, mget.rollup_index);
+//    assertEquals(1, mget.tables.size());
+//    assertArrayEquals(DATA_TABLE, mget.tables.get(0));
+//    assertEquals(0, mget.outstanding);
+//    assertFalse(mget.has_failed);
+//    assertNull(mget.current_result);
+//    assertEquals(State.CONTINUE, mget.state());
+//    
+//    assertEquals(END_TS - 900, mget.start_ts.epoch());
+//    assertEquals(3600, mget.interval);
+    // TODO - fix for reverse
+//    assertEquals(1, mget.sets.length());
+//    assertEquals(1, mget.batches_per_set.length());
+//    assertEquals(1, mget.finished_batches_per_set.length());
   }
 
   @Test
@@ -282,12 +408,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
     assertArrayEquals("count".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(2)).comparator()).value());
     assertArrayEquals(new byte[] { 2 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(3)).comparator()).value());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(START_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(86400, mget.interval);
+    assertEquals(1, mget.sets.length());
+    assertEquals(1, mget.batches_per_set.length());
+    assertEquals(1, mget.finished_batches_per_set.length());
     
     // pre-agg
     query = SemanticQuery.newBuilder()
@@ -325,12 +451,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
     assertArrayEquals("count".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(2)).comparator()).value());
     assertArrayEquals(new byte[] { 2 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(3)).comparator()).value());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(START_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(86400, mget.interval);
+    assertEquals(1, mget.sets.length());
+    assertEquals(1, mget.batches_per_set.length());
+    assertEquals(1, mget.finished_batches_per_set.length());
     
     // sum
     query = SemanticQuery.newBuilder()
@@ -366,12 +492,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(2, filter.filters().size());
     assertArrayEquals("sum".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(0)).comparator()).value());
     assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(START_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(86400, mget.interval);
+    assertEquals(1, mget.sets.length());
+    assertEquals(1, mget.batches_per_set.length());
+    assertEquals(1, mget.finished_batches_per_set.length());
     
     // no fallback (still populates all the tables since it's small)
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
@@ -391,12 +517,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(2, filter.filters().size());
     assertArrayEquals("sum".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(0)).comparator()).value());
     assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(START_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(86400, mget.interval);
+    assertEquals(1, mget.sets.length());
+    assertEquals(1, mget.batches_per_set.length());
+    assertEquals(1, mget.finished_batches_per_set.length());
   }
 
   @Test
@@ -412,12 +538,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900, mget.timestamp.epoch());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS + 3600, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(END_TS - 900, mget.start_ts.epoch());
+    assertEquals((END_TS - 900) + 3600, mget.end_timestamp.epoch());
+    assertEquals(3600, mget.interval);
+    assertEquals(2, mget.sets.length());
+    assertEquals(2, mget.batches_per_set.length());
+    assertEquals(2, mget.finished_batches_per_set.length());
     
     // with padding
     source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
@@ -432,12 +558,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900 - (3600 * 2), mget.timestamp.epoch());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS + (3600 * 3), mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(END_TS - 900 - (3600 * 2), mget.start_ts.epoch());
+    assertEquals((END_TS - 900) + (3600 * 3), mget.end_timestamp.epoch());
+    assertEquals(3600, mget.interval);
+    assertEquals(6, mget.sets.length());
+    assertEquals(6, mget.batches_per_set.length());
+    assertEquals(6, mget.finished_batches_per_set.length());
   }
   
   @Test
@@ -466,11 +592,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
-    assertEquals(END_TS + + 3600 - 86400, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(END_TS - 900 - 86400, mget.start_ts.epoch());
+    assertEquals((END_TS - 900) + 3600 - 86400, mget.end_timestamp.epoch());
+    assertEquals(3600, mget.interval);
+    assertEquals(2, mget.sets.length());
+    assertEquals(2, mget.batches_per_set.length());
+    assertEquals(2, mget.finished_batches_per_set.length());
   }
 
   @Test
@@ -478,6 +605,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
+    when(node.push()).thenReturn(true);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(false);
     when(schema.saltWidth()).thenReturn(1);
@@ -495,12 +623,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertArrayEquals(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
         mget.tsuids.get(3));
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(END_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(3600, mget.interval);
+    assertEquals(2, mget.sets.length());
+    assertEquals(2, mget.batches_per_set.length());
+    assertEquals(2, mget.finished_batches_per_set.length());
   }
   
   @Test
@@ -508,6 +636,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
+    when(node.push()).thenReturn(true);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(true);
     when(schema.saltWidth()).thenReturn(1);
@@ -529,20 +658,19 @@ public class TestTsdb1xMultiGet extends UTBase {
         new byte[4], TAGK_BYTES, TAGV_B_BYTES), 
         mget.tsuids.get(3));
     assertEquals(START_TS - 900, mget.timestamp.epoch());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
+    assertEquals(START_TS - 900, mget.start_ts.epoch());
+    assertEquals(END_TS - 900, mget.end_timestamp.epoch());
+    assertEquals(3600, mget.interval);
+    assertEquals(2, mget.sets.length());
+    assertEquals(2, mget.batches_per_set.length());
+    assertEquals(2, mget.finished_batches_per_set.length());
   }
   
   @Test
   public void fetchNext() throws Exception {
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(2, storage.getMultiGets().size());
     assertEquals(4, storage.getMultiGets().get(0).size());
     
@@ -578,16 +706,26 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
-  }
 
+    TimeStamp ts = new SecondTimeStamp(START_TS - 900);
+    validateDoubleSeries(HASH_A, 0, ts);
+    validateDoubleSeries(HASH_B, 1, ts);
+    validateDoubleSeries(HASH_C, 2, ts);
+    validateDoubleSeries(HASH_D, 6, ts); // shifted funny due to the push cache
+    
+    ts.add(Duration.ofSeconds(3600));
+    validateDoubleSeries(HASH_A, 3, ts);
+    validateDoubleSeries(HASH_B, 4, ts);
+    validateDoubleSeries(HASH_C, 5, ts);
+    validateDoubleSeries(HASH_D, 7, ts); // shifted funny due to the push cache
+  }
+  
   @Test
   public void fetchNextSmallEvenBatch() throws Exception {
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 2);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(4, storage.getMultiGets().size());
     assertEquals(2, storage.getMultiGets().get(0).size());
     
@@ -629,16 +767,26 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp ts = new SecondTimeStamp(START_TS - 900);
+    validateDoubleSeries(HASH_A, 0, ts);
+    validateDoubleSeries(HASH_B, 1, ts);
+    validateDoubleSeries(HASH_C, 2, ts);
+    validateDoubleSeries(HASH_D, 6, ts); // shifted funny due to the push cache
+    
+    ts.add(Duration.ofSeconds(3600));
+    validateDoubleSeries(HASH_A, 3, ts);
+    validateDoubleSeries(HASH_B, 4, ts);
+    validateDoubleSeries(HASH_C, 5, ts);
+    validateDoubleSeries(HASH_D, 7, ts); // shifted funny due to the push cache
   }
   
   @Test
   public void fetchNextSmallOddBatch() throws Exception {
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 3);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(4, storage.getMultiGets().size());
     assertEquals(3, storage.getMultiGets().get(0).size());
     
@@ -680,7 +828,18 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp ts = new SecondTimeStamp(START_TS - 900);
+    validateDoubleSeries(HASH_A, 0, ts);
+    validateDoubleSeries(HASH_B, 1, ts);
+    validateDoubleSeries(HASH_C, 2, ts);
+    validateDoubleSeries(HASH_D, 6, ts); // shifted funny due to the push cache
+    
+    ts.add(Duration.ofSeconds(3600));
+    validateDoubleSeries(HASH_A, 3, ts);
+    validateDoubleSeries(HASH_B, 4, ts);
+    validateDoubleSeries(HASH_C, 5, ts);
+    validateDoubleSeries(HASH_D, 7, ts); // shifted funny due to the push cache
   }
   
   @Test
@@ -692,10 +851,9 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(3, storage.getMultiGets().size());
     
     int ts = 946684800;
@@ -721,20 +879,108 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp timestamp = new SecondTimeStamp(946684800);
+    for (int i = 0; i < tsdb.runnables.size(); i++) {
+      validateEmptySeries(i, timestamp, 3, false);
+      timestamp.add(Duration.ofSeconds(3600));
+    }
+  }
+  
+  @Test
+  public void fetchNextMultiColumn() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(TS_MULTI_COLUMN_SERIES + 900))
+        .setEnd(Integer.toString(TS_MULTI_COLUMN_SERIES + 900 + 3600))
+        .setExecutionGraph(Collections.emptyList())
+        .build();
+    when(context.query()).thenReturn(query);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(null, null);
+    assertEquals(2, storage.getMultiGets().size());
+    
+    int ts = TS_MULTI_COLUMN_SERIES;
+    for (int i = 0; i < 2; i++) {
+      assertEquals(4, storage.getMultiGets().get(i).size());
+      List<GetRequest> gets = storage.getMultiGets().get(i);
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(0).key());
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(1).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(2).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(3).key());
+      for (int x = 0; x < gets.size(); x++) {
+        assertArrayEquals(DATA_TABLE, gets.get(x).table());
+        assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(x).family());
+        assertNull(gets.get(x).getFilter());
+      }
+      
+      ts += 3600;
+    }
+        
+    TimeStamp timestamp = new SecondTimeStamp(TS_MULTI_COLUMN_SERIES);
+    validateSingleMixedSeries(HASH_A, 0, timestamp, 2, 2);
+    validateSingleMixedSeries(HASH_C, 2, timestamp, 2, 2);
+
+    timestamp.add(Duration.ofSeconds(3600));
+    validateSingleMixedSeries(HASH_A, 1, timestamp, 2, 2);
+    validateSingleMixedSeries(HASH_C, 3, timestamp, 2, 2);
+  }
+  
+  @Test
+  public void fetchNextAppendColumn() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(TS_APPEND_SERIES + 900))
+        .setEnd(Integer.toString(TS_APPEND_SERIES + 900 + 3600))
+        .setExecutionGraph(Collections.emptyList())
+        .build();
+    when(context.query()).thenReturn(query);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(null, null);
+    assertEquals(2, storage.getMultiGets().size());
+    
+    int ts = TS_APPEND_SERIES;
+    for (int i = 0; i < 2; i++) {
+      assertEquals(4, storage.getMultiGets().get(i).size());
+      List<GetRequest> gets = storage.getMultiGets().get(i);
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(0).key());
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(1).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(2).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(3).key());
+      for (int x = 0; x < gets.size(); x++) {
+        assertArrayEquals(DATA_TABLE, gets.get(x).table());
+        assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(x).family());
+        assertNull(gets.get(x).getFilter());
+      }
+      
+      ts += 3600;
+    }
+        
+    TimeStamp timestamp = new SecondTimeStamp(TS_APPEND_SERIES);
+    validateSingleMixedSeries(HASH_A, 0, timestamp, 2, 1);
+
+    timestamp.add(Duration.ofSeconds(3600));
+    validateSingleMixedSeries(HASH_A, 1, timestamp, 2, 1);
   }
   
   @Test
   public void fetchNextRollup() throws Exception {
     // rollup tables
     setMultiRollupQuery();
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
-    when(series.isEmpty()).thenReturn(false);
-    when(result.timeSeries()).thenReturn(series);
+    when(node.sentData()).thenReturn(true); // pretend we sent it.
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(3, storage.getMultiGets().size());
     int ts = TS_ROLLUP_SERIES;
     for (int i = 0; i < storage.getMultiGets().size(); i++) {
@@ -759,21 +1005,29 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(6)).decode(any(ArrayList.class), any(RollupInterval.class));
+    TimeStamp timestamp = new SecondTimeStamp(TS_ROLLUP_SERIES);
+    // note the order is all funky due to the mock being single threaded
+    validateDoubleSeriesRollup(HASH_A, 0, timestamp);
+    validateDoubleSeriesRollup(HASH_C, 3, timestamp);
+    
+    timestamp.add(Duration.ofSeconds(86400));
+    validateDoubleSeriesRollup(HASH_A, 1, timestamp);
+    validateDoubleSeriesRollup(HASH_C, 4, timestamp);
+    
+    timestamp.add(Duration.ofSeconds(86400));
+    validateDoubleSeriesRollup(HASH_A, 2, timestamp);
+    validateDoubleSeriesRollup(HASH_C, 5, timestamp);
   }
   
   @Test
   public void fetchNextRollupSmallEvenBatch() throws Exception {
     // rollup tables
     setMultiRollupQuery();
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
-    when(series.isEmpty()).thenReturn(false);
-    when(result.timeSeries()).thenReturn(series);
+    when(node.sentData()).thenReturn(true); // pretend we sent it.
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 2);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(6, storage.getMultiGets().size());
     assertEquals(2, storage.getMultiGets().get(0).size());
     List<GetRequest> gets = storage.getMultiGets().get(0);
@@ -849,21 +1103,29 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(6)).decode(any(ArrayList.class), any(RollupInterval.class));
+    TimeStamp ts = new SecondTimeStamp(TS_ROLLUP_SERIES);
+    // note the order is all funky due to the mock being single threaded
+    validateDoubleSeriesRollup(HASH_A, 0, ts);
+    validateDoubleSeriesRollup(HASH_C, 3, ts);
+    
+    ts.add(Duration.ofSeconds(86400));
+    validateDoubleSeriesRollup(HASH_A, 1, ts);
+    validateDoubleSeriesRollup(HASH_C, 4, ts);
+    
+    ts.add(Duration.ofSeconds(86400));
+    validateDoubleSeriesRollup(HASH_A, 2, ts);
+    validateDoubleSeriesRollup(HASH_C, 5, ts);
   }
   
   @Test
   public void fetchNextRollupSmallOddBatch() throws Exception {
     // rollup tables
     setMultiRollupQuery();
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
-    when(series.isEmpty()).thenReturn(false);
-    when(result.timeSeries()).thenReturn(series);
+    when(node.sentData()).thenReturn(true); // pretend we sent it.
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     Whitebox.setInternalState(mget, "batch_size", 3);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(6, storage.getMultiGets().size());
     assertEquals(3, storage.getMultiGets().get(0).size());
     List<GetRequest> gets = storage.getMultiGets().get(0);
@@ -939,22 +1201,211 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(6)).decode(any(ArrayList.class), any(RollupInterval.class));
+    TimeStamp ts = new SecondTimeStamp(TS_ROLLUP_SERIES);
+    // note the order is all funky due to the mock being single threaded
+    validateDoubleSeriesRollup(HASH_A, 0, ts);
+    validateDoubleSeriesRollup(HASH_C, 3, ts);
+    
+    ts.add(Duration.ofSeconds(86400));
+    validateDoubleSeriesRollup(HASH_A, 1, ts);
+    validateDoubleSeriesRollup(HASH_C, 4, ts);
+    
+    ts.add(Duration.ofSeconds(86400));
+    validateDoubleSeriesRollup(HASH_A, 2, ts);
+    validateDoubleSeriesRollup(HASH_C, 5, ts);
   }
-
+  
+  @Test
+  public void fetchNextFillEarly() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS - (3600 * 2)))
+        .setEnd(Integer.toString(END_TS))
+        .setExecutionGraph(Collections.emptyList())
+        .build();
+    when(context.query()).thenReturn(query);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(null, null);
+    assertEquals(4, storage.getMultiGets().size());
+    assertEquals(4, storage.getMultiGets().get(0).size());
+    
+    int ts = START_TS - 900 - (3600 * 2);
+    for (int i = 0; i < storage.getMultiGets().size(); i++) {
+      List<GetRequest> gets = storage.getMultiGets().get(i);
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(0).key());
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(1).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(2).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(3).key());
+      for (int x = 0; x < gets.size(); x++) {
+        assertArrayEquals(DATA_TABLE, gets.get(x).table());
+        assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(x).family());
+        assertNull(gets.get(x).getFilter());
+      }
+      
+      ts += 3600;
+    }
+    assertTrue(mget.all_batches_sent.get());
+    assertEquals(State.COMPLETE, mget.state());
+    
+    TimeStamp timestamp = new SecondTimeStamp(START_TS - 900 - (3600 *  2));
+    validateEmptySeries(6, timestamp, 4, false);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    validateEmptySeries(7, timestamp, 4, false);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    validateDoubleSeries(HASH_A, 0, timestamp, 4);
+    validateDoubleSeries(HASH_B, 1, timestamp, 4);
+    validateDoubleSeries(HASH_C, 2, timestamp, 4);
+    validateDoubleSeries(HASH_D, 8, timestamp, 4); // shifted funny due to the push cache
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    validateDoubleSeries(HASH_A, 3, timestamp, 4);
+    validateDoubleSeries(HASH_B, 4, timestamp, 4);
+    validateDoubleSeries(HASH_C, 5, timestamp, 4);
+    validateDoubleSeries(HASH_D, 9, timestamp, 4); // shifted funny due to the push cache
+  }
+  
+  @Test
+  public void fetchNextFillLate() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(START_TS + (3600 * (TS_DOUBLE_SERIES_COUNT - 1))))
+        .setEnd(Integer.toString(END_TS + (3600 * (TS_DOUBLE_SERIES_COUNT + 1))))
+        .setExecutionGraph(Collections.emptyList())
+        .build();
+    
+    when(context.query()).thenReturn(query);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(null, null);
+    assertEquals(4, storage.getMultiGets().size());
+    assertEquals(4, storage.getMultiGets().get(0).size());
+    
+    int ts = START_TS + (3600 * (TS_DOUBLE_SERIES_COUNT - 1)) - 900;
+    for (int i = 0; i < storage.getMultiGets().size(); i++) {
+      List<GetRequest> gets = storage.getMultiGets().get(i);
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(0).key());
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(1).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(2).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(3).key());
+      for (int x = 0; x < gets.size(); x++) {
+        assertArrayEquals(DATA_TABLE, gets.get(x).table());
+        assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(x).family());
+        assertNull(gets.get(x).getFilter());
+      }
+      
+      ts += 3600;
+    }
+    
+    assertTrue(mget.all_batches_sent.get());
+    assertEquals(State.COMPLETE, mget.state());
+    
+    TimeStamp timestamp = new SecondTimeStamp(
+        START_TS + (3600 * (TS_DOUBLE_SERIES_COUNT - 1)) - 900);
+    validateDoubleSeries(HASH_A, 0, timestamp, 4);
+    validateDoubleSeries(HASH_B, 1, timestamp, 4);
+    validateDoubleSeries(HASH_C, 2, timestamp, 4);
+    validateDoubleSeries(HASH_D, 3, timestamp, 4);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    validateEmptySeries(4, timestamp, 4, false);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    validateEmptySeries(5, timestamp, 4, false);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    validateEmptySeries(6, timestamp, 4, false);
+  }
+  
+  @Test
+  public void fetchNextFillMiddle() throws Exception {
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart(Integer.toString(TS_SINGLE_SERIES_GAP + 900))
+        .setEnd(Integer.toString(TS_SINGLE_SERIES_GAP + 900 + (3600 * TS_SINGLE_SERIES_GAP_COUNT)))
+        .setExecutionGraph(Collections.emptyList())
+        .build();
+    
+    when(context.query()).thenReturn(query);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(null, null);
+    assertEquals(17, storage.getMultiGets().size());
+    
+    int ts = TS_SINGLE_SERIES_GAP;
+    for (int i = 0; i < storage.getMultiGets().size(); i++) {
+      List<GetRequest> gets = storage.getMultiGets().get(i);
+      assertEquals(4, gets.size());
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(0).key());
+      assertArrayEquals(makeRowKey(METRIC_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(1).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_BYTES), 
+          gets.get(2).key());
+      assertArrayEquals(makeRowKey(METRIC_B_BYTES, ts, TAGK_BYTES, TAGV_B_BYTES), 
+          gets.get(3).key());
+      for (int x = 0; x < gets.size(); x++) {
+        assertArrayEquals(DATA_TABLE, gets.get(x).table());
+        assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(x).family());
+        assertNull(gets.get(x).getFilter());
+      }
+      
+      ts += 3600;
+    }
+    assertTrue(mget.all_batches_sent.get());
+    assertEquals(State.COMPLETE, mget.state());
+    TimeStamp timestamp = new SecondTimeStamp(TS_SINGLE_SERIES_GAP);
+    // note the order is funky since we're single threaded.
+    for (int i = 0; i < 5; i++) {
+      validateSingleSeries(HASH_A, i, timestamp, 17, 2);
+      validateSingleSeries(HASH_C, i + 10, timestamp, 17, 2);
+      
+      timestamp.add(Duration.ofSeconds(3600));
+    }
+    
+    // straggler
+    validateSingleSeries(HASH_A, 15, timestamp, 17, 1);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    for (int i = 16; i < 20; i++) {
+      validateEmptySeries(i, timestamp, 17, false);
+      timestamp.add(Duration.ofSeconds(3600));
+    }
+    
+    // straggler
+    validateSingleSeries(HASH_C, 20, timestamp, 17, 1);
+    
+    timestamp.add(Duration.ofSeconds(3600));
+    for (int i = 5; i < 10; i++) {
+      validateSingleSeries(HASH_A, i, timestamp, 17, 2);
+      validateSingleSeries(HASH_C, i + 16, timestamp, 17, 2);
+      
+      timestamp.add(Duration.ofSeconds(3600));
+    }
+    
+    validateEmptySeries(26, timestamp, 17, false);
+  }
+  
   @Test
   public void fetchNextRollupFallbackThenFindsData() throws Exception {
     // rollup tables
     setMultiRollupQuery(false, TS_DOUBLE_SERIES);
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
-    when(series.isEmpty())
-      .thenReturn(true)
-      .thenReturn(false);
-    when(result.timeSeries()).thenReturn(series);
+    when(node.sentData())
+      .thenReturn(false)
+      .thenReturn(true); // pretend we sent it.
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(52, storage.getMultiGets().size());
     
     int ts = TS_DOUBLE_SERIES;
@@ -1002,17 +1453,32 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(64)).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp timestamp = new SecondTimeStamp(TS_DOUBLE_SERIES);
+    // note the order is all funky due to the mock being single threaded
+    for (int i = 0; i < 48; i += 3) {
+      validateDoubleSeries(HASH_A, i, timestamp, 49);
+      validateDoubleSeries(HASH_B, i + 1, timestamp, 49);
+      validateDoubleSeries(HASH_C, i + 2, timestamp, 49);
+      validateDoubleSeries(HASH_D, (i / 3) + 48, timestamp, 49);
+      timestamp.add(Duration.ofSeconds(3600));
+    }
+    
+    // it was a rollup query so we have lots of empty stuff
+    for (int i = 64; i < storage.getMultiGets().size(); i++) {
+      validateEmptySeries(i, timestamp, 49, false);
+      timestamp.add(Duration.ofSeconds(3600));
+    }
   }
   
   @Test
   public void fetchNextRollupFallbackThenFindsNoData() throws Exception {
     // rollup tables
     setMultiRollupQuery(false, 946684800);
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(node.sentData()).thenReturn(false);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(52, storage.getMultiGets().size());
     
     int ts = 946684800;
@@ -1060,7 +1526,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp timestamp = new SecondTimeStamp(946684800);
+    for (int i = 0; i < tsdb.runnables.size(); i++) {
+      validateEmptySeries(i, timestamp, 49, false);
+      timestamp.add(Duration.ofSeconds(3600));
+    }
   }
   
   @Test
@@ -1069,10 +1540,9 @@ public class TestTsdb1xMultiGet extends UTBase {
     setMultiRollupQuery(false, 946684800);
     when(node.sentData()).thenReturn(false);
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(3, storage.getMultiGets().size());
     
     int ts = 946684800;
@@ -1097,7 +1567,12 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp timestamp = new SecondTimeStamp(946684800);
+    for (int i = 0; i < tsdb.runnables.size(); i++) {
+      validateEmptySeries(i, timestamp, 3, true);
+      timestamp.add(Duration.ofSeconds(86400));
+    }
   }
   
   @Test
@@ -1109,10 +1584,9 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     assertEquals(8, storage.getMultiGets().size());
     
     int ts = TS_MULTI_SERIES_EX;
@@ -1137,9 +1611,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertFalse(mget.all_batches_sent.get());
     assertEquals(State.EXCEPTION, mget.state());
-    verify(result, times(28)).decode(any(ArrayList.class), any(RollupInterval.class));
-    verify(node, never()).onError(any(UnitTestException.class));
-    verify(result, times(1)).setException(any(UnitTestException.class));
+    assertEquals(28, tsdb.runnables.size());
+    verify(node, times(1)).onError(any(UnitTestException.class));
   }
   
   @Test
@@ -1147,16 +1620,17 @@ public class TestTsdb1xMultiGet extends UTBase {
     node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
+    when(node.push()).thenReturn(true);
+    when(node.sentData()).thenReturn(true);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(false);
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     // NOTE: Since we don't mock out schema.prefixKeyWithSalt() the requested salts are 0.
     when(node.schema()).thenReturn(schema);
-    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
-    mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.reset(node, source_config, tsuids);    
+    mget.fetchNext(null, null);
     
     assertEquals(4, storage.getLastMultiGets().size());
     List<GetRequest> gets = storage.getMultiGets().get(0);
@@ -1191,7 +1665,13 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp ts = new SecondTimeStamp(START_TS - 900);
+    // TODO - write to a salted mock table
+    validateEmptySeries(0, ts, 2, false);
+    
+    ts.add(Duration.ofSeconds(3600));
+    validateEmptySeries(1, ts, 2, false);
   }
   
   @Test
@@ -1199,16 +1679,17 @@ public class TestTsdb1xMultiGet extends UTBase {
     node = mock(Tsdb1xHBaseQueryNode.class);
     when(node.parent()).thenReturn(data_store);
     when(node.pipelineContext()).thenReturn(context);
+    when(node.push()).thenReturn(true);
+    when(node.sentData()).thenReturn(true);
     Schema schema = mock(Schema.class);
     when(schema.timelessSalting()).thenReturn(true);
     when(schema.saltWidth()).thenReturn(1);
     when(schema.metricWidth()).thenReturn(3);
     // NOTE: Since we don't mock out schema.setBaseTime() the requested timestamps are 0.
     when(node.schema()).thenReturn(schema);
-    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     
     assertEquals(4, storage.getLastMultiGets().size());
     List<GetRequest> gets = storage.getMultiGets().get(0);
@@ -1243,25 +1724,28 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    
+    TimeStamp ts = new SecondTimeStamp(START_TS - 900);
+    // TODO - write to a salted mock table
+    validateEmptySeries(0, ts, 2, false);
+    
+    ts.add(Duration.ofSeconds(3600));
+    validateEmptySeries(1, ts, 2, false);
   }
   
   @Test
   public void close() throws Exception {
-    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    when(result.isFull()).thenReturn(true);
-    
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    mget.fetchNext(result, null);
+    mget.fetchNext(null, null);
     
     assertEquals(END_TS - 900 + 3600, mget.timestamp.epoch());
-    assertEquals(END_TS, mget.end_timestamp.epoch());
+    assertEquals(END_TS - 900, mget.end_timestamp.epoch());
     assertSame(tsuids, mget.tsuids);
     assertSame(source_config, mget.source_config);
     assertSame(node, mget.node);
     assertEquals(1, mget.tables.size());
-    assertEquals(1, mget.outstanding.get());
+    assertEquals(0, mget.outstanding.get());
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(-1, mget.rollup_index);
     
@@ -1318,4 +1802,194 @@ public class TestTsdb1xMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
   }
+
+  void verifyFourSeries() {
+    assertEquals(8, tsdb.runnables.size());
+    
+    final byte[] tsuid_a = schema.getTSUID(makeRowKey(
+        METRIC_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_BYTES));
+    final long hash_a = LongHashFunction.xx_r39().hashBytes(tsuid_a);
+    //validate(hash_a, 0, 3, hours);
+    System.out.println("A: " + hash_a);
+    final byte[] tsuid_b = schema.getTSUID(makeRowKey(
+        METRIC_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_B_BYTES));
+    final long hash_b = LongHashFunction.xx_r39().hashBytes(tsuid_b);
+    System.out.println("B: " + hash_b);
+    final byte[] tsuid_c = schema.getTSUID(makeRowKey(
+        METRIC_B_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_BYTES));
+    final long hash_c = LongHashFunction.xx_r39().hashBytes(tsuid_c);
+    System.out.println("C: " + hash_c);
+    final byte[] tsuid_d = schema.getTSUID(makeRowKey(
+        METRIC_B_BYTES, 
+        TS_SINGLE_SERIES, 
+        TAGK_BYTES,
+        TAGV_B_BYTES));
+    final long hash_d = LongHashFunction.xx_r39().hashBytes(tsuid_d);
+    
+    TimeStamp start = new SecondTimeStamp(TS_DOUBLE_SERIES);
+    TimeStamp end = start.getCopy();
+    end.add(Duration.ofSeconds(3600));
+    int idx = 0;
+    for (final Runnable runnable : tsdb.runnables) {
+      Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+          ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+//      assertEquals(start.epoch(), set.start().epoch());
+//      assertEquals(end.epoch(), set.end().epoch());
+      assertTrue(set.complete());
+      assertEquals(4, set.timeSeriesCount());
+      assertEquals(2, set.totalSets());
+      assertSame(node, set.node());
+      
+      Tsdb1xNumericPartialTimeSeries value = (Tsdb1xNumericPartialTimeSeries)
+          ((PooledPartialTimeSeriesRunnable) runnable).pts().value();
+      System.out.println("idx: " + idx + "  HASH: " + value.idHash() + "  " + set.start().epoch());
+//      assertEquals(0, value.offset());
+//      assertEquals(2, value.end());
+//      assertEquals(start.epoch(), value.data()[0]);
+//      assertEquals(1, value.data()[1]); // just the single value
+//      if (idx == 0 || idx % 2 == 0) {
+//        assertEquals(hash_a, value.idHash());
+//      } else if (idx % 3 == 0) {
+//        
+//      } else {
+//        assertEquals(hash_b, value.idHash());
+//        start.add(Duration.ofSeconds(3600));
+//        end.add(Duration.ofSeconds(3600));
+//      }
+      idx++;
+    }
+  }
+  
+  void validateDoubleSeries(long hash, int index, TimeStamp start) {
+    validateDoubleSeries(hash, index, start, 2);
+  }
+  
+  void validateDoubleSeries(long hash, int index, TimeStamp start, int sets) {
+    TimeStamp end = start.getCopy();
+    end.add(Duration.ofSeconds(3600));
+    Runnable runnable = tsdb.runnables.get(index);
+    Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+    assertEquals(start.epoch(), set.start().epoch());
+    assertEquals(end.epoch(), set.end().epoch());
+    assertTrue(set.complete());
+    assertEquals(4, set.timeSeriesCount());
+    assertEquals(sets, set.totalSets());
+    assertSame(node, set.node());
+    
+    Tsdb1xNumericPartialTimeSeries value = (Tsdb1xNumericPartialTimeSeries)
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().value();
+    assertEquals(0, value.offset());
+    assertEquals(2, value.end());
+    assertEquals(start.epoch(), value.data()[0]);
+    assertEquals(1, value.data()[1]); // just the single value
+    assertEquals(hash, value.idHash());
+  }
+  
+  void validateSingleSeries(long hash, int index, TimeStamp start, int sets, int series) {
+    TimeStamp end = start.getCopy();
+    end.add(Duration.ofSeconds(3600));
+    Runnable runnable = tsdb.runnables.get(index);
+    Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+    assertEquals(start.epoch(), set.start().epoch());
+    assertEquals(end.epoch(), set.end().epoch());
+    assertTrue(set.complete());
+    assertEquals(series, set.timeSeriesCount());
+    assertEquals(sets, set.totalSets());
+    assertSame(node, set.node());
+    
+    Tsdb1xNumericPartialTimeSeries value = (Tsdb1xNumericPartialTimeSeries)
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().value();
+    assertEquals(0, value.offset());
+    assertEquals(2, value.end());
+    assertEquals(start.epoch(), value.data()[0]);
+    assertEquals(1, value.data()[1]); // just the single value
+    assertEquals(hash, value.idHash());
+  }
+  
+  void validateSingleMixedSeries(long hash, int index, TimeStamp start, int sets, int series) {
+    TimeStamp end = start.getCopy();
+    end.add(Duration.ofSeconds(3600));
+    Runnable runnable = tsdb.runnables.get(index);
+    Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+    assertEquals(start.epoch(), set.start().epoch());
+    assertEquals(end.epoch(), set.end().epoch());
+    assertTrue(set.complete());
+    assertEquals(series, set.timeSeriesCount());
+    assertEquals(sets, set.totalSets());
+    assertSame(node, set.node());
+    
+    Tsdb1xNumericPartialTimeSeries value = (Tsdb1xNumericPartialTimeSeries)
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().value();
+    assertEquals(0, value.offset());
+    // TODO - decode
+    assertEquals(hash, value.idHash());
+  }
+  
+  void validateEmptySeries(int index, TimeStamp start, int sets, boolean is_rollup) {
+    TimeStamp end = start.getCopy();
+    end.add(Duration.ofSeconds(is_rollup ? 86400 : 3600));
+    Runnable runnable = tsdb.runnables.get(index);
+    Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+    assertEquals(start.epoch(), set.start().epoch());
+    assertEquals(end.epoch(), set.end().epoch());
+    assertTrue(set.complete());
+    assertEquals(0, set.timeSeriesCount());
+    assertEquals(sets, set.totalSets());
+    assertSame(node, set.node());
+    
+    assertTrue(((PooledPartialTimeSeriesRunnable) runnable).pts() 
+        instanceof NoDataPartialTimeSeries);
+  }
+  
+  void validateDoubleSeriesRollup(long hash, int index, TimeStamp start) {
+    TimeStamp end = start.getCopy();
+    end.add(Duration.ofSeconds(86400));
+    Runnable runnable = tsdb.runnables.get(index);
+    Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+    assertEquals(start.epoch(), set.start().epoch());
+    assertEquals(end.epoch(), set.end().epoch());
+    assertTrue(set.complete());
+    assertEquals(2, set.timeSeriesCount());
+    assertEquals(3, set.totalSets());
+    assertSame(node, set.node());
+    
+    Tsdb1xNumericSummaryPartialTimeSeries value = (Tsdb1xNumericSummaryPartialTimeSeries)
+        ((PooledPartialTimeSeriesRunnable) runnable).pts().value();
+    assertEquals(0, value.offset());
+    assertEquals(96, value.end());
+    // TODO validate the values
+//      assertEquals(start.epoch(), value.data()[0]);
+//      assertEquals(1, value.data()[1]); // just the single value
+    assertEquals(hash, value.idHash());
+  }
+  
+  void debug(TimeStamp start, int interval) {
+    System.out.println("A: " + HASH_A);
+    System.out.println("B: " + HASH_B);
+    System.out.println("C: " + HASH_C);
+    System.out.println("D: " + HASH_D);
+    
+    int idx = 0;
+    for (Runnable runnable : tsdb.runnables) {
+      Tsdb1xPartialTimeSeriesSet set = (Tsdb1xPartialTimeSeriesSet) 
+          ((PooledPartialTimeSeriesRunnable) runnable).pts().set();
+      System.out.println("[" + idx++ + "] " + ((PooledPartialTimeSeriesRunnable) runnable).pts().idHash() + "  " + set.start().epoch() + "  " + 
+          ((set.start().epoch() - start.epoch()) / interval));
+    }
+  }
+  
 }
