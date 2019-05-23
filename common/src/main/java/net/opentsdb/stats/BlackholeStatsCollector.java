@@ -84,6 +84,11 @@ public class BlackholeStatsCollector extends BaseTSDBPlugin implements
     public void stop(final String... tags) {
       // Muahaha!
     }
+
+    @Override
+    public long startTimeNanos() {
+      return 0;
+    }
   }
   private static final BlackholeTimer TMR = new BlackholeTimer();
 }

@@ -260,6 +260,9 @@ public final class PluginLoader {
       }
     } catch (IOException e) {
       LOG.warn("Unexpected exception searching class path for: " + type, e);
+    } catch (Error e) {
+      throw new Error("Failed to load plugins for type [" + type 
+          + "] and namespace [" + namespace + "]", e);
     }
     
     if (plugins.size() > 0) {

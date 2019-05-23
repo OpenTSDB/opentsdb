@@ -54,7 +54,8 @@ public class FileFactory implements ProtocolProviderFactory, ProviderFactory {
   @Override
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer) {
-    throw new UnsupportedOperationException();
+    // try for the old default config.
+    return newInstance(config, timer, "file:///etc/opentsdb/opentsdb.conf");
   }
   
   @Override

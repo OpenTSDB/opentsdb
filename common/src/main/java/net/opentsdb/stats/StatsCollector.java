@@ -99,5 +99,9 @@ public interface StatsCollector extends TSDBPlugin {
      * @param tags An optional set of tag key, value, key, value pairs.
      */
     public void stop(final String... tags);
+    
+    /** @return The start time in nanos. */
+    public long startTimeNanos();
+    
   }
 }
