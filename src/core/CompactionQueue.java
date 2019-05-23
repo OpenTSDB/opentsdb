@@ -93,7 +93,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @param tsdb The TSDB we belong to.
    */
   public CompactionQueue(final TSDB tsdb) {
-    super(new Cmp(tsdb));
+    super();
     this.tsdb = tsdb;
     metric_width = tsdb.metrics.width();
     flush_interval = tsdb.config.getInt("tsd.storage.compaction.flush_interval");
@@ -172,13 +172,9 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     final ArrayList<Deferred<Object>> ds =
       new ArrayList<Deferred<Object>>(Math.min(maxflushes, max_concurrent_flushes));
     int nflushes = 0;
-    int seed = (int) (System.nanoTime() % 3);
     for (final byte[] row : this.keySet()) {
-      if (maxflushes == 0) {
+      if (maxflushes <= 0) {
         break;
-      }
-      if (seed == row.hashCode() % 3) {
-        continue;
       }
       final long base_time = Bytes.getUnsignedInt(row,
           Const.SALT_WIDTH() + metric_width);
@@ -855,29 +851,6 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           return;
         }
       }
-    }
-  }
-
-  /**
-   * Helper to sort the byte arrays in the compaction queue.
-   * <p>
-   * This comparator sorts things by timestamp first, this way we can find
-   * all rows of the same age at once.
-   */
-  private static final class Cmp implements Comparator<byte[]> {
-
-    /** The position with which the timestamp of metric starts.  */
-    private final short timestamp_pos;
-
-    public Cmp(final TSDB tsdb) {
-      timestamp_pos = (short) (Const.SALT_WIDTH() + tsdb.metrics.width());
-    }
-
-    @Override
-    public int compare(final byte[] a, final byte[] b) {
-      final int c = Bytes.memcmp(a, b, timestamp_pos, Const.TIMESTAMP_BYTES);
-      // If the timestamps are equal, sort according to the entire row key.
-      return c != 0 ? c : Bytes.memcmp(a, b);
     }
   }
 }
