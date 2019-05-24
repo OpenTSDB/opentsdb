@@ -457,7 +457,6 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
 
   @Override
   public void close() {
-    LOG.info("    CLOSING SCANNERS!!!!!!!!", new RuntimeException("BOO!"));
     if (scanners != null) {
       for (final Tsdb1xScanner[] scnrs : scanners) {
         for (final Tsdb1xScanner scanner : scnrs) {
