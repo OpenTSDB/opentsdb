@@ -18,6 +18,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -59,16 +61,17 @@ public class QueryConfig implements TimerTask {
   public static final String SIZE_METRIC = "query.size.bytes";
   
   /** The non-null ID that's reported as the "id" tag for metrics. */
-  protected String id;
+  protected final String id;
   
   /** A list of fully qualified endpoints to post to, e.g. https://tsdb/api/query/graph */
-  protected List<String> endpoints;
+  protected final List<String> endpoints;
+  protected final List<String> shuffled_endpoints;
   
   /** A frequency to run the queries, e.g. "1m" to run every minute. */
-  protected String frequency;
+  protected final String frequency;
   
   /** The query to run. */
-  protected SemanticQuery.Builder query_builder;
+  protected final SemanticQuery.Builder query_builder;
   
   /** A schedule timeout used to cancel runs. */
   protected Timeout timeout;
@@ -88,16 +91,23 @@ public class QueryConfig implements TimerTask {
   /** The TSDB reference. */
   protected final TSDB tsdb;
   
+  /** Random number generator used for jitter and scheduling. */
+  protected final Random rnd;
+  
   /** The list of callbacks. */
   protected List<ResponseCallback> callbacks;
+  
+  protected volatile Iterator<String> iterator;
   
   private QueryConfig(final Builder builder) {
     this.id = builder.id;
     this.endpoints = builder.endpoints;
+    shuffled_endpoints = Lists.newArrayList(endpoints);
     this.frequency = builder.frequency;
     this.query_builder = builder.query_builder;
     this.client = builder.client;
     this.tsdb = builder.tsdb;
+    rnd = new Random(DateTime.currentTimeMillis());
     cancel = new AtomicBoolean();
     outstanding = new AtomicBoolean();
     latch = new AtomicInteger();
@@ -175,6 +185,8 @@ public class QueryConfig implements TimerTask {
       return false;
     }
     
+    // TODO - WARNING: This is not a good long-term solution as we need to 
+    // build the query and use the .equals() on the constructed queries.
     String local = JSON.serializeToString(query_builder.build());
     String remote = JSON.serializeToString(other.query_builder.build());
     return Objects.equal(local, remote);
@@ -189,15 +201,26 @@ public class QueryConfig implements TimerTask {
     
     if (outstanding.compareAndSet(false, true)) {
       try {
-        latch.set(endpoints.size());
-        for (int i = 0; i < endpoints.size(); i++) {
-          final HttpPost post = new HttpPost(endpoints.get(i));
+        if (shuffled_endpoints.size() > 0) {
+          Collections.shuffle(shuffled_endpoints);
+        }
+        iterator = shuffled_endpoints.iterator();
+        
+        latch.set(shuffled_endpoints.size());
+        final String endpoint = iterator.next();
+        try {
+          final HttpPost post = new HttpPost(endpoint);
           post.addHeader("Content-Type", "application/json");
-          post.setEntity(new StringEntity(JSON.serializeToString(query_builder.build())));
-          ResponseCallback cb = callbacks.get(i);
+          post.setEntity(new StringEntity(JSON.serializeToString(
+              query_builder.build())));
+          ResponseCallback cb = callbacks.get(0);
           cb.start();
           client.execute(post, cb);
-          LOG.debug("Sent query " + id + " to endpoint " + endpoints.get(i));
+          LOG.debug("Sent first query " + id + " to endpoint " + endpoint);
+        } catch (Exception e) {
+          LOG.error("Failed to send query for: " + id + " and endpoint " 
+              + endpoint, e);
+          latch.decrementAndGet();
         }
       } catch (Throwable t) {
         LOG.error("Failed to send query for: " + id, t);
@@ -214,10 +237,10 @@ public class QueryConfig implements TimerTask {
    * Called just after instantiation to start the first run with jitter.
    * @param 
    */
-  public void schedule(final Random random) {
+  public void schedule() {
     long interval = DateTime.parseDuration(frequency);
-    int rnd = random.nextInt((int) interval);
-    int jitter = (int) interval - rnd;
+    int num = rnd.nextInt((int) interval);
+    int jitter = (int) interval - num;
     LOG.debug("Scheduling test for " + id + " in " + (jitter / 1000) + " seconds");
     timeout = tsdb.getQueryTimer().newTimeout(this, 
         jitter,
@@ -255,28 +278,36 @@ public class QueryConfig implements TimerTask {
     public void completed(final HttpResponse result) {
       stop(result.getStatusLine().getStatusCode());
       double duration = DateTime.msFromNanoDiff(
-          DateTime.nanoTime(), timer.startTimeNanos()); 
+          DateTime.nanoTime(), timer.startTimeNanos());
+      int content_length = 0;
       if (result.getStatusLine().getStatusCode() >= 200 &&
           result.getStatusLine().getStatusCode() < 300) {
-        tsdb.getStatsCollector().setGauge(SIZE_METRIC, 
-            result.getEntity().getContentLength(),
-            "id", id, 
-            "endpoint", endpoints.get(index));
+        byte[] content;
+        try {
+          content = EntityUtils.toByteArray(result.getEntity());
+          content_length = content.length;
+          tsdb.getStatsCollector().setGauge(SIZE_METRIC, 
+              content_length,
+              "id", id, 
+              "endpoint", shuffled_endpoints.get(index));
+        } catch (IOException e) {
+          LOG.error("Failed to parse response content", e);
+        }
       }
       try {
         EntityUtils.consume(result.getEntity());
       } catch (IOException e) {
         LOG.error("Unable to consume response", e);
       }
-      LOG.debug("Finished query " + id + " against " + endpoints.get(index) 
+      LOG.debug("Finished query " + id + " against " + shuffled_endpoints.get(index) 
         + " with code: " + result.getStatusLine().getStatusCode() + " in " 
-        + duration + "ms");
+        + duration + "ms for " + content_length + " bytes");
     }
 
     @Override
     public void failed(final Exception ex) {
       stop(0);
-      LOG.error("Failed query " + id + " against " + endpoints.get(index), ex);
+      LOG.error("Failed query " + id + " against " + shuffled_endpoints.get(index), ex);
     }
 
     @Override
@@ -286,10 +317,28 @@ public class QueryConfig implements TimerTask {
     
     void stop(final int status_code) {
       timer.stop("id", id, 
-                 "endpoint", endpoints.get(index), 
+                 "endpoint", shuffled_endpoints.get(index), 
                  "status", Integer.toString(status_code));
       if (latch.decrementAndGet() == 0) {
         outstanding.set(false);
+      } else {
+        final String endpoint = iterator.next();
+        try {
+          final HttpPost post = new HttpPost(endpoint);
+          post.addHeader("Content-Type", "application/json");
+          post.setEntity(new StringEntity(JSON.serializeToString(
+              query_builder.build())));
+          ResponseCallback cb = callbacks.get(index + 1);
+          cb.start();
+          client.execute(post, cb);
+          LOG.debug("Sent next query " + id + " to endpoint " + endpoint);
+        } catch (Exception e) {
+          LOG.error("Failed to send query for: " + id + " and endpoint " 
+              + endpoint, e);
+          if (latch.decrementAndGet() == 0) {
+            outstanding.set(false);
+          }
+        }
       }
     }
   }

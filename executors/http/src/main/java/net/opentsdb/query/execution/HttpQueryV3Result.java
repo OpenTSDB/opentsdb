@@ -213,9 +213,14 @@ public class HttpQueryV3Result implements QueryResult {
       start = new SecondTimeStamp(node.get("start").asLong());
       end = new SecondTimeStamp(node.get("end").asLong());
       string_interval = node.get("interval").asText();
-      interval = DateTime.parseDuration2(string_interval);
+      if (string_interval.toLowerCase().equals("0all")) {
+        interval = null;
+      } else {
+        interval = DateTime.parseDuration2(string_interval);
+      }
+      // TODO - get the proper units.
       //units = ChronoUnit(node.get("units").asText());
-      units = ChronoUnit.MINUTES;
+      units = null;
       time_zone = ZoneId.of(node.get("timeZone").asText());
     }
     

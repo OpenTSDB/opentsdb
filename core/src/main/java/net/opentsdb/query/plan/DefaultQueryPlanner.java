@@ -173,7 +173,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
       
       if (node.getSources() != null) {
         for (final String source : node.getSources()) {
-          config_graph.putEdge(node, config_map.get(source));
+          final QueryNodeConfig src = config_map.get(source);
+          if (src == null) {
+            throw new IllegalArgumentException("No source node with ID " 
+                + source + " found for config " + node.getId());
+          }
+          config_graph.putEdge(node, src);
           if (Graphs.hasCycle(config_graph)) {
             throw new IllegalArgumentException("Cycle found linking node " 
                 + node.getId() + " to " + config_map.get(source).getId());
