@@ -319,4 +319,70 @@ public class TestHttpQueryV3Result {
     assertNull(result.dataSource());
   }
   
+  @Test
+  public void runAll() throws Exception {
+    String json = "{\"results\":[{\"source\":\"groupby:m1\","
+        + "\"timeSpecification\":{\"start\":1540567560,\"end\":1540567740,"
+        + "\"intervalISO\":null,\"interval\":\"0all\",\"timeZone\":"
+        + "\"UTC\",\"units\":null},\"data\":[{\"metric\":"
+        + "\"system.cpu.user\",\"tags\":{\"host\":\"web01\"},"
+        + "\"NumericType\":[42]},{\"metric\":"
+        + "\"system.cpu.user\",\"tags\":{\"host\":\"web02\"},"
+        + "\"NumericType\":[24]}]}]}";
+    
+    JsonNode node = JSON.getMapper().readTree(json);
+    node = node.get("results").iterator().next();
+    HttpQueryV3Result result = new HttpQueryV3Result(mock(QueryNode.class), node, null);
+    
+    assertEquals(1540567560, result.timeSpecification().start().epoch());
+    assertEquals(1540567740, result.timeSpecification().end().epoch());
+    assertNull(result.timeSpecification().interval());
+    assertNull(result.timeSpecification().units());
+    assertEquals("0all", result.timeSpecification().stringInterval());
+    assertEquals(ZoneId.of("UTC"), result.timeSpecification().timezone());
+    assertEquals(2, result.timeSeries().size());
+    assertNull(result.error());
+    assertNull(result.exception());
+    assertEquals("m1", result.dataSource());
+    assertEquals(Const.TS_STRING_ID, result.idType());
+    
+    Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
+    TimeSeries ts = ts_iterator.next();
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
+    assertEquals("system.cpu.user", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("web01", id.tags().get("host"));
+    assertEquals(1, ts.types().size());
+    assertTrue(ts.types().contains(NumericArrayType.TYPE));
+    
+    TypedTimeSeriesIterator iterator = ts.iterator(NumericArrayType.TYPE).get();
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(1540567560, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(1, value.value().end());
+    long[] v = value.value().longArray();
+    
+    assertEquals(42, v[0]);
+    assertFalse(iterator.hasNext());
+    
+    ts = ts_iterator.next();
+    id = (TimeSeriesStringId) ts.id();
+    iterator = ts.iterator(NumericArrayType.TYPE).get();
+    assertEquals("system.cpu.user", id.metric());
+    assertEquals(1, id.tags().size());
+    assertEquals("web02", id.tags().get("host"));
+    assertEquals(1, ts.types().size());
+    assertTrue(ts.types().contains(NumericArrayType.TYPE));
+    
+    value = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(1540567560, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(1, value.value().end());
+    v = value.value().longArray();
+    
+    assertEquals(24, v[0]);
+    assertFalse(iterator.hasNext());
+  }
+  
 }
