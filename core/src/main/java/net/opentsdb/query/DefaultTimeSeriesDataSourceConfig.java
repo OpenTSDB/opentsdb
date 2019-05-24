@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
@@ -122,6 +123,11 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
       planner.addEdge(predecessor, shift_config);
     }
 
+    // Add the time shift to sink filters too. if they have it
+    if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(config.getId())) {
+      ((DefaultQueryPlanner) planner).sinkFilters().put(shift_config.id, null);
+    }
+
     for (final String shift_id : config.timeShifts().keySet()) {
       final Map<String, Pair<Boolean, TemporalAmount>> amounts =
           Maps.newHashMapWithExpectedSize(1);
@@ -160,8 +166,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
         .build();
     planner.replace(config, shiftless);
 
-    final Set<QueryNodeConfig> shift_predecessors =
-        planner.configGraph().predecessors(merger);
+    final Set<QueryNodeConfig> shift_predecessors = planner.configGraph().predecessors(merger);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
         .setConfig((TimeSeriesDataSourceConfig) config)
         .setId(merger.getId() + "-time-shift")
@@ -169,6 +174,11 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
 
     for (final QueryNodeConfig predecessor : shift_predecessors) {
       planner.addEdge(predecessor, shift_config);
+    }
+
+    // Add the time shift to sink filters too. if they have it
+    if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(merger.id)) {
+      ((DefaultQueryPlanner) planner).sinkFilters().put(shift_config.id, null);
     }
 
     // now for each time shift we have to duplicate the sub-graph from the
@@ -258,8 +268,13 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
         if (pushdown.getSources().contains(original.getId())) {
           pushdown.getSources().remove(original.getId());
           pushdown.getSources().add(timeshift_id);
+
         }
+
       }
+
+
+
       ((TimeSeriesDataSourceConfig.Builder) time_shift_config_builder)
           .setPushDownNodes(pushdown_clone);
     }

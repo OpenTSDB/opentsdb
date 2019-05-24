@@ -25,8 +25,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
+import net.opentsdb.query.execution.serdes.JsonV3QuerySerdes;
+import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesFactory;
+import net.opentsdb.query.serdes.SerdesOptions;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -188,6 +193,8 @@ public class TestHAClusterFactory {
   
   @Test
   public void setupGraphDefaultsOffsets() throws Exception {
+    SerdesOptions options = BaseSerdesOptions.newBuilder().setId("JsonV3QuerySerdes")
+        .addFilter("m1").build();
     SemanticQuery query = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
@@ -200,8 +207,9 @@ public class TestHAClusterFactory {
             .setPreviousIntervals(2)
             .setId("m1")
             .build())
+        .addSerdesConfig(options)
         .build();
-    
+
     QueryContext ctx = mock(QueryContext.class);
     when(ctx.stats()).thenReturn(mock(QueryStats.class));
     QueryPipelineContext context = mock(QueryPipelineContext.class);
@@ -293,6 +301,10 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"), 
         planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
+
+    assertEquals(2, planner.sinkFilters().size());
+    assertTrue(planner.sinkFilters().containsKey("m1"));
+    assertTrue(planner.sinkFilters().containsKey("m1-time-shift"));
   }
   
   @Test
