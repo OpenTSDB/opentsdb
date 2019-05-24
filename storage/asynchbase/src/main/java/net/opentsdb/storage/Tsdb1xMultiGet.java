@@ -481,7 +481,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         return;
       }
       
-      final int outstanding = (index >= 0 || !node.push()) ? 
+      final int outstanding = (index >= 0 || 
+          (!node.push() && index == -1)) ? 
           this.outstanding.decrementAndGet() : 
             this.outstanding.get();
       if (!node.push() && current_result.isFull()) {
@@ -608,6 +609,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
                 (rollup_index < 0 || 
                  rollup_index >= node.rollupIntervals().size() 
                    ? null : node.rollupIntervals().get(rollup_index)));
+          } else {
+            LOG.error("Results for a multiget were nulled but we had valid "
+                + "data to process.");
           }
         }
       }
@@ -673,7 +677,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           // finished the whole query
           all_batches_sent.set(true);
           tsuid_idx = -1;
-          onComplete(-1);
+          onComplete(-2); // ugh, ugly sentinel till we get rid of QueryResults
           return;
         }
         
