@@ -56,9 +56,6 @@ public class TsdbQueryRunner implements TimerTask {
   
   protected static DefaultTSDB TSDB;
   
-  /** Used to create jitter for scheduling. */
-  protected final Random rnd;
-  
   /** The path we'll look for configs in. */
   protected final String dir;
   
@@ -86,7 +83,6 @@ public class TsdbQueryRunner implements TimerTask {
       System.exit(1);
     }
     client = shared_client.getClient();
-    rnd = new Random(DateTime.currentTimeMillis());
     LOG.info("Looking for config files in: " + dir);
     TSDB.getMaintenanceTimer().newTimeout(this, 0, TimeUnit.SECONDS);
   }
@@ -114,12 +110,12 @@ public class TsdbQueryRunner implements TimerTask {
                 LOG.info("Updating config for: " + config.id);
                 extant.cancel();
                 queries.put(config.id, config);
-                config.schedule(rnd);
+                config.schedule();
               }
               // otherwise no change.
             } else {
               queries.put(config.id, config);
-              config.schedule(rnd);
+              config.schedule();
             }
           } catch (Exception e) {
             LOG.error("Failed to parse file: " + file, e);
