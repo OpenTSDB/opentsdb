@@ -175,6 +175,8 @@ public class QueryConfig implements TimerTask {
       return false;
     }
     
+    // TODO - WARNING: This is not a good long-term solution as we need to 
+    // build the query and use the .equals() on the constructed queries.
     String local = JSON.serializeToString(query_builder.build());
     String remote = JSON.serializeToString(other.query_builder.build());
     return Objects.equal(local, remote);
@@ -191,13 +193,19 @@ public class QueryConfig implements TimerTask {
       try {
         latch.set(endpoints.size());
         for (int i = 0; i < endpoints.size(); i++) {
-          final HttpPost post = new HttpPost(endpoints.get(i));
-          post.addHeader("Content-Type", "application/json");
-          post.setEntity(new StringEntity(JSON.serializeToString(query_builder.build())));
-          ResponseCallback cb = callbacks.get(i);
-          cb.start();
-          client.execute(post, cb);
-          LOG.debug("Sent query " + id + " to endpoint " + endpoints.get(i));
+          try {
+            final HttpPost post = new HttpPost(endpoints.get(i));
+            post.addHeader("Content-Type", "application/json");
+            post.setEntity(new StringEntity(JSON.serializeToString(query_builder.build())));
+            ResponseCallback cb = callbacks.get(i);
+            cb.start();
+            client.execute(post, cb);
+            LOG.debug("Sent query " + id + " to endpoint " + endpoints.get(i));
+          } catch (Exception e) {
+            LOG.error("Failed to send query for: " + id + " and endpoint " 
+                + endpoints.get(i), e);
+            latch.decrementAndGet();
+          }
         }
       } catch (Throwable t) {
         LOG.error("Failed to send query for: " + id, t);
