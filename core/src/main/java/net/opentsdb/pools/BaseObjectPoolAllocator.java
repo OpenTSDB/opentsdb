@@ -37,6 +37,9 @@ public abstract class BaseObjectPoolAllocator implements ObjectPoolAllocator {
   /** The size of each object (array length plus overhead). */
   protected int size;
   
+  /** Number of initial entries. */
+  protected int initial_count;
+  
   @Override
   public String id() {
     return id;
@@ -62,6 +65,11 @@ public abstract class BaseObjectPoolAllocator implements ObjectPoolAllocator {
     // no-op
   }
   
+  @Override
+  public int initialCount() {
+    return initial_count;
+  }
+  
   /**
    * Creates a TSDB config key.
    * @param suffix The non-null and non-empty suffix.
@@ -70,7 +78,7 @@ public abstract class BaseObjectPoolAllocator implements ObjectPoolAllocator {
    * @return The full config key.
    */
   protected String configKey(final String suffix, final String type) {
-    return PREFIX + (id == null || id.equals(type) ? "" : id + ".") + suffix;
+    return PREFIX + (id == null ? "" : id + ".") + suffix;
   }
   
   /**
@@ -102,6 +110,7 @@ public abstract class BaseObjectPoolAllocator implements ObjectPoolAllocator {
   protected void createAndRegisterPool(final TSDB tsdb, 
                                        final ObjectPoolConfig config,
                                        final String type) {
+    initial_count = tsdb.getConfig().getInt(configKey(COUNT_KEY, type));
     final String factory_id = tsdb.getConfig()
         .getString(configKey(POOL_ID_KEY, type));
     final ObjectPoolFactory factory = 
@@ -109,7 +118,7 @@ public abstract class BaseObjectPoolAllocator implements ObjectPoolAllocator {
     if (factory == null) {
       LOG.warn("No object pool factory found for ID: " 
           + (factory_id == null ? "Default" : factory_id) 
-              + ". Using the DummyObjectPool instead.");
+              + ". Using the DummyObjectPool instead for " + config.id());
       tsdb.getRegistry().registerObjectPool(new DummyObjectPool(tsdb, config));
     } else {
       final ObjectPool pool = factory.newPool(config);

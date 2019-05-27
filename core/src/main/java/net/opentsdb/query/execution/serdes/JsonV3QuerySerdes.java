@@ -58,6 +58,8 @@ import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.pools.StringBuilderPool;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -315,51 +317,49 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
     
     // TODO - break out
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    final PooledObject pooled_object = context.tsdb().getRegistry()
+        .getObjectPool(StringBuilderPool.TYPE).claim();
+    final StringBuilder stream = (StringBuilder) pooled_object.object();
+    stream.setLength(0);
     int count = 0;
-    try {
-      long[] values = ((NumericLongArrayType) series.value()).data();
-      int idx = ((NumericLongArrayType) series.value()).offset();
-      
-      while (idx < ((NumericLongArrayType) series.value()).end()) {
-        long ts = 0;
-        if((values[idx] & NumericLongArrayType.MILLISECOND_FLAG) != 0) {
-          ts = (values[idx] & NumericLongArrayType.TIMESTAMP_MASK) / 1000;
-        } else {
-          ts = values[idx] & NumericLongArrayType.TIMESTAMP_MASK;
-        }
-        if (ts < context.query().startTime().epoch()) {
-          idx += 2;
-          continue;
-        }
-        if (ts > context.query().endTime().epoch()) {
-          break;
-        }
-        
-        if (count > 0) {
-          stream.write(',');
-        }
-        stream.write('"');
-        stream.write(Long.toString(ts).getBytes());
-        
-        stream.write('"');
-        stream.write(':');
-        if ((values[idx] & NumericLongArrayType.FLOAT_FLAG) != 0) {
-          double d = Double.longBitsToDouble(values[idx + 1]);
-          if (Double.isNaN(d)) {
-            stream.write("NaN".getBytes());
-          } else {
-            stream.write(Double.toString(d).getBytes());
-          }
-        } else {
-          stream.write(Long.toString(values[idx + 1]).getBytes());
-        }
-        idx += 2;
-        count++;
+    long[] values = ((NumericLongArrayType) series.value()).data();
+    int idx = ((NumericLongArrayType) series.value()).offset();
+    
+    while (idx < ((NumericLongArrayType) series.value()).end()) {
+      long ts = 0;
+      if((values[idx] & NumericLongArrayType.MILLISECOND_FLAG) != 0) {
+        ts = (values[idx] & NumericLongArrayType.TIMESTAMP_MASK) / 1000;
+      } else {
+        ts = values[idx] & NumericLongArrayType.TIMESTAMP_MASK;
       }
-    } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      if (ts < context.query().startTime().epoch()) {
+        idx += 2;
+        continue;
+      }
+      if (ts > context.query().endTime().epoch()) {
+        break;
+      }
+      
+      if (count > 0) {
+        stream.append(',');
+      }
+      stream.append('"');
+      stream.append(ts);
+      
+      stream.append('"');
+      stream.append(':');
+      if ((values[idx] & NumericLongArrayType.FLOAT_FLAG) != 0) {
+        double d = Double.longBitsToDouble(values[idx + 1]);
+        if (Double.isNaN(d)) {
+          stream.append("NaN".getBytes());
+        } else {
+          stream.append(d);
+        }
+      } else {
+        stream.append(values[idx + 1]);
+      }
+      idx += 2;
+      count++;
     }
     
     if (count < 1) {
@@ -388,7 +388,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         }
       }
       
-      set.series.put(series.set().start().epoch(), stream.toByteArray()); 
+      set.series.put(series.set().start().epoch(), pooled_object); 
     }
     callback.onComplete(series);
   }
@@ -857,7 +857,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   class SeriesWrapper {
     public PartialTimeSeriesSet set;
     public long id_hash;
-    public TreeMap<Long, byte[]> series = new TreeMap<Long, byte[]>();
+    public TreeMap<Long, PooledObject> series = new TreeMap<Long, PooledObject>();
   }
   
   class SetWrapper {
@@ -935,7 +935,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           
           json.writeObjectFieldStart("NumericType");
           int count = 0;
-          for (Entry<Long, byte[]> e : shard.series.entrySet()) {
+          for (Entry<Long, PooledObject> e : shard.series.entrySet()) {
             //byte[] s = w.series.get(id_hash);
             if (e.getValue() == null) {
               // TODO - fill!!
@@ -943,7 +943,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
               if (count++ > 0) {
                 json.writeRaw(",");
               }
-              json.writeRaw(new String(e.getValue()));
+              //json.writeRaw(new String(e.getValue()));
+              json.writeRaw(((StringBuilder) e.getValue().object()).toString());
+              e.getValue().release();
             }
           }
           json.writeEndObject();

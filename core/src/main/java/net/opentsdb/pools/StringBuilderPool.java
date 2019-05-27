@@ -12,42 +12,28 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.storage.schemas.tsdb1x;
+package net.opentsdb.pools;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.pools.BaseObjectPoolAllocator;
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.ObjectPoolConfig;
 
 /**
- * An allocator pool for pooled runnables.
+ * An allocator and pool for string builders used during serialization.
  * 
  * @since 3.0
  */
-public class PooledPartialTimeSeriesRunnablePool extends BaseObjectPoolAllocator {
-  public static final String TYPE = "PooledPartialTimeSeriesRunnable";
-  public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(
-      PooledPartialTimeSeriesRunnable.class);
+public class StringBuilderPool extends BaseObjectPoolAllocator {
+  public static final String TYPE = "StringBuilderPool";
+  public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(StringBuilder.class);
   
-  @Override
-  public Object allocate() {
-    return new PooledPartialTimeSeriesRunnable();
-  }
-
-  @Override
-  public TypeToken<?> dataType() {
-    return TYPE_TOKEN;
-  }
-
   @Override
   public String type() {
     return TYPE;
   }
-
+  
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     if (Strings.isNullOrEmpty(id)) {
@@ -56,20 +42,14 @@ public class PooledPartialTimeSeriesRunnablePool extends BaseObjectPoolAllocator
       this.id = id;
     }
     
-    if (!tsdb.getConfig().hasProperty(configKey(POOL_ID_KEY, TYPE))) {
-      tsdb.getConfig().register(configKey(POOL_ID_KEY, TYPE), null, false, 
-          "The ID of an object pool factory plugin to use for this pool. "
-              + "Can be null to use the default.");
-    }
-    if (!tsdb.getConfig().hasProperty(configKey(COUNT_KEY, TYPE))) {
-      tsdb.getConfig().register(configKey(COUNT_KEY, TYPE), 4096, false, 
-          "The number of initial objects to allocate in this pool.");
-    }
+    registerConfigs(tsdb.getConfig(), TYPE);
     
     final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setAllocator(this)
-        .setInitialCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
-        .setMaxCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
+        .setInitialCount(Math.max(4096, 
+            tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE))))
+        .setMaxCount(Math.max(4096, 
+            tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE))))
         .setId(this.id)
         .build();
     try {
@@ -79,5 +59,15 @@ public class PooledPartialTimeSeriesRunnablePool extends BaseObjectPoolAllocator
       return Deferred.fromError(e);
     }
   }
-
+  
+  @Override
+  public Object allocate() {
+    return new StringBuilder(65536);
+  }
+  
+  @Override
+  public TypeToken<?> dataType() {
+    return TYPE_TOKEN;
+  }
+  
 }

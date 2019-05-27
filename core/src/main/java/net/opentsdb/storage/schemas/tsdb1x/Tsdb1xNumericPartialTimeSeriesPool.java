@@ -56,7 +56,15 @@ public class Tsdb1xNumericPartialTimeSeriesPool extends BaseObjectPoolAllocator 
       this.id = id;
     }
     
-    registerConfigs(tsdb.getConfig(), TYPE);
+    if (!tsdb.getConfig().hasProperty(configKey(POOL_ID_KEY, TYPE))) {
+      tsdb.getConfig().register(configKey(POOL_ID_KEY, TYPE), null, false, 
+          "The ID of an object pool factory plugin to use for this pool. "
+              + "Can be null to use the default.");
+    }
+    if (!tsdb.getConfig().hasProperty(configKey(COUNT_KEY, TYPE))) {
+      tsdb.getConfig().register(configKey(COUNT_KEY, TYPE), 4096, false, 
+          "The number of initial objects to allocate in this pool.");
+    }
     
     final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setAllocator(this)

@@ -78,7 +78,15 @@ public class LongArrayPool extends BaseObjectPoolAllocator {
   
   @Override
   protected void registerConfigs(final Configuration config, final String type) {
-    super.registerConfigs(config, type);
+    if (!config.hasProperty(configKey(POOL_ID_KEY, type))) {
+      config.register(configKey(POOL_ID_KEY, type), null, false, 
+          "The ID of an object pool factory plugin to use for this pool. "
+              + "Can be null to use the default.");
+    }
+    if (!config.hasProperty(configKey(COUNT_KEY, type))) {
+      config.register(configKey(COUNT_KEY, type), 4096, false, 
+          "The number of initial objects to allocate in this pool.");
+    }
     if (!config.hasProperty(configKey(LENGTH_KEY, TYPE))) {
       config.register(configKey(LENGTH_KEY, TYPE), 4096, false, 
           "The length of each array to allocate");

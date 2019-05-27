@@ -46,7 +46,7 @@ import net.opentsdb.rollup.RollupUtils.RollupUsage;
  */
 public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet, 
     CloseablePooledObject {
-
+  
   /** The pooled object reference. */
   protected PooledObject pooled_object;
   
@@ -54,10 +54,10 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
   protected final TSDB tsdb;
 
   /** A ref to the runnable pool. */
-  protected final ObjectPool runnable_pool;
+  protected volatile ObjectPool runnable_pool;
   
   /** Poole used when we need to send an empty data sentinel. */
-  protected final ObjectPool no_data_pool;
+  protected volatile ObjectPool no_data_pool;
   
   /** The current node. */
   protected Tsdb1xQueryNode node;
@@ -95,6 +95,8 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
    */
   protected Tsdb1xPartialTimeSeriesSet(final TSDB tsdb) {
     this.tsdb = tsdb;
+    // try to get the ref to the pools. May be null depending on initialization
+    // order.
     runnable_pool = tsdb.getRegistry().getObjectPool(
         PooledPartialTimeSeriesRunnablePool.TYPE);
     no_data_pool = tsdb.getRegistry().getObjectPool(
@@ -208,17 +210,14 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     
     if (complete) {
       if (extant != null) {
-        final PooledPartialTimeSeriesRunnable runnable = 
-            (PooledPartialTimeSeriesRunnable) runnable_pool.claim().object();
+        final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
         runnable.reset(extant, node);
         tsdb.getQueryThreadPool().submit(runnable);
       } else if (rollup_usage == RollupUsage.ROLLUP_NOFALLBACK || is_final) {
         // send up sentinel
-        final NoDataPartialTimeSeries pts = 
-            (NoDataPartialTimeSeries) no_data_pool.claim().object();
+        final NoDataPartialTimeSeries pts = claimNoData();
         pts.reset(this);
-        final PooledPartialTimeSeriesRunnable runnable = 
-            (PooledPartialTimeSeriesRunnable) runnable_pool.claim().object();
+        final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
         runnable.reset(pts, node);
         tsdb.getQueryThreadPool().submit(runnable);
       }
@@ -236,6 +235,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     if (pts == null) {
       throw new IllegalArgumentException("Time series cannot be null.");
     }
+    
     boolean all_done = false;
     Tsdb1xPartialTimeSeries extant;
     synchronized (this) {
@@ -256,15 +256,13 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     }
     
     if (extant != null) {
-      final PooledPartialTimeSeriesRunnable runnable = 
-          (PooledPartialTimeSeriesRunnable) runnable_pool.claim().object();
+      final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
       runnable.reset(extant, node);
       tsdb.getQueryThreadPool().submit(runnable);
     }
     
     if (all_done) {
-      final PooledPartialTimeSeriesRunnable runnable = 
-          (PooledPartialTimeSeriesRunnable) runnable_pool.claim().object();
+      final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
       runnable.reset(pts, node);
       tsdb.getQueryThreadPool().submit(runnable);
     }
@@ -283,11 +281,9 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
       latch = 0;
       complete = true;
     }
-    final NoDataPartialTimeSeries pts = 
-        (NoDataPartialTimeSeries) no_data_pool.claim().object();
+    final NoDataPartialTimeSeries pts = claimNoData();
     pts.reset(this);
-    final PooledPartialTimeSeriesRunnable runnable = 
-        (PooledPartialTimeSeriesRunnable) runnable_pool.claim().object();
+    final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
     runnable.reset(pts, node);
     tsdb.getQueryThreadPool().submit(runnable);
   }
@@ -309,4 +305,19 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     this.pooled_object = pooled_object;
   }
   
+  private PooledPartialTimeSeriesRunnable claimRunnable() {
+    if (runnable_pool == null) {
+      runnable_pool = tsdb.getRegistry().getObjectPool(
+          PooledPartialTimeSeriesRunnablePool.TYPE);
+    }
+    return (PooledPartialTimeSeriesRunnable) runnable_pool.claim().object();
+  }
+  
+  private NoDataPartialTimeSeries claimNoData() {
+    if (no_data_pool == null) {
+      no_data_pool = tsdb.getRegistry().getObjectPool(
+          NoDataPartialTimeSeriesPool.TYPE);
+    }
+    return (NoDataPartialTimeSeries) no_data_pool.claim().object();
+  }
 }

@@ -28,7 +28,6 @@ import io.netty.util.TimerTask;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.ObjectPoolException;
-import net.opentsdb.stats.StatsCollector;
 import stormpot.BlazePool;
 import stormpot.MetricsRecorder;
 import stormpot.PoolException;
@@ -55,9 +54,6 @@ public class StormPotPool implements ObjectPool, TimerTask {
   /** The original config reference. */
   protected final ObjectPoolConfig config;
   
-  /** The stats collector. */
-  protected final StatsCollector stats;
-  
   /** Counters to track metrics. */
   protected long last_allocations;
   protected long last_allocations_failed;
@@ -71,7 +67,6 @@ public class StormPotPool implements ObjectPool, TimerTask {
   protected StormPotPool(final TSDB tsdb, final ObjectPoolConfig config) {
     this.tsdb = tsdb;
     this.config = config;
-    stats = tsdb.getStatsCollector();
     stormpot.Config<SPPoolable> storm_pot_config = 
         new stormpot.Config<SPPoolable>()
         .setAllocator(new SPAllocator())
@@ -93,7 +88,8 @@ public class StormPotPool implements ObjectPool, TimerTask {
     try {
       final PooledObject poolable = stormpot.claim(DEFAULT_TIMEOUT);
       if (poolable != null) {
-        stats.incrementCounter("objectpool.claim.success", "pool", config.id());
+        tsdb.getStatsCollector().incrementCounter("objectpool.claim.success", 
+            "pool", config.id());
         return poolable;
       }
     } catch (PoolException e) {
@@ -102,7 +98,8 @@ public class StormPotPool implements ObjectPool, TimerTask {
       throw new ObjectPoolException(e);
     }
     // arg, missed a claim so we're allocating a new object.
-    stats.incrementCounter("objectpool.claim.miss", "pool", config.id());
+    tsdb.getStatsCollector().incrementCounter("objectpool.claim.miss", 
+        "pool", config.id());
     return new SPPoolable(config.allocator().allocate(), null);
   }
 
@@ -130,7 +127,8 @@ public class StormPotPool implements ObjectPool, TimerTask {
       }
       final PooledObject poolable = stormpot.claim(new stormpot.Timeout(time, tu));
       if (poolable != null) {
-        stats.incrementCounter("objectpool.claim.success", "pool", config.id());
+        tsdb.getStatsCollector().incrementCounter("objectpool.claim.success", 
+            "pool", config.id());
         return poolable;
       }
     } catch (PoolException e) {
@@ -139,7 +137,8 @@ public class StormPotPool implements ObjectPool, TimerTask {
       throw new ObjectPoolException(e);
     }
     // arg, missed a claim so we're allocating a new object.
-    stats.incrementCounter("objectpool.claim.miss", "pool", config.id());
+    tsdb.getStatsCollector().incrementCounter("objectpool.claim.miss", 
+        "pool", config.id());
     return new SPPoolable(config.allocator().allocate(), null);
   }
   
@@ -163,17 +162,17 @@ public class StormPotPool implements ObjectPool, TimerTask {
   public void run(final Timeout timeout) throws Exception {
     try {
       long temp = stormpot.getAllocationCount();
-      stats.incrementCounter("objectpool.allocation.success", 
+      tsdb.getStatsCollector().incrementCounter("objectpool.allocation.success", 
           temp - last_allocations, "pool", config.id());
       last_allocations = temp;
       
       temp = stormpot.getFailedAllocationCount();
-      stats.incrementCounter("objectpool.allocation.failed", 
+      tsdb.getStatsCollector().incrementCounter("objectpool.allocation.failed", 
           temp - last_allocations_failed, "pool", config.id());
       last_allocations_failed = temp;
       
       temp = stormpot.getLeakedObjectsCount();
-      stats.incrementCounter("objectpool.leaks", 
+      tsdb.getStatsCollector().incrementCounter("objectpool.leaks", 
           temp - last_leaks, "pool", config.id());
       last_leaks = temp;
       
@@ -209,7 +208,8 @@ public class StormPotPool implements ObjectPool, TimerTask {
       if (slot != null) {
         try {
           slot.release(this);
-          stats.incrementCounter("objectpool.release.success", "pool", config.id());
+          tsdb.getStatsCollector().incrementCounter("objectpool.release.success", 
+              "pool", config.id());
         } catch (Throwable t) {
           LOG.error("Unexpected exception releasing object to pool", t);
         }
@@ -243,38 +243,38 @@ public class StormPotPool implements ObjectPool, TimerTask {
 
     @Override
     public void recordAllocationLatencySampleMillis(final long milliseconds) {
-      stats.addTime("objectpool.allocation.success.latency", milliseconds, 
-          ChronoUnit.MILLIS, false, "pool", config.id());
+      tsdb.getStatsCollector().addTime("objectpool.allocation.success.latency", 
+          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
     }
 
     @Override
     public void recordAllocationFailureLatencySampleMillis(final long milliseconds) {
-      stats.addTime("objectpool.allocation.failure.latency", milliseconds, 
-          ChronoUnit.MILLIS, false, "pool", config.id());
+      tsdb.getStatsCollector().addTime("objectpool.allocation.failure.latency", 
+          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
     }
 
     @Override
     public void recordDeallocationLatencySampleMillis(final long milliseconds) {
-      stats.addTime("objectpool.deallocation.latency", milliseconds, 
-          ChronoUnit.MILLIS, false, "pool", config.id());
+      tsdb.getStatsCollector().addTime("objectpool.deallocation.latency", 
+          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
     }
 
     @Override
     public void recordReallocationLatencySampleMillis(final long milliseconds) {
-      stats.addTime("objectpool.reallocation.success.latency", milliseconds, 
-          ChronoUnit.MILLIS, false, "pool", config.id());
+      tsdb.getStatsCollector().addTime("objectpool.reallocation.success.latency", 
+          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
     }
 
     @Override
     public void recordReallocationFailureLatencySampleMillis(
         final long milliseconds) {
-      stats.addTime("objectpool.reallocation.failure.latency", milliseconds, 
-          ChronoUnit.MILLIS, false, "pool", config.id());
+      tsdb.getStatsCollector().addTime("objectpool.reallocation.failure.latency", 
+          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
     }
 
     @Override
     public void recordObjectLifetimeSampleMillis(final long milliseconds) {
-      stats.addTime("objectpool.object.lifetime", milliseconds, 
+      tsdb.getStatsCollector().addTime("objectpool.object.lifetime", milliseconds, 
           ChronoUnit.MILLIS, false, "pool", config.id());
     }
 

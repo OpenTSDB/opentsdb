@@ -14,18 +14,25 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.collect.Lists;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 
-public class TestDummyObjectPool {
+public class TestBlockingQueueObjectPool {
 
   @Test
   public void ctorAndClaim() {
@@ -33,18 +40,37 @@ public class TestDummyObjectPool {
     StatsCollector stats = mock(StatsCollector.class);
     when(tsdb.getStatsCollector()).thenReturn(stats);
     ObjectPoolAllocator allocator = mock(ObjectPoolAllocator.class);
-    Object obj = new Object();
-    when(allocator.allocate()).thenReturn(obj);
+    List<Object> objects = Lists.newArrayList();
+    when(allocator.allocate()).thenAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        Object obj = new Object();
+        objects.add(obj);
+        return obj;
+      }
+    });
     ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setId("BA")
         .setAllocator(allocator)
-        .setInitialCount(16)
-        .setMaxCount(16)
+        .setInitialCount(2)
+        .setMaxCount(2)
         .build();
+    BlockingQueueObjectPool pool = new BlockingQueueObjectPool(tsdb, config);
     
-    DummyObjectPool pool = new DummyObjectPool(tsdb, config);
-    assertSame(obj, pool.claim().object());
-    assertSame(obj, pool.claim(1, ChronoUnit.SECONDS).object());
+    assertEquals(2, objects.size());
+    PooledObject po_a = pool.claim();
+    assertSame(objects.get(0), po_a.object());
+    
+    PooledObject po_b = pool.claim(1, ChronoUnit.SECONDS);
+    assertSame(objects.get(1), po_b.object());
+    
+    PooledObject po_c = pool.claim();
+    assertNotSame(objects.get(0), po_c.object());
+    assertNotSame(objects.get(1), po_c.object());
+    
+    po_b.release();
+    po_c = pool.claim();
+    assertSame(objects.get(1), po_c.object());
   }
   
 }

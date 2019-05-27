@@ -36,7 +36,6 @@ import net.opentsdb.rollup.RollupInterval;
  */
 public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType> 
     implements PartialTimeSeries<T>, CloseablePooledObject {
-  
   /** Reference to the Object pool for this instance. */
   protected PooledObject pooled_object;
   
@@ -145,7 +144,10 @@ public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType>
   
   @Override
   public void close() throws Exception {
-    release();
+    final int ref = reference_counter.decrementAndGet();
+    if (ref == 0) {
+      release();
+    }
   }
   
   @Override

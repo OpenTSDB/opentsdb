@@ -56,6 +56,7 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryNode;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeries;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
@@ -493,11 +494,15 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
             Tsdb1xScannersPool.TYPE).claim().object();
         ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
-          executor.fetchNext(new Tsdb1xQueryResult(
-              sequence_id.incrementAndGet(), 
-              Tsdb1xHBaseQueryNode.this, 
-              parent.schema()), 
-          span);
+          if (push) {
+            executor.fetchNext(null, span);
+          } else {
+            executor.fetchNext(new Tsdb1xQueryResult(
+                sequence_id.incrementAndGet(), 
+                Tsdb1xHBaseQueryNode.this, 
+                parent.schema()), 
+            span);
+          }
         } else {
           LOG.error("WTF? We lost an initialization race??");
         }
@@ -594,11 +599,15 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
             Tsdb1xScannersPool.TYPE).claim().object();
         ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
-          executor.fetchNext(new Tsdb1xQueryResult(
-              sequence_id.incrementAndGet(), 
-              Tsdb1xHBaseQueryNode.this, 
-              parent.schema()), 
-          span);
+          if (push) {
+            executor.fetchNext(null, span);
+          } else {
+            executor.fetchNext(new Tsdb1xQueryResult(
+                sequence_id.incrementAndGet(), 
+                Tsdb1xHBaseQueryNode.this, 
+                parent.schema()), 
+            span);
+          }
         } else {
           LOG.error("WTF? We lost an initialization race??");
         }

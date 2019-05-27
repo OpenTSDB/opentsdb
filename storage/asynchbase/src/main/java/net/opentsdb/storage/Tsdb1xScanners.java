@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
@@ -293,16 +292,17 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
    * @throws IllegalArgumentException if the result is null.
    */
   public void fetchNext(final Tsdb1xQueryResult result, final Span span) {
-    if (result == null) {
+    if (!node.push() && result == null) {
       throw new IllegalArgumentException("Result must be initialized");
     }
-    
-    synchronized (this) {
-      if (current_result != null) {
-        throw new IllegalStateException("Query result must have been null "
-            + "to start another query!");
+    if (!node.push()) {
+      synchronized (this) {
+        if (current_result != null) {
+          throw new IllegalStateException("Query result must have been null "
+              + "to start another query!");
+        }
+        current_result = result;
       }
-      current_result = result;
     }
     // just extra safe locking. Shouldn't ever happen.
     if (!initialized) {
@@ -449,6 +449,11 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
       LOG.debug("Exception from downstream", t);
     }
     
+    if (node.push()) {
+      // TODO - handle errors in Sets.
+      node.onError(t);
+      return;
+    }
     current_result.setException(t);
     final QueryResult result = current_result;
     current_result = null;
@@ -477,15 +482,17 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     filter_cb = null;
     current_result = null;
     if (sets != null) {
-//      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
-//        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
-//          try {
-//            set.close();
-//          } catch (Exception e) {
-//            LOG.error("Unexpected exception closing set: " + set, e);
-//          }
-//        }
-//      }
+      for (final TLongObjectMap<Tsdb1xPartialTimeSeriesSet> map : sets) {
+        for (final Tsdb1xPartialTimeSeriesSet set : map.valueCollection()) {
+          if (set != null) {
+            try {
+              set.close();
+            } catch (Exception e) {
+              LOG.error("Unexpected exception closing set: " + set, e);
+            }
+          }
+        }
+      }
       sets.clear();
     }
     if (timestamps != null) {
@@ -1041,6 +1048,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     final Duration duration = interval == null ? Duration.ofSeconds(Schema.MAX_RAW_TIMESPAN) : 
         Duration.ofSeconds(interval.getIntervals() * interval.getIntervalSeconds());
     durations.set(scanners_index, duration);
+    // TODO - alloc is ug here.
     TimeStamp start = new SecondTimeStamp(start_epoch);
     TimeStamp end = start.getCopy();
     if (interval == null) {
