@@ -91,10 +91,10 @@ public class MultiGetQuery {
   List<HistogramDataPoint>>>> histMap = Maps.newConcurrentMap();
 
   private final Deferred<SortedMap<byte[], Span>> results =
-      new Deferred<>();
+      new Deferred<SortedMap<byte[], Span>>();
 
   private final Deferred<SortedMap<byte[], HistogramSpan>> histogramResults =
-      new Deferred<>();
+      new Deferred<SortedMap<byte[], HistogramSpan>>();
 
   private final ArrayList<List<MultiGetTask>> multi_get_tasks;
   private final ArrayList<AtomicInteger> multi_get_indexs;

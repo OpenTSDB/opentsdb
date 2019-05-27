@@ -96,10 +96,10 @@ public class SaltScanner {
   
   /** A deferred to call with the spans on completion */
   private final Deferred<SortedMap<byte[], Span>> results =
-          new Deferred<>();
+          new Deferred<SortedMap<byte[], Span>>();
   
   private final Deferred<SortedMap<byte[], HistogramSpan>> histogramResults =
-      new Deferred<>();
+      new Deferred<SortedMap<byte[], HistogramSpan>>();
   
   /** The metric this scanner set is dealing with. If a row comes in with a 
    * different metric we toss an exception. This shouldn't happen though. */
