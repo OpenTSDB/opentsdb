@@ -1205,6 +1205,16 @@ public class Schema implements WritableTimeSeriesDataStore {
       final long id_hash, 
       final PartialTimeSeriesSet set,
       final RollupInterval interval) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null.");
+    }
+    if (base_timestamp == null) {
+      throw new IllegalArgumentException("Base timestamp cannot be null.");
+    }
+    if (set == null) {
+      throw new IllegalArgumentException("Set cannot be null.");
+    }
+    
     ObjectPool type_pool = pool_cache.get(type);
     ObjectPool array_pool = null;
     if (type_pool == null) {

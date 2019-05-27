@@ -69,20 +69,18 @@ public class Tsdb1xNumericSummaryPartialTimeSeries extends
   
   @Override
   public void release() {
-    if (reference_counter.decrementAndGet() <= 0) {
-      if (pooled_array != null) {
-        pooled_array.release();
-        pooled_array = null;
-      }
-      if (pooled_object != null) {
-        pooled_object.release();
-      }
-      set = null;
-      write_idx = 0;
-      needs_repair = false;
-      last_ts = -1;
-      last_type = -1;
+    if (pooled_array != null) {
+      pooled_array.release();
+      pooled_array = null;
     }
+    if (pooled_object != null) {
+      pooled_object.release();
+    }
+    set = null;
+    write_idx = 0;
+    needs_repair = false;
+    last_ts = -1;
+    last_type = -1;
   }
   
   @Override

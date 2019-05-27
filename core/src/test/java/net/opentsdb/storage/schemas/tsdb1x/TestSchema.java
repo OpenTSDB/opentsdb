@@ -1195,5 +1195,20 @@ public class TestSchema extends SchemaBase {
           timestamp, 42, set, mock(RollupInterval.class));
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
+    
+    try {
+      schema.newSeries(null, timestamp, 42, set, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.newSeries(NumericLongArrayType.TYPE, null, 42, set, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.newSeries(NumericLongArrayType.TYPE, timestamp, 42, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
 }

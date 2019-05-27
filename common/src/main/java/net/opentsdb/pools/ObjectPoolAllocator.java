@@ -27,6 +27,7 @@ import net.opentsdb.core.TSDBPlugin;
 public interface ObjectPoolAllocator extends TSDBPlugin {
   public static final String PREFIX = "objectpool.";
   public static final String POOL_ID_KEY = "pool.id";
+  public static final String GENERIC_POOL_ID_KEY = "generic.pool.id";
   public static final String COUNT_KEY = "count.initial";
   
   /** @return The initial size of an allocated object in bytes. */
@@ -43,5 +44,8 @@ public interface ObjectPoolAllocator extends TSDBPlugin {
   
   /** @return The type of data this allocator returns. */
   public TypeToken<?> dataType();
+  
+  /** @return The initial number of objects to allocate. */
+  public int initialCount();
   
 }

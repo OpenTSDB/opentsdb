@@ -25,12 +25,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
-import net.opentsdb.query.execution.serdes.JsonV3QuerySerdes;
-import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import org.junit.BeforeClass;
 import org.junit.Test;

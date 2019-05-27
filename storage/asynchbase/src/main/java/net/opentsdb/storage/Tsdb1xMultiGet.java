@@ -409,6 +409,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           } catch (Exception e) {
             LOG.error("Failed to close out set", e);
           }
+          sets.set(i, null);
         }
       }
     }
@@ -1011,13 +1012,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           node.parent().tsdb().getRegistry()
           .getObjectPool(Tsdb1xPartialTimeSeriesSetPool.TYPE)
           .claim().object();
-      set.reset(node, 
-          start, 
-          end, 
-          node.rollupUsage(),
-          1, 
-          sets.length(), 
-          ts_ids);
       if (!sets.compareAndSet(index, null, set)) {
         // lost the race
         try {
@@ -1025,8 +1019,15 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         } catch (Exception e) {
           LOG.error("Failed to close a set.", e);
         }
-        set = sets.get(index);
+        return sets.get(index);
       }
+      set.reset(node, 
+          start, 
+          end, 
+          node.rollupUsage(),
+          1, 
+          sets.length(), 
+          ts_ids);
     }
     return set;
   }

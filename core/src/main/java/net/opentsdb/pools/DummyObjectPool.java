@@ -19,7 +19,6 @@ import java.time.temporal.ChronoUnit;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
 
 /**
  * This is a non-pooling pool that is used if no default implementation is found.
@@ -32,8 +31,8 @@ public class DummyObjectPool implements ObjectPool {
   /** The config. */
   private final ObjectPoolConfig config;
   
-  /** Stats. */
-  private final StatsCollector stats;
+  /** For stats. */
+  private final TSDB tsdb;
   
   /**
    * The default ctor.
@@ -41,13 +40,14 @@ public class DummyObjectPool implements ObjectPool {
    * @param config The non-null config we'll pull the allocator from.
    */
   public DummyObjectPool(final TSDB tsdb, final ObjectPoolConfig config) {
-    stats = tsdb.getStatsCollector();
+    this.tsdb = tsdb;
     this.config = config;
   }
   
   @Override
   public PooledObject claim() {
-    stats.incrementCounter("objectpool.claim.miss", "pool", config.id());
+    tsdb.getStatsCollector().incrementCounter("objectpool.claim.miss", 
+        "pool", config.id());
     final Object obj = config.allocator().allocate();;
     return new PooledObject() {
 
@@ -64,7 +64,8 @@ public class DummyObjectPool implements ObjectPool {
 
   @Override
   public PooledObject claim(long time, ChronoUnit unit) {
-    stats.incrementCounter("objectpool.claim.miss", "pool", config.id());
+    tsdb.getStatsCollector().incrementCounter("objectpool.claim.miss", 
+        "pool", config.id());
     final Object obj = config.allocator().allocate();;
     return new PooledObject() {
 

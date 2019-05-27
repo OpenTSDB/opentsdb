@@ -219,6 +219,12 @@ public class TestStormPotPool {
     public TypeToken<?> dataType() {
       return TypeToken.of(byte[].class);
     }
+
+    
+    @Override
+    public int initialCount() {
+      return 8;
+    }
     
   }
 }

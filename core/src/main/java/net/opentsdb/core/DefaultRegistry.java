@@ -113,9 +113,13 @@ public class DefaultRegistry implements Registry {
           .setValidator(new PluginConfigValidator())
           .build());
     }
-    tsdb.getConfig().register(DEFAULT_CLUSTERS_KEY, null, false, 
-        "TODO");
-    tsdb.getConfig().register(DEFAULT_GRAPHS_KEY, null, false, "TODO");
+    if (!tsdb.getConfig().hasProperty(DEFAULT_CLUSTERS_KEY)) {
+      tsdb.getConfig().register(DEFAULT_CLUSTERS_KEY, null, false, 
+          "TODO");
+    }
+    if (!tsdb.getConfig().hasProperty(DEFAULT_GRAPHS_KEY)) {
+      tsdb.getConfig().register(DEFAULT_GRAPHS_KEY, null, false, "TODO");
+    }
     
     this.tsdb = tsdb;
     type_map = Maps.newHashMap();
