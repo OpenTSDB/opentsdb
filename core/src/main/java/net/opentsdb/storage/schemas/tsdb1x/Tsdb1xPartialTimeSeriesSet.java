@@ -14,7 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import gnu.trove.map.TLongObjectMap;
+import java.util.Map;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
@@ -84,7 +85,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
   protected int total_sets;
   
   /** The reference to a map of time series IDs. */
-  protected TLongObjectMap<TimeSeriesId> ids;
+  protected Map<Long, TimeSeriesId> ids;
   
   /** A reference to the last partial time series discovered. */
   protected Tsdb1xPartialTimeSeries pts;
@@ -123,7 +124,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
                     final RollupUsage rollup_usage,
                     final int salts, 
                     final int total_sets, 
-                    final TLongObjectMap<TimeSeriesId> ids) {
+                    final Map<Long, TimeSeriesId> ids) {
     this.node = node;
     this.start.update(start);
     this.end.update(end);
@@ -175,9 +176,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
 
   @Override
   public TimeSeriesId id(final long hash) {
-    synchronized (ids) { // have to since it's a TLong map
-      return ids.get(hash);
-    }
+    return ids.get(hash);
   }
 
   @Override

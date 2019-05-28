@@ -321,7 +321,7 @@ public class TestByteToStringIdConverter {
     verify(upstream, never()).onError(any(Throwable.class));
     assertEquals(1, node.converters.size());
     ByteToStringConverterForSource src = node.converters.get("m1");
-    Resolver resolver = src.resolvers.get(42);
+    Resolver resolver = src.resolvers.get(42L);
     assertSame(pts_a, resolver.series.get(0));
     
     PartialTimeSeries pts_b = mock(PartialTimeSeries.class);
@@ -333,11 +333,11 @@ public class TestByteToStringIdConverter {
     verify(upstream, never()).onError(any(Throwable.class));
     assertEquals(2, node.converters.size());
     src = node.converters.get("m1");
-    resolver = src.resolvers.get(42);
+    resolver = src.resolvers.get(42L);
     assertSame(pts_a, resolver.series.get(0));
     
     src = node.converters.get("m2");
-    resolver = src.resolvers.get(-1);
+    resolver = src.resolvers.get(-1L);
     assertSame(pts_b, resolver.series.get(0));
   }
   

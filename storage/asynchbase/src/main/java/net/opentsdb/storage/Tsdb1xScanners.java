@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
 import gnu.trove.map.TLongObjectMap;
@@ -185,7 +187,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   protected List<Duration> durations;
   
   /** A map of hashes to time series IDs for the sets. */
-  protected TLongObjectMap<TimeSeriesId> ts_ids;
+  protected Map<Long, TimeSeriesId> ts_ids;
     
   /**
    * Resets the cached scanners object.
@@ -277,7 +279,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
         durations = Lists.newArrayList();
       }
       if (ts_ids == null) {
-        ts_ids = new TLongObjectHashMap<TimeSeriesId>();
+        ts_ids = Maps.newConcurrentMap();
       }
     }
   }
@@ -1422,18 +1424,14 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   }
 
   boolean idsContainsKey(final long hash) {
-    synchronized (ts_ids) {
-      return ts_ids.containsKey(hash);
-    }
+    return ts_ids.containsKey(hash);
   }
   
   void putId(final long hash, final TimeSeriesId id) {
-    synchronized (ts_ids) {
-      ts_ids.putIfAbsent(hash, id);
-    }
+    ts_ids.putIfAbsent(hash, id);
   }
   
-  TLongObjectMap<TimeSeriesId> tsIds() {
+   Map<Long, TimeSeriesId> tsIds() {
     return ts_ids;
   }
 }
