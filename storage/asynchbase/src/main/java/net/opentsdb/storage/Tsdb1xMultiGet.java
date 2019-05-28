@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -42,11 +43,10 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
@@ -201,7 +201,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   protected volatile AtomicIntegerArray finished_batches_per_set;
   
   /** A map of hashes to time series IDs for the sets. */
-  protected volatile TLongObjectMap<TimeSeriesId> ts_ids;
+  protected volatile Map<Long, TimeSeriesId> ts_ids;
   
   /**
    * Default ctor.
@@ -214,7 +214,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     has_failed = new AtomicBoolean();
     all_batches_sent = new AtomicBoolean();
     outstanding = new AtomicInteger();
-    ts_ids = new TLongObjectHashMap<TimeSeriesId>();
+    ts_ids = Maps.newConcurrentMap();
   }
   
   /**
@@ -641,9 +641,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     
     @Override
     public Object call(final Exception ex) throws Exception {
-      synchronized (Tsdb1xMultiGet.this) {
-        outstanding.decrementAndGet();
-      }
+      outstanding.decrementAndGet();
       
       if (span != null) {
         span.setErrorTags(ex).finish();
@@ -911,10 +909,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       final byte[] tsuid = node.schema().getTSUID(row.get(0).key());
       final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
       
-      synchronized (ts_ids) {
-        if (!ts_ids.containsKey(hash)) {
-          ts_ids.put(hash, new TSUID(tsuid, node.schema()));
-        }
+      if (!ts_ids.containsKey(hash)) {
+        ts_ids.putIfAbsent(hash, new TSUID(tsuid, node.schema()));
       }
       final RollupInterval interval = rollup_index >= 0 ? 
           node.rollupIntervals().get(rollup_index) : null;

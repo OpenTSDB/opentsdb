@@ -103,7 +103,7 @@ public class TestByteToStringConverterForSource {
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
-    Resolver resolver = source.resolvers.get(42);
+    Resolver resolver = source.resolvers.get(42L);
     assertFalse(resolver.resolved.get());
     assertEquals(1, resolver.series.size());
     assertNotNull(resolver.deferred);
@@ -130,7 +130,7 @@ public class TestByteToStringConverterForSource {
     resolver.deferred.callback(decoded);
     
     assertEquals(1, source.decoded_ids.size());
-    assertSame(decoded, source.decoded_ids.get(42));
+    assertSame(decoded, source.decoded_ids.get(42L));
     assertEquals(2, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(2, sent_up.size());
@@ -143,7 +143,7 @@ public class TestByteToStringConverterForSource {
     source.resolve(pts_c);
     
     assertEquals(1, source.decoded_ids.size());
-    assertSame(decoded, source.decoded_ids.get(42));
+    assertSame(decoded, source.decoded_ids.get(42L));
     assertEquals(3, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(3, sent_up.size());
@@ -174,7 +174,7 @@ public class TestByteToStringConverterForSource {
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
-    Resolver resolver = source.resolvers.get(42);
+    Resolver resolver = source.resolvers.get(42L);
     assertFalse(resolver.resolved.get());
     assertEquals(1, resolver.series.size());
     assertNotNull(resolver.deferred);
@@ -189,22 +189,22 @@ public class TestByteToStringConverterForSource {
     assertTrue(source.sets.isEmpty());
     assertEquals(2, source.resolvers.size());
     
-    assertFalse(source.resolvers.get(42).resolved.get());
-    assertEquals(1, source.resolvers.get(42).series.size());
-    assertNotNull(source.resolvers.get(42).deferred);
-    assertFalse(source.resolvers.get(-1).resolved.get());
-    assertEquals(1, source.resolvers.get(-1).series.size());
-    assertNotNull(source.resolvers.get(-1).deferred);
+    assertFalse(source.resolvers.get(42L).resolved.get());
+    assertEquals(1, source.resolvers.get(42L).series.size());
+    assertNotNull(source.resolvers.get(42L).deferred);
+    assertFalse(source.resolvers.get(-1L).resolved.get());
+    assertEquals(1, source.resolvers.get(-1L).series.size());
+    assertNotNull(source.resolvers.get(-1L).deferred);
     assertTrue(sent_up.isEmpty());
     verify(factory, times(1)).resolveByteId(id_a, null);
     verify(factory, times(1)).resolveByteId(id_b, null);
     
     // resolve the first one
     TimeSeriesStringId decoded_a = mock(TimeSeriesStringId.class);
-    source.resolvers.get(42).deferred.callback(decoded_a);
+    source.resolvers.get(42L).deferred.callback(decoded_a);
     
     assertEquals(1, source.decoded_ids.size());
-    assertSame(decoded_a, source.decoded_ids.get(42));
+    assertSame(decoded_a, source.decoded_ids.get(42L));
     assertEquals(1, source.sets.size());
     assertEquals(1, source.resolvers.size());
     assertEquals(1, sent_up.size());
@@ -213,11 +213,11 @@ public class TestByteToStringConverterForSource {
     
     // resolve the first one
     TimeSeriesStringId decoded_b = mock(TimeSeriesStringId.class);
-    source.resolvers.get(-1).deferred.callback(decoded_b);
+    source.resolvers.get(-1L).deferred.callback(decoded_b);
     
     assertEquals(2, source.decoded_ids.size());
-    assertSame(decoded_a, source.decoded_ids.get(42));
-    assertSame(decoded_b, source.decoded_ids.get(-1));
+    assertSame(decoded_a, source.decoded_ids.get(42L));
+    assertSame(decoded_b, source.decoded_ids.get(-1L));
     assertEquals(1, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(2, sent_up.size());
@@ -260,7 +260,7 @@ public class TestByteToStringConverterForSource {
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
-    Resolver resolver = source.resolvers.get(42);
+    Resolver resolver = source.resolvers.get(42L);
     assertFalse(resolver.resolved.get());
     assertEquals(1, resolver.series.size());
     assertNotNull(resolver.deferred);

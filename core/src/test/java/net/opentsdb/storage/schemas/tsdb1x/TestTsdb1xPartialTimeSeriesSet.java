@@ -27,13 +27,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import gnu.trove.map.TLongObjectMap;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -50,7 +51,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
   private static ObjectPool NO_DATA_POOL;
   
   private Tsdb1xQueryNode node;
-  private TLongObjectMap<TimeSeriesId> ids;
+  private Map<Long, TimeSeriesId> ids;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -81,7 +82,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    ids = mock(TLongObjectMap.class);
+    ids = mock(Map.class);
     QueryNodeConfig config = mock(QueryNodeConfig.class);
     when(config.getId()).thenReturn("Mock");
     when(node.config()).thenReturn(config);

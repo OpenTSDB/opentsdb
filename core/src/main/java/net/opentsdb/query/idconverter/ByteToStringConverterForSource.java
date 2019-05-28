@@ -15,17 +15,17 @@
 package net.opentsdb.query.idconverter;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
@@ -52,13 +52,13 @@ public class ByteToStringConverterForSource {
   protected final ByteToStringIdConverter converter;
   
   /** The map of decoded IDs. */
-  protected final TLongObjectMap<TimeSeriesId> decoded_ids;
+  protected final Map<Long, TimeSeriesId> decoded_ids;
   
   /** The map of set wrappers to re-use. */
-  protected final TLongObjectMap<PartialTimeSeriesSet> sets;
+  protected final Map<Long, PartialTimeSeriesSet> sets;
   
   /** The map of outstanding resolvers. */
-  protected final TLongObjectMap<Resolver> resolvers;
+  protected final Map<Long, Resolver> resolvers;
   
   /**
    * Default ctor.
@@ -67,9 +67,9 @@ public class ByteToStringConverterForSource {
   protected ByteToStringConverterForSource(
       final ByteToStringIdConverter converter) {
     this.converter = converter;
-    decoded_ids = new TLongObjectHashMap<TimeSeriesId>();
-    sets = new TLongObjectHashMap<PartialTimeSeriesSet>();
-    resolvers = new TLongObjectHashMap<Resolver>();
+    decoded_ids = Maps.newConcurrentMap();
+    sets = Maps.newConcurrentMap();;
+    resolvers = Maps.newConcurrentMap();
   }
   
   /**
@@ -77,19 +77,18 @@ public class ByteToStringConverterForSource {
    * @param pts The non-null PTs to process.
    */
   protected void resolve(final PartialTimeSeries pts) {
-    synchronized (decoded_ids) {
-      if (decoded_ids.containsKey(pts.idHash())) {
-        sendUp(pts);
-        return;
-      }
+    if (decoded_ids.containsKey(pts.idHash())) {
+      sendUp(pts);
+      return;
     }
     
     Resolver resolver;
-    synchronized (resolvers) {
-      resolver = resolvers.get(pts.idHash());
-      if (resolver == null) {
-        resolver = new Resolver();
-        resolvers.put(pts.idHash(), resolver);
+    resolver = resolvers.get(pts.idHash());
+    if (resolver == null) {
+      resolver = new Resolver();
+      final Resolver extant = resolvers.putIfAbsent(pts.idHash(), resolver);
+      if (extant != null) {
+        resolver = extant;
       }
     }
     resolver.resolve(pts);
@@ -102,11 +101,13 @@ public class ByteToStringConverterForSource {
    */
   void sendUp(final PartialTimeSeries pts) {
     PartialTimeSeriesSet set_wrapper;
-    synchronized (sets) {
-      set_wrapper = sets.get(pts.set().start().epoch());
-      if (set_wrapper == null) {
-        set_wrapper = new WrappedPartialTimeSeriesSet(pts.set());
-        sets.put(pts.set().start().epoch(), set_wrapper);
+    set_wrapper = sets.get(pts.set().start().epoch());
+    if (set_wrapper == null) {
+      set_wrapper = new WrappedPartialTimeSeriesSet(pts.set());
+      final PartialTimeSeriesSet set = sets.putIfAbsent(
+          pts.set().start().epoch(), set_wrapper);
+      if (set != null) {
+        set_wrapper = set;
       }
     }
     
@@ -143,10 +144,8 @@ public class ByteToStringConverterForSource {
       if (resolved.compareAndSet(false, true)) {
         deferred = null;
         // remove ourself
-        synchronized (resolvers) {
-          if (series.size() > 0) {
-            resolvers.remove(series.get(0).idHash());
-          }
+        if (series.size() > 0) {
+          resolvers.remove(series.get(0).idHash());
         }
         series = null; // release it to the GC
       } // else we lost the race so another thread is working on array
@@ -169,9 +168,7 @@ public class ByteToStringConverterForSource {
       
       @Override
       public Void call(final TimeSeriesStringId id) throws Exception {
-        synchronized (decoded_ids) {
-          decoded_ids.put(pts.idHash(), id);
-        }
+        decoded_ids.putIfAbsent(pts.idHash(), id);
         if (resolved.compareAndSet(false, true)) {
           for (final PartialTimeSeries pts : series) {     
             sendUp(pts);
@@ -179,9 +176,7 @@ public class ByteToStringConverterForSource {
           series = null; // release it to the GC
           deferred = null;
           // remove ourself
-          synchronized (resolvers) {
-            resolvers.remove(pts.idHash());
-          }
+          resolvers.remove(pts.idHash());
         } // else we lost the race so another thread is working on array
         return null;
       }
