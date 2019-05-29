@@ -906,6 +906,14 @@ public final class TSDB {
         collector.clearExtraTag("plugin");
       }
     }
+    if (meta_cache != null) {
+      try {
+        collector.addExtraTag("plugin", "metaCache");
+        meta_cache.collectStats(collector);
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
+    }
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
