@@ -45,6 +45,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
+import com.google.common.collect.Maps;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -136,7 +137,7 @@ public class TestSaltScanner extends BaseTsdbTest {
   public void scanNoData() throws Exception {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
-    assertTrue(spans == scanner.scan().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
     assertTrue(spans.isEmpty());
   }
   
@@ -145,7 +146,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     setupMockScanners(false);
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
-    assertTrue(spans == scanner.scan().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     Span span = spans.get(KEY_A);
@@ -181,7 +182,7 @@ public class TestSaltScanner extends BaseTsdbTest {
         .setTagk(TAGK_STRING).build());
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
-    assertTrue(spans == scanner.scan().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     Span span = spans.get(KEY_A);
@@ -219,7 +220,7 @@ public class TestSaltScanner extends BaseTsdbTest {
         .setTagk(TAGK_STRING).build());
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
-    assertTrue(spans == scanner.scan().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     Span span = spans.get(KEY_A);
@@ -256,7 +257,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
-    assertTrue(spans == scanner.scan().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
     assertEquals(0, spans.size());
 
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
@@ -272,7 +273,7 @@ public class TestSaltScanner extends BaseTsdbTest {
         .setTagk(TAGK_STRING).build());
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
-    assertTrue(spans == scanner.scan().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
     assertEquals(0, spans.size());
 
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);

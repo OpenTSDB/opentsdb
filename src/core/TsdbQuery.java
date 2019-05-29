@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.slf4j.Logger;
@@ -791,7 +792,7 @@ final class TsdbQuery implements Query {
    * perform the search.
    * @throws IllegalArgumentException if bad data was retrieved from HBase.
    */
-  private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
+  private Deferred<SortedMap<byte[], Span>> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
       new TreeMap<byte[], Span>(new SpanCmp(
@@ -831,7 +832,7 @@ final class TsdbQuery implements Query {
     }
   }
   
-  private Deferred<TreeMap<byte[], Span>> findSpansWithMultiGetter() throws HBaseException {
+  private Deferred<SortedMap<byte[], Span>> findSpansWithMultiGetter() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
     new TreeMap<byte[], Span>(new SpanCmp(metric_width));
@@ -857,7 +858,7 @@ final class TsdbQuery implements Query {
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
    */
-  private Deferred<TreeMap<byte[], HistogramSpan>> findHistogramSpans() throws HBaseException {
+  private Deferred<SortedMap<byte[], HistogramSpan>> findHistogramSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final TreeMap<byte[], HistogramSpan> histSpans = new TreeMap<byte[], HistogramSpan>(new SpanCmp(metric_width));
     
@@ -896,7 +897,7 @@ final class TsdbQuery implements Query {
     }
   }
   
-  private Deferred<TreeMap<byte[], HistogramSpan>> findHistogramSpansWithMultiGetter() throws HBaseException {
+  private Deferred<SortedMap<byte[], HistogramSpan>> findHistogramSpansWithMultiGetter() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     // The key is a row key from HBase
     final TreeMap<byte[], HistogramSpan> histSpans = new TreeMap<byte[], HistogramSpan>(new SpanCmp(metric_width));
@@ -913,7 +914,7 @@ final class TsdbQuery implements Query {
    * {@link TsdbQuery#findSpans} to group and sort the results.
    */
   private class GroupByAndAggregateCB implements 
-    Callback<DataPoints[], TreeMap<byte[], Span>>{
+    Callback<DataPoints[], SortedMap<byte[], Span>>{
     
     /**
     * Creates the {@link SpanGroup}s to form the final results of this query.
@@ -923,7 +924,7 @@ final class TsdbQuery implements Query {
     * any 'GROUP BY' formulated in this query.
     */
     @Override
-    public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
+    public DataPoints[] call(final SortedMap<byte[], Span> spans) throws Exception {
       if (query_stats != null) {
         query_stats.addStat(query_index, QueryStat.QUERY_SCAN_TIME, 
                 (System.nanoTime() - TsdbQuery.this.scan_start_time));
@@ -1048,7 +1049,7 @@ final class TsdbQuery implements Query {
    * {@link TsdbQuery#findHistogramSpans} to group and sort the results.
    */
    private class HistogramGroupByAndAggregateCB implements 
-     Callback<DataPoints[], TreeMap<byte[], HistogramSpan>>{
+     Callback<DataPoints[], SortedMap<byte[], HistogramSpan>>{
 
      /**
      * Creates the {@link HistogramSpanGroup}s to form the final results of this query.
@@ -1057,7 +1058,7 @@ final class TsdbQuery implements Query {
      * @return A possibly empty array of {@link HistogramSpanGroup}s built according to
      * any 'GROUP BY' formulated in this query.
      */
-     public DataPoints[] call(final TreeMap<byte[], HistogramSpan> spans) throws Exception {
+     public DataPoints[] call(final SortedMap<byte[], HistogramSpan> spans) throws Exception {
        if (query_stats != null) {
          query_stats.addStat(query_index, QueryStat.QUERY_SCAN_TIME, 
                  (System.nanoTime() - TsdbQuery.this.scan_start_time));

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,11 +90,11 @@ public class MultiGetQuery {
   private final Map<Integer, List<SimpleEntry<byte[], 
   List<HistogramDataPoint>>>> histMap = Maps.newConcurrentMap();
 
-  private final Deferred<TreeMap<byte[], Span>> results = 
-      new Deferred<TreeMap<byte[], Span>>();
+  private final Deferred<SortedMap<byte[], Span>> results =
+      new Deferred<SortedMap<byte[], Span>>();
 
-  private final Deferred<TreeMap<byte[], HistogramSpan>> histogramResults = 
-      new Deferred<TreeMap<byte[], HistogramSpan>>();
+  private final Deferred<SortedMap<byte[], HistogramSpan>> histogramResults =
+      new Deferred<SortedMap<byte[], HistogramSpan>>();
 
   private final ArrayList<List<MultiGetTask>> multi_get_tasks;
   private final ArrayList<AtomicInteger> multi_get_indexs;
@@ -608,7 +609,7 @@ public class MultiGetQuery {
    * Initiate the get requests and return the tree map of results.
    * @return A non-null tree map of results (may be empty)
    */
-  public Deferred<TreeMap<byte[], Span>> fetch() {
+  public Deferred<SortedMap<byte[], Span>> fetch() {
     if(tags.isEmpty()) {
       return Deferred.fromResult(null);
     }
@@ -620,7 +621,7 @@ public class MultiGetQuery {
    * Initiate the get requests and return the tree map of results.
    * @return A non-null tree map of results (may be empty)
    */
-  public Deferred<TreeMap<byte[], HistogramSpan>> fetchHistogram() {
+  public Deferred<SortedMap<byte[], HistogramSpan>> fetchHistogram() {
     startFetch();
     return histogramResults;
   }
