@@ -149,7 +149,7 @@ public abstract class BaseHttpExecutorFactory implements
    */
   public void markHostAsBad(final String host, final int code) {
     // ignore all 400's but if the host is redirecting something is wrong.
-    if ((code >= 300 && code < 400) || code >= 500) {
+    if (code >= 400 && code < 500) {
       return;
     }
     
