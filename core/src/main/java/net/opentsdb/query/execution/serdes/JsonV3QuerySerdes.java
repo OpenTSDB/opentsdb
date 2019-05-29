@@ -36,11 +36,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.map.TLongIntMap;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongIntHashMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
@@ -94,7 +89,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   
   /** TEMP */
   //<set ID, <ts hash, ts wrapper>>
-  private Map<String, TLongObjectMap<SeriesWrapper>> partials = Maps.newConcurrentMap();
+  private Map<String, Map<Long, SeriesWrapper>> partials = Maps.newConcurrentMap();
   
   /**
    * Default ctor.
@@ -367,29 +362,33 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       return;
     }
     
-    synchronized (this) {
+    //synchronized (this) {
       final String set_id = series.set().node().config().getId() + ":" 
           + series.set().dataSource();
       
-      TLongObjectMap<SeriesWrapper> source_shards = partials.get(set_id);
+      Map<Long, SeriesWrapper> source_shards = partials.get(set_id);
       if (source_shards == null) {
-        source_shards = new TLongObjectHashMap<SeriesWrapper>();
-        partials.put(set_id, source_shards);
+        source_shards = Maps.newConcurrentMap();
+        Map<Long, SeriesWrapper> extant = partials.putIfAbsent(set_id, source_shards);
+        if (extant != null) {
+          source_shards = extant;
+        }
       }
       
       SeriesWrapper set = null;
-      synchronized (source_shards) {
-        set = source_shards.get(series.idHash());
-        if (set == null) {
-          set = new SeriesWrapper();
-          set.id_hash = series.idHash();
-          set.set = series.set();
-          source_shards.put(series.idHash(), set);
+      set = source_shards.get(series.idHash());
+      if (set == null) {
+        set = new SeriesWrapper();
+        set.id_hash = series.idHash();
+        set.set = series.set();
+        final SeriesWrapper extant = source_shards.putIfAbsent(series.idHash(), set);
+        if (extant != null) {
+          set = extant;
         }
       }
       
       set.series.put(series.set().start().epoch(), pooled_object); 
-    }
+    //}
     callback.onComplete(series);
   }
   
@@ -863,7 +862,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   class SetWrapper {
     public PartialTimeSeriesSet set;
     public boolean closed;
-    public TLongIntMap counts = new TLongIntHashMap();
   }
   
   void serializePush() {
@@ -872,11 +870,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       json.writeArrayFieldStart("results");
       
       String src_id = null;
-      for (final Entry<String, TLongObjectMap<SeriesWrapper>> entry : partials.entrySet()) {
-        TLongObjectIterator<SeriesWrapper> sit = entry.getValue().iterator();
-        while (sit.hasNext()) {
-          sit.advance();
-          SeriesWrapper shard = sit.value();
+      for (final Entry<String, Map<Long, SeriesWrapper>> entry : partials.entrySet()) {
+        for (final SeriesWrapper shard : entry.getValue().values()) {
           if (shard.series == null || shard.series.isEmpty()) {
             continue;
           }

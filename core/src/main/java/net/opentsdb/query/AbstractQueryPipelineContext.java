@@ -31,8 +31,6 @@ import com.google.common.graph.Traverser;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
@@ -82,7 +80,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   
   /** A map of source IDs to maps of set timestamps to time series counters.
    * i.e. <source_id, <timestamp, time series counter>> */
-  protected Map<String, TLongObjectMap<PartialTimeSetWrapper>> pts;
+  protected Map<String, Map<Long, PartialTimeSetWrapper>> pts;
   
   /** A map of source IDs to counters of sets. Indicates when a source ID has
    * sent all of it's sets. */
@@ -388,43 +386,39 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       final String set_id = series.set().node().config().getId() + ":" 
           + series.set().dataSource();
       
-      TLongObjectMap<PartialTimeSetWrapper> sets = pts.get(set_id);
+      Map<Long, PartialTimeSetWrapper> sets = pts.get(set_id);
       if (sets == null) {
-        sets = new TLongObjectHashMap<PartialTimeSetWrapper>();
-        TLongObjectMap<PartialTimeSetWrapper> extant = 
-            pts.putIfAbsent(set_id, sets);
+        sets = Maps.newConcurrentMap();
+        Map<Long, PartialTimeSetWrapper> extant = pts.putIfAbsent(set_id, sets);
         if (extant != null) {
           sets = extant;
         }
       }
       
       PartialTimeSetWrapper wrapper = null;
-      // Trove is not concurrent. sniff.
-      synchronized (sets) {
-        long ts = series.set().start().epoch();
-        wrapper = sets.get(ts);
-        if (wrapper == null) {
-          wrapper = new PartialTimeSetWrapper();
-          PartialTimeSetWrapper extant = sets.putIfAbsent(ts, wrapper);
-          if (extant != null) {
-            wrapper = extant;
-          }
+      long ts = series.set().start().epoch();
+      wrapper = sets.get(ts);
+      if (wrapper == null) {
+        wrapper = new PartialTimeSetWrapper();
+        PartialTimeSetWrapper extant = sets.putIfAbsent(ts, wrapper);
+        if (extant != null) {
+          wrapper = extant;
         }
       }
       
       int cnt = 0;
       int max = -1;
-      synchronized (wrapper) {
+      //synchronized (wrapper) {
         if (series.set().timeSeriesCount() > 0) {
-          cnt = ++wrapper.counter;
+          cnt = wrapper.counter.incrementAndGet();
         }
         if (series.set().complete()) {
-          if (series.set().timeSeriesCount() > wrapper.max) {
-            wrapper.max = series.set().timeSeriesCount();
+          if (series.set().timeSeriesCount() > wrapper.max.get()) {
+            wrapper.max.set(series.set().timeSeriesCount());
           }
         }
-        max = wrapper.max;
-      }
+        max = wrapper.max.get();
+      //}
       
       if (max >= 0 && max == cnt) {
         AtomicInteger ctr = finished_sources.get(set_id);
@@ -591,7 +585,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
    * Simple class used to keep track of a partial time series set stats.
    */
   class PartialTimeSetWrapper {
-    int counter;
-    int max = -1;
+    AtomicInteger counter = new AtomicInteger();
+    AtomicInteger max = new AtomicInteger(-1);
   }
 }
