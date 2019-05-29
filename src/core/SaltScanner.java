@@ -12,14 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -70,9 +72,9 @@ public class SaltScanner {
   
   /** This is a map that the caller must supply. We'll fill it with data.
    * WARNING: The salted row comparator should be applied to this map. */
-  private final TreeMap<byte[], Span> spans;
+  private final SortedMap<byte[], Span> spans;
   
-  private final TreeMap<byte[], HistogramSpan> histSpans;
+  private final SortedMap<byte[], HistogramSpan> histSpans;
   
   /** The list of pre-configured scanners. One scanner should be created per
    * salt bucket. */
@@ -93,11 +95,11 @@ public class SaltScanner {
     List<HistogramDataPoint>>>>();
   
   /** A deferred to call with the spans on completion */
-  private final Deferred<TreeMap<byte[], Span>> results = 
-          new Deferred<TreeMap<byte[], Span>>();
+  private final Deferred<SortedMap<byte[], Span>> results =
+          new Deferred<SortedMap<byte[], Span>>();
   
-  private final Deferred<TreeMap<byte[], HistogramSpan>> histogramResults =
-      new Deferred<TreeMap<byte[], HistogramSpan>>();
+  private final Deferred<SortedMap<byte[], HistogramSpan>> histogramResults =
+      new Deferred<SortedMap<byte[], HistogramSpan>>();
   
   /** The metric this scanner set is dealing with. If a row comes in with a 
    * different metric we toss an exception. This shouldn't happen though. */
@@ -226,8 +228,8 @@ public class SaltScanner {
     }
     
     this.scanners = scanners;
-    this.spans = spans;
-    this.histSpans = histogramSpans;
+    this.spans = spans != null ? Collections.synchronizedSortedMap(spans) : null;
+    this.histSpans = histogramSpans != null ? Collections.synchronizedSortedMap(histogramSpans) : null;
     this.metric = metric;
     this.tsdb = tsdb;
     this.filters = filters;
@@ -264,7 +266,7 @@ public class SaltScanner {
    * first error will be returned, others will be logged. 
    * @return A deferred to wait on for results.
    */
-  public Deferred<TreeMap<byte[], Span>> scan() {
+  public Deferred<SortedMap<byte[], Span>> scan() {
     start_time = System.currentTimeMillis();
     int i = 0;
     for (final Scanner scanner: scanners) {
@@ -273,7 +275,7 @@ public class SaltScanner {
     return results; 
   }
 
-  public Deferred<TreeMap<byte[], HistogramSpan>> scanHistogram() {
+  public Deferred<SortedMap<byte[], HistogramSpan>> scanHistogram() {
     start_time = DateTime.currentTimeMillis();
 
     int index = 0;
@@ -528,7 +530,7 @@ public class SaltScanner {
     /**
     * Iterate through each row of the scanner results, parses out data
     * points (and optional meta data).
-    * @return null if no rows were found, otherwise the TreeMap with spans
+    * @return null if no rows were found, otherwise the SortedMap with spans
     */
     @Override
     public Object call(final ArrayList<ArrayList<KeyValue>> rows) 
