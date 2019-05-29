@@ -219,25 +219,10 @@ public class TestHAClusterFactory {
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
     
-    assertEquals(14, planner.graph().nodes().size());
+    assertEquals(10, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
-    QueryNode node = planner.nodeForId("ha_m1_s1");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
-    
-    node = planner.nodeForId("ha_m1_s2");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
-    
-    node = planner.nodeForId("ha_m1_s1-m1-previous-PT1H");
+
+    QueryNode node = planner.nodeForId("ha_m1_s1-m1-previous-PT1H");
     assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).timeShifts().size());
     assertEquals(DateTime.parseDuration2("1h"), 
         ((TimeSeriesDataSourceConfig) node.config()).timeShifts()
@@ -269,18 +254,7 @@ public class TestHAClusterFactory {
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
     
-    assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
-    
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
-        planner.nodeForId("ha_m1_s1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
-        planner.nodeForId("ha_m1_s2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
-        planner.nodeForId("ha_m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
-        planner.nodeForId("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("m1-time-shift")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-time-shift"), 
         planner.nodeForId("m1-previous-PT1H")));
@@ -299,8 +273,7 @@ public class TestHAClusterFactory {
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1-m1-previous-PT2H"), 
         planner.nodeForId("ha_m1_s1-m1-previous-PT2H")));
 
-    assertEquals(2, planner.sinkFilters().size());
-    assertTrue(planner.sinkFilters().containsKey("m1"));
+    assertEquals(1, planner.sinkFilters().size());
     assertTrue(planner.sinkFilters().containsKey("m1-time-shift"));
   }
   
@@ -429,17 +402,9 @@ public class TestHAClusterFactory {
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
     
-    assertEquals(5, planner.graph().nodes().size());
-    assertTrue(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
-    QueryNode node = planner.nodeForId("m1");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
-    
-    node = planner.nodeForId("m1-previous-PT1H");
+    assertEquals(4, planner.graph().nodes().size());
+
+    QueryNode node = planner.nodeForId("m1-previous-PT1H");
     assertTrue(node instanceof TimeSeriesDataSource);
     assertEquals("sys.if.in", 
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
@@ -457,9 +422,7 @@ public class TestHAClusterFactory {
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .timeShifts().containsKey("m1-previous-PT2H"));
     
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
-        planner.nodeForId("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("m1-time-shift")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1-time-shift"), 
         planner.nodeForId("m1-previous-PT1H")));
@@ -928,7 +891,7 @@ public class TestHAClusterFactory {
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
     System.out.println(planner.printConfigGraph());
-    assertEquals(18, planner.graph().nodes().size());
+    assertEquals(17, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("ha_m1_s1");
 
@@ -954,7 +917,6 @@ public class TestHAClusterFactory {
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getTimeShiftInterval());
 
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
     assertTrue(planner.nodeForId("ha_m1_ds") instanceof Downsample);
 
     assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
@@ -965,10 +927,6 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_ds")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
-        planner.nodeForId("ha_m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
-        planner.nodeForId("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("gb")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
@@ -1043,7 +1001,7 @@ public class TestHAClusterFactory {
     planner.plan(null).join(250);
     System.out.println(planner.printConfigGraph());
 
-    assertEquals(10, planner.graph().nodes().size());
+    assertEquals(9, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("ha_m1_s4");
     assertTrue(node instanceof TimeSeriesDataSource);
@@ -1173,9 +1131,9 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_gb")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"), 
         planner.nodeForId("ha_m1_s3")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
         planner.nodeForId("ha_m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("m1")));
   }
   

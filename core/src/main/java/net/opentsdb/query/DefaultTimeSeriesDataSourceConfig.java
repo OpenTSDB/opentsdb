@@ -18,7 +18,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.time.temporal.TemporalAmount;
@@ -101,7 +100,9 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
         .build();
     planner.replace(config, shiftless);
 
-  setupTimeShift(config, planner);
+    setupTimeShift(config, planner);
+    ((DefaultQueryPlanner) planner).sinkFilters().remove(config.getId());
+    planner.removeNode(config);
   }
 
   public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
@@ -157,15 +158,6 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
       return;
     }
 
-    // since we're cloning, purge the original
-    TimeSeriesDataSourceConfig shiftless = ((TimeSeriesDataSourceConfig.Builder)
-        config.toBuilder())
-        .setTimeShiftInterval(null)
-        .setPreviousIntervals(0)
-        .setNextIntervals(0)
-        .build();
-    planner.replace(config, shiftless);
-
     final Set<QueryNodeConfig> shift_predecessors = planner.configGraph().predecessors(merger);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
         .setConfig((TimeSeriesDataSourceConfig) config)
@@ -202,6 +194,9 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
             shift_id);
       }
     }
+    // Remove the original from the planner. We'll only have the time shift query
+    ((DefaultQueryPlanner) planner).sinkFilters().remove(merger.id);
+    planner.removeNode(merger);
   }
 
   /**
