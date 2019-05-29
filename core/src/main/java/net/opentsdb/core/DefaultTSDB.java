@@ -322,7 +322,8 @@ public class DefaultTSDB implements TSDB {
     maintenance_timer = Threads.newTimer("TSDBMaintenanceTimer");
     query_timer = Threads.newTimer("TSDBQueryTimer");
     // TODO - fixed potentially.
-    query_pool = Executors.newCachedThreadPool();
+    query_pool = Executors.newFixedThreadPool(
+        Runtime.getRuntime().availableProcessors() * 2);
     
     if (!config.hasProperty(MAINT_TIMER_KEY)) {
       config.register(MAINT_TIMER_KEY, MAINT_TIMER_DEFAULT, true, 
