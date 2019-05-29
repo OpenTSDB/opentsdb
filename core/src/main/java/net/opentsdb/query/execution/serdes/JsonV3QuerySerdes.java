@@ -314,6 +314,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     // TODO - break out
     final PooledObject pooled_object = context.tsdb().getRegistry()
         .getObjectPool(StringBuilderPool.TYPE).claim();
+    if (pooled_object == null) {
+      LOG.error("Failed to claim a string builder.");
+      callback.onError(series, new RuntimeException("WTF? Failed to claim a string builder."));
+      return;
+    }
     final StringBuilder stream = (StringBuilder) pooled_object.object();
     stream.setLength(0);
     int count = 0;
@@ -362,33 +367,32 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       return;
     }
     
-    //synchronized (this) {
-      final String set_id = series.set().node().config().getId() + ":" 
-          + series.set().dataSource();
-      
-      Map<Long, SeriesWrapper> source_shards = partials.get(set_id);
-      if (source_shards == null) {
-        source_shards = Maps.newConcurrentMap();
-        Map<Long, SeriesWrapper> extant = partials.putIfAbsent(set_id, source_shards);
-        if (extant != null) {
-          source_shards = extant;
-        }
+    final String set_id = series.set().node().config().getId() + ":" 
+        + series.set().dataSource();
+    
+    Map<Long, SeriesWrapper> source_shards = partials.get(set_id);
+    if (source_shards == null) {
+      source_shards = Maps.newConcurrentMap();
+      Map<Long, SeriesWrapper> extant = partials.putIfAbsent(set_id, source_shards);
+      if (extant != null) {
+        source_shards = extant;
       }
-      
-      SeriesWrapper set = null;
-      set = source_shards.get(series.idHash());
-      if (set == null) {
-        set = new SeriesWrapper();
-        set.id_hash = series.idHash();
-        set.set = series.set();
-        final SeriesWrapper extant = source_shards.putIfAbsent(series.idHash(), set);
-        if (extant != null) {
-          set = extant;
-        }
+    }
+    
+    SeriesWrapper set = null;
+    set = source_shards.get(series.idHash());
+    if (set == null) {
+      set = new SeriesWrapper();
+      set.id_hash = series.idHash();
+      set.set = series.set();
+      final SeriesWrapper extant = source_shards.putIfAbsent(series.idHash(), set);
+      if (extant != null) {
+        set = extant;
       }
-      
-      set.series.put(series.set().start().epoch(), pooled_object); 
-    //}
+    }
+    
+    set.series.put(series.set().start().epoch(), stream.toString());
+    pooled_object.release();
     callback.onComplete(series);
   }
   
@@ -856,7 +860,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   class SeriesWrapper {
     public PartialTimeSeriesSet set;
     public long id_hash;
-    public TreeMap<Long, PooledObject> series = new TreeMap<Long, PooledObject>();
+    public TreeMap<Long, String> series = new TreeMap<Long, String>();
   }
   
   class SetWrapper {
@@ -930,7 +934,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           
           json.writeObjectFieldStart("NumericType");
           int count = 0;
-          for (Entry<Long, PooledObject> e : shard.series.entrySet()) {
+          for (Entry<Long, String> e : shard.series.entrySet()) {
             //byte[] s = w.series.get(id_hash);
             if (e.getValue() == null) {
               // TODO - fill!!
@@ -939,8 +943,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                 json.writeRaw(",");
               }
               //json.writeRaw(new String(e.getValue()));
-              json.writeRaw(((StringBuilder) e.getValue().object()).toString());
-              e.getValue().release();
+              json.writeRaw(e.getValue());
             }
           }
           json.writeEndObject();

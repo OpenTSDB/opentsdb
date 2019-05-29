@@ -14,34 +14,44 @@
 // limitations under the License.
 package net.opentsdb.tsd;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
+import com.google.common.io.Files;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import jersey.repackaged.com.google.common.collect.Maps;
+import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
@@ -57,8 +67,11 @@ import net.opentsdb.utils.YAML;
 public class QueryConfig implements TimerTask {
   private static Logger LOG = LoggerFactory.getLogger(QueryConfig.class);
   
+  public static final String METRIC_PREFIX = "query.";
   public static final String OVERALL_METRIC = "query.time.overall";
   public static final String SIZE_METRIC = "query.size.bytes";
+  public static final Pattern CURL_METRIC_PATTERN = 
+      Pattern.compile("^([a-zA-Z\\.]+):\\s+([0-9\\.]+)$");
   
   /** The non-null ID that's reported as the "id" tag for metrics. */
   protected final String id;
@@ -85,11 +98,8 @@ public class QueryConfig implements TimerTask {
   /** A latch of outstanding queries. */
   protected final AtomicInteger latch;
   
-  /** The http client runner. */
-  protected final CloseableHttpAsyncClient client;
-  
-  /** The TSDB reference. */
-  protected final TSDB tsdb;
+  /** The runner. */
+  protected final TsdbQueryRunner runner;
   
   /** Random number generator used for jitter and scheduling. */
   protected final Random rnd;
@@ -97,16 +107,13 @@ public class QueryConfig implements TimerTask {
   /** The list of callbacks. */
   protected List<ResponseCallback> callbacks;
   
-  protected volatile Iterator<String> iterator;
-  
   private QueryConfig(final Builder builder) {
     this.id = builder.id;
     this.endpoints = builder.endpoints;
     shuffled_endpoints = Lists.newArrayList(endpoints);
     this.frequency = builder.frequency;
     this.query_builder = builder.query_builder;
-    this.client = builder.client;
-    this.tsdb = builder.tsdb;
+    this.runner = builder.runner;
     rnd = new Random(DateTime.currentTimeMillis());
     cancel = new AtomicBoolean();
     outstanding = new AtomicBoolean();
@@ -119,14 +126,12 @@ public class QueryConfig implements TimerTask {
   
   /**
    * Parses the config file.
-   * @param tsdb The non-null TSDB.
-   * @param 
+   * @param runner The query runner.
    * @param file The non-null file.
    * @return The query config.
    * Throws IllegalArgumentException if a required config is missing or invalid.
    */
-  public static QueryConfig parse(final TSDB tsdb, 
-                                  final CloseableHttpAsyncClient client, 
+  public static QueryConfig parse(final TsdbQueryRunner runner, 
                                   final File file) {
     try (final FileReader reader = new FileReader(file)) {
       final String yaml = CharStreams.toString(reader);
@@ -137,8 +142,7 @@ public class QueryConfig implements TimerTask {
         throw new IllegalArgumentException("File " + file + " was missing the ID.");
       }
       QueryConfig.Builder config = new Builder()
-          .setTSDB(tsdb)
-          .setClient(client);
+          .setRunner(runner);
       config.setId(temp.asText());
       
       temp = node.get("endpoints");
@@ -157,7 +161,7 @@ public class QueryConfig implements TimerTask {
       if (temp == null || temp.isNull()) {
         throw new IllegalArgumentException("File " + file + " was missing the query.");
       }
-      config.setQueryBuilder(SemanticQuery.parse(tsdb, temp));
+      config.setQueryBuilder(SemanticQuery.parse(TsdbQueryRunner.TSDB, temp));
       
       return config.build();
     } catch (FileNotFoundException e) {
@@ -204,23 +208,31 @@ public class QueryConfig implements TimerTask {
         if (shuffled_endpoints.size() > 0) {
           Collections.shuffle(shuffled_endpoints);
         }
-        iterator = shuffled_endpoints.iterator();
         
         latch.set(shuffled_endpoints.size());
-        final String endpoint = iterator.next();
-        try {
-          final HttpPost post = new HttpPost(endpoint);
-          post.addHeader("Content-Type", "application/json");
-          post.setEntity(new StringEntity(JSON.serializeToString(
-              query_builder.build())));
-          ResponseCallback cb = callbacks.get(0);
-          cb.start();
-          client.execute(post, cb);
-          LOG.debug("Sent first query " + id + " to endpoint " + endpoint);
-        } catch (Exception e) {
-          LOG.error("Failed to send query for: " + id + " and endpoint " 
-              + endpoint, e);
-          latch.decrementAndGet();
+        if (runner.use_curl) {
+          // write the query
+          Files.write(JSON.serializeToBytes(query_builder.build()), 
+              new File(runner.curl_temp + id + ".json"));
+          TsdbQueryRunner.TSDB.getQueryThreadPool().submit(new CurlRunner(0));
+        } else {
+          final String endpoint = shuffled_endpoints.get(0);
+          try {
+            final HttpPost post = new HttpPost(endpoint);
+            post.addHeader("Content-Type", "application/json");
+            post.setEntity(new StringEntity(JSON.serializeToString(
+                query_builder.build())));
+            ResponseCallback cb = callbacks.get(0);
+            cb.start();
+            runner.client.execute(post, cb);
+            LOG.debug("Sent first query " + id + " to endpoint " + endpoint);
+          } catch (Exception e) {
+            LOG.error("Failed to send query for: " + id + " and endpoint " 
+                + endpoint, e);
+            if (latch.decrementAndGet() <= 0) {
+              outstanding.set(false);
+            }
+          }
         }
       } catch (Throwable t) {
         LOG.error("Failed to send query for: " + id, t);
@@ -228,7 +240,7 @@ public class QueryConfig implements TimerTask {
     } else {
       LOG.debug("Outstanding queries for: " + id + ". Skipping schedule.");
     }
-    this.timeout = tsdb.getQueryTimer().newTimeout(this, 
+    this.timeout = TsdbQueryRunner.TSDB.getQueryTimer().newTimeout(this, 
         DateTime.parseDuration(frequency), 
         TimeUnit.MILLISECONDS);
   }
@@ -241,8 +253,10 @@ public class QueryConfig implements TimerTask {
     long interval = DateTime.parseDuration(frequency);
     int num = rnd.nextInt((int) interval);
     int jitter = (int) interval - num;
-    LOG.debug("Scheduling test for " + id + " in " + (jitter / 1000) + " seconds");
-    timeout = tsdb.getQueryTimer().newTimeout(this, 
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Scheduling test for " + id + " in " + (jitter / 1000) + " seconds");
+    }
+    timeout = TsdbQueryRunner.TSDB.getQueryTimer().newTimeout(this, 
         jitter,
         TimeUnit.MILLISECONDS);
   }
@@ -263,14 +277,14 @@ public class QueryConfig implements TimerTask {
   class ResponseCallback implements FutureCallback<HttpResponse> {
     private final int index;
     private final TSDB tsdb;
-    private StatsTimer timer;
+    private volatile StatsTimer timer;
     
     ResponseCallback(final int index, final TSDB tsdb) {
       this.index = index;
       this.tsdb = tsdb;
     }
     
-    public void start() {
+    public synchronized void start() {
       timer = tsdb.getStatsCollector().startTimer(OVERALL_METRIC, true);
     }
     
@@ -316,13 +330,15 @@ public class QueryConfig implements TimerTask {
     }
     
     void stop(final int status_code) {
-      timer.stop("id", id, 
-                 "endpoint", shuffled_endpoints.get(index), 
-                 "status", Integer.toString(status_code));
-      if (latch.decrementAndGet() == 0) {
+      synchronized (this) {
+        timer.stop("id", id, 
+                   "endpoint", shuffled_endpoints.get(index), 
+                   "status", Integer.toString(status_code));
+      }
+      if (latch.decrementAndGet() <= 0) {
         outstanding.set(false);
       } else {
-        final String endpoint = iterator.next();
+        final String endpoint = shuffled_endpoints.get(index + 1);
         try {
           final HttpPost post = new HttpPost(endpoint);
           post.addHeader("Content-Type", "application/json");
@@ -330,7 +346,7 @@ public class QueryConfig implements TimerTask {
               query_builder.build())));
           ResponseCallback cb = callbacks.get(index + 1);
           cb.start();
-          client.execute(post, cb);
+          runner.client.execute(post, cb);
           LOG.debug("Sent next query " + id + " to endpoint " + endpoint);
         } catch (Exception e) {
           LOG.error("Failed to send query for: " + id + " and endpoint " 
@@ -343,13 +359,169 @@ public class QueryConfig implements TimerTask {
     }
   }
 
+  class CurlRunner implements Runnable {
+    final int index;
+    
+    CurlRunner(final int index) {
+      this.index = index;
+    }
+    
+    @Override
+    public void run() {
+      try {
+        final String temp_file = runner.curl_temp + id + "_" + index + ".log";
+        File f = new File(temp_file);
+        if (f.exists()) {
+          try {
+            f.delete();
+          } catch (Exception e) {
+            LOG.error("Failed to remove temp file: " + f);
+          }
+        }
+        LOG.info("Sending CURL query " + id  + " to endpoint " 
+            + shuffled_endpoints.get(index));
+        final ProcessBuilder builder = new ProcessBuilder();
+        final List<String> args = Lists.newArrayList();
+        args.add(runner.curl_exec);
+        args.add("-sS"); // suppress the progress bar but keep errors.
+        //args.add("-vv"); // for debugging
+        args.add("-w");
+        args.add("\"" + TsdbQueryRunner.CURL_STATUS + runner.curl_metrics + "\"");
+        args.add("-o");
+        args.add(temp_file);
+        args.add("-X");
+        args.add("POST");
+        args.add("-H");
+        args.add("Content-Type: application/json");
+        args.add("-d");
+        args.add("@" + runner.curl_temp + id + ".json");
+        args.add("-m");
+        args.add(Integer.toString(runner.timeout / 1000));
+        if (!Strings.isNullOrEmpty(runner.curl_flags)) {
+          // TODO - handle quotes if we need em.
+          final String[] parts = runner.curl_flags.split(" ");
+          for (int i = 0; i < parts.length; i++) {
+            args.add(parts[i]);
+          }
+        }
+        args.add(shuffled_endpoints.get(index));
+        builder.command(args);
+        builder.redirectErrorStream(true);
+        builder.directory(new File(runner.curl_temp));
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Running command: " + Joiner.on(" ").join(builder.command()));
+        }
+        final Process process = builder.start();
+        
+        final Map<String, String> metrics = Maps.newHashMap();
+        final StringBuilder buffer = new StringBuilder();
+        String error = null;
+        try (final InputStream is = process.getInputStream()) {
+          try (final InputStreamReader isr = new InputStreamReader(is)) {
+            try (final BufferedReader br = new BufferedReader(isr)) {
+              String line;  
+              while ((line = br.readLine()) != null) {
+                buffer.append(line).append("\n");
+                
+                if (line.startsWith("curl:")) {
+                  // error msg!
+                  error = line;
+                } else {
+                  // metric!
+                  final Matcher matcher = CURL_METRIC_PATTERN.matcher(line);
+                  if (matcher.matches()) {
+                    metrics.put(matcher.group(1), matcher.group(2));
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("ID: " + id + "\n" + buffer.toString());
+        }
+        
+        final int status_code = Integer.parseInt(metrics.get("status"));
+        if (status_code != 200 && status_code != 204) {
+          LOG.error("Query " + id + " to endpoint " 
+              + shuffled_endpoints.get(index) + " failed with code: " 
+              + status_code + " and error: " + error);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Query " + id + " to endpoint " 
+                + shuffled_endpoints.get(index) + " failed with code: " 
+                + status_code + " and error: " + error + "\n" +
+                (new File(temp_file).exists() ? 
+                Files.readLines(new File(temp_file), Const.UTF8_CHARSET) :
+                  "{no file at " + temp_file + "}"));
+          }
+        } else {
+          LOG.info("Finished query " + id + " against " + shuffled_endpoints.get(index) 
+            + " with code: " + status_code + " in " 
+            + metrics.get("total.time") + "s for " + metrics.get("download.size") + " bytes");
+        }
+        
+        final String[] tags = new String[] {
+            "id", id, 
+            "endpoint", shuffled_endpoints.get(index), 
+            "status", Integer.toString(status_code)
+        };
+        
+        for (final Entry<String, String> metric : metrics.entrySet()) {
+          if (metric.getKey().equals("status")) {
+            continue;
+          }
+          
+          if (status_code == 0 && metric.getKey().equals("total.time")) {
+            if (LOG.isTraceEnabled()) {
+              LOG.trace(id + " " + METRIC_PREFIX + metric.getKey() + " 0");
+            }
+            TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+                METRIC_PREFIX + metric.getKey(), 
+                0.0, 
+                tags);
+            continue;
+          }
+          
+          if (metric.getValue().contains(".")) {
+            if (LOG.isTraceEnabled()) {
+              LOG.trace(id + " " + METRIC_PREFIX + metric.getKey() + " " 
+                  + Double.parseDouble(metric.getValue()));
+            }
+            TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+                METRIC_PREFIX + metric.getKey(), 
+                Double.parseDouble(metric.getValue()), 
+                tags);
+          } else {
+            if (LOG.isTraceEnabled()) {
+              LOG.trace(id + " " + METRIC_PREFIX + metric.getKey() + " " 
+                  + Long.parseLong(metric.getValue()));
+            }
+            TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+                METRIC_PREFIX + metric.getKey(), 
+                Long.parseLong(metric.getValue()), 
+                tags);
+          }
+        }
+      } catch (Throwable t) {
+        LOG.error("Failed to run query: " + shuffled_endpoints.get(index), t);
+      } finally {
+        if (index + 1 < shuffled_endpoints.size()) {
+          TsdbQueryRunner.TSDB.getQueryThreadPool().submit(new CurlRunner(index + 1));
+        }
+        if (latch.decrementAndGet() <= 0) {
+          outstanding.set(false);
+        }
+      }
+    }
+    
+  }
+  
   static class Builder {
     private String id;
     private List<String> endpoints;
     private String frequency;
     private SemanticQuery.Builder query_builder;
-    private TSDB tsdb;
-    private CloseableHttpAsyncClient client;
+    private TsdbQueryRunner runner;
     
     public Builder setId(final String id) {
       this.id = id;
@@ -371,13 +543,8 @@ public class QueryConfig implements TimerTask {
       return this;
     }
     
-    public Builder setTSDB(final TSDB tsdb) {
-      this.tsdb = tsdb;
-      return this;
-    }
-    
-    public Builder setClient(final CloseableHttpAsyncClient client) {
-      this.client = client;
+    public Builder setRunner(final TsdbQueryRunner runner) {
+      this.runner = runner;
       return this;
     }
     

@@ -18,7 +18,6 @@ import java.io.File;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -37,7 +36,6 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.storage.MockDataStoreFactory;
-import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.SharedHttpClient;
 
 /**
@@ -51,8 +49,27 @@ import net.opentsdb.utils.SharedHttpClient;
 public class TsdbQueryRunner implements TimerTask {
   private static Logger LOG = LoggerFactory.getLogger(TsdbQueryRunner.class);
   
-  private static final String CONFIG_DIR = "config.directory";
-  private static final String CLIENT_KEY = "client.id";
+  protected static final String CONFIG_DIR = "config.directory";
+  protected static final String TIMEOUT_KEY = "client.timeout";
+  protected static final String CLIENT_KEY = "client.id";
+  protected static final String USE_CURL_KEY = "client.use_curl";
+  protected static final String CURL_KEY = "client.curl";
+  protected static final String CURL_TEMP_KEY = "client.curl.temp";
+  protected static final String CURL_FLAGS_KEY = "client.curl.flags";
+  protected static final String CURL_METRICS_KEY = "client.curl.metrics";
+  protected static final String CURL_STATUS = "\\nstatus:\\t%{http_code}\\n";
+  protected static final String CURL_METRICS_DEFAULT = 
+      "download.size:\\t%{size_download}\\n"
+      + "download.speed:\\t%{speed_download}\\n"
+      + "upload.size:\\t%{size_upload}\\n"
+      + "upload.speed:\\t%{speed_upload}\\n"
+      + "namelookup.time:\\t%{time_namelookup}\\n"
+      + "connect.time:\\t%{time_connect}\\n"
+      + "pretransfer.time:\\t%{time_pretransfer}\\n"
+      + "starttransfer.time:\\t%{time_starttransfer}\\n"
+      + "appconnect.time:\\t%{time_appconnect}\\n"
+      + "redirect.time:\\t%{time_redirect}\\n"
+      + "total.time:\\t%{time_total}\n";
   
   protected static DefaultTSDB TSDB;
   
@@ -65,6 +82,24 @@ public class TsdbQueryRunner implements TimerTask {
   /** Client for health checks and queries. */
   protected CloseableHttpAsyncClient client;
   
+  /** Whether or not to use CURL. */
+  protected boolean use_curl;
+  
+  /** The curl executable. */
+  protected String curl_exec;
+  
+  /** Temp dir for curl. */
+  protected String curl_temp;
+  
+  /** Optional CURL flags. */
+  protected String curl_flags;
+  
+  /** The metrics template. */
+  protected String curl_metrics;
+  
+  /** Timeout in millis. */
+  protected int timeout;
+  
   TsdbQueryRunner(final String dir) {
     this.dir = dir;
     queries = Maps.newConcurrentMap();
@@ -73,16 +108,31 @@ public class TsdbQueryRunner implements TimerTask {
       System.exit(1);
     }
     
+    use_curl = TSDB.getConfig().getBoolean(USE_CURL_KEY);
+    curl_exec = TSDB.getConfig().getString(CURL_KEY);
+    curl_temp = TSDB.getConfig().getString(CURL_TEMP_KEY);
+    if (!curl_temp.endsWith("/")) {
+      curl_temp += "/";
+    }
+    curl_flags = TSDB.getConfig().getString(CURL_FLAGS_KEY);
+    curl_metrics = TSDB.getConfig().getString(CURL_METRICS_KEY);
+    timeout = TSDB.getConfig().getInt(TIMEOUT_KEY);
+    
     final String client_id = TSDB.getConfig().getString(CLIENT_KEY);
     final SharedHttpClient shared_client = TSDB.getRegistry().getPlugin(
         SharedHttpClient.class, client_id);
-    if (shared_client == null) {
+    if (shared_client == null && !use_curl) {
       LOG.error("No shared HTTP client found "
           + "for ID: " + (Strings.isNullOrEmpty(client_id) ? 
               "Default" : client_id));
       System.exit(1);
     }
-    client = shared_client.getClient();
+    if (shared_client != null) {
+      client = shared_client.getClient();
+      LOG.info("Running with the shared HttpClient");
+    } else {
+      LOG.info("Running in CURL mode.");
+    }
     LOG.info("Looking for config files in: " + dir);
     TSDB.getMaintenanceTimer().newTimeout(this, 0, TimeUnit.SECONDS);
   }
@@ -101,7 +151,7 @@ public class TsdbQueryRunner implements TimerTask {
       for (final File file: Files.fileTreeTraverser().breadthFirstTraversal(root)) {
         if (file.isFile() && file.toString().toLowerCase().endsWith("yaml")) {
           try {
-            final QueryConfig config = QueryConfig.parse(TSDB, client, file);
+            final QueryConfig config = QueryConfig.parse(this, file);
             new_configs.add(config.id);
             
             QueryConfig extant = queries.get(config.id);
@@ -167,9 +217,33 @@ public class TsdbQueryRunner implements TimerTask {
       config.register(CONFIG_DIR, "/usr/share/opentsdb/queryrunner", false, 
           "The directory where query configs are stored.");
     }
+    if (!config.hasProperty(TIMEOUT_KEY)) {
+      config.register(TIMEOUT_KEY, 30000, false, 
+          "A request timeout in milliseconds.");
+    }
     if (!config.hasProperty(CLIENT_KEY)) {
       config.register(CLIENT_KEY, null, false, 
           "The ID of a shared HTTP client.");
+    }
+    if (!config.hasProperty(CURL_KEY)) {
+      config.register(CURL_KEY, "/usr/bin/curl", false, 
+          "The full path to the CURL executable.");
+    }
+    if (!config.hasProperty(CURL_TEMP_KEY)) {
+      config.register(CURL_TEMP_KEY, "/tmp", false, 
+          "The path to a temp dir for CURL checks to use.");
+    }
+    if (!config.hasProperty(USE_CURL_KEY)) {
+      config.register(USE_CURL_KEY, false, false, 
+          "Whether or not to use CURL for detailed measurements.");
+    }
+    if (!config.hasProperty(CURL_FLAGS_KEY)) {
+      config.register(CURL_FLAGS_KEY, null, false, 
+          "Optional CLI flags for the CURL call.");
+    }
+    if (!config.hasProperty(CURL_METRICS_KEY)) {
+      config.register(CURL_METRICS_KEY, CURL_METRICS_DEFAULT, false, 
+          "The CURL metrics template.");
     }
     
     new TsdbQueryRunner(config.getString(CONFIG_DIR));

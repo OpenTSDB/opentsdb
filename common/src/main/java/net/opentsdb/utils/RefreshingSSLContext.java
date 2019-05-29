@@ -321,7 +321,7 @@ public class RefreshingSSLContext implements TimerTask {
               + "the PEM are not allowed.");
         } else if (is_server_cert) {
           have_server_cert = is_server_cert;
-          LOG.info("Successfully loaded server certificate with CN:: " + cn);
+          LOG.info("Successfully loaded server certificate with CN: " + cn);
         } else {
           LOG.info("Successfully loaded intermediate or CA cert with CN: " + cn);
         }
