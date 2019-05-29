@@ -17,12 +17,15 @@ package net.opentsdb.pools;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import net.opentsdb.core.TSDB;
 
 /**
@@ -31,7 +34,7 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class BlockingQueueObjectPool implements ObjectPool {
+public class BlockingQueueObjectPool implements ObjectPool, TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(
       BlockingQueueObjectPool.class);
   
@@ -106,6 +109,17 @@ public class BlockingQueueObjectPool implements ObjectPool {
     return Deferred.fromResult(null);
   }
 
+  public void run(final Timeout timeout) {
+    try {
+      tsdb.getStatsCollector().setGauge("objectpool.available", pool.size(),
+          "pool", config.id());
+    } catch (Throwable t) {
+      LOG.error("Failed to run the metric timer task for " + config.id(), t);
+    } finally {
+      tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
+    }
+  }
+  
   /**
    * Super simple wrapper.
    */
@@ -128,6 +142,8 @@ public class BlockingQueueObjectPool implements ObjectPool {
       if (was_pooled) {
         if (!pool.offer(this)) {
           LOG.warn("Failed to return a pooled object to the pool for " + config.id());
+          tsdb.getStatsCollector().incrementCounter("objectpool.offer.failure", 
+              "pool", config.id());
         }
       }
     }
