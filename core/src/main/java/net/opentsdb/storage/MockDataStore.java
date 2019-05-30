@@ -114,7 +114,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       "PHX", "LGA", "LAX", "DEN");
   public static final List<String> METRICS = Lists.newArrayList(
       "sys.cpu.user", "sys.if.out", "sys.if.in", "web.requests");
-
+  public static final String[] SET_INTERVALS = new String[] { "1h" };
   private final TSDB tsdb;
   private final String id;
   private final RollupConfig rollup_config;
@@ -440,6 +440,11 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       } catch (Exception e) {
         e.printStackTrace();
       }
+    }
+    
+    @Override
+    public String[] setIntervals() {
+      return SET_INTERVALS;
     }
     
     @Override

@@ -143,4 +143,10 @@ public class QueryGRPCClient extends AbstractQueryNode implements
     
   }
 
+  @Override
+  public String[] setIntervals() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
 }

@@ -522,6 +522,12 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
         }
       }
     }
+
+    @Override
+    public String[] setIntervals() {
+      // TODO Auto-generated method stub
+      return null;
+    }
   
   }
   

@@ -228,6 +228,19 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   }
   
   @Override
+  public String[] setIntervals() {
+    final String[] intervals = new String[rollup_intervals != null ? 
+        rollup_intervals.size() + 1 : 1];
+    if (rollup_intervals != null) {
+      for (int i = 0; i < rollup_intervals.size(); i++) {
+        intervals[i] = rollup_intervals.get(i).getRowSpan();
+      }
+    }
+    intervals[intervals.length - 1] = "1h";
+    return intervals;
+  }
+  
+  @Override
   public void onComplete(final QueryNode downstream, 
                          final long final_sequence,
                          final long total_sequences) {

@@ -28,4 +28,11 @@ public interface TimeSeriesDataSource extends QueryNode {
    */
   public void fetchNext(final Span span);
   
+  /** @return A non-null and non-empty list of {@link PartialTimeSeriesSet} 
+   * intervals that will be sent upstream from the source. Intervals are in
+   * TSDB duration format, e.g. 1h or 2h. This should be the union of all
+   * underlying sources when merging multiple sources (e.g. a cache and 
+   * raw store). */
+  public String[] setIntervals();
+  
 }
