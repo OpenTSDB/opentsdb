@@ -65,6 +65,7 @@ public class BlockingQueueObjectPool implements ObjectPool, TimerTask {
       final Object obj = config.allocator().allocate();
       pool.offer(new LocalPooled(obj, true));
     }
+    tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Instantiated object pool with " + count + " entries for " 
           + config.id());
