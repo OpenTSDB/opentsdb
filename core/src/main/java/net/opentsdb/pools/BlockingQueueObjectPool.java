@@ -130,6 +130,9 @@ public class BlockingQueueObjectPool implements ObjectPool, TimerTask {
     
     protected LocalPooled(final Object obj, final boolean was_pooled) {
       this.obj = obj;
+      if (obj instanceof CloseablePooledObject) {
+        ((CloseablePooledObject) obj).setPooledObject(this);
+      }
       this.was_pooled = was_pooled;
     }
     
