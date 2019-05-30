@@ -315,86 +315,89 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     // TODO - break out
     final PooledObject pooled_object = context.tsdb().getRegistry()
         .getObjectPool(StringBuilderPool.TYPE).claim();
-    if (pooled_object == null) {
-      LOG.error("Failed to claim a string builder.");
-      callback.onError(series, new RuntimeException("WTF? Failed to claim a string builder."));
-      return;
-    }
-    final StringBuilder stream = (StringBuilder) pooled_object.object();
-    stream.setLength(0);
-    int count = 0;
-    long[] values = ((NumericLongArrayType) series.value()).data();
-    int idx = ((NumericLongArrayType) series.value()).offset();
-    
-    while (idx < ((NumericLongArrayType) series.value()).end()) {
-      long ts = 0;
-      if((values[idx] & NumericLongArrayType.MILLISECOND_FLAG) != 0) {
-        ts = (values[idx] & NumericLongArrayType.TIMESTAMP_MASK) / 1000;
-      } else {
-        ts = values[idx] & NumericLongArrayType.TIMESTAMP_MASK;
+    try {
+      if (pooled_object == null) {
+        LOG.error("Failed to claim a string builder.");
+        callback.onError(series, new RuntimeException("WTF? Failed to claim a string builder."));
+        return;
       }
-      if (ts < context.query().startTime().epoch()) {
-        idx += 2;
-        continue;
-      }
-      if (ts > context.query().endTime().epoch()) {
-        break;
-      }
+      final StringBuilder stream = (StringBuilder) pooled_object.object();
+      stream.setLength(0);
+      int count = 0;
+      long[] values = ((NumericLongArrayType) series.value()).data();
+      int idx = ((NumericLongArrayType) series.value()).offset();
       
-      if (count > 0) {
-        stream.append(',');
-      }
-      stream.append('"');
-      stream.append(ts);
-      
-      stream.append('"');
-      stream.append(':');
-      if ((values[idx] & NumericLongArrayType.FLOAT_FLAG) != 0) {
-        double d = Double.longBitsToDouble(values[idx + 1]);
-        if (Double.isNaN(d)) {
-          stream.append("NaN".getBytes());
+      while (idx < ((NumericLongArrayType) series.value()).end()) {
+        long ts = 0;
+        if((values[idx] & NumericLongArrayType.MILLISECOND_FLAG) != 0) {
+          ts = (values[idx] & NumericLongArrayType.TIMESTAMP_MASK) / 1000;
         } else {
-          stream.append(d);
+          ts = values[idx] & NumericLongArrayType.TIMESTAMP_MASK;
         }
-      } else {
-        stream.append(values[idx + 1]);
+        if (ts < context.query().startTime().epoch()) {
+          idx += 2;
+          continue;
+        }
+        if (ts > context.query().endTime().epoch()) {
+          break;
+        }
+        
+        if (count > 0) {
+          stream.append(',');
+        }
+        stream.append('"');
+        stream.append(ts);
+        
+        stream.append('"');
+        stream.append(':');
+        if ((values[idx] & NumericLongArrayType.FLOAT_FLAG) != 0) {
+          double d = Double.longBitsToDouble(values[idx + 1]);
+          if (Double.isNaN(d)) {
+            stream.append("NaN".getBytes());
+          } else {
+            stream.append(d);
+          }
+        } else {
+          stream.append(values[idx + 1]);
+        }
+        idx += 2;
+        count++;
       }
-      idx += 2;
-      count++;
-    }
-    
-    if (count < 1) {
+      
+      if (count < 1) {
+        callback.onComplete(series);
+        return;
+      }
+      
+      final String set_id = series.set().node().config().getId() + ":" 
+          + series.set().dataSource();
+      
+      Map<Long, SeriesWrapper> source_shards = partials.get(set_id);
+      if (source_shards == null) {
+        source_shards = Maps.newConcurrentMap();
+        Map<Long, SeriesWrapper> extant = partials.putIfAbsent(set_id, source_shards);
+        if (extant != null) {
+          source_shards = extant;
+        }
+      }
+      
+      SeriesWrapper set = null;
+      set = source_shards.get(series.idHash());
+      if (set == null) {
+        set = new SeriesWrapper();
+        set.id_hash = series.idHash();
+        set.set = series.set();
+        final SeriesWrapper extant = source_shards.putIfAbsent(series.idHash(), set);
+        if (extant != null) {
+          set = extant;
+        }
+      }
+      
+      set.series.put(series.set().start().epoch(), stream.toString());
       callback.onComplete(series);
-      return;
+    } finally {
+      pooled_object.release();      
     }
-    
-    final String set_id = series.set().node().config().getId() + ":" 
-        + series.set().dataSource();
-    
-    Map<Long, SeriesWrapper> source_shards = partials.get(set_id);
-    if (source_shards == null) {
-      source_shards = Maps.newConcurrentMap();
-      Map<Long, SeriesWrapper> extant = partials.putIfAbsent(set_id, source_shards);
-      if (extant != null) {
-        source_shards = extant;
-      }
-    }
-    
-    SeriesWrapper set = null;
-    set = source_shards.get(series.idHash());
-    if (set == null) {
-      set = new SeriesWrapper();
-      set.id_hash = series.idHash();
-      set.set = series.set();
-      final SeriesWrapper extant = source_shards.putIfAbsent(series.idHash(), set);
-      if (extant != null) {
-        set = extant;
-      }
-    }
-    
-    set.series.put(series.set().start().epoch(), stream.toString());
-    pooled_object.release();
-    callback.onComplete(series);
   }
   
   @Override
