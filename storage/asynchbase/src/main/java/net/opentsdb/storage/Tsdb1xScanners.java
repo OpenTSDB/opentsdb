@@ -506,6 +506,8 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     if (ts_ids != null) {
       ts_ids.clear();
     }
+    node = null;
+    source_config = null;
     release();
   }
   
