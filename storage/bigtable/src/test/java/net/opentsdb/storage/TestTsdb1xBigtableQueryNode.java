@@ -362,6 +362,64 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
   }
   
   @Test
+  public void setIntervals() throws Exception {
+    Tsdb1xBigtableQueryNode node = new Tsdb1xBigtableQueryNode(
+        data_store, context, source_config);
+    node.initialize(null).join();
+    String[] intervals = node.setIntervals();
+    
+    assertEquals(1, intervals.length);
+    assertEquals("1h", intervals[0]);
+  }
+  
+  @Test
+  public void setIntervalsRollups() throws Exception {
+    Tsdb1xBigtableDataStore data_store = mock(Tsdb1xBigtableDataStore.class);
+    Schema schema = mock(Schema.class);
+    when(data_store.schema()).thenReturn(schema);
+    
+    when(rollup_config.getRollupInterval("1h")).thenReturn(
+        RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build());
+    when(rollup_config.getRollupInterval("30m")).thenReturn(
+        RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("1d")
+          .build());
+    
+    when(schema.rollupConfig()).thenReturn(rollup_config);
+    
+    source_config = (TimeSeriesDataSourceConfig) 
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
+        .addSummaryAggregation("sum")
+        .addSummaryAggregation("count")
+        .addRollupInterval("1h")
+        .addRollupInterval("30m")
+        .setPrePadding("1h")
+        .setPostPadding("1h")
+        .setId("m1")
+        .build();
+    Tsdb1xBigtableQueryNode node = new Tsdb1xBigtableQueryNode(
+        data_store, context, source_config);
+    node.initialize(null).join();
+    String[] intervals = node.setIntervals();
+    
+    assertEquals(3, intervals.length);
+    assertEquals("1d", intervals[0]);
+    assertEquals("1d", intervals[1]);
+    assertEquals("1h", intervals[2]);
+  }
+  
+  @Test
   public void setupScanner() throws Exception {
     Tsdb1xBigtableQueryNode node = new Tsdb1xBigtableQueryNode(
         data_store, context, source_config);

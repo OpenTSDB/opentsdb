@@ -529,5 +529,11 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     // TODO Auto-generated method stub
     return null;
   }
+
+  @Override
+  public String[] setIntervals() {
+    // TODO Auto-generated method stub
+    return null;
+  }
   
 }
