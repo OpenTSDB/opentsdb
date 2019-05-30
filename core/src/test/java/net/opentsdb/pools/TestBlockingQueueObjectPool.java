@@ -29,6 +29,7 @@ import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
 
+import io.netty.util.HashedWheelTimer;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 
@@ -37,6 +38,7 @@ public class TestBlockingQueueObjectPool {
   @Test
   public void ctorAndClaim() {
     TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getMaintenanceTimer()).thenReturn(mock(HashedWheelTimer.class));
     StatsCollector stats = mock(StatsCollector.class);
     when(tsdb.getStatsCollector()).thenReturn(stats);
     ObjectPoolAllocator allocator = mock(ObjectPoolAllocator.class);
