@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import net.opentsdb.query.processor.summarizer.Summarizer;
 import org.slf4j.Logger;
@@ -860,7 +861,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   class SeriesWrapper {
     public PartialTimeSeriesSet set;
     public long id_hash;
-    public TreeMap<Long, String> series = new TreeMap<Long, String>();
+    public ConcurrentSkipListMap<Long, String> series = 
+        new ConcurrentSkipListMap<Long, String>();
   }
   
   class SetWrapper {
