@@ -17,7 +17,6 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.util.Iterator;
 import java.util.TreeMap;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,13 +62,13 @@ public class Tsdb1xNumericPartialTimeSeries extends
       pooled_array.release();
       pooled_array = null;
     }
-    if (pooled_object != null) {
-      pooled_object.release();
-    }
     set = null;
     write_idx = 0;
     needs_repair = false;
     last_offset = -1;
+    if (pooled_object != null) {
+      pooled_object.release();
+    }
   }
   
   @Override
