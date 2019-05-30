@@ -811,6 +811,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       LOG.error("Failed to close scanner", e);
     }
     clear();
+    owner = null;
+    scanner = null;
+    rollup_interval = null;
     release();
   }
   
