@@ -47,6 +47,8 @@ import net.opentsdb.core.Const;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.exceptions.QueryDownstreamException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryNode;
@@ -236,7 +238,10 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     } else {
       skip_nsun_tagvs = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
+    
     }
+    LOG.info("************ SKIP TAGK: " + skip_nsun_tagks);
+    LOG.info("************ SKIP TAGV: " + skip_nsun_tagvs);
     if (source_config.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
       pre_aggregate = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.PRE_AGG_KEY);
@@ -760,7 +765,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
             child.setErrorTags(ex)
                  .finish();
           }
-          exception(ex);
+          exception(new QueryExecutionException(ex.getMessage(), 400, ex));
           return null;
         }
         
@@ -1187,7 +1192,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
             final NoSuchUniqueName ex = 
                 new NoSuchUniqueName(Schema.TAGK_TYPE, 
                     ((TagValueFilter) filter.filter()).getTagKey());
-            throw ex;
+            throw new QueryExecutionException(ex.getMessage(), 400, ex);
           }
           
           if (LOG.isDebugEnabled()) {
@@ -1207,7 +1212,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
               if (!skip_nsun_tagvs) {
                 final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
                         ((TagValueLiteralOrFilter) filter.filter()).literals().get(i));
-                throw ex;
+                throw new QueryExecutionException(ex.getMessage(), 400, ex);
               }
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Dropping tag value without an ID: " 
@@ -1226,7 +1231,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
             // filter will need it's parent.
             final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
                     ((TagValueLiteralOrFilter) filter.filter()).literals().get(0));
-            throw ex;
+            throw new QueryExecutionException(ex.getMessage(), 400, ex);
           }
           
           if (total_expansion + tag_values.size() > expansion_limit) {

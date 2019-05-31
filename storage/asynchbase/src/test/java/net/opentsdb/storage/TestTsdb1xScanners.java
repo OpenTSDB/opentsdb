@@ -68,6 +68,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
@@ -1922,8 +1923,10 @@ public class TestTsdb1xScanners extends UTBase {
     Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
-      fail("Expected NoSuchUniqueName");
-    } catch (NoSuchUniqueName e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) {
+      assertTrue(e.getCause() instanceof NoSuchUniqueName);
+    }
     
     // skipping won't solve this
     Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
@@ -1931,8 +1934,10 @@ public class TestTsdb1xScanners extends UTBase {
     Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
-      fail("Expected NoSuchUniqueName");
-    } catch (NoSuchUniqueName e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) {
+      assertTrue(e.getCause() instanceof NoSuchUniqueName);
+    }
     
     // and ditto if all uids were null.
     filter = ChainFilter.newBuilder()
@@ -1951,8 +1956,10 @@ public class TestTsdb1xScanners extends UTBase {
     Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
-      fail("Expected NoSuchUniqueName");
-    } catch (NoSuchUniqueName e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) {
+      assertTrue(e.getCause() instanceof NoSuchUniqueName);
+    }
   }
   
   @Test
@@ -1977,8 +1984,10 @@ public class TestTsdb1xScanners extends UTBase {
     Whitebox.setInternalState(scanners, "filter_cb", cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
-      fail("Expected NoSuchUniqueName");
-    } catch (NoSuchUniqueName e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) {
+      assertTrue(e.getCause() instanceof NoSuchUniqueName);
+    }
     
     // skipping works
     scanners = new Tsdb1xScanners();
@@ -2319,7 +2328,7 @@ public class TestTsdb1xScanners extends UTBase {
     scanners.reset(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
-        NoSuchUniqueName.class, 10);
+        QueryExecutionException.class, 10);
     
     // now we can ignore it
     filter = ChainFilter.newBuilder()
@@ -2344,7 +2353,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.couldMultiGet());
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
-    verify(node, never()).onError(any(NoSuchUniqueName.class));
+    verify(node, never()).onError(any(QueryExecutionException.class));
     verify(node, times(2)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
@@ -2385,7 +2394,7 @@ public class TestTsdb1xScanners extends UTBase {
     scanners.reset(node, source_config);
     scanners.initialize(trace.newSpan("UT").start());
     verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
-        NoSuchUniqueName.class, 9);
+        QueryExecutionException.class, 9);
   }
   
   @Test

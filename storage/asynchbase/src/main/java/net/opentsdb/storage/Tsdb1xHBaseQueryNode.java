@@ -43,6 +43,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.exceptions.QueryDownstreamException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.query.QueryNode;
@@ -56,7 +57,6 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryNode;
-import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeries;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
@@ -771,7 +771,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
               child.setErrorTags(ex)
                    .finish();
             }
-            throw ex;
+            throw new QueryExecutionException(ex.getMessage(), 400, ex);
           }
           
           for (int i = 0; i < uid.length; i++) {
@@ -808,7 +808,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
                   child.setErrorTags(ex)
                        .finish();
                 }
-                throw ex;
+                throw new QueryExecutionException(ex.getMessage(), 400, ex);
               }
               
               tagv_map.put(tagvs.get(i), uids.get(i));
@@ -830,7 +830,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
                   child.setErrorTags(ex)
                        .finish();
                 }
-                throw ex;
+                throw new QueryExecutionException(ex.getMessage(), 400, ex);
               }
               
               tagk_map.put(tagks.get(i), uids.get(i));
