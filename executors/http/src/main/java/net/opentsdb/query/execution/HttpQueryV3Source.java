@@ -286,6 +286,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     /** Does the fun bit of parsing the response and calling the deferred. */
     class ResponseCallback implements FutureCallback<HttpResponse> {
       int retries = 0;
+      RemoteQueryExecutionException previous_ex = null;
       
       @Override
       public void cancelled() {
@@ -321,6 +322,36 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           String json = null;
           
           if (response.getStatusLine().getStatusCode() != 200) {
+            try {
+              DefaultSharedHttpClient.parseResponse(response, 0, host);
+            } catch (Exception e) {
+              if (e instanceof RemoteQueryExecutionException) {
+                if (response.getStatusLine().getStatusCode() == 400) {
+                  sendUpstream(BadQueryResult.newBuilder()
+                      .setNode(HttpQueryV3Source.this)
+                      .setException(e)
+                      .setDataSource(config.getId())
+                      .build());
+                  return;
+                } else if (previous_ex != null && 
+                    previous_ex.getStatusCode() == 
+                      ((RemoteQueryExecutionException) e).getStatusCode() &&
+                    previous_ex.getMessage().equals(
+                        ((RemoteQueryExecutionException) e).getMessage())) {
+                  // in this case we've tried up to two hosts and got the same
+                  // error so it could be either a query issue or a node issue
+                  // so we don't need to bother.
+                  sendUpstream(BadQueryResult.newBuilder()
+                      .setNode(HttpQueryV3Source.this)
+                      .setException(e)
+                      .setDataSource(config.getId())
+                      .build());
+                  return;
+                }
+                previous_ex = (RemoteQueryExecutionException) e;
+              }
+            }
+            
             if (factory instanceof BaseHttpExecutorFactory) {
               ((BaseHttpExecutorFactory) factory).markHostAsBad(
                   HttpQueryV3Source.this.host, 
