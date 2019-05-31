@@ -63,6 +63,7 @@ public abstract class BaseHttpExecutorFactory implements
   public static final String ENDPOINT_KEY = "endpoint";
   public static final String HEALTH_ENDPOINT_KEY = "health.endpoint";
   public static final String HEALTH_INTERVAL_KEY = "health.interval";
+  public static final String HEALTH_ENABLE_KEY = "health.enable";
   public static final String CLIENT_KEY = "client.id";
   public static final TypeReference<List<String>> TYPE_REF = 
       new TypeReference<List<String>>() { };
@@ -148,6 +149,10 @@ public abstract class BaseHttpExecutorFactory implements
    * @param code An HTTP status code for debugging.
    */
   public void markHostAsBad(final String host, final int code) {
+    if (!tsdb.getConfig().getBoolean(getConfigKey(HEALTH_ENABLE_KEY))) {
+      return;
+    }
+    
     // ignore all 400's but if the host is redirecting something is wrong.
     if (code >= 400 && code < 500) {
       return;
@@ -364,6 +369,10 @@ public abstract class BaseHttpExecutorFactory implements
       tsdb.getConfig().register(getConfigKey(HEALTH_INTERVAL_KEY), "5000", true,
           "The frequency, in milliseconds, to test the health when a host is "
           + "marked as down.");
+    }
+    if (!tsdb.getConfig().hasProperty(getConfigKey(HEALTH_ENABLE_KEY))) {
+      tsdb.getConfig().register(getConfigKey(HEALTH_ENABLE_KEY), true, true,
+          "Whether or not to enable the health checks.");
     }
     if (!tsdb.getConfig().hasProperty(getConfigKey(CLIENT_KEY))) {
       tsdb.getConfig().register(getConfigKey(CLIENT_KEY), 
