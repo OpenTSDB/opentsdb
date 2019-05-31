@@ -330,7 +330,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 retries++;
                 try {
                   current_host[0] = ((BaseHttpExecutorFactory) factory).nextHost();
-                  post.setURI(URI.create(current_host[0]));
+                  post.setURI(URI.create(current_host[0] + endpoint));
                   EntityUtils.consume(response.getEntity());
                   timer[0] = pipelineContext().tsdb().getStatsCollector().startTimer(
                       REMOTE_LATENCY_METRIC, true);
@@ -481,7 +481,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               retries < ((BaseHttpExecutorFactory) factory).retries()) {
             retries++;
             current_host[0] = ((BaseHttpExecutorFactory) factory).nextHost();
-            post.setURI(URI.create(current_host[0]));
+            post.setURI(URI.create(current_host[0] + endpoint));
             timer[0] = pipelineContext().tsdb().getStatsCollector().startTimer(
                 REMOTE_LATENCY_METRIC, true);
             client.execute(post, this);
