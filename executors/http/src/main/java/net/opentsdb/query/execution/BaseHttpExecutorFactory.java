@@ -56,6 +56,10 @@ public abstract class BaseHttpExecutorFactory implements
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseHttpExecutorFactory.class);
   
+  public static final String MARKED_NEW_BAD_METRIC = "http.executor.health.new.failed";
+  public static final String MARKED_STILL_BAD_METRIC = "http.executor.health.failed";
+  public static final String MARKED_RECOVERED_METRIC = "http.executor.health.recovered";
+  
   public static final String KEY_PREFIX = "opentsdb.http.executor.";
   public static final String RETRY_KEY = "retries";
   public static final String HOSTS_KEY = "hosts";
@@ -201,6 +205,9 @@ public abstract class BaseHttpExecutorFactory implements
                       if (!extant.getValue()) {
                         extant.setValue(true);
                         LOG.info("Recovered V3 HTTP host: " + host);
+                        tsdb.getStatsCollector().incrementCounter(
+                            MARKED_RECOVERED_METRIC, 
+                            "host", host, "status", "200");
                         // important to remove this from the checks map.
                         checks.remove(host);
                       }
@@ -213,6 +220,9 @@ public abstract class BaseHttpExecutorFactory implements
                   LOG.trace("Host " + host + " is still down: " 
                       + result.getStatusLine().getStatusCode());
                 }
+                tsdb.getStatsCollector().incrementCounter(MARKED_STILL_BAD_METRIC, 
+                    "host", host, "status", 
+                    Integer.toString(result.getStatusLine().getStatusCode()));
                 reschedule();
               }
               
@@ -224,6 +234,8 @@ public abstract class BaseHttpExecutorFactory implements
             @Override
             public void failed(final Exception ex) {
               LOG.error("Failed to check host: " + host, ex);
+              tsdb.getStatsCollector().incrementCounter(MARKED_STILL_BAD_METRIC, 
+                  "host", host, "status", "0");
               reschedule();
             }
 
@@ -258,6 +270,8 @@ public abstract class BaseHttpExecutorFactory implements
     if (marked) {
       LOG.warn("Host " + host + " was marked as failed with code: " + code 
           + ". Will schedule health checks.");
+      tsdb.getStatsCollector().incrementCounter(MARKED_NEW_BAD_METRIC, 
+          "host", host, "status", Integer.toString(code));
       TimerTask task = new Check();
       if (checks.putIfAbsent(host, task) == null) {
         tsdb.getMaintenanceTimer().newTimeout(
