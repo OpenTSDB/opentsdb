@@ -443,7 +443,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
-                  + this, t);
+                  + this, ex);
             }
           } else {
             try {
@@ -464,7 +464,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
-                  + this, t);
+                  + this, ex);
             }
           }
         }
@@ -472,39 +472,48 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
 
       @Override
       public void failed(final Exception e) {
-        timer[0].stop("remote", current_host[0], "status", "0");
-        
-        if (factory instanceof BaseHttpExecutorFactory) {
-          ((BaseHttpExecutorFactory) factory).markHostAsBad(
-              current_host[0], 0);
-          if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
-              retries < ((BaseHttpExecutorFactory) factory).retries()) {
-            retries++;
-            current_host[0] = ((BaseHttpExecutorFactory) factory).nextHost();
-            post.setURI(URI.create(current_host[0] + endpoint));
-            timer[0] = pipelineContext().tsdb().getStatsCollector().startTimer(
-                REMOTE_LATENCY_METRIC, true);
-            client.execute(post, this);
-            context.queryContext().logWarn(HttpQueryV3Source.this, 
-                "Retrying query to [" + current_host[0] + endpoint + "] after " 
-                + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
-            if (LOG.isTraceEnabled()) {
-              LOG.trace("Retrying Http query to a TSD: " + current_host[0] + endpoint);
+        try {
+          timer[0].stop("remote", current_host[0], "status", "0");
+          
+          if (factory instanceof BaseHttpExecutorFactory) {
+            ((BaseHttpExecutorFactory) factory).markHostAsBad(
+                current_host[0], 0);
+            if (((BaseHttpExecutorFactory) factory).retries() > 0 && 
+                retries < ((BaseHttpExecutorFactory) factory).retries()) {
+              retries++;
+              current_host[0] = ((BaseHttpExecutorFactory) factory).nextHost();
+              post.setURI(URI.create(current_host[0] + endpoint));
+              timer[0] = pipelineContext().tsdb().getStatsCollector().startTimer(
+                  REMOTE_LATENCY_METRIC, true);
+              client.execute(post, this);
+              context.queryContext().logWarn(HttpQueryV3Source.this, 
+                  "Retrying query to [" + current_host[0] + endpoint + "] after " 
+                  + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
+              if (LOG.isTraceEnabled()) {
+                LOG.trace("Retrying Http query to a TSD: " + current_host[0] + endpoint);
+              }
+              return;
             }
-            return;
           }
+          
+          LOG.error("Failed response from: [" + current_host[0] + endpoint + "]", e);
+          context.queryContext().logError(HttpQueryV3Source.this, 
+              "Error sending query to [" + host + endpoint + "] after " 
+              + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
+                  + e.getMessage());
+          sendUpstream(BadQueryResult.newBuilder()
+              .setNode(HttpQueryV3Source.this)
+              .setException(e)
+              .setDataSource(config.getId())
+              .build());
+        } catch (Throwable t) {
+          LOG.error("Unexpected exception processing query", t);
+          sendUpstream(BadQueryResult.newBuilder()
+              .setNode(HttpQueryV3Source.this)
+              .setException(t)
+              .setDataSource(config.getId())
+              .build());
         }
-        
-        LOG.error("Failed response from: [" + current_host[0] + endpoint + "]", e);
-        context.queryContext().logError(HttpQueryV3Source.this, 
-            "Error sending query to [" + host + endpoint + "] after " 
-            + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
-                + e.getMessage());
-        sendUpstream(BadQueryResult.newBuilder()
-            .setNode(HttpQueryV3Source.this)
-            .setException(e)
-            .setDataSource(config.getId())
-            .build());
       }
     }
     client.execute(post, new ResponseCallback());
