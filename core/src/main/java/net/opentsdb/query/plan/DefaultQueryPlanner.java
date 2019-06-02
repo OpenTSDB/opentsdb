@@ -42,6 +42,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
@@ -158,9 +159,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // the nodes in a map by node ID so we can link them later.
     for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
       if (config_map.putIfAbsent(node.getId(), node) != null) {
-        throw new IllegalArgumentException("The node id \"" 
+        throw new QueryExecutionException("The node id \"" 
             + node.getId() + "\" appeared more than once in the "
-            + "graph. It must be unique.");
+            + "graph. It must be unique.", 400);
       }
       config_graph.addNode(node);
     }
@@ -175,8 +176,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
         for (final String source : node.getSources()) {
           final QueryNodeConfig src = config_map.get(source);
           if (src == null) {
-            throw new IllegalArgumentException("No source node with ID " 
-                + source + " found for config " + node.getId());
+            throw new QueryExecutionException("No source node with ID " 
+                + source + " found for config " + node.getId(), 400);
           }
           config_graph.putEdge(node, src);
           if (Graphs.hasCycle(config_graph)) {
@@ -217,7 +218,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
             // graph.
             boolean found = false;
             if (!found) {
-              throw new IllegalArgumentException("Unsatisfied sink filter: " + key);
+              throw new QueryExecutionException("Unsatisfied sink filter: " 
+                  + key, 400);
             }
           }
         }
@@ -228,8 +230,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
           final QueryNodeFactory factory = getFactory(node);
           // TODO - cleanup the source factories. ugg!!!
           if (factory == null || !(factory instanceof TimeSeriesDataSourceFactory)) {
-            throw new IllegalArgumentException("No node factory found for "
-                + "configuration " + node + "  Factory=" + factory);
+            throw new QueryExecutionException("No node factory found for "
+                + "configuration " + node + "  Factory=" + factory, 400);
           }
           
           final List<QueryNodeConfig> push_downs = Lists.newArrayList();
@@ -402,8 +404,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
       
       final QueryNodeFactory factory = getFactory(node);
       if (factory == null) {
-        throw new IllegalArgumentException("No data source factory found for: " 
-            + node);
+        throw new QueryExecutionException("No data source factory found for: " 
+            + node, 400);
       }
       factory.setupGraph(context, node, this);
       already_setup.add(System.identityHashCode(node));
@@ -563,8 +565,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
     if (query_node == null) {
       QueryNodeFactory factory = getFactory(node);
       if (factory == null) {
-        throw new IllegalArgumentException("No node factory found for "
-            + "configuration " + node);
+        throw new QueryExecutionException("No node factory found for "
+            + "configuration " + node, 400);
       }
       
       query_node = factory.newNode(context, node);

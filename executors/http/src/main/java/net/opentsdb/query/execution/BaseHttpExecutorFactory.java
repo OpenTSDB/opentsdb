@@ -207,7 +207,7 @@ public abstract class BaseHttpExecutorFactory implements
                         LOG.info("Recovered V3 HTTP host: " + host);
                         tsdb.getStatsCollector().incrementCounter(
                             MARKED_RECOVERED_METRIC, 
-                            "host", host, "status", "200");
+                            "remote", host, "status", "200");
                         // important to remove this from the checks map.
                         checks.remove(host);
                       }
@@ -221,7 +221,7 @@ public abstract class BaseHttpExecutorFactory implements
                       + result.getStatusLine().getStatusCode());
                 }
                 tsdb.getStatsCollector().incrementCounter(MARKED_STILL_BAD_METRIC, 
-                    "host", host, "status", 
+                    "remote", host, "status", 
                     Integer.toString(result.getStatusLine().getStatusCode()));
                 reschedule();
               }
@@ -235,7 +235,7 @@ public abstract class BaseHttpExecutorFactory implements
             public void failed(final Exception ex) {
               LOG.error("Failed to check host: " + host, ex);
               tsdb.getStatsCollector().incrementCounter(MARKED_STILL_BAD_METRIC, 
-                  "host", host, "status", "0");
+                  "remote", host, "status", "0");
               reschedule();
             }
 
@@ -271,7 +271,7 @@ public abstract class BaseHttpExecutorFactory implements
       LOG.warn("Host " + host + " was marked as failed with code: " + code 
           + ". Will schedule health checks.");
       tsdb.getStatsCollector().incrementCounter(MARKED_NEW_BAD_METRIC, 
-          "host", host, "status", Integer.toString(code));
+          "remote", host, "status", Integer.toString(code));
       TimerTask task = new Check();
       if (checks.putIfAbsent(host, task) == null) {
         tsdb.getMaintenanceTimer().newTimeout(

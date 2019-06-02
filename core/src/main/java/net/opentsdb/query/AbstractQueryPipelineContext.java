@@ -278,16 +278,18 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
-  public void close() {    
-    Traverser<QueryNode> traverser = Traverser.forGraph(plan.graph());
-    for (final QueryNode node : traverser.breadthFirst(this)) {
-      if (node == this) {
-        continue;
-      }
-      try {
-        node.close();
-      } catch (Exception e) {
-        LOG.warn("Failed to close query node: " + node, e);
+  public void close() {
+    if (plan != null && !plan.graph().edges().isEmpty()) {
+      Traverser<QueryNode> traverser = Traverser.forGraph(plan.graph());
+      for (final QueryNode node : traverser.breadthFirst(this)) {
+        if (node == this) {
+          continue;
+        }
+        try {
+          node.close();
+        } catch (Exception e) {
+          LOG.warn("Failed to close query node: " + node, e);
+        }
       }
     }
   }

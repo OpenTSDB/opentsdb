@@ -46,6 +46,7 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -2082,8 +2083,8 @@ public class TestDefaultQueryPlanner {
         new DefaultQueryPlanner(context, SINK);
     try {
       planner.plan(null).join();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     assertNull(planner.graph());
   }
   
@@ -2126,8 +2127,8 @@ public class TestDefaultQueryPlanner {
         new DefaultQueryPlanner(context, SINK);
     try {
       planner.plan(null).join();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     assertNull(planner.graph());
   }
   
