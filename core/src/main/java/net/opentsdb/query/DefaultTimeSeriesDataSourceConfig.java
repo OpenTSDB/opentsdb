@@ -104,10 +104,6 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
   }
 
   public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
-//    if (config.timeShifts().containsKey(config.getId())) {
-//      // child who has already been initialized.
-//      return;
-//    }
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
         .setConfig((TimeSeriesDataSourceConfig) config)

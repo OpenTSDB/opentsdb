@@ -14,15 +14,12 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.util.List;
-import java.util.Set;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
+import java.util.List;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -37,9 +34,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -132,12 +127,7 @@ public class SchemaFactory extends BaseTSDBPlugin
       // all done.
       return;
     }
-    
-    // TODO - Make this a shared method
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null) {
-      DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
-    }
-  }
+ }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context) {
