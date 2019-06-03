@@ -283,10 +283,9 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     timestamp = getInitialTimestamp(rollup_index);
     end_timestamp = reversed ? node.pipelineContext().query().startTime().getCopy() :
         node.pipelineContext().query().endTime().getCopy();
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() != null) {
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         end_timestamp.subtract(pair.getValue());
       } else {
@@ -718,10 +717,9 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     final TimeStamp timestamp = reversed ? 
         node.pipelineContext().query().endTime().getCopy() : 
           node.pipelineContext().query().startTime().getCopy();
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() != null) {
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         timestamp.subtract(pair.getValue());
       } else {
