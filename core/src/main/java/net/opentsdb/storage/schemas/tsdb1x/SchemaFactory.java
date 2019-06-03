@@ -134,8 +134,7 @@ public class SchemaFactory extends BaseTSDBPlugin
     }
     
     // TODO - Make this a shared method
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null &&
-        !((TimeSeriesDataSourceConfig) config).timeShifts().isEmpty()) {
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null) {
       DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
     }
   }

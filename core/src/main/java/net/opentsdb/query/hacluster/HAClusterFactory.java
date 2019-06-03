@@ -263,7 +263,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       }
       
       // Check for time offsets.
-      DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(rebuilt, planner);
+     // DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(rebuilt, planner);
       return;
     }
     
@@ -282,8 +282,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         TimeSeriesDataSourceConfig.Builder rebuilt = (TimeSeriesDataSourceConfig.Builder)
             ((TimeSeriesDataSourceConfig.Builder) source.toBuilder())
               .setTimeShiftInterval(null)
-              .setPreviousIntervals(0)
-              .setNextIntervals(0)
               .setId(new_id + "_" + source.getSourceId());
         for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
           if (extant.id().equals(rebuilt.id())) {
@@ -334,8 +332,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       TimeSeriesDataSourceConfig.Builder rebuilt = (TimeSeriesDataSourceConfig.Builder)
             ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
             .setTimeShiftInterval(null)
-            .setPreviousIntervals(0)
-            .setNextIntervals(0)
             .setSourceId(source)
             .setId(new_id + "_" + source);
       for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
@@ -354,8 +350,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           .build();
       planner.replace(config, rebuilt);
       // Check for time offsets.
-      DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(
-          (TimeSeriesDataSourceConfig) rebuilt, planner);
+//      DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(
+//          (TimeSeriesDataSourceConfig) rebuilt, planner);
       return;
     }
     
@@ -507,7 +503,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
         }
         
         // don't fall through!
-        DefaultTimeSeriesDataSourceConfig.setupTimeShiftMultiNode(rebuilt, planner, merger);
         return;
       }
     }
@@ -560,7 +555,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
             + rebuilt.getSourceId());
       }
     }
-    DefaultTimeSeriesDataSourceConfig.setupTimeShiftMultiNode(rebuilt, planner, merger);
+  //  DefaultTimeSeriesDataSourceConfig.setupTimeShiftMultiNode(rebuilt, planner, merger);
   }
 
   @Override

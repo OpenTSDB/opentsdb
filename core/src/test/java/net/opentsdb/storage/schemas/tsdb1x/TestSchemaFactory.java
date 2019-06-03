@@ -249,8 +249,6 @@ public class TestSchemaFactory extends SchemaBase {
             .setMetric("system.cpu.user")
             .build())
         .setTimeShiftInterval("1d")
-        .setPreviousIntervals(2)
-        .setNextIntervals(1)
         .setId("m1")
         .build();
     
@@ -270,21 +268,16 @@ public class TestSchemaFactory extends SchemaBase {
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
     
-    assertEquals(6, plan.configGraph().nodes().size());
+    assertEquals(5, plan.configGraph().nodes().size());
     QueryNodeConfig node = plan.configNodeForId("m1");
     assertSame(config, node);
-    
-    QueryNodeConfig shift = plan.configNodeForId("m1-time-shift");
+
+    System.out.println(plan.printConfigGraph());
+    QueryNodeConfig shift = plan.configNodeForId("m1-timeShift");
     assertTrue(shift instanceof TimeShiftConfig);
     assertFalse(plan.configGraph().hasEdgeConnecting(shift, config));
     
-    node = plan.configNodeForId("m1-previous-P1D");
-    assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
-    
-    node = plan.configNodeForId("m1-previous-P2D");
-    assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
-    
-    node = plan.configNodeForId("m1-next-P1D");
+    node = plan.configNodeForId("P1D-timeShift-timeShift");
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
   }
 }

@@ -78,8 +78,6 @@ public class TestTimeShift {
                 .setMetric("system.cpu.user")
                 .build())
             .setTimeShiftInterval("1d")
-            .setPreviousIntervals(2)
-            .setNextIntervals(1)
             .setId("m1")
             .build())
         .setId("m1-timeshift")
@@ -110,7 +108,7 @@ public class TestTimeShift {
     
     when(result.dataSource()).thenReturn("m1");
     shift.onNext(result);
-    verify(upstream, never()).onNext(any(TimeShiftResult.class));
+    verify(upstream, times(1)).onNext(any(TimeShiftResult.class));
   }
   
 }

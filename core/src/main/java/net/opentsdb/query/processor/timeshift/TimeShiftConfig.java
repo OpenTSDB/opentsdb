@@ -36,14 +36,13 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
     config = builder.config;
   }
   
-  public TimeSeriesDataSourceConfig getConfig() {
+  public TimeSeriesDataSourceConfig config() {
     return config;
   }
   
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+       return (Builder) new Builder().setConfig(config).setId(id).setSources(sources);
   }
   
   @Override
@@ -83,7 +82,7 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
 
   @Override
   public boolean pushDown() {
-    return false;
+    return true;
   }
 
   @Override
