@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.util.List;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
@@ -34,7 +34,9 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.hacluster.HAClusterConfig;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -117,7 +119,16 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
-    // No-op
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() == null) {
+      return;
+    }
+    // Add timeshift node as a push down
+    final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+        .setConfig((TimeSeriesDataSourceConfig) config)
+        .setId(config.getId() + "-timeShift")
+        .addSource(config.getId())
+        .build();
+    ((HAClusterConfig) config).getPushDownNodes().add(shift_config);
   }
 
   @Override
