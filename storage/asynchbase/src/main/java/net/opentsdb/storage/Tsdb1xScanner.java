@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -237,7 +238,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       }
       
       scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
-          .startTimer(SCAN_METRIC, true);
+          .startTimer(SCAN_METRIC, ChronoUnit.MILLIS);
       scanner.nextRows()
         .addCallback(new ScannerCB(result, child))
         .addErrback(new ErrorCB(child));
@@ -331,7 +332,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     }
     // all good, keep going with the scanner now.
     scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
-        .startTimer(SCAN_METRIC, true);
+        .startTimer(SCAN_METRIC, ChronoUnit.MILLIS);
     scanner.nextRows()
       .addCallback(new ScannerCB(result, span))
       .addErrback(new ErrorCB(span));
@@ -396,7 +397,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
             state = State.COMPLETE;
           } else if ((owner.node().push() || !result.isFull()) && keep_going) {
             scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
-                .startTimer(SCAN_METRIC, true);
+                .startTimer(SCAN_METRIC, ChronoUnit.MILLIS);
             return scanner.nextRows()
                 .addCallback(new ScannerCB(result, span))
                 .addErrback(new ErrorCB(span));
@@ -627,7 +628,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                  .finish();
           }
           scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
-              .startTimer(SCAN_METRIC, true);
+              .startTimer(SCAN_METRIC, ChronoUnit.MILLIS);
           return scanner.nextRows().addCallback(this)
               .addErrback(new ErrorCB(span));
         } else if (owner.node().pipelineContext().queryContext().mode() == 
@@ -757,7 +758,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
           complete(child, 0);
         } else if ((owner.node().push() || !result.isFull()) && keep_going) {
           scan_wait_timer = owner.node().pipelineContext().tsdb().getStatsCollector()
-              .startTimer(SCAN_METRIC, true);
+              .startTimer(SCAN_METRIC, ChronoUnit.MILLIS);
           return scanner.nextRows()
               .addCallback(ScannerCB.this)
               .addErrback(new ErrorCB(span));

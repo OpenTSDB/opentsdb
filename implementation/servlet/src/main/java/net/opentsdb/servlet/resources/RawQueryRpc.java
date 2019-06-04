@@ -16,6 +16,7 @@ package net.opentsdb.servlet.resources;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -105,7 +106,7 @@ public class RawQueryRpc {
     final StatsTimer timer;
     if (tsdb.getStatsCollector() != null) {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "3x");
-      timer = tsdb.getStatsCollector().startTimer("query.user.latency", true);
+      timer = tsdb.getStatsCollector().startTimer("query.user.latency", ChronoUnit.MILLIS);
     } else {
       timer = null;
     }

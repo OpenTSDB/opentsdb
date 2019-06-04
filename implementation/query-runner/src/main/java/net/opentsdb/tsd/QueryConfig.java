@@ -21,6 +21,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -285,14 +286,13 @@ public class QueryConfig implements TimerTask {
     }
     
     public synchronized void start() {
-      timer = tsdb.getStatsCollector().startTimer(OVERALL_METRIC, true);
+      timer = tsdb.getStatsCollector().startTimer(OVERALL_METRIC, ChronoUnit.MILLIS);
     }
     
     @Override
     public void completed(final HttpResponse result) {
       stop(result.getStatusLine().getStatusCode());
-      double duration = DateTime.msFromNanoDiff(
-          DateTime.nanoTime(), timer.startTimeNanos());
+      double duration = DateTime.currentTimeMillis() - timer.startTime();
       int content_length = 0;
       if (result.getStatusLine().getStatusCode() >= 200 &&
           result.getStatusLine().getStatusCode() < 300) {
