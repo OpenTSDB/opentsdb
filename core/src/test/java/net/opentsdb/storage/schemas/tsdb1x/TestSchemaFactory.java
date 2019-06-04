@@ -242,8 +242,8 @@ public class TestSchemaFactory extends SchemaBase {
   public void setupWithOffsets() throws Exception {
     SchemaFactory factory = new SchemaFactory();
     factory.initialize(tsdb, null).join(1);
-    
-    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
         DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
@@ -251,13 +251,13 @@ public class TestSchemaFactory extends SchemaBase {
         .setTimeShiftInterval("1d")
         .setId("m1")
         .build();
-    
+
     SemanticQuery query = SemanticQuery.newBuilder()
         .addExecutionGraphNode(config)
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
         .build();
-    
+
     QueryPipelineContext context = mock(QueryPipelineContext.class);
     when(context.query()).thenReturn(query);
     when(context.tsdb()).thenReturn(tsdb);
@@ -267,7 +267,7 @@ public class TestSchemaFactory extends SchemaBase {
     QueryNode sink = mock(QueryNode.class);
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
-    
+
     assertEquals(5, plan.configGraph().nodes().size());
     QueryNodeConfig node = plan.configNodeForId("m1");
     assertSame(config, node);
@@ -276,7 +276,7 @@ public class TestSchemaFactory extends SchemaBase {
     QueryNodeConfig shift = plan.configNodeForId("m1-timeShift");
     assertTrue(shift instanceof TimeShiftConfig);
     assertFalse(plan.configGraph().hasEdgeConnecting(shift, config));
-    
+
     node = plan.configNodeForId("P1D-timeShift-timeShift");
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
   }

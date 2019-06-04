@@ -1031,7 +1031,6 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
                  final int scanners_index) {
     final long start_epoch = computeStartTimestamp(interval);
     final long end_epoch = computeStopTimestamp(interval);
-    
     int num_sets;
     if (interval != null) {
       num_sets = (int) (end_epoch - start_epoch) / 

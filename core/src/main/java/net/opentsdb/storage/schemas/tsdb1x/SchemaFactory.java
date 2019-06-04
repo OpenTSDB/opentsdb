@@ -35,6 +35,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -127,7 +128,17 @@ public class SchemaFactory extends BaseTSDBPlugin
       // all done.
       return;
     }
-  }
+
+    for (QueryNodeConfig pushdowns : ((TimeSeriesDataSourceConfig) config).getPushDownNodes()) {
+      if (pushdowns instanceof TimeShiftConfig) {
+        return;
+      }
+    }
+    // TODO - Make this a shared method
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null) {
+      DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
+    }
+ }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context) {
