@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import java.util.ArrayList;
 import java.util.List;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
@@ -26,6 +27,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -121,6 +123,7 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
     if (((TimeSeriesDataSourceConfig) config).timeShifts() == null) {
       return;
     }
+
     TimeSeriesDataSourceConfig new_config = ((Builder)
         config.toBuilder())
         .setTimeShifts(((TimeSeriesDataSourceConfig) config).timeShifts())
@@ -130,11 +133,27 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
 
     // Add timeshift node as a push down
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-        .setConfig(new_config)
+        .setTimeshiftInterval(new_config.getTimeShiftInterval())
         .setId(new_config.getId() + "-timeShift")
         .addSource(new_config.getId())
         .build();
-    ((HAClusterConfig) new_config).getPushDownNodes().add(shift_config);
+
+    // change the source of the predecessor to timeshift instead of original
+    for (QueryNodeConfig pushdown : new_config.getPushDownNodes()) {
+      if (pushdown.getSources().contains(new_config.getId())) {
+        pushdown.getSources().remove(new_config.getId());
+        pushdown.getSources().add(shift_config.getId());
+      }
+    }
+
+    if (new_config.getPushDownNodes().size() == 0) { // err. TODO: find a better way?
+      List<QueryNodeConfig> pushdown = new ArrayList<>();
+      pushdown.add(shift_config);
+      BaseTimeSeriesDataSourceConfig.Builder builder = (BaseTimeSeriesDataSourceConfig.Builder) new_config.toBuilder();
+      ((BaseTimeSeriesDataSourceConfig)new_config).newBuilder(new_config, builder).setPushDownNodes(pushdown);
+    } else {
+      new_config.getPushDownNodes().add(shift_config);
+    }
   }
 
   @Override
