@@ -14,11 +14,10 @@
 // limitations under the License.
 package net.opentsdb.core;
 
-import java.util.concurrent.ExecutorService;
-
 import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 
 /**
  * The core interface for an OpenTSDB client.
@@ -45,7 +44,7 @@ public interface TSDB {
    * handled in a separate thread.
    * @return A non-null executor service.
    */
-  public ExecutorService getQueryThreadPool();
+  public TSDBThreadPoolExecutor getQueryThreadPool();
   
   /**
    * A timer for use by queries.

@@ -103,6 +103,7 @@ import net.opentsdb.storage.schemas.tsdb1x.PooledPartialTimeSeriesRunnablePool;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
+import net.opentsdb.threadpools.FixedThreadPoolExecutor;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
@@ -3017,7 +3018,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   Tsdb1xHBaseQueryNode saltedNode(final List<Scanner> scanners) throws Exception {
     TSDB tsdb = mock(TSDB.class);
-    ExecutorService service = mock(ExecutorService.class);
+    FixedThreadPoolExecutor service = mock(FixedThreadPoolExecutor.class);
     when(tsdb.getQueryThreadPool()).thenReturn(service);
     when(tsdb.getStatsCollector()).thenReturn(mock(StatsCollector.class));
     Registry registry = mock(Registry.class);
