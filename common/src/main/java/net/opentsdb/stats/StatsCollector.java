@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,10 +69,10 @@ public interface StatsCollector extends TSDBPlugin {
    * Configures and returns a timer to measure a latency. Starts the clock
    * on the timer on return.
    * @param metric The non-null and non-empty metric name.
-   * @param histo Whether or not to track the latency in a histogram.
+   * @param units The units to track the time in.
    * @return A non-null timer.
    */
-  public StatsTimer startTimer(final String metric, final boolean histo);
+  public StatsTimer startTimer(final String metric, final ChronoUnit units);
   
   /**
    * Similar to {@link #startTimer(String, boolean)} but used when the duration
@@ -86,7 +86,6 @@ public interface StatsCollector extends TSDBPlugin {
   public void addTime(final String metric, 
                       final long duration, 
                       final ChronoUnit units,
-                      final boolean histo,
                       final String... tags);
   
   /**
@@ -100,8 +99,10 @@ public interface StatsCollector extends TSDBPlugin {
      */
     public void stop(final String... tags);
     
-    /** @return The start time in nanos. */
-    public long startTimeNanos();
+    /** @return The start time in the given time units.. */
+    public long startTime();
     
+    /** @return The units the time is measured in. */
+    public ChronoUnit units();
   }
 }

@@ -244,38 +244,38 @@ public class StormPotPool implements ObjectPool, TimerTask {
     @Override
     public void recordAllocationLatencySampleMillis(final long milliseconds) {
       tsdb.getStatsCollector().addTime("objectpool.allocation.success.latency", 
-          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
+          milliseconds, ChronoUnit.MILLIS, "pool", config.id());
     }
 
     @Override
     public void recordAllocationFailureLatencySampleMillis(final long milliseconds) {
       tsdb.getStatsCollector().addTime("objectpool.allocation.failure.latency", 
-          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
+          milliseconds, ChronoUnit.MILLIS, "pool", config.id());
     }
 
     @Override
     public void recordDeallocationLatencySampleMillis(final long milliseconds) {
       tsdb.getStatsCollector().addTime("objectpool.deallocation.latency", 
-          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
+          milliseconds, ChronoUnit.MILLIS, "pool", config.id());
     }
 
     @Override
     public void recordReallocationLatencySampleMillis(final long milliseconds) {
       tsdb.getStatsCollector().addTime("objectpool.reallocation.success.latency", 
-          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
+          milliseconds, ChronoUnit.MILLIS, "pool", config.id());
     }
 
     @Override
     public void recordReallocationFailureLatencySampleMillis(
         final long milliseconds) {
       tsdb.getStatsCollector().addTime("objectpool.reallocation.failure.latency", 
-          milliseconds, ChronoUnit.MILLIS, false, "pool", config.id());
+          milliseconds, ChronoUnit.MILLIS, "pool", config.id());
     }
 
     @Override
     public void recordObjectLifetimeSampleMillis(final long milliseconds) {
       tsdb.getStatsCollector().addTime("objectpool.object.lifetime", milliseconds, 
-          ChronoUnit.MILLIS, false, "pool", config.id());
+          ChronoUnit.MILLIS, "pool", config.id());
     }
 
     @Override

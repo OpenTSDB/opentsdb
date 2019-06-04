@@ -16,6 +16,7 @@ package net.opentsdb.servlet.resources;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -113,7 +114,7 @@ public class ExpressionRpc {
     final StatsTimer timer;
     if (tsdb.getStatsCollector() != null) {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "2x");
-      timer = tsdb.getStatsCollector().startTimer("query.user.latency", true);
+      timer = tsdb.getStatsCollector().startTimer("query.user.latency", ChronoUnit.MILLIS);
     } else {
       timer = null;
     }
