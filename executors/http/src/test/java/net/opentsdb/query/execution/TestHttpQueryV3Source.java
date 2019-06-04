@@ -130,7 +130,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -180,7 +181,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -240,7 +242,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"24h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"interval\":\"15m\""));
@@ -304,7 +307,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -351,7 +355,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -418,7 +423,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertEquals("MyCookie", request.getFirstHeader("Cookie").getValue());
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -448,7 +454,8 @@ public class TestHttpQueryV3Source {
     assertEquals("MyCookie", request.getFirstHeader("Cookie").getValue());
     assertEquals("UnitTest", request.getFirstHeader("X-OpenTSDB-User").getValue());
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1h-ago\""));
+    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
+    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));

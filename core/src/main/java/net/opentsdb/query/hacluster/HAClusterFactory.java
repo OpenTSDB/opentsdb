@@ -348,6 +348,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
     }
     
     if (new_sources.size() == 1) {
+      // TODO - handle push-downs
       TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig) new_sources.get(0)
           .setId(config.getId())
           .build();

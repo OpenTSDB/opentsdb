@@ -131,8 +131,9 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
   public void fetchNext(final Span span) {
     final long start = DateTime.nanoTime();
     SemanticQuery.Builder builder = SemanticQuery.newBuilder()
-        .setStart(context.query().getStart())
-        .setEnd(context.query().getEnd())
+        // always use the absolute time here so the queries match.
+        .setStart(Long.toString(context.query().startTime().msEpoch()))
+        .setEnd(Long.toString(context.query().endTime().msEpoch()))
         .setMode(context.query().getMode())
         .setTimeZone(context.query().getTimezone())
         .setLogLevel(context.query().getLogLevel());

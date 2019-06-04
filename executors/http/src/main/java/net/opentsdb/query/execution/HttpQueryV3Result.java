@@ -210,8 +210,16 @@ public class HttpQueryV3Result implements QueryResult {
     private final ZoneId time_zone;
     
     TimeSpec(final JsonNode node) {
-      start = new SecondTimeStamp(node.get("start").asLong());
-      end = new SecondTimeStamp(node.get("end").asLong());
+      long st = node.get("start").asLong();
+      long e = node.get("end").asLong();
+      if (st == HttpQueryV3Result.this.node.pipelineContext().query().startTime().epoch() &&
+          e == HttpQueryV3Result.this.node.pipelineContext().query().endTime().epoch()) {
+        start = HttpQueryV3Result.this.node.pipelineContext().query().startTime();
+        end = HttpQueryV3Result.this.node.pipelineContext().query().endTime();
+      } else {
+        start = new SecondTimeStamp(node.get("start").asLong());
+        end = new SecondTimeStamp(node.get("end").asLong());
+      }
       string_interval = node.get("interval").asText();
       if (string_interval.toLowerCase().equals("0all")) {
         interval = null;
