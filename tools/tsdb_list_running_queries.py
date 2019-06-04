@@ -41,14 +41,13 @@ class OpenTSDBListRunningQueries(object):
         try:
             self.server.request('GET', self.uri)
             resp = self.server.getresponse().read()
+            self.server.close()
         except socket.error as _:
             print(_, file=sys.stderr)
             sys.exit(1)
         except httplib.HTTPException as _:
             print(_, file=sys.stderr)
             sys.exit(1)
-        finally:
-            self.server.close()
         return json.loads(resp)
 
     # reference_timestamp is for comparing N-ago timestamps
