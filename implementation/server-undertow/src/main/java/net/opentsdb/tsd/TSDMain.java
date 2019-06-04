@@ -18,6 +18,7 @@ import com.google.common.base.Strings;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
+import io.undertow.UndertowOptions;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.accesslog.AccessLogHandler;
 import io.undertow.server.handlers.accesslog.AccessLogReceiver;
@@ -87,6 +88,7 @@ public class TSDMain {
   
   public static final String READ_TO_KEY = "tsd.network.read_timeout";
   public static final String WRITE_TO_KEY = "tsd.network.write_timeout";
+  public static final String NO_REQUEST_KEY = "tsd.network.no_request_timeout";
   
   /** Defaults */
   public static final String DEFAULT_PATH = "/";
@@ -187,6 +189,9 @@ public class TSDMain {
     config.register(WRITE_TO_KEY, 5 * 60 * 1000, false, 
         "A timeout in milliseconds for writing data to a client after which "
         + "Undertow will close the connection.");
+    config.register(NO_REQUEST_KEY, 15 * 60 * 1000, false, 
+        "A timeout in milliseconds when we'll close a connection after not"
+        + "receiving a request.");
     
     int port = config.getInt(HTTP_PORT_KEY);
     int ssl_port = config.getInt(TLS_PORT_KEY);
@@ -336,6 +341,13 @@ public class TSDMain {
       // https://issues.jboss.org/browse/UNDERTOW-991
       builder.setSocketOption(Options.READ_TIMEOUT, config.getInt(READ_TO_KEY));
       builder.setSocketOption(Options.WRITE_TIMEOUT, config.getInt(WRITE_TO_KEY));
+      builder.setSocketOption(UndertowOptions.NO_REQUEST_TIMEOUT, 
+          config.getInt(NO_REQUEST_KEY));
+      
+      // https://issues.jboss.org/browse/UNDERTOW-991
+      builder.setWorkerOption(Options.KEEP_ALIVE, true);
+      builder.setSocketOption(Options.KEEP_ALIVE, true);
+      builder.setServerOption(Options.KEEP_ALIVE, true);
       
       server = builder.build();
       server.start();
