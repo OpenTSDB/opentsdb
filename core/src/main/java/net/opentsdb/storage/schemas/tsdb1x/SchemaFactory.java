@@ -127,7 +127,7 @@ public class SchemaFactory extends BaseTSDBPlugin
       // all done.
       return;
     }
- }
+  }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context) {

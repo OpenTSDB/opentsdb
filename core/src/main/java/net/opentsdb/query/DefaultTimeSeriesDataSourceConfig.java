@@ -106,7 +106,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
   public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-        .setConfig((TimeSeriesDataSourceConfig) config)
+        .setTimeshiftInterval(config.getTimeShiftInterval())
         .setId(config.getId() + "-timeShift")
         .build();
 
@@ -152,7 +152,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
 
     final Set<QueryNodeConfig> shift_predecessors = planner.configGraph().predecessors(merger);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-        .setConfig((TimeSeriesDataSourceConfig) config)
+        .setTimeshiftInterval(config.getTimeShiftInterval())
         .setId(merger.getId() + "-timeShift")
         .build();
 

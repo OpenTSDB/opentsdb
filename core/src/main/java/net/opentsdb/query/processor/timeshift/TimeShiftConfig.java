@@ -18,31 +18,59 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
+import java.time.temporal.TemporalAmount;
 import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TimeShiftConfig.Builder.class)
 public class TimeShiftConfig extends BaseQueryNodeConfig {
+  private static final Logger LOG = LoggerFactory.getLogger(TimeShiftConfig.class);
 
-  protected TimeSeriesDataSourceConfig config;
+  private String timeShiftInterval;
+  private Pair<Boolean, TemporalAmount> amounts;
   
   protected TimeShiftConfig(final Builder builder) {
     super(builder);
-    config = builder.config;
+    timeShiftInterval = builder.interval;
+    if (!Strings.isNullOrEmpty(builder.interval)) {
+      DateTime.parseDuration(builder.interval);
+      timeShiftInterval = builder.interval;
+
+      // TODO - must be easier/cleaner ways.
+      // TODO - handle calendaring
+      final int count = DateTime.getDurationInterval(timeShiftInterval);
+      final String units = DateTime.getDurationUnits(timeShiftInterval);
+      final TemporalAmount amount = DateTime.parseDuration2(
+          Integer.toString(count) + units);
+      amounts = new Pair<Boolean, TemporalAmount>(true, amount);
+
+    }
   }
   
-  public TimeSeriesDataSourceConfig config() {
-    return config;
+  public Pair<Boolean, TemporalAmount> amounts() {
+    return amounts;
   }
-  
+
+  public String getTimeShiftInterval() {
+    return timeShiftInterval;
+  }
+
+
   @Override
   public Builder toBuilder() {
-       return (Builder) new Builder().setConfig(config).setId(id).setSources(sources);
+       return (Builder) new Builder()
+           .setTimeshiftInterval(timeShiftInterval)
+           .setId(id)
+           .setSources(sources);
   }
   
   @Override
@@ -96,14 +124,14 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
   
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfig.Builder {
-    protected TimeSeriesDataSourceConfig config;
+    protected String interval;
     
     Builder() {
       setType(TimeShiftFactory.TYPE);
     }
     
-    public Builder setConfig(final TimeSeriesDataSourceConfig config) {
-      this.config = config;
+    public Builder setTimeshiftInterval(final String interval) {
+      this.interval = interval;
       return this;
     }
     

@@ -14,11 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.timeshift;
 
-import com.google.common.graph.MutableGraph;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,13 +21,14 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
@@ -41,6 +37,9 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig.Builder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Factory that generates a time shift node.
@@ -52,7 +51,9 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  */
 public class TimeShiftFactory extends BaseQueryNodeFactory {
   public static final String TYPE = "Timeshift";
-  
+  private static final Logger LOG = LoggerFactory.getLogger(TimeShiftFactory.class);
+
+
   public TimeShiftFactory() {
     super();
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
@@ -86,11 +87,26 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
   public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
                                      final TSDB tsdb,
                                      final JsonNode node) {
-    try {
-      return mapper.treeToValue(node, TimeShiftConfig.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to parse Json.", e);
+    Builder builder = new Builder();
+    JsonNode n = node.get("timeShiftInterval");
+    if (n != null) {
+      builder.setTimeshiftInterval(n.asText());
     }
+    n = node.get("id");
+    if (n != null) {
+      builder.setId(n.asText());
+    }
+    n = node.get("sources");
+    if (n != null && !n.isNull()) {
+      try {
+        builder.setSources(mapper.treeToValue(n, List.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse json", e);
+      }
+    }
+    TimeShiftConfig ts_config = (TimeShiftConfig) builder.build();
+
+    return (TimeShiftConfig) ts_config;
   }
   
   @Override

@@ -59,8 +59,8 @@ public class TimeShift extends AbstractQueryNode {
   
   @Override
   public void onNext(final QueryResult next) {
-    final Pair<Boolean, TemporalAmount> amount = 
-        config.config().timeShifts();
+    final Pair<Boolean, TemporalAmount> amount =
+        config.amounts();
     if (amount == null) {
       // whoops. We got something we don't deal with.
       LOG.warn("Received a result at node " + config.getId() 
