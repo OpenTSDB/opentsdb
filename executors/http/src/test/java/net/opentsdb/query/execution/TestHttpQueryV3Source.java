@@ -400,8 +400,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1546304400\""));
-    assertTrue(json.contains("\"end\":\"1546308000\""));
+    assertTrue(json.contains("\"start\":\"1546304400000\""));
+    assertTrue(json.contains("\"end\":\"1546308000000\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1-previous-P1H\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
