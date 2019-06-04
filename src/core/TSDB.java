@@ -101,9 +101,25 @@ public final class TSDB {
 
   /** The operation mode (role) of the TSD. */
   public enum OperationMode {
-    READWRITE,
-    READONLY,
-    WRITEONLY
+    READWRITE(true, true),
+    READONLY(true, false),
+    WRITEONLY(false, true);
+
+    private final boolean read;
+    private final boolean write;
+
+    OperationMode(boolean read, boolean write) {
+      this.read = read;
+      this.write = write;
+    }
+
+    public boolean isRead() {
+      return read;
+    }
+
+    public boolean isWrite() {
+      return write;
+    }
   }
   
   /** Client for the HBase cluster to use.  */
