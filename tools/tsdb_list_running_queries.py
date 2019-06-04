@@ -5,11 +5,12 @@
 from __future__ import print_function
 from __future__ import division
 
-import os
-import sys
-import time
 import httplib
 import json
+import os
+import socket
+import sys
+import time
 from datetime import datetime
 from collections import defaultdict
 
@@ -40,8 +41,12 @@ class OpenTSDBListRunningQueries(object):
         try:
             self.server.request('GET', self.uri)
             resp = self.server.getresponse().read()
-        except httplib.HTTPException:
-            resp = '{}'
+        except socket.error as _:
+            print(_, file=sys.stderr)
+            sys.exit(1)
+        except httplib.HTTPException as _:
+            print(_, file=sys.stderr)
+            sys.exit(1)
         finally:
             self.server.close()
         return json.loads(resp)
