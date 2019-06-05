@@ -46,6 +46,8 @@ public class OpenTSDBApplication extends ResourceConfig {
   public static final String QUERY_EXCEPTION_ATTRIBUTE = "QUERYEX";
   public static final String QUERY_RESULT_ATTRIBUTE = "QUERYRESULT";
   
+  public static final String INTERNAL_HASH_HEADER = "X-Tsdb-Internal-Query-Hash";
+  
   public OpenTSDBApplication(@Context ServletConfig servletConfig) {
     try {
       final Object pre_instantiated_tsd = servletConfig.getServletContext()

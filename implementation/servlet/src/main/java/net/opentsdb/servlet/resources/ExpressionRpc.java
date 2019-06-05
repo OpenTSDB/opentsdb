@@ -250,47 +250,28 @@ public class ExpressionRpc {
             .setStatsTimer(timer)
             .build())
         .build();
+    tsdb.registerRunningQuery(Long.parseLong(request.getHeader(
+        OpenTSDBApplication.INTERNAL_HASH_HEADER)), context);
     
     class AsyncTimeout implements AsyncListener {
 
       @Override
       public void onComplete(final AsyncEvent event) throws IOException {
-        try {
-          context.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
+        // no-op
       }
 
       @Override
       public void onTimeout(final AsyncEvent event) throws IOException {
         LOG.error("The query has timed out");
-        try {
-          context.close();
-        } catch (Exception e) {
-          LOG.error("Failed to close the query: ", e);
-        }
-        
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
             + "the timeout limit.", 504), event.getAsyncContext().getResponse());
         event.getAsyncContext().complete();
-        
-        try {
-          context.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
       }
 
       @Override
       public void onError(final AsyncEvent event) throws IOException {
         LOG.error("WTF? An error for the AsyncTimeout?: " + event);
-        try {
-          context.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
       }
 
       @Override
