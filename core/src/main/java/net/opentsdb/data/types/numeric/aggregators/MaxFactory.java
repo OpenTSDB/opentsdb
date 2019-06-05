@@ -88,7 +88,8 @@ public class MaxFactory extends BaseTSDBPlugin implements
       if (end_offset < 1) {
         throw new IllegalDataException("End offset must be greater than 0");
       }
-      double max = Double.MIN_VALUE;
+      
+      double max = -Double.MAX_VALUE;
       int nans = 0;
       for (int i = start_offset; i < end_offset; i++) {
         if (Double.isNaN(values[i])) {

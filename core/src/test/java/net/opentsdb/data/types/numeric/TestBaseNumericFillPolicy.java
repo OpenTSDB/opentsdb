@@ -113,6 +113,6 @@ public class TestBaseNumericFillPolicy {
         .setDataType(NumericType.TYPE.toString())
         .build());
     assertFalse(fill.isInteger());
-    assertEquals(Double.MIN_VALUE, fill.fill().doubleValue(), 0.00001);
+    assertEquals(-Double.MAX_VALUE, fill.fill().doubleValue(), 0.00001);
   }
 }

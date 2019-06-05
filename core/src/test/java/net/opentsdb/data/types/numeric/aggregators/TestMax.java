@@ -75,6 +75,9 @@ public class TestMax {
     agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, 1, false, dp);
     assertEquals(1.25, dp.doubleValue(), 0.001);
     
+    agg.run(new double[] { -1.25, -2.25, -3.25 }, 0, 3, false, dp);
+    assertEquals(-1.25, dp.doubleValue(), 0.001);
+    
     try {
       agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, 0, false, dp);
       fail("Expected IllegalDataException");
