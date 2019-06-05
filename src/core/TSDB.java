@@ -113,10 +113,12 @@ public final class TSDB {
       this.write = write;
     }
 
+    /** Whether this mode allows reading */
     public boolean isRead() {
       return read;
     }
 
+    /** Whether this mode allows writing */
     public boolean isWrite() {
       return write;
     }
