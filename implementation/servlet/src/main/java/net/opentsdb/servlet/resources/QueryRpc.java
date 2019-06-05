@@ -47,10 +47,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
-import jersey.repackaged.com.google.common.collect.Lists;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
