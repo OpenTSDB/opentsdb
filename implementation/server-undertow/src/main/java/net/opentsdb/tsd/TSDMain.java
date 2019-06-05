@@ -19,7 +19,10 @@ import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import io.undertow.UndertowOptions;
+import io.undertow.server.ExchangeCompletionListener;
 import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.server.ExchangeCompletionListener.NextListener;
 import io.undertow.server.handlers.accesslog.AccessLogHandler;
 import io.undertow.server.handlers.accesslog.AccessLogReceiver;
 import io.undertow.server.handlers.encoding.EncodingHandler;
@@ -30,6 +33,7 @@ import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
 import io.undertow.servlet.api.InstanceFactory;
 import io.undertow.servlet.api.InstanceHandle;
+import io.undertow.util.HttpString;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
@@ -315,6 +319,42 @@ public class TSDMain {
           !(tsdb.getStatsCollector() instanceof BlackholeStatsCollector)) {
         handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
       }
+      
+      class Foo implements HttpHandler {
+        private final HttpHandler next;
+        
+        private Foo(final HttpHandler next) {
+          this.next = next;
+        }
+        
+        @Override
+        public void handleRequest(HttpServerExchange exchange) throws Exception {
+          if (!exchange.isComplete()) {
+            // TODO - a white list.
+            if (exchange.getRequestURI().contains("/api/query")) {
+              // TODO - make sure this is actually unique.
+              final int hash = exchange.hashCode();
+              exchange.getRequestHeaders().add(new HttpString(
+                  OpenTSDBApplication.INTERNAL_HASH_HEADER), 
+                  hash);
+              
+              exchange.addExchangeCompleteListener(new ExchangeCompletionListener() {
+                @Override
+                public void exchangeEvent(final HttpServerExchange exchange, 
+                                          final NextListener nextListener) {
+                  try {
+                    tsdb.completeRunningQuery(hash);
+                  } finally {
+                    nextListener.proceed();
+                  }
+                }
+              });
+            }
+          }
+          next.handleRequest(exchange);
+        }
+      }
+      handler = new Foo(handler);
       
       final Builder builder = Undertow.builder()
           .setHandler(handler);

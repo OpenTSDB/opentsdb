@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -65,6 +66,7 @@ import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.stats.BlackholeStatsCollector;
 //import net.opentsdb.rollup.RollupConfig;
@@ -128,6 +130,9 @@ public class DefaultTSDB implements TSDB {
   
   /** Pool used for executing query tasks. */
   private final ExecutorService query_pool;
+  
+  /** The map of running queries. */
+  private final Map<Long, QueryContext> running_queries;
   
 //  /**
 //   * Row keys that need to be compacted.
@@ -324,6 +329,7 @@ public class DefaultTSDB implements TSDB {
     // TODO - fixed potentially.
     query_pool = Executors.newFixedThreadPool(
         Runtime.getRuntime().availableProcessors() * 2);
+    running_queries = Maps.newConcurrentMap();
     
     if (!config.hasProperty(MAINT_TIMER_KEY)) {
       config.register(MAINT_TIMER_KEY, MAINT_TIMER_DEFAULT, true, 
@@ -2007,6 +2013,29 @@ public class DefaultTSDB implements TSDB {
   @Override
   public ExecutorService getQueryThreadPool() {
     return query_pool;
+  }
+  
+  @Override
+  public boolean registerRunningQuery(final long hash, 
+                                      final QueryContext context) {
+    return running_queries.putIfAbsent(hash, context) == null;
+  }
+  
+  @Override
+  public boolean completeRunningQuery(final long hash) {
+    final QueryContext context = running_queries.remove(hash);
+    if (context == null) {
+      return false;
+    }
+    try {
+      context.close();
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Closed query: " + hash);
+      }
+    } catch (Throwable t) {
+      LOG.error("Failed to close query: " + hash, t);
+    }
+    return true;
   }
   
 //  // ------------------ //

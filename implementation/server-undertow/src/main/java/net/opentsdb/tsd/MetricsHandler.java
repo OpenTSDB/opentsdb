@@ -56,9 +56,9 @@ public class MetricsHandler implements HttpHandler {
         public void exchangeEvent(final HttpServerExchange exchange, 
                                   final NextListener nextListener) {
           try {
-          timer.stop();
-          stats_collector.incrementCounter("undertow.response.statuscode", 
-              "code", Integer.toString(exchange.getStatusCode()));
+            timer.stop();
+            stats_collector.incrementCounter("undertow.response.statuscode", 
+                "code", Integer.toString(exchange.getStatusCode()));
           } catch (Throwable t) {
             // we don't want to ruin the call if something goes pear shaped in
             // the stats collector code.
