@@ -38,7 +38,8 @@ import javax.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap;
+
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
