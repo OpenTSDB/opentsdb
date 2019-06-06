@@ -1,4 +1,4 @@
-FROM openjdk:11-jdk-stretch
+FROM java:openjdk-8-alpine
 
 MAINTAINER clarsen@yahoo-inc.com
 
