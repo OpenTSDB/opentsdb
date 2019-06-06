@@ -48,7 +48,7 @@ public class RateNumericArrayIterator implements QueryIterator,
   private final Iterator<TimeSeriesValue<?>> source;
   
   /** Options for calculating rates. */
-  private final RateOptions options;
+  private final RateConfig config;
   
   /** The query result with timespec. */
   private final QueryResult result;
@@ -59,7 +59,8 @@ public class RateNumericArrayIterator implements QueryIterator,
   /** The value timestamp. */
   private TimeStamp timestamp;
   
-  /** The double values. */
+  /** The long or double values. */
+  private long[] long_values;
   private double[] double_values;
   
   /**
@@ -93,7 +94,7 @@ public class RateNumericArrayIterator implements QueryIterator,
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     this.result = result;
-    options = (RateOptions) node.config();
+    config = (RateConfig) node.config();
     final Optional<TypedTimeSeriesIterator> optional = 
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
@@ -116,34 +117,71 @@ public class RateNumericArrayIterator implements QueryIterator,
     final TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) source.next();
     timestamp = value.timestamp();
-    double_values = new double[value.value().end() - value.value().offset()];
-    double_values[0] = Double.NaN;
     int idx = value.value().offset() + 1;
     int write_idx = 1;
+    
+    // handle the delta only case.
+    if (config.getDeltaOnly()) {
+      if (value.value().isInteger()) {
+        long_values = new long[value.value().end() - value.value().offset()];
+        long[] source = value.value().longArray();
+        // TODO - look at the rest values
+        while (idx < value.value().end()) {
+          long delta = source[idx] - source[idx - 1];
+          if (config.getDropResets() && delta < 0) {
+            long_values[write_idx++] = 0;
+            idx++;
+            continue;
+          }
+          
+          long_values[write_idx++] = delta;
+          idx++;
+        }
+      } else {
+        double[] source = value.value().doubleArray();
+        double_values = new double[value.value().end() - value.value().offset()];
+        while (idx < value.value().end()) {
+          double delta = source[idx] - source[idx - 1];
+          if (config.getDropResets() && delta < 0) {
+            double_values[write_idx++] = 0;
+            idx++;
+            continue;
+          }
+          
+          double_values[write_idx++] = delta;
+          idx++;
+        }
+      }
+      return this;
+    }
+    
+    // init doubles.
+    double_values = new double[value.value().end() - value.value().offset()];
+    double_values[0] = Double.NaN;
     
     // calculate the denom
     double denom = 
         (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * 1000000000L /
-        (double) options.duration().toNanos();
+        (double) config.duration().toNanos();
     
     double delta;
     if (value.value().isInteger()) {
       long[] source = value.value().longArray();
       while (idx < value.value().end()) {
         delta = (double) source[idx] - (double) source[idx - 1];
-        if (options.isCounter() && delta < 0) {
-          if (options.getDropResets()) {
+        if (config.isCounter() && delta < 0) {
+          if (config.getDropResets()) {
             double_values[write_idx] = 0;
             write_idx++;
             idx++;
             continue;
           }
           
-          delta = options.getCounterMax() + (double) source[idx] - (double) source[idx - 1];
+          delta = config.getCounterMax() + (double) source[idx] - (double) source[idx - 1];
           double_values[write_idx] = delta / denom;
           
-          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && double_values[write_idx] > options.getResetValue()) {
+          if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && double_values[write_idx] > config.getResetValue()) {
             double_values[write_idx] = 0;
           }
           write_idx++;
@@ -153,8 +191,8 @@ public class RateNumericArrayIterator implements QueryIterator,
         
         double_values[write_idx] = delta / denom;
         
-        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-          && double_values[write_idx] > options.getResetValue()) {
+        if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+          && double_values[write_idx] > config.getResetValue()) {
           double_values[write_idx] = 0;
         }
         write_idx++;
@@ -164,19 +202,19 @@ public class RateNumericArrayIterator implements QueryIterator,
       double[] source = value.value().doubleArray();
       while (idx < value.value().end()) {
         delta = source[idx] - source[idx - 1];
-        if (options.isCounter() && delta < 0) {
-          if (options.getDropResets()) {
+        if (config.isCounter() && delta < 0) {
+          if (config.getDropResets()) {
             double_values[write_idx] = 0;
             write_idx++;
             idx++;
             continue;
           }
           
-          delta = options.getCounterMax() + source[idx] - source[idx - 1];
+          delta = config.getCounterMax() + source[idx] - source[idx - 1];
           double_values[write_idx] = delta / denom;
           
-          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && double_values[write_idx] > options.getResetValue()) {
+          if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && double_values[write_idx] > config.getResetValue()) {
             double_values[write_idx] = 0;
           }
           write_idx++;
@@ -186,8 +224,8 @@ public class RateNumericArrayIterator implements QueryIterator,
         
         double_values[write_idx] = delta / denom;
         
-        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-          && double_values[write_idx] > options.getResetValue()) {
+        if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+          && double_values[write_idx] > config.getResetValue()) {
           double_values[write_idx] = 0;
         }
         write_idx++;
@@ -225,17 +263,17 @@ public class RateNumericArrayIterator implements QueryIterator,
 
   @Override
   public int end() {
-    return double_values.length;
+    return long_values != null ? long_values.length : double_values.length;
   }
 
   @Override
   public boolean isInteger() {
-    return false;
+    return long_values != null;
   }
 
   @Override
   public long[] longArray() {
-    return null;
+    return long_values;
   }
 
   @Override

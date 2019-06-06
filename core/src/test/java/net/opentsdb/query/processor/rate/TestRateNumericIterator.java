@@ -44,7 +44,7 @@ import com.google.common.collect.Lists;
 public class TestRateNumericIterator {
   private TimeSeries source;
   private TimeSeriesQuery query;
-  private RateOptions config;
+  private RateConfig config;
   private QueryNode node;
   private QueryResult result;
   private QueryContext query_context;
@@ -66,10 +66,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -105,6 +105,59 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void oneSecondLongsDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3600000L, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3605000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertEquals(-10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(-10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void oneSecondDoubles() {
     source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
@@ -118,10 +171,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40.5);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50.5);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -157,6 +210,59 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void oneSecondDoublesDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000000L, 50.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3600000L, 40.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3605000L, 50.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50.5);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(10.0, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertEquals(-10.0, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(10.0, v.value().doubleValue(), 0.001);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(-10.0, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(10.0, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void oneSecondMix() {
     source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
@@ -170,10 +276,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50.5);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -209,6 +315,59 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void oneSecondMixDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000000L, 50.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3600000L, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3605000L, 50.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50.5);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(10.5, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertEquals(-10.5, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(10.5, v.value().doubleValue(), 0.001);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(-10.5, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(10.5, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void oneNano() {
     source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
@@ -222,10 +381,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1ns")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -274,10 +433,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("10s")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -326,10 +485,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1m")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -388,11 +547,11 @@ public class TestRateNumericIterator {
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 9200000L), 50));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -429,6 +588,71 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void nullsAtStartDelta() {
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build());
+    MutableNumericValue nully = new MutableNumericValue();
+    nully.resetNull(new MillisecondTimeStamp(BASE_TIME ));
+    ((MockTimeSeries) source).addValue(nully);
+    //((MockTimeSeries) source).addValue(new MutableNumericType(
+    //    new MillisecondTimeStamp(BASE_TIME ), 40));
+    nully = new MutableNumericValue();
+    nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 2000000L));
+    ((MockTimeSeries) source).addValue(nully);
+    //((MockTimeSeries) source).addValue(new MutableNumericType(
+    //    new MillisecondTimeStamp(BASE_TIME + 2000000L), 50));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 3600000L), 40));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 3605000L), 50));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 7200000L), 40));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 9200000L), 50));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setCounterMax(70)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+
+    assertTrue(it.hasNext());
+     v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(-10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void nullsInMiddle() {
     source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -452,11 +676,11 @@ public class TestRateNumericIterator {
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 9200000L), 50));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -492,6 +716,70 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void nullsInMiddleDelta() {
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build());
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME ), 40));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 2000000L), 50));
+    MutableNumericValue nully = new MutableNumericValue();
+    nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 3600000L));
+    ((MockTimeSeries) source).addValue(nully);
+    //((MockTimeSeries) source).addValue(new MutableNumericType(
+    //    new MillisecondTimeStamp(BASE_TIME + 3600000L), 40));
+    nully = new MutableNumericValue();
+    nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 3605000L));
+    ((MockTimeSeries) source).addValue(nully);
+    //((MockTimeSeries) source).addValue(new MutableNumericType(
+    //    new MillisecondTimeStamp(BASE_TIME + 3605000L), 50));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 7200000L), 40));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 9200000L), 50));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setCounterMax(70)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertTrue(v.value() == null);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(-10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void nullsAtEnd() {
     source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -515,11 +803,11 @@ public class TestRateNumericIterator {
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 9200000L), 50));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -548,6 +836,64 @@ public class TestRateNumericIterator {
     assertFalse(it.hasNext());
   }
   
+  @Test
+  public void nullsAtEndDelta() {
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build());
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME ), 40));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 2000000L), 50));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 3600000L), 40));
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
+        new MillisecondTimeStamp(BASE_TIME + 3605000L), 50));
+    MutableNumericValue nully = new MutableNumericValue();
+    nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 7200000L));
+    ((MockTimeSeries) source).addValue(nully);
+    //((MockTimeSeries) source).addValue(new MutableNumericType(
+    //    new MillisecondTimeStamp(BASE_TIME + 7200000L), 40));
+    nully = new MutableNumericValue();
+    nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 9200000L));
+    ((MockTimeSeries) source).addValue(nully);
+    //((MockTimeSeries) source).addValue(new MutableNumericType(
+    //    new MillisecondTimeStamp(BASE_TIME + 9200000L), 50));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setCounterMax(70)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertEquals(-10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertFalse(it.hasNext());
+  }
+  
   // TODO - test greater intervals once supported.
   
   @Test
@@ -559,9 +905,9 @@ public class TestRateNumericIterator {
         new MillisecondTimeStamp(BASE_TIME + 10000000));
     ((NumericMillisecondShard) source).add(BASE_TIME, 40);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -579,9 +925,9 @@ public class TestRateNumericIterator {
         new MillisecondTimeStamp(BASE_TIME), 
         new MillisecondTimeStamp(BASE_TIME + 10000000));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -600,9 +946,9 @@ public class TestRateNumericIterator {
         new MillisecondTimeStamp(2000L), 42));
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(1000L), 24));
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -619,9 +965,9 @@ public class TestRateNumericIterator {
         new MillisecondTimeStamp(2000L), 42));
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(2000L), 24));
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -639,9 +985,9 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME, Long.MAX_VALUE - 100);
     ((NumericMillisecondShard) source).add(BASE_TIME + 100000L, Long.MAX_VALUE - 20);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -670,11 +1016,11 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 0.016689847009736);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 0.005);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -720,10 +1066,10 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 30000, Long.MAX_VALUE - 25);
     ((NumericMillisecondShard) source).add(BASE_TIME + 60000, 5);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -754,12 +1100,12 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 50);
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 40);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
         .setResetValue(10)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -790,12 +1136,12 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 50);
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 80);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(70)
         .setResetValue(10)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -827,11 +1173,11 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 3000, 50);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setDropResets(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -852,6 +1198,43 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void counterDropResetsDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3000, 50);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDropResets(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 1000, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3000, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void counterDroResetsNothingAfter() {
     source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
@@ -862,11 +1245,11 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 50);
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 40);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setDropResets(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -882,6 +1265,37 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void counterDroResetsNothingAfterDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 40);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDropResets(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 1000, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void counterDroResetsFirst() {
     source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
@@ -892,11 +1306,11 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 50);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setDropResets(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -912,6 +1326,37 @@ public class TestRateNumericIterator {
   }
   
   @Test
+  public void counterDroResetsFirstDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000, 50);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDropResets(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void counterDroResetsOnly() {
     source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
@@ -921,11 +1366,36 @@ public class TestRateNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME, 50);
     ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 40);
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setDropResets(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void counterDroResetsOnlyDelta() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 1000, 40);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDropResets(true)
+        .setDeltaOnly(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -946,11 +1416,11 @@ public class TestRateNumericIterator {
     ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new ZonedNanoTimeStamp((BASE_TIME / 1000) + 1L, 1000, Const.UTC), 50));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1m")
         .setCounter(true)
         .setCounterMax(70)
+        .setId("foo")
         .build();
     
     setupMock();
