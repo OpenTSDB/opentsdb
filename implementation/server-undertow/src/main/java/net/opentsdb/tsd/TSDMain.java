@@ -41,6 +41,7 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.stats.BlackholeStatsCollector;
+import net.opentsdb.tsd.handlers.QueryRegistrationHandler;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.RefreshingSSLContext;
 import net.opentsdb.utils.RefreshingSSLContext.SourceType;
@@ -320,41 +321,7 @@ public class TSDMain {
         handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
       }
       
-      class Foo implements HttpHandler {
-        private final HttpHandler next;
-        
-        private Foo(final HttpHandler next) {
-          this.next = next;
-        }
-        
-        @Override
-        public void handleRequest(HttpServerExchange exchange) throws Exception {
-          if (!exchange.isComplete()) {
-            // TODO - a white list.
-            if (exchange.getRequestURI().contains("/api/query")) {
-              // TODO - make sure this is actually unique.
-              final int hash = exchange.hashCode();
-              exchange.getRequestHeaders().add(new HttpString(
-                  OpenTSDBApplication.INTERNAL_HASH_HEADER), 
-                  hash);
-              
-              exchange.addExchangeCompleteListener(new ExchangeCompletionListener() {
-                @Override
-                public void exchangeEvent(final HttpServerExchange exchange, 
-                                          final NextListener nextListener) {
-                  try {
-                    tsdb.completeRunningQuery(hash);
-                  } finally {
-                    nextListener.proceed();
-                  }
-                }
-              });
-            }
-          }
-          next.handleRequest(exchange);
-        }
-      }
-      handler = new Foo(handler);
+      handler = new QueryRegistrationHandler(tsdb, handler);
       
       final Builder builder = Undertow.builder()
           .setHandler(handler);
