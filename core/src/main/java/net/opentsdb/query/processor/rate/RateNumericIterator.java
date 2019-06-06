@@ -46,7 +46,7 @@ public class RateNumericIterator implements QueryIterator {
   private final Iterator<TimeSeriesValue<?>> source;
   
   /** Options for calculating rates. */
-  private final RateOptions options;
+  private final RateConfig config;
   
   /** The previous raw value to calculate the rate. */
   private MutableNumericValue prev_data;
@@ -90,7 +90,7 @@ public class RateNumericIterator implements QueryIterator {
     if (node.config() == null) {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
-    options = (RateOptions) node.config();
+    config = (RateConfig) node.config();
     final Optional<TypedTimeSeriesIterator> optional = 
         sources.iterator().next().iterator(NumericType.TYPE);
     if (optional.isPresent()) {
@@ -144,6 +144,38 @@ public class RateNumericIterator implements QueryIterator {
         continue;
       }
       
+      // delta code
+      if (config.getDeltaOnly()) {
+        // TODO - look at the rest values
+        if (prev_data.isInteger() && next.value().isInteger()) {
+          long delta = next.value().longValue() - prev_data.longValue();
+          if (config.isCounter() && delta < 0) {
+            if (config.getDropResets()) {
+              prev_data.reset(next);
+              continue;
+            }
+          }
+          
+          next_rate.reset(next.timestamp(), delta);
+          prev_data.reset(next);
+          has_next = true;
+          break;
+        } else {
+          double delta = next.value().toDouble() - prev_data.toDouble();
+          if (config.isCounter() && delta < 0) {
+            if (config.getDropResets()) {
+              prev_data.reset(next);
+              continue;
+            }
+          }
+          
+          next_rate.reset(next.timestamp(), delta);
+          prev_data.reset(next);
+          has_next = true;
+          break;
+        }
+      }
+      
       // validation similar to TSDB 2.x
       if (next.timestamp().compare(Op.LTE, prev_data.timestamp())) {
         throw new IllegalStateException("Next timestamp [" + next.timestamp() 
@@ -163,33 +195,32 @@ public class RateNumericIterator implements QueryIterator {
       }
       
       long diff = ((next_epoch - prev_epoch) * 1000000000) + (next_nanos - prev_nanos);
-      double time_delta = (double) diff / (double) options.duration().toNanos();
+      double time_delta = (double) diff / (double) config.duration().toNanos();
       
       // got a rate!
       if (prev_data.value().isInteger() && next.value().isInteger()) {
         // longs
         long value_delta = next.value().longValue() - prev_data.longValue();
-        if (options.isCounter() && value_delta < 0) {
-          if (options.getDropResets()) {
+        if (config.isCounter() && value_delta < 0) {
+          if (config.getDropResets()) {
             prev_data.reset(next);
-
             continue;
           }
           
-          value_delta = options.getCounterMax() - prev_data.longValue() +
+          value_delta = config.getCounterMax() - prev_data.longValue() +
               next.value().longValue();
           
           final double rate = (double) value_delta / time_delta;
-          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && rate > options.getResetValue()) {
+          if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > config.getResetValue()) {
             next_rate.reset(next.timestamp(), 0.0D);
           } else {
             next_rate.reset(next.timestamp(), rate);
           }
         } else {
           final double rate = (double) value_delta / time_delta;
-          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && rate > options.getResetValue()) {
+          if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > config.getResetValue()) {
             next_rate.reset(next.timestamp(), 0.0D);
           } else {
             next_rate.reset(next.timestamp(), rate);
@@ -197,27 +228,26 @@ public class RateNumericIterator implements QueryIterator {
         }
       } else {
         double value_delta = next.value().toDouble() - prev_data.toDouble();
-        if (options.isCounter() && value_delta < 0) {
-          if (options.getDropResets()) {
+        if (config.isCounter() && value_delta < 0) {
+          if (config.getDropResets()) {
             prev_data.reset(next);
-
             continue;
           }
           
-          value_delta = options.getCounterMax() - prev_data.toDouble() +
+          value_delta = config.getCounterMax() - prev_data.toDouble() +
               next.value().toDouble();
           
           final double rate = value_delta / time_delta;
-          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && rate > options.getResetValue()) {
+          if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > config.getResetValue()) {
             next_rate.reset(next.timestamp(), 0.0D);
           } else {
             next_rate.reset(next.timestamp(), rate);
           }
         } else {
           final double rate = value_delta / time_delta;
-          if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && rate > options.getResetValue()) {
+          if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > config.getResetValue()) {
             next_rate.reset(next.timestamp(), 0.0D);
           } else {
             next_rate.reset(next.timestamp(), rate);
@@ -236,7 +266,7 @@ public class RateNumericIterator implements QueryIterator {
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("RateSpan: ")
-       .append(", options=").append(options)
+       .append(", options=").append(config)
        .append(", prev_data=[").append(prev_data)
        .append("], next_rate=[").append(next_rate)
        .append("], prev_rate=[").append(prev_rate)
