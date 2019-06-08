@@ -17,10 +17,12 @@ package net.opentsdb.query;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 
@@ -88,6 +90,16 @@ public interface QueryContext {
    * exception if something went wrong.
    */
   public Deferred<Void> initialize(final Span span);
+  
+  /**
+   * Allows retrieval of the time series ID for the given hash and type from a
+   * partial time series.
+   * @param hash The hash to look up.
+   * @param type The non-null type.
+   * @return The time series ID if found, null if not.
+   */
+  public TimeSeriesId getId(final long hash, 
+                            final TypeToken<? extends TimeSeriesId> type);
   
   /**
    * An optional list of entries from the execution to help users understand
