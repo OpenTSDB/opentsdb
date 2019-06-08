@@ -40,6 +40,7 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import net.openhft.hashing.LongHashFunction;
+import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -888,8 +889,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   
       // TODO - find a better spot. We may not pull any data from this row so we
       // shouldn't bother putting it in the ids.
-      if (!owner.idsContainsKey(hash)) {
-        owner.putId(hash, new TSUID(tsuid, owner.node().schema()));
+      if (!owner.node().pipelineContext().hasId(hash, Const.TS_BYTE_ID)) {
+        owner.node().pipelineContext().addId(hash, 
+            new TSUID(tsuid, owner.node().schema()));
       }
       
       Tsdb1xPartialTimeSeries pts = rollup_interval != null ? 

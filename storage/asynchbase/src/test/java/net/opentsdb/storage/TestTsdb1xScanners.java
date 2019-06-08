@@ -1360,7 +1360,6 @@ public class TestTsdb1xScanners extends UTBase {
     
     assertEquals(1, scanners.durations.size());
     assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
     assertEquals(0, scanners.scannerIndex());
     assertEquals(1, scanners.scannersSize());
   }
@@ -1401,7 +1400,6 @@ public class TestTsdb1xScanners extends UTBase {
     
     assertEquals(1, scanners.durations.size());
     assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
     assertEquals(0, scanners.scannerIndex());
     assertEquals(1, scanners.scannersSize());
   }
@@ -1451,7 +1449,6 @@ public class TestTsdb1xScanners extends UTBase {
     
     assertEquals(3, scanners.durations.size());
     assertEquals(Duration.ofSeconds(86400), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
     assertEquals(0, scanners.scannerIndex());
     assertEquals(3, scanners.scannersSize());
     
@@ -1468,9 +1465,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     assertEquals(1514764800, scanners.currentTimestamps().getKey().epoch());
     assertEquals(1514808000, scanners.currentTimestamps().getValue().epoch());
-    
     assertEquals(Duration.ofSeconds(43200), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
     
     // advance scanner index to raw
     scanners.scanner_index = 2;
@@ -1495,7 +1490,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(1514772000, scanners.currentTimestamps().getValue().epoch());
     
     assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
   }
 
   @Test
@@ -1544,7 +1538,6 @@ public class TestTsdb1xScanners extends UTBase {
     
     assertEquals(3, scanners.durations.size());
     assertEquals(Duration.ofSeconds(86400), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
     assertEquals(0, scanners.scannerIndex());
     assertEquals(3, scanners.scannersSize());
     
@@ -1563,7 +1556,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(1514808000, scanners.currentTimestamps().getValue().epoch());
     
     assertEquals(Duration.ofSeconds(43200), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
     
     // advance scanner index to raw
     scanners.scanner_index = 2;
@@ -1588,7 +1580,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(1514772000, scanners.currentTimestamps().getValue().epoch());
     
     assertEquals(Duration.ofSeconds(3600), scanners.currentDuration());
-    assertTrue(scanners.ts_ids.isEmpty());
   }
   
   @Test
@@ -2960,7 +2951,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.sets.isEmpty());
     assertTrue(scanners.timestamps.isEmpty());
     assertTrue(scanners.durations.isEmpty());
-    assertTrue(scanners.ts_ids.isEmpty());
   }
 
   @Test

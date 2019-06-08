@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
@@ -37,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
 import gnu.trove.map.TLongObjectMap;
@@ -45,9 +43,7 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
@@ -187,10 +183,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   /** A list of durations for each scanner set reflecting the interval between
    * rows. */
   protected List<Duration> durations;
-  
-  /** A map of hashes to time series IDs for the sets. */
-  protected Map<Long, TimeSeriesId> ts_ids;
-    
+      
   /**
    * Resets the cached scanners object.
    * @param node A non-null parent node.
@@ -240,8 +233,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     
     }
-    LOG.info("************ SKIP TAGK: " + skip_nsun_tagks);
-    LOG.info("************ SKIP TAGV: " + skip_nsun_tagvs);
+    
     if (source_config.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
       pre_aggregate = source_config.getBoolean(config, 
           Tsdb1xHBaseDataStore.PRE_AGG_KEY);
@@ -282,9 +274,6 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
       }
       if (durations == null) {
         durations = Lists.newArrayList();
-      }
-      if (ts_ids == null) {
-        ts_ids = Maps.newConcurrentMap();
       }
     }
   }
@@ -507,9 +496,6 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     }
     if (durations != null) {
       durations.clear();
-    }
-    if (ts_ids != null) {
-      ts_ids.clear();
     }
     node = null;
     source_config = null;
@@ -1073,8 +1059,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
           end, 
           node.rollupUsage(),
           num_scanners, 
-          num_sets, 
-          ts_ids);
+          num_sets);
       map.put(start.epoch(), set);
       start.add(duration);
       end.add(duration);
@@ -1427,15 +1412,4 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     return sets.get(scanner_index);
   }
 
-  boolean idsContainsKey(final long hash) {
-    return ts_ids.containsKey(hash);
-  }
-  
-  void putId(final long hash, final TimeSeriesId id) {
-    ts_ids.putIfAbsent(hash, id);
-  }
-  
-   Map<Long, TimeSeriesId> tsIds() {
-    return ts_ids;
-  }
 }

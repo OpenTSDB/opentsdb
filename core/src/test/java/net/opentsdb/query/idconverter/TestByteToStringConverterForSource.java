@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -30,6 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -37,15 +37,21 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.query.AbstractQueryPipelineContext;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
 import net.opentsdb.query.idconverter.ByteToStringConverterForSource.WrappedPartialTimeSeries;
 import net.opentsdb.stats.Span;
@@ -53,6 +59,7 @@ import net.opentsdb.utils.UnitTestException;
 
 public class TestByteToStringConverterForSource {
 
+  private TestContext context;
   private ByteToStringIdConverter converter;
   private TimeSeriesDataSourceFactory factory;
   private List<PartialTimeSeries> sent_up;
@@ -62,6 +69,9 @@ public class TestByteToStringConverterForSource {
   
   @Before
   public void before() throws Exception {
+    QueryContext qc = mock(QueryContext.class);
+    when(qc.query()).thenReturn(mock(TimeSeriesQuery.class));
+    context = new TestContext(qc);
     converter = mock(ByteToStringIdConverter.class);
     factory = mock(TimeSeriesDataSourceFactory.class);
     sent_up = Lists.newArrayList();
@@ -71,7 +81,7 @@ public class TestByteToStringConverterForSource {
     when(set_a.start()).thenReturn(new SecondTimeStamp(1546300800));
     when(set_b.start()).thenReturn(new SecondTimeStamp(1546304400));
     when(set_c.start()).thenReturn(new SecondTimeStamp(1546308000));
-    
+    when(converter.pipelineContext()).thenReturn(context);
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -86,7 +96,6 @@ public class TestByteToStringConverterForSource {
     ByteToStringConverterForSource source = 
         new ByteToStringConverterForSource(converter);
     assertSame(source.converter, converter);
-    assertTrue(source.decoded_ids.isEmpty());
     assertTrue(source.sets.isEmpty());
     assertTrue(source.resolvers.isEmpty());
   }
@@ -99,7 +108,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_a = getByteId(42, pts_a, set_a);
     source.resolve(pts_a);
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
@@ -114,7 +123,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_b = getByteId(42, pts_b, set_b);
     source.resolve(pts_b);
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
@@ -127,10 +136,16 @@ public class TestByteToStringConverterForSource {
     
     // resolve it!
     TimeSeriesStringId decoded = mock(TimeSeriesStringId.class);
+    when(decoded.type()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_STRING_ID;
+      }
+    });
     resolver.deferred.callback(decoded);
     
-    assertEquals(1, source.decoded_ids.size());
-    assertSame(decoded, source.decoded_ids.get(42L));
+    assertEquals(1, context.ids().get(Const.TS_STRING_ID).size());
+    assertSame(decoded, context.getId(42L, Const.TS_STRING_ID));
     assertEquals(2, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(2, sent_up.size());
@@ -142,8 +157,8 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_c = getByteId(42, pts_c, set_c);
     source.resolve(pts_c);
     
-    assertEquals(1, source.decoded_ids.size());
-    assertSame(decoded, source.decoded_ids.get(42L));
+    assertEquals(1, context.ids().get(Const.TS_STRING_ID).size());
+    assertSame(decoded, context.getId(42L, Const.TS_STRING_ID));
     assertEquals(3, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(3, sent_up.size());
@@ -170,7 +185,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_a = getByteId(42, pts_a, set_a);
     source.resolve(pts_a);
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
@@ -185,7 +200,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_b = getByteId(-1, pts_b, set_a);
     source.resolve(pts_b);
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertEquals(2, source.resolvers.size());
     
@@ -201,10 +216,16 @@ public class TestByteToStringConverterForSource {
     
     // resolve the first one
     TimeSeriesStringId decoded_a = mock(TimeSeriesStringId.class);
+    when(decoded_a.type()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_STRING_ID;
+      }
+    });
     source.resolvers.get(42L).deferred.callback(decoded_a);
     
-    assertEquals(1, source.decoded_ids.size());
-    assertSame(decoded_a, source.decoded_ids.get(42L));
+    assertEquals(1, context.ids().get(Const.TS_STRING_ID).size());
+    assertSame(decoded_a, context.getId(42L, Const.TS_STRING_ID));
     assertEquals(1, source.sets.size());
     assertEquals(1, source.resolvers.size());
     assertEquals(1, sent_up.size());
@@ -213,11 +234,17 @@ public class TestByteToStringConverterForSource {
     
     // resolve the first one
     TimeSeriesStringId decoded_b = mock(TimeSeriesStringId.class);
+    when(decoded_b.type()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_STRING_ID;
+      }
+    });
     source.resolvers.get(-1L).deferred.callback(decoded_b);
     
-    assertEquals(2, source.decoded_ids.size());
-    assertSame(decoded_a, source.decoded_ids.get(42L));
-    assertSame(decoded_b, source.decoded_ids.get(-1L));
+    assertEquals(2, context.ids().get(Const.TS_STRING_ID).size());
+    assertSame(decoded_a, context.getId(42L, Const.TS_STRING_ID));
+    assertSame(decoded_b, context.getId(-1L, Const.TS_STRING_ID));
     assertEquals(1, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(2, sent_up.size());
@@ -229,7 +256,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_c = getByteId(42, pts_c, set_c);
     source.resolve(pts_c);
     
-    assertEquals(2, source.decoded_ids.size());
+    assertEquals(2, context.ids().get(Const.TS_STRING_ID).size());
     assertEquals(2, source.sets.size());
     assertTrue(source.resolvers.isEmpty());
     assertEquals(3, sent_up.size());
@@ -256,7 +283,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_a = getByteId(42, pts_a, set_a);
     source.resolve(pts_a);
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
@@ -271,7 +298,7 @@ public class TestByteToStringConverterForSource {
     TimeSeriesByteId id_b = getByteId(42, pts_b, set_b);
     source.resolve(pts_b);
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertEquals(1, source.resolvers.size());
     
@@ -285,7 +312,7 @@ public class TestByteToStringConverterForSource {
     // throw the exception
     resolver.deferred.callback(new UnitTestException());
     
-    assertTrue(source.decoded_ids.isEmpty());
+    assertNull(context.ids().get(Const.TS_STRING_ID));
     assertTrue(source.sets.isEmpty());
     assertTrue(source.resolvers.isEmpty());
     
@@ -302,12 +329,43 @@ public class TestByteToStringConverterForSource {
                              final PartialTimeSeries pts, 
                              final PartialTimeSeriesSet set) {
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    when(set.id(anyLong())).thenReturn(id);
+    when(id.type()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    if (!context.hasId(hash, Const.TS_BYTE_ID)) {
+      context.addId(hash, id);
+    }
     when(id.dataStore()).thenReturn(factory);
     when(factory.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
       .thenReturn(new Deferred<TimeSeriesStringId>());
     when(pts.set()).thenReturn(set);
+    when(pts.idType()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
     when(pts.idHash()).thenReturn(hash);
     return id;
+  }
+
+  static class TestContext extends AbstractQueryPipelineContext {
+
+    public TestContext(final QueryContext context) {
+      super(context);
+    }
+
+    @Override
+    public Deferred<Void> initialize(final Span span) {
+      return Deferred.fromResult(null);
+    }
+    
+    public Map<TypeToken<? extends TimeSeriesId>, Map<Long, TimeSeriesId>> ids() {
+      return ids;
+    }
+    
   }
 }

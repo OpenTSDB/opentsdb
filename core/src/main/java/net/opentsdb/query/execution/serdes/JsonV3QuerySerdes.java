@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import net.opentsdb.query.processor.summarizer.Summarizer;
@@ -33,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -386,6 +386,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       if (set == null) {
         set = new SeriesWrapper();
         set.id_hash = series.idHash();
+        set.id_type = series.idType();
         set.set = series.set();
         final SeriesWrapper extant = source_shards.putIfAbsent(series.idHash(), set);
         if (extant != null) {
@@ -864,6 +865,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   class SeriesWrapper {
     public PartialTimeSeriesSet set;
     public long id_hash;
+    public TypeToken<? extends TimeSeriesId> id_type;
     public ConcurrentSkipListMap<Long, String> series = 
         new ConcurrentSkipListMap<Long, String>();
   }
@@ -919,7 +921,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
           // serialize the ID
           json.writeStartObject();
-          TimeSeriesId raw_id = shard.set.id(shard.id_hash);
+          TimeSeriesId raw_id = context.getId(shard.id_hash, shard.id_type);
           if (raw_id == null) {
             // MISSING! Fill
             continue;
