@@ -24,6 +24,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.exceptions.IllegalDataException;
 
@@ -32,6 +33,16 @@ public class PercentilesFactories {
   public static class P999Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "P999";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return P999;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return P999;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -61,6 +72,16 @@ public class PercentilesFactories {
     public static final String TYPE = "P99";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return P99;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return P99;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return P99;
     }
@@ -86,6 +107,16 @@ public class PercentilesFactories {
   public static class P95Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "P95";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return P95;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return P95;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -115,6 +146,16 @@ public class PercentilesFactories {
     public static final String TYPE = "P90";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return P90;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return P90;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return P90;
     }
@@ -140,6 +181,16 @@ public class PercentilesFactories {
   public static class P75Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "P75";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return P75;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return P75;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -169,6 +220,16 @@ public class PercentilesFactories {
     public static final String TYPE = "P50";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return P50;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return P50;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return P50;
     }
@@ -194,6 +255,16 @@ public class PercentilesFactories {
   public static class EP999R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "EP999R3";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return EP999R3;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP999R3;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -223,6 +294,16 @@ public class PercentilesFactories {
     public static final String TYPE = "EP99R3";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return EP99R3;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP99R3;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return EP99R3;
     }
@@ -248,6 +329,16 @@ public class PercentilesFactories {
   public static class EP95R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "EP95R3";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return EP95R3;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP95R3;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -277,6 +368,16 @@ public class PercentilesFactories {
     public static final String TYPE = "EP90R3";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return EP90R3;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP90R3;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return EP90R3;
     }
@@ -302,6 +403,16 @@ public class PercentilesFactories {
   public static class EP75R3Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "EP75R3";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return EP75R3;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP75R3;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -331,6 +442,16 @@ public class PercentilesFactories {
     public static final String TYPE = "EP50R3";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return EP50R3;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP50R3;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return EP50R3;
     }
@@ -356,6 +477,16 @@ public class PercentilesFactories {
   public static class EP999R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "EP999R7";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return EP999R7;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP999R7;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -385,6 +516,16 @@ public class PercentilesFactories {
     public static final String TYPE = "EP99R7";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return EP99R7;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP99R7;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return EP99R7;
     }
@@ -410,6 +551,16 @@ public class PercentilesFactories {
   public static class EP95R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "EP95R7";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return EP95R7;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP95R7;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
@@ -439,6 +590,16 @@ public class PercentilesFactories {
     public static final String TYPE = "EP90R7";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return EP90R7;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP90R7;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return EP90R7;
     }
@@ -466,6 +627,16 @@ public class PercentilesFactories {
     public static final String TYPE = "EP75R7";
     
     @Override
+    public NumericAggregator newAggregator() {
+      return EP75R7;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP75R7;
+    }
+    
+    @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {
       return EP75R7;
     }
@@ -491,6 +662,16 @@ public class PercentilesFactories {
   public static class EP50R7Factory extends BaseTSDBPlugin implements 
       NumericAggregatorFactory {
     public static final String TYPE = "EP50R7";
+    
+    @Override
+    public NumericAggregator newAggregator() {
+      return EP50R7;
+    }
+    
+    @Override
+    public NumericAggregator newAggregator(final AggregatorConfig config) {
+      return EP50R7;
+    }
     
     @Override
     public NumericAggregator newAggregator(boolean infectious_nan) {

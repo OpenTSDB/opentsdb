@@ -15,13 +15,14 @@
 package net.opentsdb.data.types.numeric.aggregators;
 
 import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.data.AggregatorFactory;
 
 /**
  * A factory for generating aggregators.
  * 
  * @since 3.0
  */
-public interface NumericArrayAggregatorFactory extends TSDBPlugin {
+public interface NumericArrayAggregatorFactory extends TSDBPlugin, AggregatorFactory {
 
   /**
    * Instantiates a new aggregator.
