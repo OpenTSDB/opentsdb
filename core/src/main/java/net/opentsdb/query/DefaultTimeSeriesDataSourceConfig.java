@@ -99,8 +99,6 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
     planner.replace(config, shiftless);
 
     setupTimeShift(config, planner);
-    ((DefaultQueryPlanner) planner).sinkFilters().remove(config.getId());
-    planner.removeNode(config);
   }
 
   public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
@@ -133,7 +131,8 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
       QueryNodeConfig rebuilt = rebuilt_builder.build();
       planner.addEdge(shift_config, rebuilt);
 
-
+    ((DefaultQueryPlanner) planner).sinkFilters().remove(config.getId());
+    planner.removeNode(config);
   }
 
   /**

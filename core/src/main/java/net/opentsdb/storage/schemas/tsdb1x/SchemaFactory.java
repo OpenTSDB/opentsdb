@@ -42,6 +42,8 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.uid.UniqueIdType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple singleton factory that implements a default and named schemas
@@ -52,6 +54,8 @@ import net.opentsdb.uid.UniqueIdType;
 public class SchemaFactory extends BaseTSDBPlugin 
                            implements TimeSeriesDataSourceFactory,
                                       WritableTimeSeriesDataStoreFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(SchemaFactory.class);
+
   public static final String TYPE = "Tsdb1xSchemaFactory";
   
   public static final String KEY_PREFIX = "tsd.storage.";
@@ -134,10 +138,13 @@ public class SchemaFactory extends BaseTSDBPlugin
         return;
       }
     }
+    LOG.info("Before planning  " + planner.configGraph());
+    LOG.info("Before planning  " + ((TimeSeriesDataSourceConfig) config).timeShifts());
     // TODO - Make this a shared method
     if (((TimeSeriesDataSourceConfig) config).timeShifts() != null) {
       DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
     }
+    LOG.info("After planning  " + planner.configGraph());
  }
 
   @Override
