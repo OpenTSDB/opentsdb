@@ -19,6 +19,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.exceptions.IllegalDataException;
 
@@ -32,6 +33,16 @@ public class MultiplyFactory extends BaseTSDBPlugin implements
     NumericAggregatorFactory {
 
   public static final String TYPE = "Multiply";
+  
+  @Override
+  public NumericAggregator newAggregator() {
+    return AGGREGATOR;
+  }
+  
+  @Override
+  public NumericAggregator newAggregator(final AggregatorConfig config) {
+    return AGGREGATOR;
+  }
   
   @Override
   public NumericAggregator newAggregator(boolean infectious_nan) {

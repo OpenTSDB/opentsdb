@@ -12,23 +12,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.data.types.numeric.aggregators;
-
-import net.opentsdb.core.TSDBPlugin;
-import net.opentsdb.data.AggregatorFactory;
+package net.opentsdb.data;
 
 /**
- * A factory for generating aggregators.
+ * A config for aggregation functions.
  * 
  * @since 3.0
  */
-public interface NumericAggregatorFactory extends TSDBPlugin, AggregatorFactory {
-  
-  /**
-   * Instantiates a new aggregator.
-   * @param infectious_nan Whether or not NaNs are infectious.
-   * @return A new instance of the aggregator.
-   */
-  public NumericAggregator newAggregator(final boolean infectious_nan);
-  
+public interface AggregatorConfig {
+
 }

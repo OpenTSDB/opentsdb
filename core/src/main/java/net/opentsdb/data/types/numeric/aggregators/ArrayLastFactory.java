@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Returns the last values honoring infectious NaN.
@@ -29,6 +30,19 @@ import net.opentsdb.core.TSDB;
 public class ArrayLastFactory extends BaseArrayFactory {
 
   public static final String TYPE = "Last";
+  
+  @Override
+  public NumericArrayAggregator newAggregator() {
+    return new ArrayLast(false);
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
+    if (config != null && config instanceof NumericAggregatorConfig) {
+      return new ArrayLast(((NumericAggregatorConfig) config).infectiousNan());
+    }
+    return new ArrayLast(false);
+  }
   
   @Override
   public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
@@ -116,5 +130,9 @@ public class ArrayLastFactory extends BaseArrayFactory {
       }
     }
     
+    @Override
+    public String name() {
+      return ArrayLastFactory.TYPE;
+    }
   }
 }
