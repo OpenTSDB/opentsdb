@@ -36,7 +36,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
@@ -49,11 +48,11 @@ public class Rate extends AbstractQueryNode {
   private static final Logger LOG = LoggerFactory.getLogger(Rate.class);
   
   /** The non-null config. */
-  private final RateOptions config;
+  private final RateConfig config;
   
   public Rate(final QueryNodeFactory factory, 
               final QueryPipelineContext context, 
-              final RateOptions config) {
+              final RateConfig config) {
     super(factory, context);
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null.");

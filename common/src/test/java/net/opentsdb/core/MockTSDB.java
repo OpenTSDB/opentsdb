@@ -20,6 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +29,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -35,9 +37,10 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.threadpools.FixedThreadPoolExecutor;
+import net.opentsdb.threadpools.UserAwareThreadPoolExecutor;
 import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 
 /**
@@ -51,6 +54,7 @@ public class MockTSDB implements TSDB {
   public FakeTaskTimer query_timer;
   public TSDBThreadPoolExecutor query_pool;
   public List<Runnable> runnables;
+  public Map<Long, QueryContext> running_queries;
   
   public MockTSDB() {
     config = (UnitTestConfiguration) UnitTestConfiguration.getConfiguration();
@@ -60,7 +64,7 @@ public class MockTSDB implements TSDB {
     maint_timer.multi_task = true;
     query_timer = spy(new FakeTaskTimer());
     query_timer.multi_task = true;
-    query_pool = mock(FixedThreadPoolExecutor.class);
+    query_pool = mock(UserAwareThreadPoolExecutor.class);
     runnables = Lists.newArrayList();
     doAnswer(new Answer<Void>() {
       @Override
@@ -68,7 +72,16 @@ public class MockTSDB implements TSDB {
         runnables.add((Runnable) invocation.getArguments()[0]);
         return null;
       }
+    }).when(query_pool).submit(any(Runnable.class), any(QueryContext.class));
+
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        runnables.add((Runnable) invocation.getArguments()[0]);
+        return null;
+      }
     }).when(query_pool).submit(any(Runnable.class));
+    running_queries = Maps.newConcurrentMap();
   }
   
   @Override
@@ -99,6 +112,22 @@ public class MockTSDB implements TSDB {
   @Override
   public Timer getQueryTimer() {
     return query_timer;
+  }
+  
+  @Override
+  public boolean registerRunningQuery(final long hash, 
+                                      final QueryContext context) {
+    return running_queries.putIfAbsent(hash, context) == null;
+  }
+  
+  @Override
+  public boolean completeRunningQuery(final long hash) {
+    final QueryContext context = running_queries.remove(hash);
+    if (context == null) {
+      return false;
+    }
+    context.close();
+    return true;
   }
   
   public static class FakeTaskTimer extends HashedWheelTimer {

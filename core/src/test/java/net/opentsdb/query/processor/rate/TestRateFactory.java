@@ -30,7 +30,7 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -40,7 +40,6 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.pojo.RateOptions;
 
 public class TestRateFactory {
 
@@ -49,7 +48,7 @@ public class TestRateFactory {
     final RateFactory factory = new RateFactory();
     assertEquals(2, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    factory.initialize(mock(TSDB.class), null).join(1);
+    factory.initialize(MockTSDBDefault.getMockTSDB(), null).join(1);
     assertEquals(RateFactory.TYPE, factory.id());
   }
   
@@ -77,9 +76,9 @@ public class TestRateFactory {
   @Test
   public void newIterator() throws Exception {
     final QueryResult result = mock(QueryResult.class);
-    RateOptions config = RateOptions.newBuilder()
-        .setId("foo")
+    RateConfig config = (RateConfig) RateConfig.newBuilder()
         .setInterval("15s")
+        .setId("foo")
         .build();
     
     final RateFactory factory = new RateFactory();

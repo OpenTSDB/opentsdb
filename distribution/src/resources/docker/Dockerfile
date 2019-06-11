@@ -11,7 +11,6 @@ ENV       WORKDIR /usr/share/opentsdb
 ENV       LOGDIR  /var/log/opentsdb
 
 RUN       mkdir $LOGDIR
-RUN       apk add --no-cache vim
 
 ADD       opentsdb-$projectVersion.tar.gz $SHAREDIR
 RUN       chown -R root $WORKDIR

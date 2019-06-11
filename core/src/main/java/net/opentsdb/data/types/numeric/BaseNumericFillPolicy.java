@@ -96,7 +96,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
     case NOT_A_NUMBER:
       return Double.NaN;
     case MIN:
-      return Double.MIN_VALUE;
+      return -Double.MAX_VALUE;
     case MAX:
       return Double.MAX_VALUE;
     default:

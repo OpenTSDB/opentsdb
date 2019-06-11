@@ -1,2 +1,2 @@
 net.opentsdb.threadpools.FixedThreadPoolExecutor
-net.opentsdb.threadpools.RoundRobinPoolExecutor
+net.opentsdb.threadpools.UserAwareThreadPoolExecutor

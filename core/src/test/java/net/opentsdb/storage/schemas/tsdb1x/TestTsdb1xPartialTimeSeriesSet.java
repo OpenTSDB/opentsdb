@@ -42,7 +42,9 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 
 public class TestTsdb1xPartialTimeSeriesSet {
@@ -86,6 +88,11 @@ public class TestTsdb1xPartialTimeSeriesSet {
     QueryNodeConfig config = mock(QueryNodeConfig.class);
     when(config.getId()).thenReturn("Mock");
     when(node.config()).thenReturn(config);
+    QueryPipelineContext mockQpc = mock(QueryPipelineContext.class);
+    QueryContext mockQc = mock(QueryContext.class);
+    when(mockQpc.queryContext()).thenReturn(mockQc );
+    when(node.pipelineContext()).thenReturn(mockQpc);
+    
     TSDB.runnables.clear();
   }
   

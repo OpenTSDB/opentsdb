@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.tsd;
 
+import java.time.temporal.ChronoUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +47,7 @@ public class MetricsHandler implements HttpHandler {
   public void handleRequest(HttpServerExchange exchange) throws Exception {
     if (!exchange.isComplete()) {
       final StatsTimer timer = stats_collector.startTimer(
-          "undertow.request.latency", false);
+          "undertow.request.latency", ChronoUnit.MILLIS);
       stats_collector.incrementCounter("undertow.requests");
       
       // from io.undertow.server.handlers.MetricsHandler
@@ -54,9 +56,9 @@ public class MetricsHandler implements HttpHandler {
         public void exchangeEvent(final HttpServerExchange exchange, 
                                   final NextListener nextListener) {
           try {
-          timer.stop();
-          stats_collector.incrementCounter("undertow.response.statuscode", 
-              "code", Integer.toString(exchange.getStatusCode()));
+            timer.stop();
+            stats_collector.incrementCounter("undertow.response.statuscode", 
+                "code", Integer.toString(exchange.getStatusCode()));
           } catch (Throwable t) {
             // we don't want to ruin the call if something goes pear shaped in
             // the stats collector code.

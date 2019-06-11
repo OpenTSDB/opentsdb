@@ -67,14 +67,13 @@ public class BlackholeStatsCollector extends BaseTSDBPlugin implements
   }
 
   @Override
-  public StatsTimer startTimer(final String metric, final boolean histo) {
+  public StatsTimer startTimer(final String metric, final ChronoUnit units) {
     return TMR;
   }
 
   public void addTime(final String metric, 
                       final long duration, 
                       final ChronoUnit units,
-                      final boolean histo,
                       final String... tags) {
     // Asta la vista!
   }
@@ -86,8 +85,13 @@ public class BlackholeStatsCollector extends BaseTSDBPlugin implements
     }
 
     @Override
-    public long startTimeNanos() {
+    public long startTime() {
       return 0;
+    }
+    
+    @Override
+    public ChronoUnit units() {
+      return ChronoUnit.MILLIS;
     }
   }
   private static final BlackholeTimer TMR = new BlackholeTimer();

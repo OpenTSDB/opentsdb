@@ -16,6 +16,7 @@ package net.opentsdb.core;
 
 import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 
@@ -54,5 +55,22 @@ public interface TSDB {
    * @return A non-null timer.
    */
   public Timer getQueryTimer();
+  
+  /**
+   * Adds a running query to the tracking map so we can clean up resources.
+   * @param hash The hash of the query.
+   * @param context The non-null context.
+   * @return True if added successfully, false if there was a collision.
+   */
+  public boolean registerRunningQuery(final long hash, 
+                                      final QueryContext context);
+  
+  /**
+   * Calls {@code close()} on the running query and removes it from the 
+   * tracking map, returning true if found, false if not.
+   * @param hash The hash of the query.
+   * @return True if the query was found and closed, false if not.
+   */
+  public boolean completeRunningQuery(final long hash);
   
 }

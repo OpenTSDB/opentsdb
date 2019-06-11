@@ -46,7 +46,7 @@ import com.google.common.collect.Lists;
 public class TestRateNumericArrayIterator {
   private TimeSeries source;
   private TimeSeriesQuery query;
-  private RateOptions config;
+  private RateConfig config;
   private QueryNode node;
   private QueryResult result;
   private TimeSpecification time_spec;
@@ -64,9 +64,9 @@ public class TestRateNumericArrayIterator {
         new MutableNumericValue(new SecondTimeStamp(60L * 4), 40),
         new MutableNumericValue(new SecondTimeStamp(60L * 5), 50));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -103,6 +103,53 @@ public class TestRateNumericArrayIterator {
   }
   
   @Test
+  public void longsDelta() {
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L), 50),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 50),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 50));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new long[] { 0, 10, -10, 10, -10, 10 }, 
+        value.value().longArray());
+    
+    assertFalse(it.hasNext());
+    
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
+    
+    it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    value = (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new long[] { 0, 60, -60, 60, -60, 60 }, 
+        value.value().longArray());
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void doubles() {
     setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40.5),
         new MutableNumericValue(new SecondTimeStamp(60L), 50.5),
@@ -111,9 +158,9 @@ public class TestRateNumericArrayIterator {
         new MutableNumericValue(new SecondTimeStamp(60L * 4), 40.5),
         new MutableNumericValue(new SecondTimeStamp(60L * 5), 50.5));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
         .build();
     
     setupMock();
@@ -144,6 +191,53 @@ public class TestRateNumericArrayIterator {
     value = (TimeSeriesValue<NumericArrayType>) it.next();
     
     assertArrayEquals(new double[] { Double.NaN, 1, -1, 1, -1, 1 }, 
+        value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void doublesDelta() {
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40.5),
+        new MutableNumericValue(new SecondTimeStamp(60L), 50.5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 40.5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 50.5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 40.5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 50.5));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new double[] { 0, 10, -10, 10, -10, 10 }, 
+        value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+    
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L), 60.5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 60.5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 60.5));
+    
+    it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    value = (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new double[] { 0, 60.5, -60.5, 60.5, -60.5, 60.5 }, 
         value.value().doubleArray(), 0.001);
     
     assertFalse(it.hasNext());
@@ -159,9 +253,30 @@ public class TestRateNumericArrayIterator {
         new MillisecondTimeStamp(BASE_TIME), 
         new MillisecondTimeStamp(BASE_TIME + 10000000));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void noDataDelta() throws Exception {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setDeltaOnly(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -180,11 +295,11 @@ public class TestRateNumericArrayIterator {
         new MutableNumericValue(new SecondTimeStamp(60L * 4), 65),
         new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(2)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -210,12 +325,12 @@ public class TestRateNumericArrayIterator {
         new MutableNumericValue(new SecondTimeStamp(60L * 4), 65),
         new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setCounterMax(2)
         .setResetValue(2)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -241,11 +356,11 @@ public class TestRateNumericArrayIterator {
         new MutableNumericValue(new SecondTimeStamp(60L * 4), 65),
         new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
         .setCounter(true)
         .setDropResets(true)
+        .setId("foo")
         .build();
     
     setupMock();
@@ -258,6 +373,37 @@ public class TestRateNumericArrayIterator {
     
     assertArrayEquals(new double[] { Double.NaN, 1, 1.833, 0, 1, 0 }, 
         value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void counterDropResetsDelta() {
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 170),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 5),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 65),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setCounter(true)
+        .setDropResets(true)
+        .setDeltaOnly(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new long[] { 0, 60, 110, 0, 60, 0 }, 
+        value.value().longArray());
     
     assertFalse(it.hasNext());
   }

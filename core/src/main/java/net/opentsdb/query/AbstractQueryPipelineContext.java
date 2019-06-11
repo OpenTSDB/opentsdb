@@ -296,36 +296,41 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   
   @Override
   public void fetchNext(final Span span) {
-    if (context.mode() == QueryMode.SINGLE ||
-        context.mode() == QueryMode.BOUNDED_SERVER_SYNC_STREAM || 
-        context.mode() == QueryMode.CONTINOUS_SERVER_SYNC_STREAM ||
-        context.mode() == QueryMode.BOUNDED_SERVER_ASYNC_STREAM ||
-        context.mode() == QueryMode.CONTINOUS_SERVER_ASYNC_STREAM) {
-      for (final TimeSeriesDataSource source : plan.sources()) {
-        try {
-          source.fetchNext(span);
-        } catch (Exception e) {
-          LOG.error("Failed to fetch next from source: " 
-              + source, e);
-          onError(e);
-          break;
+    context.tsdb().getQueryThreadPool().submit(new Runnable() {
+      @Override
+      public void run() {
+        if (context.mode() == QueryMode.SINGLE ||
+            context.mode() == QueryMode.BOUNDED_SERVER_SYNC_STREAM || 
+            context.mode() == QueryMode.CONTINOUS_SERVER_SYNC_STREAM ||
+            context.mode() == QueryMode.BOUNDED_SERVER_ASYNC_STREAM ||
+            context.mode() == QueryMode.CONTINOUS_SERVER_ASYNC_STREAM) {
+          for (final TimeSeriesDataSource source : plan.sources()) {
+            try {
+              source.fetchNext(span);
+            } catch (Exception e) {
+              LOG.error("Failed to fetch next from source: " 
+                  + source, e);
+              onError(e);
+              break;
+            }
+          }
+          return;
+        }
+        
+        synchronized(this) {
+          if (source_idx >= plan.sources().size()) {
+            source_idx = 0;
+          }
+          try {
+            plan.sources().get(source_idx++).fetchNext(span);
+          } catch (Exception e) {
+            LOG.error("Failed to fetch next from source: " 
+                + plan.sources().get(source_idx - 1), e);
+            onError(e);
+          }
         }
       }
-      return;
-    }
-    
-    synchronized(this) {
-      if (source_idx >= plan.sources().size()) {
-        source_idx = 0;
-      }
-      try {
-        plan.sources().get(source_idx++).fetchNext(span);
-      } catch (Exception e) {
-        LOG.error("Failed to fetch next from source: " 
-            + plan.sources().get(source_idx - 1), e);
-        onError(e);
-      }
-    }
+    }, context);
   }
   
   @Override

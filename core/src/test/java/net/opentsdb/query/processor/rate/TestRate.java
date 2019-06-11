@@ -39,7 +39,7 @@ import net.opentsdb.query.pojo.RateOptions;
 public class TestRate {
   private QueryPipelineContext context;
   private QueryNodeFactory factory;
-  private RateOptions config;
+  private RateConfig config;
   private QueryNode upstream;
   
   @Before
@@ -50,9 +50,9 @@ public class TestRate {
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
     
-    config = RateOptions.newBuilder()
-        .setId("foo")
+    config = (RateConfig) RateConfig.newBuilder()
         .setInterval("15s")
+        .setId("foo")
         .build();
   }
   

@@ -307,7 +307,7 @@ public class HACluster extends AbstractQueryNode {
               public void run() {
                 sendUpstream(new WrappedResult(entry.getValue()));
               }
-            });
+            }, context.queryContext());
           } else {
             sendUpstream(new WrappedResult(entry.getValue()));
           }

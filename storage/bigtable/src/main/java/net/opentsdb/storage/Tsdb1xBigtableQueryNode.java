@@ -249,7 +249,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
       public void run() {
         completeUpstream(final_sequence, total_sequences);
       }
-    });
+    }, this.context.queryContext());
   }
 
   @Override
@@ -265,7 +265,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
           completeUpstream(sequence_id.get(), sequence_id.get());
         }
       }
-    });
+    }, context.queryContext());
   }
 
   @Override
@@ -280,7 +280,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
       public void run() {
         sendUpstream(t);        
       }
-    });
+    }, context.queryContext());
   }
 
   @Override

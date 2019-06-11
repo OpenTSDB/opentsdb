@@ -16,6 +16,7 @@ package net.opentsdb.servlet.resources;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -105,7 +106,7 @@ public class RawQueryRpc {
     final StatsTimer timer;
     if (tsdb.getStatsCollector() != null) {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "3x");
-      timer = tsdb.getStatsCollector().startTimer("query.user.latency", true);
+      timer = tsdb.getStatsCollector().startTimer("query.user.latency", ChronoUnit.MILLIS);
     } else {
       timer = null;
     }
@@ -209,6 +210,8 @@ public class RawQueryRpc {
             .setStatsTimer(timer)
             .build())
         .build();
+    tsdb.registerRunningQuery(Long.parseLong(request.getHeader(
+        OpenTSDBApplication.INTERNAL_HASH_HEADER)), context);
     
     if (trace != null && query.isDebugEnabled()) {
       context.logDebug("Trace ID: " + trace.traceId());
@@ -218,42 +221,21 @@ public class RawQueryRpc {
 
       @Override
       public void onComplete(final AsyncEvent event) throws IOException {
-        try {
-          context.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
+        // no-op
       }
 
       @Override
       public void onTimeout(final AsyncEvent event) throws IOException {
         LOG.error("The query has timed out");
-        try {
-          context.close();
-        } catch (Exception e) {
-          LOG.error("Failed to close the query: ", e);
-        }
-        
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
             + "the timeout limit.", 504), event.getAsyncContext().getResponse());
         event.getAsyncContext().complete();
-        
-        try {
-          context.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
       }
 
       @Override
       public void onError(final AsyncEvent event) throws IOException {
         LOG.error("WTF? An error for the AsyncTimeout?: " + event);
-        try {
-          context.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
       }
 
       @Override

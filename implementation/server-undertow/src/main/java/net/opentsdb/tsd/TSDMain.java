@@ -19,7 +19,10 @@ import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import io.undertow.UndertowOptions;
+import io.undertow.server.ExchangeCompletionListener;
 import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.server.ExchangeCompletionListener.NextListener;
 import io.undertow.server.handlers.accesslog.AccessLogHandler;
 import io.undertow.server.handlers.accesslog.AccessLogReceiver;
 import io.undertow.server.handlers.encoding.EncodingHandler;
@@ -30,6 +33,7 @@ import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
 import io.undertow.servlet.api.InstanceFactory;
 import io.undertow.servlet.api.InstanceHandle;
+import io.undertow.util.HttpString;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
@@ -37,6 +41,7 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.stats.BlackholeStatsCollector;
+import net.opentsdb.tsd.handlers.QueryRegistrationHandler;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.RefreshingSSLContext;
 import net.opentsdb.utils.RefreshingSSLContext.SourceType;
@@ -315,6 +320,8 @@ public class TSDMain {
           !(tsdb.getStatsCollector() instanceof BlackholeStatsCollector)) {
         handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
       }
+      
+      handler = new QueryRegistrationHandler(tsdb, handler);
       
       final Builder builder = Undertow.builder()
           .setHandler(handler);

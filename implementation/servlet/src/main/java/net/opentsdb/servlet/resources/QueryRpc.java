@@ -16,6 +16,7 @@ package net.opentsdb.servlet.resources;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -46,10 +47,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
-import jersey.repackaged.com.google.common.collect.Lists;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
@@ -189,7 +189,7 @@ final public class QueryRpc {
     final StatsTimer timer;
     if (tsdb.getStatsCollector() != null) {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "2x");
-      timer = tsdb.getStatsCollector().startTimer("query.user.latency", true);
+      timer = tsdb.getStatsCollector().startTimer("query.user.latency", ChronoUnit.MILLIS);
     } else {
       timer = null;
     }
@@ -331,47 +331,29 @@ final public class QueryRpc {
             .setStatsTimer(timer)
             .build())
         .build();
+    tsdb.registerRunningQuery(Long.parseLong(request.getHeader(
+        OpenTSDBApplication.INTERNAL_HASH_HEADER)), ctx);
     
     class AsyncTimeout implements AsyncListener {
 
       @Override
       public void onComplete(final AsyncEvent event) throws IOException {
-        try {
-          ctx.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
+        // no-op
       }
 
       @Override
       public void onTimeout(final AsyncEvent event) throws IOException {
         LOG.error("The query has timed out");
-        try {
-          ctx.close();
-        } catch (Exception e) {
-          LOG.error("Failed to close the query: ", e);
-        }
-        
+                
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
             + "the timeout limit.", 504), event.getAsyncContext().getResponse());
         event.getAsyncContext().complete();
-        
-        try {
-          ctx.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
       }
 
       @Override
       public void onError(final AsyncEvent event) throws IOException {
         LOG.error("WTF? An error for the AsyncTimeout?: " + event);
-        try {
-          ctx.close();
-        } catch (Throwable t) {
-          LOG.error("Failed to close the query context", t);
-        }
       }
 
       @Override
