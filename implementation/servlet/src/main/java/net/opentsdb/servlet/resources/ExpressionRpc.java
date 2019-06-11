@@ -200,6 +200,7 @@ public class ExpressionRpc {
         //.put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
         //.put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes())) // TODO
         .put("traceId", trace != null ? trace.traceId() : "")
+        .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
         .put("query", ts_query)
         .build()));
     if (convert_span != null) {
