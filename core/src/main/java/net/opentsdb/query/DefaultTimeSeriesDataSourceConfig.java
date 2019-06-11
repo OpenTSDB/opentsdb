@@ -18,12 +18,10 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
@@ -103,7 +101,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
 
   public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
-    final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+    final BaseQueryNodeConfig shift_config = (BaseQueryNodeConfig) TimeShiftConfig.newBuilder()
         .setTimeshiftInterval(config.getTimeShiftInterval())
         .setId(config.getId() + "-timeShift")
         .build();
@@ -122,14 +120,15 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
     }
 
     String shift_id = config.timeShifts().getValue() + "-timeShift";
-      final Pair<Boolean, TemporalAmount> amounts =  config.timeShifts();
-      QueryNodeConfig.Builder rebuilt_builder = ((TimeSeriesDataSourceConfig.Builder)
-          config.toBuilder())
-          .setTimeShifts(amounts)
-          .setId(shift_id);
-      rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
-      QueryNodeConfig rebuilt = rebuilt_builder.build();
-      planner.addEdge(shift_config, rebuilt);
+    final Pair<Boolean, TemporalAmount> amounts = config.timeShifts();
+    QueryNodeConfig.Builder rebuilt_builder = ((TimeSeriesDataSourceConfig.Builder)
+        config.toBuilder())
+        .setTimeShifts(amounts)
+        .setId(shift_id);
+    rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
+    ((BaseTimeSeriesDataSourceConfig.Builder) rebuilt_builder).setHasBeenSetup(true);
+    QueryNodeConfig rebuilt = rebuilt_builder.build();
+    planner.addEdge(shift_config, rebuilt);
 
     ((DefaultQueryPlanner) planner).sinkFilters().remove(config.getId());
     planner.removeNode(config);
@@ -247,6 +246,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
             pushdown.toBuilder().setSources((ArrayList) ((ArrayList) pushdown.getSources()).clone())
                 .build());
       }
+
       for (QueryNodeConfig pushdown : pushdown_clone) {
         if (pushdown.getSources().contains(original.getId())) {
           pushdown.getSources().remove(original.getId());
@@ -255,8 +255,6 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
         }
 
       }
-
-
 
       ((TimeSeriesDataSourceConfig.Builder) time_shift_config_builder)
           .setPushDownNodes(pushdown_clone);

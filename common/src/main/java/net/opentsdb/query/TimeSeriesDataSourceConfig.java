@@ -16,8 +16,6 @@ package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
 import java.util.List;
-import java.util.Map;
-
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Pair;

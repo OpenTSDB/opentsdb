@@ -34,6 +34,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -128,6 +129,7 @@ public class SchemaFactory extends BaseTSDBPlugin
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
+
     if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
       // all done.
       return;
@@ -138,13 +140,11 @@ public class SchemaFactory extends BaseTSDBPlugin
         return;
       }
     }
-    LOG.info("Before planning  " + planner.configGraph());
-    LOG.info("Before planning  " + ((TimeSeriesDataSourceConfig) config).timeShifts());
-    // TODO - Make this a shared method
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null) {
+
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null ) {
       DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
     }
-    LOG.info("After planning  " + planner.configGraph());
+
  }
 
   @Override
