@@ -125,8 +125,15 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+    return (Builder) newBuilder()
+        .setInterval(interval)
+        .setAlpha(alpha)
+        .setAverageInitial(avg_initial)
+        .setWeighted(weighted)
+        .setExponential(exponential)
+        .setSamples(samples)
+        .setSources(sources)
+        .setId(id);
   }
   
   @Override
