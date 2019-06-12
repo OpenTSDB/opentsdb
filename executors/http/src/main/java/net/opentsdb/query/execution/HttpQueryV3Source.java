@@ -19,6 +19,13 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.RejectedExecutionException;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
@@ -45,7 +52,6 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.DefaultSharedHttpClient;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Pair;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -55,15 +61,6 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * An executor that fires an HTTP query against a V3 endpoint for a metric,
@@ -144,31 +141,6 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setPushDownNodes(null)
         .setSourceId(null) // TODO - we may want to make this configurable
         .setType("TimeSeriesDataSource");
-    
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null && 
-        ((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(config.getId())) {
-      // we need to shift
-      Pair<Boolean, TemporalAmount> shift = 
-          ((TimeSeriesDataSourceConfig) config).timeShifts().get(config.getId());
-      final TimeStamp start_ts = context.query().startTime().getCopy();
-      final TimeStamp end_ts = context.query().endTime().getCopy();
-      if (shift.getKey()) {
-        start_ts.subtract(shift.getValue());
-        end_ts.subtract(shift.getValue());
-      } else {
-        start_ts.add(shift.getValue());
-        end_ts.add(shift.getValue());
-      }
-      
-      // TODO - handle nanos
-      // clear out the intervals and shift so the target doesn't re-compute
-      // the shifts.
-      builder.setStart(Long.toString(start_ts.msEpoch()));
-      builder.setEnd(Long.toString(end_ts.msEpoch()));
-      source_builder.setNextIntervals(0)
-                    .setPreviousIntervals(0)
-                    .setTimeShiftInterval(null);
-    }
 
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
       builder.addFilter(DefaultNamedFilter.newBuilder()
@@ -188,7 +160,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
       }
     }
     List<String> pushdown_serdes = null;
-    
+
     // TODO - we need to confirm the graph links.
     Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
     pushdowns.put(config.getId(), source_builder.build());
@@ -204,10 +176,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         pushdown = b.build();
         config.getPushDownNodes().set(index, pushdown);
       }
-      pushdowns.put(pushdown.getId(), pushdown);
       index++;
+
+      pushdowns.put(pushdown.getId(), pushdown);
     }
-    
+
+
     for (final QueryNodeConfig pushdown : pushdowns.values()) {
       if (pushdown.getSources().isEmpty()) {
         // just the source, add it

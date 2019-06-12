@@ -16,8 +16,6 @@ package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
 import java.util.List;
-import java.util.Map;
-
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Pair;
@@ -77,17 +75,9 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
    * period over period plots. In the TSDB duration format, e.g. "1w". */
   public String getTimeShiftInterval();
   
-  /** @return The number of intervals previous to the current query time range
-   * to fetch data for, offset by {@link #getTimeShiftInterval()}. */
-  public int getPreviousIntervals();
-  
-  /** @return The number of intervals after the current query time range to 
-   * fetch data for, offset by {@link #getTimeShiftInterval()}. */
-  public int getNextIntervals();
-  
-  /** @return An optional map of dataSource() names to temporal amounts. 
+  /** @return An optional map of dataSource() names to temporal amounts.
    * The values are <previous == true/post == false, TemporalAmount> */
-  public Map<String, Pair<Boolean, TemporalAmount>> timeShifts();
+  public Pair<Boolean, TemporalAmount> timeShifts();
   
   /** @return Whether or not the node has been setup so we can avoid infinite
    * loops when configuring the graph. */
@@ -134,12 +124,8 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
     
     public Builder setTimeShiftInterval(final String interval);
     
-    public Builder setPreviousIntervals(final int intervals);
-    
-    public Builder setNextIntervals(final int intervals);
-    
     public Builder setTimeShifts(
-        final Map<String, Pair<Boolean, TemporalAmount>> amounts);
+        final Pair<Boolean, TemporalAmount> amounts);
     
     public Builder setHasBeenSetup(final boolean has_been_setup);
     

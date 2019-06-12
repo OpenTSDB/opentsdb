@@ -807,8 +807,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         
         final long start_ts;
         final long end_ts;
-        if (config.timeShifts() == null || 
-            !config.timeShifts().containsKey(config.getId())) {
+        if (config.timeShifts() == null) {
           start_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
               query.startTime().msEpoch() : 
                 query.endTime().msEpoch() - ((sequence_id + 1) * ROW_WIDTH);
@@ -818,7 +817,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         } else {
           TimeStamp ts = query.startTime().getCopy();
           final Pair<Boolean, TemporalAmount> pair = 
-              config.timeShifts().get(config.getId());
+              config.timeShifts();
           if (pair.getKey()) {
             ts.subtract(pair.getValue());
           } else {

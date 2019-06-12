@@ -367,9 +367,8 @@ public class TestHttpQueryV3Source {
   
   @Test
   public void requestOffset() throws Exception {
-    Map<String, Pair<Boolean, TemporalAmount>> offsets = Maps.newHashMap();
-    offsets.put("m1-previous-P1H", new Pair<>(true, DateTime.parseDuration2("1h")));
-    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+    Pair<Boolean, TemporalAmount> offsets = new Pair<>(true, DateTime.parseDuration2("1h"));
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
         DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
@@ -378,7 +377,7 @@ public class TestHttpQueryV3Source {
         .setFilterId("f1")
         .setId("m1-previous-P1H")
         .build();
-    
+
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart("1546304400")
@@ -392,17 +391,17 @@ public class TestHttpQueryV3Source {
                 .build())
             .build())
         .build();
-    
+
     when(ctx.query()).thenReturn(query);
     HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
     src.fetchNext(null);
-    
+
     verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1546300800000\""));
-    assertTrue(json.contains("\"end\":\"1546304400000\""));
+    assertTrue(json.contains("\"start\":\"1546304400000\""));
+    assertTrue(json.contains("\"end\":\"1546308000000\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1-previous-P1H\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));

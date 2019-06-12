@@ -388,7 +388,6 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .setPrePadding("2h")
             .setPostPadding("2h")
             .setTimeShiftInterval("1d")
-            .setPreviousIntervals(2)
             .setId("m1")
             .build(),
         true);
@@ -476,7 +475,6 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .setPrePadding("2h")
             .setPostPadding("2h")
             .setTimeShiftInterval("1d")
-            .setPreviousIntervals(2)
             .setId("m1")
             .build(),
         true);

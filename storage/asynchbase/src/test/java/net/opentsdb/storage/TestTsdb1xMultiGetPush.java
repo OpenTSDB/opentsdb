@@ -583,7 +583,6 @@ public class TestTsdb1xMultiGetPush extends UTBase {
                 .build())
             .addSummaryAggregation("max")
             .setTimeShiftInterval("1d")
-            .setPreviousIntervals(2)
             .setId("m1")
             .build(),
         true);

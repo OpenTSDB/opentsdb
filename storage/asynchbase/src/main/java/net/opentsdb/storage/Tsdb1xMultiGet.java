@@ -803,10 +803,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       timestamp.update(node.pipelineContext().query().startTime());
     }
     
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() != null) {
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         timestamp.subtract(pair.getValue());
       } else {
@@ -1065,10 +1064,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     } else {
       end_timestamp.update(node.pipelineContext().query().endTime());
     }
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() != null) {
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         end_timestamp.subtract(pair.getValue());
       } else {

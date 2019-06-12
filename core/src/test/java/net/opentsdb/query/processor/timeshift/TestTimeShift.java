@@ -71,17 +71,16 @@ public class TestTimeShift {
     when(CONTEXT.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
     when(result.timeSeries()).thenReturn(Lists.newArrayList(SERIES));
-    config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-        .setConfig((TimeSeriesDataSourceConfig) 
-            DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("system.cpu.user")
-                .build())
-            .setTimeShiftInterval("1d")
-            .setPreviousIntervals(2)
-            .setNextIntervals(1)
-            .setId("m1")
+
+    QueryNodeConfig queryNodeConfig = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
             .build())
+        .setTimeShiftInterval("1d")
+        .setId("m1")
+        .build();
+    config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+        .setTimeshiftInterval(((DefaultTimeSeriesDataSourceConfig)queryNodeConfig).getTimeShiftInterval())
         .setId("m1-timeshift")
         .build();
     
@@ -110,7 +109,7 @@ public class TestTimeShift {
     
     when(result.dataSource()).thenReturn("m1");
     shift.onNext(result);
-    verify(upstream, never()).onNext(any(TimeShiftResult.class));
+    verify(upstream, times(1)).onNext(any(TimeShiftResult.class));
   }
   
 }
