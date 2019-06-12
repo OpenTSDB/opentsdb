@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
 package net.opentsdb.data;
 
 /**
- * A config for aggregation functions.
+ * A config for aggregation functions such as the MovingAverage where we need
+ * some parameters for execution.
  * 
  * @since 3.0
  */
