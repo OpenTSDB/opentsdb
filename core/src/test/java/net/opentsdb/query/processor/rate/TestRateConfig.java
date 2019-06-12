@@ -19,14 +19,20 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.mock;
 
+import com.google.common.collect.Lists;
+import java.util.List;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
+import net.opentsdb.utils.Pair;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.utils.JSON;
+import org.mockito.Mockito;
 
 public class TestRateConfig {
 public static MockTSDB TSDB;
@@ -215,6 +221,17 @@ public static MockTSDB TSDB;
   public void autoInterval() throws Exception {
     RateFactory factory = new RateFactory();
     MockTSDB tsdb = new MockTSDB();
+    DownsampleFactory downsample_factory = mock(DownsampleFactory.class);
+    List<Pair<Long, String>> intervals = Lists.newArrayListWithExpectedSize(6);
+    intervals.add(new Pair<Long, String>(86_400L * 365L * 1000L, "1w")); // 1y
+    intervals.add(new Pair<Long, String>(86_400L * 30L * 1000L, "1d")); // 1n
+    intervals.add(new Pair<Long, String>(86_400L * 7L * 1000L, "6h")); // 1w
+    intervals.add(new Pair<Long, String>(86_400L * 3L * 1000L, "1h")); // 3d
+    intervals.add(new Pair<Long, String>(3_600L * 12L * 1000L, "15m")); // 12h
+    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "1m")); // 6h
+    intervals.add(new Pair<Long, String>(0L, "1m")); // default
+    when(tsdb.getRegistry().getQueryNodeFactory(DownsampleFactory.TYPE.toLowerCase())).thenReturn(downsample_factory);
+    when(downsample_factory.intervals()).thenReturn(intervals);
     factory.initialize(tsdb, null).join(250);
     RateConfig config = (RateConfig) RateConfig.newBuilder()
         .setInterval("auto")
@@ -225,20 +242,6 @@ public static MockTSDB TSDB;
         .setId("foo")
         .build();
     assertEquals("1m", config.getInterval());
-    
-    // not configured
-    factory = new RateFactory();
-    try {
-      config = (RateConfig) RateConfig.newBuilder()
-          .setInterval("auto")
-          .setFactory(factory)
-          .setStartTime(new SecondTimeStamp(1514843302))
-          .setEndTime(new SecondTimeStamp(1514843303))
-          .addSource("m1")
-          .setId("foo")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
     
   }
 }
