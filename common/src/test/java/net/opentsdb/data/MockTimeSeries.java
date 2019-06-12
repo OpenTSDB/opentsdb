@@ -138,6 +138,11 @@ public class MockTimeSeries implements TimeSeries {
     return closed;
   }
   
+  public Map<TypeToken<? extends TimeSeriesDataType>, 
+      List<TimeSeriesValue<?>>> data() {
+    return data;
+  }
+  
   /**
    * Iterator over the list of values.
    */
