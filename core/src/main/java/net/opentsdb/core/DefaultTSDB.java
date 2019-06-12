@@ -328,7 +328,6 @@ public class DefaultTSDB implements TSDB {
     maintenance_timer = Threads.newTimer("TSDBMaintenanceTimer");
     query_timer = Threads.newTimer("TSDBQueryTimer");
     // TODO - fixed potentially.
-    query_pool = registry.getDefaultPlugin(TSDBThreadPoolExecutor.class);
     running_queries = Maps.newConcurrentMap();
     
     if (!config.hasProperty(MAINT_TIMER_KEY)) {

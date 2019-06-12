@@ -40,7 +40,6 @@ import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.threadpools.UserAwareThreadPoolExecutor;
 import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 
 /**
@@ -64,7 +63,7 @@ public class MockTSDB implements TSDB {
     maint_timer.multi_task = true;
     query_timer = spy(new FakeTaskTimer());
     query_timer.multi_task = true;
-    query_pool = mock(UserAwareThreadPoolExecutor.class);
+    query_pool = mock(TSDBThreadPoolExecutor.class);
     runnables = Lists.newArrayList();
     doAnswer(new Answer<Void>() {
       @Override

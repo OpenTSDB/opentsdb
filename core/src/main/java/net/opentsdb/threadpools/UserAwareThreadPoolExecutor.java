@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018 The OpenTSDB Authors.
+// Copyright (C) 2019 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,18 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryContext;
 
+/**
+ * A ThreadPoolExecutor that keeps track of tasks by {@link net.opentsdb.auth.AuthState}. This
+ * executor throttles the tasks of a User (of type {@link net.opentsdb.auth.AuthState}) when a
+ * percentage of currently executed tasks for the User is above a certain limit (defined by
+ * {@link MAX_THREAD_PER_USER_PCT}) and fewer threads in the threadpool are available for executing
+ * tasks.
+ * 
+ * This would make sure all the Users get a fair share of the ThreadPool executor to run their tasks
+ * by throttling the tasks of the heavy User.
+ *
+ * @since 3.0
+ */
 public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
 
   private static final Logger LOG = LoggerFactory.getLogger(UserAwareThreadPoolExecutor.class);
@@ -52,7 +64,7 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   protected static final String MAX_THREAD_PER_USER_PCT = "max.thread.per.user.pct";
 
   /** Stores the User thread count that's being current executed */
-  private static final ConcurrentHashMap<String, AtomicInteger> CURRENT_EXECUTIONS =
+  private final ConcurrentHashMap<String, AtomicInteger> CURRENT_EXECUTIONS =
       new ConcurrentHashMap<>();
 
   /** Queue to store the tasks */
@@ -75,10 +87,10 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   /** Absolute value calculated based the percentage defined by MAX_THREAD_PER_USER_PCT */
   private int threadThresholdPerUserCnt;
 
-  private static final int PURGE_CNT = 10000;
+  private final int PURGE_CNT = 10000;
 
   /** Attempts to purge the CURRENT_EXECUTIONS state after every 10000 executions */
-  private static final AtomicInteger COUNT_TO_PURGE = new AtomicInteger(PURGE_CNT);
+  private final AtomicInteger COUNT_TO_PURGE = new AtomicInteger(PURGE_CNT);
 
   @Override
   public String type() {
@@ -185,12 +197,12 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
     @Override
     public void run() {
 
-      if (qctx == null) {
+      if (qctx == null || qctx.authState() == null) {
         r.run();
         return;
       }
 
-      final String user = this.qctx.authState().getUser();
+      final String user = getUser(qctx);
 
       AtomicInteger ai = CURRENT_EXECUTIONS.get(user);
       if (ai == null) {
@@ -219,15 +231,11 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
         // Decrement the counter per user..
         ai.decrementAndGet();
 
-        // Remove the entry from the state to make sure we don't hold the state for all the users in
-        // the lifetime of the process
-        if (COUNT_TO_PURGE.decrementAndGet() <= 0) {
-          CURRENT_EXECUTIONS.entrySet().removeIf(m -> m.getValue().get() == 0);
-          COUNT_TO_PURGE.set(PURGE_CNT);
-        }
+        purgeStaleState();
       }
 
     }
+
   }
 
   class QCFutureWrapper<V> extends FutureTask<V> {
@@ -242,12 +250,12 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
     @Override
     public void run() {
 
-      if (qctx == null) {
+      if (qctx == null || qctx.authState() == null) {
         super.run();
         return;
       }
 
-      final String user = this.qctx.authState().getUser();
+      final String user = getUser(qctx);
 
       AtomicInteger ai = CURRENT_EXECUTIONS.get(user);
       if (ai == null) {
@@ -275,14 +283,24 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
         // Decrement the counter per user..
         ai.decrementAndGet();
 
-        // Remove the entry from the state to make sure we don't hold the state for all the users in
-        // the lifetime of the process
-        if (COUNT_TO_PURGE.decrementAndGet() <= 0) {
-          CURRENT_EXECUTIONS.entrySet().removeIf(m -> m.getValue().get() == 0);
-          COUNT_TO_PURGE.set(PURGE_CNT);
-        }
+        purgeStaleState();
       }
     }
+
+  }
+
+  private void purgeStaleState() {
+    // Remove the entry from the state to make sure we don't hold the state for all the users in
+    // the lifetime of the process
+    if (COUNT_TO_PURGE.decrementAndGet() <= 0) {
+      CURRENT_EXECUTIONS.entrySet().removeIf(m -> m.getValue().get() == 0);
+      COUNT_TO_PURGE.set(PURGE_CNT);
+    }
+  }
+
+  private String getUser(QueryContext qctx) {
+    final String user = qctx.authState().getUser() == null ? "Unknown" : qctx.authState().getUser();
+    return user;
   }
 
   @Override
@@ -340,12 +358,12 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   }
 
   @VisibleForTesting
-  static ConcurrentHashMap<String, AtomicInteger> getCurrentExecutions() {
+  ConcurrentHashMap<String, AtomicInteger> getCurrentExecutions() {
     return CURRENT_EXECUTIONS;
   }
 
   @VisibleForTesting
-  static AtomicInteger getCountToPurge() {
+  AtomicInteger getCountToPurge() {
     return COUNT_TO_PURGE;
   }
 

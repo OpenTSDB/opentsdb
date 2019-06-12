@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,13 +21,33 @@ import java.util.concurrent.RejectedExecutionException;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 
+/**
+ * An interface for ThreadPoolExecutor plugin
+ * 
+ * This executor is used across the query lifetime by most of the processing pipeline nodes
+ * 
+ * @since 3.0
+ *
+ */
 public interface TSDBThreadPoolExecutor extends TSDBPlugin {
+  
+  /** Prefix for the config keys for the ThreadPoolExecutor */
   public static final String KEY_PREFIX = "threadpool.";
 
+  /** Defines the blocking queue size in the ThreadPoolExecutor */
   public static final String QUEUE_MAX_SIZE = "queue.max.size";
+  
+  /** The number of threads to keep in the pool, even if they are idle */
   public static final String CORE_THREAD_POOL_SIZE = "core.thread.pool.size";
+
+  /** MaximumPoolSize the maximum number of threads to allow in the pool */
   public static final String MAX_THREAD_POOL_SIZE = "max.thread.pool.size";
 
+  /**
+   * Returns the type of the ThreadPoolExecutor.
+   * 
+   * @return 
+   */
   public String tpType();
 
   /**

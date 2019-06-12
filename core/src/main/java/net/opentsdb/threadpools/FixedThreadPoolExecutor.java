@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018 The OpenTSDB Authors.
+// Copyright (C) 2019 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,9 +30,15 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryContext;
 
+/**
+ * Thin Wrapper layer around {@link ThreadPoolExecutor}.
+ * 
+ * @since 3.0
+ *
+ */
 public class FixedThreadPoolExecutor implements TSDBThreadPoolExecutor {
 
-  private static final Logger LOG = LoggerFactory.getLogger(UserAwareThreadPoolExecutor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FixedThreadPoolExecutor.class);
 
   public static final String TYPE = "FixedThreadPoolExecutor";
 
@@ -68,17 +74,31 @@ public class FixedThreadPoolExecutor implements TSDBThreadPoolExecutor {
               + "Can be null to use the default.");
     }
 
-    Integer maxSize = tsdb.getConfig().getInt(getConfigKey(QUEUE_MAX_SIZE));
+    if (!tsdb.getConfig().hasProperty(getConfigKey(CORE_THREAD_POOL_SIZE))) {
+      tsdb.getConfig().register(getConfigKey(CORE_THREAD_POOL_SIZE),
+          Runtime.getRuntime().availableProcessors() * 2, false,
+          "Core thread pool size. " + "Can be null to use the default.");
+    }
+
+    if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_THREAD_POOL_SIZE))) {
+      tsdb.getConfig().register(getConfigKey(MAX_THREAD_POOL_SIZE),
+          Runtime.getRuntime().availableProcessors() * 2, false,
+          "Max thread pool size. " + "Can be null to use the default.");
+    }
+
+    int maxSize = tsdb.getConfig().getInt(getConfigKey(QUEUE_MAX_SIZE));
+    int corePoolSize = tsdb.getConfig().getInt(getConfigKey(CORE_THREAD_POOL_SIZE));
+    int maxTPoolSize = tsdb.getConfig().getInt(getConfigKey(MAX_THREAD_POOL_SIZE));
     LOG.info("Initializing new FixedThreadPoolExecutor with queue max capacity of {}", maxSize);
 
-    int nThreads = Runtime.getRuntime().availableProcessors() * 2;
-    this.threadPool =
+    this.threadPool = new ThreadPoolExecutor(corePoolSize, maxTPoolSize, 0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<Runnable>(maxSize));
 
-        // TODO: change this to new implementation.
-        new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>(maxSize));
+    LOG.info(
+        "Initializing new UserAwareThreadPoolExecutor with max queue size of {} with core threads {} and a "
+            + "maximum pool size of {}.",
+        maxSize, corePoolSize, maxTPoolSize);
 
-    LOG.info("Initialized new FixedThreadPoolExecutor with {} threads", nThreads);
     return Deferred.fromResult(null);
   }
 
@@ -106,7 +126,6 @@ public class FixedThreadPoolExecutor implements TSDBThreadPoolExecutor {
     return TYPE;
   }
 
-
   @Override
   public <T> Future<T> submit(Callable<T> task) {
     return this.threadPool.submit(task);
@@ -119,14 +138,12 @@ public class FixedThreadPoolExecutor implements TSDBThreadPoolExecutor {
 
   @Override
   public <T> Future<T> submit(Callable<T> task, QueryContext qctx) {
-    // TODO Auto-generated method stub
-    return null;
+    return this.threadPool.submit(task);
   }
 
   @Override
   public Future<?> submit(Runnable task, QueryContext qctx) {
-    // TODO Auto-generated method stub
-    return null;
+    return this.threadPool.submit(task);
   }
 
 }

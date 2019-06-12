@@ -1,11 +1,11 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2019 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -100,7 +100,7 @@ public class TestUserAwareThreadPoolExecutor {
   public void addToStateTest() throws Exception {
 
     UserAwareThreadPoolExecutor executor = new UserAwareThreadPoolExecutor();
-    UserAwareThreadPoolExecutor.getCurrentExecutions().clear();
+    executor.getCurrentExecutions().clear();
     assertNull(executor.initialize(tsdb, null).join());
 
     Runnable r = getRunnable();
@@ -110,7 +110,7 @@ public class TestUserAwareThreadPoolExecutor {
 
     wrapper.run();
 
-    int size = UserAwareThreadPoolExecutor.getCurrentExecutions().size();
+    int size = executor.getCurrentExecutions().size();
 
     assertEquals(size, 1);
 
@@ -120,7 +120,7 @@ public class TestUserAwareThreadPoolExecutor {
   public void statePurgeTest() throws Exception {
 
     UserAwareThreadPoolExecutor executor = new UserAwareThreadPoolExecutor();
-    UserAwareThreadPoolExecutor.getCurrentExecutions().clear();
+    executor.getCurrentExecutions().clear();
     assertNull(executor.initialize(tsdb, null).join());
 
     Runnable r = getRunnable();
@@ -130,13 +130,13 @@ public class TestUserAwareThreadPoolExecutor {
 
     wrapper.run();
 
-    int size = UserAwareThreadPoolExecutor.getCurrentExecutions().size();
+    int size = executor.getCurrentExecutions().size();
     assertEquals(size, 1);
 
-    UserAwareThreadPoolExecutor.getCountToPurge().set(0);
+    executor.getCountToPurge().set(0);
     wrapper.run();
 
-    size = UserAwareThreadPoolExecutor.getCurrentExecutions().size();
+    size = executor.getCurrentExecutions().size();
     assertEquals(size, 0);
 
   }
@@ -161,7 +161,7 @@ public class TestUserAwareThreadPoolExecutor {
   public void addToStateFromFutureTaskTest() throws Exception {
 
     UserAwareThreadPoolExecutor executor = new UserAwareThreadPoolExecutor();
-    UserAwareThreadPoolExecutor.getCurrentExecutions().clear();
+    executor.getCurrentExecutions().clear();
     assertNull(executor.initialize(tsdb, null).join());
 
     QueryContext qctx = getQctx();
@@ -170,7 +170,7 @@ public class TestUserAwareThreadPoolExecutor {
 
     wrapper.run();
 
-    int size = UserAwareThreadPoolExecutor.getCurrentExecutions().size();
+    int size = executor.getCurrentExecutions().size();
 
     assertEquals(size, 1);
 
@@ -180,7 +180,7 @@ public class TestUserAwareThreadPoolExecutor {
   public void purgeStateFromFutureTaskTest() throws Exception {
 
     UserAwareThreadPoolExecutor executor = new UserAwareThreadPoolExecutor();
-    UserAwareThreadPoolExecutor.getCurrentExecutions().clear();
+    executor.getCurrentExecutions().clear();
     assertNull(executor.initialize(tsdb, null).join());
 
     QueryContext qctx = getQctx();
@@ -189,14 +189,14 @@ public class TestUserAwareThreadPoolExecutor {
 
     wrapper.run();
 
-    int size = UserAwareThreadPoolExecutor.getCurrentExecutions().size();
+    int size = executor.getCurrentExecutions().size();
 
     assertEquals(size, 1);
 
-    UserAwareThreadPoolExecutor.getCountToPurge().set(0);
+    executor.getCountToPurge().set(0);
     wrapper.run();
 
-    size = UserAwareThreadPoolExecutor.getCurrentExecutions().size();
+    size = executor.getCurrentExecutions().size();
     assertEquals(size, 0);
 
   }
