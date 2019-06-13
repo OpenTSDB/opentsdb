@@ -60,22 +60,19 @@ public class TestMovingAverageNumericSummaryIterator {
     result = mock(QueryResult.class);
     context = mock(QueryPipelineContext.class);
     query = mock(SemanticQuery.class);
-    node = mock(MovingAverage.class);
     id = BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
         .build();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setId("win")
-        .build();
+        .build());
     
-    when(node.pipelineContext()).thenReturn(context);
     when(context.query()).thenReturn(query);
     when(context.tsdb()).thenReturn(TSDB);
     
     when(query.startTime()).thenReturn(new SecondTimeStamp(60L * 5));
-    when(node.config()).thenReturn(config);
   }
   
   @Test
@@ -117,12 +114,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentLongsSamplesWMA() throws Exception {
     MockTimeSeries ts = buildLongs();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -159,12 +156,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentLongsSamplesEWMA() throws Exception {
     MockTimeSeries ts = buildLongs();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -201,11 +198,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentLongsTimeAvg() throws Exception {
     MockTimeSeries ts = buildLongs();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -242,12 +239,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentLongsTimeWMA() throws Exception {
     MockTimeSeries ts = buildLongs();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -284,12 +281,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentLongsTimeEWMA() throws Exception {
     MockTimeSeries ts = buildLongs();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -361,12 +358,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentDoublesSamplesWMA() throws Exception {
     MockTimeSeries ts = buildDoubles();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -403,12 +400,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentDoublesSamplesEWMA() throws Exception {
     MockTimeSeries ts = buildDoubles();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -445,11 +442,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentDoublesTimeAvg() throws Exception {
     MockTimeSeries ts = buildDoubles();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -486,12 +483,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentDoublesTimeWMA() throws Exception {
     MockTimeSeries ts = buildDoubles();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -528,12 +525,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentDoublesTimeEWMA() throws Exception {
     MockTimeSeries ts = buildDoubles();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -605,12 +602,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentMixedSamplesWMA() throws Exception {
     MockTimeSeries ts = buildMixed();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -647,12 +644,12 @@ public class TestMovingAverageNumericSummaryIterator {
   public void consistentMixedSamplesEWMA() throws Exception {
     MockTimeSeries ts = buildMixed();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -712,11 +709,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void gapsAcrossBothTime() throws Exception {
     MockTimeSeries ts = buildMissingBoth();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -776,11 +773,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void gapsOffsetTime() throws Exception {
     MockTimeSeries ts = buildMissingOffset();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -875,11 +872,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void nullInQueryRangeTime() throws Exception {
     MockTimeSeries ts = buildNullInRange();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -933,11 +930,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void nullsAtEndTime() throws Exception {
     MockTimeSeries ts = buildNullsAtEnd();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -997,11 +994,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void nullsPreQueryStartTime() throws Exception {
     MockTimeSeries ts = buildNullsBeforeStart();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -1108,11 +1105,11 @@ public class TestMovingAverageNumericSummaryIterator {
   public void nansBeforeStartTime() throws Exception {
     MockTimeSeries ts = buildNansBeforeStart();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
+
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -1184,12 +1181,10 @@ public class TestMovingAverageNumericSummaryIterator {
   public void nansForFullWindowTime() throws Exception {
     MockTimeSeries ts = buildNansForFullWindow();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
-    
+        .build());
     
     MovingAverageNumericSummaryIterator iterator = 
         new MovingAverageNumericSummaryIterator(node, result, 
@@ -1655,6 +1650,10 @@ public class TestMovingAverageNumericSummaryIterator {
         .setTimeStamp(new SecondTimeStamp(60L * 8))
         .addValue(0, 3.4).addValue(2, 1L).build());
     return ts;
+  }
+  
+  void buildNode(final MovingAverageConfig config) {
+    node = new MovingAverage(mock(MovingAverageFactory.class), context, config); 
   }
   
 }
