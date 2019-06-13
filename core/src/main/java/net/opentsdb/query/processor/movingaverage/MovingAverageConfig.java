@@ -43,6 +43,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   private final String interval;
   private final double alpha;
   private final boolean avg_initial;
+  private final boolean median;
   private final boolean weighted;
   private final boolean exponential;
   private final boolean infectious_nan;
@@ -66,10 +67,15 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
       throw new IllegalArgumentException("Alpha must be 0 (computed) or "
           + "less than 1.");
     }
+    if (builder.median && builder.weighted && builder.exponential) {
+      throw new IllegalArgumentException("Please pick one, median, weighted or "
+          + "exponential.");
+    }
     samples = builder.samples;
     interval = builder.interval;
     alpha = builder.alpha;
     avg_initial = builder.averageInitial;
+    median = builder.median;
     weighted = builder.weighted;
     exponential = builder.exponential;
     infectious_nan = builder.infectiousNan;
@@ -98,6 +104,11 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   /** @return Whether or not we want the exponential average. */
   public boolean getExponential() {
     return exponential;
+  }
+  
+  /** @return Whether or not we want the median. */
+  public boolean getMedian() {
+    return median;
   }
   
   /** @return Whether or not we return the WMA. */
@@ -197,6 +208,8 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
     @JsonProperty
     private boolean averageInitial = true;
     @JsonProperty
+    private boolean median;
+    @JsonProperty
     private boolean weighted;
     @JsonProperty
     private boolean exponential;
@@ -224,6 +237,11 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
     
     public Builder setAverageInitial(final boolean average_initial) {
       this.averageInitial = average_initial;
+      return this;
+    }
+    
+    public Builder setMedian(final boolean median) {
+      this.median = median;
       return this;
     }
     

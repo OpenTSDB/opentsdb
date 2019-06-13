@@ -70,22 +70,19 @@ public class TestMovingAverageNumericArrayIterator {
     time_spec = mock(TimeSpecification.class);
     context = mock(QueryPipelineContext.class);
     query = mock(SemanticQuery.class);
-    node = mock(MovingAverage.class);
     id = BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
         .build();
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setId("win")
-        .build();
+        .build());
     
-    when(node.pipelineContext()).thenReturn(context);
     when(context.query()).thenReturn(query);
     when(context.tsdb()).thenReturn(TSDB);
     
     when(query.startTime()).thenReturn(new SecondTimeStamp(0));
-    when(node.config()).thenReturn(config);
     when(result.timeSpecification()).thenReturn(time_spec);
     
     when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
@@ -110,12 +107,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentLongsSamplesWMA() throws Exception {
     setSource(buildLongSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -132,12 +128,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentLongsSamplesEWMA() throws Exception {
     setSource(buildLongSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -151,14 +146,34 @@ public class TestMovingAverageNumericArrayIterator {
   }
   
   @Test
+  public void consistentLongsSamplesMM() throws Exception {
+    setSource(buildLongSeries());
+    
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
+        .setSamples(5)
+        .setMedian(true)
+        .setId("win")
+        .build());
+    
+    MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
+        node, result, Lists.newArrayList(source));
+    assertTrue(iterator.hasNext());
+    
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 8, 8, 6, 3, 6, 6, 6, 8, 8 },
+        value.value().longArray());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
   public void consistentLongsTimesAvg() throws Exception {
     setSource(buildLongSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -175,12 +190,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentLongsTimeWMA() throws Exception {
     setSource(buildLongSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -197,12 +211,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentLongsTimeEWMA() throws Exception {
     setSource(buildLongSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -234,12 +247,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentDoublesSamplesWMA() throws Exception {
     setSource(buildDoubleSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -256,12 +268,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentDoublesSamplesEWMA() throws Exception {
     setSource(buildDoubleSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -275,14 +286,34 @@ public class TestMovingAverageNumericArrayIterator {
   }
   
   @Test
+  public void consistentDoublesSamplesMM() throws Exception {
+    setSource(buildDoubleSeries());
+    
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
+        .setSamples(5)
+        .setMedian(true)
+        .setId("win")
+        .build());
+    
+    MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
+        node, result, Lists.newArrayList(source));
+    
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(0, value.timestamp().epoch());
+    assertArrayEquals(new double[] { 1.0, 1.0, 6.7, 6.7, 1.3, 6.7, 6.8, 8.2, 8.2 },
+        value.value().doubleArray(), 0.001);
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
   public void consistentDoublesTimeAvg() throws Exception {
     setSource(buildDoubleSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -299,12 +330,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentDoublesTimeWMA() throws Exception {
     setSource(buildDoubleSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -321,12 +351,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void consistentDoublesTimeEWMA() throws Exception {
     setSource(buildDoubleSeries());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setInterval("5m")
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -367,12 +396,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void nansSamplesWMA() throws Exception {
     setSource(buildSomeNans());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -390,12 +418,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void nansSamplesEWMA() throws Exception {
     setSource(buildSomeNans());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -430,12 +457,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void allNanSampleMWA() throws Exception {
     setSource(buildAllNan());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setWeighted(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -454,12 +480,11 @@ public class TestMovingAverageNumericArrayIterator {
   public void allNanSampleEWMA() throws Exception {
     setSource(buildAllNan());
     
-    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+    buildNode((MovingAverageConfig) MovingAverageConfig.newBuilder()
         .setSamples(5)
         .setExponential(true)
         .setId("win")
-        .build();
-    when(node.config()).thenReturn(config);
+        .build());
     
     MovingAverageNumericArrayIterator iterator = new MovingAverageNumericArrayIterator(
         node, result, Lists.newArrayList(source));
@@ -541,5 +566,9 @@ public class TestMovingAverageNumericArrayIterator {
     ts.addValue(new MutableNumericValue(new SecondTimeStamp(60L * 7), Double.NaN));
     ts.addValue(new MutableNumericValue(new SecondTimeStamp(60L * 8), Double.NaN));
     return ts;
+  }
+
+  void buildNode(final MovingAverageConfig config) {
+    node = new MovingAverage(mock(MovingAverageFactory.class), context, config); 
   }
 }

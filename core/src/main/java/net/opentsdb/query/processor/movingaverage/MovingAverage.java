@@ -25,6 +25,13 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.aggregators.AverageFactory;
+import net.opentsdb.data.types.numeric.aggregators.ExponentialWeightedMovingAverageConfig;
+import net.opentsdb.data.types.numeric.aggregators.ExponentialWeightedMovingAverageFactory;
+import net.opentsdb.data.types.numeric.aggregators.MovingMedianFactory;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.WeightedMovingAverageFactory;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
@@ -52,6 +59,9 @@ public class MovingAverage extends AbstractQueryNode {
 
   /** The non-null config. */
   private final MovingAverageConfig config;
+  
+  /** The aggregator. */
+  private volatile NumericAggregator aggregator;
   
   /**
    * Default ctor.
@@ -83,6 +93,53 @@ public class MovingAverage extends AbstractQueryNode {
   @Override
   public void onNext(final QueryResult next) {
     sendUpstream(new MovingAverageResult(next));
+  }
+  
+  protected NumericAggregator getAggregator() {
+    if (aggregator == null) {
+      synchronized (this) {
+        if (aggregator == null) {
+          if (!config.getMedian() && !config.getWeighted() && !config.getExponential()) {
+            // just a basic sliding avg.
+            aggregator = pipelineContext().tsdb().getRegistry()
+              .getPlugin(NumericAggregatorFactory.class, AverageFactory.TYPE)
+                .newAggregator(config.getInfectiousNan());
+          } else if (config.getMedian()) {
+            aggregator = pipelineContext().tsdb().getRegistry()
+                .getPlugin(NumericAggregatorFactory.class, 
+                    MovingMedianFactory.TYPE)
+                  .newAggregator(config.getInfectiousNan());
+          } else if (config.getExponential()) {
+            if (config.getAlpha() == 
+                  ExponentialWeightedMovingAverageFactory.DEFAULT_CONFIG.alpha() &&
+                config.getAverageInitial() == 
+                  ExponentialWeightedMovingAverageFactory.DEFAULT_CONFIG.averageInitial()) {
+              aggregator = pipelineContext().tsdb().getRegistry()
+                  .getPlugin(NumericAggregatorFactory.class, 
+                      ExponentialWeightedMovingAverageFactory.TYPE)
+                    .newAggregator(config.getInfectiousNan());
+            } else {
+              final ExponentialWeightedMovingAverageConfig ewma_config = 
+                  ExponentialWeightedMovingAverageConfig.newBuilder()
+                    .setAlpha(config.getAlpha())
+                    .setAverageInitial(config.getAverageInitial())
+                    .build();
+              aggregator = (NumericAggregator) pipelineContext().tsdb().getRegistry()
+                  .getPlugin(NumericAggregatorFactory.class, 
+                      ExponentialWeightedMovingAverageFactory.TYPE)
+                    .newAggregator(ewma_config);
+            }
+          } else {
+            aggregator = pipelineContext().tsdb().getRegistry()
+                .getPlugin(NumericAggregatorFactory.class, 
+                    WeightedMovingAverageFactory.TYPE)
+                  .newAggregator(config.getInfectiousNan());
+          }
+        }
+      }
+    }
+    
+    return aggregator;
   }
   
   /**

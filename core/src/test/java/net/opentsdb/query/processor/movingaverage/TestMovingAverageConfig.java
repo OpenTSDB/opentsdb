@@ -66,6 +66,21 @@ public class TestMovingAverageConfig {
     assertTrue(config.getAverageInitial());
     assertFalse(config.getInfectiousNan());
     
+    config = (MovingAverageConfig) MovingAverageConfig.newBuilder()
+        .setSamples(5)
+        .setMedian(true)
+        .setId("win")
+        .build();
+    assertEquals(5, config.getSamples());
+    assertNull(config.getInterval());
+    assertNull(config.interval());
+    assertEquals(0, config.getAlpha(), 0.001);
+    assertFalse(config.getExponential());
+    assertFalse(config.getWeighted());
+    assertTrue(config.getMedian());
+    assertTrue(config.getAverageInitial());
+    assertFalse(config.getInfectiousNan());
+    
     try {
       MovingAverageConfig.newBuilder()
           .setId("win")

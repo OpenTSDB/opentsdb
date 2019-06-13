@@ -37,12 +37,7 @@ import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.aggregators.AverageFactory;
-import net.opentsdb.data.types.numeric.aggregators.ExponentialWeightedMovingAverageConfig;
-import net.opentsdb.data.types.numeric.aggregators.ExponentialWeightedMovingAverageFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.data.types.numeric.aggregators.WeightedMovingAverageFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -123,38 +118,7 @@ public class MovingAverageNumericSummaryIterator implements QueryIterator,
     this.node = (MovingAverage) node;
     final MovingAverageConfig config = (MovingAverageConfig) node.config();
     samples = config.getSamples();
-    
-    if (!config.getWeighted() && !config.getExponential()) {
-      // just a basic sliding avg.
-      aggregator = this.node.pipelineContext().tsdb().getRegistry()
-        .getPlugin(NumericAggregatorFactory.class, AverageFactory.TYPE)
-          .newAggregator(config.getInfectiousNan());
-    } else if (config.getExponential()) {
-      if (config.getAlpha() == 
-            ExponentialWeightedMovingAverageFactory.DEFAULT_CONFIG.alpha() &&
-          config.getAverageInitial() == 
-            ExponentialWeightedMovingAverageFactory.DEFAULT_CONFIG.averageInitial()) {
-        aggregator = this.node.pipelineContext().tsdb().getRegistry()
-            .getPlugin(NumericAggregatorFactory.class, 
-                ExponentialWeightedMovingAverageFactory.TYPE)
-              .newAggregator(config.getInfectiousNan());
-      } else {
-        final ExponentialWeightedMovingAverageConfig ewma_config = 
-            ExponentialWeightedMovingAverageConfig.newBuilder()
-              .setAlpha(config.getAlpha())
-              .setAverageInitial(config.getAverageInitial())
-              .build();
-        aggregator = (NumericAggregator) this.node.pipelineContext().tsdb().getRegistry()
-            .getPlugin(NumericAggregatorFactory.class, 
-                ExponentialWeightedMovingAverageFactory.TYPE)
-              .newAggregator(ewma_config);
-      }
-    } else {
-      aggregator = this.node.pipelineContext().tsdb().getRegistry()
-          .getPlugin(NumericAggregatorFactory.class, 
-              WeightedMovingAverageFactory.TYPE)
-            .newAggregator(config.getInfectiousNan());
-    }
+    aggregator = this.node.getAggregator();
     dp = new MutableNumericSummaryValue();
     
     final Optional<TypedTimeSeriesIterator> opt = 
