@@ -115,6 +115,27 @@ public class TestUserAwareThreadPoolExecutor {
     assertEquals(size, 1);
 
   }
+  
+  @Test
+  public void disableStateTest() throws Exception {
+
+    UserAwareThreadPoolExecutor executor = new UserAwareThreadPoolExecutor();
+    executor.setDisableScheduling(false);
+    executor.getCurrentExecutions().clear();
+    assertNull(executor.initialize(tsdb, null).join());
+
+    Runnable r = getRunnable();
+
+    QueryContext qctx = getQctx();
+    QCRunnableWrapper wrapper = executor.new QCRunnableWrapper(r, qctx);
+
+    wrapper.run();
+
+    int size = executor.getCurrentExecutions().size();
+
+    assertEquals(size, 1);
+
+  }
 
   @Test
   public void statePurgeTest() throws Exception {

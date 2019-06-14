@@ -95,7 +95,7 @@ public class FixedThreadPoolExecutor implements TSDBThreadPoolExecutor {
         new LinkedBlockingQueue<Runnable>(maxSize));
 
     LOG.info(
-        "Initializing new UserAwareThreadPoolExecutor with max queue size of {} with core threads {} and a "
+        "Initializing new FixedThreadPoolExecutor with max queue size of {} with core threads {} and a "
             + "maximum pool size of {}.",
         maxSize, corePoolSize, maxTPoolSize);
 
