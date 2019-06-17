@@ -295,14 +295,8 @@ public class TSDMain {
     manager.deploy();
     
     try {
-      HttpHandler handler = new AccessLogHandler(
-          manager.start(),
-          new Slf4jAccessLogReceiver(),
-          "combined",
-          TSDMain.class.getClassLoader());
-      
-      handler = Handlers.path(Handlers.redirect(root))
-          .addPrefixPath(root, handler);
+      HttpHandler handler = Handlers.path(Handlers.redirect(root))
+          .addPrefixPath(root, manager.start());
       
       if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CORS_PATTERN_KEY))) {
         // TODO - flesh out settings.
@@ -310,6 +304,8 @@ public class TSDMain {
             .setOriginPattern(tsdb.getConfig().getString(CORS_PATTERN_KEY))
             .build();
       }
+
+      handler = new QueryRegistrationHandler(tsdb, handler);
       
       // support compression!
       handler = new EncodingHandler.Builder()
@@ -321,7 +317,11 @@ public class TSDMain {
         handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
       }
       
-      handler = new QueryRegistrationHandler(tsdb, handler);
+      handler = new AccessLogHandler(
+          handler,
+          new Slf4jAccessLogReceiver(),
+          "combined",
+          TSDMain.class.getClassLoader());
       
       final Builder builder = Undertow.builder()
           .setHandler(handler);
