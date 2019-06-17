@@ -163,7 +163,7 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
     }
 
   }
-
+  
   @Override
   public Deferred<Object> initialize(TSDB tsdb, String id) {
     this.id = id;
@@ -229,9 +229,10 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
 
     disableScheduling = tsdb.getConfig().getBoolean(getConfigKey(DISABLE_SCHEDULE));
 
-    threadThresholdCnt = maxTPoolSize * (threadThresholdPct / 100);
+    threadThresholdCnt = (int) ((double) maxTPoolSize * ((double) threadThresholdPct) / 100);
 
-    threadThresholdPerUserCnt = maxTPoolSize * (threadThresholdPerUserPct / 100);
+    threadThresholdPerUserCnt =
+        (int) ((double) maxTPoolSize * ((double) threadThresholdPerUserPct) / 100);
 
     if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_THREAD_PER_USER_OVERRIDE_PCT))) {
       tsdb.getConfig()
