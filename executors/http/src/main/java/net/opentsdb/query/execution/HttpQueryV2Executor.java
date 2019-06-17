@@ -689,7 +689,6 @@ public class HttpQueryV2Executor {
       throw new IllegalArgumentException("Query must contain at least "
           + "one metric.");
     }
-    LOG.info("GSK convertQuery");
     final TSQuery ts_query = new TSQuery();
     ts_query.setMsResolution(true); // always get times in ms now
     
