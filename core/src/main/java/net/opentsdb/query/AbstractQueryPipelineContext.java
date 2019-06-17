@@ -323,7 +323,10 @@ public abstract class AbstractQueryPipelineContext implements
   @Override
   public void close() {
     ids.clear();
-    if (plan != null && !plan.graph().edges().isEmpty()) {
+    if (plan != null && 
+        plan.graph() != null && 
+        plan.graph().edges() != null && 
+        !plan.graph().edges().isEmpty()) {
       Traverser<QueryNode> traverser = Traverser.forGraph(plan.graph());
       for (final QueryNode node : traverser.breadthFirst(this)) {
         if (node == this) {
