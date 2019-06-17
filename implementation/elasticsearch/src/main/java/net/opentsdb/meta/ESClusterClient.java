@@ -317,6 +317,11 @@ public class ESClusterClient extends BaseTSDBPlugin implements ESClient {
 
           if (tsdb.getStatsCollector() != null) {
             for (MultiSearchResponse.Item each_response : response.getResponses()) {
+              if (each_response == null || 
+                  each_response.getResponse() == null || 
+                  each_response.getResponse().getHits() == null) {
+                continue;
+              }
               SearchHit[] hits = each_response.getResponse().getHits().hits();
               if (hits.length > 0) {
                 tsdb.getStatsCollector().incrementCounter("es.client.query.success", "namespace",
