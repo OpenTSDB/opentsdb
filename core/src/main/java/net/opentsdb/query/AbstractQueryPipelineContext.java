@@ -374,7 +374,7 @@ public abstract class AbstractQueryPipelineContext implements
           }
         }
       }
-    });
+    }, context);
   }
   
   @Override

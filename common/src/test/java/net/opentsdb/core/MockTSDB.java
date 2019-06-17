@@ -40,6 +40,7 @@ import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 
 /**
  * Class for unit testing.
@@ -50,7 +51,7 @@ public class MockTSDB implements TSDB {
   public BlackholeStatsCollector stats;
   public FakeTaskTimer maint_timer;
   public FakeTaskTimer query_timer;
-  public ExecutorService query_pool;
+  public TSDBThreadPoolExecutor query_pool;
   public List<Runnable> runnables;
   public Map<Long, QueryContext> running_queries;
   
@@ -62,8 +63,16 @@ public class MockTSDB implements TSDB {
     maint_timer.multi_task = true;
     query_timer = spy(new FakeTaskTimer());
     query_timer.multi_task = true;
-    query_pool = mock(ExecutorService.class);
+    query_pool = mock(TSDBThreadPoolExecutor.class);
     runnables = Lists.newArrayList();
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        runnables.add((Runnable) invocation.getArguments()[0]);
+        return null;
+      }
+    }).when(query_pool).submit(any(Runnable.class), any(QueryContext.class));
+
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -95,7 +104,7 @@ public class MockTSDB implements TSDB {
   }
   
   @Override
-  public ExecutorService getQueryThreadPool() {
+  public TSDBThreadPoolExecutor getQueryThreadPool() {
     return query_pool;
   }
 

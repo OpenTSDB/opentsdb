@@ -196,7 +196,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
       if (extant != null) {
         final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
         runnable.reset(extant, node);
-        tsdb.getQueryThreadPool().submit(runnable);
+        tsdb.getQueryThreadPool().submit(runnable, node.pipelineContext().queryContext());
       } else if (rollup_usage == RollupUsage.ROLLUP_NOFALLBACK || is_final) {
         // send up sentinel
         final NoDataPartialTimeSeries pts = claimNoData();
@@ -242,7 +242,9 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     if (extant != null) {
       final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
       runnable.reset(extant, node);
-      tsdb.getQueryThreadPool().submit(runnable);
+
+      // Pass the query context to schedule based on the Users/Query types
+      tsdb.getQueryThreadPool().submit(runnable, this.node.pipelineContext().queryContext());
     }
     
     if (all_done) {
@@ -269,7 +271,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     pts.reset(this);
     final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
     runnable.reset(pts, node);
-    tsdb.getQueryThreadPool().submit(runnable);
+    tsdb.getQueryThreadPool().submit(runnable, node.pipelineContext().queryContext());
   }
 
   @Override

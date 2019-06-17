@@ -79,6 +79,7 @@ import net.opentsdb.stats.BlackholeStatsCollector;
 //import net.opentsdb.stats.QueryStats;
 //import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -129,7 +130,7 @@ public class DefaultTSDB implements TSDB {
   private final HashedWheelTimer query_timer;
   
   /** Pool used for executing query tasks. */
-  private final ExecutorService query_pool;
+  private TSDBThreadPoolExecutor query_pool;
   
   /** The map of running queries. */
   private final Map<Long, QueryContext> running_queries;
@@ -327,8 +328,6 @@ public class DefaultTSDB implements TSDB {
     maintenance_timer = Threads.newTimer("TSDBMaintenanceTimer");
     query_timer = Threads.newTimer("TSDBQueryTimer");
     // TODO - fixed potentially.
-    query_pool = Executors.newFixedThreadPool(
-        Runtime.getRuntime().availableProcessors() * 2);
     running_queries = Maps.newConcurrentMap();
     
     if (!config.hasProperty(MAINT_TIMER_KEY)) {
@@ -361,8 +360,18 @@ public class DefaultTSDB implements TSDB {
         return null;
       }
     }
+    class SetQueryPool implements Callback<Object, Object> {
+      @Override
+      public Object call(Object arg) throws Exception {
+        
+        query_pool = registry.getDefaultPlugin(TSDBThreadPoolExecutor.class);
+
+        return null;
+      }
+    }
     
-    return registry.initialize(load_plugins).addCallback(new SetStatsCollector());
+    return registry.initialize(load_plugins).addCallback(new SetStatsCollector())
+        .addCallback(new SetQueryPool());
   }
   
 //  /** @return The data point column family name */
@@ -2011,7 +2020,7 @@ public class DefaultTSDB implements TSDB {
   }
   
   @Override
-  public ExecutorService getQueryThreadPool() {
+  public TSDBThreadPoolExecutor getQueryThreadPool() {
     return query_pool;
   }
   

@@ -74,6 +74,7 @@ import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -103,6 +104,7 @@ import net.opentsdb.storage.schemas.tsdb1x.PooledPartialTimeSeriesRunnablePool;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
+import net.opentsdb.threadpools.UserAwareThreadPoolExecutor;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
@@ -2727,7 +2729,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertEquals(0, scanners.scanners_done);
     verify(node, never()).onError(any(RuntimeException.class));
     verify(node, never()).onNext(any(QueryResult.class));
-    verify(node.parent().tsdb().getQueryThreadPool(), times(2)).submit(any(Runnable.class));
+    verify(node.parent().tsdb().getQueryThreadPool(), times(2)).submit(any(Runnable.class), any(QueryContext.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     assertNull(scanners.current_result);
     verify(scanners.scanners.get(0)[0], times(1))
@@ -3005,7 +3007,7 @@ public class TestTsdb1xScanners extends UTBase {
   
   Tsdb1xHBaseQueryNode saltedNode(final List<Scanner> scanners) throws Exception {
     TSDB tsdb = mock(TSDB.class);
-    ExecutorService service = mock(ExecutorService.class);
+    UserAwareThreadPoolExecutor service = mock(UserAwareThreadPoolExecutor.class);
     when(tsdb.getQueryThreadPool()).thenReturn(service);
     when(tsdb.getStatsCollector()).thenReturn(mock(StatsCollector.class));
     Registry registry = mock(Registry.class);
