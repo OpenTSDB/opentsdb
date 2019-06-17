@@ -53,8 +53,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .setPrePadding("30m")
         .setPostPadding("1h")
         .setTimeShiftInterval("1d")
-        .setPreviousIntervals(2)
-        .setNextIntervals(1)
         .setId("UT")
         .build();
     assertEquals("HBase", config.getSourceId());
@@ -70,19 +68,10 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
     assertFalse(config.pushDown());
-    assertEquals(3, config.timeShifts().size());
-    Pair<Boolean, TemporalAmount> pair = config.timeShifts().get("UT-previous-P1D");
+    Pair<Boolean, TemporalAmount> pair = config.timeShifts();
     assertTrue(pair.getKey());
     assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
-    pair = config.timeShifts().get("UT-previous-P2D");
-    assertTrue(pair.getKey());
-    assertEquals(DateTime.parseDuration2("2d"), pair.getValue());
-    pair = config.timeShifts().get("UT-next-P1D");
-    assertFalse(pair.getKey());
-    assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
-    assertEquals(2, config.getPreviousIntervals());
-    assertEquals(1, config.getNextIntervals());
-        
+
     try {
       UTConfig.newBuilder()
         //.setMetric("system.cpu.user")
@@ -108,11 +97,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .setPrePadding("30m")
         .setPostPadding("1h")
         .setTimeShiftInterval("1d")
-        .setPreviousIntervals(2)
-        .setNextIntervals(1)
         .setId("UT")
         .build();
-    
+
     UTConfig.Builder builder = UTConfig.newBuilder();
     UTConfig clone = (UTConfig) UTConfig.newBuilder(config, builder).build();
     assertNotSame(config, clone);
@@ -133,18 +120,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(config.getSummaryAggregations().contains("sum"));
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
-    assertEquals(3, config.timeShifts().size());
-    Pair<Boolean, TemporalAmount> pair = config.timeShifts().get("UT-previous-P1D");
+    Pair<Boolean, TemporalAmount> pair = config.timeShifts();
     assertTrue(pair.getKey());
     assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
-    pair = config.timeShifts().get("UT-previous-P2D");
-    assertTrue(pair.getKey());
-    assertEquals(DateTime.parseDuration2("2d"), pair.getValue());
-    pair = config.timeShifts().get("UT-next-P1D");
-    assertFalse(pair.getKey());
-    assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
-    assertEquals(2, config.getPreviousIntervals());
-    assertEquals(1, config.getNextIntervals());
   }
 
   @Test
@@ -173,11 +151,9 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .setPrePadding("30m")
         .setPostPadding("1h")
         .setTimeShiftInterval("1d")
-        .setPreviousIntervals(2)
-        .setNextIntervals(1)
         .setId("UT")
         .build();
-    
+
     final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"sourceId\":\"HBase\""));
     assertTrue(json.contains("\"id\":\"UT\""));
@@ -196,14 +172,12 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"prePadding\":\"30m\""));
     assertTrue(json.contains("\"postPadding\":\"1h\""));
     assertTrue(json.contains("\"timeShiftInterval\":\"1d\""));
-    assertTrue(json.contains("\"previousIntervals\":2"));
-    assertTrue(json.contains("\"nextIntervals\":1"));
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode root = JSON.getMapper().readTree(json);
     UTConfig.Builder builder = UTConfig.newBuilder();
-    BaseTimeSeriesDataSourceConfig.parseConfig(JSON.getMapper(), 
+    BaseTimeSeriesDataSourceConfig.parseConfig(JSON.getMapper(),
             tsdb, root, builder);
-    
+
     assertEquals("HBase", config.getSourceId());
     assertEquals("Verizon", config.getNamespace());
     assertEquals("system.cpu.user", config.getMetric().getMetric());
@@ -221,9 +195,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("30m", config.getPrePadding());
     assertEquals("1h", config.getPostPadding());
     assertEquals("1d", config.getTimeShiftInterval());
-    assertEquals(2, config.getPreviousIntervals());
-    assertEquals(1, config.getNextIntervals());
-    assertEquals(3, config.timeShifts().size());
   }
   
   static class UTConfig extends BaseTimeSeriesDataSourceConfig {

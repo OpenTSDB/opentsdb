@@ -399,7 +399,6 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
     if (result == null) {
       throw new IllegalArgumentException("Result cannot be null.");
     }
-    
     for (final QueryNode node : upstream) {
       try {
         node.onNext(result);

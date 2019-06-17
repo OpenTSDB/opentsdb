@@ -50,15 +50,7 @@ public interface PartialTimeSeriesSet extends AutoCloseable {
  
   /** @return The non-null end time of this set. */
   public TimeStamp end();
- 
-  /**
-   * Finds the ID of the given hash.
-   * TODO - may move to the query context.
-   * @param hash The hash.
-   * @return A time series ID if found, null if not.
-   */
-  public TimeSeriesId id(final long hash);
- 
+  
   /** @return The total number of series emitted for this set. */
   public int timeSeriesCount();
  

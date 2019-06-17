@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Returns a Sum array aggregator.
@@ -29,6 +30,19 @@ import net.opentsdb.core.TSDB;
 public class ArraySumFactory extends BaseArrayFactory {
 
   public static final String TYPE = "Sum";
+  
+  @Override
+  public NumericArrayAggregator newAggregator() {
+    return new ArraySum(false);
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
+    if (config != null && config instanceof NumericAggregatorConfig) {
+      return new ArraySum(((NumericAggregatorConfig) config).infectiousNan());
+    }
+    return new ArraySum(false);
+  }
   
   @Override
   public NumericArrayAggregator newAggregator(boolean infectious_nan) {
@@ -120,6 +134,11 @@ public class ArraySumFactory extends BaseArrayFactory {
           double_accumulator[idx++] += values[i];
         }
       }
+    }
+    
+    @Override
+    public String name() {
+      return ArraySumFactory.TYPE;
     }
     
   }

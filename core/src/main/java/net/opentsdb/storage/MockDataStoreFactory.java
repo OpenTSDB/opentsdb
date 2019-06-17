@@ -76,34 +76,6 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
       // all done.
       return;
     }
-    
-    // TODO - Make this a shared method
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null &&
-        !((TimeSeriesDataSourceConfig) config).timeShifts().isEmpty()) {
-      if (((TimeSeriesDataSourceConfig) config).timeShifts().containsKey(config.getId())) {
-        // child who has already been initialized.
-        return;
-      }
-      
-      final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
-      final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-          .setConfig((TimeSeriesDataSourceConfig) config)
-          .setId(config.getId() + "-time-shift")
-          .build();
-      if (planner.configGraph().nodes().contains(shift_config)) {
-        return;
-      }
-      
-      for (final QueryNodeConfig predecessor : predecessors) {
-        planner.addEdge(predecessor, shift_config);
-      }
-      
-      for (final String new_id : ((TimeSeriesDataSourceConfig) config).timeShifts().keySet()) {
-        final TimeSeriesDataSourceConfig new_config = 
-            new WrappedTimeSeriesDataSourceConfig(new_id, (TimeSeriesDataSourceConfig) config, true);
-        planner.addEdge(shift_config, new_config);
-      }
-    }
   }
 
   @Override

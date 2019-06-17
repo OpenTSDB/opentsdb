@@ -117,8 +117,7 @@ public class RawQueryRpc {
       if (request.getAttribute(AuthFilter.AUTH_STATE_KEY) == null || 
           ((AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY))
             .getStatus() != AuthStatus.SUCCESS) {
-        throw new WebApplicationException("Access denied.", 
-            Response.Status.FORBIDDEN);
+        throw new QueryExecutionException("Autentication failed.", 403);
       }
       auth_state = (AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY);
     } else {
@@ -176,6 +175,7 @@ public class RawQueryRpc {
         .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
         //.put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
         .put("traceId", trace != null ? trace.traceId() : "")
+        .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
         .put("query", JSON.serializeToString(query))
         .build()));
     Span setup_span = null;

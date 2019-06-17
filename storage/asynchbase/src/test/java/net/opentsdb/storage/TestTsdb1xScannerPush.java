@@ -1801,8 +1801,7 @@ public class TestTsdb1xScannerPush extends UTBase {
           end_ts, 
           node.rollupUsage(),
           num_scanners, 
-          total_sets, 
-          owner.tsIds());
+          total_sets);
       sets.put(start_ts.epoch(), set);
       start_ts.add(duration);
       end_ts.add(duration);

@@ -19,10 +19,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,10 +48,12 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UnitTestException;
@@ -67,7 +70,9 @@ public class TestByteToStringIdConverter {
   
   @Before
   public void before() throws Exception {
-    context = mock(QueryPipelineContext.class);
+    QueryContext qc = mock(QueryContext.class);
+    when(qc.query()).thenReturn(mock(TimeSeriesQuery.class));
+    context = spy(new TestByteToStringConverterForSource.TestContext(qc));
     upstream = mock(QueryNode.class);
     factory_a = mock(TimeSeriesDataSourceFactory.class);
     factory_b = mock(TimeSeriesDataSourceFactory.class);
@@ -79,8 +84,12 @@ public class TestByteToStringIdConverter {
           .setId("cvtr")
           .build();
     
-    when(context.upstream(any(QueryNode.class)))
-      .thenReturn(Lists.newArrayList(upstream));
+    doReturn(Lists.newArrayList(upstream)).when(context)
+      .upstream(any(QueryNode.class));
+    doReturn(Lists.newArrayList()).when(context)
+      .downstream(any(QueryNode.class));
+    doReturn(Lists.newArrayList()).when(context)
+      .downstreamSources(any(QueryNode.class));
     when(set_a.start()).thenReturn(new SecondTimeStamp(1546300800));
     when(set_a.dataSource()).thenReturn("m1");
     when(set_b.start()).thenReturn(new SecondTimeStamp(1546300800));
@@ -314,6 +323,12 @@ public class TestByteToStringIdConverter {
     node.initialize(null).join();
     
     PartialTimeSeries pts_a = mock(PartialTimeSeries.class);
+    when(pts_a.idType()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
     when(set_a.timeSeriesCount()).thenReturn(100);
     TimeSeriesByteId id_a = getByteId(42, pts_a, set_a, factory_a);
     node.onNext(pts_a);
@@ -325,6 +340,12 @@ public class TestByteToStringIdConverter {
     assertSame(pts_a, resolver.series.get(0));
     
     PartialTimeSeries pts_b = mock(PartialTimeSeries.class);
+    when(pts_b.idType()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
     when(set_b.timeSeriesCount()).thenReturn(100);
     TimeSeriesByteId id_b = getByteId(-1, pts_b, set_b, factory_b);
     node.onNext(pts_b);
@@ -346,7 +367,15 @@ public class TestByteToStringIdConverter {
                              final PartialTimeSeriesSet set,
                              final TimeSeriesDataSourceFactory factory) {
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
-    when(set.id(anyLong())).thenReturn(id);
+    when(id.type()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    if (!context.hasId(hash, Const.TS_BYTE_ID)) {
+      context.addId(hash, id);
+    }
     when(id.dataStore()).thenReturn(factory);
     when(factory.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
       .thenReturn(new Deferred<TimeSeriesStringId>());

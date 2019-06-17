@@ -65,7 +65,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
         .setSourceId("HBase")
         .setNamespace("Verizon")
         .setTimeShiftInterval("1h")
-        .setPreviousIntervals(1)
         .setMetric(MetricLiteralFilter.newBuilder().setMetric("system.cpu.use").build())
         .setId("UT")
         .setSources(Lists.newArrayList("colo1", "colo2"))

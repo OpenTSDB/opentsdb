@@ -16,10 +16,12 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.stats.Span;
 
 /**
@@ -124,6 +126,34 @@ public interface QueryPipelineContext extends QueryNode {
    * @return A non-null list of one or more sinks.
    */
   public Collection<QuerySink> sinks();
+  
+  /**
+   * Adds the given ID to the context.
+   * @param hash The hash of the ID.
+   * @param id The non-null ID.
+   * @throws IllegalArgumentException if the ID already exists for the given type.
+   */
+  public void addId(final long hash, final TimeSeriesId id);
+  
+  /**
+   * Allows retrieval of the time series ID for the given hash and type from a
+   * partial time series.
+   * @param hash The hash to look up.
+   * @param type The non-null type.
+   * @return The time series ID if found, null if not.
+   */
+  public TimeSeriesId getId(final long hash, 
+                            final TypeToken<? extends TimeSeriesId> type);
+  
+  /**
+   * Determines if the time series ID for the given hash and type from a partial 
+   * time series is present.
+   * @param hash The hash to look up.
+   * @param type The non-null type.
+   * @return True if the ID is present, false if not.
+   */
+  public boolean hasId(final long hash, 
+                       final TypeToken<? extends TimeSeriesId> type);
   
   /**
    * Releases all resources held by the query graph.

@@ -28,12 +28,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.graph.Traverser;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.stats.Span;
 
@@ -58,7 +60,8 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public abstract class AbstractQueryPipelineContext implements QueryPipelineContext, QuerySinkCallback {
+public abstract class AbstractQueryPipelineContext implements 
+    QueryPipelineContext, QuerySinkCallback {
   private static final Logger LOG = LoggerFactory.getLogger(
       AbstractQueryPipelineContext.class);
   
@@ -89,6 +92,9 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /** A counter of completed sets. When this matches the plan sources we're done. */
   protected AtomicInteger total_finished;
   
+  /** The map of IDs. We need to separate by type to avoid collisions. */
+  protected Map<TypeToken<? extends TimeSeriesId>, Map<Long, TimeSeriesId>> ids;
+  
   /**
    * Default ctor.
    * @param context The user's query context.
@@ -105,6 +111,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     pts = Maps.newConcurrentMap();
     finished_sources = Maps.newConcurrentMap();
     total_finished = new AtomicInteger();
+    ids = Maps.newConcurrentMap();
   }
   
   @Override
@@ -273,12 +280,49 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
+  public TimeSeriesId getId(final long hash, 
+                            final TypeToken<? extends TimeSeriesId> type) {
+    final Map<Long, TimeSeriesId> map = ids.get(type);
+    if (map == null) {
+      return null;
+    }
+    return map.get(hash);
+  }
+  
+  @Override
+  public boolean hasId(final long hash, 
+                       final TypeToken<? extends TimeSeriesId> type) {
+    final Map<Long, TimeSeriesId> map = ids.get(type);
+    if (map == null) {
+      return false;
+    }
+    return map.containsKey(hash);
+  }
+  
+  @Override
+  public void addId(final long hash, final TimeSeriesId id) {
+    Map<Long, TimeSeriesId> map = ids.get(id.type());
+    if (map == null) {
+      map = Maps.newConcurrentMap();
+      Map<Long, TimeSeriesId> extant = ids.putIfAbsent(id.type(), map);
+      if (extant != null) {
+        map = extant;
+      }
+    }
+    if (map.putIfAbsent(hash, id) != null) {
+      throw new IllegalArgumentException("ID " + hash + " for type " 
+          + id.type() + " already exists.");
+    }
+  }
+  
+  @Override
   public TimeSeriesQuery query() {
     return context.query();
   }
   
   @Override
   public void close() {
+    ids.clear();
     if (plan != null && !plan.graph().edges().isEmpty()) {
       Traverser<QueryNode> traverser = Traverser.forGraph(plan.graph());
       for (final QueryNode node : traverser.breadthFirst(this)) {
