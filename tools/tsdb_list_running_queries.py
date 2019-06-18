@@ -14,6 +14,10 @@ import sys
 import time
 
 
+class ConnectionException(Exception):
+    pass
+
+
 class OpenTSDBListRunningQueries(object):
 
     format_string = '{:<19}\t{:<10}\t{:<19}\t{:<19}\t{:<16}\t{:<10}\t{:<10}\t{}'
@@ -44,9 +48,9 @@ class OpenTSDBListRunningQueries(object):
             resp = self.server.getresponse().read()
             self.server.close()
         except socket.error as _:
-            raise socket.error('Socket Error querying TSDB port {}'.format(_))
+            raise ConnectionException('Socket Error querying TSDB port: {}'.format(_))
         except httplib.HTTPException as _:
-            raise httplib.HTTPException('HTTP Error querying TSDB port {}'.format(_))
+            raise ConnectionException('HTTP Error querying TSDB port: {}'.format(_))
         return json.loads(resp)
 
     # reference_timestamp is for comparing N-ago timestamps
@@ -126,7 +130,7 @@ class OpenTSDBListRunningQueries(object):
 if __name__ == "__main__":
     try:
         OpenTSDBListRunningQueries().main()
-    except (socket.error, httplib.HTTPException) as _:
+    except ConnectionException as _:
         print(_, file=sys.stderr)
         sys.exit(2)
     except KeyboardInterrupt:
