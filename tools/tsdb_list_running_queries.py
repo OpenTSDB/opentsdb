@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=line-too-long,missing-docstring
 #
 # List the running queries on the local TSD, sorted ascending by age, with normalized start time, end time, and time range in secs
 
@@ -11,13 +12,13 @@ import os
 import socket
 import sys
 import time
-from datetime import datetime
-from collections import defaultdict
 
 
 class OpenTSDBListRunningQueries(object):
 
-    TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M%S'
+    format_string = '{:<19}\t{:<10}\t{:<19}\t{:<19}\t{:<16}\t{:<10}\t{:<10}\t{}'
+
+    now_length = len(str(int(time.time())))
 
     timestamp_multiplier = {
         'ms': 0.001,
@@ -43,18 +44,16 @@ class OpenTSDBListRunningQueries(object):
             resp = self.server.getresponse().read()
             self.server.close()
         except socket.error as _:
-            print(_, file=sys.stderr)
-            sys.exit(1)
+            raise socket.error('Socket Error querying TSDB port {}'.format(_))
         except httplib.HTTPException as _:
-            print(_, file=sys.stderr)
-            sys.exit(1)
+            raise httplib.HTTPException('HTTP Error querying TSDB port {}'.format(_))
         return json.loads(resp)
 
     # reference_timestamp is for comparing N-ago timestamps
     def convert_timestamp_to_epoch(self, timestamp, reference_timestamp):
         timestamp = str(timestamp).split('.')[0]
-        reference_timestamp_datetime = datetime.strptime(reference_timestamp, '%Y-%m-%d %H:%M:%S') # %z not supported in the C runtime, and no workaround until Python 3.2
-        reference_timestamp_secs = reference_timestamp_datetime.strftime('%s')
+        reference_timestamp_struct = time.strptime(reference_timestamp, '%Y-%m-%d %H:%M:%S') # %z not supported in the C runtime, and no workaround until Python 3.2
+        reference_timestamp_secs = time.mktime(reference_timestamp_struct)
         if '/' in timestamp:
             timestamp = time.strptime(timestamp, '%Y/%m/%d-%H:%M:%S')
             timestamp = time.mktime(timestamp)
@@ -65,9 +64,6 @@ class OpenTSDBListRunningQueries(object):
             (ago, multiplier) = (timestamp[:-1], timestamp[-1])
             secs_ago = int(ago) * self.timestamp_multiplier[multiplier]
             timestamp = int(reference_timestamp_secs) - secs_ago
-        elif '-' in timestamp and timestamp[-4:] != '-ago':
-            timestamp = time.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-            timestamp = time.mktime(timestamp)
         timestamp = int(float(timestamp))
         timestamp = self.ms_to_secs(timestamp)
         return timestamp
@@ -78,51 +74,49 @@ class OpenTSDBListRunningQueries(object):
         #print('converted epoch {} to {}'.format(epoch, human_time))
         return human_time
 
-    @staticmethod
-    def ms_to_secs(epoch):
+    def ms_to_secs(self, epoch):
         # convert from ms to secs if epoch is in ms
-        if len(str(epoch)) > len(str(int(time.time()))):
+        if len(str(epoch)) > self.now_length:
             epoch = int(int(epoch) / 1000)
         return epoch
 
-    def main(self):
-        current_time = int(time.time())
-        stats = self.request()
+    def process_query(self, query):
+        if os.getenv('DEBUG'):
+            print(json.dumps(query, indent=4, sort_keys=True))
+        user = query.get('headers', {}).get('X-WEBAUTH-USER', '')
+        querystart = query.get('queryStart', '')
+        querystart_secs = self.ms_to_secs(querystart)
+        querystart = self.convert_human_time(querystart_secs)
+        query = query['query']
+        start = query['start']
+        start_epoch = self.ms_to_secs(self.convert_timestamp_to_epoch(start, querystart))
+        start = self.convert_human_time(start_epoch)
+        end = query.get('end', '')
+        if end:
+            end_epoch = self.ms_to_secs(self.convert_timestamp_to_epoch(end, querystart))
+        else:
+            end_epoch = int(time.mktime(time.strptime(querystart, '%Y-%m-%d %H:%M:%S')))
+        end = self.convert_human_time(end_epoch)
+        timerange_secs = end_epoch - start_epoch
+        running_subquery_count = 0
+        for subquery in query.get('queries', []):
+            metric = subquery.get('metric', '')
+            aggregator = subquery.get('aggregator')
+            downsample = subquery.get('downsample')
+            print(self.format_string.format(querystart, user, start, end, timerange_secs, aggregator, downsample, metric))
+            running_subquery_count += 1
+        return running_subquery_count
 
+    def main(self):
+        stats = self.request()
         running_queries = stats.get('running', [])
-        format_string = '{:<19}\t{:<10}\t{:<19}\t{:<19}\t{:<16}\t{:<10}\t{:<10}\t{}'
         print('='*160)
-        print(format_string.format('Date', 'User', 'Start', 'End', 'TimeRange (Secs)', 'Aggregator', 'Downsample', 'Metric'))
+        print(self.format_string.format('Date', 'User', 'Start', 'End', 'TimeRange (Secs)', 'Aggregator', 'Downsample', 'Metric'))
         print('='*160 + '\n')
         running_queries.sort(key=lambda x: int(x['queryStart']), reverse=False)
         running_subquery_count = 0
         for query in running_queries:
-            if os.getenv('DEBUG'):
-                print(json.dumps(query, indent=4, sort_keys=True))
-            user = query.get('headers', {}).get('X-WEBAUTH-USER', '')
-            querystart = query.get('queryStart', '')
-            querystart_secs = self.ms_to_secs(querystart)
-            querystart = self.convert_human_time(querystart_secs)
-            query = query['query']
-            start = query['start']
-            #start = time.strftime(self.TIMESTAMP_FORMAT, time.gmtime(float(start)/1000))
-            start_epoch = self.ms_to_secs(self.convert_timestamp_to_epoch(start, querystart))
-            start = self.convert_human_time(start_epoch)
-            end = query.get('end', '')
-            if end:
-                #end= time.strftime(self.TIMESTAMP_FORMAT, time.gmtime(float(end)/1000))
-                end_epoch = self.ms_to_secs(self.convert_timestamp_to_epoch(end, querystart))
-            else:
-                end_epoch = int(datetime.strptime(querystart, '%Y-%m-%d %H:%M:%S').strftime('%s'))
-            end = self.convert_human_time(end_epoch)
-            timerange_secs = end_epoch - start_epoch
-            for subquery in query.get('queries', []):
-                metric = subquery.get('metric', '')
-                aggregator = subquery.get('aggregator')
-                downsample = subquery.get('downsample')
-                print(format_string.format(querystart, user, start, end, timerange_secs, aggregator, downsample, metric))
-                running_subquery_count +=1 
-
+            running_subquery_count += self.process_query(query)
         running_query_count = len(running_queries)
         print('\nListed {} running queries, {} individual subqueries'.format(running_query_count, running_subquery_count))
         sys.stdout.flush()
@@ -132,5 +126,9 @@ class OpenTSDBListRunningQueries(object):
 if __name__ == "__main__":
     try:
         OpenTSDBListRunningQueries().main()
+    except (socket.error, httplib.HTTPException) as _:
+        print(_, file=sys.stderr)
+        sys.exit(2)
     except KeyboardInterrupt:
         print("Control-C, aborting...")
+        sys.exit(3)
