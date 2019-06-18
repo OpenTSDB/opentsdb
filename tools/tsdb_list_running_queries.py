@@ -22,6 +22,8 @@ class OpenTSDBListRunningQueries(object):
 
     format_string = '{:<19}\t{:<10}\t{:<19}\t{:<19}\t{:<16}\t{:<10}\t{:<10}\t{}'
 
+    # used by ms_to_secs() method further down to compare the epoch and figure out if it is in secs or ms and normalize it
+    # pulling this out of the iteratively called method is a little more efficient to not recalculate this for every query in the list
     now_length = len(str(int(time.time())))
 
     timestamp_multiplier = {
