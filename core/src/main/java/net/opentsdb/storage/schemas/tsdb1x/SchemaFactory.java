@@ -38,6 +38,7 @@ import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
@@ -178,8 +179,12 @@ public class SchemaFactory extends BaseTSDBPlugin
         // TODO - figure out padding
       } else {
         if (rollup_config != null) {
-          builder.setRollupIntervals(rollup_config.getPossibleIntervals(
-              source_config.getSummaryInterval()));
+          try {
+            builder.setRollupIntervals(rollup_config.getPossibleIntervals(
+                source_config.getSummaryInterval()));
+          } catch (NoSuchRollupForIntervalException e) {
+            // ignore, we'll use raw.
+          }
         }
         
         // TODO compute the padding
