@@ -96,8 +96,8 @@ public final class RollupSeq implements iRowSeq {
     this.rollup_query = rollup_query;
     
     // TODO - others
-    need_count = rollup_query.getGroupBy() == Aggregators.AVG ||
-                 rollup_query.getGroupBy() == Aggregators.DEV;
+    need_count = rollup_query.getRollupAgg() == Aggregators.AVG ||
+                 rollup_query.getRollupAgg() == Aggregators.DEV;
     
     // WARNING overallocation
     qualifiers = new byte[rollup_query.getRollupInterval().getIntervals() * 2];

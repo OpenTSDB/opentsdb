@@ -144,6 +144,16 @@ public class TestRollupSeq {
       Aggregators.COUNT, 
       3600000,
       Aggregators.COUNT);
+  protected static final RollupQuery rollup_query_1h_avg_group_by_sum =
+      new RollupQuery(RollupInterval.builder()
+              .setTable("tsdb")
+              .setPreAggregationTable("tsdb-agg")
+              .setInterval("1h")
+              .setRowSpan("1d")
+              .build(),
+      Aggregators.AVG,
+      3600000,
+      Aggregators.SUM);
   
   @Before
   public void before() throws Exception {
@@ -215,7 +225,7 @@ public class TestRollupSeq {
         rollup_config.getIdForAggregator("SUM"), rollup_query_sum);
     rs.setRow(kv1);
   }
-  
+
   @Test
   public void addRow() throws Exception {
     final KeyValue kv1 = getRollupKeyValue(key, 1356998400000L, 4L, 
@@ -1432,7 +1442,7 @@ public class TestRollupSeq {
     it.seek(1420075200000L);
     assertFalse(it.hasNext());
   }
-  
+
   @Test
   public void rollup10mSeekSeconds() throws Exception {
     
@@ -1811,7 +1821,7 @@ public class TestRollupSeq {
         rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
         rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
-    
+
     assertEquals(1420070400000L, rs.timestamp(0));
     assertEquals(1420071000000L, rs.timestamp(1));
     assertEquals(1420071600000L, rs.timestamp(2));
@@ -1825,6 +1835,40 @@ public class TestRollupSeq {
       assertEquals(1420071600000L, rs.timestamp(-1));
       fail("Excpected an IndexOutOfBoundsException");
     } catch (IndexOutOfBoundsException e) { }
+  }
+
+  @Test
+  public void rollupRowWithDifferentAggregators() throws Exception {
+
+    Internal.setBaseTime(key, 1420070400);
+    final RollupSeq rs = new RollupSeq(tsdb, rollup_query_1h_avg_group_by_sum);
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L,
+            rollup_config.getIdForAggregator("sum"), rollup_query_1h_avg_group_by_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2L,
+            rollup_config.getIdForAggregator("sum"), rollup_query_1h_avg_group_by_sum));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 3L,
+            rollup_config.getIdForAggregator("sum"), rollup_query_1h_avg_group_by_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 1L,
+            rollup_config.getIdForAggregator("count"), rollup_query_1h_avg_group_by_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2L,
+            rollup_config.getIdForAggregator("count"), rollup_query_1h_avg_group_by_sum));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 3L,
+            rollup_config.getIdForAggregator("count"), rollup_query_1h_avg_group_by_sum));
+
+    assertEquals(3, rs.size());
+    final SeekableView it = rs.iterator();
+    it.seek(1420070400L);
+    long value = 1;
+    long ts = 1420070400000L;
+    while (it.hasNext()) {
+      final DataPoint dp = it.next();
+      assertEquals(ts, dp.timestamp());
+      assertTrue(dp.isInteger());
+      assertEquals(value, dp.longValue());
+      assertEquals(value, dp.valueCount());
+      ++value;
+      ts += 60 * 60 * 1000;
+    }
   }
   
   private static KeyValue getRollupKeyValue(final byte[] key,
