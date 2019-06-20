@@ -236,8 +236,16 @@ public class TestRollupConfig {
     assertEquals(1, intervals.size());
     assertSame(raw, intervals.get(0));
     
+    intervals = config.getRollupIntervals(1, "1s");
+    assertEquals(1, intervals.size());
+    assertSame(raw, intervals.get(0));
+    
+    intervals = config.getRollupIntervals(15, "15s");
+    assertEquals(1, intervals.size());
+    assertSame(raw, intervals.get(0));
+    
     try {
-      config.getRollupIntervals(1, "1s");
+      config.getRollupIntervals(1, "1s", true);
       fail("Expected NoSuchRollupForIntervalException");
     } catch (NoSuchRollupForIntervalException e) { }
     
