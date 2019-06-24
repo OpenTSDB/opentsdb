@@ -19,37 +19,65 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
+import java.time.temporal.TemporalAmount;
+import java.util.List;
+
 import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-
-import java.util.List;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TimeShiftConfig.Builder.class)
 public class TimeShiftConfig extends BaseQueryNodeConfig {
+  private static final Logger LOG = LoggerFactory.getLogger(TimeShiftConfig.class);
 
-  protected TimeSeriesDataSourceConfig config;
-  
+  private String timeShiftInterval;
+  private Pair<Boolean, TemporalAmount> amounts;
+
   protected TimeShiftConfig(final Builder builder) {
     super(builder);
-    config = builder.config;
+    timeShiftInterval = builder.interval;
+    if (!Strings.isNullOrEmpty(builder.interval)) {
+      DateTime.parseDuration(builder.interval);
+      timeShiftInterval = builder.interval;
+
+      // TODO - must be easier/cleaner ways.
+      // TODO - handle calendaring
+      final int count = DateTime.getDurationInterval(timeShiftInterval);
+      final String units = DateTime.getDurationUnits(timeShiftInterval);
+      final TemporalAmount amount = DateTime.parseDuration2(
+              Integer.toString(count) + units);
+      amounts = new Pair<Boolean, TemporalAmount>(true, amount);
+
+    }
   }
-  
-  public TimeSeriesDataSourceConfig getConfig() {
-    return config;
+
+  public Pair<Boolean, TemporalAmount> amounts() {
+    return amounts;
   }
-  
+
+  public String getTimeShiftInterval() {
+    return timeShiftInterval;
+  }
+
+
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+    return (Builder) new Builder()
+            .setTimeshiftInterval(timeShiftInterval)
+            .setId(id)
+            .setSources(sources);
   }
-  
+
   @Override
   public int compareTo(final QueryNodeConfig o) {
     // TODO Auto-generated method stub
@@ -69,7 +97,7 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
 
     final TimeShiftConfig tsconfig = (TimeShiftConfig) o;
 
-    return Objects.equal(config, tsconfig.getConfig());
+    return Objects.equal(timeShiftInterval, tsconfig.getTimeShiftInterval());
   }
 
   @Override
@@ -79,46 +107,49 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
 
   @Override
   public HashCode buildHashCode() {
+    final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(timeShiftInterval), Const.UTF8_CHARSET)
+            .hash();
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(2);
 
     hashes.add(super.buildHashCode());
 
-    hashes.add(config.buildHashCode());
+    hashes.add(hc);
 
     return Hashing.combineOrdered(hashes);
   }
 
   @Override
   public boolean pushDown() {
-    return false;
+    return true;
   }
 
   @Override
   public boolean joins() {
     return false;
   }
-  
+
   public static Builder newBuilder() {
     return new Builder();
   }
-  
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfig.Builder {
-    protected TimeSeriesDataSourceConfig config;
-    
+    protected String interval;
+
     Builder() {
       setType(TimeShiftFactory.TYPE);
     }
-    
-    public Builder setConfig(final TimeSeriesDataSourceConfig config) {
-      this.config = config;
+
+    public Builder setTimeshiftInterval(final String interval) {
+      this.interval = interval;
       return this;
     }
-    
+
     public QueryNodeConfig build() {
       return new TimeShiftConfig(this);
     }
   }
-  
+
 }

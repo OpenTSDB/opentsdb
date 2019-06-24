@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import net.opentsdb.data.Aggregator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 
 /**
@@ -22,7 +23,8 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
  * 
  * @since 3.0
  */
-public interface NumericArrayAggregator extends NumericArrayType {
+public interface NumericArrayAggregator extends Aggregator<NumericArrayType>, 
+                                                NumericArrayType {
 
   /**
    * Accumulates the integer values.

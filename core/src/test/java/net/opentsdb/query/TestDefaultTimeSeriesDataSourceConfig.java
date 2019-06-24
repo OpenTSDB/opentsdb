@@ -66,7 +66,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
         .setSourceId("HBase")
         .setNamespace("Verizon")
         .setTimeShiftInterval("1h")
-        .setPreviousIntervals(1)
         .setMetric(MetricLiteralFilter.newBuilder().setMetric("system.cpu.use").build())
         .setId("UT")
         .setSources(Lists.newArrayList("colo1", "colo2"))
@@ -92,8 +91,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setFilterId("f1")
             .setQueryFilter(filter)
             .setFetchLast(true)
-            .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -109,10 +106,8 @@ public class TestDefaultTimeSeriesDataSourceConfig {
                     .setMetric("system.cpu.user")
                     .build())
             .setFilterId("f1")
-            .setQueryFilter(filter2)
+            .setQueryFilter(filter)
             .setFetchLast(true)
-            .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -131,7 +126,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -152,7 +146,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -172,7 +165,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -192,7 +184,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -211,7 +202,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -234,7 +224,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)     // DIFF
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -257,7 +246,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(false)     // DIFF
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -276,7 +264,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1h")     // DIFF
-            .setPreviousIntervals(1)
             .setId("c1")
             .build();
 
@@ -295,7 +282,6 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setQueryFilter(filter3)
             .setFetchLast(true)
             .setTimeShiftInterval("1m")
-            .setPreviousIntervals(1)
             .setId("c2")     // DIFF
             .build();
 

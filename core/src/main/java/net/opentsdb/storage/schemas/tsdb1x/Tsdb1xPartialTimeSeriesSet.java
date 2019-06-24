@@ -14,13 +14,10 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.util.Map;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.pools.CloseablePooledObject;
@@ -83,10 +80,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
   
   /** The total number of sets. */
   protected int total_sets;
-  
-  /** The reference to a map of time series IDs. */
-  protected Map<Long, TimeSeriesId> ids;
-  
+    
   /** A reference to the last partial time series discovered. */
   protected Tsdb1xPartialTimeSeries pts;
   
@@ -116,15 +110,13 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
    * @param rollup_usage The rollup usage.
    * @param salts The number of salts. At least 1.
    * @param total_sets The total number of sets.
-   * @param ids The ref to IDs.
    */
   public void reset(final Tsdb1xQueryNode node, 
                     final TimeStamp start, 
                     final TimeStamp end, 
                     final RollupUsage rollup_usage,
                     final int salts, 
-                    final int total_sets, 
-                    final Map<Long, TimeSeriesId> ids) {
+                    final int total_sets) {
     this.node = node;
     this.start.update(start);
     this.end.update(end);
@@ -133,12 +125,10 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     complete = false;
     latch = salts;
     this.total_sets = total_sets;
-    this.ids = ids;
   }
   
   @Override
   public void close() throws Exception {
-    ids = null;
     node = null;
     pts = null;
     release();
@@ -173,12 +163,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
   public TimeStamp end() {
     return end;
   }
-
-  @Override
-  public TimeSeriesId id(final long hash) {
-    return ids.get(hash);
-  }
-
+  
   @Override
   public int timeSeriesCount() {
     return series;
@@ -211,7 +196,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
       if (extant != null) {
         final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
         runnable.reset(extant, node);
-        tsdb.getQueryThreadPool().submit(runnable);
+        tsdb.getQueryThreadPool().submit(runnable, node.pipelineContext().queryContext());
       } else if (rollup_usage == RollupUsage.ROLLUP_NOFALLBACK || is_final) {
         // send up sentinel
         final NoDataPartialTimeSeries pts = claimNoData();
@@ -257,7 +242,9 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     if (extant != null) {
       final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
       runnable.reset(extant, node);
-      tsdb.getQueryThreadPool().submit(runnable);
+
+      // Pass the query context to schedule based on the Users/Query types
+      tsdb.getQueryThreadPool().submit(runnable, this.node.pipelineContext().queryContext());
     }
     
     if (all_done) {
@@ -284,7 +271,7 @@ public class Tsdb1xPartialTimeSeriesSet implements PartialTimeSeriesSet,
     pts.reset(this);
     final PooledPartialTimeSeriesRunnable runnable = claimRunnable();
     runnable.reset(pts, node);
-    tsdb.getQueryThreadPool().submit(runnable);
+    tsdb.getQueryThreadPool().submit(runnable, node.pipelineContext().queryContext());
   }
 
   @Override

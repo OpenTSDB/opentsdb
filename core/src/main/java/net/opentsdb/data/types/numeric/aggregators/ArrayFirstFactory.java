@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Returns the first values honoring infectious NaN.
@@ -29,6 +30,19 @@ import net.opentsdb.core.TSDB;
 public class ArrayFirstFactory extends BaseArrayFactory {
 
   public static final String TYPE = "First";
+  
+  @Override
+  public NumericArrayAggregator newAggregator() {
+    return new ArrayFirst(false);
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
+    if (config != null && config instanceof NumericAggregatorConfig) {
+      return new ArrayFirst(((NumericAggregatorConfig) config).infectiousNan());
+    }
+    return new ArrayFirst(false);
+  }
   
   @Override
   public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
@@ -106,5 +120,9 @@ public class ArrayFirstFactory extends BaseArrayFactory {
       }
     }
     
+    @Override
+    public String name() {
+      return ArrayFirstFactory.TYPE;
+    }
   }
 }

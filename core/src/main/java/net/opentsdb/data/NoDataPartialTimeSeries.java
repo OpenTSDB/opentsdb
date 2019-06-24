@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.common.Const;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
@@ -51,6 +54,11 @@ public class NoDataPartialTimeSeries implements
     return 0;
   }
 
+  @Override
+  public TypeToken<? extends TimeSeriesId> idType() {
+    return Const.TS_STRING_ID;
+  }
+  
   @Override
   public PartialTimeSeriesSet set() {
     return set;

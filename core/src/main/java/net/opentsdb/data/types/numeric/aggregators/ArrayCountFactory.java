@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Just the count.
@@ -31,6 +32,19 @@ import net.opentsdb.core.TSDB;
 public class ArrayCountFactory extends BaseArrayFactory {
 
   public static final String TYPE = "Count";
+  
+  @Override
+  public NumericArrayAggregator newAggregator() {
+    return new ArrayCount(false);
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
+    if (config != null && config instanceof NumericAggregatorConfig) {
+      return new ArrayCount(((NumericAggregatorConfig) config).infectiousNan());
+    }
+    return new ArrayCount(false);
+  }
   
   @Override
   public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
@@ -99,5 +113,9 @@ public class ArrayCountFactory extends BaseArrayFactory {
       }
     }
     
+    @Override
+    public String name() {
+      return ArrayCountFactory.TYPE;
+    }
   }
 }

@@ -261,22 +261,12 @@ public class WrappedTimeSeriesDataSourceConfig implements
   }
 
   @Override
-  public int getPreviousIntervals() {
-    return config.getPreviousIntervals();
-  }
-
-  @Override
-  public int getNextIntervals() {
-    return config.getNextIntervals();
-  }
-
-  @Override
   public boolean hasBeenSetup() {
     return has_been_setup;
   }
   
   @Override
-  public Map<String, Pair<Boolean, TemporalAmount>> timeShifts() {
+  public Pair<Boolean, TemporalAmount> timeShifts() {
     return config.timeShifts();
   }
 

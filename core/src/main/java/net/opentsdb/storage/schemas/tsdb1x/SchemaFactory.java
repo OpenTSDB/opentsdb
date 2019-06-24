@@ -14,15 +14,12 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.util.List;
-import java.util.Set;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
+import java.util.List;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -37,15 +34,18 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.uid.UniqueIdType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple singleton factory that implements a default and named schemas
@@ -56,6 +56,8 @@ import net.opentsdb.uid.UniqueIdType;
 public class SchemaFactory extends BaseTSDBPlugin 
                            implements TimeSeriesDataSourceFactory,
                                       WritableTimeSeriesDataStoreFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(SchemaFactory.class);
+
   public static final String TYPE = "Tsdb1xSchemaFactory";
   
   public static final String KEY_PREFIX = "tsd.storage.";
@@ -128,17 +130,23 @@ public class SchemaFactory extends BaseTSDBPlugin
   public void setupGraph(final QueryPipelineContext context, 
                          final QueryNodeConfig config,
                          final QueryPlanner planner) {
+
     if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
       // all done.
       return;
     }
-    
-    // TODO - Make this a shared method
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null &&
-        !((TimeSeriesDataSourceConfig) config).timeShifts().isEmpty()) {
+
+    for (QueryNodeConfig pushdowns : ((TimeSeriesDataSourceConfig) config).getPushDownNodes()) {
+      if (pushdowns instanceof TimeShiftConfig) {
+        return;
+      }
+    }
+
+    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null ) {
       DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
     }
-  }
+
+ }
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context) {
@@ -171,8 +179,12 @@ public class SchemaFactory extends BaseTSDBPlugin
         // TODO - figure out padding
       } else {
         if (rollup_config != null) {
-          builder.setRollupIntervals(rollup_config.getPossibleIntervals(
-              source_config.getSummaryInterval()));
+          try {
+            builder.setRollupIntervals(rollup_config.getPossibleIntervals(
+                source_config.getSummaryInterval()));
+          } catch (NoSuchRollupForIntervalException e) {
+            // ignore, we'll use raw.
+          }
         }
         
         // TODO compute the padding

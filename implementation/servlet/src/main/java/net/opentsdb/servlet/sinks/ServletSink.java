@@ -253,6 +253,7 @@ public class ServletSink implements QuerySink, SerdesCallback {
       + JSON.serializeToString(ImmutableMap.<String, Object>builder()
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
+      .put("user", context.authState() != null ? context.authState().getPrincipal().getName() : "Unkown")
       //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
       .put("traceId", context.stats().trace() != null ? 
           context.stats().trace().traceId() : "")
@@ -265,6 +266,7 @@ public class ServletSink implements QuerySink, SerdesCallback {
        + JSON.serializeToString(ImmutableMap.<String, Object>builder()
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
+      .put("user", context.authState() != null ? context.authState().getPrincipal().getName() : "Unkown")
       //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
       .put("traceId", context.stats().trace() != null ? 
           context.stats().trace().traceId() : "")

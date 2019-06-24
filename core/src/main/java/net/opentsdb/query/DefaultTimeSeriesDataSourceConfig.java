@@ -18,13 +18,10 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
@@ -88,7 +85,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
    */
   public static void setupTimeShiftSingleNode(final TimeSeriesDataSourceConfig config,
       final QueryPlanner planner) {
-    if (config.timeShifts() == null || config.timeShifts().isEmpty()) {
+    if (config.timeShifts() == null ) {
       return;
     }
 
@@ -96,23 +93,17 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
     TimeSeriesDataSourceConfig shiftless = ((TimeSeriesDataSourceConfig.Builder)
         config.toBuilder())
         .setTimeShiftInterval(null)
-        .setPreviousIntervals(0)
-        .setNextIntervals(0)
         .build();
     planner.replace(config, shiftless);
 
-  setupTimeShift(config, planner);
+    setupTimeShift(config, planner);
   }
 
   public static void setupTimeShift(final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
-    if (config.timeShifts().containsKey(config.getId())) {
-      // child who has already been initialized.
-      return;
-    }
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
-    final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-        .setConfig((TimeSeriesDataSourceConfig) config)
-        .setId(config.getId() + "-time-shift")
+    final BaseQueryNodeConfig shift_config = (BaseQueryNodeConfig) TimeShiftConfig.newBuilder()
+        .setTimeshiftInterval(config.getTimeShiftInterval())
+        .setId(config.getId() + "-timeShift")
         .build();
 
     if (planner.configGraph().nodes().contains(shift_config)) {
@@ -128,19 +119,19 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
       ((DefaultQueryPlanner) planner).sinkFilters().put(shift_config.id, null);
     }
 
-    for (final String shift_id : config.timeShifts().keySet()) {
-      final Map<String, Pair<Boolean, TemporalAmount>> amounts =
-          Maps.newHashMapWithExpectedSize(1);
-      amounts.put(shift_id, config.timeShifts().get(shift_id));
-      QueryNodeConfig.Builder rebuilt_builder = ((TimeSeriesDataSourceConfig.Builder)
-          config.toBuilder())
-          .setTimeShifts(amounts)
-          .setId(shift_id);
-      rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
-      QueryNodeConfig rebuilt = rebuilt_builder.build();
-      planner.addEdge(shift_config, rebuilt);
-    }
+    String shift_id = config.timeShifts().getValue() + "-timeShift";
+    final Pair<Boolean, TemporalAmount> amounts = config.timeShifts();
+    QueryNodeConfig.Builder rebuilt_builder = ((TimeSeriesDataSourceConfig.Builder)
+        config.toBuilder())
+        .setTimeShifts(amounts)
+        .setId(shift_id);
+    rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
+    ((BaseTimeSeriesDataSourceConfig.Builder) rebuilt_builder).setHasBeenSetup(true);
+    QueryNodeConfig rebuilt = rebuilt_builder.build();
+    planner.addEdge(shift_config, rebuilt);
 
+    ((DefaultQueryPlanner) planner).sinkFilters().remove(config.getId());
+    planner.removeNode(config);
   }
 
   /**
@@ -153,23 +144,14 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
   public static void setupTimeShiftMultiNode(final TimeSeriesDataSourceConfig config,
       final QueryPlanner planner,
       final MergerConfig merger) {
-    if (config.timeShifts() == null || config.timeShifts().isEmpty()) {
+    if (config.timeShifts() == null) {
       return;
     }
 
-    // since we're cloning, purge the original
-    TimeSeriesDataSourceConfig shiftless = ((TimeSeriesDataSourceConfig.Builder)
-        config.toBuilder())
-        .setTimeShiftInterval(null)
-        .setPreviousIntervals(0)
-        .setNextIntervals(0)
-        .build();
-    planner.replace(config, shiftless);
-
     final Set<QueryNodeConfig> shift_predecessors = planner.configGraph().predecessors(merger);
     final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
-        .setConfig((TimeSeriesDataSourceConfig) config)
-        .setId(merger.getId() + "-time-shift")
+        .setTimeshiftInterval(config.getTimeShiftInterval())
+        .setId(merger.getId() + "-timeShift")
         .build();
 
     for (final QueryNodeConfig predecessor : shift_predecessors) {
@@ -185,7 +167,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
     // merger to the destinations. *sigh*.
     // TODO - make this cleaner some day. This is SUPER ugly. For now we do it
     // so that we have the proper timeouts and distribute the query load.
-    for (final String shift_id : config.timeShifts().keySet()) {
+    String shift_id = config.timeShifts().getValue() + "-timeShift";
       final MergerConfig merger_shift = (MergerConfig) merger.toBuilder()
           .setId(shift_id)
           .build();
@@ -201,7 +183,9 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
             config.timeShifts(),
             shift_id);
       }
-    }
+    // Remove the original from the planner. We'll only have the time shift query
+    ((DefaultQueryPlanner) planner).sinkFilters().remove(merger.id);
+    planner.removeNode(merger);
   }
 
   /**
@@ -216,16 +200,14 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
       final QueryNodeConfig parent,
       final QueryNodeConfig new_parent,
       final QueryNodeConfig config,
-      final Map<String, Pair<Boolean, TemporalAmount>> shifts,
+      final Pair<Boolean, TemporalAmount> shifts,
       final String shift_id) {
     final QueryNodeConfig shift;
     final String timeshift_id = config.getId() + "-" + shift_id;
     if (config instanceof TimeSeriesDataSourceConfig) {
       // for the shift to happen properly we need to rename the shift node and
       // send that to the query target.
-      final Map<String, Pair<Boolean, TemporalAmount>> amounts =
-          Maps.newHashMapWithExpectedSize(1);
-      amounts.put(timeshift_id, shifts.get(shift_id));
+      final Pair<Boolean, TemporalAmount> amounts = shifts;
       QueryNodeConfig.Builder shift_builder = ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
           .setTimeShifts(amounts)
           .setId(timeshift_id);
@@ -264,6 +246,7 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
             pushdown.toBuilder().setSources((ArrayList) ((ArrayList) pushdown.getSources()).clone())
                 .build());
       }
+
       for (QueryNodeConfig pushdown : pushdown_clone) {
         if (pushdown.getSources().contains(original.getId())) {
           pushdown.getSources().remove(original.getId());
@@ -272,8 +255,6 @@ public class DefaultTimeSeriesDataSourceConfig extends BaseTimeSeriesDataSourceC
         }
 
       }
-
-
 
       ((TimeSeriesDataSourceConfig.Builder) time_shift_config_builder)
           .setPushDownNodes(pushdown_clone);

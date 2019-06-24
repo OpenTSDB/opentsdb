@@ -16,10 +16,14 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.common.Const;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.ObjectPool;
@@ -158,6 +162,11 @@ public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType>
   @Override
   public long idHash() {
     return id_hash;
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesId> idType() {
+    return Const.TS_BYTE_ID;
   }
   
   @Override

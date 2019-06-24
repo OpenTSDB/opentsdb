@@ -12,26 +12,24 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
-import java.time.temporal.TemporalAmount;
-import java.util.*;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.base.Objects;
-
+import java.time.temporal.TemporalAmount;
+import java.util.Collections;
+import java.util.List;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.MetricFilter;
@@ -95,14 +93,8 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   /** Optional offset interval. */
   private final String interval;
 
-  /** Optional number of previous interval offsets to fetch. */
-  protected final int previous;
-
-  /** Optional number of post interval offsets to fetch. */
-  protected final int next;
-
   /** Map of dataSource() IDs to amounts. */
-  protected final Map<String, Pair<Boolean, TemporalAmount>> amounts;
+  protected final Pair<Boolean, TemporalAmount> amounts;
 
   /** Whether or not this node has been setup already. */
   protected final boolean has_been_setup;
@@ -136,40 +128,19 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
 
     if (!Strings.isNullOrEmpty(builder.interval) &&
             builder.amounts == null) {
-      if (builder.previous <= 0 && builder.next <= 0) {
-        throw new IllegalArgumentException("At least one of Previous or Next must "
-                + "be greater than zero.");
-      }
-      if (builder.previous < 0 || builder.next < 0) {
-        throw new IllegalArgumentException("Previous and Next must be 0 or greater.");
-      }
       DateTime.parseDuration(builder.interval);
       interval = builder.interval;
-      previous = builder.previous;
-      next = builder.next;
-      amounts = Maps.newHashMap();
 
       // TODO - must be easier/cleaner ways.
       // TODO - handle calendaring
       final int count = DateTime.getDurationInterval(interval);
       final String units = DateTime.getDurationUnits(interval);
-      for (int i = 0; i < previous; i++) {
-        final TemporalAmount amount = DateTime.parseDuration2(
-                Integer.toString(count * (i + 1)) + units);
-        amounts.put(id + "-previous-" + amount.toString(),
-                new Pair<Boolean, TemporalAmount>(true, amount));
-      }
+      final TemporalAmount amount = DateTime.parseDuration2(
+              Integer.toString(count) + units);
+      amounts = new Pair<Boolean, TemporalAmount>(true, amount);
 
-      for (int i = 0; i < next; i++) {
-        final TemporalAmount amount = DateTime.parseDuration2(
-                Integer.toString(count * (i + 1)) + units);
-        amounts.put(id + "-next-" + amount.toString(),
-                new Pair<Boolean, TemporalAmount>(false, amount));
-      }
     } else {
       interval = builder.interval;
-      previous = builder.previous;
-      next = builder.next;
       amounts = builder.amounts;
     }
   }
@@ -250,17 +221,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   }
 
   @Override
-  public int getPreviousIntervals() {
-    return previous;
-  }
-
-  @Override
-  public int getNextIntervals() {
-    return next;
-  }
-
-  @Override
-  public Map<String, Pair<Boolean, TemporalAmount>> timeShifts() {
+  public Pair<Boolean, TemporalAmount> timeShifts() {
     return amounts;
   }
 
@@ -273,8 +234,6 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   public boolean joins() {
     return false;
   }
-
-
 
   @Override
   public boolean equals(final Object o) {
@@ -355,8 +314,6 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     return Hashing.combineOrdered(hashes);
   }
 
-
-
   @Override
   public int compareTo(final QueryNodeConfig o) {
     if (!(o instanceof BaseTimeSeriesDataSourceConfig)) {
@@ -396,8 +353,6 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
                     config.getPushDownNodes().isEmpty() ?
                     null : Lists.newArrayList(config.getPushDownNodes()))
             .setTimeShiftInterval(config.getTimeShiftInterval())
-            .setPreviousIntervals(config.getPreviousIntervals())
-            .setNextIntervals(config.getNextIntervals())
             .setTimeShifts(config.timeShifts())
             .setHasBeenSetup(config.hasBeenSetup())
             // TODO - overrides if we keep em.
@@ -545,17 +500,6 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     n = node.get("timeShiftInterval");
     if (n != null && !n.isNull()) {
       builder.setTimeShiftInterval(n.asText());
-
-      // only bother with the others if this was set.
-      n = node.get("previousIntervals");
-      if (n != null && !n.isNull()) {
-        builder.setPreviousIntervals(n.asInt());
-      }
-
-      n = node.get("nextIntervals");
-      if (n != null && !n.isNull()) {
-        builder.setNextIntervals(n.asInt());
-      }
     }
   }
 
@@ -584,11 +528,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     protected String post_padding;
     @JsonProperty
     protected String interval;
-    @JsonProperty
-    protected int previous;
-    @JsonProperty
-    protected int next;
-    protected Map<String, Pair<Boolean, TemporalAmount>> amounts;
+    protected Pair<Boolean, TemporalAmount> amounts;
     protected boolean has_been_setup;
 
     protected Builder() {
@@ -698,19 +638,9 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
       return this;
     }
 
-    public Builder setPreviousIntervals(final int intervals) {
-      previous = intervals;
-      return this;
-    }
-
-    public Builder setNextIntervals(final int intervals) {
-      next = intervals;
-      return this;
-    }
-
     @Override
     public Builder setTimeShifts(
-            final Map<String, Pair<Boolean, TemporalAmount>> amounts) {
+            final Pair<Boolean, TemporalAmount> amounts) {
       this.amounts = amounts;
       return this;
     }

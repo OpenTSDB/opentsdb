@@ -14,17 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,7 +22,11 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
@@ -48,10 +41,12 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple Rate processor generating factory.
@@ -91,16 +86,7 @@ public class RateFactory extends BaseQueryNodeFactory {
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
-    
-    // default intervals
-    intervals = Lists.newArrayListWithExpectedSize(6);
-    intervals.add(new Pair<Long, String>(86_400L * 365L * 1000L, "1w")); // 1y
-    intervals.add(new Pair<Long, String>(86_400L * 30L * 1000L, "1d")); // 1n
-    intervals.add(new Pair<Long, String>(86_400L * 2L * 1000L, "1h")); // 2d
-    intervals.add(new Pair<Long, String>(3_600L * 12L * 1000L, "1m")); // 12h
-    intervals.add(new Pair<Long, String>(3_600L * 6L * 1000L, "1s")); // 6h
-    intervals.add(new Pair<Long, String>(0L, "1m")); // default
-    
+    this.tsdb = tsdb;
     registerConfigs(tsdb);
     
     return Deferred.fromResult(null);
@@ -136,6 +122,11 @@ public class RateFactory extends BaseQueryNodeFactory {
                          final QueryNodeConfig config, 
                          final QueryPlanner plan) {
     if (((RateConfig) config).getInterval().toLowerCase().equals("auto")) {
+      if (intervals == null) {
+        DownsampleFactory downsample_factory = (DownsampleFactory) tsdb.getRegistry().
+            getQueryNodeFactory(DownsampleFactory.TYPE.toLowerCase());
+        intervals = downsample_factory.intervals();
+      }
       plan.replace(config, ((RateConfig) config).toBuilder()
           .setFactory(this)
           .setStartTime(context.query().startTime())
@@ -150,6 +141,11 @@ public class RateFactory extends BaseQueryNodeFactory {
    * @return The non-null intervals list.
    */
   public List<Pair<Long, String>> intervals() {
+    if (intervals == null) {
+      DownsampleFactory downsample_factory = (DownsampleFactory) tsdb.getRegistry().
+          getQueryNodeFactory(DownsampleFactory.TYPE.toLowerCase());
+      intervals = downsample_factory.intervals();
+    }
     return intervals;
   }
   
@@ -157,7 +153,6 @@ public class RateFactory extends BaseQueryNodeFactory {
    * Returns the proper auto interval based on the query width and the interval
    * config.
    * @param delta A non-negative delta in milliseconds.
-   * @param intervals The non-null reference to auto intervals.
    * @return The configured auto downsample interval.
    * @throws IllegalStateException if the downsampler is not configured properly.
    */
@@ -206,52 +201,6 @@ public class RateFactory extends BaseQueryNodeFactory {
             LOG.error("Failed to parse entry: " + entry + ". Using defaults", e);
             return;
           }
-        }
-        
-        // all good, sync it. Ugly yeah but this should run infrequently and only
-        // have up to a dozen entries.
-        synchronized (intervals) {
-          for (final Pair<Long, String> entry : pairs) {
-            boolean present = false;
-            final Iterator<Pair<Long, String>> iterator = intervals.iterator();
-            while (iterator.hasNext()) {
-              final Pair<Long, String> extant = iterator.next();
-              if (extant.getKey() == entry.getKey() && 
-                  !extant.getValue().equalsIgnoreCase(entry.getValue())) {
-                // value changed so we need to update it
-                extant.setValue(entry.getValue());
-                present = true;
-                break;
-              } else if (extant.getKey() == entry.getKey()) {
-                present = true;
-                break;
-              }
-            }
-            
-            if (!present) {
-              intervals.add(entry);
-            }
-          }
-          
-          // yank the stragglers
-          final Iterator<Pair<Long, String>> iterator = intervals.iterator();
-          while (iterator.hasNext()) {
-            final Pair<Long, String> extant = iterator.next();
-            boolean present = false;
-            for (final Pair<Long, String> new_entry : pairs) {
-              if (extant.getKey() == new_entry.getKey()) {
-                present = true;
-                break;
-              }
-            }
-            
-            if (!present) {
-              iterator.remove();
-            }
-          }
-          
-          Collections.sort(intervals, REVERSE_PAIR_CMP);
-          LOG.info("Updated auto downsample intervals: " + intervals);
         }
       }
     }

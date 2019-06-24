@@ -27,8 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Map;
-
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -38,11 +36,12 @@ import org.mockito.stubbing.Answer;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 
 public class TestTsdb1xPartialTimeSeriesSet {
@@ -51,7 +50,6 @@ public class TestTsdb1xPartialTimeSeriesSet {
   private static ObjectPool NO_DATA_POOL;
   
   private Tsdb1xQueryNode node;
-  private Map<Long, TimeSeriesId> ids;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -82,10 +80,14 @@ public class TestTsdb1xPartialTimeSeriesSet {
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    ids = mock(Map.class);
     QueryNodeConfig config = mock(QueryNodeConfig.class);
     when(config.getId()).thenReturn("Mock");
     when(node.config()).thenReturn(config);
+    QueryPipelineContext mockQpc = mock(QueryPipelineContext.class);
+    QueryContext mockQc = mock(QueryContext.class);
+    when(mockQpc.queryContext()).thenReturn(mockQc );
+    when(node.pipelineContext()).thenReturn(mockQpc);
+    
     TSDB.runnables.clear();
   }
   
@@ -113,7 +115,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     assertSame(node, set.node());
     assertEquals(1546300800, set.start().epoch());
     assertEquals(1546304400, set.end().epoch());
@@ -123,11 +125,9 @@ public class TestTsdb1xPartialTimeSeriesSet {
     assertNull(set.timeSpecification());
     assertNull(set.pts);
     assertEquals("Mock", set.dataSource());
-    assertSame(ids, set.ids);
     
     set.close();
     assertNull(set.node);
-    assertNull(set.ids);
     verify(pooled_object, times(1)).release();
   }
   
@@ -139,7 +139,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.increment(pts, false);
     
     verify(node, never()).onNext(pts);
@@ -159,7 +159,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.increment(pts, true);
     
     verify(node, never()).onNext(pts);
@@ -185,7 +185,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.increment(pts1, false);
     
     verify(node, never()).onNext(pts1);
@@ -225,7 +225,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.increment(pts1, false);
     
     verify(node, never()).onNext(pts1);
@@ -266,7 +266,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        2, 1, ids);
+        2, 1);
     set.increment(pts1, false);
     
     verify(node, never()).onNext(pts1);
@@ -302,7 +302,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     try {
       set.increment(null, false);
       fail("Expected IllegalArgumentException");
@@ -316,7 +316,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.setCompleteAndEmpty(false);
     verify(node, never()).setSentData();
     assertEquals(0, set.latch);
@@ -332,7 +332,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.setCompleteAndEmpty(true);
     verify(node, never()).setSentData();
     assertEquals(0, set.latch);
@@ -352,7 +352,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_NOFALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.setCompleteAndEmpty(false);
     verify(node, never()).setSentData();
     assertEquals(0, set.latch);
@@ -373,7 +373,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.pts = pts;
     set.setCompleteAndEmpty(false);
     verify(node, never()).setSentData();
@@ -396,7 +396,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.pts = pts;
     set.setCompleteAndEmpty(true);
     verify(node, never()).setSentData();
@@ -419,7 +419,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_NOFALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.pts = pts;
     set.setCompleteAndEmpty(false);
     verify(node, never()).setSentData();
@@ -441,7 +441,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        2, 1, ids);
+        2, 1);
     set.setCompleteAndEmpty(false);
     verify(node, never()).setSentData();
     assertEquals(1, set.latch);
@@ -458,7 +458,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        2, 1, ids);
+        2, 1);
     set.increment(pts, true);
     
     verify(node, times(1)).setSentData();
@@ -491,7 +491,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        2, 1, ids);
+        2, 1);
     set.setCompleteAndEmpty(false);
     
     verify(node, never()).setSentData();
@@ -524,7 +524,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
         new SecondTimeStamp(1546300800), 
         new SecondTimeStamp(1546304400), 
         RollupUsage.ROLLUP_FALLBACK, 
-        1, 1, ids);
+        1, 1);
     set.sendEmpty();
     
     verify(node, never()).setSentData();

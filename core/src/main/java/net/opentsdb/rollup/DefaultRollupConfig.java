@@ -230,11 +230,13 @@ public class DefaultRollupConfig implements RollupConfig {
         }
         
         rollups.put((long) rollup.getIntervalSeconds(), rollup);
+      } else if (!skip_default && rollup.isDefaultInterval()) {
+        rollups.put(0L, rollup);
       }
     }
 
     if (rollups.isEmpty() && !right_match) {
-      throw new NoSuchRollupForIntervalException(Long.toString(interval));
+      throw new NoSuchRollupForIntervalException(str_interval);
     }
     
     List<RollupInterval> best_matches = 

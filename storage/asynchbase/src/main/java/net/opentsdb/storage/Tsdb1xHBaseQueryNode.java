@@ -265,7 +265,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
       public void run() {
         completeUpstream(final_sequence, total_sequences);
       }
-    });
+    }, this.context.queryContext());
   }
 
   @Override
@@ -281,7 +281,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
           completeUpstream(sequence_id.get(), sequence_id.get());
         }
       }
-    });
+    }, context.queryContext());
   }
   
   @Override
@@ -310,7 +310,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
       public void run() {
         sendUpstream(t);        
       }
-    });
+    }, context.queryContext());
   }
 
   @Override
@@ -399,7 +399,6 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
     if (result == null) {
       throw new IllegalArgumentException("Result cannot be null.");
     }
-    
     for (final QueryNode node : upstream) {
       try {
         node.onNext(result);

@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Computes the average across the array. Returns a double array always.
@@ -33,6 +34,19 @@ public class ArrayAverageFactory extends BaseArrayFactory {
   @Override
   public String type() {
     return TYPE;
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator() {
+    return new ArrayAverage(false);
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
+    if (config != null && config instanceof NumericAggregatorConfig) {
+      return new ArrayAverage(((NumericAggregatorConfig) config).infectiousNan());
+    }
+    return new ArrayAverage(false);
   }
   
   @Override
@@ -163,6 +177,12 @@ public class ArrayAverageFactory extends BaseArrayFactory {
     @Override
     public int end() {
       return counts.length;
+    }
+
+    
+    @Override
+    public String name() {
+      return ArrayAverageFactory.TYPE;
     }
     
   }

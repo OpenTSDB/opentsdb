@@ -433,13 +433,12 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
                      final RollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
     long start;
-    if (source_config.timeShifts() == null || 
-        !source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() == null) {
       start = node.pipelineContext().query().startTime().epoch();
     } else {
       TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         ts.subtract(pair.getValue());
       } else {
@@ -501,13 +500,12 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
    */
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
     long end;
-    if (source_config.timeShifts() == null || 
-        !source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() == null) {
       end = node.pipelineContext().query().endTime().epoch();
     } else {
       TimeStamp ts = node.pipelineContext().query().endTime().getCopy();
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         ts.subtract(pair.getValue());
       } else {

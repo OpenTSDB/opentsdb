@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Just the min.
@@ -29,6 +30,19 @@ import net.opentsdb.core.TSDB;
 public class ArrayMinFactory extends BaseArrayFactory {
 
   public static final String TYPE = "Min";
+  
+  @Override
+  public NumericArrayAggregator newAggregator() {
+    return new ArrayMin(false);
+  }
+  
+  @Override
+  public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
+    if (config != null && config instanceof NumericAggregatorConfig) {
+      return new ArrayMin(((NumericAggregatorConfig) config).infectiousNan());
+    }
+    return new ArrayMin(false);
+  }
   
   @Override
   public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
@@ -131,6 +145,11 @@ public class ArrayMinFactory extends BaseArrayFactory {
           idx++;
         }
       }
+    }
+   
+    @Override
+    public String name() {
+      return ArrayMinFactory.TYPE;
     }
     
   }

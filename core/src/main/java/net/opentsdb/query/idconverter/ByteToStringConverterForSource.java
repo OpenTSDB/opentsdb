@@ -23,9 +23,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
@@ -51,9 +53,6 @@ public class ByteToStringConverterForSource {
   /** Reference to the converter to send PTSs back. */
   protected final ByteToStringIdConverter converter;
   
-  /** The map of decoded IDs. */
-  protected final Map<Long, TimeSeriesId> decoded_ids;
-  
   /** The map of set wrappers to re-use. */
   protected final Map<Long, PartialTimeSeriesSet> sets;
   
@@ -67,7 +66,6 @@ public class ByteToStringConverterForSource {
   protected ByteToStringConverterForSource(
       final ByteToStringIdConverter converter) {
     this.converter = converter;
-    decoded_ids = Maps.newConcurrentMap();
     sets = Maps.newConcurrentMap();;
     resolvers = Maps.newConcurrentMap();
   }
@@ -77,7 +75,7 @@ public class ByteToStringConverterForSource {
    * @param pts The non-null PTs to process.
    */
   protected void resolve(final PartialTimeSeries pts) {
-    if (decoded_ids.containsKey(pts.idHash())) {
+    if (converter.pipelineContext().hasId(pts.idHash(), Const.TS_STRING_ID)) {
       sendUp(pts);
       return;
     }
@@ -168,7 +166,7 @@ public class ByteToStringConverterForSource {
       
       @Override
       public Void call(final TimeSeriesStringId id) throws Exception {
-        decoded_ids.putIfAbsent(pts.idHash(), id);
+        converter.pipelineContext().addId(pts.idHash(), id);
         if (resolved.compareAndSet(false, true)) {
           for (final PartialTimeSeries pts : series) {     
             sendUp(pts);
@@ -200,7 +198,8 @@ public class ByteToStringConverterForSource {
           
           series.add(pts);
           if (deferred == null) {
-            final TimeSeriesId id = pts.set().id(pts.idHash());
+            final TimeSeriesId id = converter.pipelineContext().getId(
+                pts.idHash(), pts.idType());
             if (id == null) {
               // this should never happen.
               converter.onError(new QueryExecutionException("Failed to find an ID for " 
@@ -242,6 +241,11 @@ public class ByteToStringConverterForSource {
     @Override
     public long idHash() {
       return source.idHash();
+    }
+    
+    @Override
+    public TypeToken<? extends TimeSeriesId> idType() {
+      return Const.TS_STRING_ID;
     }
 
     @Override
@@ -300,12 +304,7 @@ public class ByteToStringConverterForSource {
     public TimeStamp end() {
       return source.end();
     }
-
-    @Override
-    public TimeSeriesId id(long hash) {
-      return decoded_ids.get(hash);
-    }
-
+    
     @Override
     public int timeSeriesCount() {
       return source.timeSeriesCount();

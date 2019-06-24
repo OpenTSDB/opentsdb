@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -43,15 +42,13 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.openhft.hashing.LongHashFunction;
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
-import net.opentsdb.core.Const;
 import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
@@ -200,9 +197,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   /** How many batches have responded. */
   protected volatile AtomicIntegerArray finished_batches_per_set;
   
-  /** A map of hashes to time series IDs for the sets. */
-  protected volatile Map<Long, TimeSeriesId> ts_ids;
-  
   /**
    * Default ctor.
    */
@@ -214,7 +208,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     has_failed = new AtomicBoolean();
     all_batches_sent = new AtomicBoolean();
     outstanding = new AtomicInteger();
-    ts_ids = Maps.newConcurrentMap();
   }
   
   /**
@@ -313,7 +306,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       for (final String agg : source_config.getSummaryAggregations()) {
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(
-                agg.toLowerCase().getBytes(Const.ASCII_CHARSET))));
+                agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(new byte[] { 
                 (byte) node.schema().rollupConfig().getIdForAggregator(
@@ -803,10 +796,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       timestamp.update(node.pipelineContext().query().startTime());
     }
     
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() != null) {
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         timestamp.subtract(pair.getValue());
       } else {
@@ -909,8 +901,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       final byte[] tsuid = node.schema().getTSUID(row.get(0).key());
       final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
       
-      if (!ts_ids.containsKey(hash)) {
-        ts_ids.putIfAbsent(hash, new TSUID(tsuid, node.schema()));
+      if (!node.pipelineContext().hasId(hash, Const.TS_BYTE_ID)) {
+        node.pipelineContext().addId(hash, new TSUID(tsuid, node.schema()));
       }
       final RollupInterval interval = rollup_index >= 0 ? 
           node.rollupIntervals().get(rollup_index) : null;
@@ -1022,8 +1014,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           end, 
           node.rollupUsage(),
           1, 
-          sets.length(), 
-          ts_ids);
+          sets.length());
     }
     return set;
   }
@@ -1065,10 +1056,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     } else {
       end_timestamp.update(node.pipelineContext().query().endTime());
     }
-    if (source_config.timeShifts() != null && 
-        source_config.timeShifts().containsKey(source_config.getId())) {
+    if (source_config.timeShifts() != null) {
       final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts().get(source_config.getId());
+          source_config.timeShifts();
       if (pair.getKey()) {
         end_timestamp.subtract(pair.getValue());
       } else {

@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -561,6 +562,28 @@ public class TestAbstractQueryPipelineContext {
     assertEquals(2, ctx.total_finished.get());
   }
   
+  @Test
+  public void ids() throws Exception {
+    AbstractQueryPipelineContext ctx = new TestContext(context);
+    assertNull(ctx.initialize(null).join());
+    
+    TimeSeriesId id_a = mockId(Const.TS_BYTE_ID);
+    TimeSeriesId id_b = mockId(Const.TS_STRING_ID);
+    ctx.addId(42, id_a);
+    ctx.addId(42, id_b);
+    assertTrue(ctx.hasId(42, Const.TS_BYTE_ID));
+    assertTrue(ctx.hasId(42, Const.TS_STRING_ID));
+    assertFalse(ctx.hasId(24, Const.TS_STRING_ID));
+    assertSame(id_a, ctx.getId(42, Const.TS_BYTE_ID));
+    assertSame(id_b, ctx.getId(42, Const.TS_STRING_ID));
+    assertNull(ctx.getId(24, Const.TS_STRING_ID));
+    
+    try {
+      ctx.addId(42, mockId(Const.TS_STRING_ID));
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
   class TestContext extends AbstractQueryPipelineContext {
     public TestContext(final QueryContext context) {
       super(context);
@@ -573,4 +596,14 @@ public class TestAbstractQueryPipelineContext {
     
   }
   
+  private TimeSeriesId mockId(final TypeToken<? extends TimeSeriesId> type) {
+    TimeSeriesId id = mock(TimeSeriesId.class);
+    when(id.type()).thenAnswer(new Answer<TypeToken>() {
+      @Override
+      public TypeToken answer(InvocationOnMock invocation) throws Throwable {
+        return type;
+      }
+    });
+    return id;
+  }
 }
