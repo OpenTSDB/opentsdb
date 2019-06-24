@@ -14,11 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
+import static org.mockito.Mockito.mock;
 
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -133,6 +134,97 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.annotation.AnnotationType\""));
     assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\""));
   }
+
+
+  @Test
+  public void equality() throws Exception {
+    TestConfig config = (TestConfig) new TestConfig.Builder()
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(NumericType.TYPE.toString())
+                    .build())
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(AnnotationType.TYPE.toString())
+                    .build())
+            .setId("foo")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+    TestConfig config2 = (TestConfig) new TestConfig.Builder()
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(NumericType.TYPE.toString())
+                    .build())
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(AnnotationType.TYPE.toString())
+                    .build())
+            .setId("foo")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+    TestConfig config3 = (TestConfig) new TestConfig.Builder()
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(NumericType.TYPE.toString())
+                    .build())
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(AnnotationType.TYPE.toString())
+                    .build())
+            .setId("foo")
+            .setSources(Lists.newArrayList("s1", "s2", "s3"))
+            .setType("datasource")
+            .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (TestConfig) new TestConfig.Builder()
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(NumericType.TYPE.toString())
+                    .build())
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(AnnotationType.TYPE.toString())
+                    .build())
+            .setId("bar")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (TestConfig) new TestConfig.Builder()
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(NumericType.TYPE.toString())
+                    .build())
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(AnnotationType.TYPE.toString())
+                    .build())
+            .setId("foo")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("data")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (TestConfig) new TestConfig.Builder()
+            .addInterpolatorConfig(new TestInterpolatorConfig.Builder()
+                    .setDataType(AnnotationType.TYPE.toString())
+                    .build())
+            .setId("foo")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+  }
+
+
   
   static class TestConfig extends BaseQueryNodeConfigWithInterpolators {
 
@@ -160,17 +252,17 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     @Override
     public boolean equals(Object o) {
       // TODO Auto-generated method stub
-      return false;
+      return super.equals(o);
     }
 
     @Override
     public int hashCode() {
       // TODO Auto-generated method stub
-      return 0;
+      return super.hashCode();
     }
     
     @Override
-    public HashCode buildHashCode() { return null; }
+    public HashCode buildHashCode() { return super.buildHashCode(); }
 
     @Override
     public int compareTo(QueryNodeConfig o) { return 0; }
@@ -205,7 +297,7 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     @Override
     public HashCode buildHashCode() {
       // TODO Auto-generated method stub
-      return null;
+      return super.buildHashCode();
     }
 
     @Override

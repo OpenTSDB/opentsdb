@@ -14,16 +14,23 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import java.util.Map;
+import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Comparators;
 
 /**
  * A wildcard or glob match on tag values given a literal tag key.
@@ -134,6 +141,84 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
   /** @return The components of the filter. */
   public String[] components() {
     return components;
+  }
+
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    // is this necessary?
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final TagValueWildcardFilter otherTagValueFilter = (TagValueWildcardFilter) o;
+
+    final boolean result = Objects.equal(has_postfix, otherTagValueFilter.has_postfix)
+            && Objects.equal(has_prefix, otherTagValueFilter.has_prefix)
+            && Objects.equal(matches_all, otherTagValueFilter.matchesAll());
+
+    if (!result) {
+      return false;
+    }
+
+
+    // comparing components
+
+    if (components != null && otherTagValueFilter.components() == null || components == null && otherTagValueFilter.components() != null) {
+      return false;
+    }
+
+    if (components != null) {
+      List<String> listComponents = Arrays.asList(components);
+      List<String> otherComponents = Arrays.asList(otherTagValueFilter.components());
+
+      if (!Comparators.ListComparison.equalLists(listComponents, otherComponents)) {
+        return false;
+      }
+    }
+
+    return true;
+
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(3);
+
+    hashes.add(super.buildHashCode());
+
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putBoolean(has_prefix)
+            .putBoolean(has_postfix)
+            .putBoolean(matches_all)
+            .hash();
+
+    hashes.add(hc);
+
+
+    if (components != null) {
+      final List<String> keys = Lists.newArrayList(components);
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
   
   @Override

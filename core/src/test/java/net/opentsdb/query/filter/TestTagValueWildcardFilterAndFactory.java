@@ -14,12 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +23,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
 
 public class TestTagValueWildcardFilterAndFactory {
   private static final String TAGK = "host";
@@ -230,5 +226,44 @@ public class TestTagValueWildcardFilterAndFactory {
         .build();
     assertNull(filter.initialize(null).join());
   }
+
+  @Test
+  public void equality() throws Exception {
+    TagValueWildcardFilter filter = TagValueWildcardFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("*.morpork.com")
+            .build();
+
+    TagValueWildcardFilter filter2 = TagValueWildcardFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("*.morpork.com")
+            .build();
+
+    TagValueWildcardFilter filter3 = TagValueWildcardFilter.newBuilder()
+            .setTagKey("host2")
+            .setFilter("*.morpork.com")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+    filter = TagValueWildcardFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("ogg*ops*ank*com")
+            .build();
+
+    filter2 = TagValueWildcardFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("ogg*ops*ank*com")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+
+  }
+
+
   
 }

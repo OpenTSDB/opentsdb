@@ -14,9 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -24,8 +22,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.base.Objects;
 
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.Const;
+import net.opentsdb.utils.Comparators;
 
 /**
  * A basic configuration implementation handling the ID and overrides
@@ -183,10 +187,60 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
   }
   
   @Override
-  public abstract boolean equals(final Object o);
-  
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final BaseQueryNodeConfig queryConfig = (BaseQueryNodeConfig) o;
+
+    final boolean result = Objects.equal(getType(), queryConfig.getType())
+            && Objects.equal(id, queryConfig.getId());
+    if (!result) {
+      return false;
+    }
+
+
+    if (!Comparators.ListComparison.equalLists(sources, queryConfig.getSources())) {
+      return false;
+    }
+
+    return true;
+
+  }
+
+
+
   @Override
-  public abstract int hashCode();
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(type), Const.UTF8_CHARSET)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(hc);
+
+    if (sources != null) {
+      final List<String> keys = Lists.newArrayList(sources);
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    return Hashing.combineOrdered(hashes);
+  }
   
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)

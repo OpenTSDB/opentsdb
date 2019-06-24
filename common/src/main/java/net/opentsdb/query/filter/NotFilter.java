@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.base.Objects;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
@@ -56,6 +58,28 @@ public class NotFilter implements NestedQueryFilter {
   
   public static Builder newBuilder() {
     return new Builder();
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    return filter.buildHashCode();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final NotFilter otherNotFilter = (NotFilter) o;
+
+    return Objects.equal(filter, otherNotFilter.getFilter());
   }
   
   public static class Builder {

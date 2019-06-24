@@ -14,12 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.Set;
 
 import org.junit.Test;
@@ -29,6 +23,8 @@ import com.google.common.collect.ImmutableMap;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
 
 public class TestTagValueRangeFilterAndFactory {
   private static final String TAGK = "host";
@@ -189,6 +185,34 @@ public class TestTagValueRangeFilterAndFactory {
     assertTrue(result.contains("web01.tmp.cd1.yahoo.com"));
     assertTrue(result.contains("web02.tmp.cd1.yahoo.com"));
     assertTrue(result.contains("web03.tmp.cd1.yahoo.com"));
+  }
+
+  @Test
+  public void equality() throws Exception {
+    TagValueRangeFilter filter =
+            (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
+                    .setTagKey(TAGK)
+                    .setFilter("web{01-04}")
+                    .build();
+
+    TagValueRangeFilter filter2 =
+            (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
+                    .setTagKey(TAGK)
+                    .setFilter("web{01-04}")
+                    .build();
+
+
+    TagValueRangeFilter filter3 =
+            (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
+                    .setTagKey(TAGK)
+                    .setFilter("web{01-05}")
+                    .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
   }
   
 }

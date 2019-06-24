@@ -22,8 +22,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 
 /**
@@ -64,6 +68,11 @@ public class TagKeyRegexFilter implements TagKeyFilter {
   @Override
   public String filter() {
     return pattern.toString();
+  }
+
+  /** @return The compiled pattern. */
+  public Pattern pattern() {
+    return pattern;
   }
   
   @Override
@@ -108,6 +117,36 @@ public class TagKeyRegexFilter implements TagKeyFilter {
         .append(matches_all)
         .append("}")
         .toString();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final TagKeyRegexFilter otherRegexFilter = (TagKeyRegexFilter) o;
+
+    return Objects.equal(pattern.pattern(), otherRegexFilter.pattern().pattern())
+            && Objects.equal(matches_all, otherRegexFilter.matchesAll());
+
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putBoolean(matches_all)
+            .putString(Strings.nullToEmpty(pattern.pattern()), Const.UTF8_CHARSET)
+            .hash();
+
+    return hc;
   }
   
   @Override

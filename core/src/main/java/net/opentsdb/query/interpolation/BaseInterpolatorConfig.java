@@ -15,7 +15,11 @@
 package net.opentsdb.query.interpolation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
+import net.opentsdb.core.Const;
+
 
 /**
  * Base class for interpolator configs. If the type is null, we assume a default.
@@ -47,6 +51,39 @@ public abstract class BaseInterpolatorConfig implements QueryInterpolatorConfig 
   @Override
   public String getType() {
     return interpolator_type;
+  }
+
+
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final BaseInterpolatorConfig otherInterpolator = (BaseInterpolatorConfig) o;
+
+    return Objects.equal(interpolator_type, otherInterpolator.getType())
+            && Objects.equal(data_type, otherInterpolator.getDataType());
+
+  }
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+  @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(interpolator_type), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(data_type), Const.UTF8_CHARSET)
+            .hash();
+
+    return hc;
   }
   
   /** @return The data type for this config. */

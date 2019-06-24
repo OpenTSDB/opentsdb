@@ -14,12 +14,20 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 
 /**
@@ -81,6 +89,51 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
       return false;
     }
     return true;
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final ExplicitTagsFilter otherExplicitFilter = (ExplicitTagsFilter) o;
+
+    return Objects.equal(filter, otherExplicitFilter.getFilter())
+            && Objects.equal(tag_keys, otherExplicitFilter.tagKeys());
+
+  }
+
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    if (filter != null) {
+      hashes.add(filter.buildHashCode());
+    }
+
+
+    if (tag_keys != null) {
+      final List<String> keys = Lists.newArrayList(tag_keys);
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
   
   @Override

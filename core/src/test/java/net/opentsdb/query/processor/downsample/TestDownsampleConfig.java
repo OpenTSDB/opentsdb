@@ -14,17 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
+import static org.mockito.Mockito.mock;
 
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -371,4 +370,128 @@ public class TestDownsampleConfig {
     assertEquals(1514843302, config.startTime().epoch());
     assertEquals(1514846902, config.endTime().epoch());
   }
+
+
+  @Test
+  public void equality() throws Exception {
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    DownsampleConfig config2 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    DownsampleConfig config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("avg")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("boo")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("1s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("151484330")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846905")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+//            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
+
+    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("boo")
+            .setTimeZone("UTC")
+            .setInterval("15s")
+            .setStart("1514843302")
+            .setEnd("1514846902")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+  }
+
+
 }

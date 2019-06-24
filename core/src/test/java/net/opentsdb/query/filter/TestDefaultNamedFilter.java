@@ -14,11 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
-
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class TestDefaultNamedFilter {
 
@@ -60,4 +58,45 @@ public class TestDefaultNamedFilter {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
+
+  @Test
+  public void equality() throws Exception {
+    QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("web01")
+            .build();
+
+    NamedFilter nf = DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter)
+            .build();
+
+    QueryFilter filter2 = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("web01")
+            .build();
+
+    NamedFilter nf2 = DefaultNamedFilter.newBuilder()
+            .setId("f1")
+            .setFilter(filter2)
+            .build();
+
+    QueryFilter filter3 = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("web01")
+            .build();
+
+    NamedFilter nf3 = DefaultNamedFilter.newBuilder()
+            .setId("f2")
+            .setFilter(filter3)
+            .build();
+
+
+    assertTrue(nf.equals(nf2));
+    assertTrue(!nf.equals(nf3));
+    assertEquals(nf.hashCode(), nf2.hashCode());
+    assertNotEquals(nf.hashCode(), nf3.hashCode());
+  }
+
+
 }

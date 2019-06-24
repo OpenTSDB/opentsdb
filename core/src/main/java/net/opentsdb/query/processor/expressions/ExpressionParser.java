@@ -80,27 +80,27 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 /**
  * An Antlr4 visitor to build the expression sub-graph from the parsed
  * expression.
- * 
+ *
  * @since 3.0
  */
-public class ExpressionParser extends DefaultErrorStrategy 
+public class ExpressionParser extends DefaultErrorStrategy
     implements MetricExpressionVisitor<Object> {
 
   /** The expression config. */
   private final ExpressionConfig config;
-  
+
   /** The expression used for variable extraction. */
   private final String expression;
-  
+
   /** A counter used to increment on nodes in the graph. */
   private int cntr = 0;
-  
+
   /** The list of nodes generated after parsing. */
   private final List<ExpressionParseNode.Builder> nodes;
-  
+
   /** The set of variables extracted when parsing the expression. */
   private final Set<String> variables;
-  
+
   /**
    * Default ctor.
    * @param config The non-null expression config to parse.
@@ -115,7 +115,7 @@ public class ExpressionParser extends DefaultErrorStrategy
     expression = null;
     variables = null;
   }
-  
+
   /**
    * Protected ctor used by {@link #parseVariables(String)}.
    * @param expression The non-null and non-empty expression.
@@ -126,7 +126,7 @@ public class ExpressionParser extends DefaultErrorStrategy
     this.expression = expression;
     variables = Sets.newHashSet();
   }
-  
+
   /**
    * Parses the expression if successful.
    * @return A non-null and non-empty list of expression nodes.
@@ -140,13 +140,13 @@ public class ExpressionParser extends DefaultErrorStrategy
     parser.removeErrorListeners(); // suppress logging to stderr.
     parser.setErrorHandler(this);
     parser.prog().accept(this);
-    
+
     if (nodes.size() < 1) {
       throw new ParseCancellationException("Unable to extract an "
           + "expression from '" + config.getExpression() + "'");
     }
-    
-    final List<ExpressionParseNode> final_nodes = 
+
+    final List<ExpressionParseNode> final_nodes =
         Lists.newArrayListWithExpectedSize(nodes.size());
     for (int i = 0; i < nodes.size() - 1; i++) {
       final_nodes.add((ExpressionParseNode) nodes.get(i).build());
@@ -159,7 +159,7 @@ public class ExpressionParser extends DefaultErrorStrategy
           .build());
     return final_nodes;
   }
-  
+
   /**
    * Parses the expression and returns the literal variable names.
    * @param expression The non-null and non-empty expression to parse.
@@ -175,52 +175,52 @@ public class ExpressionParser extends DefaultErrorStrategy
         new ANTLRInputStream(expression));
     final CommonTokenStream tokens = new CommonTokenStream(lexer);
     final MetricExpressionParser parser = new MetricExpressionParser(tokens);
-    
+
     final ExpressionParser listener = new ExpressionParser(expression);
     parser.removeErrorListeners(); // suppress logging to stderr.
     parser.setErrorHandler(listener);
     parser.prog().accept(listener);
-    
+
     if (listener.variables.size() < 1) {
       throw new ParseCancellationException("Unable to extract an "
           + "expression from '" + expression + "'");
     }
-    
+
     return listener.variables;
   }
-  
+
   /** Helper class. */
   protected static class NumericLiteral {
     final boolean is_integer;
     final long number;
-    
+
     NumericLiteral(final long number) {
       is_integer = true;
       this.number = number;
     }
-    
+
     NumericLiteral(final double number) {
       is_integer = false;
       this.number = Double.doubleToLongBits(number);
     }
-    
+
     public String toString() {
-      return is_integer ? Long.toString(number) : 
+      return is_integer ? Long.toString(number) :
         Double.toString(Double.longBitsToDouble(number));
     }
-    
+
     public boolean isInteger() {
       return is_integer;
     }
-    
+
     public long longValue() {
       return number;
     }
-    
+
     public double doubleValue() {
       return Double.longBitsToDouble(number);
     }
-  
+
     @Override
     public boolean equals(final Object o) {
       if (o == null) {
@@ -236,14 +236,14 @@ public class ExpressionParser extends DefaultErrorStrategy
              Objects.equals(number, ((NumericLiteral) o).number);
     }
   }
-  
+
   /** Helper class. */
   private class Null {
     public String toString() {
       return null;
     }
   }
-  
+
   /**
    * Helper to construct a binary expression node.
    * @param op A non-null operator.
@@ -253,8 +253,8 @@ public class ExpressionParser extends DefaultErrorStrategy
    * or Null if both sides were of the same type.
    */
   @VisibleForTesting
-  Object newBinary(final ExpressionOp op, 
-                   final Object left, 
+  Object newBinary(final ExpressionOp op,
+                   final Object left,
                    final Object right) {
     // if we're only parsing the variables, don't worry about instantiating
     // a node.
@@ -267,12 +267,12 @@ public class ExpressionParser extends DefaultErrorStrategy
       }
       return null;
     }
-    
+
     // shrug.
     if (left instanceof Null && right instanceof Null) {
       return left;
     }
-    
+
     // if both sides are numerics then we just add em
     if (left instanceof NumericLiteral && right instanceof NumericLiteral) {
       if (((NumericLiteral) left).is_integer && ((NumericLiteral) right).is_integer) {
@@ -295,7 +295,7 @@ public class ExpressionParser extends DefaultErrorStrategy
                 ((NumericLiteral) left).number / ((NumericLiteral) right).number);
           } else {
             return new NumericLiteral(
-                (double) ((NumericLiteral) left).number / 
+                (double) ((NumericLiteral) left).number /
                 (double) ((NumericLiteral) right).number);
           }
         case MOD:
@@ -303,15 +303,15 @@ public class ExpressionParser extends DefaultErrorStrategy
               ((NumericLiteral) left).number % ((NumericLiteral) right).number);
         default:
           throw new ParseCancellationException("Logical and relational "
-              + "operators cannot be applied to numerics. '" 
+              + "operators cannot be applied to numerics. '"
               + left + " op " + right + "'");
         }
       } else {
-        final double dl = ((NumericLiteral) left).is_integer ? 
-            (double) ((NumericLiteral) left).number : 
+        final double dl = ((NumericLiteral) left).is_integer ?
+            (double) ((NumericLiteral) left).number :
               Double.longBitsToDouble(((NumericLiteral) left).number);
-        final double dr = ((NumericLiteral) right).is_integer ? 
-            (double) ((NumericLiteral) right).number : 
+        final double dr = ((NumericLiteral) right).is_integer ?
+            (double) ((NumericLiteral) right).number :
               Double.longBitsToDouble(((NumericLiteral) right).number);
         switch (op) {
         case ADD:
@@ -334,7 +334,7 @@ public class ExpressionParser extends DefaultErrorStrategy
         }
       }
     }
-    
+
     // here we can cleanup, e.g. merge numerics
     final ExpressionParseNode.Builder builder = ExpressionParseNode
         .newBuilder()
@@ -348,15 +348,15 @@ public class ExpressionParser extends DefaultErrorStrategy
     nodes.add(builder);
     return builder;
   }
-  
+
   /**
    * Helper to build the binary expression.
    * @param builder A non-null builder.
    * @param obj A non-null object. (can be NULL though).
    * @param is_left Whether or not to populate the left or right branch.
    */
-  private void setBranch(final ExpressionParseNode.Builder builder, 
-                         final Object obj, 
+  private void setBranch(final ExpressionParseNode.Builder builder,
+                         final Object obj,
                          final boolean is_left) {
     if (obj instanceof Null) {
       if (is_left) {
@@ -400,13 +400,13 @@ public class ExpressionParser extends DefaultErrorStrategy
 
   @Override
   public Object visit(ParseTree tree) {
-    throw new UnsupportedOperationException("Can't visit " 
+    throw new UnsupportedOperationException("Can't visit "
         + tree.getClass());
   }
 
   @Override
   public Object visitChildren(RuleNode node) {
-    throw new UnsupportedOperationException("Can't visit " 
+    throw new UnsupportedOperationException("Can't visit "
         + node.getClass());
   }
 
@@ -424,14 +424,14 @@ public class ExpressionParser extends DefaultErrorStrategy
         try {
           final double v = Double.parseDouble(text);
           return new NumericLiteral(v);
-        } catch (NumberFormatException e) { 
+        } catch (NumberFormatException e) {
           return text;
         }
       } else {
         try {
           final long v = Long.parseLong(text);
           return new NumericLiteral(v);
-        } catch (NumberFormatException e) { 
+        } catch (NumberFormatException e) {
           return text;
         }
       }
@@ -670,7 +670,7 @@ public class ExpressionParser extends DefaultErrorStrategy
     // TODO Auto-generated method stub
     return null;
   }
-  
+
   @Override
   public void recover(final Parser recognizer, final RecognitionException e) {
     final StringBuilder buf = new StringBuilder()
@@ -713,8 +713,8 @@ public class ExpressionParser extends DefaultErrorStrategy
          .append(getTokenErrorDisplay(e.getOffendingToken()))
          .append("'");
     }
-    
-    for (ParserRuleContext context = recognizer.getContext(); 
+
+    for (ParserRuleContext context = recognizer.getContext();
         context != null; context = context.getParent()) {
       context.exception = e;
     }

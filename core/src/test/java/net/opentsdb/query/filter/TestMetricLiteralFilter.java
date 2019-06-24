@@ -14,18 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
+import com.google.common.collect.Maps;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
+
+import java.util.Map;
 
 public class TestMetricLiteralFilter {
 
@@ -93,5 +93,54 @@ public class TestMetricLiteralFilter {
         .build();
     assertNull(filter.initialize(null).join());
   }
+
+
+  @Test
+  public void equality() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    MetricLiteralFactory factory = new MetricLiteralFactory();
+    String json = "{\"type\":\"MetricLiteral\",\"metric\":\"sys.cpu.user\"}";
+
+    JsonNode node = JSON.getMapper().readTree(json);
+    MetricLiteralFilter filter = (MetricLiteralFilter)
+            factory.parse(tsdb, JSON.getMapper(), node);
+    assertEquals("sys.cpu.user", filter.getMetric());
+
+    MetricLiteralFilter filter2 = (MetricLiteralFilter)
+            factory.parse(tsdb, JSON.getMapper(), node);
+
+    String json2 = "{\"type\":\"MetricLiteral\",\"metric\":\"sys.cpu.users\"}";
+
+    JsonNode node2 = JSON.getMapper().readTree(json2);
+    MetricLiteralFilter filter3 = (MetricLiteralFilter)
+            factory.parse(tsdb, JSON.getMapper(), node2);
+    assertEquals("sys.cpu.user", filter.getMetric());
+
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+    filter = MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build();
+
+    // trim
+    filter2 = MetricLiteralFilter.newBuilder()
+            .setMetric("  system.cpu.user ")
+            .build();
+
+    filter3 = MetricLiteralFilter.newBuilder()
+            .setMetric("  system.cpu.pct ")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+  }
+
   
 }

@@ -17,11 +17,19 @@ package net.opentsdb.query.filter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.Span;
+
+import java.util.List;
 
 public class UTFilterFactory extends BaseTSDBPlugin implements 
     QueryFilterFactory {
@@ -47,6 +55,38 @@ public class UTFilterFactory extends BaseTSDBPlugin implements
     public Deferred<Void> initialize(final Span span) {
       return INITIALIZED;
     }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o)
+        return true;
+      if (o == null || getClass() != o.getClass())
+        return false;
+
+      final UTQueryFilter query = (UTQueryFilter) o;
+
+
+      return Objects.equal(type, query.type)
+              && Objects.equal(tag, query.tag)
+              && Objects.equal(filter, query.filter);
+    }
+
+    @Override
+    public int hashCode() {
+      return buildHashCode().asInt();
+    }
+
+    /** @return A HashCode object for deterministic, non-secure hashing */
+    public HashCode buildHashCode() {
+      final HashCode hc = Const.HASH_FUNCTION().newHasher()
+              .putString(Strings.nullToEmpty(type), Const.UTF8_CHARSET)
+              .putString(Strings.nullToEmpty(tag), Const.UTF8_CHARSET)
+              .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
+              .hash();
+
+      return hc;
+    }
+
   }
 
   @Override

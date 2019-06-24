@@ -14,14 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
-import java.util.Map;
+import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.query.BaseQueryNodeConfig;
@@ -56,13 +60,10 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
     }
     return data_sources.get(source);
   }
-  
-  @Override
-  public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
+
+
+  public Map<String, TimeSeriesDataSourceFactory> getDataSources() {
+    return data_sources;
   }
 
   @Override
@@ -89,23 +90,47 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
 
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof ByteToStringIdConverterConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    // is this necessary?
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((ByteToStringIdConverterConfig) o).id);
+
+    final ByteToStringIdConverterConfig byteconfig = (ByteToStringIdConverterConfig) o;
+
+
+    return Objects.equal(data_sources.keySet(), byteconfig.getDataSources().keySet());
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
+  }
+
+
+  @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+
+    if (data_sources != null) {
+      final List<String> keys = Lists.newArrayList(data_sources.keySet());
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
 
   public static Builder newBuilder() {

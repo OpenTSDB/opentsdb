@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -59,5 +61,28 @@ public class Comparators {
       return 0;
     }
     
+  }
+
+  public static class ListComparison {
+
+    public static <T> boolean equalLists(List<T> one, List<T> two){
+      if (one == null && two == null){
+        return true;
+      }
+
+      if((one == null && two != null)
+              || one != null && two == null
+              || one.size() != two.size()){
+        return false;
+      }
+
+      //to avoid messing the order of the lists we will use a copy
+      one = new ArrayList<>(one);
+      two = new ArrayList<>(two);
+
+      return one.containsAll(two) && two.containsAll(one);
+    }
+
+
   }
 }

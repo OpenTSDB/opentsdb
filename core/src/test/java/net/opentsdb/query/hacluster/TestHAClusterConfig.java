@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,6 +31,9 @@ import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 
 public class TestHAClusterConfig {
   
@@ -285,4 +284,124 @@ public class TestHAClusterConfig {
         .build();
     assertEquals("system.cpu.user", ha.getMetric().getMetric());
   }
+
+
+
+  @Test
+  public void equality() throws Exception {
+    HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("sum")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha")
+            .build();
+
+    HAClusterConfig config2 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("sum")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha")
+            .build();
+
+    HAClusterConfig config3 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2", "colo3"))
+            .setMergeAggregator("sum")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha")
+            .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("avg")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("sum")
+            .setSecondaryTimeout("10s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("avg")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("15s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("avg")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.users")
+                    .build())
+            .setId("ha")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (HAClusterConfig) HAClusterConfig.newBuilder()
+            .setDataSources(Lists.newArrayList("colo1", "colo2"))
+            .setMergeAggregator("avg")
+            .setSecondaryTimeout("5s")
+            .setPrimaryTimeout("10s")
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("sys.cpu.user")
+                    .build())
+            .setId("ha2")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+  }
+
+
+
+
+
 }

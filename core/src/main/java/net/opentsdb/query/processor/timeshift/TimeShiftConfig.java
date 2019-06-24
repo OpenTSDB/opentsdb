@@ -18,12 +18,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
-import net.opentsdb.common.Const;
+import com.google.common.hash.Hashing;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+
+import java.util.List;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TimeShiftConfig.Builder.class)
@@ -51,34 +55,38 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
     // TODO Auto-generated method stub
     return 0;
   }
-  
+
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof TimeShiftConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((TimeShiftConfig) o).id);
+
+    final TimeShiftConfig tsconfig = (TimeShiftConfig) o;
+
+    return Objects.equal(config, tsconfig.getConfig());
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+
+    hashes.add(config.buildHashCode());
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override

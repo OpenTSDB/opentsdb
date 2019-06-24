@@ -14,11 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
+import net.opentsdb.query.processor.slidingwindow.SlidingWindowConfig;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -80,12 +80,60 @@ public class TestSummarizerConfig {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
-  // TODO - implement
-//  @Test
-//  public void hashCodeEqualsCompareTo() throws Exception {
-//    
-//  }
+
+  @Test
+  public void equality() throws Exception {
+    SummarizerConfig config = (SummarizerConfig)
+            SummarizerConfig.newBuilder()
+                    .setSummaries(Lists.newArrayList("sum", "avg"))
+                    .setInfectiousNan(true)
+                    .setId("summarizer")
+                    .build();
+
+    SummarizerConfig config2 = (SummarizerConfig)
+            SummarizerConfig.newBuilder()
+                    .setSummaries(Lists.newArrayList("avg", "sum"))
+                    .setInfectiousNan(true)
+                    .setId("summarizer")
+                    .build();
+
+    SummarizerConfig config3 = (SummarizerConfig)
+            SummarizerConfig.newBuilder()
+                    .setSummaries(Lists.newArrayList("sum", "avg", "other"))
+                    .setInfectiousNan(true)
+                    .setId("summarizer")
+                    .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (SummarizerConfig)
+            SummarizerConfig.newBuilder()
+                    .setSummaries(Lists.newArrayList("sum", "avg"))
+                    .setInfectiousNan(false)
+                    .setId("summarizer")
+                    .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (SummarizerConfig)
+            SummarizerConfig.newBuilder()
+                    .setSummaries(Lists.newArrayList("sum", "avg"))
+                    .setInfectiousNan(true)
+                    .setId("not_summarizer")
+                    .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
+  }
+
+
   
   @Test
   public void serdes() throws Exception {

@@ -14,11 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
+import static org.mockito.Mockito.mock;
 
+import net.opentsdb.core.TSDB;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -170,4 +170,83 @@ public class TestTagValueLiteralOrFilterAndFactory {
         .build();
     assertNull(filter.initialize(null).join());
   }
+
+  @Test
+  public void tagkeyLiteralEquality() throws Exception {
+    TagKeyLiteralOrFilter filter = TagKeyLiteralOrFilter.newBuilder()
+            .setFilter("web01|web02")
+            .build();
+
+    TagKeyLiteralOrFilter filter2 = TagKeyLiteralOrFilter.newBuilder()
+            .setFilter("web01|web02")
+            .build();
+
+
+    TagKeyLiteralOrFilter filter3 = TagKeyLiteralOrFilter.newBuilder()
+            .setFilter("web01|web02|web03")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+  }
+
+
+  @Test
+  public void tagkeyRegexEquality() throws Exception {
+    TagKeyRegexFilter filter = TagKeyRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    TagKeyRegexFilter filter2 = TagKeyRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+
+    TagKeyRegexFilter filter3 = TagKeyRegexFilter.newBuilder()
+            .setFilter("ogg-02.ops.ankh.morpork.com")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+  }
+
+
+  @Test
+  public void tagvalueLiteralEquality() throws Exception {
+    TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("web01|web02")
+            .build();
+
+    TagValueLiteralOrFilter filter2 = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("web01 | web02")
+            .build();
+
+
+    TagValueLiteralOrFilter filter3 = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("web01")
+            .build();
+
+    TagValueLiteralOrFilter filter4 = TagValueLiteralOrFilter.newBuilder()
+            .setTagKey("host2")
+            .setFilter("web01 | web02")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertTrue(!filter.equals(filter4));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+  }
+
+
 }

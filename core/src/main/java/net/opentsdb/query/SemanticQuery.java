@@ -12,9 +12,7 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -22,7 +20,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
+import com.google.common.base.Objects;
 
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -34,6 +35,7 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -148,6 +150,89 @@ public class SemanticQuery implements TimeSeriesQuery {
     log_level = builder.log_level;
   }
 
+
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final SemanticQuery query = (SemanticQuery) o;
+
+
+    final boolean result = Objects.equal(getMode(), query.getMode())
+            && Objects.equal(time_zone, query.getTimezone());
+    if (!result) {
+      return false;
+    }
+
+    // check execution graph equality, Objects.equal doesn't truly do this
+    if (!Comparators.ListComparison.equalLists(Lists.newArrayList(filters.values()), query.getFilters())) {
+      return false;
+    }
+
+    // check execution graph equality, Objects.equal doesn't truly do this
+    if (!Comparators.ListComparison.equalLists(execution_graph, query.getExecutionGraph())) {
+      return false;
+    }
+
+    return true;
+  }
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(time_zone), Const.UTF8_CHARSET)
+            .putInt((mode != null ? mode.hashCode() : 0))
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2 +
+                    (execution_graph != null ? execution_graph.size() : 0) +
+                    (filters != null ? (2 * filters.size()) : 0));
+
+    hashes.add(hc);
+
+    if (execution_graph != null) {
+      for (final QueryNodeConfig node : execution_graph) {
+        hashes.add(node.buildHashCode());
+      }
+    }
+
+    if (filters != null) {
+      final List<String> keys = Lists.newArrayList(filters.keySet());
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+
+      final List<NamedFilter> values = Lists.newArrayList(filters.values());
+      for (final NamedFilter val : values) {
+        if (val != null) {
+          hashes.add(val.buildHashCode());
+        }
+      }
+
+    }
+
+    return Hashing.combineOrdered(hashes);
+  }
+
+
+
+
+
   @Override
   public String getStart() {
     return start;
@@ -210,14 +295,6 @@ public class SemanticQuery implements TimeSeriesQuery {
     return 0;
   }
 
-  @Override
-  public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION()
-        .newHasher()
-        .putBoolean(true)
-        .hash();
-  }
 
   @Override
   public LogLevel getLogLevel() {

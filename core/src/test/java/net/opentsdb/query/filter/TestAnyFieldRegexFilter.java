@@ -14,11 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +23,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
 
 public class TestAnyFieldRegexFilter {
 
@@ -137,6 +134,27 @@ public class TestAnyFieldRegexFilter {
             .setFilter("ogg-01.ops.ankh.morpork.com")
             .build();
     assertNull(filter.initialize(null).join());
+  }
+
+  @Test
+  public void equality() throws Exception {
+    AnyFieldRegexFilter filter = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    AnyFieldRegexFilter filter2 = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    AnyFieldRegexFilter filter3 = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.com")
+            .build();
+
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
   }
 
 }

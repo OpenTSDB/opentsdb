@@ -14,7 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
+import net.opentsdb.core.Const;
 
 /**
  * A base class for tag value filters including the raw filter and the
@@ -54,5 +57,35 @@ public abstract class BaseTagValueFilter implements TagValueFilter {
   @Override
   public String getFilter() {
     return filter;
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final BaseTagValueFilter otherBaseFilter = (BaseTagValueFilter) o;
+
+    return Objects.equal(tag_key, otherBaseFilter.getTagKey())
+            && Objects.equal(filter, otherBaseFilter.getFilter());
+
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(tag_key), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
+            .hash();
+
+    return hc;
   }
 }

@@ -57,19 +57,19 @@ public class DedupConfig extends BaseQueryNodeConfig {
   @Override
   public boolean equals(Object o) {
     // TODO Auto-generated method stub
-    return false;
+    return super.equals(o);
   }
 
   @Override
   public int hashCode() {
     // TODO Auto-generated method stub
-    return 0;
+    return super.hashCode();
   }
 
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
-    return null;
+    return super.buildHashCode();
   }
 
   @Override

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -21,12 +22,16 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
-import net.opentsdb.common.Const;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.utils.Comparators;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = SummarizerConfig.Builder.class)
@@ -70,34 +75,65 @@ public class SummarizerConfig extends BaseQueryNodeConfig {
     // TODO Auto-generated method stub
     return 0;
   }
-  
+
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof SummarizerConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    // is this necessary?
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((SummarizerConfig) o).id);
+
+    final SummarizerConfig sconfig = (SummarizerConfig) o;
+
+
+    final boolean result = Objects.equal(infectious_nan, sconfig.getInfectiousNan());
+
+    if (!result) {
+      return false;
+    }
+
+    // comparing summaries
+    if (!Comparators.ListComparison.equalLists(summaries, sconfig.getSummaries())) {
+      return false;
+    }
+
+    return true;
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putBoolean(infectious_nan)
+            .hash();
+
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(3);
+
+    hashes.add(super.buildHashCode());
+
+    hashes.add(hc);
+
+    if (summaries != null) {
+      final List<String> keys = Lists.newArrayList(summaries);
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override

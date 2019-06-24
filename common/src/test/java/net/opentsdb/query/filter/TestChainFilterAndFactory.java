@@ -14,15 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Lists;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNodeConfig;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,6 +31,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.query.filter.UTFilterFactory.UTQueryFilter;
+
+import java.util.List;
 
 public class TestChainFilterAndFactory {
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -150,6 +152,45 @@ public class TestChainFilterAndFactory {
     assertNull(filter.initialize(null).join());
     verify(filter_a, times(1)).initialize(null);
     verify(filter_b, times(1)).initialize(null);
+  }
+
+
+  @Test
+  public void equality() throws Exception {
+    ChainFilter filter = ChainFilter.newBuilder()
+            .setOp(FilterOp.OR)
+            .addFilter(new UTQueryFilter("host", "web01|web02"))
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .build();
+
+    ChainFilter filter2 = ChainFilter.newBuilder()
+            .setOp(FilterOp.OR)
+            .addFilter(new UTQueryFilter("host", "web01|web02"))
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .build();
+
+    ChainFilter filter3 = ChainFilter.newBuilder()
+            .setOp(FilterOp.AND)
+            .addFilter(new UTQueryFilter("host", "web01|web02"))
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .build();
+
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+    filter3 = ChainFilter.newBuilder()
+            .setOp(FilterOp.OR)
+            .addFilter(new UTQueryFilter("host", "web01"))
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .build();
+
+    assertTrue(!filter.equals(filter3));
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+
   }
   
 }

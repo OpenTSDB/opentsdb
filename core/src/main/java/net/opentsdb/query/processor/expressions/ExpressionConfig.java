@@ -239,6 +239,10 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     if (!(o instanceof ExpressionConfig)) {
       return false;
     }
+
+    if (!super.equals(o)) {
+      return false;
+    }
     
     final ExpressionConfig other = (ExpressionConfig) o;
     return Objects.equals(id, other.id) && 

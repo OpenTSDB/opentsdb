@@ -209,6 +209,17 @@ public static MockTSDB TSDB;
     assertNotEquals(r1.hashCode(), r2.hashCode());
     assertNotEquals(r1, r2);
     assertEquals(-1, r1.compareTo(r2));
+
+    r2 = (RateConfig) RateConfig.newBuilder()
+            .setCounter(true)
+            .setDropResets(true)
+            .setInterval("60s")
+            .setCounterMax(Integer.MAX_VALUE)
+            .setResetValue(-1)
+            .setId("nonrate")
+            .build();
+    assertNotEquals(r1.hashCode(), r2.hashCode());
+    assertNotEquals(r1, r2);
   }
   
   @Test

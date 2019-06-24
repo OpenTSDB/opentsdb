@@ -14,13 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
+import net.opentsdb.query.filter.TagValueRegexFilter;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -171,6 +168,69 @@ public class TestScalarNumericInterpolatorConfig {
     assertEquals(FillWithRealPolicy.PREFER_NEXT, config.getRealFillPolicy());
     assertEquals("net.opentsdb.data.types.numeric.NumericType", config.getDataType());
     assertNull(config.getType());
+  }
+
+
+  @Test
+  public void equality() throws Exception {
+    NumericInterpolatorConfig config = (NumericInterpolatorConfig)
+            ScalarNumericInterpolatorConfig.newBuilder()
+                    .setValue(42)
+                    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+                    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+                    .setDataType(NumericType.TYPE.toString())
+                    .build();
+
+    NumericInterpolatorConfig config2 = (NumericInterpolatorConfig)
+            ScalarNumericInterpolatorConfig.newBuilder()
+                    .setValue(42)
+                    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+                    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+                    .setDataType(NumericType.TYPE.toString())
+                    .build();
+
+    NumericInterpolatorConfig config3 = (NumericInterpolatorConfig)
+            ScalarNumericInterpolatorConfig.newBuilder()
+                    .setValue(43)
+                    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+                    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+                    .setDataType(NumericType.TYPE.toString())
+                    .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
+    config = (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
+            .setValue(42.5D)
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+            .setDataType(NumericType.TYPE.toString())
+            .build();
+
+    config2 = (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
+            .setValue(42.5D)
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+            .setDataType(NumericType.TYPE.toString())
+            .build();
+
+    config3 = (NumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
+            //.setValue(42) <== defaults to 0
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+            .setDataType(NumericType.TYPE.toString())
+            .build();
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
   }
   
 }

@@ -15,6 +15,7 @@
 package net.opentsdb.query.interpolation.types.numeric;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,6 +25,11 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.ScalarNumericFillPolicy;
@@ -168,6 +174,58 @@ public class ScalarNumericInterpolatorConfig extends NumericInterpolatorConfig
     }
     
     return builder.build();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+
+    if (!super.equals(o)) {
+      return false;
+    }
+    if (!(o instanceof ScalarNumericInterpolatorConfig)) {
+      return false;
+    }
+
+    final ScalarNumericInterpolatorConfig other = (ScalarNumericInterpolatorConfig) o;
+    if (!Objects.equal(is_integer, other.isInteger())) {
+      return false;
+    }
+    if (is_integer) {
+      return Objects.equal(value, other.longValue());
+    }
+    else {
+      return Objects.equal(doubleValue(), other.doubleValue());
+    }
+  }
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putLong(value)
+            .putBoolean(is_integer)
+            .hash();
+
+    hashes.add(hc);
+
+    return Hashing.combineOrdered(hashes);
   }
   
   public static Builder newBuilder() {

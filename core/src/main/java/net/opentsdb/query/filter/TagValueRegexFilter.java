@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -22,8 +23,14 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 
 /**
@@ -82,6 +89,11 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
   public boolean matchesAll() {
     return matches_all;
   }
+
+  /** @return The compiled pattern. */
+  public Pattern pattern() {
+    return pattern;
+  }
   
   @Override
   public String toString() {
@@ -97,6 +109,49 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
         .append("}")
         .toString();
   }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final TagValueRegexFilter otherTagFilter = (TagValueRegexFilter) o;
+
+    return Objects.equal(matches_all, otherTagFilter.matchesAll())
+            && Objects.equal(pattern.pattern(), otherTagFilter.pattern().pattern());
+
+  }
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putBoolean(matches_all)
+            .putString(Strings.nullToEmpty(pattern.pattern()), Const.UTF8_CHARSET)
+            .hash();
+
+    hashes.add(hc);
+
+    return Hashing.combineOrdered(hashes);
+  }
+
   
   @Override
   public Deferred<Void> initialize(final Span span) {

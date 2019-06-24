@@ -14,10 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -108,6 +106,37 @@ public class TestNotFilterAndFactory {
     
     assertNull(filter.initialize(null).join());
     verify(filter_a, times(1)).initialize(null);
+  }
+
+  @Test
+  public void equality() throws Exception {
+    NotFilter filter = NotFilter.newBuilder()
+            .setFilter(new UTQueryFilter("host", "web01|web02"))
+            .build();
+
+    NotFilter filter2 = NotFilter.newBuilder()
+            .setFilter(new UTQueryFilter("host", "web01|web02"))
+            .build();
+
+    NotFilter filter3 = NotFilter.newBuilder()
+            .setFilter(new UTQueryFilter("hostname", "web01|web02"))
+            .build();
+
+
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+    filter3 = NotFilter.newBuilder()
+            .setFilter(new UTQueryFilter("host", "web01"))
+            .build();
+
+    assertTrue(!filter.equals(filter3));
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+
   }
   
 }

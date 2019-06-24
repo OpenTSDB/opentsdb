@@ -26,15 +26,19 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -121,14 +125,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   public boolean getHasBeenSetup() {
     return has_been_setup;
   }
-  
-  @Override
-  public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
-  }
 
   @Override
   public boolean pushDown() {
@@ -149,24 +145,81 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   }
 
   @Override
-  public boolean equals(Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+  public boolean equals(final Object o) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof HAClusterConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((HAClusterConfig) o).id);
+
+    final HAClusterConfig haconfig = (HAClusterConfig) o;
+
+
+    final boolean result = Objects.equal(merge_aggregator, haconfig.getMergeAggregator())
+            && Objects.equal(secondary_timeout, haconfig.getSecondaryTimeout())
+            && Objects.equal(primary_timeout, haconfig.getPrimaryTimeout());
+
+    if (!result) {
+      return false;
+    }
+
+    // comparing data sources
+
+    if (!Comparators.ListComparison.equalLists(data_sources, haconfig.getDataSources())) {
+      return false;
+    }
+
+
+
+    // comparing data sources configs
+    if (!Comparators.ListComparison.equalLists(data_source_configs, haconfig.getDataSourceConfigs())) {
+      return false;
+    }
+
+    return true;
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
+  }
+
+  @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(merge_aggregator), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(secondary_timeout), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(primary_timeout), Const.UTF8_CHARSET)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(3 +
+                    (data_source_configs != null ? data_source_configs.size() : 0));
+
+    hashes.add(super.buildHashCode());
+
+    hashes.add(hc);
+
+    if (data_sources != null) {
+      final List<String> keys = Lists.newArrayList(data_sources);
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    if (data_source_configs != null) {
+      for (final TimeSeriesDataSourceConfig node : data_source_configs) {
+        hashes.add(node.buildHashCode());
+      }
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
   
   @Override

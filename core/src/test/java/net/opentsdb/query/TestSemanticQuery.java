@@ -12,12 +12,6 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.List;
 
 import org.junit.Test;
@@ -42,6 +36,8 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.utils.JSON;
 
+import static org.junit.Assert.*;
+
 public class TestSemanticQuery {
 
   @Test
@@ -61,7 +57,7 @@ public class TestSemanticQuery {
             .setFilterId("f1")
             .setId("m1")
             .build());
-    
+
     SemanticQuery query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart("1514764800")
@@ -74,7 +70,7 @@ public class TestSemanticQuery {
             .setId("serdes")
             .build())
         .build();
-    
+
     assertEquals(QueryMode.SINGLE, query.getMode());
     assertEquals("1514764800", query.getStart());
     assertEquals(1514764800, query.startTime().epoch());
@@ -87,7 +83,7 @@ public class TestSemanticQuery {
     assertEquals(1, query.getExecutionGraph().size());
     assertEquals("ds", query.getSerdesConfigs().get(0).getFilter().get(0));
     assertEquals(LogLevel.ERROR, query.getLogLevel());
-    
+
     try {
       SemanticQuery.newBuilder()
           //.setMode(QueryMode.SINGLE)
@@ -111,7 +107,7 @@ public class TestSemanticQuery {
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    
+
     try {
       SemanticQuery.newBuilder()
           .setMode(QueryMode.SINGLE)
@@ -419,4 +415,199 @@ public class TestSemanticQuery {
         .build();
     assertNull(query.getFilter("f1"));
   }
+
+
+
+  @Test
+  public void equality() throws Exception {
+    NamedFilter filter = DefaultNamedFilter.newBuilder()
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setFilter("web01")
+                    .setTagKey("host")
+                    .build())
+            .setId("f1")
+            .build();
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.user")
+                            .build())
+                    .setFilterId("f1")
+                    .setId("m1")
+                    .build());
+
+
+    NamedFilter filter2 = DefaultNamedFilter.newBuilder()
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setFilter("web01")
+                    .setTagKey("host")
+                    .build())
+            .setId("f1")
+            .build();
+    List<QueryNodeConfig> graph2 = Lists.newArrayList(
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.user")
+                            .build())
+                    .setFilterId("f1")
+                    .setId("m1")
+                    .build());
+
+
+
+    SemanticQuery query = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart("1514764800")
+            .setEnd("1514768400")
+            .setTimeZone("America/Denver")
+            .addFilter(filter)
+            .setExecutionGraph(graph)
+            .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+                    .addFilter("ds")
+                    .setId("serdes")
+                    .build())
+            .build();
+
+
+
+    SemanticQuery query2 = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart("1514763800")
+            .setEnd("1514768400")
+            .setTimeZone("America/Denver")
+            .addFilter(filter2)
+            .setExecutionGraph(graph2)
+            .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+                    .addFilter("ds")
+                    .setId("serdes")
+                    .build())
+            .build();
+
+      assertFalse(MetricLiteralFilter.newBuilder()
+              .setMetric("sys.cpu.users")
+              .build().equals(MetricLiteralFilter.newBuilder()
+                      .setMetric("sys.cpu.user")
+                      .build()));
+
+
+
+    NamedFilter filter3 = DefaultNamedFilter.newBuilder()
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setFilter("web01")
+                    .setTagKey("host")
+                    .build())
+            .setId("f1")
+            .build();
+    List<QueryNodeConfig> graph3 = Lists.newArrayList(
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.user")
+                            .build())
+                    .setFilterId("f1")
+                    .setId("m1")
+                    .build());
+
+    SemanticQuery query3 = SemanticQuery.newBuilder()
+            .setMode(QueryMode.VALIDATE)    // DIFF
+            .setStart("1514764800")
+            .setEnd("1514768400")
+            .setTimeZone("America/Denver")
+            .addFilter(filter3)
+            .setExecutionGraph(graph3)
+            .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+                    .addFilter("ds")
+                    .setId("serdes")
+                    .build())
+            .build();
+
+
+
+    assertTrue(query.equals(query2));
+    assertTrue(!query.equals(query3));
+    assertEquals(query.hashCode(), query2.hashCode());
+    assertNotEquals(query.hashCode(), query3.hashCode());
+
+
+    query3 = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart("1514764800")
+            .setEnd("1514768400")
+            .setTimeZone("PST")    // DIFF
+            .addFilter(filter3)
+            .setExecutionGraph(graph3)
+            .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+                    .addFilter("ds")
+                    .setId("serdes")
+                    .build())
+            .build();
+
+    assertTrue(!query.equals(query3));
+    assertNotEquals(query.hashCode(), query3.hashCode());
+
+
+    filter3 = DefaultNamedFilter.newBuilder()
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setFilter("web02")
+                    .setTagKey("host")
+                    .build())
+            .setId("f1")
+            .build();
+
+    query3 = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart("1514764800")
+            .setEnd("1514768400")
+            .setTimeZone("America/Denver")
+            .addFilter(filter3)    // DIFF
+            .setExecutionGraph(graph3)
+            .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+                    .addFilter("ds")
+                    .setId("serdes")
+                    .build())
+            .build();
+
+    filter3 = DefaultNamedFilter.newBuilder()
+            .setFilter(TagValueLiteralOrFilter.newBuilder()
+                    .setFilter("web01")
+                    .setTagKey("host")
+                    .build())
+            .setId("f1")
+            .build();
+
+    assertTrue(!query.equals(query3));
+    assertNotEquals(query.hashCode(), query3.hashCode());
+
+    graph3 = Lists.newArrayList(
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.pct")
+                            .build())
+                    .setFilterId("f1")
+                    .setId("m1")
+                    .build());
+
+    query3 = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart("1514764800")
+            .setEnd("1514768400")
+            .setTimeZone("America/Denver")
+            .addFilter(filter3)
+            .setExecutionGraph(graph3)    // DIFF
+            .addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+                    .addFilter("ds")
+                    .setId("serdes")
+                    .build())
+            .build();
+
+    assertTrue(!query.equals(query3));
+    assertNotEquals(query.hashCode(), query3.hashCode());
+
+
+  }
+
+
+
+
+
+
 }
