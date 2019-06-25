@@ -82,6 +82,9 @@ public class RateConfig extends BaseQueryNodeConfig {
   
   /** Whether or not we just want a delta. */
   private boolean delta_only;
+  
+  /** Whether we want the rate to count. */
+  private boolean rate_to_count;
 
   /** Parsed values. */
   private Duration duration;
@@ -98,6 +101,7 @@ public class RateConfig extends BaseQueryNodeConfig {
     reset_value = builder.resetValue;
     interval = builder.interval;
     delta_only = builder.deltaOnly;
+    rate_to_count = builder.rateToCount;
     
     if (interval.toLowerCase().equals("auto")) {
       if (builder.start_time != null && builder.end_time != null) {
@@ -153,6 +157,11 @@ public class RateConfig extends BaseQueryNodeConfig {
   public boolean getDeltaOnly() {
     return delta_only;
   }
+
+  /** @return Whether or not we want to convert a rate to a count. */
+  public boolean getRateToCount() {
+    return rate_to_count;
+  }
   
   /** @return The duration of the rate to convert to. E.g. per second or per
    * 8 seconds, etc. */
@@ -174,6 +183,7 @@ public class RateConfig extends BaseQueryNodeConfig {
         .setCounterMax(counter_max)
         .setDeltaOnly(delta_only)
         .setResetValue(reset_value)
+        .setRateToCount(rate_to_count)
         .setOverrides(overrides)
         .setSources(sources)
         .setType(type)
@@ -288,7 +298,8 @@ public class RateConfig extends BaseQueryNodeConfig {
         .setCounterMax(options.counter_max)
         .setResetValue(options.reset_value)
         .setDropResets(options.drop_resets)
-        .setInterval(options.interval);
+        .setInterval(options.interval)
+        .setRateToCount(options.rate_to_count);
   }
   
   /**
@@ -308,6 +319,8 @@ public class RateConfig extends BaseQueryNodeConfig {
     private String interval = DEFAULT_INTERVAL;
     @JsonProperty
     private boolean deltaOnly;
+    @JsonProperty
+    private boolean rateToCount;
     private TimeStamp start_time;
     private TimeStamp end_time;
     private RateFactory factory;
@@ -343,6 +356,11 @@ public class RateConfig extends BaseQueryNodeConfig {
 
     public Builder setDeltaOnly(final boolean delta_only) {
       this.deltaOnly = delta_only;
+      return this;
+    }
+    
+    public Builder setRateToCount(final boolean rate_to_count) {
+      this.rateToCount = rate_to_count;
       return this;
     }
     

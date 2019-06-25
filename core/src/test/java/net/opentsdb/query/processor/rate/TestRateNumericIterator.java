@@ -894,6 +894,110 @@ public class TestRateNumericIterator {
     assertFalse(it.hasNext());
   }
   
+  @Test
+  public void rateToCounterLongs() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3600000L, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3605000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(100000, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertEquals(64000, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(250, v.value().doubleValue(), 0.001);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(143800, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(100000, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void rateToCounterDoubles() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 2000000L, 50.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3600000L, 40.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 3605000L, 50.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50.5);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+         Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
+    assertEquals(101000, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
+    assertEquals(64800, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
+    assertEquals(252.5, v.value().doubleValue(), 0.001);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
+    assertEquals(145597.5, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
+    assertEquals(101000, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
   // TODO - test greater intervals once supported.
   
   @Test
