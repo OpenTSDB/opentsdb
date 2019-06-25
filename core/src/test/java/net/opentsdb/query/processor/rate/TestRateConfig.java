@@ -18,9 +18,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -32,7 +31,6 @@ import org.junit.Test;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.utils.JSON;
-import org.mockito.Mockito;
 
 public class TestRateConfig {
 public static MockTSDB TSDB;
@@ -58,6 +56,7 @@ public static MockTSDB TSDB;
         .setCounterMax(Integer.MAX_VALUE)
         .setDropResets(true)
         .setDeltaOnly(true)
+        .setRateToCount(true)
         .setId("rate")
         .build();
     String json = JSON.serializeToString(options);
@@ -66,10 +65,11 @@ public static MockTSDB TSDB;
     assertTrue(json.contains("\"counterMax\":" + Integer.MAX_VALUE));
     assertTrue(json.contains("\"dropResets\":true"));
     assertTrue(json.contains("\"deltaOnly\":true"));
+    assertTrue(json.contains("\"rateToCount\":true"));
     
     json = "{\"id\":\"rate\",\"type\":\"Rate\",\"counter\":true,"
         + "\"interval\":\"60s\",\"dropResets\":true,\"counterMax\":2147483647,"
-        + "\"deltaOnly\":true}";
+        + "\"deltaOnly\":true,\"rateToCount\":true}";
     options = JSON.parseToObject(json, RateConfig.class);
     assertTrue(options.isCounter());
     assertTrue(options.getDropResets());
@@ -77,6 +77,7 @@ public static MockTSDB TSDB;
     assertEquals(Integer.MAX_VALUE, options.getCounterMax());
     assertTrue(options.getDropResets());
     assertTrue(options.getDeltaOnly());
+    assertTrue(options.getRateToCount());
   }
   
   @Test
@@ -84,6 +85,7 @@ public static MockTSDB TSDB;
     final RateConfig options = (RateConfig) RateConfig.newBuilder()
         .setCounter(true)
         .setInterval("60s")
+        .setRateToCount(true)
         .setCounterMax(Integer.MAX_VALUE)
         .setId("rate")
         .build();
@@ -91,6 +93,7 @@ public static MockTSDB TSDB;
         .setId("rate")
         .build();
     assertTrue(clone.isCounter());
+    assertTrue(clone.getRateToCount());
     assertFalse(clone.getDropResets());
     assertEquals("60s", clone.getInterval());
     assertEquals(0, clone.getResetValue());
