@@ -592,7 +592,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           continue;
         }
         
-        if (node.push()) {
+        if (node != null && node.push()) {
           if (base_ts.epoch() == 0) {
             node.schema().baseTimestamp(result.getCells().get(0).key(), base_ts);
           }
