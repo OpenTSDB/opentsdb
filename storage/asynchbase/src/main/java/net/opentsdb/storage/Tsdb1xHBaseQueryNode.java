@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.hbase.async.HBaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -308,7 +309,11 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
     context.tsdb().getQueryThreadPool().submit(new Runnable() {
       @Override
       public void run() {
-        sendUpstream(t);        
+        if (t instanceof HBaseException) {
+          sendUpstream(new QueryExecutionException(t.getMessage(), 502, t));
+        } else {
+          sendUpstream(t);
+        }
       }
     }, context.queryContext());
   }

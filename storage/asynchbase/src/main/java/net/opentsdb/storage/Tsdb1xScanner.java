@@ -727,7 +727,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         state = State.COMPLETE;
         owner.scannerDone();
       }
-      scanner.close(); // TODO - attach a callback for logging in case
+      if (scanner != null) {
+        scanner.close(); // TODO - attach a callback for logging in case
+      }
       // something goes pear shaped.
       clear();
     }
@@ -808,7 +810,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   @Override
   public void close() {
     try {
-      scanner.close();
+      if (scanner != null) {
+        scanner.close();
+      }
     } catch (Exception e) {
       LOG.error("Failed to close scanner", e);
     }
