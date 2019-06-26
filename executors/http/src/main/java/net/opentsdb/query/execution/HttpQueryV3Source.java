@@ -302,7 +302,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               DefaultSharedHttpClient.parseResponse(response, 0, host);
             } catch (Exception e) {
               if (e instanceof RemoteQueryExecutionException) {
-                if (response.getStatusLine().getStatusCode() == 400) {
+                if (!((BaseHttpExecutorFactory) factory).retriable(
+                    response.getStatusLine().getStatusCode())) {
                   sendUpstream(BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
@@ -523,6 +524,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         }
       }
     }
+    
     client.execute(post, new ResponseCallback());
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace(this, "Compiled and sent query to [" 
