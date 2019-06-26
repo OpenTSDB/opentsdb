@@ -21,17 +21,19 @@ import javax.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -244,9 +246,37 @@ public class ServletSink implements QuerySink, SerdesCallback {
   
   void logComplete(final Throwable t) {
     if (config.statsTimer() != null) {
-      config.statsTimer().stop("user", context.authState() != null ? 
-          context.authState().getUser() : "Unkown", "endpoint", 
-          config.request().getRequestURI() /* TODO - trim */);
+      try {
+        // extract a namespace if possible.
+        String namespace = null;
+        for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+          if (config instanceof TimeSeriesDataSourceConfig) {
+            String local_namespace = ((TimeSeriesDataSourceConfig) config).getNamespace();
+            if (Strings.isNullOrEmpty(local_namespace)) {
+              // extract from metric filter.
+              local_namespace = ((TimeSeriesDataSourceConfig) config).getMetric().getMetric();
+              local_namespace = local_namespace.substring(0, local_namespace.indexOf('.'));
+            }
+            
+            if (namespace == null) {
+              namespace = local_namespace;
+            } else {
+              if (!namespace.equals(local_namespace)) {
+                // Different namespaces so we won't use one. 
+                namespace = "MultipleNameSpaces";
+                break;
+              }
+            }
+          }
+        }
+        
+        config.statsTimer().stop("user", context.authState() != null ? 
+            context.authState().getUser() : "Unkown", "endpoint", 
+            "namespace", namespace,
+            config.request().getRequestURI() /* TODO - trim */);
+      } catch (Exception e) {
+        LOG.error("Failed to record timer", e);
+      }
     }
     
     LOG.info("Completing query=" 
