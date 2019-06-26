@@ -289,6 +289,10 @@ public class TestTopNResult {
         makeSeries("web02",
             new MutableNumericValue(new MillisecondTimeStamp(0L), 100),
             new MutableNumericValue(new MillisecondTimeStamp(1000L), 100),
+            new MutableNumericValue(new MillisecondTimeStamp(2000L), 100)),
+        makeSeries("web03",
+            new MutableNumericValue(new MillisecondTimeStamp(0L), 100),
+            new MutableNumericValue(new MillisecondTimeStamp(1000L), 100),
             new MutableNumericValue(new MillisecondTimeStamp(2000L), 100))
     ));
     TopNResult topn = new TopNResult(node, result);
