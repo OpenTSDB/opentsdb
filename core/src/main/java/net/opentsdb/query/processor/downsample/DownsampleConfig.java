@@ -394,17 +394,6 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
             && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
             && Objects.equal(run_all, dsconfig.getRunAll())
             && Objects.equal(fill, dsconfig.getFill());
-
-//    return Objects.equal(start, dsconfig.getStart())
-//            && Objects.equal(end, dsconfig.getEnd())
-////            && Objects.equal(original_interval, dsconfig.getInterval())
-//            && Objects.equal(timezone.toString(), dsconfig.getTimezone())
-//            && Objects.equal(aggregator, dsconfig.getAggregator())
-//            && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
-//            && Objects.equal(run_all, dsconfig.getRunAll())
-//            && Objects.equal(fill, dsconfig.getFill())
-//            && Objects.equal(interval_part, dsconfig.intervalPart())
-//            && Objects.equal(units, dsconfig.units());
   }
 
   @Override

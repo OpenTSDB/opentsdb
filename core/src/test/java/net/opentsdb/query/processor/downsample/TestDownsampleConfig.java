@@ -451,8 +451,8 @@ public class TestDownsampleConfig {
             .addInterpolatorConfig(summary_config)
             .build();
 
-    assertTrue(!config.equals(config3));
-    assertNotEquals(config.hashCode(), config3.hashCode());
+    assertFalse(!config.equals(config3));
+    assertEquals(config.hashCode(), config3.hashCode());
 
     config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
             .setAggregator("sum")
@@ -464,23 +464,9 @@ public class TestDownsampleConfig {
             .addInterpolatorConfig(summary_config)
             .build();
 
-    assertTrue(!config.equals(config3));
-    assertNotEquals(config.hashCode(), config3.hashCode());
-
-    config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
-            .setAggregator("sum")
-            .setId("foo")
-            .setInterval("15s")
-            .setStart("1514843302")
-            .setEnd("1514846902")
-//            .addInterpolatorConfig(numeric_config)
-            .addInterpolatorConfig(summary_config)
-            .build();
-
-    assertTrue(!config.equals(config3));
-    assertNotEquals(config.hashCode(), config3.hashCode());
-
-
+    System.out.println(config3);
+    assertFalse(!config.equals(config3));
+    assertEquals(config.hashCode(), config3.hashCode());
 
     config3 = (DownsampleConfig) DownsampleConfig.newBuilder()
             .setAggregator("sum")
