@@ -78,6 +78,9 @@ public abstract class BaseQueryContext implements QueryContext {
           .start();
     }
     auth_state = builder.auth_state;
+    if (stats != null) {
+      stats.setQueryContext(this);
+    }
   }
   
   @Override

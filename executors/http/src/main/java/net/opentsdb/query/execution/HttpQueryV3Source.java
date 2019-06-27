@@ -421,9 +421,19 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               }
             }
             
+            if (context.queryContext().stats() != null) {
+              context.queryContext().stats().incrementRawDataSize(json.length());
+            }
+            
             for (final JsonNode result : results) {
-              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result, 
-                  ((TimeSeriesDataSourceFactory) factory).rollupConfig()));
+              final HttpQueryV3Result series_result = new HttpQueryV3Result(
+                  HttpQueryV3Source.this, result, 
+                    ((TimeSeriesDataSourceFactory) factory).rollupConfig());
+              if (context.queryContext().stats() != null) {
+                context.queryContext().stats().incrementRawTimeSeriesCount(
+                    series_result.timeSeries().size());
+              }
+              sendUpstream(series_result);
             }
           }
         } catch (Throwable t) {

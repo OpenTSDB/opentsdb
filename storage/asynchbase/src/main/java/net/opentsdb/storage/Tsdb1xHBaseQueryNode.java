@@ -54,6 +54,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -271,6 +272,10 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
 
   @Override
   public void onNext(final QueryResult next) {
+    final QueryStats stats = pipelineContext().queryContext().stats();
+    if (stats != null) {
+      stats.incrementRawTimeSeriesCount(next.timeSeries().size());
+    }
     context.tsdb().getQueryThreadPool().submit(new Runnable() {
       final State state = executor.state();
       

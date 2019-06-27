@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.stats;
+
+import net.opentsdb.query.QueryContext;
 
 /**
  * A collector for statistics about a particular query including tracing and
@@ -36,4 +38,34 @@ public interface QueryStats {
    * a non-null tracer.
    */
   public Span querySpan();
+  
+  /**
+   * Called by the context to set the reference. Since we assign this to the 
+   * context during a build, we don't have a context to set. So the context
+   * <b>must</b> call this if we want any good stats.
+   * @param context The non-null context to set.
+   */
+  public void setQueryContext(final QueryContext context);
+  
+  /**
+   * Called to emit the stats collected by this object.
+   */
+  public void emitStats();
+  
+  public void incrementRawDataSize(final long size);
+  
+  public void incrementSerializedDataSize(final long size);
+  
+  public void incrementRawTimeSeriesCount(final long count);
+  
+  public void incrementSerializedTimeSeriesCount(final long count);
+  
+  public long rawDataSize();
+  
+  public long serializedDataSize();
+  
+  public long rawTimeSeriesCount();
+  
+  public long serializedTimeSeriesCount();
+  
 }

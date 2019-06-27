@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
+import net.opentsdb.query.QueryContext;
+
 /**
  * Class used for testing pipelines with a mock stats collector.
  */
@@ -39,6 +41,66 @@ public class MockStats implements QueryStats {
   @Override
   public Span querySpan() {
     return query_span;
+  }
+
+  @Override
+  public void setQueryContext(QueryContext context) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public void emitStats() {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public void incrementRawDataSize(long size) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public void incrementSerializedDataSize(long size) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public void incrementRawTimeSeriesCount(long count) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public void incrementSerializedTimeSeriesCount(long count) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public long rawDataSize() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public long serializedDataSize() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public long rawTimeSeriesCount() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public long serializedTimeSeriesCount() {
+    // TODO Auto-generated method stub
+    return 0;
   }
 
 }
