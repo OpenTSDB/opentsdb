@@ -134,6 +134,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     JsonNode n = node.get("interval");
     if (n != null) {
       builder.setInterval(n.asText());
+//      builder.setOriginal_Interval(n.asText());
     }
     
     n = node.get("id");

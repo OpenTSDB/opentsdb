@@ -258,6 +258,8 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
             && Objects.equal(interval, tsconfig.getTimeShiftInterval());
 
     if (!result) {
+      System.out.println(namespace + " " + source_id + " " + filter_id + " " + (metric != null ? metric.getMetric() : metric) + " " + (filter != null ? filter.getType() : filter) + " " + fetch_last + " " + interval);
+      System.out.println(tsconfig.getNamespace() + " " + tsconfig.getSourceId() + " " + tsconfig.getFilterId() + " " + (tsconfig.getMetric() != null ? tsconfig.getMetric().getMetric() : tsconfig.getMetric()) + " " + (tsconfig.getFilter() != null ? tsconfig.getFilter().getType() : tsconfig.getFilter()) +  " " + tsconfig.getFetchLast() + " " + tsconfig.getTimeShiftInterval());
       return false;
     }
 

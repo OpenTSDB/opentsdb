@@ -281,10 +281,15 @@ public class TestDownsampleConfig {
     assertTrue(json.contains("\"dataType\":\"net.opentsdb.data.types.numeric.NumericType\""));
     assertTrue(json.contains("\"defaultRealFillPolicy\":\"NEXT_ONLY\""));
     assertTrue(json.contains("\"expectedSummaries\":[0]"));
+    assertTrue(json.contains("\"start\":\"1514843302\""));
+
     
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     
     JsonNode node = JSON.getMapper().readTree(json);
+//    System.out.println("JSON: " + json);
+//    System.out.println(node.get("start").asText());
+
     DownsampleFactory factory = new DownsampleFactory();
     config = (DownsampleConfig) factory.parseConfig(JSON.getMapper(), tsdb, node);
     
@@ -297,7 +302,7 @@ public class TestDownsampleConfig {
     assertEquals(ChronoUnit.SECONDS, config.units());
     assertFalse(config.getInfectiousNan());
     assertEquals(15, config.intervalPart());
-    assertNull(config.startTime());
+//    assertNull(config.startTime());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals(DownsampleFactory.TYPE, config.getType());

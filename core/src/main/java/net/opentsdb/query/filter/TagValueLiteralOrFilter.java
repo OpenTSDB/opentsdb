@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -113,11 +114,14 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
     if (o == null || getClass() != o.getClass())
       return false;
 
-    if (!super.equals(o)) {
-      return false;
-    }
 
     final TagValueLiteralOrFilter otherTagKeyFilter = (TagValueLiteralOrFilter) o;
+
+    final boolean result = Objects.equal(tag_key, otherTagKeyFilter.getTagKey());
+
+    if (!result) {
+      return false;
+    }
 
     // comparing literals
     if (!Comparators.ListComparison.equalLists(literals, otherTagKeyFilter.literals())) {
@@ -137,11 +141,6 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(2);
-
-    hashes.add(super.buildHashCode());
-
     if (literals != null) {
       final List<String> keys = Lists.newArrayList(literals);
       Collections.sort(keys);
@@ -149,10 +148,12 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
       for (final String key : keys) {
         hasher.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hasher.hash());
+      return hasher.hash();
+    }
+    else {
+      return super.buildHashCode();
     }
 
-    return Hashing.combineOrdered(hashes);
   }
   
   @Override

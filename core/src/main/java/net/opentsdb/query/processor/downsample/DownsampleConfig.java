@@ -43,7 +43,7 @@ import net.opentsdb.utils.Pair;
 /**
  * A configuration implementation for Downsampling processors.
  * <p>
- * Given the {@link TimeSeriesQuery}, the builder will parse out the start and 
+ * Given the {@link TimeSeriesQuery}, the builder will parse out the start and
  * end timestamps and snap to an interval greater than or equal to the query
  * start time and less than or equal to the query end time using the interval.
  * <p>
@@ -57,52 +57,55 @@ import net.opentsdb.utils.Pair;
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = DownsampleConfig.Builder.class)
 public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
-  
+
   /** The given start timestamp. */
   private final String start;
-  
+
   /** The given end timestamp. */
   private final String end;
-  
-  /** The raw interval string. */
+
+  /** The raw, original interval string. */
   private final String interval;
-  
+
+  /** The raw interval string that is allowed to change. */
+  private final String original_interval;
+
   /** The timezone for the downsample snapping. Defaults to UTC. */
   private final ZoneId timezone;
-  
+
   /** The raw aggregator. */
   private final String aggregator;
-  
+
   /** Whether or not NaNs are infectious. */
   private final boolean infectious_nan;
-  
+
   /** Whether or not to reduce to a single value. */
   private final boolean run_all;
-  
+
   /** Whether or not to fill empty timestamps. */
   private final boolean fill;
-  
+
   /** The numeric part of the parsed interval. */
   private final int interval_part;
-  
+
   /** The units of the parsed interval. */
   private final ChronoUnit units;
-  
+
   /** The interval converted to a duration. */
   private final TemporalAmount duration;
-  
+
   /** The computed start time for downsampling (First value) */
   private final TimeStamp start_time;
-  
+
   /** The computed end time for downsampling (Last value) */
   private final TimeStamp end_time;
-  
+
   /** A reference to the auto downsample interval config. */
   private final List<Pair<Long, String>> intervals;
-  
+
   /** The cached intervals. */
   private int cached_intervals = -1;
-  
+
   /**
    * Default ctor.
    * @param builder A non-null builder to pull settings from.
@@ -115,39 +118,41 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
-    if (interpolator_configs == null || 
-        interpolator_configs.isEmpty()) {
+    if (interpolator_configs == null ||
+            interpolator_configs.isEmpty()) {
       throw new IllegalArgumentException("At least one interpolator "
-          + "config must be present.");
+              + "config must be present.");
     }
-    
+
     intervals = builder.intervals;
     timezone = builder.timezone != null ? ZoneId.of(builder.timezone) : Const.UTC;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
     run_all = builder.run_all;
     fill = builder.fill;
-    
+
+//    original_interval = builder.original_interval;
+
     if (!Strings.isNullOrEmpty(builder.start)) {
       start_time = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(builder.start, builder.timezone));
+              DateTime.parseDateTimeString(builder.start, builder.timezone));
     } else {
       start_time = null;
     }
     if (!Strings.isNullOrEmpty(builder.end)) {
       end_time = new MillisecondTimeStamp(
-          DateTime.parseDateTimeString(builder.end, builder.timezone));
+              DateTime.parseDateTimeString(builder.end, builder.timezone));
     } else {
       end_time = new MillisecondTimeStamp(DateTime.currentTimeMillis());
     }
-    
+
     if (!run_all) {
       // try for auto.
       if (builder.interval.equalsIgnoreCase("auto")) {
         if (start_time != null && end_time != null) {
           if (intervals == null) {
             throw new IllegalArgumentException("Auto downsampling is not "
-                + "configured or enabled.");
+                    + "configured or enabled.");
           }
           // TODO - handle smaller scales
           final long delta = end_time.msEpoch() - start_time.msEpoch();
@@ -159,7 +164,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       } else {
         interval = builder.interval;
       }
-      
+
       if (interval.equalsIgnoreCase("auto")) {
         interval_part = DateTime.getDurationInterval("1m");
         units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits("1m"));
@@ -175,7 +180,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       units = null;
       duration = null;
     }
-    
+
+    // if the original interval isn't already set, set it to interval
+    original_interval = Strings.isNullOrEmpty(getOriginalInterval()) ? interval : getOriginalInterval();
+
     start = builder.start;
     if (!Strings.isNullOrEmpty(builder.start)) {
       if (!run_all) {
@@ -186,7 +194,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         }
       }
     }
-    
+
     end = builder.end;
     if (!Strings.isNullOrEmpty(builder.end)) {
       if (!run_all) {
@@ -198,93 +206,99 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         end_time.snapToPreviousInterval(interval_part, units);
       }
     }
-    
+
     // make sure we have at least one interval in our range
     // TODO - propper difference function
-    if (start_time != null && end_time.msEpoch() - start_time.msEpoch() < 
-        DateTime.parseDuration(interval)) {
+    if (start_time != null && end_time.msEpoch() - start_time.msEpoch() <
+            DateTime.parseDuration(interval)) {
       throw new IllegalArgumentException("The start and stop times of "
-          + "the query must be greater than the interval provided: " + interval);
+              + "the query must be greater than the interval provided: " + interval);
     }
   }
-  
+
   /** @return The non-null and non-empty interval. */
   public TemporalAmount interval() {
     return duration;
   }
-  
+
   /** @return The non-null timezone. */
   public ZoneId timezone() {
     return timezone;
   }
-  
+
   /** @return The non-null timezone string name. */
   public String getTimezone() {
     return timezone.toString();
   }
-  
+
   /** @return The non-null and non-empty aggregation function name. */
   public String getAggregator() {
     return aggregator;
   }
-  
-  /** @return Whether or not NaNs should be treated as sentinels or considered 
+
+  /** @return Whether or not NaNs should be treated as sentinels or considered
    * in arithmetic. */
   public boolean getInfectiousNan() {
     return infectious_nan;
   }
-  
+
   /** @return Whether or not to downsample to a single value. */
   public boolean getRunAll() {
     return run_all;
   }
-  
+
   /** @return Whether or not to fill missing values. */
   public boolean getFill() {
     return fill;
   }
-  
+
   /** @return The numeric part of the raw interval. */
   public int intervalPart() {
     return interval_part;
   }
-  
+
   /** @return The units of the interval. */
   public ChronoUnit units() {
     return units;
   }
-  
+
   /**  @returnConverts the units to a 2x style parseable string. */
   public String getInterval() {
     if (units == null) {
       return "0all";
     }
-    
+
     switch (units) {
-    case NANOS:
-      return interval_part + "ns";
-    case MICROS:
-      return interval_part + "mu";
-    case MILLIS:
-      return interval_part + "ms";
-    case SECONDS:
-      return interval_part + "s";
-    case MINUTES:
-      return interval_part + "m";
-    case HOURS:
-      return interval_part + "h";
-    case DAYS:
-      return interval_part + "d";
-    case WEEKS:
-      return interval_part + "w";
-    case MONTHS:
-      return interval_part + "n";
-    case YEARS:
-      return interval_part + "y";
-    default:
-      throw new IllegalStateException("Unsupported units: " + units);
+      case NANOS:
+        return interval_part + "ns";
+      case MICROS:
+        return interval_part + "mu";
+      case MILLIS:
+        return interval_part + "ms";
+      case SECONDS:
+        return interval_part + "s";
+      case MINUTES:
+        return interval_part + "m";
+      case HOURS:
+        return interval_part + "h";
+      case DAYS:
+        return interval_part + "d";
+      case WEEKS:
+        return interval_part + "w";
+      case MONTHS:
+        return interval_part + "n";
+      case YEARS:
+        return interval_part + "y";
+      default:
+        throw new IllegalStateException("Unsupported units: " + units);
     }
   }
+
+  /** @return The originally set value of the interval. */
+  public String getOriginalInterval() {
+    return original_interval;
+  }
+
 
   public String getStart() { return start; }
 
@@ -294,19 +308,19 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   public TimeStamp startTime() {
     return start_time;
   }
-  
+
   /** @return The non-null computed end time for downsampling. */
   public TimeStamp endTime() {
     return end_time;
   }
-  
+
   /** @return The number of intervals in the downsampling window bounded
    * by {@link #startTime()} and {@link #endTime()}. */
   public int intervals() {
     if (run_all) {
       return 1;
     }
-    
+
     if (cached_intervals < 0) {
       TimeStamp ts = start_time.getCopy();
       int intervals = 0;
@@ -318,7 +332,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     return cached_intervals;
   }
-  
+
   /**
    * Returns the auto intervals for this factory.
    * <b>WARNING:</b> Do NOT modify the list or entries.
@@ -327,33 +341,34 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   public List<Pair<Long, String>> autoIntervals() {
     return intervals;
   }
-  
+
   @Override
   public Builder toBuilder() {
     return (Builder) new Builder()
-        .setInterval(interval)
-        .setTimeZone(timezone.toString())
-        .setAggregator(aggregator)
-        .setInfectiousNan(infectious_nan)
-        .setRunAll(run_all)
-        .setFill(fill)
-        .setStart(start)
-        .setEnd(end)
-        .setIntervals(intervals)
-        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
-        .setId(id);
+            .setInterval(interval)
+//            .setOriginal_Interval(original_interval)
+            .setTimeZone(timezone.toString())
+            .setAggregator(aggregator)
+            .setInfectiousNan(infectious_nan)
+            .setRunAll(run_all)
+            .setFill(fill)
+            .setStart(start)
+            .setEnd(end)
+            .setIntervals(intervals)
+            .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+            .setId(id);
   }
-  
+
   @Override
   public boolean pushDown() {
     return true;
   }
-  
+
   @Override
   public boolean joins() {
     return false;
   }
-  
+
   @Override
   public int compareTo(QueryNodeConfig o) {
     // TODO Auto-generated method stub
@@ -367,23 +382,29 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     if (o == null || getClass() != o.getClass())
       return false;
 
-    // is this necessary?
     if (!super.equals(o)) {
       return false;
     }
 
     final DownsampleConfig dsconfig = (DownsampleConfig) o;
 
-    return Objects.equal(start, dsconfig.getStart())
-            && Objects.equal(end, dsconfig.getEnd())
-            && Objects.equal(interval, dsconfig.getInterval())
-            && Objects.equal(timezone.toString(), dsconfig.getTimezone())
+    return Objects.equal(timezone.toString(), dsconfig.getTimezone())
+            && Objects.equal(original_interval, dsconfig.getOriginalInterval())
             && Objects.equal(aggregator, dsconfig.getAggregator())
             && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
             && Objects.equal(run_all, dsconfig.getRunAll())
-            && Objects.equal(fill, dsconfig.getFill())
-            && Objects.equal(interval_part, dsconfig.intervalPart())
-            && Objects.equal(units, dsconfig.units());
+            && Objects.equal(fill, dsconfig.getFill());
+
+//    return Objects.equal(start, dsconfig.getStart())
+//            && Objects.equal(end, dsconfig.getEnd())
+////            && Objects.equal(original_interval, dsconfig.getInterval())
+//            && Objects.equal(timezone.toString(), dsconfig.getTimezone())
+//            && Objects.equal(aggregator, dsconfig.getAggregator())
+//            && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
+//            && Objects.equal(run_all, dsconfig.getRunAll())
+//            && Objects.equal(fill, dsconfig.getFill())
+//            && Objects.equal(interval_part, dsconfig.intervalPart())
+//            && Objects.equal(units, dsconfig.units());
   }
 
   @Override
@@ -395,16 +416,12 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
-            .putString(Strings.nullToEmpty(start), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(end), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(original_interval), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(timezone.toString()), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
             .putBoolean(infectious_nan)
             .putBoolean(run_all)
             .putBoolean(fill)
-            .putInt(interval_part)
-            .putString(Strings.nullToEmpty(units.toString()), Const.UTF8_CHARSET)
             .hash();
 
     final List<HashCode> hashes =
@@ -416,33 +433,36 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
 
     return Hashing.combineOrdered(hashes);
   }
-  
+
   /** @return A new builder to work from. */
   public static Builder newBuilder() {
     return new Builder();
   }
-  
+
   public static Builder newBuilder(final DownsampleConfig config) {
     return (Builder) new Builder()
-        .setStart(config.start)
-        .setEnd(config.end)
-        .setAggregator(config.aggregator)
-        .setFill(config.fill)
-        .setRunAll(config.run_all)
-        .setInfectiousNan(config.infectious_nan)
-        .setInterval(config.interval)
-        .setTimeZone(config.timezone.toString())
-        .setIntervals(config.intervals)
-        .setInterpolatorConfigs(Lists.newArrayList(
-            config.interpolator_configs.values()))
-        .setSources(Lists.newArrayList(config.getSources()))
-        .setId(config.id);
+            .setStart(config.start)
+            .setEnd(config.end)
+            .setAggregator(config.aggregator)
+            .setFill(config.fill)
+            .setRunAll(config.run_all)
+            .setInfectiousNan(config.infectious_nan)
+            .setInterval(config.interval)
+//            .setOriginal_Interval(config.original_interval)
+            .setTimeZone(config.timezone.toString())
+            .setIntervals(config.intervals)
+            .setInterpolatorConfigs(Lists.newArrayList(
+                    config.interpolator_configs.values()))
+            .setSources(Lists.newArrayList(config.getSources()))
+            .setId(config.id);
   }
-  
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
     @JsonProperty
     private String interval;
+//    @JsonProperty
+//    private String original_interval;
     @JsonProperty
     private String timezone;
     @JsonProperty
@@ -458,11 +478,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     @JsonProperty
     private String end;
     private List<Pair<Long, String>> intervals;
-    
+
     Builder() {
       setType(DownsampleFactory.TYPE);
     }
-    
+
     /**
      * @param id A non-null and on-empty Id for the group by function.
      * @return The builder.
@@ -471,16 +491,27 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       this.id = id;
       return this;
     }
-    
+
     /**
      * @param interval The non-null and non-empty interval, e.g. "1h" or "60s"
+     * which is dynamic.
      * @return The builder.
      */
     public Builder setInterval(final String interval) {
       this.interval = interval;
       return this;
     }
-    
+
+//    /**
+//     * @param interval The non-null and non-empty original_interval, e.g. "1h" or "60s"
+//     * which is final and set to the original interval.
+//     * @return The builder.
+//     */
+//    public Builder setOriginal_Interval(final String original_interval) {
+//      this.original_interval = original_interval;
+//      return this;
+//    }
+
     /**
      * @param timezone An optional timezone. If null, UTC is assumed.
      * @return The builder.
@@ -489,7 +520,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       this.timezone = timezone;
       return this;
     }
-    
+
     /**
      * @param aggregator A non-null and non-empty aggregation function.
      * @return The builder.
@@ -498,7 +529,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       this.aggregator = aggregator;
       return this;
     }
-    
+
     /**
      * @param infectious_nan Whether or not NaNs should be sentinels or included
      * in arithmetic.
@@ -508,7 +539,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       this.infectious_nan = infectious_nan;
       return this;
     }
-    
+
     /**
      * @param run_all Whether or not to downsample to a single value.
      * @return The builder.
@@ -517,7 +548,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       this.run_all = run_all;
       return this;
     }
-    
+
     /**
      * @param fill Whether or not to fill empty values.
      * @return The builder.
@@ -526,22 +557,22 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       this.fill = fill;
       return this;
     }
-    
+
     public Builder setStart(final String start) {
       this.start = start;
       return this;
     }
-    
+
     public Builder setEnd(final String end) {
       this.end = end;
       return this;
     }
-    
+
     public Builder setIntervals(final List<Pair<Long, String>> intervals) {
       this.intervals = intervals;
       return this;
     }
-    
+
     /** @return The constructed config.
      * @throws IllegalArgumentException if a required parameter is missing or
      * invalid. */
@@ -549,5 +580,5 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
       return (QueryNodeConfig) new DownsampleConfig(this);
     }
   }
-  
+
 }

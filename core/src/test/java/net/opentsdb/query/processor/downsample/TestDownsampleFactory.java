@@ -485,7 +485,6 @@ public class TestDownsampleFactory {
     assertEquals("1h", ((DownsampleConfig) new_node).getInterval());
     assertFalse(((DownsampleConfig) new_node).getRunAll());
     verify(planner, times(2)).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
-    
     assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
     
     // ds -> metric
