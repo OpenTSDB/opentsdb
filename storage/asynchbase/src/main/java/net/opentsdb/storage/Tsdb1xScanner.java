@@ -57,6 +57,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.storage.HBaseExecutor.State;
@@ -522,6 +523,23 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       
       try {
         rows_scanned += rows.size();
+        final QueryStats stats = owner.node().pipelineContext().queryContext().stats();
+        if (stats != null) {
+          long size = 0;
+          for (int r = 0; r < rows.size(); r++) {
+            final ArrayList<KeyValue> row = rows.get(r);
+            for (int k = 0; k < row.size(); k++) {
+              size += 8; // timestamp
+              final KeyValue kv = row.get(k);
+              size += kv.key().length;
+              size += kv.family().length;
+              size += kv.qualifier().length;
+              size += kv.value() != null ? kv.value().length : 0;
+            }
+          }
+          stats.incrementRawDataSize(size);
+        }
+        
         if (owner.filterDuringScan()) {
           final List<Deferred<ArrayList<KeyValue>>> deferreds = 
               Lists.newArrayListWithCapacity(rows.size());

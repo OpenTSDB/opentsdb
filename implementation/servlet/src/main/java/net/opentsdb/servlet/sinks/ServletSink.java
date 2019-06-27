@@ -109,6 +109,9 @@ public class ServletSink implements QuerySink, SerdesCallback {
     try {
       serdes.serializeComplete(null);
       config.request().setAttribute("DATA", stream);
+      if (context.stats() != null) {
+        context.stats().incrementSerializedDataSize(stream.size());
+      }
 //      try {
 //        // TODO - oh this is sooooo ugly.... *sniff*
 //        config.response().setContentType("application/json");
@@ -271,12 +274,16 @@ public class ServletSink implements QuerySink, SerdesCallback {
         }
         
         config.statsTimer().stop("user", context.authState() != null ? 
-            context.authState().getUser() : "Unkown", "endpoint", 
+            context.authState().getUser() : "Unkown",
             "namespace", namespace,
-            config.request().getRequestURI() /* TODO - trim */);
+            "endpoint", config.request().getRequestURI() /* TODO - trim */);
       } catch (Exception e) {
         LOG.error("Failed to record timer", e);
       }
+    }
+    
+    if (context.stats() != null) {
+      context.stats().emitStats();
     }
     
     LOG.info("Completing query=" 
@@ -284,12 +291,14 @@ public class ServletSink implements QuerySink, SerdesCallback {
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
       .put("user", context.authState() != null ? context.authState().getPrincipal().getName() : "Unkown")
-      //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
       .put("traceId", context.stats().trace() != null ? 
           context.stats().trace().traceId() : "")
       .put("status", Response.Status.OK)
-      //.put("query", JSON.serializeToString(context.query()))
       .put("error", t == null ? "null" : t.toString())
+      .put("statRDS", context.stats() == null ? 0 : context.stats().rawDataSize())
+      .put("statRTS", context.stats() == null ? 0 : context.stats().rawTimeSeriesCount())
+      .put("statSDS", context.stats() == null ? 0 : context.stats().serializedDataSize())
+      .put("statSTS", context.stats() == null ? 0 : context.stats().serializedTimeSeriesCount())
       .build()));
     
     QUERY_LOG.info("Completing query=" 
