@@ -106,7 +106,7 @@ public class DefaultQueryStats implements QueryStats {
       }
     }
     
-    final String[] tags = new String[] { 
+    final String[] tags = new String[] { "user",
         context.authState() != null ? 
             context.authState().getUser() : "Unkown",
         "namespace", namespace };
