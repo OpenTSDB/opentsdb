@@ -431,9 +431,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
     
     boolean wrote_values = false;
-    for (final TypedTimeSeriesIterator iterator : series.iterators()) {
+    for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
       while (iterator.hasNext()) {
-
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
         while (value != null && value.timestamp().compare(Op.LT, start)) {
           if (iterator.hasNext()) {
@@ -496,7 +495,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private boolean writeNumeric(
       TimeSeriesValue<NumericType> value,
       final JsonV2QuerySerdesOptions options, 
-      final Iterator<TimeSeriesValue<?>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
       boolean wrote_values) throws IOException {
@@ -582,7 +581,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private boolean writeRollupNumeric(
       TimeSeriesValue<NumericSummaryType> value,
       final JsonV2QuerySerdesOptions options,
-      final Iterator<TimeSeriesValue<?>> iterator,
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
       boolean wrote_values) throws IOException {
@@ -690,7 +689,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private boolean writeNumericSummary(
       TimeSeriesValue value,
       final JsonV2QuerySerdesOptions options, 
-      final Iterator<TimeSeriesValue<?>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
       boolean wrote_values) throws IOException {
@@ -833,7 +832,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private boolean writeNumericArray(
       TimeSeriesValue<NumericArrayType> value,
       final JsonV2QuerySerdesOptions options, 
-      final Iterator<TimeSeriesValue<?>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
       boolean wrote_values) throws IOException {

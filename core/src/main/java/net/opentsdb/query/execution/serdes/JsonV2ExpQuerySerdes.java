@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Map.Entry;
 
+import net.opentsdb.data.TimeSeriesDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,26 +212,24 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
             boolean has_next = false;
             for (final Pair<TimeSeriesStringId, TimeSeries> pair : entry.getValue()) {
               final QueryInterpolator<?> interp;
-              Optional<TypedTimeSeriesIterator> optional = 
+              Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
                   pair.getValue().iterator(NumericType.TYPE);
               if (!optional.isPresent()) {
                 optional = pair.getValue().iterator(NumericSummaryType.TYPE);
                 if (!optional.isPresent()) {
                   continue;
                 }
-                final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+                final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
                 if (!iterator.hasNext()) {
                   continue;
                 }
-                interp = (QueryInterpolator<NumericSummaryType>) 
-                    factory.newInterpolator(NumericSummaryType.TYPE, iterator, nic);
+                interp = factory.newInterpolator(NumericSummaryType.TYPE, iterator, nic);
               } else {
-                final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+                final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
                 if (!iterator.hasNext()) {
                   continue;
                 }
-                interp = (QueryInterpolator<NumericType>) 
-                    factory.newInterpolator(NumericType.TYPE, iterator, nic);
+                interp = factory.newInterpolator(NumericType.TYPE, iterator, nic);
               }
               
               // TODO - filter on start timestamp.

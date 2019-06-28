@@ -48,7 +48,7 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  * 
  * @since 3.0
  */
-public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
+public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory<ExpressionParseNode, BinaryExpressionNode> {
 
   public static final String TYPE = "BinaryExpression";
   
@@ -76,19 +76,13 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
-    throw new UnsupportedOperationException("Default configs are not "
-        + "allowed for Binary Expressions.");
+  public BinaryExpressionNode newNode(final QueryPipelineContext context,
+                           final ExpressionParseNode config) {
+    return new BinaryExpressionNode(this, context, config);
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
-    return new BinaryExpressionNode(this, context, (ExpressionParseNode) config);
-  }
-
-  @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public ExpressionParseNode parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     ExpressionParseNode.Builder builder = ExpressionParseNode.newBuilder();
@@ -202,21 +196,13 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     return builder.build();
   }
 
-  @Override
-  public void setupGraph(
-      final QueryPipelineContext context, 
-      final QueryNodeConfig config,
-      final QueryPlanner plan) {
-    // nothing to do here.
-  }
-
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<BinaryExpressionNode, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final BinaryExpressionNode node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -224,7 +210,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final BinaryExpressionNode node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -232,7 +218,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
         
@@ -241,10 +227,10 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
   /**
    * Handles summaries.
    */
-  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<BinaryExpressionNode, NumericSummaryType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final BinaryExpressionNode node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -252,7 +238,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final BinaryExpressionNode node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -260,7 +246,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
     
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
   }
@@ -268,10 +254,10 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
   /**
    * Handles arrays.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<BinaryExpressionNode, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final BinaryExpressionNode node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -279,7 +265,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final BinaryExpressionNode node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -287,7 +273,7 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory {
     }
     
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
   }

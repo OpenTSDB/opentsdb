@@ -141,7 +141,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
   
   /**
    * Default ctor.
-   * @param factory The Tsdb1xHBaseDataStore that instantiated this node.
+   * @param parent The Tsdb1xHBaseDataStore that instantiated this node.
    * @param context A non-null query pipeline context.
    * @param config A non-null config.
    */
@@ -343,13 +343,14 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
       child = null;
     }
 
-    if (parent.schema().rollupConfig() != null && 
+    List<String> rollupIntervals = config.getRollupIntervals();
+    if (parent.schema().rollupConfig() != null &&
         rollup_usage != RollupUsage.ROLLUP_RAW &&
-        config.getRollupIntervals() != null && 
-        !config.getRollupIntervals().isEmpty()) {
+        rollupIntervals != null &&
+        !rollupIntervals.isEmpty()) {
       rollup_intervals = Lists.newArrayListWithExpectedSize(
-          config.getRollupIntervals().size());
-      for (final String interval : config.getRollupIntervals()) {
+          rollupIntervals.size());
+      for (final String interval : rollupIntervals) {
         final RollupInterval ri = parent.schema().rollupConfig()
             .getRollupInterval(interval);
         if (ri != null) {

@@ -14,10 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
-import java.util.Iterator;
-import java.util.Optional;
-
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -28,6 +26,8 @@ import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
+
+import java.util.Optional;
 
 /**
  * Aggregates an entire numeric series into a single value for the 
@@ -101,12 +101,12 @@ public class TopNNumericSummaryAggregator {
   
   /** @return Perform the aggregation. If no data is present, return null. */
   NumericType run() {
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         series.iterator(NumericSummaryType.TYPE);
     if (!optional.isPresent()) {
       return null;
     }
-    final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
     
     long[] long_values = sum_id >= 0 ? null : new long[16];
     double[] double_values = sum_id >= 0 ? new double[16] : null;

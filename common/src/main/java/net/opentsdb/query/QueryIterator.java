@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 
 /**

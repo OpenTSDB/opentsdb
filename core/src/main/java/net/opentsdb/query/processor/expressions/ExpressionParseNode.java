@@ -35,7 +35,7 @@ import net.opentsdb.query.QueryNodeConfig;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = ExpressionParseNode.Builder.class)
-public class ExpressionParseNode extends BaseQueryNodeConfig {
+public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode.Builder, ExpressionParseNode> {
   
   /**
    * The type of value represented in the left or right operand.
@@ -219,7 +219,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   public boolean joins() {
     return true;
   }
-  
+
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
@@ -229,7 +229,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(ExpressionParseNode o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -282,9 +282,10 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
         .append("}")
         .toString();
   }
-  
+
+  @Override
   public Builder toBuilder() {
-    return (Builder) new Builder()
+    return new Builder()
         .setExpressionConfig(expression_config)
         .setExpressionOp(op)
         .setLeft(left)
@@ -299,12 +300,12 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
         .setSources(Lists.newArrayList(sources))
         .setId(id);
   }
-  
-  static Builder newBuilder() {
+
+  public static Builder newBuilder() {
     return new Builder();
   }
-  
-  static class Builder extends BaseQueryNodeConfig.Builder {
+
+  static class Builder extends BaseQueryNodeConfig.Builder<Builder, ExpressionParseNode> {
     @JsonProperty
     private Object left;
     @JsonProperty
@@ -400,9 +401,13 @@ public class ExpressionParseNode extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public ExpressionParseNode build() {
       return new ExpressionParseNode(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 }

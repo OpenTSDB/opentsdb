@@ -32,7 +32,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public abstract class AbstractQueryNode implements QueryNode {
+public abstract class AbstractQueryNode<T extends BaseQueryNodeConfig> implements QueryNode<T> {
   private static final Logger LOG = 
       LoggerFactory.getLogger(AbstractQueryNode.class);
   

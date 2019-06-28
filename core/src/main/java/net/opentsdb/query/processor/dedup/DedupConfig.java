@@ -27,7 +27,7 @@ import net.opentsdb.query.QueryNodeConfig;
  * 
  * @since 3.0
  */
-public class DedupConfig extends BaseQueryNodeConfig {
+public class DedupConfig extends BaseQueryNodeConfig<DedupConfig.Builder, DedupConfig> {
 
   /**
    * Protected ctor.
@@ -38,12 +38,6 @@ public class DedupConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
     return false;
@@ -53,7 +47,12 @@ public class DedupConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
+  @Override
+  public Builder toBuilder() {
+    return null;
+  }
+
   @Override
   public boolean equals(Object o) {
     // TODO Auto-generated method stub
@@ -73,7 +72,7 @@ public class DedupConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(DedupConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -82,10 +81,15 @@ public class DedupConfig extends BaseQueryNodeConfig {
     return new Builder();
   }
 
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, DedupConfig> {
     @Override
     public DedupConfig build() {
       return new DedupConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
 }

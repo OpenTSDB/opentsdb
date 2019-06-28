@@ -38,12 +38,12 @@ public class TestByteToStringIdConverterFactory {
     ByteToStringIdConverter node = (ByteToStringIdConverter) 
         factory.newNode(mock(QueryPipelineContext.class));
     assertEquals(ByteToStringIdConverterFactory.TYPE, node.config().getId());
-    
-    node = (ByteToStringIdConverter) factory.newNode(
+
+    ByteToStringIdConverterConfig.Builder builder = ByteToStringIdConverterConfig.newBuilder();
+    builder.setId("cvtr");
+    node = factory.newNode(
         mock(QueryPipelineContext.class),
-        ByteToStringIdConverterConfig.newBuilder()
-          .setId("cvtr")
-          .build());
+        builder.build());
     assertEquals("cvtr", node.config().getId());
   }
   

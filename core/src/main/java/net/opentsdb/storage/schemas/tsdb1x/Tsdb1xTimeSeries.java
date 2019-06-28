@@ -55,7 +55,7 @@ public class Tsdb1xTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     final Span<?> span = data.get(type);
     if (span == null) {
@@ -67,8 +67,8 @@ public class Tsdb1xTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
-    final List<TypedTimeSeriesIterator> iterators =
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+    final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithExpectedSize(data.size());
 
     for (final Entry<TypeToken<? extends TimeSeriesDataType>, 

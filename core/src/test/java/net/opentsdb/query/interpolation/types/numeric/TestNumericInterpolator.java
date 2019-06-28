@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -92,7 +93,7 @@ public class TestNumericInterpolator {
     assertFalse(interpolator.has_next);
     
     interpolator = new NumericInterpolator(
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) null, config);
+        (TypedTimeSeriesIterator<? extends TimeSeriesDataType>) null, config);
     assertFalse(interpolator.has_next);
     
     try {

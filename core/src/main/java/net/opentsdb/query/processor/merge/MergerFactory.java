@@ -46,7 +46,7 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * 
  * @since 3.0
  */
-public class MergerFactory extends BaseQueryNodeFactory {
+public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
   
   public static final String TYPE = "Merger";
   
@@ -75,8 +75,8 @@ public class MergerFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
+  public Merger newNode(final QueryPipelineContext context,
+                           final MergerConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
@@ -84,12 +84,12 @@ public class MergerFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public Merger newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException();
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public MergerConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     try {
@@ -101,7 +101,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final MergerConfig config,
                          final QueryPlanner plan) {
     // no-op
   }
@@ -109,10 +109,10 @@ public class MergerFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<Merger, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Merger node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -120,7 +120,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Merger node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -128,7 +128,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
     
@@ -137,10 +137,10 @@ public class MergerFactory extends BaseQueryNodeFactory {
   /**
    * Factory for summary iterators.
    */
-  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<Merger, NumericSummaryType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Merger node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -148,7 +148,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Merger node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -156,7 +156,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
     }
     
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
   }
@@ -164,10 +164,10 @@ public class MergerFactory extends BaseQueryNodeFactory {
   /**
    * Handles array numerics.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<Merger, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Merger node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -175,7 +175,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Merger node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -183,7 +183,7 @@ public class MergerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
     

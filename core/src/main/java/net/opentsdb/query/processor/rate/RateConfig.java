@@ -14,27 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
-
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.utils.DateTime;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Provides additional options that will be used when calculating rates. These
@@ -49,7 +46,7 @@ import net.opentsdb.utils.DateTime;
 @JsonInclude(Include.NON_DEFAULT)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = RateConfig.Builder.class)
-public class RateConfig extends BaseQueryNodeConfig {
+public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConfig> {
   public static final long DEFAULT_RESET_VALUE = 0;
   public static final String DEFAULT_INTERVAL = "1s";
   public static final long DEFAULT_COUNTER_MAX = Long.MAX_VALUE;
@@ -173,10 +170,10 @@ public class RateConfig extends BaseQueryNodeConfig {
   public ChronoUnit units() {
     return units;
   }
-  
+
   @Override
   public Builder toBuilder() {
-    return (Builder) new Builder()
+    return new Builder()
         .setInterval(interval)
         .setDropResets(drop_resets)
         .setCounter(counter)
@@ -189,7 +186,8 @@ public class RateConfig extends BaseQueryNodeConfig {
         .setType(type)
         .setId(id);
   }
-  
+
+
   @Override
   public boolean pushDown() {
     return true;
@@ -199,7 +197,7 @@ public class RateConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
   /**
    * Generates a String version of the rate option instance in a format that 
    * can be utilized in a query.
@@ -245,7 +243,7 @@ public class RateConfig extends BaseQueryNodeConfig {
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     Hasher hasher = Const.HASH_FUNCTION().newHasher();
@@ -263,11 +261,7 @@ public class RateConfig extends BaseQueryNodeConfig {
   }
   
   @Override
-  public int compareTo(final QueryNodeConfig o) {
-    if (!(o instanceof RateConfig)) {
-      return -1;
-    }
-    final RateConfig other = (RateConfig) o;
+  public int compareTo(final RateConfig other) {
     return ComparisonChain.start()
         .compareTrueFirst(counter, other.counter)
         .compareTrueFirst(drop_resets, other.drop_resets)
@@ -306,7 +300,7 @@ public class RateConfig extends BaseQueryNodeConfig {
    * A builder for the rate options config for a query.
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static final class Builder extends BaseQueryNodeConfig.Builder {
+  public static final class Builder extends BaseQueryNodeConfig.Builder<Builder, RateConfig> {
     @JsonProperty
     private boolean counter;
     @JsonProperty
@@ -358,12 +352,10 @@ public class RateConfig extends BaseQueryNodeConfig {
       this.deltaOnly = delta_only;
       return this;
     }
-    
     public Builder setRateToCount(final boolean rate_to_count) {
       this.rateToCount = rate_to_count;
       return this;
     }
-    
     public Builder setStartTime(final TimeStamp start_time) {
       this.start_time = start_time;
       return this;
@@ -381,6 +373,11 @@ public class RateConfig extends BaseQueryNodeConfig {
     
     public RateConfig build() {
       return new RateConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
   

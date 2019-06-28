@@ -87,7 +87,7 @@ public class SlicedTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (!types.contains(type)) {
       return Optional.empty();
@@ -97,8 +97,8 @@ public class SlicedTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
-    final List<TypedTimeSeriesIterator> iterators =
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+    final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(types.size());
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       iterators.add(new LocalIterator(type));
@@ -121,18 +121,17 @@ public class SlicedTimeSeries implements TimeSeries {
   /**
    * An iterator over the sources, presenting a single logical view.
    *
-   * @param <T> The type of data this iterator works over.
    */
   class LocalIterator implements TypedTimeSeriesIterator {
     
     private final TypeToken<? extends TimeSeriesDataType> type;
-    private Iterator<TimeSeriesValue<?>> iterator;
+    private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
     private int source_idx;
 
     LocalIterator(final TypeToken<? extends TimeSeriesDataType> type) {
       this.type = type;
       for (source_idx = 0; source_idx < sources.size(); source_idx++) {
-        final Optional<TypedTimeSeriesIterator> it = 
+        final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> it =
             sources.get(source_idx).iterator(type);
         if (it.isPresent()) {
           iterator = it.get();
@@ -153,7 +152,7 @@ public class SlicedTimeSeries implements TimeSeries {
       
       source_idx++;
       for (; source_idx < sources.size(); source_idx++) {
-        final Optional<TypedTimeSeriesIterator> it = 
+        final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> it =
             sources.get(source_idx).iterator(type);
         if (it.isPresent()) {
           iterator = it.get();

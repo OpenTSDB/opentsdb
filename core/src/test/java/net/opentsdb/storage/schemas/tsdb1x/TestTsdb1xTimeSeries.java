@@ -89,7 +89,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     
     series.addSequence(seq, false, false, schema());
     assertEquals(1, series.data.size());
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
@@ -100,7 +100,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(4, value);
     
-    Collection<TypedTimeSeriesIterator> iterators = series.iterators();
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 0;
@@ -134,7 +134,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     
     series.addSequence(seq, true, false, schema());
     assertEquals(1, series.data.size());
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     value = 3;
     base_time = BASE_TIME + 3600 - 900;
     while (it.hasNext()) {
@@ -145,7 +145,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(-1, value);
     
-    Collection<TypedTimeSeriesIterator> iterators = series.iterators();
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 3;
@@ -186,7 +186,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     series.addSequence(seq, false, false, schema());
     
     assertEquals(1, series.data.size());
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
@@ -197,7 +197,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(8, value);
     
-    Collection<TypedTimeSeriesIterator> iterators = series.iterators();
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 0;
@@ -236,7 +236,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     series.addSequence(seq, true, false, schema());
     
     assertEquals(1, series.data.size());
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     value = 7;
     base_time = BASE_TIME + (3600 * 2) - 900;
     while (it.hasNext()) {
@@ -247,7 +247,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
     }
     assertEquals(-1, value);
     
-    Collection<TypedTimeSeriesIterator> iterators = series.iterators();
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators = series.iterators();
     assertEquals(1, iterators.size());
     it = iterators.iterator().next();
     value = 7;

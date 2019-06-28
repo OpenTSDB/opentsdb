@@ -17,8 +17,11 @@ package net.opentsdb.data.types.numeric;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -46,8 +49,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class NumericMillisecondShard implements TimeSeries, 
-    Iterable<TimeSeriesValue<?>> {
+public class NumericMillisecondShard implements TimeSeries {
   
   /** ID of the time series. */
   private final TimeSeriesId id;  
@@ -252,11 +254,11 @@ public class NumericMillisecondShard implements TimeSeries,
     write_value_idx += value.length;
   }
   
-  public Iterator<TimeSeriesValue<?>> iterator() {
+  public TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator() {
     return new LocalIterator();
   }
-  
-  protected class LocalIterator implements TypedTimeSeriesIterator,
+
+  protected class LocalIterator implements TypedTimeSeriesIterator<NumericType>,
                                            TimeSeriesValue<NumericType> {
     private int read_offset_idx;
     private int read_value_idx;
@@ -317,7 +319,7 @@ public class NumericMillisecondShard implements TimeSeries,
     }
     
     @Override
-    public TypeToken<? extends TimeSeriesDataType> getType() {
+    public TypeToken<NumericType> getType() {
       return NumericType.TYPE;
     }
   }
@@ -336,7 +338,7 @@ public class NumericMillisecondShard implements TimeSeries,
   }
 
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (type == NumericType.TYPE) {
       return Optional.of(new LocalIterator());
@@ -345,9 +347,8 @@ public class NumericMillisecondShard implements TimeSeries,
   }
   
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
-    return Lists.<TypedTimeSeriesIterator>newArrayList(
-            new LocalIterator());
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+    return Arrays.asList(new LocalIterator());
   }
 
   @Override

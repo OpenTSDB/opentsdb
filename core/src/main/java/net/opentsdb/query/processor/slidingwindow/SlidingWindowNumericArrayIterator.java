@@ -74,7 +74,7 @@ public class SlidingWindowNumericArrayIterator implements QueryIterator,
   private boolean has_next = false;
   
   /** The source iterator. */
-  private Iterator<TimeSeriesValue<?>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /**
    * Ctor for maps.
@@ -108,7 +108,7 @@ public class SlidingWindowNumericArrayIterator implements QueryIterator,
     }
     aggregator = agg_factory.newAggregator(
         ((SlidingWindowConfig) node.config()).getInfectiousNan());
-    final Optional<TypedTimeSeriesIterator> opt = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> opt =
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (opt.isPresent()) {
       iterator = opt.get();

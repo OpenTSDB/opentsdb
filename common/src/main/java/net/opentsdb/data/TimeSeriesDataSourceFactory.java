@@ -22,8 +22,10 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
@@ -33,8 +35,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface TimeSeriesDataSourceFactory extends TSDBPlugin, 
-                                                     QueryNodeFactory{
+public interface TimeSeriesDataSourceFactory<C extends TimeSeriesDataSourceConfig, N extends TimeSeriesDataSource> extends TSDBPlugin, QueryNodeFactory<C, N> {
 
   /**
    * The type of {@link TimeSeriesId}s returned from this store by default.
@@ -45,7 +46,7 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
   
   /**
    * Called, potentially, before 
-   * {@link #setupGraph(TimeSeriesQuery, QueryNodeConfig, net.opentsdb.query.plan.QueryPlanner)}
+   * {@link #setupGraph(QueryPipelineContext, QueryNodeConfig, QueryPlanner)}
    * to determine if the data source handles the particular query. E.g. if
    * the source would handle the namespace or metric for the given query.
    * 
@@ -56,7 +57,7 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
    * maybe the source doesn't handle the particular namespace or metric.
    */
   public boolean supportsQuery(final TimeSeriesQuery query, 
-                               final TimeSeriesDataSourceConfig config);
+                               final C config);
   
   /**
    * Whether or not the store supports pushing down the operation into
@@ -64,8 +65,7 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
    * @param operation The operation we want to push down.
    * @return True if pushdown is supported, false if not.
    */
-  public boolean supportsPushdown(
-      final Class<? extends QueryNodeConfig> operation);
+  public boolean supportsPushdown(final Class<? extends QueryNodeConfig> operation);
   
   /**
    * For stores that are able to encode time series IDs, this method should
@@ -96,7 +96,7 @@ public interface TimeSeriesDataSourceFactory extends TSDBPlugin,
    * Converts the given metric names to byte arrays for stores that perform
    * UID encoding of strings.
    * @param join_metrics A non-null and non-emtpy list of of metrics.
-   * @param spanAn optional tracing span.
+   * @param span optional tracing span.
    * @return A non-null deferred resolving to a non-null list of results
    * of the same length and order as the given list. May resolve to an
    * exception.

@@ -14,33 +14,22 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
-import com.stumbleupon.async.Callback;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.execution.MetricShardingExecutor.Config.Builder;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link QueryExecutor} wrapper that uses a timer to kill a query that
@@ -54,7 +43,7 @@ import net.opentsdb.utils.JSON;
 public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(
       TimedQueryExecutor.class);
-  
+
   /** The downstream executor that queries are passed to. */
   private final QueryExecutor<T> executor;
   
@@ -63,7 +52,6 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   
   /**
    * Default ctor.
-   * @param node The execution graph node with the config and graph.
    * @throws IllegalArgumentException if the node was null or the default config
    * was null or if the timeout was less than 1 millisecond.
    */
@@ -275,7 +263,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
    */
   @JsonInclude(Include.NON_NULL)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends BaseQueryNodeConfig {
+  public static class Config extends BaseQueryNodeConfig<Config.Builder, Config> {
     /** The timeout in milliseconds. */
     private long timeout;
     
@@ -293,12 +281,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       return timeout;
     }
     
-    @Override
-    public Builder toBuilder() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
+
     @Override
     public boolean pushDown() {
       return false;
@@ -308,29 +291,25 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     public boolean joins() {
       return false;
     }
-    
+
+    @Override
+    public Builder toBuilder() {
+      return null;
+    }
+
+
     @Override
     public String getId() {
       // TODO Auto-generated method stub
       return null;
     }
-    
-    /** @return A new builder. */
-    public static Builder newBuilder() {
-      return new Builder();
-    }
-    
-    /**
-     * A builder that clones the given config.
-     * @param config A non-null config to pull from.
-     * @return A new builder populated with values from the config.
-     */
-    public static Builder newBuilder(final Config config) {
-      return (Builder) new Builder()
-          .setTimeout(config.timeout)
-          .setId(config.id);
-    }
-    
+
+//    @Override
+//    public void toBuilder(Builder builder) {
+//      super.toBuilder(builder);
+//      builder.setTimeout(timeout);
+//    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
@@ -358,15 +337,23 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public int compareTo(QueryNodeConfig config) {
+    public int compareTo(Config config) {
       return ComparisonChain.start()
           .compare(id, config.getId(), Ordering.natural().nullsFirst())
-          .compare(timeout, ((Config) config).timeout)
+          .compare(timeout, (config).timeout)
           .result();
     }
-    
+
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+
+    public static void cloneBuilder(final Config config, Builder builder) {
+      builder.setTimeout(config.timeout).setId(config.id);
+    }
+
     /** The builder for TimedQueryExecutor configs. */
-    public static class Builder extends BaseQueryNodeConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, Config>{
       @JsonProperty
       private long timeout;
       
@@ -383,6 +370,11 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       /** @return A compiled Config object. */
       public Config build() {
         return new Config(this);
+      }
+
+      @Override
+      public Builder self() {
+        return this;
       }
     }
   }

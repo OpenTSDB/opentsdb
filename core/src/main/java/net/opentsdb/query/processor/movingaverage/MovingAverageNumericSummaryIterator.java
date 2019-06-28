@@ -85,7 +85,7 @@ public class MovingAverageNumericSummaryIterator implements QueryIterator,
   private boolean has_next = false;
   
   /** The source iterator. */
-  private Iterator<TimeSeriesValue<?>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** A map of summary accumulators to populate on each run. */
   private Map<Integer, NumericAccumulator> accumulators;
@@ -121,7 +121,7 @@ public class MovingAverageNumericSummaryIterator implements QueryIterator,
     aggregator = this.node.getAggregator();
     dp = new MutableNumericSummaryValue();
     
-    final Optional<TypedTimeSeriesIterator> opt = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> opt =
         sources.iterator().next().iterator(NumericSummaryType.TYPE);
     if (Strings.isNullOrEmpty(((MovingAverageConfig) node.config()).getInterval())) {
       windowed = false;

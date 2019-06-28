@@ -25,18 +25,19 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import java.time.temporal.TemporalAmount;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+
+import java.time.temporal.TemporalAmount;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
@@ -47,8 +48,7 @@ import net.opentsdb.utils.Pair;
  */
 @JsonInclude(Include.NON_DEFAULT)
 @JsonDeserialize(builder = BaseTimeSeriesDataSourceConfig.Builder.class)
-public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig 
-    implements TimeSeriesDataSourceConfig {
+public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
 
   /** The source provider ID. */
   private final String source_id;
@@ -58,7 +58,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
-  
+
   /** A non-null metric filter used to determine the metric(s) to fetch. */
   private final MetricFilter metric;
   
@@ -73,10 +73,10 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   
   /** An optional list of nodes to push down to the driver. */
   private final List<QueryNodeConfig> push_down_nodes;
-  
+
   /** An optional summary interval from an upstream downsampler. */
   private final String summary_interval;
-  
+
   /** An optional list of summary aggregations from upstream. */
   private final List<String> summary_aggregations;
   
@@ -114,12 +114,12 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     filter_id = builder.filterId;
     filter = builder.filter;
     fetch_last = builder.fetchLast;
-    push_down_nodes = builder.push_down_nodes == null ? 
+    push_down_nodes = builder.push_down_nodes == null ?
         Collections.emptyList() : builder.push_down_nodes;
     summary_interval = builder.summary_interval;
     summary_aggregations = builder.summary_aggregations == null ?
         Collections.emptyList() : builder.summary_aggregations;
-    rollup_intervals = builder.rollup_intervals == null ? 
+    rollup_intervals = builder.rollup_intervals == null ?
         Collections.emptyList() : builder.rollup_intervals;
     pre_padding = builder.pre_padding;
     post_padding = builder.post_padding;
@@ -158,7 +158,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   public String getNamespace() {
     return namespace;
   }
-  
+
   @Override
   public MetricFilter getMetric() {
     return metric;
@@ -188,12 +188,12 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   public boolean pushDown() {
     return false;
   }
-  
+
   @Override
   public String getSummaryInterval() {
     return summary_interval;
   }
-  
+
   @Override
   public List<String> getSummaryAggregations() {
     return summary_aggregations;
@@ -252,15 +252,11 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   }
   
   @Override
-  public int compareTo(final QueryNodeConfig o) {
-    if (!(o instanceof BaseTimeSeriesDataSourceConfig)) {
-      return -1;
-    }
-    
+  public int compareTo(final C o) {
+
     // TODO - implement
     return ComparisonChain.start()
         .compare(id, ((BaseTimeSeriesDataSourceConfig) o).id, Ordering.natural().nullsFirst())
-        
         .result();
   }
 
@@ -279,31 +275,31 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     // TODO - implement in full
     return Hashing.combineOrdered(hashes);
   }
-  
-  /** @return A new builder. */
-  public static Builder newBuilder(final TimeSeriesDataSourceConfig config,
-                                   final Builder builder) {
+
+  public static void cloneBuilder(BaseTimeSeriesDataSourceConfig config, Builder builder) {
     builder
         .setSourceId(config.getSourceId())
-        .setTypes(config.getTypes() != null ? 
-            Lists.newArrayList(config.getTypes()) : null)
+        .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
         .setNamespace(config.getNamespace())
         .setMetric(config.getMetric())
         .setFilterId(config.getFilterId())
         .setQueryFilter(config.getFilter())
         .setFetchLast(config.getFetchLast())
-        .setRollupIntervals(config.getRollupIntervals() == null || 
-          config.getRollupIntervals().isEmpty() ? 
-            null : Lists.newArrayList(config.getRollupIntervals()))
+        .setRollupIntervals(
+            config.getRollupIntervals() == null || config.getRollupIntervals().isEmpty()
+                ? null
+                : Lists.newArrayList(config.getRollupIntervals()))
         .setSummaryInterval(config.getSummaryInterval())
-        .setSummaryAggregations(config.getRollupIntervals() == null || 
-          config.getSummaryAggregations().isEmpty() ? 
-            null : Lists.newArrayList(config.getSummaryAggregations()))
+        .setSummaryAggregations(
+            config.getRollupIntervals() == null || config.getSummaryAggregations().isEmpty()
+                ? null
+                : Lists.newArrayList(config.getSummaryAggregations()))
         .setPrePadding(config.getPrePadding())
         .setPostPadding(config.getPostPadding())
-        .setPushDownNodes(config.getPushDownNodes() == null || 
-          config.getPushDownNodes().isEmpty() ? 
-            null : Lists.newArrayList(config.getPushDownNodes()))
+        .setPushDownNodes(
+            config.getPushDownNodes() == null || config.getPushDownNodes().isEmpty()
+                ? null
+                : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .setTimeShifts(config.timeShifts())
         .setHasBeenSetup(config.hasBeenSetup())
@@ -313,12 +309,10 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     if (!config.getSources().isEmpty()) {
       builder.setSources(Lists.newArrayList(config.getSources()));
     }
-    // Skipp push down nodes.
-    return (Builder) builder;
   }
 
-  public static void parseConfig(final ObjectMapper mapper, 
-                                 final TSDB tsdb, 
+  public static void parseConfig(final ObjectMapper mapper,
+                                 final TSDB tsdb,
                                  final JsonNode node,
                                  final Builder builder) {
     // TODO - types
@@ -326,12 +320,12 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     if (n != null && !n.isNull()) {
       builder.setSourceId(n.asText());
     }
-    
+
     n = node.get("namespace");
     if (n != null && !n.isNull()) {
       builder.setNamespace(n.asText());
     }
-    
+
     n = node.get("metric");
     if (n == null) {
       throw new IllegalArgumentException("Missing the metric field.");
@@ -354,18 +348,18 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
           + "an instanceof MetricFilter: " + filter.getClass());
     }
     builder.setMetric((MetricFilter) filter);
-    
+
     n = node.get("id");
     if (n == null || Strings.isNullOrEmpty(n.asText())) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
     builder.setId(n.asText());
-    
+
     n = node.get("fetchLast");
     if (n != null) {
       builder.setFetchLast(n.asBoolean());
     }
-    
+
     n = node.get("filterId");
     if (n != null && !n.isNull()) {
       builder.setFilterId(n.asText());
@@ -393,7 +387,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         builder.setQueryFilter(filter);
       }
     }
-    
+
     n = node.get("pushDownNodes");
     if (n != null) {
       for (final JsonNode pushdown : n) {
@@ -409,55 +403,58 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
                 .getQueryNodeFactory(temp.asText());
           }
         }
-        
+
         if (config_factory == null) {
           throw new IllegalArgumentException("Unable to find a config "
-              + "factory for type: " + (temp == null || temp.isNull() ? 
-                  "null" : temp.asText()));
+              + "factory for type: " + (temp == null || temp.isNull() ?
+              "null" : temp.asText()));
         }
         builder.addPushDownNode(config_factory.parseConfig(
             mapper, tsdb, pushdown));
       }
     }
-    
+
     n = node.get("rollupIntervals");
     if (n != null && !n.isNull()) {
       for (final JsonNode agg : n) {
         builder.addRollupInterval(agg.asText());
       }
     }
-    
+
     n = node.get("summaryInterval");
     if (n != null && !n.isNull()) {
       builder.setSummaryInterval(n.asText());
     }
-    
+
     n = node.get("summaryAggregations");
     if (n != null && !n.isNull()) {
       for (final JsonNode agg : n) {
         builder.addSummaryAggregation(agg.asText());
       }
     }
-    
+
     n = node.get("prePadding");
     if (n != null && !n.isNull()) {
       builder.setPrePadding(n.asText());
     }
-    
+
     n = node.get("postPadding");
     if (n != null && !n.isNull()) {
       builder.setPostPadding(n.asText());
     }
-    
+
     n = node.get("timeShiftInterval");
     if (n != null && !n.isNull()) {
       builder.setTimeShiftInterval(n.asText());
     }
   }
-  
+
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static abstract class Builder extends BaseQueryNodeConfig.Builder
-    implements TimeSeriesDataSourceConfig.Builder {
+  public abstract static class Builder<
+          B extends Builder<B, C>, C extends BaseQueryNodeConfig & TimeSeriesDataSourceConfig>
+      extends BaseQueryNodeConfig.Builder<B, C>
+      implements TimeSeriesDataSourceConfig.Builder<B, C> {
+
     @JsonProperty
     protected String sourceId;
     @JsonProperty
@@ -486,124 +483,149 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     protected Builder() {
       setType(TimeSeriesDataSourceConfig.DEFAULT);
     }
-    
-    public Builder setSourceId(final String source_id) {
+
+    @Override
+    public String id() {
+      return id;
+    }
+
+    @Override
+    public String sourceId() {
+      return sourceId;
+    }
+
+    @Override
+    public B setSourceId(final String source_id) {
       sourceId = source_id;
-      return this;
+      return self();
     }
-    
-    public Builder setTypes(final List<String> types) {
+
+    @Override
+    public B setTypes(final List<String> types) {
       this.types = types;
-      return this;
+      return self();
     }
-    
-    public Builder addType(final String type) {
+
+    @Override
+    public B addType(final String type) {
       if (types == null) {
         types = Lists.newArrayList();
       }
       types.add(type);
-      return this;
+      return self();
     }
-    
-    public Builder setNamespace(final String namespace) {
+
+    @Override
+    public B setNamespace(final String namespace) {
       this.namespace = namespace;
-      return this;
+      return self();
     }
-    
+
     public Builder setMetric(final MetricFilter metric) {
       this.metric = metric;
-      return this;
+      return self();
     }
-    
-    public Builder setFilterId(final String filter_id) {
+
+    @Override
+    public B setFilterId(final String filter_id) {
       this.filterId = filter_id;
-      return this;
+      return self();
     }
-    
-    public Builder setQueryFilter(final QueryFilter filter) {
+
+    @Override
+    public B setQueryFilter(final QueryFilter filter) {
       this.filter = filter;
-      return this;
+      return self();
     }
-    
-    public Builder setFetchLast(final boolean fetch_last) {
+
+    @Override
+    public B setFetchLast(final boolean fetch_last) {
       this.fetchLast = fetch_last;
-      return this;
+      return self();
     }
-    
-    public Builder setPushDownNodes(
+
+    @Override
+    public B setPushDownNodes(
         final List<QueryNodeConfig> push_down_nodes) {
       this.push_down_nodes = push_down_nodes;
-      return this;
+      return self();
     }
-    
-    public Builder addPushDownNode(final QueryNodeConfig node) {
+
+    @Override
+    public B addPushDownNode(final QueryNodeConfig node) {
       if (push_down_nodes == null) {
         push_down_nodes = Lists.newArrayList();
       }
       push_down_nodes.add(node);
-      return this;
+      return self();
     }
-    
-    public Builder setSummaryInterval(final String summary_interval) {
+
+    @Override
+    public B setSummaryInterval(final String summary_interval) {
       this.summary_interval = summary_interval;
-      return this;
+      return self();
     }
-    
-    public Builder setSummaryAggregations(final List<String> summary_aggregations) {
+
+    @Override
+    public B setSummaryAggregations(final List<String> summary_aggregations) {
       this.summary_aggregations = summary_aggregations;
-      return this;
+      return self();
     }
-    
-    public Builder addSummaryAggregation(final String summary_aggregation) {
+
+    @Override
+    public B addSummaryAggregation(final String summary_aggregation) {
       if (summary_aggregations == null) {
         summary_aggregations = Lists.newArrayList();
       }
       summary_aggregations.add(summary_aggregation);
-      return this;
+      return self();
     }
-    
-    public Builder setRollupIntervals(final List<String> rollup_intervals) {
+
+    @Override
+    public B setRollupIntervals(final List<String> rollup_intervals) {
       this.rollup_intervals = rollup_intervals;
-      return this;
+      return self();
     }
-    
-    public Builder addRollupInterval(final String rollup_interval) {
+
+    @Override
+    public B addRollupInterval(final String rollup_interval) {
       if (rollup_intervals == null) {
         rollup_intervals = Lists.newArrayList();
       }
       rollup_intervals.add(rollup_interval);
-      return this;
+      return self();
     }
-    
-    public Builder setPrePadding(final String pre_padding) {
+
+    @Override
+    public B setPrePadding(final String pre_padding) {
       this.pre_padding = pre_padding;
-      return this;
+      return self();
     }
-    
-    public Builder setPostPadding(final String post_padding) {
+
+    @Override
+    public B setPostPadding(final String post_padding) {
       this.post_padding = post_padding;
-      return this;
+      return self();
     }
-    
-    public Builder setTimeShiftInterval(final String interval) {
+
+    @Override
+    public B setTimeShiftInterval(final String interval) {
       this.interval = interval;
-      return this;
+      return self();
     }
     
     @Override
-    public Builder setTimeShifts(
+    public B setTimeShifts(
         final Pair<Boolean, TemporalAmount> amounts) {
       this.amounts = amounts;
-      return this;
+      return self();
     }
     
     @Override
-    public Builder setHasBeenSetup(final boolean has_been_setup) {
+    public B setHasBeenSetup(final boolean has_been_setup) {
       this.has_been_setup = has_been_setup;
-      return this;
+      return self();
     }
-    
-    public abstract TimeSeriesDataSourceConfig build();
     
   }
 

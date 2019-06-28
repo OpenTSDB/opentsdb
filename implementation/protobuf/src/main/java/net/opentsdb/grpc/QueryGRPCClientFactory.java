@@ -16,6 +16,8 @@ package net.opentsdb.grpc;
 
 import java.util.List;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,13 +39,10 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.grpc.QueryRpcBetaGrpc.QueryRpcBetaStub;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.rollup.RollupConfig;
@@ -57,7 +56,7 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public class QueryGRPCClientFactory extends BaseTSDBPlugin 
-    implements TimeSeriesDataSourceFactory {
+    implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, QueryGRPCClient> {
   private static final Logger LOG = LoggerFactory.getLogger(
       QueryGRPCClientFactory.class);
   
@@ -125,22 +124,18 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
 
   @Override
   public boolean supportsPushdown(Class<? extends QueryNodeConfig> operation) {
-    if (operation == DownsampleConfig.class) {
-      return true;
-    }
-    // TODO - more!
-    return false;
+    return operation.equals(DownsampleConfig.class);
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public QueryGRPCClient newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("Need a config.");
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
-    return new QueryGRPCClient(this, context, (TimeSeriesDataSourceConfig) config);
+  public QueryGRPCClient newNode(final QueryPipelineContext context,
+                           final TimeSeriesDataSourceConfig config) {
+    return new QueryGRPCClient(this, context, config);
   }
   
   @Override
@@ -185,7 +180,7 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public TimeSeriesDataSourceConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
@@ -193,7 +188,7 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
 
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
+                         final TimeSeriesDataSourceConfig config,
                          final QueryPlanner planner) {
     // no-op
   }

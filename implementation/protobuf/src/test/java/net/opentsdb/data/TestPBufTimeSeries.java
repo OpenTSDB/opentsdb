@@ -112,7 +112,7 @@ public class TestPBufTimeSeries {
   @Test
   public void iterator() throws Exception {
     PBufTimeSeries time_series = new PBufTimeSeries(TSDB, factory, getSeries(true, true));
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
         time_series.iterator(NumericType.TYPE).get();
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericType> nv = (TimeSeriesValue<NumericType>) iterator.next();
@@ -142,10 +142,10 @@ public class TestPBufTimeSeries {
   @Test
   public void iterators() throws Exception {
     PBufTimeSeries time_series = new PBufTimeSeries(TSDB, factory, getSeries(true, true));
-    Collection<TypedTimeSeriesIterator> iterators =
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         time_series.iterators();
     assertEquals(2, iterators.size());
-    for (final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it : iterators) {
+    for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> it : iterators) {
       assertTrue(it.hasNext());
       TimeSeriesValue<? extends TimeSeriesDataType> value = it.next();
       assertEquals(1525824000000L, value.timestamp().msEpoch());

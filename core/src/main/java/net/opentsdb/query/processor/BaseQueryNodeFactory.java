@@ -14,25 +14,26 @@
 // limitations under the License.
 package net.opentsdb.query.processor;
 
-import java.util.Collection;
-import java.util.Map;
-
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.plan.QueryPlanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * A simple base class for implementing {@link QueryNodeFactory}s. It maintains
@@ -41,13 +42,12 @@ import net.opentsdb.query.QueryResult;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryNodeFactory extends BaseTSDBPlugin 
-    implements ProcessorFactory {
+public abstract class BaseQueryNodeFactory<C extends BaseQueryNodeConfig, N extends AbstractQueryNode>
+    extends BaseTSDBPlugin implements ProcessorFactory<C, N> {
   private final Logger LOG = LoggerFactory.getLogger(getClass());
   
   /** The map of iterator factories keyed on type. */
-  protected final Map<TypeToken<? extends TimeSeriesDataType>, 
-      QueryIteratorFactory> iterator_factories;
+  protected final Map<TypeToken<? extends TimeSeriesDataType>, QueryIteratorFactory> iterator_factories;
   
   /**
    * Default ctor.
@@ -60,11 +60,11 @@ public abstract class BaseQueryNodeFactory extends BaseTSDBPlugin
   public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
     return iterator_factories.keySet();
   }
-  
+
   @Override
-  public void registerIteratorFactory(
+  public <T extends TimeSeriesDataType> void registerIteratorFactory(
       final TypeToken<? extends TimeSeriesDataType> type,
-      final QueryIteratorFactory factory) {
+      final QueryIteratorFactory<N, T> factory) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
@@ -83,9 +83,9 @@ public abstract class BaseQueryNodeFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public TypedTimeSeriesIterator newTypedIterator(
-      final TypeToken<? extends TimeSeriesDataType> type,
-      final QueryNode node,
+  public <T extends TimeSeriesDataType>  TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<T> type,
+      final N node,
       final QueryResult result,
       final Collection<TimeSeries> sources) {
     if (type == null) {
@@ -106,9 +106,9 @@ public abstract class BaseQueryNodeFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public TypedTimeSeriesIterator newTypedIterator(
-      final TypeToken<? extends TimeSeriesDataType> type,
-      final QueryNode node,
+  public <T extends TimeSeriesDataType> TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<T> type,
+      final N node,
       final QueryResult result,
       final Map<String, TimeSeries> sources) {
     if (type == null) {
@@ -131,9 +131,19 @@ public abstract class BaseQueryNodeFactory extends BaseTSDBPlugin
   // Force implementation.
   @Override
   public abstract Deferred<Object> initialize(final TSDB tsdb, final String id);
-  
+
   @Override
-  public String version() {
-    return "3.0.0";
+  public N newNode(QueryPipelineContext context) {
+    throw new UnsupportedOperationException();
   }
+
+  @Override
+  public N newNode(QueryPipelineContext context, C config) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setupGraph(QueryPipelineContext context, C config, QueryPlanner planner) {
+  }
+
 }

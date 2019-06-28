@@ -52,7 +52,7 @@ public class PBufTimeSeries implements TimeSeries {
   
   /**
    * Default ctor.
-   * @param The non-null TSDB we belong to.
+   * @param tsdb non-null TSDB we belong to.
    * @param factory A non-null factory.
    * @param time_series A non-null source time series.
    */
@@ -88,7 +88,7 @@ public class PBufTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     TimeSeriesData series = data.get(type);
     if (series == null) {
@@ -104,8 +104,8 @@ public class PBufTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
-    List<TypedTimeSeriesIterator> iterators =
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+    List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(data.size());
     for (final Entry<TypeToken<? extends TimeSeriesDataType>, TimeSeriesData> entry : 
           data.entrySet()) {

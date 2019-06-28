@@ -14,29 +14,27 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.util.List;
 
 /**
  * A configuration implementation for Downsampling processors.
@@ -54,7 +52,7 @@ import net.opentsdb.utils.Pair;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = DownsampleConfig.Builder.class)
-public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
+public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<DownsampleConfig.Builder, DownsampleConfig> {
   
   /** The given start timestamp. */
   private final String start;
@@ -321,10 +319,21 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
   public List<Pair<Long, String>> autoIntervals() {
     return intervals;
   }
+
+  @Override
+  public boolean pushDown() {
+    return true;
+  }
   
   @Override
+  public boolean joins() {
+    return false;
+  }
+
+
+  @Override
   public Builder toBuilder() {
-    return (Builder) new Builder()
+    return new Builder()
         .setInterval(interval)
         .setTimeZone(timezone.toString())
         .setAggregator(aggregator)
@@ -337,19 +346,25 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
         .setId(id);
   }
-  
-  @Override
-  public boolean pushDown() {
-    return true;
+
+  public static void cloneBuilder(DownsampleConfig config, Builder builder) {
+    builder
+        .setStart(config.start)
+        .setEnd(config.end)
+        .setAggregator(config.aggregator)
+        .setFill(config.fill)
+        .setRunAll(config.run_all)
+        .setInfectiousNan(config.infectious_nan)
+        .setInterval(config.interval)
+        .setTimeZone(config.timezone.toString())
+        .setIntervals(config.intervals)
+        .setInterpolatorConfigs(Lists.newArrayList(config.interpolator_configs.values()))
+        .setSources(Lists.newArrayList(config.getSources()))
+        .setId(config.id);
   }
-  
+
   @Override
-  public boolean joins() {
-    return false;
-  }
-  
-  @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(DownsampleConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -382,31 +397,13 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
         .putString(id, Const.UTF8_CHARSET)
         .hash();
   }
-  
-  /** @return A new builder to work from. */
+
   public static Builder newBuilder() {
     return new Builder();
   }
-  
-  public static Builder newBuilder(final DownsampleConfig config) {
-    return (Builder) new Builder()
-        .setStart(config.start)
-        .setEnd(config.end)
-        .setAggregator(config.aggregator)
-        .setFill(config.fill)
-        .setRunAll(config.run_all)
-        .setInfectiousNan(config.infectious_nan)
-        .setInterval(config.interval)
-        .setTimeZone(config.timezone.toString())
-        .setIntervals(config.intervals)
-        .setInterpolatorConfigs(Lists.newArrayList(
-            config.interpolator_configs.values()))
-        .setSources(Lists.newArrayList(config.getSources()))
-        .setId(config.id);
-  }
-  
+
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, DownsampleConfig> {
     @JsonProperty
     private String interval;
     @JsonProperty
@@ -428,7 +425,12 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     Builder() {
       setType(DownsampleFactory.TYPE);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
+
     /**
      * @param id A non-null and on-empty Id for the group by function.
      * @return The builder.
@@ -511,8 +513,8 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators {
     /** @return The constructed config.
      * @throws IllegalArgumentException if a required parameter is missing or
      * invalid. */
-    public QueryNodeConfig build() {
-      return (QueryNodeConfig) new DownsampleConfig(this);
+    public DownsampleConfig build() {
+      return new DownsampleConfig(this);
     }
   }
   

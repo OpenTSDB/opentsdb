@@ -34,7 +34,7 @@ public class MockTSDBDefault {
           TSDB = new MockTSDB();
           TSDB.registry = new DefaultRegistry(TSDB);
           try {
-            ((DefaultRegistry) TSDB.registry).initialize(true).join(60_000);
+            (TSDB.registry).initialize(true).join(60_000);
           } catch (InterruptedException e) {
             e.printStackTrace();
           } catch (Exception e) {

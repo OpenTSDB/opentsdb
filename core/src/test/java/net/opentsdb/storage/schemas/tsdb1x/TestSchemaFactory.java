@@ -14,6 +14,34 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
+import net.opentsdb.query.processor.timeshift.TimeShiftFactory;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.stats.Span;
+import net.opentsdb.uid.UniqueIdType;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -24,59 +52,26 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-
 import static org.mockito.Mockito.verify;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
-import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
-import net.opentsdb.query.processor.timeshift.TimeShiftFactory;
-import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.stats.Span;
-import net.opentsdb.uid.UniqueIdType;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ SchemaFactory.class })
 public class TestSchemaFactory extends SchemaBase {
   
   private Tsdb1xDataStore store;
-  private TimeSeriesDataSource node;
+  private Tsdb1xQueryNode node;
   
   @Before
   public void before() throws Exception {
     store = mock(Tsdb1xDataStore.class);
-    node = mock(TimeSeriesDataSource.class);
+    node = mock(Tsdb1xQueryNode.class);
     
-    when(store.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
+    when(store.newNode(any(QueryPipelineContext.class), any(TimeSeriesDataSourceConfig.class)))
       .thenAnswer(new Answer<QueryNode>() {
         @Override
-        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
+        public Tsdb1xQueryNode answer(InvocationOnMock invocation) throws Throwable {
+          when(node.config()).thenReturn((TimeSeriesDataSourceConfig) invocation.getArguments()[1]);
           when(node.initialize(any(Span.class))).thenReturn(Deferred.fromResult(null));
           return node;
         }
@@ -115,7 +110,7 @@ public class TestSchemaFactory extends SchemaBase {
   
   @Test
   public void newNodePadding() throws Exception {
-    TimeSeriesDataSourceConfig config = 
+    TimeSeriesDataSourceConfig config =
         (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
@@ -139,7 +134,7 @@ public class TestSchemaFactory extends SchemaBase {
   
   @Test
   public void newNodeRollups() throws Exception {
-    TimeSeriesDataSourceConfig config = 
+    TimeSeriesDataSourceConfig config =
         (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("sys.cpu.user")
@@ -162,7 +157,7 @@ public class TestSchemaFactory extends SchemaBase {
     
     factory.initialize(tsdb, null).join(1);
     factory.newNode(mock(QueryPipelineContext.class), config);
-    
+
     TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) node.config();
     assertEquals("1h", new_config.getPrePadding());
     assertEquals("30m", new_config.getPostPadding());
@@ -208,8 +203,8 @@ public class TestSchemaFactory extends SchemaBase {
   public void setupWithOutOffsets() throws Exception {
     SchemaFactory factory = new SchemaFactory();
     factory.initialize(tsdb, null).join(1);
-    
-    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
         DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
@@ -268,8 +263,8 @@ public class TestSchemaFactory extends SchemaBase {
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
 
-    assertEquals(3, plan.configGraph().nodes().size());
     System.out.println(plan.printConfigGraph());
+    assertEquals(3, plan.configGraph().nodes().size());
     QueryNodeConfig node = plan.configNodeForId("m1");
     assertNull(node); //we don't run raw query
 

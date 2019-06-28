@@ -14,10 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import com.google.common.collect.Lists;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.pojo.Join.SetOperator;
@@ -28,12 +28,9 @@ import net.opentsdb.query.processor.expressions.ExpressionFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.utils.JSON;
-
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.google.common.collect.Lists;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -654,7 +651,7 @@ public class TestTimeSeriesQuery {
     assertEquals("m1", node.getId());
     assertEquals(TimeSeriesDataSourceConfig.DEFAULT, node.getType());
     assertTrue(node.getSources().isEmpty());
-    BaseTimeSeriesDataSourceConfig ds = (BaseTimeSeriesDataSourceConfig) node;
+    TimeSeriesDataSourceConfig ds = (TimeSeriesDataSourceConfig) node;
     assertEquals("YAMAS.cpu.idle", ds.getMetric().getMetric());
     assertNull(ds.getFilterId());
     
