@@ -117,23 +117,6 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
 
   B toBuilder();
 
-//  Class<B> getBuilderClass();
-
-//  static<B extends Builder> B newBuilder(Class<B> klass) {
-//    try {
-//      return klass.getConstructor().newInstance();
-//    } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
-//        NoSuchMethodException e) {
-//      throw new IllegalStateException("Could not create builder of type: " + klass.getName(), e);
-//    }
-//  }
-
-//  default B cloneBuilder() {
-//    B b = newBuilder(getBuilderClass());
-//    toBuilder(b);
-//    return b;
-//  }
-
   /**
    * The interface for a QueryNodeConfig builder implementation.
    */

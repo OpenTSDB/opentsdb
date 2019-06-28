@@ -304,12 +304,6 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       return null;
     }
 
-//    @Override
-//    public void toBuilder(Builder builder) {
-//      super.toBuilder(builder);
-//      builder.setTimeout(timeout);
-//    }
-
     @Override
     public boolean equals(Object o) {
       if (this == o) {
