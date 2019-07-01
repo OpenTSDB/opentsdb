@@ -35,7 +35,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.pojo.RateOptions;
 
 import org.junit.Test;
 
@@ -902,11 +901,11 @@ public class TestRateNumericIterator {
         new MillisecondTimeStamp(BASE_TIME), 
         new MillisecondTimeStamp(BASE_TIME + 10000000));
     ((NumericMillisecondShard) source).add(BASE_TIME, 40);
-    ((NumericMillisecondShard) source).add(BASE_TIME + 2000000L, 50);
-    ((NumericMillisecondShard) source).add(BASE_TIME + 3600000L, 40);
-    ((NumericMillisecondShard) source).add(BASE_TIME + 3605000L, 50);
-    ((NumericMillisecondShard) source).add(BASE_TIME + 7200000L, 40);
-    ((NumericMillisecondShard) source).add(BASE_TIME + 9200000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 60000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 2), 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 3), 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 4), 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 5), 50);
     
     config = (RateConfig) RateConfig.newBuilder()
         .setInterval("1s")
@@ -920,28 +919,80 @@ public class TestRateNumericIterator {
     
     assertTrue(it.hasNext());
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(BASE_TIME + 2000000L, v.timestamp().msEpoch());
-    assertEquals(100000, v.value().doubleValue(), 0.001);
+    assertEquals(BASE_TIME + 60000L, v.timestamp().msEpoch());
+    assertEquals(50 * 60, v.value().doubleValue(), 0.001);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(BASE_TIME + 3600000L, v.timestamp().msEpoch());
-    assertEquals(64000, v.value().doubleValue(), 0.001);
+    assertEquals(BASE_TIME + (60000L * 2), v.timestamp().msEpoch());
+    assertEquals(40 * 60, v.value().doubleValue(), 0.001);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(BASE_TIME + 3605000L, v.timestamp().msEpoch());
-    assertEquals(250, v.value().doubleValue(), 0.001);
+    assertEquals(BASE_TIME + (60000L * 3), v.timestamp().msEpoch());
+    assertEquals(50 * 60, v.value().doubleValue(), 0.001);
 
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(BASE_TIME + 7200000L, v.timestamp().msEpoch());
-    assertEquals(143800, v.value().doubleValue(), 0.001);
+    assertEquals(BASE_TIME + (60000L * 4), v.timestamp().msEpoch());
+    assertEquals(40 * 60, v.value().doubleValue(), 0.001);
     
     assertTrue(it.hasNext());
     v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(BASE_TIME + 9200000L, v.timestamp().msEpoch());
-    assertEquals(100000, v.value().doubleValue(), 0.001);
+    assertEquals(BASE_TIME + (60000L * 5), v.timestamp().msEpoch());
+    assertEquals(50 * 60, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void rateToCounterLongs60s() {
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME, 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 60000L, 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 2), 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 3), 50);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 4), 40);
+    ((NumericMillisecondShard) source).add(BASE_TIME + (60000L * 5), 50);
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("60s")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericIterator it = new RateNumericIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + 60000L, v.timestamp().msEpoch());
+    assertEquals(50, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + (60000L * 2), v.timestamp().msEpoch());
+    assertEquals(40, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + (60000L * 3), v.timestamp().msEpoch());
+    assertEquals(50, v.value().doubleValue(), 0.001);
+
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + (60000L * 4), v.timestamp().msEpoch());
+    assertEquals(40, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(BASE_TIME + (60000L * 5), v.timestamp().msEpoch());
+    assertEquals(50, v.value().doubleValue(), 0.001);
     
     assertFalse(it.hasNext());
   }
