@@ -56,6 +56,7 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.expressions.ExpressionParser;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.query.processor.rate.RateConfig;
 import net.opentsdb.utils.JSON;
 
 import java.util.Collections;
@@ -791,15 +792,21 @@ public class TimeSeriesQuery extends Validatable
     
     if (options.getResetValue() == 1 && 
         tsdb.getConfig().getBoolean(RATE_1_TO_RESET_KEY)) {
-      return RateOptions.newBuilder(metric.getRateOptions())
-          .setResetValue(0)
+      return RateConfig.newBuilder()
+          .setCounter(metric.getRateOptions().isCounter())
+          .setCounterMax(metric.getRateOptions().getCounterMax())
           .setDropResets(true)
+          .setResetValue(0)
           .setId(metric.getId() + "_Rate")
           .addSource(parent.getId())
           .build();
     }
     
-    return RateOptions.newBuilder(metric.getRateOptions())
+    return RateConfig.newBuilder()
+        .setCounter(metric.getRateOptions().isCounter())
+        .setCounterMax(metric.getRateOptions().getCounterMax())
+        .setDropResets(metric.getRateOptions().getDropResets())
+        .setResetValue(metric.getRateOptions().getResetValue())
         .setId(metric.getId() + "_Rate")
         .addSource(parent.getId())
         .build();

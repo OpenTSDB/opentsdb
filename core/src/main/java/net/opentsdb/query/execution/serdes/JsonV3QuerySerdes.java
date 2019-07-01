@@ -63,6 +63,7 @@ import net.opentsdb.query.TimeSeriesQuery.LogLevel;
 import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
@@ -128,6 +129,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       throw new IllegalArgumentException("Data may not be null.");
     }
     final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
+    
+    final QueryStats stats = context.stats();
+    if (stats != null) {
+      stats.incrementSerializedTimeSeriesCount(result.timeSeries().size());
+    }
     
     if (!initialized) {
       try {
@@ -275,13 +281,13 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   @Override
   public void serializeComplete(final Span span) {
-    if (!initialized /* Onlyl on QueryResult */ && partials.size() > 0) {
+    if (!initialized /* Only on QueryResult */ && partials.size() > 0) {
       serializePush();
     }
     
     try {
       // TODO - other bits like the query and trace data
-      if (!initialized /* Onlyl on QueryResult */ && partials.isEmpty()) {
+      if (!initialized /* Only on QueryResult */ && partials.isEmpty()) {
         json.writeStartObject();
         json.writeArrayFieldStart("results");
       }

@@ -302,7 +302,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               DefaultSharedHttpClient.parseResponse(response, 0, host);
             } catch (Exception e) {
               if (e instanceof RemoteQueryExecutionException) {
-                if (response.getStatusLine().getStatusCode() == 400) {
+                if (!((BaseHttpExecutorFactory) factory).retriable(
+                    response.getStatusLine().getStatusCode())) {
                   sendUpstream(BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
@@ -420,9 +421,19 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               }
             }
             
+            if (context.queryContext().stats() != null) {
+              context.queryContext().stats().incrementRawDataSize(json.length());
+            }
+            
             for (final JsonNode result : results) {
-              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result, 
-                  ((TimeSeriesDataSourceFactory) factory).rollupConfig()));
+              final HttpQueryV3Result series_result = new HttpQueryV3Result(
+                  HttpQueryV3Source.this, result, 
+                    ((TimeSeriesDataSourceFactory) factory).rollupConfig());
+              if (context.queryContext().stats() != null) {
+                context.queryContext().stats().incrementRawTimeSeriesCount(
+                    series_result.timeSeries().size());
+              }
+              sendUpstream(series_result);
             }
           }
         } catch (Throwable t) {
@@ -523,6 +534,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         }
       }
     }
+    
     client.execute(post, new ResponseCallback());
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace(this, "Compiled and sent query to [" 
