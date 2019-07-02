@@ -424,8 +424,8 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     url.append(':').append(metric);
     List<Filter> filters = getFilters(true);
+    url.append('{');
     if (!filters.isEmpty()) {
-      url.append('{');
       for (int i = 0; i < filters.size(); i++) {
         if (i > 0) {
           url.append(",");
@@ -434,8 +434,8 @@ final class MetricForm extends HorizontalPanel implements Focusable {
            .append("=")
            .append(filters.get(i).tagv);
       }
-      url.append('}');
     }
+    url.append('}');
     // now the non-group bys
     filters = getFilters(false);
     if (!filters.isEmpty()) {
