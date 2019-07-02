@@ -92,6 +92,7 @@ public class RateNumericIterator implements QueryIterator {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     config = (RateConfig) node.config();
+    
     final Optional<TypedTimeSeriesIterator> optional = 
         sources.iterator().next().iterator(NumericType.TYPE);
     if (optional.isPresent()) {
@@ -100,7 +101,7 @@ public class RateNumericIterator implements QueryIterator {
     } else {
       this.source = null;
     }
-    
+
   }
 
   /** @return True if there is a valid next value. */
@@ -164,15 +165,12 @@ public class RateNumericIterator implements QueryIterator {
       
       long diff = ((next_epoch - prev_epoch) * TO_NANOS) + (next_nanos - prev_nanos);
       double time_delta = (double) diff / (double) config.duration().toNanos();
-      
       if (config.getRateToCount()) {
-        // TODO support other intervals that rate per second.
         // TODO - support longs
-        next_rate.reset(next.timestamp(), next.value().toDouble() * 
-            (diff / TO_NANOS) /* Back to seconds */);
+        next_rate.reset(next.timestamp(), (next.value().toDouble() * time_delta));
         prev_data.reset(next);
         has_next = true;
-        break;
+        return;
       }
       
       // delta code
