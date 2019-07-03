@@ -64,7 +64,7 @@ public class PBufNumericTimeSeriesSerdes implements PBufIteratorSerdes {
                         final QueryContext context,
                         final SerdesOptions options,
                         final QueryResult result,
-                        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator) {
+                        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator) {
     ts_builder.addData(serialize(context, options, result, iterator));
   }
 
@@ -84,7 +84,7 @@ public class PBufNumericTimeSeriesSerdes implements PBufIteratorSerdes {
   TimeSeriesData serialize(final QueryContext context,
                            final SerdesOptions options,
                            final QueryResult result,
-                           final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator) {
+                           final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator) {
     final long span;
     switch(result.resolution()) {
     case NANOS:

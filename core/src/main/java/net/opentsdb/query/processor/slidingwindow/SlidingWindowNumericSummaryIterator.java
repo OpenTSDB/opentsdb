@@ -82,7 +82,7 @@ public class SlidingWindowNumericSummaryIterator implements QueryIterator,
   private boolean has_next = false;
   
   /** The source iterator. */
-  private Iterator<TimeSeriesValue<?>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** A map of summary accumulators to populate on each run. */
   private Map<Integer, NumericAccumulator> accumulators;
@@ -120,7 +120,7 @@ public class SlidingWindowNumericSummaryIterator implements QueryIterator,
     aggregator = agg_factory.newAggregator(
         ((SlidingWindowConfig) node.config()).getInfectiousNan());
     dp = new MutableNumericSummaryValue();
-    final Optional<TypedTimeSeriesIterator> opt = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> opt =
         sources.iterator().next().iterator(NumericSummaryType.TYPE);
     if (opt.isPresent()) {
       iterator = opt.get();

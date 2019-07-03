@@ -24,10 +24,6 @@ import com.google.common.collect.Sets;
 import com.google.common.graph.Graphs;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.TSDB;
@@ -36,9 +32,7 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -54,6 +48,10 @@ import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A factory that modifies the execution graph with nodes to execute an
@@ -82,8 +80,8 @@ import net.opentsdb.utils.DateTime;
  *
  * @since 3.0
  */
-public class HAClusterFactory extends BaseQueryNodeFactory implements 
-    TimeSeriesDataSourceFactory {
+public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACluster> implements
+    TimeSeriesDataSourceFactory<HAClusterConfig, HACluster> {
   public static final String TYPE = "HACluster";
   
   public static final String KEY_PREFIX = "tsd.query.";
@@ -103,7 +101,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public HAClusterConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return HAClusterConfig.parse(mapper, tsdb, node);
@@ -111,9 +109,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
 
   @Override
   public boolean supportsQuery(final TimeSeriesQuery query, 
-                               final TimeSeriesDataSourceConfig config) {
+                               final HAClusterConfig config) {
     if (config instanceof HAClusterConfig) {
-      final HAClusterConfig cluster_config = (HAClusterConfig) config;
+      final HAClusterConfig cluster_config = config;
       if (cluster_config.getHasBeenSetup()) {
         return true;
       }
@@ -169,7 +167,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
+                         final HAClusterConfig config,
                          final QueryPlanner planner) {
     if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
       return;
@@ -179,10 +177,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
     boolean needs_id_converter = false;
     
     if (config instanceof HAClusterConfig) {
-      final HAClusterConfig cluster_config = (HAClusterConfig) config;
-      builder = (Builder) ((HAClusterConfig) config).toBuilder()
-          .setHasBeenSetup(true);
-      
+      final HAClusterConfig cluster_config = config;
+      builder = config.toBuilder();
+      builder.setHasBeenSetup(true);
+
       if (Strings.isNullOrEmpty(cluster_config.getMergeAggregator())) {
         builder.setMergeAggregator(tsdb.getConfig().getString(
             getConfigKey(AGGREGATOR_KEY)));
@@ -205,8 +203,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       }
     } else {
       builder = HAClusterConfig.newBuilder();
-      HAClusterConfig.newBuilder((TimeSeriesDataSourceConfig) config,
-            builder);
       builder.setMergeAggregator(tsdb.getConfig().getString(
                getConfigKey(AGGREGATOR_KEY)))
              .setPrimaryTimeout(tsdb.getConfig().getString(
@@ -270,15 +266,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
    
     if (config instanceof HAClusterConfig) {
       for (final TimeSeriesDataSourceConfig source : 
-            ((HAClusterConfig) config).getDataSourceConfigs()) {
+            (config).getDataSourceConfigs()) {
         if (Strings.isNullOrEmpty(source.getSourceId())) {
           throw new IllegalArgumentException("The sourceId cannot be null "
               + "or empty for the config override: " + source);
         }
         // we have to fix the ID here to avoid dupes and collisions.
-        TimeSeriesDataSourceConfig.Builder rebuilt = (TimeSeriesDataSourceConfig.Builder)
-            ((TimeSeriesDataSourceConfig.Builder) source.toBuilder())
-              .setId(new_id + "_" + source.getSourceId());
+        TimeSeriesDataSourceConfig.Builder rebuilt =
+            (TimeSeriesDataSourceConfig.Builder)
+                source.toBuilder().setId(new_id + "_" + source.getSourceId());
+
         for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
           if (extant.id().equals(rebuilt.id())) {
             throw new IllegalArgumentException("Duplicate source IDs are "
@@ -315,7 +312,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           + source);
       }
       
-      if (!factory.supportsQuery(context.query(), (TimeSeriesDataSourceConfig) config)) {
+      if (!factory.supportsQuery(context.query(), config)) {
         continue;
       }
       
@@ -324,11 +321,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       }
       
       factories.put(source, factory);
-      
-      TimeSeriesDataSourceConfig.Builder rebuilt = (TimeSeriesDataSourceConfig.Builder)
-            ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-            .setSourceId(source)
-            .setId(new_id + "_" + source);
+
+      Builder rebuilt = config.toBuilder().setSourceId(source).setId(new_id + "_" + source);
       for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
         if (extant.id().equals(rebuilt.id())) {
           throw new IllegalArgumentException("Duplicate source IDs are "
@@ -404,7 +398,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           data_sources.add(source.id());
         }
         
-        HAClusterConfig rebuilt = (HAClusterConfig) builder
+        HAClusterConfig rebuilt = builder
             .setDataSources(data_sources)
             .setId(new_id)
             .build();
@@ -479,7 +473,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           }
           new_sources.get(i).setPushDownNodes(renamed_pushdowns);
           
-          final TimeSeriesDataSourceConfig new_source = new_sources.get(i).build();
+          final TimeSeriesDataSourceConfig new_source = (TimeSeriesDataSourceConfig) new_sources.get(i).build();
           if (source_push_downs.size() == max_pushdowns) {
             planner.addEdge(rebuilt, new_source);
           } else {
@@ -500,7 +494,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
     }
 
     // no push down, just replace
-    MergerConfig merger = (MergerConfig) MergerConfig.newBuilder()
+    MergerConfig merger = MergerConfig.newBuilder()
         .setAggregator(
             Strings.isNullOrEmpty(builder.mergeAggregator()) ? 
                 tsdb.getConfig().getString(getConfigKey(AGGREGATOR_KEY)) : 
@@ -511,7 +505,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
           .setDataType(NumericType.TYPE.toString())
           .build())
         .addSource(new_id)
-        .setId(builder.id())
+        .setId(config.getId())
         .build();
     planner.replace(config, merger);
     
@@ -531,7 +525,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
       data_sources.add(source.id());
     }
     
-    HAClusterConfig rebuilt = (HAClusterConfig) builder
+    HAClusterConfig rebuilt = builder
         .setDataSources(data_sources)
         .setId(new_id)
         .build();
@@ -550,14 +544,14 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public HACluster newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("A config is required.");
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
-    return new HACluster(this, context, (HAClusterConfig) config);
+  public HACluster newNode(final QueryPipelineContext context,
+                           final HAClusterConfig config) {
+    return new HACluster(this, context, config);
   }
 
   @Override
@@ -633,13 +627,13 @@ public class HAClusterFactory extends BaseQueryNodeFactory implements
     // TODO - need to make sure downstream returns identical types.
     throw new UnsupportedOperationException();
   }
-  
+
   @Override
   public RollupConfig rollupConfig() {
     // TODO - need to make sure downstream returns identical configs.
     throw new UnsupportedOperationException();
   }
-  
+
   /**
    * Helper to build the config key with a factory id.
    * @param suffix The non-null and non-empty config suffix.

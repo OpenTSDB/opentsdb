@@ -13,6 +13,7 @@
 package net.opentsdb.data;
 
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -20,7 +21,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface TimeSeriesDataSource extends QueryNode {
+public interface TimeSeriesDataSource<T extends TimeSeriesDataSourceConfig> extends QueryNode<T> {
 
   /**
    * Called by the upstream context or nodes to fetch the next set of data.

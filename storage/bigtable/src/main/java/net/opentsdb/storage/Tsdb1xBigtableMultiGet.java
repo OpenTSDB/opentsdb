@@ -251,7 +251,8 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       rollup_index = 0;
       
       RowFilter.Interleave.Builder builder = RowFilter.Interleave.newBuilder();
-      for (final String agg : source_config.getSummaryAggregations()) {
+      List<String> summaryAggregations = source_config.getSummaryAggregations();
+      for (final String agg : summaryAggregations) {
         builder.addFilters(RowFilter.newBuilder()
             .setColumnQualifierRegexFilter(UnsafeByteOperations.unsafeWrap(
                 agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));

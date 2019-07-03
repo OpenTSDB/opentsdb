@@ -108,10 +108,10 @@ public class MergerNumericArrayIterator implements QueryIterator,
         throw new IllegalArgumentException("Null time series are not "
             + "allowed in the sources.");
       }
-      final Optional<TypedTimeSeriesIterator> optional = 
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
           source.iterator(NumericArrayType.TYPE);
       if (optional.isPresent()) {
-        final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
         if (iterator.hasNext()) {
           has_next = true;
           final TimeSeriesValue<NumericArrayType> array = 

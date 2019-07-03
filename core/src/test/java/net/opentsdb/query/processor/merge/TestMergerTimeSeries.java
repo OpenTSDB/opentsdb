@@ -14,6 +14,35 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.annotation.AnnotationType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.util.Collection;
+import java.util.Optional;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -24,39 +53,6 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Optional;
-
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.collect.Sets;
-import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.annotation.AnnotationType;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.data.types.numeric.aggregators.SumFactory;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestMergerTimeSeries {
   
@@ -128,9 +124,9 @@ public class TestMergerTimeSeries {
     when(source_a.types()).thenReturn(Sets.newHashSet(NumericType.TYPE));
     when(source_b.types()).thenReturn(Sets.newHashSet(NumericType.TYPE));
     when(source_a.iterator(any(TypeToken.class)))
-      .thenReturn(Optional.of(mock(Iterator.class)));
+      .thenReturn(Optional.of(mock(TypedTimeSeriesIterator.class)));
     when(source_b.iterator(any(TypeToken.class)))
-    .thenReturn(Optional.of(mock(Iterator.class)));
+    .thenReturn(Optional.of(mock(TypedTimeSeriesIterator.class)));
   }
   
   @Test
@@ -176,10 +172,10 @@ public class TestMergerTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    Optional<TypedTimeSeriesIterator> opt = 
+    Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> opt =
         ts.iterator(NumericType.TYPE);
     assertTrue(opt.isPresent());
-    final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = opt.get();
+    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = opt.get();
     assertFalse(iterator.hasNext());
     
     opt = ts.iterator(AnnotationType.TYPE);
@@ -197,11 +193,11 @@ public class TestMergerTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    final Collection<TypedTimeSeriesIterator>
+    final Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>>
       iterators = ts.iterators();
     assertEquals(1, iterators.size());
     
-    final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator =
+    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
         iterators.iterator().next();
     assertFalse(iterator.hasNext());
   }

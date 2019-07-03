@@ -29,21 +29,22 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.hacluster.HAClusterConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
-public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
-  
+public class HttpQueryV3Factory
+    extends BaseHttpExecutorFactory<
+        TimeSeriesDataSourceConfig<
+            ? extends TimeSeriesDataSourceConfig.Builder, ? extends TimeSeriesDataSourceConfig>,
+        HttpQueryV3Source> {
+
   public static final String TYPE = "HttpQueryV3";
   public static final String ROLLUP_KEY = "rollups.config";
   
@@ -72,16 +73,22 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
           }
     });
   }
-  
+
   @Override
-  public boolean supportsQuery(final TimeSeriesQuery query,
-                               final TimeSeriesDataSourceConfig config) {
+  public boolean supportsQuery(
+      final TimeSeriesQuery query,
+      final TimeSeriesDataSourceConfig<
+              ? extends TimeSeriesDataSourceConfig.Builder,
+              ? extends TimeSeriesDataSourceConfig>
+          config) {
     // TODO - find a way if it's in sync
     return true;
   }
 
   @Override
-  public boolean supportsPushdown(final Class<? extends QueryNodeConfig> operation) {
+  public boolean supportsPushdown(
+      final Class<? extends QueryNodeConfig>
+          operation) {
     // TODO - find a way if it's in sync
     return true;
   }
@@ -110,63 +117,81 @@ public class HttpQueryV3Factory extends BaseHttpExecutorFactory {
   }
 
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
-                                     final TSDB tsdb,
-                                     final JsonNode node) {
+  public TimeSeriesDataSourceConfig<
+          ? extends TimeSeriesDataSourceConfig.Builder,
+          ? extends TimeSeriesDataSourceConfig>
+      parseConfig(final ObjectMapper mapper, final TSDB tsdb, final JsonNode node) {
     return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
   }
 
   @Override
-  public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
-                         final QueryPlanner planner) {
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() == null) {
+  public void setupGraph(
+      final QueryPipelineContext context,
+      final TimeSeriesDataSourceConfig<
+              ? extends TimeSeriesDataSourceConfig.Builder,
+              ? extends TimeSeriesDataSourceConfig>
+          config,
+      final QueryPlanner planner) {
+    if (config.timeShifts() == null) {
       return;
     }
 
-    TimeSeriesDataSourceConfig new_config = ((Builder)
-        config.toBuilder())
-        .setTimeShifts(((TimeSeriesDataSourceConfig) config).timeShifts())
-        .setTimeShiftInterval(((TimeSeriesDataSourceConfig) config).getTimeShiftInterval())
-        .build();
+
+    TimeSeriesDataSourceConfig.Builder<
+            ? extends TimeSeriesDataSourceConfig.Builder,
+            ? extends TimeSeriesDataSourceConfig>
+        builder = config.toBuilder();
+
+    TimeSeriesDataSourceConfig new_config =
+        builder
+            .setTimeShifts(config.timeShifts())
+            .setTimeShiftInterval(config.getTimeShiftInterval())
+            .build();
+
+    planner.replace(config, new_config);
+
     planner.replace(config, new_config);
 
     // Add timeshift node as a push down
-    final TimeShiftConfig shift_config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+    final TimeShiftConfig shift_config = TimeShiftConfig.newBuilder()
         .setTimeshiftInterval(new_config.getTimeShiftInterval())
         .setId(new_config.getId() + "-timeShift")
         .addSource(new_config.getId())
         .build();
 
     // change the source of the predecessor to timeshift instead of original
-    for (QueryNodeConfig pushdown : new_config.getPushDownNodes()) {
+    List<QueryNodeConfig> pushDownNodes = new_config.getPushDownNodes();
+    for (QueryNodeConfig pushdown : pushDownNodes) {
       if (pushdown.getSources().contains(new_config.getId())) {
         pushdown.getSources().remove(new_config.getId());
         pushdown.getSources().add(shift_config.getId());
       }
     }
 
-    if (new_config.getPushDownNodes().size() == 0) { // err. TODO: find a better way?
+    if (pushDownNodes.size() == 0) { // err. TODO: find a better way?
       List<QueryNodeConfig> pushdown = new ArrayList<>();
       pushdown.add(shift_config);
-      BaseTimeSeriesDataSourceConfig.Builder builder = (BaseTimeSeriesDataSourceConfig.Builder) new_config.toBuilder();
-      ((BaseTimeSeriesDataSourceConfig)new_config).newBuilder(new_config, builder).setPushDownNodes(pushdown);
+
+
+      BaseTimeSeriesDataSourceConfig.Builder b = (BaseTimeSeriesDataSourceConfig.Builder) new_config.toBuilder();
+      ((BaseTimeSeriesDataSourceConfig)new_config).cloneBuilder((BaseTimeSeriesDataSourceConfig) new_config, b);
+      b.setPushDownNodes(pushdown);
     } else {
-      new_config.getPushDownNodes().add(shift_config);
+      pushDownNodes.add(shift_config);
     }
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public HttpQueryV3Source newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("Node config required.");
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
+  public HttpQueryV3Source newNode(final QueryPipelineContext context,
+                           final TimeSeriesDataSourceConfig config) {
     return new HttpQueryV3Source(this, 
                                  context, 
-                                 (TimeSeriesDataSourceConfig) config, 
+                                 config,
                                  client, 
                                  nextHost(),
                                  endpoint);

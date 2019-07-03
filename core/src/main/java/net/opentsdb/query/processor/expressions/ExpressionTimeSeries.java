@@ -14,17 +14,10 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
@@ -33,6 +26,12 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * A container class for computing a binary operation on one or two 
@@ -115,7 +114,7 @@ public class ExpressionTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (!types.contains(type)) {
       return Optional.empty();
@@ -140,7 +139,7 @@ public class ExpressionTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
     final ImmutableMap.Builder<String, TimeSeries> builder = 
         ImmutableMap.<String, TimeSeries>builder();
     if (left != null) {
@@ -150,7 +149,7 @@ public class ExpressionTimeSeries implements TimeSeries {
       builder.put(RIGHT_KEY, right);
     }
     final Map<String, TimeSeries> sources = (Map<String, TimeSeries>) builder.build();
-    final List<TypedTimeSeriesIterator> iterators =
+    final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithExpectedSize(types.size());
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       iterators.add(((BinaryExpressionNodeFactory) node.factory()).newTypedIterator(

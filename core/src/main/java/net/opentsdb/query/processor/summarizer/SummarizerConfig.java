@@ -30,7 +30,7 @@ import net.opentsdb.query.QueryNodeConfig;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = SummarizerConfig.Builder.class)
-public class SummarizerConfig extends BaseQueryNodeConfig {
+public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Builder, SummarizerConfig> {
 
   /** The non-null and non-empty list of summaries. */
   protected List<String> summaries;
@@ -58,15 +58,9 @@ public class SummarizerConfig extends BaseQueryNodeConfig {
   public boolean getInfectiousNan() {
     return infectious_nan;
   }
-  
+
   @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(SummarizerConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -109,13 +103,18 @@ public class SummarizerConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
+  @Override
+  public Builder toBuilder() {
+    return null;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
-  
+
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, SummarizerConfig> {
     @JsonProperty
     private boolean infectiousNan;
     @JsonProperty
@@ -148,8 +147,13 @@ public class SummarizerConfig extends BaseQueryNodeConfig {
       return this;
     }
     
-    public QueryNodeConfig build() {
+    public SummarizerConfig build() {
       return new SummarizerConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
   

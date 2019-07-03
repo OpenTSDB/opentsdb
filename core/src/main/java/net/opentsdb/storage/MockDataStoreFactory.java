@@ -15,7 +15,6 @@
 package net.opentsdb.storage;
 
 import java.util.List;
-import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,15 +29,12 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
@@ -48,7 +44,7 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public class MockDataStoreFactory extends BaseTSDBPlugin 
-                                  implements TimeSeriesDataSourceFactory {
+                                  implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode> {
 
   public static final String TYPE = "MockDataStore";
   
@@ -56,7 +52,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   private MockDataStore mds;
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public TimeSeriesDataSourceConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
@@ -70,24 +66,24 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
+                         final TimeSeriesDataSourceConfig config,
                          final QueryPlanner planner) {
-    if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
+    if (config.hasBeenSetup()) {
       // all done.
       return;
     }
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public MockDataStore.LocalNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("No default configs for "
         + "MockDataStore.");
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
-    return mds.new LocalNode(context, (TimeSeriesDataSourceConfig) config);
+  public MockDataStore.LocalNode newNode(final QueryPipelineContext context,
+                           final TimeSeriesDataSourceConfig config) {
+    return mds.new LocalNode(context, config);
   }
   
   @Override

@@ -14,17 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,7 +22,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
@@ -44,7 +32,6 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -56,13 +43,23 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.downsample.DownsampleConfig.Builder;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Simple class for generating Downsample processors.
  * 
  * @since 3.0
  */
-public class DownsampleFactory extends BaseQueryNodeFactory {
+public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Downsample> {
   private static final Logger LOG = LoggerFactory.getLogger(
       DownsampleFactory.class);
   
@@ -113,21 +110,16 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
+  public Downsample newNode(final QueryPipelineContext context,
+                           final DownsampleConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new Downsample(this, context, (DownsampleConfig) config);
+    return new Downsample(this, context, config);
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
-    throw new UnsupportedOperationException();
-  }
-  
-  @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper,
+  public DownsampleConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     Builder builder = new Builder();
@@ -206,22 +198,22 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     
     builder.setIntervals(intervals);
     
-    return (DownsampleConfig) builder.build();
+    return builder.build();
   }
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final DownsampleConfig config,
                          final QueryPlanner plan) {
     // For downsampling we need to set the config start and end times
     // to the query start and end times. The config will then align them.
-    DownsampleConfig.Builder builder = DownsampleConfig
-        .newBuilder((DownsampleConfig) config)
+
+    Builder builder = DownsampleConfig.newBuilder();
+    DownsampleConfig.cloneBuilder(config, builder);
+    DownsampleConfig newConfig = builder
         .setStart(context.query().getStart())
         .setEnd(context.query().getEnd())
-        .setId(config.getId());
-    
-    QueryNodeConfig newConfig = builder.build();
+        .setId(config.getId()).build();
 
     // and we need to find our sources if we have a rollup as well as set the 
     // padding.
@@ -232,15 +224,13 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
         LOG.debug("Hmmm, wasn't a data source config? " + source);
         continue;
       }
-      TimeSeriesDataSourceConfig.Builder new_source = 
-          (TimeSeriesDataSourceConfig.Builder)
-            ((TimeSeriesDataSourceConfig) source).toBuilder();
-      new_source.setSummaryInterval(((DownsampleConfig) newConfig).getInterval());
-      if (((DownsampleConfig) newConfig).getAggregator().equalsIgnoreCase("avg")) {
+      TimeSeriesDataSourceConfig.Builder new_source = (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
+      new_source.setSummaryInterval((newConfig).getInterval());
+      if (newConfig.getAggregator().equalsIgnoreCase("avg")) {
         new_source.addSummaryAggregation("sum");
         new_source.addSummaryAggregation("count");
       } else {
-        new_source.addSummaryAggregation(((DownsampleConfig) newConfig).getAggregator());
+        new_source.addSummaryAggregation(newConfig.getAggregator());
       }
       
       plan.replace(source, new_source.build());
@@ -400,10 +390,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<Downsample, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Downsample node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -411,7 +401,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Downsample node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -419,7 +409,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
         
@@ -428,10 +418,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   /**
    * Handles summaries.
    */
-  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<Downsample, NumericSummaryType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Downsample node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -439,7 +429,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Downsample node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -447,7 +437,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     }
     
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
   }
@@ -455,10 +445,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   /**
    * Handles arrays.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<Downsample, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Downsample node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -466,7 +456,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Downsample node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -474,7 +464,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     }
     
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
   }

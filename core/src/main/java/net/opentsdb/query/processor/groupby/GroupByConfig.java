@@ -46,7 +46,7 @@ import net.opentsdb.utils.JSON;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = GroupByConfig.Builder.class)
-public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
+public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByConfig.Builder, GroupByConfig> {
   private final Set<String> tag_keys;
   private List<byte[]> encoded_tag_keys;
   private final String aggregator;
@@ -107,19 +107,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   public boolean getFullMerge() {
     return full_merge;
   }
-  
-  @Override
-  public Builder toBuilder() {
-    return (Builder) new Builder()
-        .setTagKeys(Sets.newHashSet(tag_keys))
-        .setAggregator(aggregator)
-        .setInfectiousNan(infectious_nan)
-        .setMergeIds(merge_ids)
-        .setFullMerge(full_merge)
-        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
-        .setId(id);
-  }
-  
+
   @Override
   public boolean pushDown() {
     return true;
@@ -129,9 +117,21 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   public boolean joins() {
     return false;
   }
-  
+
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public Builder toBuilder() {
+    return new Builder()
+        .setTagKeys(Sets.newHashSet(tag_keys))
+        .setAggregator(aggregator)
+        .setInfectiousNan(infectious_nan)
+        .setMergeIds(merge_ids)
+        .setFullMerge(full_merge)
+        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+        .setId(id);
+  }
+
+  @Override
+  public int compareTo(GroupByConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -176,7 +176,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, GroupByConfig> {
     @JsonProperty
     private Set<String> tagKeys;
     private List<byte[]> encoded_tag_keys;
@@ -269,7 +269,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
     /**
-     * @param merge_ids Whether or not to create a full merge with
+     * @param full_merge Whether or not to create a full merge with
      * disjoint tags.
      * @return The builder.
      */
@@ -283,6 +283,11 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
      * invalid. */
     public GroupByConfig build() {
       return new GroupByConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
   
@@ -348,6 +353,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       }
     }
     
-    return (GroupByConfig) builder.build();
+    return builder.build();
   }
 }

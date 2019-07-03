@@ -14,16 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
@@ -34,6 +29,8 @@ import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+
+import java.util.Collection;
 
 /**
  * The iterator that handles summarizing arrays, numerics and other
@@ -53,7 +50,7 @@ public class SummarizerNumericIterator implements QueryIterator {
   private boolean has_next;
   
   /** The source iterator. */
-  private Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** The type of data pulled from the iterator. */
   private TypeToken<?> type;

@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -175,7 +176,7 @@ public class TestNumericSummaryInterpolator {
     
     try {
       new NumericSummaryInterpolator(
-          (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) null, config);
+          (TypedTimeSeriesIterator<? extends TimeSeriesDataType>) null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

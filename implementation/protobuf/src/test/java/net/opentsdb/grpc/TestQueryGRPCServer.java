@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -52,7 +53,6 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.pbuf.QueryResultPB;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QuerySinkConfig;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.QueryContext;

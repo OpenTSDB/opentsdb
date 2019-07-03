@@ -27,7 +27,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface QueryNode {
+public interface QueryNode<T extends QueryNodeConfig> {
 
   /**
    * The pipeline context this node belongs to.
@@ -48,7 +48,7 @@ public interface QueryNode {
   /**
    * @return The config for this query node.
    */
-  public QueryNodeConfig config();
+  public T config();
   
   /**
    * Closes the node and releases all resources locally.

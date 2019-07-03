@@ -23,12 +23,11 @@ import java.util.Iterator;
  * 
  * @since 3.0
  */
-public interface TypedTimeSeriesIterator extends 
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
+public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> extends Iterator<TimeSeriesValue<T>> {
 
   /**
    * @return The non-null type of data returned in the iterator.
    */
-  public TypeToken<? extends TimeSeriesDataType> getType();
+  public TypeToken<T> getType();
 
 }

@@ -37,9 +37,9 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.ChainFilter;
@@ -649,7 +649,7 @@ public class TimeSeriesQuery extends Validatable
     int metric_id = 1;
     for (final Metric metric : metrics) {
       
-      DefaultTimeSeriesDataSourceConfig.Builder source = 
+      DefaultTimeSeriesDataSourceConfig.Builder source =
           (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
       .setMetric(MetricLiteralFilter.newBuilder()
           .setMetric(metric.getMetric())
@@ -708,13 +708,13 @@ public class TimeSeriesQuery extends Validatable
         for (final String var : variables) {
           vars.add(id_to_node_roots.get(var));
         }
-        
+
         // TODO - figure out query tags to mimic 2.x
         // TODO - get fills from metrics
-        QueryNodeConfig node = ExpressionConfig.newBuilder()
+        ExpressionConfig node = ExpressionConfig.newBuilder()
             .setExpression(expression.getExpr())
             //.setAs("") // TODO ??
-            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinConfig(JoinConfig.newBuilder()
                 .setJoinType(JoinType.NATURAL)
                 .build())
             .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
@@ -747,18 +747,18 @@ public class TimeSeriesQuery extends Validatable
                                       final Downsampler downsampler) {
     
     FillPolicy policy = downsampler.getFillPolicy().getPolicy();
-    
-    DownsampleConfig.Builder ds = (DownsampleConfig.Builder) DownsampleConfig.newBuilder()
+
+    DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
         .setAggregator(downsampler.getAggregator())
         .setInterval(downsampler.getInterval())
-        .setFill(policy != null && policy != FillPolicy.NONE)
-        .setId("downsample_" + metric.getId())
+        .setFill(policy != null && policy != FillPolicy.NONE);
+    ds.setId("downsample_" + metric.getId())
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-                  .setFillPolicy(policy)
-                  .setRealFillPolicy(FillWithRealPolicy.NONE)
-                  .setType(interpolator)
-                  .setDataType(NumericType.TYPE.toString())
-                  .build())
+            .setFillPolicy(policy)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .setType(interpolator)
+            .setDataType(NumericType.TYPE.toString())
+            .build())
         .addSource(metric.getId());
     if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
       ds.setTimeZone(downsampler.getTimezone());

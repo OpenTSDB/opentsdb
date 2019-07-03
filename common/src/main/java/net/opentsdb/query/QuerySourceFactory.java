@@ -19,14 +19,13 @@ import net.opentsdb.data.TimeSeriesDataSource;
 /**
  * TODO - may not need it after all.
  */
-public interface QuerySourceFactory extends QueryNodeFactory {
+public interface QuerySourceFactory<C extends QueryNodeConfig, N extends QueryNode> extends QueryNodeFactory<C, N> {
 
   /**
    * Returns a new node given the context and config.
    * @param context A non-null pipeline context.
    * @param config An optional config.
    */
-  public TimeSeriesDataSource newNode(final QueryPipelineContext context, 
-                                      final QueryNodeConfig config);
+  public N newNode(final QueryPipelineContext context, final C config);
   
 }

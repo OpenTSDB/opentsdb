@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -70,18 +72,16 @@ public class TestHACluster {
     
     tsdb = new MockTSDB();
     when(context.tsdb()).thenReturn(tsdb);
-    
-    config = (HAClusterConfig) HAClusterConfig.newBuilder()
+
+    BaseTimeSeriesDataSourceConfig.Builder builder = HAClusterConfig.newBuilder()
         .setPrimaryTimeout("10s")
         .setSecondaryTimeout("5s")
         .setMergeAggregator("max")
         .setDataSources(Lists.newArrayList("s1", "s2"))
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("sys.if.in")
-            .build())
-        .setId("m1")
-        .build();
-    
+        .setId("m1");
+    (builder).setMetric(MetricLiteralFilter.newBuilder().setMetric("sys.if.in").build());
+    this.config = (HAClusterConfig) builder.build();
+
     TimeSeriesDataSource s1 = mock(TimeSeriesDataSource.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(s1.config()).thenReturn(c1);
@@ -95,7 +95,7 @@ public class TestHACluster {
     when(context.downstreamSources(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(s1, s2));
   }
-  
+
   @Test
   public void ctor() throws Exception {
     HACluster node = new HACluster(mock(QueryNodeFactory.class), context, config);

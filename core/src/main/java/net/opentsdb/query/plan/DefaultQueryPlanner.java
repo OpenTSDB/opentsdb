@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,9 +172,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
       if (node instanceof TimeSeriesDataSourceConfig) {
         source_nodes.add(node);
       }
-      
-      if (node.getSources() != null) {
-        for (final String source : node.getSources()) {
+
+      List<String> sources = node.getSources();
+      if (sources != null) {
+        for (final String source : sources) {
           final QueryNodeConfig src = config_map.get(source);
           if (src == null) {
             throw new QueryExecutionException("No source node with ID " 
@@ -246,10 +248,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
           
           if (!push_downs.isEmpty()) {
             // now dump the push downs into this node.
-            final TimeSeriesDataSourceConfig new_config = 
-                ((TimeSeriesDataSourceConfig.Builder) node.toBuilder())
-                .setPushDownNodes(push_downs)
-                .build();
+            TimeSeriesDataSourceConfig<
+                    DefaultTimeSeriesDataSourceConfig.Builder, DefaultTimeSeriesDataSourceConfig>
+                tsDataSourceconfig = (TimeSeriesDataSourceConfig) node;
+            DefaultTimeSeriesDataSourceConfig new_config =
+                tsDataSourceconfig.toBuilder().setPushDownNodes(push_downs).build();
             replace(node, new_config);
           }
         }
@@ -477,7 +480,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param node The current node.
    * @param push_downs The non-null list of node configs that we'll 
    * populate any time we can push down.
-   * @param clone The clone to work from while mutating.
    * @return An edge to link with if the previous node was pushed down.
    */
   public void pushDown(
@@ -532,8 +534,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * Recursive helper to build and link the actual node graph.
    * @param context The non-null context we're working with.
    * @param node The current node config.
-   * @param constructed A cache to determine if we've already instantiated
-   * and linked the node.
    * @param nodes_map A map of instantiated nodes to use for linking.
    * @return A node to link with.
    */
@@ -582,7 +582,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     if (query_node instanceof TimeSeriesDataSource) {
       // TODO - make it a set but then convert to list as the pipeline
       // needs indexing (or we can make it an iterator there).
-      if (!data_sources.contains((TimeSeriesDataSource) query_node)) {
+      if (!data_sources.contains(query_node)) {
         data_sources.add((TimeSeriesDataSource) query_node);
       }
     }
@@ -685,12 +685,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
   class ContextNodeConfig implements QueryNodeConfig {
 
     @Override
-    public int compareTo(QueryNodeConfig o) {
-      // TODO Auto-generated method stub
-      return 0;
-    }
-
-    @Override
     public String getId() {
       return "QueryContext";
     }
@@ -771,8 +765,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
 
     @Override
     public Builder toBuilder() {
-      // TODO Auto-generated method stub
       return null;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+      return 0;
     }
   }
 
@@ -780,7 +778,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * Helper to replace a node with a new one, moving edges.
    * @param old_config The non-null old node that is present in the graph.
    * @param new_config The non-null new node that is not present in the graph.
-   * @param graph The non-null graph to mutate.
    */
   public void replace(final QueryNodeConfig old_config,
                       final QueryNodeConfig new_config) {

@@ -156,7 +156,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
 //  public void scanFiltersReverse() throws Exception {
 //    final QueryFilter filter = TagValueRegexFilter.newBuilder()
 //            .setFilter(TAGV_B_STRING + ".*")
-//            .setTagKey(TAGK_STRING)
+//            .setKey(TAGK_STRING)
 //            .build();
 //    when(owner.filterDuringScan()).thenReturn(true);
 //    when(config.getFilter()).thenReturn(filter);
@@ -585,7 +585,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
 //  public void scanFiltersSequenceEndReverse() throws Exception {
 //    final QueryFilter filter = TagValueRegexFilter.newBuilder()
 //            .setFilter(TAGV_B_STRING + ".*")
-//            .setTagKey(TAGK_STRING)
+//            .setKey(TAGK_STRING)
 //            .build();
 //    when(owner.filterDuringScan()).thenReturn(true);
 //    when(config.getFilter()).thenReturn(filter);
@@ -659,7 +659,7 @@ public class TestTsdb1xBigtableScanner extends UTBase {
 //  public void scanFiltersSequenceEndMidRowReverse() throws Exception {
 //    final QueryFilter filter = TagValueRegexFilter.newBuilder()
 //            .setFilter(TAGV_B_STRING + ".*")
-//            .setTagKey(TAGK_STRING)
+//            .setKey(TAGK_STRING)
 //            .build();
 //    when(owner.filterDuringScan()).thenReturn(true);
 //    when(config.getFilter()).thenReturn(filter);

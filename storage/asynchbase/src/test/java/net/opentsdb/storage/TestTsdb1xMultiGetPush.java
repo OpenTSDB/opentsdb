@@ -31,6 +31,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
@@ -61,7 +63,6 @@ import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -574,18 +575,16 @@ public class TestTsdb1xMultiGetPush extends UTBase {
         .setEnd(Integer.toString(END_TS + 3600))
         .setExecutionGraph(Collections.emptyList())
         .build();
-    
-    source_config = new WrappedTimeSeriesDataSourceConfig(
-        "m1-previous-P1D",
-        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(METRIC_STRING)
-                .build())
-            .addSummaryAggregation("max")
-            .setTimeShiftInterval("1d")
-            .setId("m1")
-            .build(),
-        true);
+
+    TimeSeriesDataSourceConfig build = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric(METRIC_STRING)
+            .build())
+        .addSummaryAggregation("max")
+        .setTimeShiftInterval("1d")
+        .setId("m1")
+        .build();
+    source_config = new WrappedTimeSeriesDataSourceConfig("m1-previous-P1D", build, true);
     when(context.query()).thenReturn(query);
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();

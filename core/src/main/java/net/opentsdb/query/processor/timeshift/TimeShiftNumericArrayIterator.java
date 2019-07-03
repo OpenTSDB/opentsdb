@@ -39,7 +39,7 @@ import net.opentsdb.query.QueryResult;
 public class TimeShiftNumericArrayIterator implements QueryIterator,
     TimeSeriesValue<NumericArrayType> {
   /** The iterator. */
-  private Iterator<TimeSeriesValue<?>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
 
   /** The result we'll use to get the offset. */
   private TimeShiftResult result;
@@ -50,7 +50,7 @@ public class TimeShiftNumericArrayIterator implements QueryIterator,
   TimeShiftNumericArrayIterator(final QueryResult result,
       final TimeSeries source) {
     this.result = (TimeShiftResult) result;
-    final Optional<TypedTimeSeriesIterator> optional =
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();

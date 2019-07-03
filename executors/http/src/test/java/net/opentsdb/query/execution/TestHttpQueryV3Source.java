@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.temporal.TemporalAmount;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.QueryFilter;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -52,11 +53,9 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;

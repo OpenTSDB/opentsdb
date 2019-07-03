@@ -56,7 +56,7 @@ import net.opentsdb.query.joins.JoinConfig;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = ExpressionConfig.Builder.class)
-public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
+public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<ExpressionConfig.Builder, ExpressionConfig> {
   
   /** The original expression string. */
   private final String expression;
@@ -154,12 +154,6 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
     return false;
@@ -169,7 +163,13 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   public boolean joins() {
     return true;
   }
-  
+
+  @Override
+  public Builder toBuilder() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
   @Override
   public HashCode buildHashCode() {
     final List<HashCode> hashes = Lists.newArrayListWithExpectedSize(2);
@@ -206,25 +206,22 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
 
   @Override
-  public int compareTo(final QueryNodeConfig o) {
+  public int compareTo(final ExpressionConfig o) {
     if (o == null) {
       return 1;
     }
     if (o == this) {
       return 0;
     }
-    if (!(o instanceof ExpressionConfig)) {
-      return 1;
-    }
-    
+
     return ComparisonChain.start()
-        .compare(id, ((ExpressionConfig) o).id)
-        .compare(expression, ((ExpressionConfig) o).expression)
-        .compare(join_config, ((ExpressionConfig) o).join_config)
-        .compare(variable_interpolators, ((ExpressionConfig) o).variable_interpolators, VARIABLE_INTERP_CMP)
-        .compare(interpolator_configs, ((ExpressionConfig) o).interpolator_configs, INTERPOLATOR_CMP)
-        .compare(infectious_nan, ((ExpressionConfig) o).infectious_nan)
-        .compare(as, ((ExpressionConfig) o).as)
+        .compare(id, o.id)
+        .compare(expression, o.expression)
+        .compare(join_config, o.join_config)
+        .compare(variable_interpolators, o.variable_interpolators, VARIABLE_INTERP_CMP)
+        .compare(interpolator_configs, o.interpolator_configs, INTERPOLATOR_CMP)
+        .compare(infectious_nan, o.infectious_nan)
+        .compare(as, o.as)
         .result();
   }
 
@@ -256,8 +253,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
   }
 
   public static ExpressionConfig parse(final ObjectMapper mapper,
-      final TSDB tsdb, 
-      final JsonNode node) {
+                                       final TSDB tsdb,
+                                       final JsonNode node) {
     Builder builder = new Builder();
     JsonNode n = node.get("expression");
     if (n != null) {
@@ -341,15 +338,14 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
       }
     }
     
-    return (ExpressionConfig) builder.build();
+    return builder.build();
   }
-  
-  /** @return A new builder. */
-  public static Builder newBuilder() {
+
+  public static Builder newBuilder(){
     return new Builder();
   }
   
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, ExpressionConfig> {
     @JsonProperty
     private String expression;
     @JsonProperty
@@ -406,10 +402,14 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public ExpressionConfig build() {
       return new ExpressionConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 
   public static class InterpCmp 

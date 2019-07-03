@@ -110,7 +110,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     try {
       TagValueLiteralOrFilter.newBuilder()
-        //.setTagKey("host")
+        //.setKey("host")
         .setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");

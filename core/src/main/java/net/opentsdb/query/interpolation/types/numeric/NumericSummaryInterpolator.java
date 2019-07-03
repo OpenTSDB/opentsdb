@@ -57,7 +57,7 @@ public class NumericSummaryInterpolator implements
   protected final QueryFillPolicy<NumericSummaryType> fill_policy;
   
   /** The iterator pulled from the source. May be null. */
-  protected final Iterator<TimeSeriesValue<?>> iterator;
+  protected final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** A map of summary IDs to real value interpolators. */
   protected Map<Integer, ReadAheadNumericInterpolator> data;
@@ -87,7 +87,7 @@ public class NumericSummaryInterpolator implements
     }
     this.config = (NumericSummaryInterpolatorConfig) config;
     fill_policy = ((NumericSummaryInterpolatorConfig) config).queryFill();
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericSummaryType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();
@@ -105,7 +105,7 @@ public class NumericSummaryInterpolator implements
    * @throws IllegalArgumentException if the source or config was null.
    */
   public NumericSummaryInterpolator(
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final QueryInterpolatorConfig config) {
     if (iterator == null) {
       throw new IllegalArgumentException("Source cannot be null.");

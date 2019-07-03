@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import java.util.Iterator;
-import java.util.Optional;
-
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -30,15 +26,17 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
+
+import java.util.Optional;
 
 /**
- * Iterator that downsamples data points using an {@link Aggregator} following
+ * Iterator that downsamples data points using an {@link net.opentsdb.data.Aggregator} following
  * various rules:
  * <ul>
  * <li>If {@link DownsampleConfig#getFill()} is enabled, then a value is emitted
@@ -163,7 +161,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     
     final QueryInterpolator<?> interp = factory.newInterpolator(
         NumericType.TYPE, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) new Downsampler(),
+        (TypedTimeSeriesIterator<? extends TimeSeriesDataType>) new Downsampler(),
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
@@ -292,7 +290,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     private TimeStamp interval_end;
     
     /** The iterator pulled from the source. */
-    private final Iterator<TimeSeriesValue<?>> iterator;
+    private final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
     
     /**
      * Default ctor.
@@ -307,7 +305,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         result.nextTimestamp(interval_end);
       }
       
-      final Optional<TypedTimeSeriesIterator> optional = 
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
           source.iterator(NumericType.TYPE);
       if (optional.isPresent()) {
         iterator = optional.get();

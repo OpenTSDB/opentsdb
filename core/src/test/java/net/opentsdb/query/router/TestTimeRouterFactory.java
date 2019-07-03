@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -47,7 +48,6 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -332,7 +332,7 @@ public class TestTimeRouterFactory {
         planner.nodeForId("m1")));
   }
   
-  static class MockFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory {
+  static class MockFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig ,TimeSeriesDataSource> {
 
     final List<Class<? extends QueryNodeConfig>> pushdowns;
 
@@ -342,7 +342,7 @@ public class TestTimeRouterFactory {
     }
     
     @Override
-    public QueryNodeConfig parseConfig(ObjectMapper mapper,
+    public TimeSeriesDataSourceConfig parseConfig(ObjectMapper mapper,
         net.opentsdb.core.TSDB tsdb, JsonNode node) {
       return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
     }
@@ -354,19 +354,19 @@ public class TestTimeRouterFactory {
     }
     
     @Override
-    public void setupGraph(QueryPipelineContext context, QueryNodeConfig config,
+    public void setupGraph(QueryPipelineContext context, TimeSeriesDataSourceConfig config,
         QueryPlanner planner) {
       // no-op
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context) {
+    public TimeSeriesDataSource newNode(QueryPipelineContext context) {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context,
-                             QueryNodeConfig config) {
+    public TimeSeriesDataSource newNode(QueryPipelineContext context,
+                             TimeSeriesDataSourceConfig config) {
       TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
       when(node.config()).thenReturn(config);
       when(node.initialize(null)).thenAnswer(new Answer<Deferred<Void>>() {

@@ -205,13 +205,13 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
     }
 
     @Override
-    public Optional<TypedTimeSeriesIterator> iterator(
+    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         final TypeToken<? extends TimeSeriesDataType> type) {
       return source.iterator(type);
     }
 
     @Override
-    public Collection<TypedTimeSeriesIterator> iterators() {
+    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
       return source.iterators();
     }
 

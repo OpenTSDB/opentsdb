@@ -14,19 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -38,31 +29,29 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
-import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceFactory;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Executor that can either query a cache for a query and then send it 
@@ -79,7 +68,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceFactory {
+public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceFactory<CachingQueryExecutor.Config, CachingQueryExecutor.LocalExecution> {
   public static final String TYPE = CachingQueryExecutor.class.getSimpleName().toString();
   private static final Logger LOG = LoggerFactory.getLogger(
       CachingQueryExecutor.class);
@@ -130,17 +119,17 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public LocalExecution newNode(final QueryPipelineContext context) {
     // TODO pull the default config from some place
     throw new UnsupportedOperationException("Not implemented yet");
   }
   
   @Override
-  public TimeSeriesDataSource newNode(final QueryPipelineContext context,
-                                      final QueryNodeConfig config) {
+  public LocalExecution newNode(final QueryPipelineContext context,
+                                      final Config config) {
     return new LocalExecution(context, config);
   }
-  
+
   /** Local execution class. */
   class LocalExecution extends AbstractQueryNode implements 
       TimeSeriesDataSource {
@@ -163,16 +152,16 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
     /**
      * Default ctor
      * @param context The query context.
-     * @param QueryNodeConfig The config for the node.
+     * @param config The config for the node.
      */
     public LocalExecution(final QueryPipelineContext context,
-                          final QueryNodeConfig config) {
+                          final Config config) {
       super(CachingQueryExecutor.this, context);
       complete = new AtomicBoolean();
 
       key = null; /*key_generator.generate(context.query(), 
           ((Config) config).use_timestamps);*/
-      this.config = (Config) config;
+      this.config = config;
 //      final QueryExecutorConfig override = 
 //          context.getConfigOverride(node.getExecutorId());
 //      if (override != null) {
@@ -193,7 +182,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
     }
     
     @Override
-    public QueryNodeConfig config() {
+    public Config config() {
       return config;
     }
     
@@ -544,7 +533,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   
   @JsonInclude(Include.NON_NULL)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends BaseQueryNodeConfig {
+  public static class Config extends BaseQueryNodeConfig<Config.Builder, Config> {
     private final String cache_id;
     private final String serdes_id;
     private final boolean simultaneous;
@@ -615,7 +604,12 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
     public boolean joins() {
       return false;
     }
-    
+
+    @Override
+    public Builder toBuilder() {
+      return null;
+    }
+
     @Override
     public boolean equals(final Object o) {
       if (this == o) {
@@ -655,10 +649,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
     }
 
     @Override
-    public int compareTo(final QueryNodeConfig other) {
-      if (!(other instanceof Config)) {
-        return -1;
-      }
+    public int compareTo(final Config other) {
       final Config config = (Config) other;
       return ComparisonChain.start()
           .compare(id, config.id, Ordering.natural().nullsFirst())
@@ -675,23 +666,13 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
           .result();
     }
 
-    @Override
-    public Builder toBuilder() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
     /** @return A new builder. */
     public static Builder newBuilder() {
       return new Builder();
     }
-    
-    /**
-     * @param config A non-null builder to pull from.
-     * @return A cloned builder.
-     */
-    public static Builder newBuilder(final Config config) {
-      return (Builder) new Builder()
+
+    public static void cloneBuilder(final Config config, Builder builder) {
+      builder
           .setCacheId(config.cache_id)
           .setSerdesId(config.serdes_id)
           .setSimultaneous(config.simultaneous)
@@ -700,9 +681,9 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
           .setUseTimestamps(config.use_timestamps)
           .setId(config.id);
     }
-    
+
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Builder extends BaseQueryNodeConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, Config> {
       @JsonProperty
       private String cacheId;
       @JsonProperty
@@ -790,7 +771,11 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
       public Config build() {
         return new Config(this);
       }
-      
+
+      @Override
+      public Builder self() {
+        return this;
+      }
     }
 
     
@@ -812,7 +797,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   }
 
   @Override
-  public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+  public Config parseConfig(ObjectMapper mapper, TSDB tsdb,
       JsonNode node) {
     // TODO Auto-generated method stub
     return null;
@@ -820,7 +805,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
 
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final Config config,
                          final QueryPlanner plan) {
     // TODO Auto-generated method stub
   }

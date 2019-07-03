@@ -29,7 +29,7 @@ import net.opentsdb.query.QueryNodeConfig;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = MergerConfig.Builder.class)
-public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
+public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerConfig.Builder, MergerConfig> {
 
   /** The raw aggregator. */
   private final String aggregator;
@@ -56,16 +56,16 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
   public boolean getInfectiousNan() {
     return infectious_nan;
   }
-  
+
   @Override
   public Builder toBuilder() {
-    return (Builder) new Builder()
-      .setAggregator(aggregator)
-      .setInfectiousNan(infectious_nan)
-      .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
-      .setId(id);
+    return new Builder()
+        .setAggregator(aggregator)
+        .setInfectiousNan(infectious_nan)
+        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+        .setId(id);
   }
-  
+
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
@@ -106,7 +106,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(MergerConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -117,7 +117,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, MergerConfig> {
     @JsonProperty
     private String aggregator;
     @JsonProperty
@@ -150,6 +150,10 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators {
     public MergerConfig build() {
       return new MergerConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 }

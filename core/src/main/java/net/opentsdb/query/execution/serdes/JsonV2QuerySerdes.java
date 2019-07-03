@@ -168,7 +168,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                   Lists.newArrayListWithExpectedSize(result.timeSeries().size());
               pairs.stream().parallel().forEach((pair) -> {
                 try {
-                  final Collection<TypedTimeSeriesIterator> iterators = 
+                  final Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
                       pair.getValue().iterators();
                   if (iterators.isEmpty()) {
                     return;
@@ -232,7 +232,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             } else {
               for (final TimeSeries series : 
                 series != null ? series : result.timeSeries()) {
-                final Collection<TypedTimeSeriesIterator> iterators = 
+                final Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
                     series.iterators();
                 if (iterators.isEmpty()) {
                   continue;
@@ -342,7 +342,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   private void serializeSeries(
       final JsonV2QuerySerdesOptions options,
       final TimeSeriesValue<?> value,
-      final TypedTimeSeriesIterator iterator,
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final TimeSeriesStringId id,
       final JsonGenerator json,
       final QueryResult result) throws IOException {
@@ -377,7 +377,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   private void writeNumeric(
       TimeSeriesValue<NumericType> value,
       final JsonV2QuerySerdesOptions options, 
-      final Iterator<TimeSeriesValue<?>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result) throws IOException {
     while (value != null) {
@@ -411,7 +411,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   private void writeNumericSummary(
       TimeSeriesValue<NumericSummaryType> value,
       final JsonV2QuerySerdesOptions options, 
-      final Iterator<TimeSeriesValue<?>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result) throws IOException {
     while (value != null) {
@@ -456,7 +456,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   private void writeNumericArray(
       TimeSeriesValue<NumericArrayType> value,
       final JsonV2QuerySerdesOptions options, 
-      final Iterator<TimeSeriesValue<?>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result) throws IOException {
     

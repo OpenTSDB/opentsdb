@@ -1141,13 +1141,13 @@ public class TestGroupByNumericIterator {
     }
 
     @Override
-    public Optional<TypedTimeSeriesIterator> iterator(
+    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         TypeToken<? extends TimeSeriesDataType> type) {
       return Optional.empty();
     }
 
     @Override
-    public Collection<TypedTimeSeriesIterator> iterators() {
+    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
       return Collections.emptyList();
     }
 

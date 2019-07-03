@@ -45,7 +45,7 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * 
  * @since 3.0
  */
-public class GroupByFactory extends BaseQueryNodeFactory {
+public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy> {
   
   public static final String TYPE = "GroupBy";
   
@@ -74,21 +74,21 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
+  public GroupBy newNode(final QueryPipelineContext context,
+                           final GroupByConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new GroupBy(this, context, (GroupByConfig) config);
+    return new GroupBy(this, context, config);
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public GroupBy newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException();
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public GroupByConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return GroupByConfig.parse(mapper, tsdb, node);
@@ -96,7 +96,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final GroupByConfig config,
                          final QueryPlanner plan) {
     // TODO Auto-generated method stub
   }
@@ -104,10 +104,10 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<GroupBy, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final GroupBy node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -115,7 +115,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final GroupBy node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -123,7 +123,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
     
@@ -132,10 +132,10 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   /**
    * Factory for summary iterators.
    */
-  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<GroupBy, NumericSummaryType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final GroupBy node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -143,7 +143,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final GroupBy node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -151,7 +151,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     }
     
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
   }
@@ -159,10 +159,10 @@ public class GroupByFactory extends BaseQueryNodeFactory {
   /**
    * Handles array numerics.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<GroupBy, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final GroupBy node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -170,7 +170,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final GroupBy node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -178,7 +178,7 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
     

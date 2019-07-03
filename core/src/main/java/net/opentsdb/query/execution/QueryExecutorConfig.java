@@ -31,7 +31,7 @@ import net.opentsdb.query.QueryNodeConfig;
  * <p>
  * <b>Note:</b> The implementations must include the {@link #executor_id} and
  * {@link #executor_type} in the {@link #equals(Object)}, {@link #hashCode()},
- * {@link #buildHashCode()} and {@link #compareTo(QueryExecutorConfig)} 
+ * {@link #buildHashCode()} and {@link #compareTo(QueryExecutorConfig)}
  * implementations. These are used to generate hashes.
  * <p>
  * <b>Note:</b> Make sure the implementing config calls 
@@ -46,7 +46,7 @@ import net.opentsdb.query.QueryNodeConfig;
   include = JsonTypeInfo.As.PROPERTY,
   property = "executorType",
   visible = true)
-public abstract class QueryExecutorConfig implements QueryNodeConfig {
+public abstract class QueryExecutorConfig<B extends QueryExecutorConfig.Builder<B, C>, C extends QueryExecutorConfig> implements QueryNodeConfig<B, C> {
   /** The class type of executor. */
   protected final String executor_type;
   
@@ -116,11 +116,8 @@ public abstract class QueryExecutorConfig implements QueryNodeConfig {
   /** @return A HashCode object for deterministic, non-secure hashing */
   public abstract HashCode buildHashCode();
   
-  @Override
-  public abstract int compareTo(final QueryNodeConfig config);
-  
   /** Base builder for QueryExecutorConfigs. */
-  public static abstract class Builder {
+  public static abstract class Builder<B extends Builder<B, C>, C extends QueryExecutorConfig> implements QueryNodeConfig.Builder<B, C> {
     @JsonProperty
     protected String executorType;
     @JsonProperty
@@ -131,9 +128,9 @@ public abstract class QueryExecutorConfig implements QueryNodeConfig {
      * this config pertains to.
      * @return The builder.
      */
-    public Builder setExecutorType(final String executorType) {
+    public B setExecutorType(final String executorType) {
       this.executorType = executorType;
-      return this;
+      return self();
     }
     
     /**
@@ -141,12 +138,10 @@ public abstract class QueryExecutorConfig implements QueryNodeConfig {
      * graph.
      * @return The builder.
      */
-    public Builder setExecutorId(final String executorId) {
+    public B setExecutorId(final String executorId) {
       this.executorId = executorId;
-      return this;
+      return self();
     }
   
-    /** @return A config object or exceptions if the config failed. */
-    public abstract QueryExecutorConfig build();
   }
 }

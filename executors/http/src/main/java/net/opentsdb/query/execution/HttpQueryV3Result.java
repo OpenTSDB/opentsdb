@@ -340,7 +340,7 @@ public class HttpQueryV3Result implements QueryResult {
     }
 
     @Override
-    public Optional<TypedTimeSeriesIterator> iterator(
+    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         final TypeToken<? extends TimeSeriesDataType> type) {
       // TODO - cleanup
       if (types.contains(type)) {
@@ -357,9 +357,9 @@ public class HttpQueryV3Result implements QueryResult {
     }
 
     @Override
-    public Collection<TypedTimeSeriesIterator> iterators() {
+    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
       // TODO - cleanup
-      List<TypedTimeSeriesIterator> results = Lists.newArrayListWithExpectedSize(1);
+      List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> results = Lists.newArrayListWithExpectedSize(1);
       if (types.contains(NumericType.TYPE)) {
         results.add(new NumericData(node.get("NumericType")));
       } else if (types.contains(NumericArrayType.TYPE)) {

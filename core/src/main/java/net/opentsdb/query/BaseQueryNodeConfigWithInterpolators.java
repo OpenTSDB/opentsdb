@@ -14,25 +14,23 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.utils.Comparators.MapComparator;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Base node config class that handles interpolation configs.
  * 
  * @since 3.0
  */
-public abstract class BaseQueryNodeConfigWithInterpolators extends 
-  BaseQueryNodeConfig {
+public abstract class BaseQueryNodeConfigWithInterpolators<B extends BaseQueryNodeConfigWithInterpolators.Builder<B, C>, C extends BaseQueryNodeConfigWithInterpolators> extends BaseQueryNodeConfig<B, C> {
 
   /** A comparator for the interpolator map. */
   protected static MapComparator<TypeToken<?>, QueryInterpolatorConfig> INTERPOLATOR_CMP
@@ -52,7 +50,8 @@ public abstract class BaseQueryNodeConfigWithInterpolators extends
         !builder.interpolatorConfigs.isEmpty()) {
       interpolator_configs = Maps.newHashMapWithExpectedSize(
           builder.interpolatorConfigs.size());
-      for (final QueryInterpolatorConfig config : builder.interpolatorConfigs) {
+      List<QueryInterpolatorConfig> interpolatorConfigs = builder.interpolatorConfigs;
+      for (final QueryInterpolatorConfig config : interpolatorConfigs) {
         if (interpolator_configs.containsKey(config.type())) {
           throw new IllegalArgumentException("Already have an "
               + "interpolator configuration for: " + config.type());
@@ -83,8 +82,8 @@ public abstract class BaseQueryNodeConfigWithInterpolators extends
     return interpolator_configs == null ? null :
       interpolator_configs.get(type);
   }
-  
-  public static abstract class Builder extends BaseQueryNodeConfig.Builder {
+
+  public static abstract class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfigWithInterpolators> extends BaseQueryNodeConfig.Builder<B, C> {
     @JsonProperty
     protected List<QueryInterpolatorConfig> interpolatorConfigs;
     
@@ -93,10 +92,10 @@ public abstract class BaseQueryNodeConfigWithInterpolators extends
      * replacing any existing list.
      * @return The builder.
      */
-    public Builder setInterpolatorConfigs(
+    public B setInterpolatorConfigs(
           final List<QueryInterpolatorConfig> interpolator_configs) {
       this.interpolatorConfigs = interpolator_configs;
-      return this;
+      return self();
     }
     
     /**
@@ -104,7 +103,7 @@ public abstract class BaseQueryNodeConfigWithInterpolators extends
      * add to the list (does not replace).
      * @return The builder.
      */
-    public Builder addInterpolatorConfig(
+    public B addInterpolatorConfig(
           final QueryInterpolatorConfig interpolator_config) {
       if (interpolator_config == null) {
         throw new IllegalArgumentException("Config cannot be null.");
@@ -113,11 +112,9 @@ public abstract class BaseQueryNodeConfigWithInterpolators extends
         interpolatorConfigs = Lists.newArrayList();
       }
       interpolatorConfigs.add(interpolator_config);
-      return this;
+      return self();
     }
     
-    /** @return A config object or an exception if the config failed. */
-    public abstract QueryNodeConfig build();
   }
   
 }

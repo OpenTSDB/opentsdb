@@ -52,7 +52,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class HACluster extends AbstractQueryNode {
+public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource{
   private static final Logger LOG = LoggerFactory.getLogger(HACluster.class);
   
   /** The config. */
@@ -208,6 +208,7 @@ public class HACluster extends AbstractQueryNode {
   public Deferred<Void> initialize(final Span span) {
     super.initialize(span);
     results = Maps.newHashMapWithExpectedSize(downstream_sources.size());
+    Collection<TimeSeriesDataSource> downstream_sources = this.downstream_sources;
     for (final TimeSeriesDataSource source : downstream_sources) {
       results.put(source.config().getId(), null);
     }
@@ -216,6 +217,15 @@ public class HACluster extends AbstractQueryNode {
           "Missing downstream sources."));
     }
     return INITIALIZED;
+  }
+
+  @Override
+  public void fetchNext(Span span) {
+  }
+
+  @Override
+  public String[] setIntervals() {
+    return new String[0];
   }
 
   /** A timeout class that can generate empty results and trigger sending
@@ -261,7 +271,8 @@ public class HACluster extends AbstractQueryNode {
         if (entry.getValue() != null) {
           continue;
         }
-        
+
+        Collection<QueryNode> downstream_sources = HACluster.this.downstream_sources;
         for (final QueryNode down : downstream_sources) {
           if (down.config().getId().equals(entry.getKey())) {
             results.put(entry.getKey(), new EmptyResult(good_result, down));
@@ -314,6 +325,7 @@ public class HACluster extends AbstractQueryNode {
         } else {
           // we need to send an empty result with the actual downstream 
           // node....
+          Collection<QueryNode> downstream_sources = this.downstream_sources;
           for (final QueryNode node : downstream_sources) {
             final QueryResult cluster_result = new WrappedResult(
                 new EmptyResult(good_result, node));

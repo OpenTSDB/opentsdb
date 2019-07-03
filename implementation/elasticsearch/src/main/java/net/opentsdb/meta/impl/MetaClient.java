@@ -12,18 +12,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.meta;
-
-import java.util.List;
-import java.util.Map;
-
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchRequestBuilder;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+package net.opentsdb.meta.impl;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 
@@ -32,19 +25,22 @@ import net.opentsdb.stats.Span;
  *
  * @since 3.0
  */
-public interface ESClient {
+public interface MetaClient<Q extends MetaQuery, R extends MetaResponse> {
 
   /**
-   * Executes the given query against a single or multiple clusters and
-   * returns the results in a list, one per cluster.
+   * Executes the given query against a single or multiple clusters and returns the results in a
+   * list, one per cluster.
+   *
    * @param query The query to execute.
    * @param context The non-null query pipeline context.
    * @param span An optional tracing span.
-   * @return A deferred resolving to a list of search response objects
-   * or an exception if the query couldn't execute.
+   * @return A deferred resolving to a list of search response objects or an exception if the query
+   *     couldn't execute.
    */
-  public Deferred<Map<String, MultiSearchResponse>> runQuery(final Map<NamespacedKey, List<SearchSourceBuilder>> query,
-                                                             final QueryPipelineContext context,
-                                                             final Span span);
+  Deferred<R> runQuery(final Q query, final QueryPipelineContext context, final Span span);
+
+  Q buildQuery(BatchMetaQuery batchMetaQuery);
+
+  Q buildMultiGetQuery(BatchMetaQuery batchMetaQuery);
 
 }

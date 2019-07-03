@@ -14,49 +14,30 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
-import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.execution.MetricShardingExecutor.Config.Builder;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
-import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * A caching executor for {@link TimeSeriesQuery}s that will use a 
@@ -108,9 +89,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   
   /**
    * Default ctor.
-   * @param node A non-null graph node to pull the config from.
    */
-  @SuppressWarnings("unchecked")
   public TimeSlicedCachingExecutor() {
     super();
     executor = null;
@@ -185,7 +164,6 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     
     /**
      * Default ctor
-     * @param context The query context.
      * @param query The query itself.
      * @param upstream_span An optional tracer span.
      */
@@ -628,7 +606,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends BaseQueryNodeConfig {
+  public static class Config extends BaseQueryNodeConfig<Config.Builder, Config> {
     private final String cache_id;
     private final String serdes_id;
     private final String planner_id;
@@ -681,12 +659,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       return bypass;
     }
     
-    @Override
-    public Builder toBuilder() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
+
     @Override
     public boolean pushDown() {
       return false;
@@ -696,7 +669,18 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     public boolean joins() {
       return false;
     }
-    
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder().setCacheId(cache_id)
+          .setSerdesId(serdes_id)
+          .setPlannerId(planner_id)
+          .setKeyGeneratorId(key_generator_id)
+          .setExpiration(expiration)
+          .setBypass(bypass)
+          .setId(id);
+    }
+
     @Override
     public String getId() {
       // TODO Auto-generated method stub
@@ -740,33 +724,29 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public int compareTo(final QueryNodeConfig config) {
+    public int compareTo(final Config config) {
       return ComparisonChain.start()
           .compare(id, config.getId(), Ordering.natural().nullsFirst())
-          .compare(cache_id, ((Config) config).cache_id, 
+          .compare(cache_id, (config).cache_id,
               Ordering.natural().nullsFirst())
-          .compare(serdes_id, ((Config) config).serdes_id, 
+          .compare(serdes_id, (config).serdes_id,
               Ordering.natural().nullsFirst())
-          .compare(planner_id, ((Config) config).planner_id, 
+          .compare(planner_id, (config).planner_id,
               Ordering.natural().nullsFirst())
-          .compare(key_generator_id, ((Config) config).key_generator_id, 
+          .compare(key_generator_id, (config).key_generator_id,
               Ordering.natural().nullsFirst())
-          .compare(expiration, ((Config) config).expiration)
-          .compareTrueFirst(bypass, ((Config) config).bypass)
+          .compare(expiration, (config).expiration)
+          .compareTrueFirst(bypass, (config).bypass)
           .result();
     }
-    
+
     /** @return A new builder. */
     public static Builder newBuilder() {
       return new Builder();
     }
-    
-    /**
-     * @param config A non-null builder to pull from.
-     * @return A cloned builder.
-     */
-    public static Builder newBuilder(final Config config) {
-      return (Builder) new Builder()
+
+    public static void cloneBuilder(Config config, Builder builder) {
+      builder
           .setCacheId(config.cache_id)
           .setSerdesId(config.serdes_id)
           .setPlannerId(config.planner_id)
@@ -776,7 +756,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .setId(config.id);
     }
     
-    public static class Builder extends BaseQueryNodeConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, Config> {
       @JsonProperty
       private String cacheId;
       @JsonProperty
@@ -850,7 +830,11 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       public Config build() {
         return new Config(this);
       }
-      
+
+      @Override
+      public Builder self() {
+        return this;
+      }
     }
   }
   

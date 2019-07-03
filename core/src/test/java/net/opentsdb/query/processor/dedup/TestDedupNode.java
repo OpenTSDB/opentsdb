@@ -111,10 +111,10 @@ public class TestDedupNode {
     Collection<TimeSeries> dedupedTSCollection = dedupedResult.timeSeries();
     assertEquals(1, dedupedTSCollection.size());
     TimeSeries dedupedTs = dedupedTSCollection.iterator().next();
-    Optional<TypedTimeSeriesIterator> optional = 
+    Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         dedupedTs.iterator(NumericType.TYPE);
     assertTrue(optional.isPresent());
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> dedupedIterator = optional.get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> dedupedIterator = optional.get();
     List<TimeSeriesValue<? extends TimeSeriesDataType>> dedupedValues = new ArrayList<>();
     dedupedIterator.forEachRemaining(dedupedValues::add);
 

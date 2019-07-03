@@ -127,7 +127,7 @@ public class SlidingWindow extends AbstractQueryNode {
       }
 
       @Override
-      public Optional<TypedTimeSeriesIterator> iterator(
+      public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
           final TypeToken<? extends TimeSeriesDataType> type) {
         if (!source.types().contains(type)) {
           return Optional.empty();
@@ -145,8 +145,8 @@ public class SlidingWindow extends AbstractQueryNode {
       }
 
       @Override
-      public Collection<TypedTimeSeriesIterator> iterators() {
-        final Collection<TypedTimeSeriesIterator> iterators = 
+      public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+        final Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
             Lists.newArrayListWithExpectedSize(source.types().size());
         
         for (final TypeToken<? extends TimeSeriesDataType> type : source.types()) {
@@ -159,10 +159,10 @@ public class SlidingWindow extends AbstractQueryNode {
                     Lists.newArrayList(source));
             iterators.add(iterator);
           } else {
-            final Optional<TypedTimeSeriesIterator>  optional = 
+            final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>>  optional =
                 source.iterator(type);
             if (optional.isPresent()) {
-              iterators.add((TypedTimeSeriesIterator) optional.get());
+              iterators.add(optional.get());
             }
           }
         }

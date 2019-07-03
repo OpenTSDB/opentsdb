@@ -44,7 +44,7 @@ import net.opentsdb.query.processor.ProcessorFactory;
  * 
  * @since 3.0
  */
-public class Rate extends AbstractQueryNode {
+public class Rate extends AbstractQueryNode<RateConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(Rate.class);
   
   /** The non-null config. */
@@ -61,7 +61,7 @@ public class Rate extends AbstractQueryNode {
   }
   
   @Override
-  public QueryNodeConfig config() {
+  public RateConfig config() {
     return config;
   }
   
@@ -139,7 +139,7 @@ public class Rate extends AbstractQueryNode {
       }
 
       @Override
-      public Optional<TypedTimeSeriesIterator> iterator(
+      public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
           final TypeToken<? extends TimeSeriesDataType> type) {
         if (type == null) {
           throw new IllegalArgumentException("Type cannot be null.");
@@ -157,9 +157,9 @@ public class Rate extends AbstractQueryNode {
       }
       
       @Override
-      public Collection<TypedTimeSeriesIterator> iterators() {
+      public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
         final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
-        final List<TypedTimeSeriesIterator> iterators =
+        final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
             Lists.newArrayListWithCapacity(types.size());
         for (final TypeToken<? extends TimeSeriesDataType> type : types) {
           iterators.add(((ProcessorFactory) Rate.this.factory()).newTypedIterator(

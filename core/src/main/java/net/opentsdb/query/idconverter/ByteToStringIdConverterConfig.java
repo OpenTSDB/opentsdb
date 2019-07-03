@@ -14,18 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
-
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
+
+import java.util.Map;
 
 /**
  * Simple config wherein all we need is the ID and some factories. 
@@ -35,7 +33,7 @@ import net.opentsdb.query.QueryNodeConfig;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = ByteToStringIdConverterConfig.Builder.class)
-public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
+public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStringIdConverterConfig.Builder, ByteToStringIdConverterConfig> {
   
   /** The map of data sources to factories. */
   private Map<String, TimeSeriesDataSourceFactory> data_sources;
@@ -77,12 +75,11 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
 
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
-  public int compareTo(final QueryNodeConfig o) {
+  public int compareTo(final ByteToStringIdConverterConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -112,7 +109,7 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
     return new Builder();
   }
   
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, ByteToStringIdConverterConfig> {
     protected Map<String, TimeSeriesDataSourceFactory> data_sources;
     
     Builder() {
@@ -135,9 +132,13 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public ByteToStringIdConverterConfig build() {
       return new ByteToStringIdConverterConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 }

@@ -126,7 +126,7 @@ public class NumericArrayTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (type == NumericArrayType.TYPE) {
       return Optional.of(new LocalIterator());
@@ -135,8 +135,8 @@ public class NumericArrayTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
-    final List<TypedTimeSeriesIterator> iterators = 
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+    final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithExpectedSize(1);
     iterators.add(new LocalIterator());
     return iterators;

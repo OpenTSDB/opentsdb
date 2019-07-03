@@ -23,6 +23,8 @@ import static org.junit.Assert.fail;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -187,7 +189,7 @@ public class TestNumericMillisecondShard {
     shard.add(1486045871000L, 9866.854);
     shard.add(1486045881000L, -128);
     
-    Iterator<TimeSeriesValue<?>> iterator = shard.iterator();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = shard.iterator();
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());

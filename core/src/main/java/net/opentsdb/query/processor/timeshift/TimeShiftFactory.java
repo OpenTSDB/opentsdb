@@ -21,6 +21,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
+
+import java.sql.Time;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.0
  */
-public class TimeShiftFactory extends BaseQueryNodeFactory {
+public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, TimeShift> {
   public static final String TYPE = "Timeshift";
   private static final Logger LOG = LoggerFactory.getLogger(TimeShiftFactory.class);
 
@@ -73,18 +75,18 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public TimeShift newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException();
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
+  public TimeShift newNode(final QueryPipelineContext context,
+                           final TimeShiftConfig config) {
     return new TimeShift(this, context, config);
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public TimeShiftConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     Builder builder = new Builder();
@@ -111,7 +113,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final TimeShiftConfig config,
                          final QueryPlanner plan) {
     // no-op
   }
@@ -119,10 +121,10 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<TimeShift, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final TimeShift node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -131,7 +133,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final TimeShift node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -140,7 +142,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
 
@@ -149,10 +151,10 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<TimeShift, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final TimeShift node,
         final QueryResult result,
         final Collection<TimeSeries> sources,
         final TypeToken<? extends TimeSeriesDataType> type) {
@@ -161,7 +163,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final TimeShift node,
         final QueryResult result,
         final Map<String, TimeSeries> sources,
         final TypeToken<? extends TimeSeriesDataType> type) {
@@ -170,7 +172,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
 

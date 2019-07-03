@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.concurrent.FutureCallback;
@@ -53,8 +55,8 @@ import net.opentsdb.utils.SharedHttpClient;
  * 
  * @since 3.0
  */
-public abstract class BaseHttpExecutorFactory implements 
-    TimeSeriesDataSourceFactory, TimerTask {
+public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConfig, N extends TimeSeriesDataSource> implements
+    TimeSeriesDataSourceFactory<C, N>, TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseHttpExecutorFactory.class);
   

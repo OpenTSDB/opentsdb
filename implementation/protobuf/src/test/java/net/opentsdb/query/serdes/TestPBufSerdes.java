@@ -36,6 +36,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Iterator;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -316,8 +317,8 @@ public class TestPBufSerdes {
   void validateFoo(final TimeSeries series) {
     assertEquals("metric.foo", ((TimeSeriesStringId) series.id()).metric());
     assertEquals("web01", ((TimeSeriesStringId) series.id()).tags().get("host"));
-    
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = 
+
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it =
         series.iterator(NumericType.TYPE).get();
     assertTrue(it.hasNext());
     
@@ -352,8 +353,8 @@ public class TestPBufSerdes {
     assertEquals("metric.bar", ((TimeSeriesStringId) series.id()).metric());
     assertEquals("web02", ((TimeSeriesStringId) series.id()).tags().get("host"));
     assertEquals("phx", ((TimeSeriesStringId) series.id()).tags().get("dc"));
-    
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = 
+
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it =
         series.iterator(NumericType.TYPE).get();
     assertTrue(it.hasNext());
     

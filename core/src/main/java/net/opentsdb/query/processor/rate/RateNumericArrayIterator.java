@@ -14,14 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import java.time.temporal.ChronoUnit;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -32,6 +25,11 @@ import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
+
+import java.time.temporal.ChronoUnit;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Iterator that generates rates from a sequence of adjacent data points.
@@ -47,7 +45,7 @@ public class RateNumericArrayIterator implements QueryIterator,
   private static final long TO_NANOS = 1000000000L;
   
   /** A sequence of data points to compute rates. */
-  private final Iterator<TimeSeriesValue<?>> source;
+  private final TypedTimeSeriesIterator<? extends TimeSeriesDataType> source;
   
   /** Options for calculating rates. */
   private final RateConfig config;
@@ -97,7 +95,7 @@ public class RateNumericArrayIterator implements QueryIterator,
     }
     this.result = result;
     config = (RateConfig) node.config();
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();

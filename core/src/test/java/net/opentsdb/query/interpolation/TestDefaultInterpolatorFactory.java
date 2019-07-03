@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import java.util.Iterator;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Test;
 
 import net.opentsdb.core.TSDB;
@@ -52,12 +53,12 @@ public class TestDefaultInterpolatorFactory {
     when(time_series.iterator(NumericSummaryType.TYPE)).thenReturn(Optional.empty());
     assertTrue(factory.newInterpolator(NumericType.TYPE, time_series, 
         mock(NumericInterpolatorConfig.class)) instanceof NumericInterpolator);
-    assertTrue(factory.newInterpolator(NumericType.TYPE, mock(Iterator.class), 
+    assertTrue(factory.newInterpolator(NumericType.TYPE, mock(TypedTimeSeriesIterator.class),
         mock(NumericInterpolatorConfig.class)) instanceof NumericInterpolator);
     
     assertTrue(factory.newInterpolator(NumericSummaryType.TYPE, time_series, 
         mock(NumericSummaryInterpolatorConfig.class)) instanceof NumericSummaryInterpolator);
-    assertTrue(factory.newInterpolator(NumericSummaryType.TYPE, mock(Iterator.class), 
+    assertTrue(factory.newInterpolator(NumericSummaryType.TYPE, mock(TypedTimeSeriesIterator.class),
         mock(NumericSummaryInterpolatorConfig.class)) instanceof NumericSummaryInterpolator);
     
     assertNull(factory.newInterpolator(AnnotationType.TYPE, time_series, 

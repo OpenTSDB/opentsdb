@@ -34,7 +34,7 @@ import net.opentsdb.configuration.Configuration;
  * @since 3.0
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
+public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<B, C>, C extends BaseQueryNodeConfig> implements QueryNodeConfig<B, C> {
 
   /** A unique name for this config. */
   protected final String id;
@@ -181,16 +181,21 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
     }
     return overrides == null ? false : overrides.containsKey(key);
   }
-  
+
   @Override
   public abstract boolean equals(final Object o);
   
   @Override
   public abstract int hashCode();
-  
+
+  public void toBuilder(C config, B builder) {
+    builder.setId(id).setType(type).setSources(Lists.newArrayList(sources)).setOverrides(overrides);
+  }
+
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static abstract class Builder implements QueryNodeConfig.Builder {
+  public abstract static class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfig>
+      implements QueryNodeConfig.Builder<B, C> {
 
     @JsonProperty
     protected String id;
@@ -200,23 +205,23 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
     private List<String> sources;
     @JsonProperty
     protected Map<String, String> overrides;
-    
+
     /**
      * @param id An ID for this builder.
      * @return The builder.
      */
-    public Builder setId(final String id) {
+    public B setId(final String id) {
       this.id = id;
-      return this;
+      return self();
     }
-    
+
     /**
      * @param type The class of the implementation.
      * @return The builder.
      */
-    public Builder setType(final String type) {
+    public B setType(final String type) {
       this.type = type;
-      return this;
+      return self();
     }
     
     /**
@@ -224,30 +229,30 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
      * of a nodes in the graph.
      * @return The builder.
      */
-    public Builder setSources(final List<String> sources) {
+    public B setSources(final List<String> sources) {
       this.sources = sources;
-      return this;
+      return self();
     }
     
     /**
      * @param source A source to pull from for this node.
      * @return The builder.
      */
-    public Builder addSource(final String source) {
+    public B addSource(final String source) {
       if (sources == null) {
         sources = Lists.newArrayListWithExpectedSize(1);
       }
       sources.add(source);
-      return this;
+      return self();
     }
     
     /**
      * @param overrides An override map to replace the existing map.
      * @return The builder.
      */
-    public Builder setOverrides(final Map<String, String> overrides) {
+    public B setOverrides(final Map<String, String> overrides) {
       this.overrides = overrides;
-      return this;
+      return self();
     }
     
     /**
@@ -255,15 +260,13 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
      * @param value A value to store, overwriting existing values.
      * @return The builder.
      */
-    public Builder addOverride(final String key, final String value) {
+    public B addOverride(final String key, final String value) {
       if (overrides == null) {
         overrides = Maps.newHashMap();
       }
       overrides.put(key, value);
-      return this;
+      return self();
     }
-    
-    /** @return A config object or an exception if the config failed. */
-    public abstract QueryNodeConfig build();
+
   }
 }

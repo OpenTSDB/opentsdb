@@ -61,7 +61,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param result A non- null result.
    * @param query A non-null query.
    */
-  NamespacedAggregatedDocumentResult(final MetaResult result,
+  public NamespacedAggregatedDocumentResult(final MetaResult result,
                                      final BatchMetaQuery query,
                                      final MetaQuery meta_query) {
     this.result = result;
@@ -73,7 +73,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     this.meta_query = meta_query;
   }
 
-  NamespacedAggregatedDocumentResult(final MetaResult result,
+  public NamespacedAggregatedDocumentResult(final MetaResult result,
                                      final Throwable throwable,
                                      final BatchMetaQuery query) {
     this.result = result;
@@ -175,11 +175,15 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     return sorted;
   }
 
+  public BatchMetaQuery getQuery() {
+    return query;
+  }
+
   /**
    * Package private way to add a namespace.
    * @param namespace A non-null namespace.
    */
-  void addNamespace(final String namespace) {
+  public void addNamespace(final String namespace) {
     if (namespaces == null) {
       namespaces = Sets.newHashSet();
     }
@@ -187,10 +191,22 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   }
 
   /**
+   * Package private way to add a namespace.
+   *
+   * @param namespaces A non-null namespace.
+   */
+  public void addNamespace(final Collection<String> namespaces) {
+    if (this.namespaces == null) {
+      this.namespaces = Sets.newHashSet();
+    }
+    this.namespaces.addAll(namespaces);
+  }
+
+  /**
    * Adds the timeseries and filters on the metric.
    * @param id A non-null time series string id.
    */
-  void addTimeSeries(final TimeSeriesId id, final MetaQuery meta_query, final
+  public void addTimeSeries(final TimeSeriesId id, final MetaQuery meta_query, final
    String metric_only) {
     if (meta_query != null &&
         !matchMetric(metric_only, false, meta_query.filter())) {
@@ -206,7 +222,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * Adds the given metric, filtering to make sure it matches.
    * @param metric A non-null metric.
    */
-  void addMetric(final UniqueKeyPair<String, Long> metric) {
+  public void addMetric(final UniqueKeyPair<String, Long> metric) {
     if (metrics == null) {
       metrics = Maps.newHashMap();
     }
@@ -224,7 +240,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param key A non-null key.
    * @param values A non-null (possibly empty) list.
    */
-  void addTags(final UniqueKeyPair<String, Long> key, final List<UniqueKeyPair<String, Long>>
+  public void addTags(final UniqueKeyPair<String, Long> key, final List<UniqueKeyPair<String, Long>>
           values) {
     if (tags == null) {
       tags = Maps.newHashMap();
@@ -233,11 +249,22 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   }
 
   /**
+   * Adds the list of tag values to a tag key identified by aggregation field for {@link
+   * BatchMetaQuery}.
+   *
+   * @param values A non-null (possibly empty) list.
+   * @See {@link BatchMetaQuery#aggregationField()}
+   */
+  public void addTags(final List<UniqueKeyPair<String, Long>> values) {
+    addTags(new UniqueKeyPair(query.aggregationField(), 1), values);
+  }
+
+  /**
    * Adds the given tag to the proper list.
    * @param key
    * @param value
    */
-  void addTag(final  UniqueKeyPair<String, Long> key, final UniqueKeyPair<String, Long> value) {
+  public void addTag(final  UniqueKeyPair<String, Long> key, final UniqueKeyPair<String, Long> value) {
     if (tags == null) {
       tags = Maps.newTreeMap(query.order() == Order.ASCENDING ? UniqueKeyPair_CMP : REVERSE_UniqueKeyPair_CMP);
     }
@@ -253,7 +280,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * Adds a tag value or key to the list.
    * @param value A non-null UniqueKeyPair.
    */
-  void addTagKeyOrValue(final UniqueKeyPair<String, Long> value) {
+  public void addTagKeyOrValue(final UniqueKeyPair<String, Long> value) {
     if (tag_keys_or_values == null) {
       tag_keys_or_values = Maps.newHashMap();
     }
@@ -271,7 +298,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * Sets the total hit count.
    * @param total_hits The total hit count.
    */
-  void setTotalHits(final long total_hits) {
+  public void setTotalHits(final long total_hits) {
     this.total_hits = total_hits;
   }
 

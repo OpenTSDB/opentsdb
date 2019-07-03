@@ -14,6 +14,31 @@
 // limitations under the License.
 package net.opentsdb.query.processor;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.annotation.AnnotationType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryIteratorFactory;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.plan.QueryPlanner;
+import org.junit.Test;
+
+import java.util.Collection;
+import java.util.Map;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -23,33 +48,6 @@ import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import java.util.Collection;
-import java.util.Map;
-
-import net.opentsdb.data.TypedTimeSeriesIterator;
-
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.types.annotation.AnnotationType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.plan.QueryPlanner;
 
 public class TestBaseQueryNodeFactory {
 
@@ -104,7 +102,7 @@ public class TestBaseQueryNodeFactory {
     when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), 
         anyCollection(), any(TypeToken.class)))
       .thenReturn(iterator);
-    QueryNode node = mock(QueryNode.class);
+    AbstractQueryNode node = mock(AbstractQueryNode.class);
     MockNodeFactory factory = new MockNodeFactory();
     
     assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,
@@ -149,7 +147,7 @@ public class TestBaseQueryNodeFactory {
     when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), 
         anyMap(), any(TypeToken.class)))
       .thenReturn(iterator);
-    QueryNode node = mock(QueryNode.class);
+    AbstractQueryNode node = mock(AbstractQueryNode.class);
     MockNodeFactory factory = new MockNodeFactory();
     
     assertNull(factory.newTypedIterator(NumericType.TYPE, node, null,sources));
@@ -181,24 +179,24 @@ public class TestBaseQueryNodeFactory {
   }
   
   /** Mock class to test the abstract. */
-  class MockNodeFactory extends BaseQueryNodeFactory {
+  class MockNodeFactory extends BaseQueryNodeFactory<BaseQueryNodeConfig, AbstractQueryNode> {
 
     public static final String TYPE = "MockNodeFactory";
     
     @Override
-    public QueryNode newNode(final QueryPipelineContext context,
-                             final QueryNodeConfig config) {
-      return mock(QueryNode.class);
+    public AbstractQueryNode newNode(final QueryPipelineContext context,
+                             final BaseQueryNodeConfig config) {
+      return mock(AbstractQueryNode.class);
     }
 
     @Override
-    public QueryNode newNode(QueryPipelineContext context) {
+    public AbstractQueryNode newNode(QueryPipelineContext context) {
       // TODO Auto-generated method stub
       return null;
     }
 
     @Override
-    public QueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
+    public BaseQueryNodeConfig parseConfig(ObjectMapper mapper, TSDB tsdb,
         JsonNode node) {
       return null;
     }
@@ -206,7 +204,7 @@ public class TestBaseQueryNodeFactory {
     @Override
     public void setupGraph(
         final QueryPipelineContext context, 
-        final QueryNodeConfig config, 
+        final BaseQueryNodeConfig config,
         final QueryPlanner plan) {
       // TODO Auto-generated method stub
     }
