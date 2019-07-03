@@ -19,11 +19,12 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.NamespacedKey;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 
 import java.util.Map;
 
 public interface MetaResponse {
 
-  Map<NamespacedKey, MetaDataStorageResult> parse(BatchMetaQuery batchMetaQuery, TSDB tsdb, Span span);
+  Map<NamespacedKey, MetaDataStorageResult> parse(BatchMetaQuery batchMetaQuery, TSDB tsdb, QueryPipelineContext context, boolean isMultiGet, Span span);
 }

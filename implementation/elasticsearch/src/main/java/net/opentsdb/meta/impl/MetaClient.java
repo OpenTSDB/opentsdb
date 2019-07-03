@@ -14,8 +14,11 @@
 // limitations under the License.
 package net.opentsdb.meta.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
@@ -43,4 +46,5 @@ public interface MetaClient<Q extends MetaQuery, R extends MetaResponse> {
 
   Q buildMultiGetQuery(BatchMetaQuery batchMetaQuery);
 
+  net.opentsdb.meta.MetaQuery parse(TSDB tsdb, ObjectMapper mapper, JsonNode jsonNode, BatchMetaQuery.QueryType type);
 }

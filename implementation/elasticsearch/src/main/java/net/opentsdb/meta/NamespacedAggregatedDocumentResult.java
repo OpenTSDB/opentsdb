@@ -256,7 +256,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @See {@link BatchMetaQuery#aggregationField()}
    */
   public void addTags(final List<UniqueKeyPair<String, Long>> values) {
-    addTags(new UniqueKeyPair(query.aggregationField(), 1), values);
+    addTags(new UniqueKeyPair(query.aggregationField(), 1l), values);
   }
 
   /**

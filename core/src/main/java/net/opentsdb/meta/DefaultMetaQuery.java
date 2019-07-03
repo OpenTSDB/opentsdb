@@ -129,6 +129,5 @@ public class DefaultMetaQuery implements MetaQuery {
       builder.setFilter((factory.parse(tsdb, mapper, n)));
     }
     return builder;
-
   }
 }

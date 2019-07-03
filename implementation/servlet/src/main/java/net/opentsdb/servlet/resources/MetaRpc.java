@@ -161,10 +161,14 @@ public class MetaRpc {
         }
         
         try {
+          String source = query.source();
+          MetaDataStorageSchema plugin =
+              tsdb.getRegistry().getPlugin(MetaDataStorageSchema.class, source);
+          if (null == plugin) {
+            throw new IllegalArgumentException("Plugin not found for source: " + source);
+          }
           final Map<NamespacedKey, MetaDataStorageResult> metaDataStorageResults =
-                  tsdb.getRegistry().getDefaultPlugin(
-                  MetaDataStorageSchema.class).runQuery(query, query_span)
-                  .join();
+              plugin.runQuery(query, query_span).join();
 
           response.setContentType(MediaType.APPLICATION_JSON);
           ByteArrayOutputStream stream = new ByteArrayOutputStream();
