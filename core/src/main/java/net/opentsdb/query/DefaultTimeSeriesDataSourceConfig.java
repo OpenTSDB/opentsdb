@@ -62,10 +62,11 @@ public class DefaultTimeSeriesDataSourceConfig
   }
 
   public static void setupTimeShift(
-      final TimeSeriesDataSourceConfig config, final QueryPlanner planner) {
+      final TimeSeriesDataSourceConfig<DefaultTimeSeriesDataSourceConfig.Builder, DefaultTimeSeriesDataSourceConfig> config,
+      final QueryPlanner planner) {
+
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
     final BaseQueryNodeConfig shift_config =
-        (BaseQueryNodeConfig)
             TimeShiftConfig.newBuilder()
                 .setTimeshiftInterval(config.getTimeShiftInterval())
                 .setId(config.getId() + "-timeShift")
@@ -86,10 +87,8 @@ public class DefaultTimeSeriesDataSourceConfig
 
     String shift_id = config.timeShifts().getValue() + "-timeShift";
     final Pair<Boolean, TemporalAmount> amounts = config.timeShifts();
-    QueryNodeConfig.Builder rebuilt_builder =
-        ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-            .setTimeShifts(amounts)
-            .setId(shift_id);
+    TimeSeriesDataSourceConfig.Builder rebuilt_builder =
+        config.toBuilder().setTimeShifts(amounts).setId(shift_id);
     rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
     ((BaseTimeSeriesDataSourceConfig.Builder) rebuilt_builder).setHasBeenSetup(true);
     QueryNodeConfig rebuilt = rebuilt_builder.build();
@@ -117,7 +116,6 @@ public class DefaultTimeSeriesDataSourceConfig
 
     final Set<QueryNodeConfig> shift_predecessors = planner.configGraph().predecessors(merger);
     final TimeShiftConfig shift_config =
-        (TimeShiftConfig)
             TimeShiftConfig.newBuilder()
                 .setTimeshiftInterval(config.getTimeShiftInterval())
                 .setId(merger.getId() + "-timeShift")
@@ -173,12 +171,12 @@ public class DefaultTimeSeriesDataSourceConfig
       // for the shift to happen properly we need to rename the shift node and
       // send that to the query target.
       final Pair<Boolean, TemporalAmount> amounts = shifts;
-      QueryNodeConfig.Builder shift_builder =
-          ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-              .setTimeShifts(amounts)
-              .setId(timeshift_id);
+      TimeSeriesDataSourceConfig<Builder, DefaultTimeSeriesDataSourceConfig> tsDataSourceConfig =
+          (TimeSeriesDataSourceConfig<Builder, DefaultTimeSeriesDataSourceConfig>) config;
+      TimeSeriesDataSourceConfig.Builder shift_builder =
+          tsDataSourceConfig.toBuilder().setTimeShifts(amounts).setId(timeshift_id);
 
-      rebuildPushDownNodesForTimeShift(config, shift_builder, timeshift_id);
+      rebuildPushDownNodesForTimeShift(tsDataSourceConfig, shift_builder, timeshift_id);
       shift = shift_builder.build();
     } else {
       shift = config.toBuilder().setId(timeshift_id).build();
@@ -201,8 +199,8 @@ public class DefaultTimeSeriesDataSourceConfig
    * @param timeshift_id the timeshift id
    */
   protected static void rebuildPushDownNodesForTimeShift(
-      QueryNodeConfig original,
-      QueryNodeConfig.Builder time_shift_config_builder,
+      TimeSeriesDataSourceConfig<Builder, DefaultTimeSeriesDataSourceConfig> original,
+      TimeSeriesDataSourceConfig.Builder time_shift_config_builder,
       String timeshift_id) {
     List<QueryNodeConfig> pushdowns = (original).getPushDownNodes();
     if (!pushdowns.isEmpty()) {

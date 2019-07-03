@@ -199,11 +199,6 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
   }
 
   @Override
-  public List<QueryNodeConfig> getPushDownNodes() {
-    return null;
-  }
-
-  @Override
   public boolean joins() {
     return false;
   }
@@ -509,16 +504,6 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
       return this;
     }
 
-    @Override
-    public Builder setPushDownNodes(List<QueryNodeConfig> push_down_nodes) {
-      return this;
-    }
-
-    @Override
-    public Builder addPushDownNode(QueryNodeConfig node) {
-      return this;
-    }
-    
     public RateOptions build() {
       return new RateOptions(this);
     }

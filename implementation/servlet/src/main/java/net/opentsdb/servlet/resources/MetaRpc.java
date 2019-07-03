@@ -100,7 +100,7 @@ public class MetaRpc {
         // initiate the tracer
         final Trace trace;
         final Span query_span;
-        final Tracer tracer = (Tracer) tsdb.getRegistry().getDefaultPlugin(Tracer.class);
+        final Tracer tracer = tsdb.getRegistry().getDefaultPlugin(Tracer.class);
         if (tracer != null) {
             trace = tracer.newTrace(true, true);
             query_span = trace.newSpanWithThread(this.getClass().getSimpleName())

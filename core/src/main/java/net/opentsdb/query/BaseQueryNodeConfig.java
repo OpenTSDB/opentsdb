@@ -183,11 +183,6 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   }
 
   @Override
-  public List<QueryNodeConfig> getPushDownNodes() {
-    return null;
-  }
-
-  @Override
   public abstract boolean equals(final Object o);
   
   @Override
@@ -273,14 +268,5 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
       return self();
     }
 
-    @Override
-    public B setPushDownNodes(List<QueryNodeConfig> push_down_nodes) {
-      return self();
-    }
-
-    @Override
-    public B addPushDownNode(QueryNodeConfig node) {
-      return self();
-    }
   }
 }

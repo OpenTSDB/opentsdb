@@ -62,6 +62,9 @@ public interface TimeSeriesDataSourceConfig<
   
   /** @return An optional list of rollup intervals as durations. */
   public List<String> getRollupIntervals();
+
+  /** @return An optional list of push down nodes. May be null. */
+  List<QueryNodeConfig> getPushDownNodes();
   
   /** @return An optional pre-query start time padding string as a duration. */
   public String getPrePadding();
@@ -109,6 +112,10 @@ public interface TimeSeriesDataSourceConfig<
     B setRollupIntervals(final List<String> rollup_intervals);
     
     B addRollupInterval(final String rollup_interval);
+
+    B addPushDownNode(final QueryNodeConfig node);
+
+    B setPushDownNodes(final List<QueryNodeConfig> push_down_nodes);
     
     B setPrePadding(final String pre_padding);
     

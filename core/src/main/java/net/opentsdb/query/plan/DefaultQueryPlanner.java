@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -247,7 +248,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
           
           if (!push_downs.isEmpty()) {
             // now dump the push downs into this node.
-            QueryNodeConfig new_config = node.toBuilder().setPushDownNodes(push_downs).build();
+            TimeSeriesDataSourceConfig<
+                    DefaultTimeSeriesDataSourceConfig.Builder, DefaultTimeSeriesDataSourceConfig>
+                tsDataSourceconfig = (TimeSeriesDataSourceConfig) node;
+            DefaultTimeSeriesDataSourceConfig new_config =
+                tsDataSourceconfig.toBuilder().setPushDownNodes(push_downs).build();
             replace(node, new_config);
           }
         }
@@ -708,11 +713,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
     public boolean pushDown() {
       // TODO Auto-generated method stub
       return false;
-    }
-
-    @Override
-    public List<QueryNodeConfig> getPushDownNodes() {
-      return null;
     }
 
     @Override

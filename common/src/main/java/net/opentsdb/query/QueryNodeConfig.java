@@ -55,9 +55,6 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
    * the query source. */
   boolean pushDown();
 
-  /** @return An optional list of push down nodes. May be null. */
-  List<QueryNodeConfig> getPushDownNodes();
-  
   /** @return Whether or not this type of node joins results. E.g. an
    * binary expression node will take two results from downstream and 
    * combine them into one so this would be true, vs. a group by node
@@ -115,6 +112,10 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
    */
   boolean hasKey(final String key);
 
+  /**
+   * Create a builder from the config
+   * @return
+   */
   B toBuilder();
 
   /**
@@ -161,15 +162,24 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
      */
     B addOverride(final String key, final String value);
 
-    B setPushDownNodes(final List<QueryNodeConfig> push_down_nodes);
-
-    B addPushDownNode(final QueryNodeConfig node);
-  
     /** @return The non-null config instance. */
     C build();
 
+    /**
+     * Concrete subclass builder should implement it and return it's current object.
+     *
+     * <pre>{@code
+     * class Builder implements QueryNodeConfig.Builder {
+     *    @Override
+     *    public Builder self() {
+     *      return this;
+     *    }
+     * }
+     * }</pre>
+     *
+     * @return builder
+     */
     B self();
-
   }
   
 }

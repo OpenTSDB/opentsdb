@@ -607,7 +607,7 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertTrue(( node.config()).getPushDownNodes().isEmpty());
+    assertTrue(((TimeSeriesDataSourceConfig)node.config()).getPushDownNodes().isEmpty());
 
     node = planner.nodeForId("ha_m1_s2");
     assertTrue(node instanceof TimeSeriesDataSource);
@@ -618,8 +618,7 @@ public class TestHAClusterFactory {
     assertEquals(1, ((TimeSeriesDataSourceConfig) node.config()).getPushDownNodes().size());
     assertTrue(((TimeSeriesDataSourceConfig) node.config())
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
-    List<QueryNodeConfig> pushDownNodes = (node.config())
-        .getPushDownNodes();
+    List<QueryNodeConfig> pushDownNodes = ((TimeSeriesDataSourceConfig)node.config()).getPushDownNodes();
     assertEquals("ha_m1_s2", pushDownNodes.get(0).getSources().get(0));
 
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
@@ -692,8 +691,8 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    List<QueryNodeConfig> pushDownNodes = (List<QueryNodeConfig>) (node.config())
-        .getPushDownNodes();
+    List<QueryNodeConfig> pushDownNodes =
+        (List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig) node.config())).getPushDownNodes();
     assertEquals(1, pushDownNodes.size());
     assertTrue(pushDownNodes.get(0) instanceof DownsampleConfig);
     assertEquals("ha_m1_s2", pushDownNodes.get(0).getSources().get(0));
@@ -704,13 +703,13 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertEquals(2, ((List<QueryNodeConfig>) (node.config())
+    assertEquals(2, ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).size());
-    assertTrue(((List<QueryNodeConfig>) (node.config())
+    assertTrue(((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0) instanceof DownsampleConfig);
-    assertTrue(((List<QueryNodeConfig>) (node.config())
+    assertTrue(((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(1) instanceof GroupByConfig);
-    assertEquals("ha_m1_s3", ((List<QueryNodeConfig>) (node.config())
+    assertEquals("ha_m1_s3", ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0).getSources().get(0));
 
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
@@ -783,7 +782,7 @@ public class TestHAClusterFactory {
     assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
 
-    List<QueryNodeConfig> pushDownNodes = (List<QueryNodeConfig>) (node.config())
+    List<QueryNodeConfig> pushDownNodes = (List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes();
     assertEquals(0, pushDownNodes.size());
 
@@ -793,7 +792,7 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    pushDownNodes = node.config().getPushDownNodes();
+    pushDownNodes = ((TimeSeriesDataSourceConfig)node.config()).getPushDownNodes();
     assertEquals(1, pushDownNodes.size());
     assertTrue(pushDownNodes.get(0) instanceof DownsampleConfig);
     assertEquals("ha_m1_s2", pushDownNodes.get(0).getSources().get(0));
@@ -804,13 +803,13 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertEquals(2, ((List<QueryNodeConfig>) (node.config())
+    assertEquals(2, ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).size());
-    assertTrue(((List<QueryNodeConfig>) (node.config())
+    assertTrue(((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0) instanceof DownsampleConfig);
-    assertTrue(((List<QueryNodeConfig>) (node.config())
+    assertTrue(((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(1) instanceof GroupByConfig);
-    assertEquals("ha_m1_s3", ((List<QueryNodeConfig>) (node.config())
+    assertEquals("ha_m1_s3", ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0).getSources().get(0));
 
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
@@ -889,7 +888,7 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    List<QueryNodeConfig> pushDownNodes = (List<QueryNodeConfig>) (node.config())
+    List<QueryNodeConfig> pushDownNodes = (List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes();
     assertEquals(2, pushDownNodes.size());
     assertTrue(pushDownNodes.get(0) instanceof DownsampleConfig);
@@ -902,13 +901,13 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s4", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    assertEquals(2, ((List<QueryNodeConfig>) (node.config())
+    assertEquals(2, ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).size());
-    assertTrue(((List<QueryNodeConfig>) (node.config())
+    assertTrue(((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0) instanceof DownsampleConfig);
-    assertTrue(((List<QueryNodeConfig>) (node.config())
+    assertTrue(((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(1) instanceof GroupByConfig);
-    assertEquals("ha_m1_s4", ((List<QueryNodeConfig>) (node.config())
+    assertEquals("ha_m1_s4", ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0).getSources().get(0));
 
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
@@ -990,7 +989,7 @@ public class TestHAClusterFactory {
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
-    List<QueryNodeConfig> pushDownNodes = (node.config())
+    List<QueryNodeConfig> pushDownNodes = (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes();
     assertEquals(3, pushDownNodes.size());
     assertTrue(pushDownNodes.get(0) instanceof DownsampleConfig);
