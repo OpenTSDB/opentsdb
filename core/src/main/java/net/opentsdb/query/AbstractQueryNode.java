@@ -32,7 +32,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public abstract class AbstractQueryNode<T extends BaseQueryNodeConfig> implements QueryNode<T> {
+public abstract class AbstractQueryNode<T extends QueryNodeConfig> implements QueryNode<T> {
   private static final Logger LOG = 
       LoggerFactory.getLogger(AbstractQueryNode.class);
   
@@ -128,7 +128,7 @@ public abstract class AbstractQueryNode<T extends BaseQueryNodeConfig> implement
   }
   
   /**
-   * Calls {@link #fetchNext(Span)} on all of the downstream nodes.
+   * Calls {@link #fetchDownstream(Span)} on all of the downstream nodes.
    * @param span An optional tracing span.
    */
   protected void fetchDownstream(final Span span) {

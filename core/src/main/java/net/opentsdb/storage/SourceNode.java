@@ -16,6 +16,7 @@ package net.opentsdb.storage;
 
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 
 /**
@@ -23,7 +24,7 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
  * 
  * @since 3.0
  */
-public interface SourceNode extends TimeSeriesDataSource {
+public interface SourceNode<T extends TimeSeriesDataSourceConfig> extends TimeSeriesDataSource<T> {
 
   /**
    * A timestamp representing the current end of a slice of time to stop

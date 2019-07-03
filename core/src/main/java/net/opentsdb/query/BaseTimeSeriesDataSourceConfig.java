@@ -349,6 +349,13 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
     }
     builder.setMetric((MetricFilter) filter);
 
+    n = node.get("types");
+    if (n != null && !n.isNull()) {
+      for (final JsonNode t : n) {
+        builder.addType(t.asText());
+      }
+    }
+
     n = node.get("id");
     if (n == null || Strings.isNullOrEmpty(n.asText())) {
       throw new IllegalArgumentException("ID cannot be null.");

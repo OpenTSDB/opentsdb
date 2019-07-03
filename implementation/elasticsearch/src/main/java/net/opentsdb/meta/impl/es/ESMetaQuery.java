@@ -13,32 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package net.opentsdb.data.types.status;
+package net.opentsdb.meta.impl.es;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.meta.NamespacedKey;
+import net.opentsdb.meta.impl.MetaQuery;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-/**
- * Represents a status
- *
- * @since 3.0
- */
-public interface StatusType extends TimeSeriesDataType<StatusType> {
+import java.util.List;
+import java.util.Map;
 
-  TypeToken<StatusType> TYPE = TypeToken.of(StatusType.class);
+public class ESMetaQuery implements MetaQuery {
 
-  String message();
+  private Map<NamespacedKey, List<SearchSourceBuilder>> query;
 
-  byte statusCode();
+  public ESMetaQuery(final Map<NamespacedKey, List<SearchSourceBuilder>> query) {
+    this.query = query;
+  }
 
-  byte[] statusCodeArray();
-
-  TimeStamp timestamp();
-
-  TimeStamp[] timestampArray();
-
-  byte statusType();
-
-  TimeStamp lastUpdateTime();
+  public Map<NamespacedKey, List<SearchSourceBuilder>> getQuery() {
+    return query;
+  }
 }

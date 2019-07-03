@@ -169,7 +169,7 @@ public class TestTagValueWildcardFilterAndFactory {
         
     try {
       TagValueWildcardFilter.newBuilder()
-        //.setTagKey("host")
+        //.setKey("host")
         .setFilter("ogg*ops*com")
         .build();
       fail("Expected IllegalArgumentException");

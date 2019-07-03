@@ -13,32 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package net.opentsdb.data.types.status;
+package net.opentsdb.meta.impl;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeStamp;
-
-/**
- * Represents a status
- *
- * @since 3.0
- */
-public interface StatusType extends TimeSeriesDataType<StatusType> {
-
-  TypeToken<StatusType> TYPE = TypeToken.of(StatusType.class);
-
-  String message();
-
-  byte statusCode();
-
-  byte[] statusCodeArray();
-
-  TimeStamp timestamp();
-
-  TimeStamp[] timestampArray();
-
-  byte statusType();
-
-  TimeStamp lastUpdateTime();
+public interface MetaQuery {
 }

@@ -14,20 +14,20 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
+import net.opentsdb.meta.impl.MetaClient;
+import net.opentsdb.meta.impl.MetaResponse;
+import net.opentsdb.meta.impl.es.ESClusterClient;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.ChainFilter;
@@ -40,19 +40,16 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagKeyFilter;
 import net.opentsdb.query.filter.TagValueFilter;
 import net.opentsdb.stats.Span;
-import net.opentsdb.utils.UniqueKeyPair;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.base.Strings;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
-import org.elasticsearch.search.aggregations.bucket.nested.InternalNested;
-import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Run the Meta Query on Meta Store with schema and form the results.
@@ -73,10 +70,12 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   public static final String MAX_RESULTS_KEY = "es.query.results.max";
   public static final String TAGS_STRING = "tags";
 
+  private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private TSDB tsdb;
 
   /** The elastic search client to use */
-  private ESClient client;
+  private MetaClient client;
 
   @Override
   public String type() {
@@ -87,7 +86,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
-    client = tsdb.getRegistry().getPlugin(ESClient.class, null);
+    client = tsdb.getRegistry().getPlugin(MetaClient.class, null);
     if (client == null) {
       throw new IllegalStateException("No client found!");
     }
@@ -128,27 +127,6 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     return "3.0.0";
   }
 
-  private int countMetricFilters(final QueryFilter filter, int count) {
-    if (filter instanceof MetricFilter) {
-      count++;
-      return count;
-    } if (filter instanceof ExplicitTagsFilter) {
-      return countMetricFilters(((ExplicitTagsFilter) filter).getFilter(), count);
-    } if (filter instanceof TagKeyFilter) {
-      return count;
-    } if (filter instanceof TagValueFilter) {
-      return count;
-    } if (filter instanceof NotFilter) {
-      return count;
-    }
-    if (filter instanceof ChainFilter) {
-      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-         count = countMetricFilters(sub_filter, count);
-      }
-    }
-    return count;
-  }
-
   protected static int countTagValueFilters(final QueryFilter filter, int count) {
     if (filter instanceof MetricFilter) {
       return count;
@@ -181,206 +159,22 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       child = null;
     }
 
-    Map<NamespacedKey, List<SearchSourceBuilder>> search_source_builder =
-        NamespacedAggregatedDocumentQueryBuilder.newBuilder(query).build();
+    net.opentsdb.meta.impl.MetaQuery metaQuery = client.buildQuery(query);
 
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Running ES Query: " + search_source_builder);
+      try {
+        LOG.trace("Running Meta Query: " + OBJECT_MAPPER.writeValueAsString(metaQuery));
+      } catch (JsonProcessingException e) {
+        LOG.error("Error parsing meta query");
+      }
     }
 
     class ResultCB implements Callback<Map<NamespacedKey, MetaDataStorageResult>,
-            Map<String, MultiSearchResponse>> {
+        MetaResponse> {
 
       @Override
-      public Map<NamespacedKey, MetaDataStorageResult> call(final Map<String,
-              MultiSearchResponse> results) {
-
-        final Map<NamespacedKey, MetaDataStorageResult> final_results = new
-                LinkedHashMap<>();
-        int i = 0;
-        for (MetaQuery meta_query : query.metaQueries()) {
-          long max_hits = 0;
-
-
-          int count = countMetricFilters(meta_query.filter(), 0);
-
-          NamespacedAggregatedDocumentResult result = null;
-          int null_results = 0;
-          for (final Map.Entry<String, MultiSearchResponse> search_response : results.entrySet()) {
-            final MultiSearchResponse.Item[] responses = search_response.getValue().getResponses();
-
-            Set<UniqueKeyPair> tag_keys = null; // will be initialized if we have multiple metricliteral's
-                                                // doing an AND.
-            SearchResponse response = null;
-            if (count == 0) {
-              response = responses[i].getResponse();
-            }
-            for (int k = i; k < i + count; k++) { // we have one query per metric so go through them accordingly
-              response = responses[k].getResponse();
-            }
-              if (response == null) {
-                LOG.warn(
-                    "Null response from " + search_response.getKey() + " for query " + meta_query);
-                tsdb.getStatsCollector().incrementCounter("es.client.query.nullResponse", "colo",
-                    search_response.getKey());
-                null_results++;
-              } else {
-                if (response.getHits().getTotalHits() > max_hits) {
-                  max_hits = response.getHits().getTotalHits();
-                }
-
-                if (LOG.isTraceEnabled()) {
-                  LOG.trace("Got response in " + response.getTookInMillis()
-                      + "ms from " + search_response.getKey());
-                }
-                long startTime = System.currentTimeMillis();
-                switch (query.type()) {
-                  case NAMESPACES:
-                    if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                            NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG) == null) {
-                      break;
-                    }
-                    if (result == null) {
-                      result = parseNamespaces(query, meta_query, response
-                          .getAggregations()
-                          .get(
-                              NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), null);
-                    } else {
-                      parseNamespaces(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), result);
-                    }
-                    break;
-                  case METRICS:
-                    if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                            NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
-                      break;
-                    }
-                    if (result == null) {
-                      result = parseMetrics(query, meta_query, response
-                          .getAggregations().get(
-                              NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), null);
-                    } else {
-                      parseMetrics(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), result);
-                    }
-                    break;
-                  case TAG_KEYS:
-                    if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                            NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG) == null) {
-                      break;
-                    }
-                    if (count > 1) { // we need to do an intersection.
-                      Aggregation aggregation = response
-                          .getAggregations().get(
-                              NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG);
-                      if (tag_keys == null) {
-                        tag_keys=getTagKeysSet(aggregation);
-                      } else {
-                        tag_keys.retainAll(getTagKeysSet(aggregation));
-                      }
-
-                    } else { // just iterate over the buckets and put them in result
-                      if (result == null) {
-                        result = parseTagKeys(query, meta_query, response
-                            .getAggregations().get(
-                                NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), null);
-                      } else {
-                        parseTagKeys(query, meta_query, response.getAggregations().get(
-                            NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), result);
-                      }
-                    }
-                    break;
-                  case TAG_VALUES:
-                    if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                            NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG) == null) {
-                      break;
-                    }
-                    if (result == null) {
-                      result = parseTagValues(query, meta_query, response
-                          .getAggregations().get(
-                              NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), null);
-                    } else {
-                      parseTagValues(query, meta_query, response.getAggregations().get(
-                          NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), result);
-                    }
-                    break;
-                  case TAG_KEYS_AND_VALUES:
-                    if (response.getAggregations() == null ||
-                        response.getAggregations().get(
-                            NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG) == null) {
-                      break;
-                    }
-                    if (result == null) {
-                      result = parseTagKeysAndValues(query, meta_query, response
-                          .getAggregations
-                              ().get(
-                              NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), null);
-                    } else {
-                      parseTagKeysAndValues(query, meta_query, response
-                          .getAggregations().get(
-                              NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), result);
-                    }
-                  case TIMESERIES:
-                    if (result == null) {
-                      result = parseTimeseries(query, meta_query, response, null);
-                    } else {
-                      parseTimeseries(query, meta_query, response, result);
-                    }
-                    break;
-                  default:
-                    final_results
-                        .put(new NamespacedKey(meta_query.namespace(), meta_query.id()), new
-                            NamespacedAggregatedDocumentResult
-                            (MetaResult
-                                .NO_DATA,
-                                query, meta_query));
-                    return final_results;
-                }
-
-                if (LOG.isTraceEnabled()) {
-                  LOG.trace("Time took to parse out results == " + (System
-                      .currentTimeMillis() - startTime) + " ms from " + search_response.getKey());
-                }
-              }
-
-
-
-            if (tag_keys != null) {
-              for (UniqueKeyPair tag : tag_keys) {
-                if (result == null) {
-                  result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                      query, meta_query);
-                }
-                result.addTagKeyOrValue(tag);
-              }
-            }
-          }
-          if (null_results == results.size()) {
-            final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), new
-                  NamespacedAggregatedDocumentResult
-                  (MetaResult
-                      .NO_DATA,
-                      query, meta_query));
-          }
-          if (result == null) {
-            result = new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-                    query, meta_query);
-          }
-          result.setTotalHits(max_hits);
-          final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), result);
-          i = i + count;
-        }
-
-        if (child != null) {
-          child.setSuccessTags()
-                  .setTag("result", final_results.toString())
-                  .finish();
-        }
-        return final_results;
+      public Map<NamespacedKey, MetaDataStorageResult> call(final MetaResponse results) {
+        return results.parse(query, tsdb, child);
       }
 
     }
@@ -404,7 +198,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       }
     }
 
-    return client.runQuery(search_source_builder,
+    return client.runQuery(metaQuery,
         null, child)
             .addCallback(new ResultCB())
             .addErrback(new ErrorCB());
@@ -467,15 +261,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               .setMetaQuery(Lists.newArrayList(meta_query))
               .build();
 
-      Map<NamespacedKey, List<SearchSourceBuilder>> search = NamespacedAggregatedDocumentQueryBuilder
-          .newBuilder(query)
-          .build();
-
-      for (final Map.Entry<NamespacedKey, List<SearchSourceBuilder>> search_entry: search.entrySet()){
-        for (SearchSourceBuilder searchSourceBuilder : search_entry.getValue()) {
-          searchSourceBuilder.size(tsdb.getConfig().getInt(MAX_RESULTS_KEY));
-        }
-      }
+      net.opentsdb.meta.impl.MetaQuery metaQuery = client.buildMultiGetQuery(query);
 
       class ResultCB implements Callback<MetaDataStorageResult, Map<String,
               MultiSearchResponse> > {
@@ -565,10 +351,10 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       }
 
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Running ES Query: " + search.toString());
+        LOG.trace("Running ES Query: " + metaQuery.toString());
       }
 
-      return client.runQuery(search, queryPipelineContext, child)
+      return client.runQuery(metaQuery, queryPipelineContext, child)
           .addCallback(new ResultCB())
           .addErrback(new ErrorCB());
     } catch (Exception e) {
@@ -578,239 +364,6 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       LOG.error("Major booboo", e);
       throw e;
     }
-  }
-
-  NamespacedAggregatedDocumentResult parseNamespaces(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final Aggregation aggregation,
-      NamespacedAggregatedDocumentResult result) {
-    for (final Terms.Bucket bucket : ((StringTerms) aggregation).getBuckets()) {
-      if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                query, meta_query);
-      }
-      result.addNamespace(bucket.getKey());
-    }
-    return result;
-  }
-
-  NamespacedAggregatedDocumentResult parseMetrics(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final Aggregation aggregation,
-      NamespacedAggregatedDocumentResult result) {
-    if (((InternalNested) aggregation).getDocCount() <= 0) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    final Aggregation metrics = ((InternalFilter) ((InternalNested)
-            aggregation)
-            .getAggregations()
-            .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG))
-            .getAggregations()
-            .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_UNIQUE);
-
-    if (metrics == null) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    for (final Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
-      if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                query, meta_query);
-      }
-
-      result.addMetric(new UniqueKeyPair<String, Long>(bucket.getKey(),
-                bucket.getDocCount()));
-    }
-    return result;
-  }
-
-  NamespacedAggregatedDocumentResult parseTagKeys(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final Aggregation aggregation,
-      NamespacedAggregatedDocumentResult result) {
-    if (((InternalNested) aggregation).getDocCount() <= 0) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    final Aggregation tag_keys_filter = ((InternalNested) aggregation).getAggregations()
-        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
-    if (tag_keys_filter == null) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
-            .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
-
-    if (tag_keys == null) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
-      if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                query, meta_query);
-      }
-
-
-      result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
-                bucket.getDocCount()));
-    }
-    return result;
-  }
-
-  Set<UniqueKeyPair> getTagKeysSet(
-      final Aggregation aggregation) {
-    if (((InternalNested) aggregation).getDocCount() <= 0) {
-      return new HashSet<>();
-    }
-
-    final Aggregation tag_keys_filter = ((InternalNested) aggregation).getAggregations()
-        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
-    if (tag_keys_filter == null) {
-      return new HashSet<>();
-    }
-
-    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
-        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
-
-    if (tag_keys == null) {
-      return new HashSet<>();
-    }
-
-    Set<UniqueKeyPair> tag_key = new HashSet<>();
-    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
-      tag_key.add(new UniqueKeyPair<String, Long>(bucket.getKey(),
-          bucket.getDocCount()));
-    }
-    return tag_key;
-  }
-
-
-  NamespacedAggregatedDocumentResult parseTagValues(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final Aggregation aggregation,
-      NamespacedAggregatedDocumentResult result) {
-    if (((InternalNested) aggregation).getDocCount() <= 0) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    final Aggregation metrics = ((InternalNested) aggregation).getAggregations()
-        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_UNIQUE);
-    if (metrics == null) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    for (final Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
-      if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                query, meta_query);
-      }
-
-      result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
-                bucket.getDocCount()));
-    }
-    return result;
-  }
-
-  NamespacedAggregatedDocumentResult parseTagKeysAndValues(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final Aggregation aggregation,
-      NamespacedAggregatedDocumentResult result) {
-    if (((InternalNested) aggregation).getDocCount() <= 0) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    final Aggregation tag_keys_filter = ((InternalNested) aggregation)
-            .getAggregations()
-        .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
-    if (tag_keys_filter == null) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
-            .get
-            (NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
-
-    if (tag_keys == null) {
-      if (result != null) {
-        return result;
-      }
-      return new NamespacedAggregatedDocumentResult(MetaResult.NO_DATA,
-              query, meta_query);
-    }
-
-    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
-      if (result == null) {
-        result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                query, meta_query);
-      }
-      Aggregation sub = bucket.getAggregations()
-          .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_AGG);
-      if (sub == null || ((InternalFilter) sub).getDocCount() < 1) {
-        result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
-                bucket.getDocCount()), null);
-      } else {
-        sub = ((InternalFilter) sub).getAggregations()
-            .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_UNIQUE);
-        if (sub == null) {
-          result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
-              bucket.getDocCount()), null);
-        } else {
-          final List<UniqueKeyPair<String, Long>> tag_values = Lists.newArrayList();
-          for (final Terms.Bucket sub_bucket : ((StringTerms) sub).getBuckets()) {
-            tag_values.add(new UniqueKeyPair<String, Long>(sub_bucket.getKey(),
-                sub_bucket.getDocCount()));
-          }
-          result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
-                  bucket.getDocCount()), tag_values);
-        }
-      }
-
-    }
-    return result;
-  }
-
-  NamespacedAggregatedDocumentResult parseTimeseries(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final SearchResponse response,
-      NamespacedAggregatedDocumentResult result) {
-    return parseTimeseries(query, meta_query, response, null, result);
   }
 
   NamespacedAggregatedDocumentResult parseTimeseries(
