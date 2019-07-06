@@ -21,17 +21,19 @@ import javax.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -107,6 +109,9 @@ public class ServletSink implements QuerySink, SerdesCallback {
     try {
       serdes.serializeComplete(null);
       config.request().setAttribute("DATA", stream);
+      if (context.stats() != null) {
+        context.stats().incrementSerializedDataSize(stream.size());
+      }
 //      try {
 //        // TODO - oh this is sooooo ugly.... *sniff*
 //        config.response().setContentType("application/json");
@@ -244,9 +249,41 @@ public class ServletSink implements QuerySink, SerdesCallback {
   
   void logComplete(final Throwable t) {
     if (config.statsTimer() != null) {
-      config.statsTimer().stop("user", context.authState() != null ? 
-          context.authState().getUser() : "Unkown", "endpoint", 
-          config.request().getRequestURI() /* TODO - trim */);
+      try {
+        // extract a namespace if possible.
+        String namespace = null;
+        for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+          if (config instanceof TimeSeriesDataSourceConfig) {
+            String local_namespace = ((TimeSeriesDataSourceConfig) config).getNamespace();
+            if (Strings.isNullOrEmpty(local_namespace)) {
+              // extract from metric filter.
+              local_namespace = ((TimeSeriesDataSourceConfig) config).getMetric().getMetric();
+              local_namespace = local_namespace.substring(0, local_namespace.indexOf('.'));
+            }
+            
+            if (namespace == null) {
+              namespace = local_namespace;
+            } else {
+              if (!namespace.equals(local_namespace)) {
+                // Different namespaces so we won't use one. 
+                namespace = "MultipleNameSpaces";
+                break;
+              }
+            }
+          }
+        }
+        
+        config.statsTimer().stop("user", context.authState() != null ? 
+            context.authState().getUser() : "Unkown",
+            "namespace", namespace,
+            "endpoint", config.request().getRequestURI() /* TODO - trim */);
+      } catch (Exception e) {
+        LOG.error("Failed to record timer", e);
+      }
+    }
+    
+    if (context.stats() != null) {
+      context.stats().emitStats();
     }
     
     LOG.info("Completing query=" 
@@ -254,12 +291,14 @@ public class ServletSink implements QuerySink, SerdesCallback {
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
       .put("user", context.authState() != null ? context.authState().getPrincipal().getName() : "Unkown")
-      //.put("queryHash", Bytes.byteArrayToString(context.query().buildTimelessHashCode().asBytes()))
       .put("traceId", context.stats().trace() != null ? 
           context.stats().trace().traceId() : "")
       .put("status", Response.Status.OK)
-      //.put("query", JSON.serializeToString(context.query()))
       .put("error", t == null ? "null" : t.toString())
+      .put("statRDS", context.stats() == null ? 0 : context.stats().rawDataSize())
+      .put("statRTS", context.stats() == null ? 0 : context.stats().rawTimeSeriesCount())
+      .put("statSDS", context.stats() == null ? 0 : context.stats().serializedDataSize())
+      .put("statSTS", context.stats() == null ? 0 : context.stats().serializedTimeSeriesCount())
       .build()));
     
     QUERY_LOG.info("Completing query=" 

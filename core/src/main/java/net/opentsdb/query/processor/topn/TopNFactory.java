@@ -32,7 +32,7 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * 
  * @since 3.0
  */
-public class TopNFactory extends BaseQueryNodeFactory {
+public class TopNFactory extends BaseQueryNodeFactory<TopNConfig, TopN> {
 
   public static final String TYPE = "TopN";
   
@@ -64,18 +64,18 @@ public class TopNFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public TopN newNode(final QueryPipelineContext context) {
     return new TopN(this, context, DEFAULT);
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
-    return new TopN(this, context, (TopNConfig) config);
+  public TopN newNode(final QueryPipelineContext context,
+                           final TopNConfig config) {
+    return new TopN(this, context, config);
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public TopNConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     try {
@@ -85,11 +85,5 @@ public class TopNFactory extends BaseQueryNodeFactory {
     }
   }
   
-  @Override
-  public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
-                         final QueryPlanner plan) {
-    // TODO Auto-generated method stub
-  }
-  
+
 }

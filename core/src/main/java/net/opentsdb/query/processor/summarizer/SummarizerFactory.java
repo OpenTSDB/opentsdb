@@ -45,7 +45,7 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * 
  * @since 3.0
  */
-public class SummarizerFactory extends BaseQueryNodeFactory {
+public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Summarizer> {
 
   public static final String TYPE = "Summarizer";
   
@@ -72,22 +72,22 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public Summarizer newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
+  public Summarizer newNode(final QueryPipelineContext context,
+                           final SummarizerConfig config) {
     return new Summarizer(this, context, config);
   }
 
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public SummarizerConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     try {
-      return (QueryNodeConfig) mapper.treeToValue(node, SummarizerConfig.class);
+      return mapper.treeToValue(node, SummarizerConfig.class);
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to parse Json.", e);
     }
@@ -95,7 +95,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
 
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final SummarizerConfig config,
                          final QueryPlanner plan) {
     // we do nothing here.
   }
@@ -103,10 +103,10 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<Summarizer, NumericSummaryType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Summarizer node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -115,7 +115,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Summarizer node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -124,7 +124,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
         

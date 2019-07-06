@@ -25,6 +25,7 @@ import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 
 /**
  * A factory interface for generating iterator interpolators.
@@ -58,7 +59,7 @@ public interface QueryInterpolatorFactory extends TSDBPlugin {
    */
   public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
       final TypeToken<? extends TimeSeriesDataType> type, 
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final QueryInterpolatorConfig config);
 
   /**

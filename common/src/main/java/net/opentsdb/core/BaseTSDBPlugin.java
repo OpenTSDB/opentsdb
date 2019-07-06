@@ -53,8 +53,10 @@ public abstract class BaseTSDBPlugin implements TSDBPlugin {
   public Deferred<Object> shutdown() {
     return Deferred.fromResult(null);
   }
-  
+
   @Override
-  public abstract String version();
+  public String version() {
+    return "3.0.0";
+  }
 
 }

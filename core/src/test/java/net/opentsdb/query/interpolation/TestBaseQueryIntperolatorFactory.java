@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Iterator;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -50,7 +51,7 @@ public class TestBaseQueryIntperolatorFactory {
     assertEquals(1, factory.types.size());
     
     TimeSeries time_series = mock(TimeSeries.class);
-    Iterator iterator = mock(Iterator.class);
+    TypedTimeSeriesIterator iterator = mock(TypedTimeSeriesIterator.class);
     QueryInterpolatorConfig config = mock(QueryInterpolatorConfig.class);
     
     MockInterpolator interpolator = (MockInterpolator) 
@@ -160,7 +161,7 @@ public class TestBaseQueryIntperolatorFactory {
     }
     
     public MockInterpolator(
-        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
         final QueryInterpolatorConfig config) {
       this.source = iterator;
       this.config = config;
@@ -191,7 +192,7 @@ public class TestBaseQueryIntperolatorFactory {
     }
     
     public MockInterpolator2(
-        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
         final QueryInterpolatorConfig config) {
       this.source = iterator;
       this.config = config;
@@ -217,7 +218,7 @@ public class TestBaseQueryIntperolatorFactory {
     final QueryInterpolatorConfig config;
     
     public MockInterpolatorMissTimeSeries(
-        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
         final QueryInterpolatorConfig config) {
       this.source = iterator;
       this.config = config;

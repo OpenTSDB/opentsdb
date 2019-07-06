@@ -27,8 +27,10 @@ import java.util.Optional;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.utils.DateTime;
@@ -83,7 +85,7 @@ public class TestTimeShiftNumericArrayIterator {
     TimeShiftNumericArrayIterator iterator =
         new TimeShiftNumericArrayIterator(result, SERIES);
     assertTrue(iterator.next() instanceof TimeShiftNumericArrayIterator);
-    Iterator<TimeSeriesValue<?>> iterator1 =  SERIES.iterator(NumericArrayType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator1 =  SERIES.iterator(NumericArrayType.TYPE).get();
     assertEquals(iterator1.next().value().type(), ((TimeShiftNumericArrayIterator) iterator.next()).value().type());
   }
 

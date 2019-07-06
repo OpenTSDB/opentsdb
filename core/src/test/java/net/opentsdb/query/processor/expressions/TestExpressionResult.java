@@ -92,7 +92,6 @@ public class TestExpressionResult {
         .setId("expression")
         .build();
     
-    when(node.config()).thenReturn(config);
     when(node.config()).thenReturn(expression_config);
     when(node.joiner()).thenReturn(joiner);
   }

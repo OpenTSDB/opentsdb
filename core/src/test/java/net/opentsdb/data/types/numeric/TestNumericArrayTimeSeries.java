@@ -58,8 +58,8 @@ public class TestNumericArrayTimeSeries {
   @Test
   public void addAndIterateLongs() throws Exception {
     NumericArrayTimeSeries series = new NumericArrayTimeSeries(ID, TIMESTAMP);
-    
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
         series.iterator(NumericArrayType.TYPE).get();
     assertFalse(iterator.hasNext());
     
@@ -84,8 +84,8 @@ public class TestNumericArrayTimeSeries {
   @Test
   public void addAndIterateDoubles() throws Exception {
     NumericArrayTimeSeries series = new NumericArrayTimeSeries(ID, TIMESTAMP);
-    
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
         series.iterator(NumericArrayType.TYPE).get();
     assertFalse(iterator.hasNext());
     
@@ -110,8 +110,8 @@ public class TestNumericArrayTimeSeries {
   @Test
   public void addAndIterateMixed() throws Exception {
     NumericArrayTimeSeries series = new NumericArrayTimeSeries(ID, TIMESTAMP);
-    
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
         series.iterator(NumericArrayType.TYPE).get();
     assertFalse(iterator.hasNext());
     
@@ -140,7 +140,7 @@ public class TestNumericArrayTimeSeries {
     series.add(-24);
     series.add(1);
     
-    Collection<TypedTimeSeriesIterator> iterators
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators
       = series.iterators();
     assertEquals(1, iterators.size());
     TypedTimeSeriesIterator iterator = iterators.iterator().next();

@@ -89,9 +89,9 @@ public class TestRateFactory {
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(60000));
     source.add(30000, 24);
     source.add(60000, 42);
-    final QueryNode node = mock(QueryNode.class);
+    final Rate node = mock(Rate.class);
     when(node.config()).thenReturn(config);
-    
+
     Iterator<TimeSeriesValue<?>> iterator = factory.newTypedIterator(
         NumericType.TYPE, node, result, ImmutableMap.<String, TimeSeries>builder()
         .put("a", source)

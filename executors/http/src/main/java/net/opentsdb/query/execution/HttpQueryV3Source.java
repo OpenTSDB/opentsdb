@@ -34,6 +34,7 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BadQueryResult;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -75,7 +76,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
   public static final String REMOTE_LATENCY_METRIC = "tsdb.executor.httpv3.latency";
   
   /** The query to execute. */
-  private final TimeSeriesDataSourceConfig config;
+  private final TimeSeriesDataSourceConfig<? extends Builder, ? extends TimeSeriesDataSourceConfig> config;
   
   /** The client to query. */
   private final CloseableHttpAsyncClient client;
@@ -110,7 +111,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
   }
   
   @Override
-  public QueryNodeConfig config() {
+  public TimeSeriesDataSourceConfig config() {
     return config;
   }
 
@@ -135,9 +136,9 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setMode(context.query().getMode())
         .setTimeZone(context.query().getTimezone())
         .setLogLevel(context.query().getLogLevel());
-    
-    TimeSeriesDataSourceConfig.Builder source_builder = 
-        (Builder) ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
+
+    TimeSeriesDataSourceConfig.Builder source_builder =
+        config.toBuilder()
         .setPushDownNodes(null)
         .setSourceId(null) // TODO - we may want to make this configurable
         .setType("TimeSeriesDataSource");
@@ -167,13 +168,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     int index = 0;
     for (QueryNodeConfig pushdown : config.getPushDownNodes()) {
       if (pushdown instanceof DownsampleConfig) {
-        DownsampleConfig.Builder b = DownsampleConfig
-            .newBuilder((DownsampleConfig) pushdown)
-            .setStart(context.query().getStart())
-            .setEnd(context.query().getEnd())
-            .setId(pushdown.getId());
-
-        pushdown = b.build();
+        DownsampleConfig downsampleConfig = (DownsampleConfig) pushdown;
+        DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
+        DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
+        pushdown = newBuilder.setStart(context.query().getStart()).setEnd(context.query().getEnd()).setId(pushdown.getId()).build();
         config.getPushDownNodes().set(index, pushdown);
       }
       index++;
@@ -302,7 +300,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               DefaultSharedHttpClient.parseResponse(response, 0, host);
             } catch (Exception e) {
               if (e instanceof RemoteQueryExecutionException) {
-                if (response.getStatusLine().getStatusCode() == 400) {
+                if (!((BaseHttpExecutorFactory) factory).retriable(
+                    response.getStatusLine().getStatusCode())) {
                   sendUpstream(BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
@@ -420,9 +419,19 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               }
             }
             
+            if (context.queryContext().stats() != null) {
+              context.queryContext().stats().incrementRawDataSize(json.length());
+            }
+            
             for (final JsonNode result : results) {
-              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, result, 
-                  ((TimeSeriesDataSourceFactory) factory).rollupConfig()));
+              final HttpQueryV3Result series_result = new HttpQueryV3Result(
+                  HttpQueryV3Source.this, result, 
+                    ((TimeSeriesDataSourceFactory) factory).rollupConfig());
+              if (context.queryContext().stats() != null) {
+                context.queryContext().stats().incrementRawTimeSeriesCount(
+                    series_result.timeSeries().size());
+              }
+              sendUpstream(series_result);
             }
           }
         } catch (Throwable t) {
@@ -523,6 +532,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         }
       }
     }
+    
     client.execute(post, new ResponseCallback());
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace(this, "Compiled and sent query to [" 

@@ -150,7 +150,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     
     QueryInterpolator<?> interp = factory.newInterpolator(
         NumericSummaryType.TYPE, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) new Downsampler(),
+        (TypedTimeSeriesIterator<? extends TimeSeriesDataType>) new Downsampler(),
         interpolator_config);
     if (interp == null) {
       throw new IllegalArgumentException("No interpolator implementation found for: " + 
@@ -236,7 +236,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     private TimeStamp interval_end;
     
     /** The iterator pulled from the source. */
-    private final Iterator<TimeSeriesValue<?>> iterator;
+    private final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
 
     /** IDs cached to avoid lookups per value. */
     private final int sum_id;
@@ -259,7 +259,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       count_id = result.rollupConfig().getIdForAggregator("count");
       avg_id = result.rollupConfig().getIdForAggregator("avg");
       
-      final Optional<TypedTimeSeriesIterator> optional = 
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
           source.iterator(NumericSummaryType.TYPE);
       if (optional.isPresent()) {
         iterator = optional.get();

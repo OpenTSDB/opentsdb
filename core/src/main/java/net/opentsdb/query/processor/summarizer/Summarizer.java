@@ -24,6 +24,8 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 
+import java.util.Collection;
+
 /**
  * A node that computes summaries across a time series, such as computing
  * the max, min, avg, etc.
@@ -66,6 +68,7 @@ public class Summarizer extends AbstractQueryNode {
   @Override
   public void onNext(final QueryResult next) {
     final SummarizerResult results = new SummarizerResult(this, next);
+    Collection<QueryNode> upstream = this.upstream;
     for (final QueryNode us : upstream) {
       try {
         us.onNext(results);

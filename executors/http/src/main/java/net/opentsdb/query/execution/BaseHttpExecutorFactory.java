@@ -18,8 +18,11 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.concurrent.FutureCallback;
@@ -33,6 +36,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
@@ -51,8 +55,8 @@ import net.opentsdb.utils.SharedHttpClient;
  * 
  * @since 3.0
  */
-public abstract class BaseHttpExecutorFactory implements 
-    TimeSeriesDataSourceFactory, TimerTask {
+public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConfig, N extends TimeSeriesDataSource> implements
+    TimeSeriesDataSourceFactory<C, N>, TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseHttpExecutorFactory.class);
   
@@ -64,14 +68,17 @@ public abstract class BaseHttpExecutorFactory implements
   public static final String KEY_PREFIX = "opentsdb.http.executor.";
   public static final String RETRY_KEY = "retries";
   public static final String HOSTS_KEY = "hosts";
+  public static final String RETRIABLES_KEY = "retriables";
   public static final String HEADER_USER_KEY = "headers.user";
   public static final String ENDPOINT_KEY = "endpoint";
   public static final String HEALTH_ENDPOINT_KEY = "health.endpoint";
   public static final String HEALTH_INTERVAL_KEY = "health.interval";
   public static final String HEALTH_ENABLE_KEY = "health.enable";
   public static final String CLIENT_KEY = "client.id";
-  public static final TypeReference<List<String>> TYPE_REF = 
+  public static final TypeReference<List<String>> STRING_LIST = 
       new TypeReference<List<String>>() { };
+  public static final TypeReference<List<Integer>> INTEGER_LIST = 
+      new TypeReference<List<Integer>>() { };
   
   /** The TSDB to pull configs from. */
   protected TSDB tsdb;
@@ -82,6 +89,9 @@ public abstract class BaseHttpExecutorFactory implements
   /** The list of hosts. */
   // TODO - atomic array to avoid syncing it
   protected List<Pair<String, Boolean>> hosts;
+  
+  /** The list of retriable status codes. */
+  protected Set<Integer> retriables;
   
   /** The map of outstanding checks. */
   protected Map<String, TimerTask> checks; 
@@ -95,8 +105,9 @@ public abstract class BaseHttpExecutorFactory implements
   /** How many times to retry a query on different hosts if they return bad. */
   protected int retries;
   
-  BaseHttpExecutorFactory() {
+  protected BaseHttpExecutorFactory() {
     hosts = Lists.newArrayList();
+    retriables = Sets.newConcurrentHashSet();
     checks = Maps.newConcurrentMap();
   }
   
@@ -146,6 +157,11 @@ public abstract class BaseHttpExecutorFactory implements
     
     throw new IllegalStateException("No hosts were found in a healthy state "
         + "to satisfy the query.");
+  }
+  
+  /** @return Whether or not we should retry the status code. */
+  public boolean retriable(final int status_code) {
+    return retriables.contains(status_code);
   }
   
   /**
@@ -366,6 +382,21 @@ public abstract class BaseHttpExecutorFactory implements
             }
           }
         }
+      } else if (key.equals(getConfigKey(RETRIABLES_KEY))) {
+        if (value == null) {
+          return;
+        }
+        
+        final List<Integer> setting = (List<Integer>) value;
+        retriables.addAll(setting);
+        
+        final Iterator<Integer> iterator = retriables.iterator();
+        while (iterator.hasNext()) {
+          final int status_code = iterator.next();
+          if (!setting.contains(status_code)) {
+            iterator.remove();
+          }
+        }
       }
     }
     
@@ -381,10 +412,25 @@ public abstract class BaseHttpExecutorFactory implements
       tsdb.getConfig().register(
           ConfigurationEntrySchema.newBuilder()
           .setKey(getConfigKey(HOSTS_KEY))
-          .setType(TYPE_REF)
+          .setType(STRING_LIST)
           .setDescription("The list of hosts including protocol, host and port.")
           .isDynamic()
           .isNullable()
+          .setSource(getClass().getName())
+          .build());
+    }
+    tsdb.getConfig().bind(getConfigKey(HOSTS_KEY), new SettingsCallback());
+    
+    if (!tsdb.getConfig().hasProperty(getConfigKey(RETRIABLES_KEY))) {
+      tsdb.getConfig().register(
+          ConfigurationEntrySchema.newBuilder()
+          .setKey(getConfigKey(RETRIABLES_KEY))
+          .setType(INTEGER_LIST)
+          .setDescription("A list of http status codes that should be retried"
+              + "and used to mark a host out of rotation.")
+          .isDynamic()
+          .isNullable()
+          .setDefaultValue(Lists.newArrayList( 500 ))
           .setSource(getClass().getName())
           .build());
     }

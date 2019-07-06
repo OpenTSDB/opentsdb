@@ -163,7 +163,7 @@ public class NumericInterpolatorConfig extends BaseInterpolatorConfig {
   public static Builder newBuilder() {
     return new Builder();
   }
-  
+
   /**
    * A builder class for the config.
    */

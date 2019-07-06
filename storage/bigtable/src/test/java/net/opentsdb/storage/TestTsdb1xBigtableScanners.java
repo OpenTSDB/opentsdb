@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,7 +62,6 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
@@ -2426,7 +2426,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     query = query_builder.build();
     when(context.query()).thenReturn(query);
     
-    DefaultTimeSeriesDataSourceConfig.Builder builder = 
+    DefaultTimeSeriesDataSourceConfig.Builder builder =
         (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)

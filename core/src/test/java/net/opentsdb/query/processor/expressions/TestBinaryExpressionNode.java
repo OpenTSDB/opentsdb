@@ -88,14 +88,14 @@ public class TestBinaryExpressionNode {
       .setDataType(NumericType.TYPE.toString())
       .build();
     
-    join_config = (JoinConfig) JoinConfig.newBuilder()
+    join_config = JoinConfig.newBuilder()
         .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId("join")
         .setId("expression")
         .build();
     
-    config = (ExpressionConfig) ExpressionConfig.newBuilder()
+    config = ExpressionConfig.newBuilder()
         .setExpression("a + b + c")
         .setJoinConfig(join_config)
         .addInterpolatorConfig(numeric_config)
@@ -103,7 +103,7 @@ public class TestBinaryExpressionNode {
         .setId("expression")
         .build();
     
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("b")
@@ -125,7 +125,7 @@ public class TestBinaryExpressionNode {
     assertNotNull(node.joiner());
     
     // sub-exp
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("SubExp#1")
@@ -145,7 +145,7 @@ public class TestBinaryExpressionNode {
     assertTrue(node.results.containsKey("SubExp#1"));
     
     // one needed
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("42")
@@ -228,7 +228,7 @@ public class TestBinaryExpressionNode {
   
   @Test
   public void onNextStringSingle() throws Exception {
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("42")
@@ -336,7 +336,7 @@ public class TestBinaryExpressionNode {
   
   @Test
   public void onNextByteDoubleOneSubExp() throws Exception {
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("sub")
@@ -436,7 +436,7 @@ public class TestBinaryExpressionNode {
   
   @Test
   public void onNextByteDoubleTwoSubExp() throws Exception {
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("sub1")
         .setLeftType(OperandType.SUB_EXP)
         .setRight("sub2")
@@ -525,7 +525,7 @@ public class TestBinaryExpressionNode {
   
   @Test
   public void onNextByteSingleLeft() throws Exception {
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("42")
         .setLeftType(OperandType.LITERAL_NUMERIC)
         .setRight("b")
@@ -607,7 +607,7 @@ public class TestBinaryExpressionNode {
   
   @Test
   public void onNextByteSingleRight() throws Exception {
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("42")

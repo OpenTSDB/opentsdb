@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -74,8 +75,8 @@ public class TestMockDataStore {
       long ts = 1483228800000L;
       for (MockRow row : series.getValue().rows()) {
         assertEquals(ts, row.base_timestamp);
-        
-        Iterator<TimeSeriesValue<?>> it = row.iterator(NumericType.TYPE).get();
+
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = row.iterator(NumericType.TYPE).get();
         int count = 0;
         while (it.hasNext()) {
           assertEquals(ts + (count * 60000), it.next().timestamp().msEpoch());

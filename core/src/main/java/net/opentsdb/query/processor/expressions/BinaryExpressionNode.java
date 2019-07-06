@@ -56,7 +56,7 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * 
  * @since 3.0
  */
-public class BinaryExpressionNode extends AbstractQueryNode {
+public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode> {
   /** The original expression config */
   protected final ExpressionConfig config;
   
@@ -115,7 +115,7 @@ public class BinaryExpressionNode extends AbstractQueryNode {
   }
 
   @Override
-  public QueryNodeConfig config() {
+  public ExpressionParseNode config() {
     return expression_config;
   }
 

@@ -14,34 +14,34 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.utils.JSON;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TestHAClusterConfig {
   
   @Test
   public void builder() throws Exception {
-    HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
+    BaseTimeSeriesDataSourceConfig.Builder haBuilder = HAClusterConfig.newBuilder()
         .setDataSources(Lists.newArrayList("colo1", "colo2"))
         .setMergeAggregator("sum")
         .setSecondaryTimeout("5s")
         .setPrimaryTimeout("10s")
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("sys.cpu.user")
-            .build())
-        .setId("ha")
-        .build();
+        .setId("ha");
+    (haBuilder).setMetric(MetricLiteralFilter.newBuilder()
+        .setMetric("sys.cpu.user")
+        .build());
+    HAClusterConfig config = (HAClusterConfig) haBuilder.build();
     
     assertEquals(2, config.getDataSources().size());
     assertTrue(config.getDataSources().contains("colo1"));
@@ -66,30 +66,30 @@ public class TestHAClusterConfig {
     } catch (IllegalArgumentException e) { }
     
     try {
-      HAClusterConfig.newBuilder()
+      haBuilder = HAClusterConfig.newBuilder()
           .setDataSources(Lists.newArrayList())
           .setMergeAggregator("sum")
           .setSecondaryTimeout("notaduration")
           .setPrimaryTimeout("10s")
-          .setMetric(MetricLiteralFilter.newBuilder()
-              .setMetric("sys.cpu.user")
-              .build())
-          .setId("ha")
-          .build();
+          .setId("ha");
+      (haBuilder).setMetric(MetricLiteralFilter.newBuilder()
+          .setMetric("sys.cpu.user")
+          .build());
+      haBuilder.build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      HAClusterConfig.newBuilder()
+      haBuilder = HAClusterConfig.newBuilder()
           .setDataSources(Lists.newArrayList())
           .setMergeAggregator("sum")
           .setSecondaryTimeout("5s")
           .setPrimaryTimeout("notaduration")
-          .setMetric(MetricLiteralFilter.newBuilder()
-              .setMetric("sys.cpu.user")
-              .build())
-          .setId("ha")
-          .build();
+          .setId("ha");
+      (haBuilder).setMetric(MetricLiteralFilter.newBuilder()
+          .setMetric("sys.cpu.user")
+          .build());
+      haBuilder.build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -97,16 +97,16 @@ public class TestHAClusterConfig {
 
   @Test
   public void serdes() throws Exception {
-    HAClusterConfig config = (HAClusterConfig) HAClusterConfig.newBuilder()
+    BaseTimeSeriesDataSourceConfig.Builder haBuilder = HAClusterConfig.newBuilder()
         .setDataSources(Lists.newArrayList("colo1", "colo2"))
         .setMergeAggregator("sum")
         .setSecondaryTimeout("5s")
         .setPrimaryTimeout("10s")
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("sys.cpu.user")
-            .build())
-        .setId("ha")
-        .build();
+        .setId("ha");
+    (haBuilder).setMetric(MetricLiteralFilter.newBuilder()
+        .setMetric("sys.cpu.user")
+        .build());
+    HAClusterConfig config = (HAClusterConfig) haBuilder.build();
     
     String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"ha\""));
@@ -260,21 +260,21 @@ public class TestHAClusterConfig {
 //    assertNotEquals(c1, c2);
 //    assertEquals(1, c1.compareTo(c2));
 //  }
-  
+
   @Test
   public void newBuilderFromSource() throws Exception {
-    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) 
+    BaseTimeSeriesDataSourceConfig config = (BaseTimeSeriesDataSourceConfig)
         DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("system.cpu.user")
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
-    
-    HAClusterConfig ha = (HAClusterConfig) 
-        HAClusterConfig.newBuilder(config, HAClusterConfig.newBuilder())
-        .build();
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("system.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build();
+
+    HAClusterConfig.Builder builder = HAClusterConfig.newBuilder();
+    HAClusterConfig.cloneBuilder(config, builder);
+    HAClusterConfig ha = builder.build();
     assertEquals("system.cpu.user", ha.getMetric().getMetric());
   }
 }

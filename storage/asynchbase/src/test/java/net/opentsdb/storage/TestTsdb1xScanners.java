@@ -36,8 +36,8 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList;
@@ -73,7 +73,6 @@ import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -3155,7 +3154,7 @@ public class TestTsdb1xScanners extends UTBase {
     query = query_builder.build();
     when(context.query()).thenReturn(query);
     
-    DefaultTimeSeriesDataSourceConfig.Builder builder = 
+    DefaultTimeSeriesDataSourceConfig.Builder builder =
         (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)

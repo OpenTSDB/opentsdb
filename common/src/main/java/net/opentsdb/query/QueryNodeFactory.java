@@ -27,7 +27,7 @@ import net.opentsdb.query.plan.QueryPlanner;
  * 
  * @since 3.0
  */
-public interface QueryNodeFactory extends TSDBPlugin {
+public interface QueryNodeFactory<C extends QueryNodeConfig, N extends QueryNode> extends TSDBPlugin {
   
   /**
    * The descriptive ID of the factory used when parsing queries.
@@ -42,7 +42,7 @@ public interface QueryNodeFactory extends TSDBPlugin {
    * @param node The non-null node to parse.
    * @return An instantiated node config if successful.
    */
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper,
+  public C parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb, 
                                      final JsonNode node);
 
@@ -56,7 +56,7 @@ public interface QueryNodeFactory extends TSDBPlugin {
    */
   public void setupGraph(
       final QueryPipelineContext context, 
-      final QueryNodeConfig config, 
+      final C config,
       final QueryPlanner planner);
   
   /**
@@ -65,7 +65,7 @@ public interface QueryNodeFactory extends TSDBPlugin {
    * @param context A non-null query pipeline context.
    * @return An instantiated node if successful.
    */
-  public QueryNode newNode(final QueryPipelineContext context);
+  public N newNode(final QueryPipelineContext context);
   
   /**
    * Instantiates a new node using the given context and config.
@@ -74,7 +74,6 @@ public interface QueryNodeFactory extends TSDBPlugin {
    * require a configuration.
    * @return An instantiated node if successful.
    */
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config);
+  public N newNode(final QueryPipelineContext context, final C config);
   
 }

@@ -24,6 +24,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryResult;
 
@@ -34,7 +35,7 @@ import net.opentsdb.query.QueryResult;
  * 
  * @since 3.0
  */
-public interface ProcessorFactory extends QueryNodeFactory {
+public interface ProcessorFactory<C extends QueryNodeConfig, N extends QueryNode> extends QueryNodeFactory<C, N> {
   
   /**
    * @return The types of data this factory can instantiate iterators for.
@@ -46,9 +47,9 @@ public interface ProcessorFactory extends QueryNodeFactory {
    * @param type A non-null type.
    * @param factory A non-null factory for the type.
    */
-  public void registerIteratorFactory(
-      final TypeToken<? extends TimeSeriesDataType> type, 
-      final QueryIteratorFactory factory);
+  public <T extends TimeSeriesDataType> void registerIteratorFactory(
+      final TypeToken<? extends TimeSeriesDataType> type,
+      final QueryIteratorFactory<N, T> factory);
   
   /**
    * Returns an instantiated iterator of the given type if supported
@@ -59,9 +60,9 @@ public interface ProcessorFactory extends QueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public TypedTimeSeriesIterator newTypedIterator(
-      final TypeToken<? extends TimeSeriesDataType> type,
-      final QueryNode node,
+  public <T extends TimeSeriesDataType>  TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<T> type,
+      final N node,
       final QueryResult result,
       final Collection<TimeSeries> sources);
   
@@ -74,9 +75,9 @@ public interface ProcessorFactory extends QueryNodeFactory {
    * @return A non-null iterator if successful or null if an iterator is
    * not present for the type.
    */
-  public TypedTimeSeriesIterator newTypedIterator(
-      final TypeToken<? extends TimeSeriesDataType> type,
-      final QueryNode node,
+  public <T extends TimeSeriesDataType> TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<T> type,
+      final N node,
       final QueryResult result,
       final Map<String, TimeSeries> sources);
 }

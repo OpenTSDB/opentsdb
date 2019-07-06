@@ -79,7 +79,7 @@ public class MovingAverageNumericArrayIterator implements QueryIterator,
   private boolean has_next = false;
   
   /** The source iterator. */
-  private Iterator<TimeSeriesValue<?>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
 
   /** Whether or not we're computing with samples or intervals. */
   private int samples;
@@ -112,7 +112,7 @@ public class MovingAverageNumericArrayIterator implements QueryIterator,
     samples = config.getSamples();
     aggregator = this.node.getAggregator();
     
-    final Optional<TypedTimeSeriesIterator> opt = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> opt =
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (Strings.isNullOrEmpty(((MovingAverageConfig) node.config()).getInterval())) {
       windowed = false;

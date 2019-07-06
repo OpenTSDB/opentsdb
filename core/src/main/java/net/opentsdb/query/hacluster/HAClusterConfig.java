@@ -33,7 +33,7 @@ import com.google.common.hash.HashCode;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.utils.DateTime;
 
@@ -46,24 +46,24 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = HAClusterConfig.Builder.class)
-public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
-  
+public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterConfig.Builder, HAClusterConfig> {
+
   /** The non-null and non-empty list of sources to query. */
   private final List<String> data_sources;
-  
+
   /** A list of custom, fully defined data sources. */
   private final List<TimeSeriesDataSourceConfig> data_source_configs;
-  
+
   /** The non-null and non-empty aggregator to use to merge results. */
   private final String merge_aggregator;
-  
+
   /** An optional timeout for the secondary (etc) sources. */
   private final String secondary_timeout;
-  
+
   /** An optional timeout for the primary source when a secondary
    * returns first. */
   private final String primary_timeout;
-  
+
   /**
    * Default ctor.
    * @param builder A non-null builder.
@@ -72,14 +72,14 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
    */
   protected HAClusterConfig(final Builder builder) {
     super(builder);
-    data_sources = builder.dataSources == null ? 
+    data_sources = builder.dataSources == null ?
         Collections.emptyList() : builder.dataSources;
     data_source_configs = builder.dataSourceConfigs == null ?
         Collections.emptyList() : builder.dataSourceConfigs;
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
     primary_timeout = builder.primaryTimeout;
-    
+
     // validate the timeouts
     if (!Strings.isNullOrEmpty(secondary_timeout)) {
       DateTime.parseDuration(secondary_timeout);
@@ -89,39 +89,39 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     }
   }
 
-  /** @return The non-null list of sources to query. The first entry is 
+  /** @return The non-null list of sources to query. The first entry is
    * primary. */
   public List<String> getDataSources() {
     return data_sources;
   }
-  
+
   /** @return The non-null list of data source config overrides. */
   public List<TimeSeriesDataSourceConfig> getDataSourceConfigs() {
     return data_source_configs;
   }
-  
+
   /** @return The non-null and non-empty aggregator to use to merge results. */
   public String getMergeAggregator() {
     return merge_aggregator;
   }
-  
+
   /** @return An optional timeout for the secondary (etc) sources. */
   public String getSecondaryTimeout() {
     return secondary_timeout;
   }
-  
-  /** @return An optional timeout for the primary when a secondary 
+
+  /** @return An optional timeout for the primary when a secondary
    * responds first. */
   public String getPrimaryTimeout() {
     return primary_timeout;
   }
-  
+
   /** @return Whether or not this node has gone through the planner setup
    * step. */
   public boolean getHasBeenSetup() {
     return has_been_setup;
   }
-  
+
   @Override
   public HashCode buildHashCode() {
     // TODO Auto-generated method stub
@@ -143,7 +143,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(HAClusterConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -160,7 +160,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     if (!(o instanceof HAClusterConfig)) {
       return false;
     }
-    
+
     return id.equals(((HAClusterConfig) o).id);
   }
 
@@ -168,10 +168,10 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
   public Builder toBuilder() {
-    final Builder builder = (Builder) new Builder()
+    final Builder builder = new Builder()
         .setMergeAggregator(merge_aggregator)
         .setSecondaryTimeout(secondary_timeout)
         .setPrimaryTimeout(primary_timeout)
@@ -182,17 +182,18 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     if (!data_source_configs.isEmpty()) {
       builder.setDataSourceConfigs(Lists.newArrayList(data_source_configs));
     }
-    return (Builder) BaseTimeSeriesDataSourceConfig.newBuilder(this, builder);
+    BaseTimeSeriesDataSourceConfig.cloneBuilder(this, builder);
+    return builder;
   }
-  
+
   /** @return A new builder to construct a Cluster Config */
   public static Builder newBuilder() {
     return new Builder();
   }
-  
+
   /** The builder class for cluster configs. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder {
+  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder<Builder, HAClusterConfig> {
     @JsonProperty
     private List<String> dataSources;
     @JsonProperty
@@ -203,11 +204,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     private String secondaryTimeout;
     @JsonProperty
     private String primaryTimeout;
-    
+
     Builder() {
       setType("HAClusterConfig");
     }
-    
+
     /**
      * @param data_sources The list of sources to query from.
      * @return The builder.
@@ -216,7 +217,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       this.dataSources = data_sources;
       return this;
     }
-    
+
     public Builder addDataSource(final String source) {
       if (dataSources == null) {
         dataSources = Lists.newArrayList();
@@ -224,13 +225,13 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       dataSources.add(source);
       return this;
     }
-    
+
     public Builder setDataSourceConfigs(
         final List<TimeSeriesDataSourceConfig> data_source_configs) {
       dataSourceConfigs = data_source_configs;
       return this;
     }
-    
+
     public Builder addDataSourceConfig(final TimeSeriesDataSourceConfig config) {
       if (dataSourceConfigs == null) {
         dataSourceConfigs = Lists.newArrayList();
@@ -238,7 +239,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       dataSourceConfigs.add(config);
       return this;
     }
-    
+
     /**
      * @param merge_aggregator The aggregation function to use.
      * @return The builder.
@@ -248,7 +249,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       mergeAggregator = merge_aggregator;
       return this;
     }
-    
+
     /**
      * @param secondary_timeout The amount of time to wait after the
      * primary call before returning data. E.g. "5s".
@@ -258,7 +259,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       secondaryTimeout = secondary_timeout;
       return this;
     }
-    
+
     /**
      * @param primary_timeout The amount of time to wait after a
      * secondary response comes in before returning data. E.g. "5s".
@@ -268,11 +269,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
       primaryTimeout = primary_timeout;
       return this;
     }
-    
+
     public List<String> dataSources() {
       return dataSources == null ? Collections.emptyList() : dataSources;
     }
-    
+
     public List<TimeSeriesDataSourceConfig> dataSourceConfigs() {
       return dataSourceConfigs == null ? Collections.emptyList() : dataSourceConfigs;
     }
@@ -286,25 +287,30 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     public String sourceId() {
       return sourceId;
     }
-    
+
     public String mergeAggregator() {
       return mergeAggregator;
     }
-    
-    /** @return The instantiated ClusterConfig on success or exceptions on 
+
+    /** @return The instantiated ClusterConfig on success or exceptions on
      * failure. */
     public HAClusterConfig build() {
       return new HAClusterConfig(this);
     }
 
+    @Override
+    public Builder self() {
+      return this;
+    }
+
   }
-  
+
   public static HAClusterConfig parse(final ObjectMapper mapper,
-                                      final TSDB tsdb, 
+                                      final TSDB tsdb,
                                       final JsonNode node) {
     Builder builder = new Builder();
     BaseTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node, builder);
-    
+
     JsonNode n = node.get("dataSources");
     if (n != null) {
       try {
@@ -313,27 +319,27 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
         throw new IllegalArgumentException("Failed to parse json", e);
       }
     }
-    
+
     n = node.get("id");
     if (n != null) {
       builder.setId(n.asText());
     }
-    
+
     n = node.get("mergeAggregator");
     if (n != null) {
       builder.setMergeAggregator(n.asText());
     }
-    
+
     n = node.get("secondaryTimeout");
     if (n != null) {
       builder.setSecondaryTimeout(n.asText());
     }
-    
+
     n = node.get("primaryTimeout");
     if (n != null) {
       builder.setPrimaryTimeout(n.asText());
     }
-    
+
     return (HAClusterConfig) builder.build();
   }
   

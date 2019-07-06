@@ -14,31 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.Map.Entry;
-
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.ParseException;
-import org.apache.http.client.entity.DeflateDecompressingEntity;
-import org.apache.http.client.entity.GzipDecompressingEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.impl.nio.client.HttpAsyncClients;
-import org.apache.http.impl.nio.reactor.IOReactorConfig;
-import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -49,34 +24,36 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
-import com.stumbleupon.async.Callback;
-
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.QueryExecutionCanceled;
-import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
-import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
+import org.apache.http.HttpResponse;
+import org.apache.http.ParseException;
+import org.apache.http.client.entity.DeflateDecompressingEntity;
+import org.apache.http.client.entity.GzipDecompressingEntity;
+import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
 
 /**
  * An executor that converts {@link TimeSeriesQuery}s to OpenTSDB v2.x {@link TSQuery}s
@@ -776,7 +753,7 @@ public class HttpQueryV2Executor {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends BaseQueryNodeConfig {
+  public static class Config extends BaseQueryNodeConfig<Config.Builder, Config> {
     private String endpoint;
     
     /**
@@ -841,17 +818,17 @@ public class HttpQueryV2Executor {
     }
 
     @Override
-    public int compareTo(QueryNodeConfig config) {
+    public int compareTo(Config config) {
       return ComparisonChain.start()
           .compare(id, config.getId(), 
               Ordering.natural().nullsFirst())
-          .compare(endpoint, ((Config) config).endpoint, 
+          .compare(endpoint, (config).endpoint,
               Ordering.natural().nullsFirst())
           .result();
     }
     
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Builder extends BaseQueryNodeConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, Config> {
       @JsonProperty
       private String endpoint;
       
@@ -869,6 +846,11 @@ public class HttpQueryV2Executor {
       public Config build() {
         return new Config(this);
       }
+
+      @Override
+      public Builder self() {
+        return this;
+      }
     }
 
     @Override
@@ -884,10 +866,8 @@ public class HttpQueryV2Executor {
     }
 
     @Override
-    public net.opentsdb.query.QueryNodeConfig.Builder toBuilder() {
-      // TODO Auto-generated method stub
+    public Builder toBuilder() {
       return null;
     }
-    
   }
 }

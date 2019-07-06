@@ -107,13 +107,17 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
               sorted_results.descendingMap().entrySet().iterator() :
                 sorted_results.entrySet().iterator();
       
-      for (int i = 0; i < ((TopNConfig) node.config()).getCount(); i++) {
+      for (int i = 0; i < ((TopNConfig) node.config()).getCount(); ) {
         if (!iterator.hasNext()) {
           break;
         }
         Entry<Double, List<TimeSeries>> next = iterator.next();
         for (TimeSeries ts : next.getValue()) {
+          if (i == ((TopNConfig) node.config()).getCount()) {
+            break;
+          }
           results.add(ts);
+          i++;
         }
       }
       node.onNext(this);

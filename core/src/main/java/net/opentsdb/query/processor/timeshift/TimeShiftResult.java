@@ -122,7 +122,7 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
     }
 
     @Override
-    public Optional<TypedTimeSeriesIterator> iterator(
+    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         final TypeToken<? extends TimeSeriesDataType> type) {
       final TypedTimeSeriesIterator iterator = 
           ((TimeShiftFactory) node.factory()).newTypedIterator(type, node, 
@@ -134,8 +134,8 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
     }
 
     @Override
-    public Collection<TypedTimeSeriesIterator> iterators() {
-      List<TypedTimeSeriesIterator> iterators = Lists.newArrayList();
+    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+      List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators = Lists.newArrayList();
       for (final TypeToken<? extends TimeSeriesDataType> type : source.types()) {
         final TypedTimeSeriesIterator iterator = 
             ((TimeShiftFactory) node.factory()).newTypedIterator(type, node, 

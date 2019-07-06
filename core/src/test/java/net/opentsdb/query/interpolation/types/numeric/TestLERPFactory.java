@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import java.util.Iterator;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Test;
 
 import net.opentsdb.core.TSDB;
@@ -46,7 +47,7 @@ public class TestLERPFactory {
     
     assertTrue(factory.newInterpolator(NumericType.TYPE, time_series, 
         mock(NumericInterpolatorConfig.class)) instanceof NumericLERP);
-    assertTrue(factory.newInterpolator(NumericType.TYPE, mock(Iterator.class), 
+    assertTrue(factory.newInterpolator(NumericType.TYPE, mock(TypedTimeSeriesIterator.class),
         mock(NumericInterpolatorConfig.class)) instanceof NumericLERP);
     
     assertNull(factory.newInterpolator(AnnotationType.TYPE, time_series, 

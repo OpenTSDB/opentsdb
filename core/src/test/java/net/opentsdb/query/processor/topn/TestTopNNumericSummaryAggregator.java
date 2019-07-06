@@ -14,6 +14,28 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
+import com.google.common.reflect.TypeToken;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.MockTimeSeries;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.stubbing.Answer;
+
+import java.util.Optional;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -22,31 +44,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import java.util.Iterator;
-import java.util.Optional;
-
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.MockTSDBDefault;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupInterval;
 
 public class TestTopNNumericSummaryAggregator {
   
@@ -128,12 +125,9 @@ public class TestTopNNumericSummaryAggregator {
   @Test
   public void empty() throws Exception {
     when(source.iterator(any(TypeToken.class)))
-      .thenAnswer(new Answer<Optional>() {
-        @Override
-        public Optional answer(InvocationOnMock invocation) throws Throwable {
-          Iterator<TimeSeriesValue<?>> iterator = mock(Iterator.class);
-          return Optional.of(mock(Iterator.class));
-        }
+      .thenAnswer((Answer<Optional>) invocation -> {
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = mock(TypedTimeSeriesIterator.class);
+        return Optional.of(iterator);
       });
     TopNNumericSummaryAggregator aggregator = 
         new TopNNumericSummaryAggregator(node, result, source);

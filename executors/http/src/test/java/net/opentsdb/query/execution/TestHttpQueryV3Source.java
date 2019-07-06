@@ -28,8 +28,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.TemporalAmount;
-import java.util.Map;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.QueryFilter;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -46,7 +46,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
@@ -54,11 +53,9 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
@@ -644,6 +641,7 @@ public class TestHttpQueryV3Source {
   
   @Test
   public void response405JsonTwice() throws Exception {
+    when(factory.retriable(405)).thenReturn(true);
     String json = "{\"error\":{\"code\":405,\"message\":\"Not Allowed\","
         + "\"trace\":\"java.lang.IllegalArgumentException:Not Allowed\"}}";
     when(factory.retries()).thenReturn(3);
@@ -686,6 +684,7 @@ public class TestHttpQueryV3Source {
   
   @Test
   public void response405JsonThrice() throws Exception {
+    when(factory.retriable(405)).thenReturn(true);
     String json = "{\"error\":{\"code\":405,\"message\":\"Not Allowed\","
         + "\"trace\":\"java.lang.IllegalArgumentException:Not Allowed\"}}";
     when(factory.retries()).thenReturn(2);

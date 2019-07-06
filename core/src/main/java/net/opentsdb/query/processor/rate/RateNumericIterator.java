@@ -14,13 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -33,6 +27,10 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * Iterator that generates rates from a sequence of adjacent data points.
  * 
@@ -41,9 +39,10 @@ import net.opentsdb.query.pojo.RateOptions;
  * @since 3.0
  */
 public class RateNumericIterator implements QueryIterator {
+  private static final long TO_NANOS = 1000000000L;
   
   /** A sequence of data points to compute rates. */
-  private final Iterator<TimeSeriesValue<?>> source;
+  private final TypedTimeSeriesIterator<? extends TimeSeriesDataType> source;
   
   /** Options for calculating rates. */
   private final RateConfig config;
@@ -91,7 +90,7 @@ public class RateNumericIterator implements QueryIterator {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     config = (RateConfig) node.config();
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         sources.iterator().next().iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();
@@ -99,7 +98,7 @@ public class RateNumericIterator implements QueryIterator {
     } else {
       this.source = null;
     }
-    
+
   }
 
   /** @return True if there is a valid next value. */
@@ -126,7 +125,6 @@ public class RateNumericIterator implements QueryIterator {
   private void populateNextRate() {
     has_next = false;
     
-    
     while (source.hasNext()) {
       final TimeSeriesValue<NumericType> next = 
           (TimeSeriesValue<NumericType>) source.next();
@@ -142,6 +140,34 @@ public class RateNumericIterator implements QueryIterator {
       if (prev_data == null || prev_data.value() == null) {
         prev_data = new MutableNumericValue(next);
         continue;
+      }
+      
+      // validation similar to TSDB 2.x
+      if (next.timestamp().compare(Op.LTE, prev_data.timestamp())) {
+        throw new IllegalStateException("Next timestamp [" + next.timestamp() 
+          + " ] cannot be less than or equal to the previous [" + 
+            prev_data.timestamp() + "] timestamp.");
+      }
+      
+      long prev_epoch = prev_data.timestamp().epoch();
+      long prev_nanos = prev_data.timestamp().nanos();
+      
+      long next_epoch = next.timestamp().epoch();
+      long next_nanos = next.timestamp().nanos();
+      
+      if (next_nanos < prev_nanos) {
+        next_nanos *= TO_NANOS;
+        next_epoch--;
+      }
+      
+      long diff = ((next_epoch - prev_epoch) * TO_NANOS) + (next_nanos - prev_nanos);
+      double time_delta = (double) diff / (double) config.duration().toNanos();
+      if (config.getRateToCount()) {
+        // TODO - support longs
+        next_rate.reset(next.timestamp(), (next.value().toDouble() * time_delta));
+        prev_data.reset(next);
+        has_next = true;
+        return;
       }
       
       // delta code
@@ -175,27 +201,6 @@ public class RateNumericIterator implements QueryIterator {
           break;
         }
       }
-      
-      // validation similar to TSDB 2.x
-      if (next.timestamp().compare(Op.LTE, prev_data.timestamp())) {
-        throw new IllegalStateException("Next timestamp [" + next.timestamp() 
-          + " ] cannot be less than or equal to the previous [" + 
-            prev_data.timestamp() + "] timestamp.");
-      }
-      
-      long prev_epoch = prev_data.timestamp().epoch();
-      long prev_nanos = prev_data.timestamp().nanos();
-      
-      long next_epoch = next.timestamp().epoch();
-      long next_nanos = next.timestamp().nanos();
-      
-      if (next_nanos < prev_nanos) {
-        next_nanos *= 1000000000L;
-        next_epoch--;
-      }
-      
-      long diff = ((next_epoch - prev_epoch) * 1000000000) + (next_nanos - prev_nanos);
-      double time_delta = (double) diff / (double) config.duration().toNanos();
       
       // got a rate!
       if (prev_data.value().isInteger() && next.value().isInteger()) {

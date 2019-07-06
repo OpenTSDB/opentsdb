@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-import java.util.List;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -29,15 +28,14 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
@@ -46,6 +44,8 @@ import net.opentsdb.uid.UniqueIdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * Simple singleton factory that implements a default and named schemas
  * (for different configurations).
@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * @since 3.0
  */
 public class SchemaFactory extends BaseTSDBPlugin 
-                           implements TimeSeriesDataSourceFactory,
+                           implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, Tsdb1xQueryNode>,
                                       WritableTimeSeriesDataStoreFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SchemaFactory.class);
 
@@ -112,56 +112,50 @@ public class SchemaFactory extends BaseTSDBPlugin
     return TYPE;
   }
 
-  @Override
-  public String version() {
-    // TODO Implement
-    return "3.0.0";
-  }
 
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public TimeSeriesDataSourceConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
   }
 
   @Override
-  public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
-                         final QueryPlanner planner) {
+  public void setupGraph(
+      final QueryPipelineContext context,
+      final TimeSeriesDataSourceConfig config,
+      final QueryPlanner planner) {
 
-    if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
+    if (config.hasBeenSetup()) {
       // all done.
       return;
     }
 
-    for (QueryNodeConfig pushdowns : ((TimeSeriesDataSourceConfig) config).getPushDownNodes()) {
+    List<QueryNodeConfig> pushDownNodes = config.getPushDownNodes();
+    for (QueryNodeConfig pushdowns : pushDownNodes) {
       if (pushdowns instanceof TimeShiftConfig) {
         return;
       }
     }
 
-    if (((TimeSeriesDataSourceConfig) config).timeShifts() != null ) {
-      DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) config, planner);
+    if ((config).timeShifts() != null) {
+      DefaultTimeSeriesDataSourceConfig.setupTimeShift(config, planner);
     }
-
- }
+  }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public Tsdb1xQueryNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
-    TimeSeriesDataSourceConfig source_config = 
-        (TimeSeriesDataSourceConfig) config;
-    if (!Strings.isNullOrEmpty(source_config.getSummaryInterval())) {
-      TimeSeriesDataSourceConfig.Builder builder = (TimeSeriesDataSourceConfig.Builder)
-          source_config.toBuilder();
-      
-      if (source_config.getSummaryInterval().toLowerCase().endsWith("all")) {
+  public Tsdb1xQueryNode newNode(final QueryPipelineContext context,
+                           final TimeSeriesDataSourceConfig config) {
+    TimeSeriesDataSourceConfig source_config = config;
+    if (!Strings.isNullOrEmpty((source_config).getSummaryInterval())) {
+      TimeSeriesDataSourceConfig.Builder builder = (TimeSeriesDataSourceConfig.Builder) source_config.toBuilder();
+
+      if ((source_config).getSummaryInterval().toLowerCase().endsWith("all")) {
         // TODO - revisit this one.
 //        if (rollup_config != null) {
 //          // compute an interval from the query span
@@ -178,8 +172,12 @@ public class SchemaFactory extends BaseTSDBPlugin
         // TODO - figure out padding
       } else {
         if (rollup_config != null) {
-          builder.setRollupIntervals(rollup_config.getPossibleIntervals(
-              source_config.getSummaryInterval()));
+          try {
+            builder.setRollupIntervals(rollup_config.getPossibleIntervals(
+                (source_config).getSummaryInterval()));
+          } catch (NoSuchRollupForIntervalException e) {
+            // ignore, we'll use raw.
+          }
         }
         
         // TODO compute the padding
@@ -187,7 +185,7 @@ public class SchemaFactory extends BaseTSDBPlugin
         builder.setPostPadding("30m");
       }
       
-      source_config = builder.build();
+      source_config = (TimeSeriesDataSourceConfig) builder.build();
     }
     
     return schema.dataStore().newNode(context, source_config);

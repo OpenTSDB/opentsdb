@@ -31,7 +31,7 @@ public abstract class Validatable {
   /**
    * Iterate through a field that is a collection of POJOs and validate each of
    * them. Inherit member POJO's error message.
-   * @param TSDB The non-null TSDB for validation.
+   * @param tsdb The non-null TSDB for validation.
    * @param collection the validatable POJO collection
    * @param name name of the field
    */
@@ -53,7 +53,7 @@ public abstract class Validatable {
 
   /**
    * Validate a single POJO validate
-   * @param TSDB The non-null TSDB for validation.
+   * @param tsdb The non-null TSDB for validation.
    * @param pojo The POJO object to validate
    * @param name name of the field
    */

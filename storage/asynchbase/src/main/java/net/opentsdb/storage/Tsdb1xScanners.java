@@ -858,9 +858,10 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         // set qualifier filters
+        List<String> summaryAggregations = source_config.getSummaryAggregations();
         final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
-            source_config.getSummaryAggregations().size() * 2);
-        for (final String agg : source_config.getSummaryAggregations()) {
+            summaryAggregations.size() * 2);
+        for (final String agg : summaryAggregations) {
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(
                   agg.toLowerCase().getBytes(Const.ASCII_CHARSET))));

@@ -88,6 +88,7 @@ public class Downsample extends AbstractQueryNode {
   @Override
   public void onNext(final QueryResult next) {
     final DownsampleResult results = new DownsampleResult(next);
+    Collection<QueryNode> upstream = this.upstream;
     for (final QueryNode us : upstream) {
       try {
         us.onNext(results);
@@ -283,7 +284,7 @@ public class Downsample extends AbstractQueryNode {
       }
 
       @Override
-      public Optional<TypedTimeSeriesIterator> iterator(
+      public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
           final TypeToken<? extends TimeSeriesDataType> type) {
         if (type == null) {
           throw new IllegalArgumentException("Type cannot be null.");
@@ -304,9 +305,9 @@ public class Downsample extends AbstractQueryNode {
       }
       
       @Override
-      public Collection<TypedTimeSeriesIterator> iterators() {
+      public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
         final Collection<TypeToken<? extends TimeSeriesDataType>> types = source.types();
-        final List<TypedTimeSeriesIterator> iterators =
+        final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
             Lists.newArrayListWithCapacity(types.size());
         for (final TypeToken<? extends TimeSeriesDataType> type : types) {
           iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(

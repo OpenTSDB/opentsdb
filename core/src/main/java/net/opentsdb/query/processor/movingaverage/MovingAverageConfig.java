@@ -38,7 +38,7 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = MovingAverageConfig.Builder.class)
-public class MovingAverageConfig extends BaseQueryNodeConfig {
+public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig.Builder, MovingAverageConfig> {
   private final int samples;
   private final String interval;
   private final double alpha;
@@ -133,10 +133,10 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   public boolean getInfectiousNan() {
     return infectious_nan;
   }
-  
+
   @Override
   public Builder toBuilder() {
-    return (Builder) newBuilder()
+    return newBuilder()
         .setInterval(interval)
         .setAlpha(alpha)
         .setAverageInitial(avg_initial)
@@ -146,7 +146,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
         .setSources(sources)
         .setId(id);
   }
-  
+
   @Override
   public boolean pushDown() {
     return true;
@@ -156,7 +156,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
   @Override
   public HashCode buildHashCode() {
  // TODO Auto-generated method stub
@@ -166,7 +166,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public int compareTo(final QueryNodeConfig o) {
+  public int compareTo(final MovingAverageConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -198,7 +198,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, MovingAverageConfig> {
     @JsonProperty
     private int samples;
     @JsonProperty
@@ -266,10 +266,14 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public MovingAverageConfig build() {
       return new MovingAverageConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 
 }

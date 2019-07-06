@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +70,7 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Tsdb1xBigtableQueryNode implements SourceNode {
+public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xBigtableQueryNode.class);
 
@@ -125,10 +126,13 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
   
   /** Rollup intervals matching the query downsampler if applicable. */
   protected List<RollupInterval> rollup_intervals;
+
+  /** When pushing, whether or not real data was sent. */
+  protected final AtomicBoolean sent_data;
   
   /**
    * Default ctor.
-   * @param factory The Tsdb1xBigtableDataStore that instantiated this node.
+   * @param parent The Tsdb1xBigtableDataStore that instantiated this node.
    * @param context A non-null query pipeline context.
    * @param config A non-null config.
    */
@@ -155,6 +159,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
     sequence_id = new AtomicLong();
     initialized = new AtomicBoolean();
     initializing = new AtomicBoolean();
+    sent_data = new AtomicBoolean();
     
     if (config.hasKey(Tsdb1xBigtableDataStore.SKIP_NSUN_TAGK_KEY)) {
       skip_nsun_tagks = config.getBoolean(context.tsdb().getConfig(), 
@@ -303,13 +308,14 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
       child = null;
     }
 
-    if (parent.schema().rollupConfig() != null && 
+    List<String> rollupIntervals = config.getRollupIntervals();
+    if (parent.schema().rollupConfig() != null &&
         rollup_usage != RollupUsage.ROLLUP_RAW &&
-        config.getRollupIntervals() != null && 
-        !config.getRollupIntervals().isEmpty()) {
+        rollupIntervals != null &&
+        !rollupIntervals.isEmpty()) {
       rollup_intervals = Lists.newArrayListWithExpectedSize(
-          config.getRollupIntervals().size());
-      for (final String interval : config.getRollupIntervals()) {
+          rollupIntervals.size());
+      for (final String interval : rollupIntervals) {
         final RollupInterval ri = parent.schema().rollupConfig()
             .getRollupInterval(interval);
         if (ri != null) {
@@ -471,7 +477,17 @@ public class Tsdb1xBigtableQueryNode implements SourceNode {
       }
     }
   }
-  
+
+  @Override
+  public void setSentData() {
+    sent_data.set(true);
+  }
+
+  @Override
+  public boolean sentData() {
+    return sent_data.get();
+  }
+
   /**
    * A class to catch exceptions fetching data from meta.
    */

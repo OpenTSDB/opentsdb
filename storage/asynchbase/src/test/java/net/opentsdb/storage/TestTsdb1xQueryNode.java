@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.Scanner;
 import org.junit.Before;
@@ -59,7 +60,6 @@ import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;

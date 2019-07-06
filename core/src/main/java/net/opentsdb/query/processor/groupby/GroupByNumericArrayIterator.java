@@ -14,14 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -33,6 +27,10 @@ import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * An iterator for grouping arrays. This should be much faster for 
@@ -112,10 +110,10 @@ public class GroupByNumericArrayIterator implements QueryIterator,
         throw new IllegalArgumentException("Null time series are not "
             + "allowed in the sources.");
       }
-      final Optional<TypedTimeSeriesIterator> optional = 
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
           source.iterator(NumericArrayType.TYPE);
       if (optional.isPresent()) {
-        final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
         if (iterator.hasNext()) {
           has_next = true;
           final TimeSeriesValue<NumericArrayType> array = 

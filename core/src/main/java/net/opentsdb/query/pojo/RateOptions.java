@@ -14,16 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
@@ -33,15 +27,19 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
-
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.processor.downsample.DownsampleConfig.Builder;
 import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.utils.DateTime;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Provides additional options that will be used when calculating rates. These
@@ -56,7 +54,7 @@ import net.opentsdb.utils.DateTime;
 @JsonInclude(Include.NON_DEFAULT)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = RateOptions.Builder.class)
-public class RateOptions extends Validatable implements QueryNodeConfig {
+public class RateOptions extends Validatable implements QueryNodeConfig<RateOptions.Builder, RateOptions> {
   public static final long DEFAULT_RESET_VALUE = 0;
   public static final String DEFAULT_INTERVAL = "1s";
   public static final long DEFAULT_COUNTER_MAX = Long.MAX_VALUE;
@@ -179,10 +177,10 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   public ChronoUnit units() {
     return units;
   }
-  
+
   @Override
   public Builder toBuilder() {
-    return (Builder) new Builder()
+    return new Builder()
         .setInterval(interval)
         .setSources(sources)
         .setType(type)
@@ -194,12 +192,12 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
         .setResetValue(reset_value)
         .setId(id);
   }
-  
+
   @Override
   public boolean pushDown() {
     return true;
   }
-  
+
   @Override
   public boolean joins() {
     return false;
@@ -332,7 +330,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
     }
     return overrides == null ? false : overrides.containsKey(key);
   }
-  
+
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -369,11 +367,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
   }
   
   @Override
-  public int compareTo(final QueryNodeConfig o) {
-    if (!(o instanceof RateOptions)) {
-      return -1;
-    }
-    final RateOptions other = (RateOptions) o;
+  public int compareTo(final RateOptions other) {
     return ComparisonChain.start()
         .compareTrueFirst(counter, other.counter)
         .compareTrueFirst(drop_resets, other.drop_resets)
@@ -412,7 +406,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
-  public static final class Builder implements QueryNodeConfig.Builder {
+  public static final class Builder implements QueryNodeConfig.Builder<Builder, RateOptions> {
     @JsonProperty
     private String id;
     @JsonProperty
@@ -509,9 +503,14 @@ public class RateOptions extends Validatable implements QueryNodeConfig {
       overrides.put(key, value);
       return this;
     }
-    
+
     public RateOptions build() {
       return new RateOptions(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
   

@@ -14,37 +14,22 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.exceptions.QueryExecutionCanceled;
-import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An executor that takes {@link TimeSeriesQuery}s that have 1 or more child
@@ -346,7 +331,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends BaseQueryNodeConfig {
+  public static class Config extends BaseQueryNodeConfig<Config.Builder, Config> {
     private int parallel_executors;
     private String merge_strategy;
 
@@ -379,35 +364,21 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     public boolean joins() {
       return false;
     }
-    
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder()
+          .setParallelExecutors(parallel_executors)
+          .setMergeStrategy(merge_strategy)
+          .setId(id);
+    }
+
     @Override
     public String getId() {
       // TODO Auto-generated method stub
       return null;
     }
-   
-    @Override
-    public Builder toBuilder() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
-    /** @return A new builder. */
-    public static Builder newBuilder() {
-      return new Builder();
-    }
-    
-    /**
-     * @param config A non-null builcer to pull from.
-     * @return A cloned builder.
-     */
-    public static Builder newBuilder(final Config config) {
-      return (Builder) new Builder()
-          .setParallelExecutors(config.parallel_executors)
-          .setMergeStrategy(config.merge_strategy)
-          .setId(config.id);
-    }
-    
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
@@ -437,21 +408,29 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public int compareTo(final QueryNodeConfig other) {
-      if (!(other instanceof Config)) {
-        return -1;
-      }
+    public int compareTo(final Config other) {
       final Config config = (Config) other;
       return ComparisonChain.start()
           .compare(id, config.id, 
               Ordering.natural().nullsFirst())
-          .compare(parallel_executors, ((Config) config).parallel_executors)
-          .compare(merge_strategy, ((Config) config).merge_strategy, 
+          .compare(parallel_executors, (config).parallel_executors)
+          .compare(merge_strategy, (config).merge_strategy,
               Ordering.natural().nullsFirst())
           .result();
     }
-    
-    public static class Builder extends BaseQueryNodeConfig.Builder {
+
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+
+    public static void cloneBuilder(final Config config, Builder builder) {
+      builder
+          .setParallelExecutors(config.parallel_executors)
+          .setMergeStrategy(config.merge_strategy)
+          .setId(config.id);
+    }
+
+    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, Config> {
       @JsonProperty
       private int parallelExecutors;
       @JsonProperty
@@ -480,6 +459,11 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       /** @return An instantiated config if validation passes. */
       public Config build() {
         return new Config(this);
+      }
+
+      @Override
+      public Builder self() {
+        return this;
       }
     }
 

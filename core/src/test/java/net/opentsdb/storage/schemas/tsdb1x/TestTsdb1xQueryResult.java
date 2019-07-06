@@ -26,9 +26,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
 import java.util.List;
 
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
@@ -44,7 +46,6 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
@@ -227,7 +228,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     for (final TimeSeries ts : series) {
       value = 0;
       base_time = BASE_TIME;
-      Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
+      TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = ts.iterator(NumericType.TYPE).get();
       while (it.hasNext()) {
         TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
         assertEquals(base_time, v.timestamp().epoch());
@@ -303,7 +304,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     for (final TimeSeries ts : series) {
       value = 0;
       base_time = BASE_TIME;
-      Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
+      TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = ts.iterator(NumericType.TYPE).get();
       while (it.hasNext()) {
         TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
         assertEquals(base_time, v.timestamp().epoch());
@@ -379,7 +380,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     for (final TimeSeries ts : series) {
       value = 7;
       base_time = BASE_TIME + (3600 * 2) - 900;
-      Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
+      TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = ts.iterator(NumericType.TYPE).get();
       while (it.hasNext()) {
         TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
         assertEquals(base_time, v.timestamp().epoch());

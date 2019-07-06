@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -89,7 +90,7 @@ public class TestNumericLERP {
     lerp = new NumericLERP(source, config);
     assertFalse(lerp.has_next);
     
-    lerp = new NumericLERP((Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) null, config);
+    lerp = new NumericLERP((TypedTimeSeriesIterator<? extends TimeSeriesDataType>) null, config);
     assertFalse(lerp.has_next);
     
     try {

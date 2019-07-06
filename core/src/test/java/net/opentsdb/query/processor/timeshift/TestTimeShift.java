@@ -18,13 +18,13 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -33,12 +33,10 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 
 public class TestTimeShift {
@@ -79,7 +77,7 @@ public class TestTimeShift {
         .setTimeShiftInterval("1d")
         .setId("m1")
         .build();
-    config = (TimeShiftConfig) TimeShiftConfig.newBuilder()
+    config = TimeShiftConfig.newBuilder()
         .setTimeshiftInterval(((DefaultTimeSeriesDataSourceConfig)queryNodeConfig).getTimeShiftInterval())
         .setId("m1-timeshift")
         .build();

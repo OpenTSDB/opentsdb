@@ -150,6 +150,54 @@ public class TestRateNumericArrayIterator {
   }
   
   @Test
+  public void longsAsRate() {
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L), 50),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 50),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 50));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new double[] { Double.NaN, 3000, 2400, 
+        3000, 2400, 3000 }, 
+        value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+    
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
+    
+    it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    value = (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new double[] { Double.NaN, 3600, 0, 3600, 0, 3600 }, 
+        value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void doubles() {
     setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40.5),
         new MutableNumericValue(new SecondTimeStamp(60L), 50.5),

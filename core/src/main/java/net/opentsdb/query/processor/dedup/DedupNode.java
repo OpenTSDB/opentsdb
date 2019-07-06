@@ -15,13 +15,6 @@
 package net.opentsdb.query.processor.dedup;
 
 import com.google.common.reflect.TypeToken;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
@@ -36,6 +29,14 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 /**
  * A node that handles deduplication and/or sorting of time series values
  * from underlying iterators.
@@ -68,10 +69,10 @@ public class DedupNode extends AbstractQueryNode {
     DedupResult dedupResult = new DedupResult(next);
 
     for (TimeSeries ts : next.timeSeries()) {
-      Optional<TypedTimeSeriesIterator> optional = ts
+      Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional = ts
           .iterator(NumericType.TYPE);
       if (optional.isPresent()) {
-        Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
             optional.get();
         TreeMap<TimeStamp, TimeSeriesValue<? extends TimeSeriesDataType>> tsMap = 
             new TreeMap<>();
@@ -126,7 +127,7 @@ public class DedupNode extends AbstractQueryNode {
     }
 
     @Override
-    public Optional<TypedTimeSeriesIterator> iterator(
+    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == NumericType.TYPE) {
         return Optional.of(this);
@@ -135,8 +136,8 @@ public class DedupNode extends AbstractQueryNode {
     }
 
     @Override
-    public Collection<TypedTimeSeriesIterator> iterators() {
-      List<TypedTimeSeriesIterator> iterators = 
+    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+      List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
           timeSeries.iterators().stream().filter(
               ti -> ti.getType() == NumericType.TYPE
               ).collect(Collectors.toList());

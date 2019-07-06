@@ -14,21 +14,19 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.junit.Ignore;
-
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import org.junit.Ignore;
+
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Simple little class for mocking out a source.
@@ -70,7 +68,7 @@ public class MockNumericTimeSeries implements TimeSeries {
   }
   
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (type != NumericType.TYPE) {
       return Optional.empty();
@@ -79,8 +77,8 @@ public class MockNumericTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
-    final List<TypedTimeSeriesIterator> iterators =
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+    final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(1);
     iterators.add(new LocalIterator(data.iterator()));
     return iterators;

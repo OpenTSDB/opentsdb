@@ -62,6 +62,7 @@ import net.opentsdb.query.processor.rate.Rate;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.TSUID;
@@ -300,10 +301,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         !node.rollupIntervals().isEmpty() && 
         node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
       rollup_index = 0;
-      
+
+      List<String> summaryAggregations = source_config.getSummaryAggregations();
       final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
-          source_config.getSummaryAggregations().size());
-      for (final String agg : source_config.getSummaryAggregations()) {
+          summaryAggregations.size());
+      for (final String agg : summaryAggregations) {
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(
                 agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));
@@ -592,7 +594,21 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
           continue;
         }
         
-        if (node.push()) {
+        final QueryStats stats = node.pipelineContext().queryContext().stats();
+        if (stats != null) {
+          long size = 0;
+          for (int k = 0; k < result.getCells().size(); k++) {
+            size += 8; // timestamp
+            final KeyValue kv = result.getCells().get(k);
+            size += kv.key().length;
+            size += kv.family().length;
+            size += kv.qualifier().length;
+            size += kv.value() != null ? kv.value().length : 0;
+          }
+          stats.incrementRawDataSize(size);
+        }
+        
+        if (node != null && node.push()) {
           if (base_ts.epoch() == 0) {
             node.schema().baseTimestamp(result.getCells().get(0).key(), base_ts);
           }
@@ -648,8 +664,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   /**
    * Creates a batch of {@link GetRequest}s and sends them to the HBase
    * client.
-   * @param tsuid_idx The TSUID index to start at.
-   * @param timestamp The timestamp for each row key.
    */
   @VisibleForTesting
   void nextBatch(final Span span) {

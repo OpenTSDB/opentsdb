@@ -69,13 +69,13 @@ public class BaseNumericTest {
       .setDataType(NumericType.TYPE.toString())
       .build();
     
-    JOIN_CONFIG = (JoinConfig) JoinConfig.newBuilder()
+    JOIN_CONFIG = JoinConfig.newBuilder()
         .setJoinType(JoinType.INNER)
         .addJoins("host", "host")
         .setId("join")
         .build();
     
-    CONFIG = (ExpressionConfig) ExpressionConfig.newBuilder()
+    CONFIG = ExpressionConfig.newBuilder()
         .setExpression("a + b + c")
         .setJoinConfig(JOIN_CONFIG)
         .addInterpolatorConfig(NUMERIC_CONFIG)
@@ -102,7 +102,7 @@ public class BaseNumericTest {
   public void before() throws Exception {
     node = mock(BinaryExpressionNode.class);
     
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+    expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("b")
