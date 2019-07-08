@@ -125,19 +125,13 @@ public class TestBaseQueryNodeConfig {
 
   }
   
-  static class TestConfig extends BaseQueryNodeConfig {
+  static class TestConfig extends BaseQueryNodeConfig<TestConfig.Builder, TestConfig> {
 
     protected TestConfig(Builder builder) {
       super(builder);
       // TODO Auto-generated constructor stub
     }
 
-    @Override
-    public Builder toBuilder() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
     @Override
     public HashCode buildHashCode() {
       // TODO Auto-generated method stub
@@ -157,7 +151,12 @@ public class TestBaseQueryNodeConfig {
     }
 
     @Override
-    public int compareTo(QueryNodeConfig o) {
+    public Builder toBuilder() {
+      return null;
+    }
+
+    @Override
+    public int compareTo(TestConfig o) {
       // TODO Auto-generated method stub
       return 0;
     }
@@ -174,13 +173,18 @@ public class TestBaseQueryNodeConfig {
       return super.hashCode();
     }
     
-    public static class Builder extends BaseQueryNodeConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, TestConfig> {
 
       @Override
-      public QueryNodeConfig build() {
+      public TestConfig build() {
         return new TestConfig(this);
       }
-      
+
+      @Override
+      public Builder self() {
+        return this;
+      }
+
     }
 
     

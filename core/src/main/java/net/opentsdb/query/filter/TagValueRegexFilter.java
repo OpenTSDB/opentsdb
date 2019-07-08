@@ -124,7 +124,7 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
     final TagValueRegexFilter otherTagFilter = (TagValueRegexFilter) o;
 
     return Objects.equal(matches_all, otherTagFilter.matchesAll())
-            && Objects.equal(pattern.pattern(), otherTagFilter.pattern().pattern());
+        && Objects.equal(pattern.pattern(), otherTagFilter.pattern().pattern());
 
   }
 
@@ -144,6 +144,7 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
 
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putBoolean(matches_all)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(pattern.pattern()), Const.UTF8_CHARSET)
             .hash();
 

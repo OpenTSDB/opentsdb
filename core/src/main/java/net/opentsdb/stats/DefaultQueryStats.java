@@ -111,10 +111,17 @@ public class DefaultQueryStats implements QueryStats {
             context.authState().getUser() : "Unkown",
         "namespace", namespace };
     
-    stats.setGauge(RAW_DATA_METRIC, raw_data_size.get(), tags);
-    stats.setGauge(RAW_TIMESERIES_METRIC, raw_time_series_count.get(), tags);
-    stats.setGauge(SERIALIZED_DATA_METRIC, serialized_data_size.get(), tags);
-    stats.setGauge(SERIALIZED_TIMESERIES_METRIC, serialized_time_series_count.get(), tags);
+    if (raw_data_size.get() > 0 && serialized_data_size.get() > 0) {
+      stats.setGauge(RAW_DATA_METRIC, raw_data_size.get(), tags);
+      stats.setGauge(SERIALIZED_DATA_METRIC, serialized_data_size.get(), tags);
+
+    }
+    if (raw_time_series_count.get() > 0 && 
+        serialized_time_series_count.get() > 0) {
+      stats.setGauge(RAW_TIMESERIES_METRIC, raw_time_series_count.get(), tags);
+      stats.setGauge(SERIALIZED_TIMESERIES_METRIC, 
+          serialized_time_series_count.get(), tags);
+    }
   }
   
   public void incrementRawDataSize(final long size) {

@@ -301,10 +301,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
         !node.rollupIntervals().isEmpty() && 
         node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
       rollup_index = 0;
-      
+
+      List<String> summaryAggregations = source_config.getSummaryAggregations();
       final List<ScanFilter> filters = Lists.newArrayListWithCapacity(
-          source_config.getSummaryAggregations().size());
-      for (final String agg : source_config.getSummaryAggregations()) {
+          summaryAggregations.size());
+      for (final String agg : summaryAggregations) {
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator(
                 agg.toLowerCase().getBytes(Const.ASCII_US_CHARSET))));
@@ -663,8 +664,6 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   /**
    * Creates a batch of {@link GetRequest}s and sends them to the HBase
    * client.
-   * @param tsuid_idx The TSUID index to start at.
-   * @param timestamp The timestamp for each row key.
    */
   @VisibleForTesting
   void nextBatch(final Span span) {

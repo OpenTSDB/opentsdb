@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import java.util.*;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -34,6 +32,11 @@ import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.StringUtils;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Filters on a case sensitive tag key.
@@ -138,7 +141,6 @@ public class TagKeyLiteralOrFilter implements TagKeyFilter {
     }
 
     return true;
-
   }
 
 
@@ -150,26 +152,19 @@ public class TagKeyLiteralOrFilter implements TagKeyFilter {
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
-            .hash();
-    final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(2);
-
-    hashes.add(hc);
-
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET);
 
     if (literals != null) {
       final List<String> keys = Lists.newArrayList(literals);
       Collections.sort(keys);
-      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
       for (final String key : keys) {
-        hasher.putString(key, Const.UTF8_CHARSET);
+        hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hasher.hash());
     }
 
-    return Hashing.combineOrdered(hashes);
+    return hc.hash();
   }
   
   @Override

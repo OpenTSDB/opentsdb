@@ -270,7 +270,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //  @Test
 //  public void testTagValueLiteral() {
 //    QueryFilter filter = TagValueLiteralOrFilter.newBuilder().setFilter("cpu")
-//            .setTagKey("host")
+//            .setKey("host")
 //            .build();
 //
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()
@@ -292,7 +292,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //  public void testMultipleTagValueLiterals() {
 //    QueryFilter filter = TagValueLiteralOrFilter.newBuilder().setFilter
 //            ("host1|host2")
-//            .setTagKey("host")
+//            .setKey("host")
 //            .build();
 //
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()

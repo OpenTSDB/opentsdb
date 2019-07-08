@@ -226,18 +226,12 @@ public class TestBaseQueryNodeConfigWithInterpolators {
 
 
   
-  static class TestConfig extends BaseQueryNodeConfigWithInterpolators {
+  static class TestConfig extends BaseQueryNodeConfigWithInterpolators<TestConfig.Builder, TestConfig> {
 
     protected TestConfig(final Builder builder) {
       super(builder);
     }
 
-    @Override
-    public Builder toBuilder() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
     @Override
     public boolean pushDown() {
       return false;
@@ -247,6 +241,11 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     public boolean joins() {
       // TODO Auto-generated method stub
       return false;
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return null;
     }
 
     @Override
@@ -265,15 +264,19 @@ public class TestBaseQueryNodeConfigWithInterpolators {
     public HashCode buildHashCode() { return super.buildHashCode(); }
 
     @Override
-    public int compareTo(QueryNodeConfig o) { return 0; }
+    public int compareTo(TestConfig o) { return 0; }
     
-    static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+    static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, TestConfig> {
 
       @Override
-      public QueryNodeConfig build() {
+      public TestConfig build() {
         return new TestConfig(this);
       }
-      
+
+      @Override
+      public Builder self() {
+        return this;
+      }
     }
 
 

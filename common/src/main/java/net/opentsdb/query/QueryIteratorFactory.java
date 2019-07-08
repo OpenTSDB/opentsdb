@@ -20,6 +20,7 @@ import java.util.Map;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 
@@ -29,10 +30,10 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
  * 
  * @since 3.0
  */
-public interface QueryIteratorFactory {
+public interface QueryIteratorFactory<N extends QueryNode, T extends TimeSeriesDataType> {
   
   /** @return A non-null collection of types supported by this factory. */
-  public Collection<TypeToken<?>> types();
+  public Collection<TypeToken<? extends TimeSeriesDataType>> types();
   
   /**
    * Returns an iterator using a non-keyed collection of time series sources.
@@ -43,8 +44,8 @@ public interface QueryIteratorFactory {
    * @param type The non-null type.
    * @return A non-null iterator over a specific data type.
    */
-  public TypedTimeSeriesIterator newIterator(
-      final QueryNode node,
+  public TypedTimeSeriesIterator<T> newIterator(
+      final N node,
       final QueryResult result,
       final Collection<TimeSeries> sources,
       final TypeToken<? extends TimeSeriesDataType> type);
@@ -58,8 +59,8 @@ public interface QueryIteratorFactory {
    * @param type The non-null type.
    * @return A non-null iterator over a specific data type.
    */
-  public TypedTimeSeriesIterator newIterator(
-      final QueryNode node,
+  public TypedTimeSeriesIterator<T> newIterator(
+      final N node,
       final QueryResult result,
       final Map<String, TimeSeries> sources,
       final TypeToken<? extends TimeSeriesDataType> type);

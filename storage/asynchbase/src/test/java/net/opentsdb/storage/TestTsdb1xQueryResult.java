@@ -26,8 +26,10 @@ import static org.mockito.Mockito.when;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
@@ -44,7 +46,6 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -114,7 +115,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().longValue());
@@ -163,7 +164,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().longValue());
@@ -224,7 +225,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().longValue());
@@ -287,7 +288,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().longValue());
@@ -364,7 +365,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericSummaryType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericSummaryType.TYPE).get();
     TimeSeriesValue<NumericSummaryType> v = (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().value(0).longValue());
@@ -400,7 +401,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericSummaryType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericSummaryType.TYPE).get();
     TimeSeriesValue<NumericSummaryType> v = (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().value(0).longValue());
@@ -433,7 +434,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     
     assertEquals(1, result.timeSeries().size());
     TimeSeries series = result.timeSeries().iterator().next();
-    Iterator<TimeSeriesValue<?>> it = series.iterator(NumericType.TYPE).get();
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = series.iterator(NumericType.TYPE).get();
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().longValue());

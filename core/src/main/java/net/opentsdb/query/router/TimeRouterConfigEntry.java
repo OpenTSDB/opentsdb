@@ -27,6 +27,8 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
 
+import java.util.List;
+
 /**
  * A config that represents a single data source.
  * 
@@ -67,6 +69,8 @@ public class TimeRouterConfigEntry {
   /** Whether or not this source should return results only when the
    * entire query range is encompassed by the config range. */
   private final boolean full_only;
+
+  private final String data_type;
   
   /** The ID of the data source. */
   private final String source_id;
@@ -120,6 +124,7 @@ public class TimeRouterConfigEntry {
     }
     
     full_only = builder.fullOnly;
+    data_type = builder.dataType;
     source_id = builder.sourceId;
   }
   
@@ -153,6 +158,10 @@ public class TimeRouterConfigEntry {
   
   public boolean isFullOnly() {
     return full_only;
+  }
+
+  public String getDataType() {
+    return data_type;
   }
 
   public String getSourceId() {
@@ -222,6 +231,30 @@ public class TimeRouterConfigEntry {
       }
     }
 
+    String type;
+    if (config.getTypes() != null && !config.getTypes().isEmpty()) {
+      List<String> types = config.getTypes();
+      type = types.get(0);
+    } else {
+      type = null;
+    }
+    System.out.println("WORKING: " + type + "  AND : " + data_type);
+    if (!Strings.isNullOrEmpty(type) || !Strings.isNullOrEmpty(data_type)) {
+      if (Strings.isNullOrEmpty(type)) {
+        type = "metric";
+      }
+      String dt = data_type;
+      if (Strings.isNullOrEmpty(data_type)) {
+        dt = "metric";
+      }
+
+      if (!dt.toLowerCase().equals(type.toLowerCase())) {
+        System.out.println("WRONG TYPE. This factory has type: " + dt + " but we wanted " + type);
+        return MatchType.NONE;
+      }
+    }
+
+
     if (!factory.supportsQuery(query, config)) {
       return MatchType.NONE;
     }
@@ -242,6 +275,8 @@ public class TimeRouterConfigEntry {
     private String timeZone;
     @JsonProperty
     private boolean fullOnly;
+    @JsonProperty
+    private String dataType;
     @JsonProperty
     private String sourceId;
     
@@ -264,7 +299,12 @@ public class TimeRouterConfigEntry {
       fullOnly = full_only;
       return this;
     }
-    
+
+    public Builder setDataType(final String data_type) {
+      this.dataType = data_type;
+      return this;
+    }
+
     public Builder setSourceId(final String source_id) {
       sourceId = source_id;
       return this;

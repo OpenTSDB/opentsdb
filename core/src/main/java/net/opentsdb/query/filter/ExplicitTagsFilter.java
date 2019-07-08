@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
@@ -130,6 +131,7 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
       for (final String key : keys) {
         hasher.putString(key, Const.UTF8_CHARSET);
       }
+      hasher.putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET);
       hashes.add(hasher.hash());
     }
 

@@ -54,7 +54,7 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
   protected final QueryFillPolicy<NumericType> fill_policy;
   
   /** The iterator pulled from the source. May be null. */
-  protected final Iterator<TimeSeriesValue<?>> iterator;
+  protected final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** The previous real value. */
   protected MutableNumericValue previous;
@@ -86,7 +86,7 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
     }
     this.config = (NumericInterpolatorConfig) config;
     fill_policy = ((NumericInterpolatorConfig) config).queryFill();
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();
@@ -109,7 +109,7 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
    */
   @SuppressWarnings("unchecked")
   public NumericInterpolator(
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final QueryInterpolatorConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");

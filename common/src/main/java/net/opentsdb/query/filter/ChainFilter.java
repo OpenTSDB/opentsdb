@@ -17,6 +17,7 @@ package net.opentsdb.query.filter;
 import java.util.List;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -113,7 +114,6 @@ public class ChainFilter implements QueryFilter {
     }
 
     return true;
-
   }
 
   @Override
@@ -126,6 +126,7 @@ public class ChainFilter implements QueryFilter {
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putInt((op != null ? op.hashCode() : 0))
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(1 +

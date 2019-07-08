@@ -21,9 +21,13 @@ import com.google.common.reflect.TypeToken;
  * 
  * @since 3.0
  */
-public interface TimeSeriesDataType {
+public interface TimeSeriesDataType<T extends TimeSeriesDataType> {
 
-  /** @return The non-null type of data this value represents. */
-  public TypeToken<? extends TimeSeriesDataType> type();
-  
+  /**
+   * @return The non-null type of data this value represents.
+   */
+  default TypeToken<T> type() {
+    return TypeToken.of((Class<T>) getClass());
+  }
+
 }

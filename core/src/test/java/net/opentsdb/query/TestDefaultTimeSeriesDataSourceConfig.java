@@ -44,13 +44,12 @@ public class TestDefaultTimeSeriesDataSourceConfig {
   @Test
   public void builder() {
 
-    final QueryNodeConfig build = DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setSourceId("HBase")
+    DefaultTimeSeriesDataSourceConfig.Builder builder = DefaultTimeSeriesDataSourceConfig.newBuilder();
+    builder.setSourceId("HBase")
         .setNamespace("Verizon")
-        .setMetric(MetricLiteralFilter.newBuilder().setMetric("system.cpu.use").build())
         .setId("UT")
-        .setSources(Lists.newArrayList("colo1", "colo2"))
-        .build();
+        .setSources(Lists.newArrayList("colo1", "colo2"));
+    QueryNodeConfig build = builder.setMetric(MetricLiteralFilter.newBuilder().setMetric("system.cpu.use").build()).build();
 
     assertEquals("UT", build.getId());
     assertEquals(2, build.getSources().size());
@@ -62,16 +61,15 @@ public class TestDefaultTimeSeriesDataSourceConfig {
 
   @Test
   public void setUpTimeShiftSingleNode() {
-    final QueryNodeConfig build = DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setSourceId("HBase")
+    DefaultTimeSeriesDataSourceConfig.Builder builder = DefaultTimeSeriesDataSourceConfig.newBuilder();
+    builder.setSourceId("HBase")
         .setNamespace("Verizon")
         .setTimeShiftInterval("1h")
-        .setMetric(MetricLiteralFilter.newBuilder().setMetric("system.cpu.use").build())
         .setId("UT")
-        .setSources(Lists.newArrayList("colo1", "colo2"))
-        .build();
+        .setSources(Lists.newArrayList("colo1", "colo2"));
 
-    DefaultTimeSeriesDataSourceConfig.setupTimeShift((TimeSeriesDataSourceConfig) build, planner);
+    QueryNodeConfig build = builder.setMetric(MetricLiteralFilter.newBuilder().setMetric("system.cpu.use").build()).build();
+
   }
 
 

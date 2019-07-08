@@ -89,6 +89,7 @@ public class MetricLiteralFilter implements MetricFilter {
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(metric), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
 
     return hc;

@@ -91,8 +91,7 @@ public class MetricRegexFilter implements MetricFilter {
 
     final MetricRegexFilter otherMetricFilter = (MetricRegexFilter) o;
 
-    return Objects.equal(metric, otherMetricFilter.getMetric())
-            && Objects.equal(pattern.pattern(), otherMetricFilter.pattern().pattern());
+    return Objects.equal(metric, otherMetricFilter.getMetric());
 
   }
 
@@ -105,7 +104,7 @@ public class MetricRegexFilter implements MetricFilter {
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(metric), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(pattern.pattern()), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
 
     return hc;

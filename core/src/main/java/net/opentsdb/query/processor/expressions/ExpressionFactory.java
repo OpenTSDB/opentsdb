@@ -14,9 +14,6 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -24,17 +21,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.graph.Graphs;
 import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
-import net.opentsdb.query.processor.expressions.ExpressionParseNode.Builder;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * A factory used to instantiate expression nodes in the graph. This 
@@ -43,7 +39,7 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  * 
  * NOTE: This factory will not generate nodes. Instead it will mutate the
  * execution graph with {@link ExpressionParseNode} entries when 
- * {@link #setupGraph(TimeSeriesQuery, QueryNodeConfig, DirectedAcyclicGraph)} 
+ * {@link #setupGraph(QueryPipelineContext, ExpressionConfig, QueryPlanner )}
  * is called.
  * 
  * TODO - we can walk the nodes and look for duplicates. It's a pain to
@@ -51,7 +47,7 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  * 
  * @since 3.0
  */
-public class ExpressionFactory extends BaseQueryNodeFactory {
+public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig, BinaryExpressionNode> {
   
   public static final String TYPE = "Expression";
   
@@ -74,7 +70,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public ExpressionConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return ExpressionConfig.parse(mapper, tsdb, node);
@@ -82,10 +78,10 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final ExpressionConfig config,
                          final QueryPlanner plan) {
     // parse the expression
-    final ExpressionConfig c = (ExpressionConfig) config;
+    final ExpressionConfig c = config;
     final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
     
@@ -97,7 +93,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     final List<QueryNodeConfig> new_nodes = 
         Lists.newArrayListWithCapacity(configs.size());
     for (final ExpressionParseNode parse_node : configs) {
-      ExpressionParseNode.Builder builder = (Builder) parse_node.toBuilder()
+      ExpressionParseNode.Builder builder = parse_node.toBuilder()
           .setSources(Lists.newArrayList());
       if (parse_node.getLeftType() == OperandType.SUB_EXP) {
         builder.addSource((String) parse_node.getLeft());
@@ -161,8 +157,9 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
     // now yank ourselves out and link.
     plan.configGraph().removeNode(config);
     for (final QueryNodeConfig node : new_nodes) {
-      
-      for (final String source : node.getSources()) {
+
+      List<String> sources = node.getSources();
+      for (final String source : sources) {
         plan.configGraph().putEdge(node, node_map.get(source));
         if (Graphs.hasCycle(plan.configGraph())) {
           throw new IllegalStateException("Cylcle found when generating "
@@ -304,14 +301,14 @@ public class ExpressionFactory extends BaseQueryNodeFactory {
   }
   
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public BinaryExpressionNode newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("This node should have been "
         + "removed from the graph.");
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
+  public BinaryExpressionNode newNode(final QueryPipelineContext context,
+                           final ExpressionConfig config) {
     throw new UnsupportedOperationException("This node should have been "
         + "removed from the graph.");
   }

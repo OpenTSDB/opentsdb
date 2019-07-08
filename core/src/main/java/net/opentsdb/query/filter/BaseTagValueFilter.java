@@ -84,6 +84,7 @@ public abstract class BaseTagValueFilter implements TagValueFilter {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(tag_key), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
 
     return hc;

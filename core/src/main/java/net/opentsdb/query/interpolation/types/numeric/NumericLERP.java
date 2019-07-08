@@ -21,6 +21,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
@@ -62,7 +63,7 @@ public class NumericLERP extends NumericInterpolator {
    * @throws IllegalArgumentException if the config was null.
    */
   public NumericLERP(
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final QueryInterpolatorConfig config) {
     super(iterator, config);
   }

@@ -29,15 +29,16 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -46,7 +47,6 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.router.TimeRouterConfigEntry.MatchType;
 import net.opentsdb.rollup.RollupConfig;
@@ -68,8 +68,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class TimeRouterFactory extends BaseQueryNodeFactory 
-  implements TimeSeriesDataSourceFactory {
+public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, TimeSeriesDataSource> {
 
   public static final String TYPE = "TimeNamespaceRouter";
 
@@ -84,7 +83,7 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
   protected volatile List<TimeRouterConfigEntry> config;
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public TimeSeriesDataSourceConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
@@ -98,13 +97,12 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
+                         final TimeSeriesDataSourceConfig config,
                          final QueryPlanner planner) {
     final List<TimeRouterConfigEntry> config_ref = this.config;
     List<TimeRouterConfigEntry> sources = Lists.newArrayList();
     for (final TimeRouterConfigEntry entry : config_ref) {
-      final MatchType match = entry.match(context.query(), 
-          (TimeSeriesDataSourceConfig) config, tsdb);
+      final MatchType match = entry.match(context.query(), config, tsdb);
       if (match == MatchType.NONE) {
         continue;
       } else if (match == MatchType.FULL) {
@@ -125,10 +123,10 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
     // TODO - when we do time offsets we can add timestamps for each
     // data source. In the mean time we just pass the same query to each.
     if (sources.size() == 1) {
-      final TimeSeriesDataSourceConfig rebuilt = 
-          ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-          .setSourceId(sources.get(0).getSourceId())
-          .build();
+
+      TimeSeriesDataSourceConfig.Builder builder = (TimeSeriesDataSourceConfig.Builder) config.toBuilder();
+      builder.setSourceId(sources.get(0).getSourceId());
+      TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig) builder.build();
       planner.replace(config, rebuilt);
       if (context.query().isTraceEnabled()) {
         context.queryContext().logTrace("Only one route available: " 
@@ -163,14 +161,13 @@ public class TimeRouterFactory extends BaseQueryNodeFactory
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
-    throw new UnsupportedOperationException("This node should have been "
-        + "removed from the graph.");
+  public TimeSeriesDataSource newNode(QueryPipelineContext context) {
+    throw new UnsupportedOperationException();
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
+  public TimeSeriesDataSource newNode(final QueryPipelineContext context,
+                           final TimeSeriesDataSourceConfig config) {
     throw new UnsupportedOperationException("This node should have been "
         + "removed from the graph.");
   }

@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,7 +28,6 @@ import com.google.common.base.Objects;
 
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.utils.Comparators;
@@ -38,7 +39,7 @@ import net.opentsdb.utils.Comparators;
  * @since 3.0
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
+public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<B, C>, C extends BaseQueryNodeConfig> implements QueryNodeConfig<B, C> {
 
   /** A unique name for this config. */
   protected final String id;
@@ -185,7 +186,7 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
     }
     return overrides == null ? false : overrides.containsKey(key);
   }
-  
+
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -201,13 +202,11 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
       return false;
     }
 
-
     if (!Comparators.ListComparison.equalLists(sources, queryConfig.getSources())) {
       return false;
     }
 
     return true;
-
   }
 
 
@@ -220,31 +219,25 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(type), Const.UTF8_CHARSET)
-            .hash();
-    final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(2);
-
-    hashes.add(hc);
+            .putString(Strings.nullToEmpty(type), Const.UTF8_CHARSET);
 
     if (sources != null) {
       final List<String> keys = Lists.newArrayList(sources);
       Collections.sort(keys);
-      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
       for (final String key : keys) {
-        hasher.putString(key, Const.UTF8_CHARSET);
+        hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hasher.hash());
     }
 
-    return Hashing.combineOrdered(hashes);
+    return hc.hash();
   }
   
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static abstract class Builder implements QueryNodeConfig.Builder {
+  public abstract static class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfig>
+      implements QueryNodeConfig.Builder<B, C> {
 
     @JsonProperty
     protected String id;
@@ -254,23 +247,23 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
     private List<String> sources;
     @JsonProperty
     protected Map<String, String> overrides;
-    
+
     /**
      * @param id An ID for this builder.
      * @return The builder.
      */
-    public Builder setId(final String id) {
+    public B setId(final String id) {
       this.id = id;
-      return this;
+      return self();
     }
-    
+
     /**
      * @param type The class of the implementation.
      * @return The builder.
      */
-    public Builder setType(final String type) {
+    public B setType(final String type) {
       this.type = type;
-      return this;
+      return self();
     }
     
     /**
@@ -278,30 +271,30 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
      * of a nodes in the graph.
      * @return The builder.
      */
-    public Builder setSources(final List<String> sources) {
+    public B setSources(final List<String> sources) {
       this.sources = sources;
-      return this;
+      return self();
     }
     
     /**
      * @param source A source to pull from for this node.
      * @return The builder.
      */
-    public Builder addSource(final String source) {
+    public B addSource(final String source) {
       if (sources == null) {
         sources = Lists.newArrayListWithExpectedSize(1);
       }
       sources.add(source);
-      return this;
+      return self();
     }
     
     /**
      * @param overrides An override map to replace the existing map.
      * @return The builder.
      */
-    public Builder setOverrides(final Map<String, String> overrides) {
+    public B setOverrides(final Map<String, String> overrides) {
       this.overrides = overrides;
-      return this;
+      return self();
     }
     
     /**
@@ -309,15 +302,13 @@ public abstract class BaseQueryNodeConfig implements QueryNodeConfig {
      * @param value A value to store, overwriting existing values.
      * @return The builder.
      */
-    public Builder addOverride(final String key, final String value) {
+    public B addOverride(final String key, final String value) {
       if (overrides == null) {
         overrides = Maps.newHashMap();
       }
       overrides.put(key, value);
-      return this;
+      return self();
     }
-    
-    /** @return A config object or an exception if the config failed. */
-    public abstract QueryNodeConfig build();
+
   }
 }

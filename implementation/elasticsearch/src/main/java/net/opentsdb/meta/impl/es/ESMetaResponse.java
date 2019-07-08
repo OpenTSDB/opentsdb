@@ -1,0 +1,556 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2019  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package net.opentsdb.meta.impl.es;
+
+import com.google.common.collect.Lists;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.meta.BatchMetaQuery;
+import net.opentsdb.meta.MetaDataStorageResult;
+import net.opentsdb.meta.MetaQuery;
+import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
+import net.opentsdb.meta.NamespacedAggregatedDocumentResult;
+import net.opentsdb.meta.NamespacedKey;
+import net.opentsdb.meta.impl.MetaResponse;
+import net.opentsdb.query.filter.ChainFilter;
+import net.opentsdb.query.filter.ExplicitTagsFilter;
+import net.opentsdb.query.filter.MetricFilter;
+import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagKeyFilter;
+import net.opentsdb.query.filter.TagValueFilter;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.UniqueKeyPair;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
+import org.elasticsearch.search.aggregations.bucket.nested.InternalNested;
+import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public class ESMetaResponse implements MetaResponse {
+
+  private static Logger LOGGER = LoggerFactory.getLogger(ESMetaResponse.class);
+
+  public final Map<String, MultiSearchResponse> response;
+
+  public ESMetaResponse(final Map<String, MultiSearchResponse> response) {
+    this.response = response;
+  }
+
+  @Override
+  public Map<NamespacedKey, MetaDataStorageResult> parse(BatchMetaQuery query, TSDB tsdb, Span child) {
+    final Map<NamespacedKey, MetaDataStorageResult> final_results = new
+        LinkedHashMap<>();
+    int i = 0;
+    for (MetaQuery meta_query : query.metaQueries()) {
+      long max_hits = 0;
+
+
+      int count = countMetricFilters(meta_query.filter(), 0);
+
+      NamespacedAggregatedDocumentResult result = null;
+      int null_results = 0;
+      for (final Map.Entry<String, MultiSearchResponse> search_response : response.entrySet()) {
+        final MultiSearchResponse.Item[] responses = search_response.getValue().getResponses();
+
+        Set<UniqueKeyPair> tag_keys = null; // will be initialized if we have multiple metricliteral's
+        // doing an AND.
+        SearchResponse response = null;
+        if (count == 0) {
+          response = responses[i].getResponse();
+        }
+        for (int k = i; k < i + count; k++) { // we have one query per metric so go through them accordingly
+          response = responses[k].getResponse();
+        }
+        if (response == null) {
+          LOGGER.warn(
+              "Null response from " + search_response.getKey() + " for query " + meta_query);
+          tsdb.getStatsCollector().incrementCounter("es.client.query.nullResponse", "colo",
+              search_response.getKey());
+          null_results++;
+        } else {
+          if (response.getHits().getTotalHits() > max_hits) {
+            max_hits = response.getHits().getTotalHits();
+          }
+
+          if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Got response in " + response.getTookInMillis()
+                + "ms from " + search_response.getKey());
+          }
+          long startTime = System.currentTimeMillis();
+          switch (query.type()) {
+            case NAMESPACES:
+              if (response.getAggregations() == null ||
+                  response.getAggregations().get(
+                      NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG) == null) {
+                break;
+              }
+              if (result == null) {
+                result = parseNamespaces(query, meta_query, response
+                    .getAggregations()
+                    .get(
+                        NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), null);
+              } else {
+                parseNamespaces(query, meta_query, response.getAggregations().get(
+                    NamespacedAggregatedDocumentQueryBuilder.NAMESPACE_AGG), result);
+              }
+              break;
+            case METRICS:
+              if (response.getAggregations() == null ||
+                  response.getAggregations().get(
+                      NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG) == null) {
+                break;
+              }
+              if (result == null) {
+                result = parseMetrics(query, meta_query, response
+                    .getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), null);
+              } else {
+                parseMetrics(query, meta_query, response.getAggregations().get(
+                    NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG), result);
+              }
+              break;
+            case TAG_KEYS:
+              if (response.getAggregations() == null ||
+                  response.getAggregations().get(
+                      NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG) == null) {
+                break;
+              }
+              if (count > 1) { // we need to do an intersection.
+                Aggregation aggregation = response
+                    .getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG);
+                if (tag_keys == null) {
+                  tag_keys=getTagKeysSet(aggregation);
+                } else {
+                  tag_keys.retainAll(getTagKeysSet(aggregation));
+                }
+
+              } else { // just iterate over the buckets and put them in result
+                if (result == null) {
+                  result = parseTagKeys(query, meta_query, response
+                      .getAggregations().get(
+                          NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), null);
+                } else {
+                  parseTagKeys(query, meta_query, response.getAggregations().get(
+                      NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_AGG), result);
+                }
+              }
+              break;
+            case TAG_VALUES:
+              if (response.getAggregations() == null ||
+                  response.getAggregations().get(
+                      NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG) == null) {
+                break;
+              }
+              if (result == null) {
+                result = parseTagValues(query, meta_query, response
+                    .getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), null);
+              } else {
+                parseTagValues(query, meta_query, response.getAggregations().get(
+                    NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_AGG), result);
+              }
+              break;
+            case TAG_KEYS_AND_VALUES:
+              if (response.getAggregations() == null ||
+                  response.getAggregations().get(
+                      NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG) == null) {
+                break;
+              }
+              if (result == null) {
+                result = parseTagKeysAndValues(query, meta_query, response
+                    .getAggregations
+                        ().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), null);
+              } else {
+                parseTagKeysAndValues(query, meta_query, response
+                    .getAggregations().get(
+                        NamespacedAggregatedDocumentQueryBuilder.TAGS_AGG), result);
+              }
+            case TIMESERIES:
+              if (result == null) {
+                result = parseTimeseries(query, meta_query, response, null);
+              } else {
+                parseTimeseries(query, meta_query, response, result);
+              }
+              break;
+            default:
+              final_results
+                  .put(new NamespacedKey(meta_query.namespace(), meta_query.id()), new
+                      NamespacedAggregatedDocumentResult
+                      (MetaDataStorageResult.MetaResult
+                          .NO_DATA,
+                          query, meta_query));
+              return final_results;
+          }
+
+          if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Time took to parse out results == " + (System
+                .currentTimeMillis() - startTime) + " ms from " + search_response.getKey());
+          }
+        }
+
+
+
+        if (tag_keys != null) {
+          for (UniqueKeyPair tag : tag_keys) {
+            if (result == null) {
+              result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+                  query, meta_query);
+            }
+            result.addTagKeyOrValue(tag);
+          }
+        }
+      }
+      if (null_results == response.size()) {
+        final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), new
+            NamespacedAggregatedDocumentResult
+            (MetaDataStorageResult.MetaResult
+                .NO_DATA,
+                query, meta_query));
+      }
+      if (result == null) {
+        result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+            query, meta_query);
+      }
+      result.setTotalHits(max_hits);
+      final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), result);
+      i = i + count;
+    }
+
+    if (child != null) {
+      child.setSuccessTags()
+          .setTag("result", final_results.toString())
+          .finish();
+    }
+    return final_results;
+  }
+
+  private int countMetricFilters(final QueryFilter filter, int count) {
+    if (filter instanceof MetricFilter) {
+      count++;
+      return count;
+    } if (filter instanceof ExplicitTagsFilter) {
+      return countMetricFilters(((ExplicitTagsFilter) filter).getFilter(), count);
+    } if (filter instanceof TagKeyFilter) {
+      return count;
+    } if (filter instanceof TagValueFilter) {
+      return count;
+    } if (filter instanceof NotFilter) {
+      return count;
+    }
+    if (filter instanceof ChainFilter) {
+      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        count = countMetricFilters(sub_filter, count);
+      }
+    }
+    return count;
+  }
+
+  private NamespacedAggregatedDocumentResult parseNamespaces(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
+      NamespacedAggregatedDocumentResult result) {
+    for (final Terms.Bucket bucket : ((StringTerms) aggregation).getBuckets()) {
+      if (result == null) {
+        result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+            query, meta_query);
+      }
+      result.addNamespace(bucket.getKey());
+    }
+    return result;
+  }
+
+  NamespacedAggregatedDocumentResult parseMetrics(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
+      NamespacedAggregatedDocumentResult result) {
+    if (((InternalNested) aggregation).getDocCount() <= 0) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    final Aggregation metrics = ((InternalFilter) ((InternalNested)
+        aggregation)
+        .getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_AGG))
+        .getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.METRIC_UNIQUE);
+
+    if (metrics == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    for (final Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
+      if (result == null) {
+        result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+            query, meta_query);
+      }
+
+      result.addMetric(new UniqueKeyPair<String, Long>(bucket.getKey(),
+          bucket.getDocCount()));
+    }
+    return result;
+  }
+
+  NamespacedAggregatedDocumentResult parseTagKeys(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
+      NamespacedAggregatedDocumentResult result) {
+    if (((InternalNested) aggregation).getDocCount() <= 0) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    final Aggregation tag_keys_filter = ((InternalNested) aggregation).getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
+    if (tag_keys_filter == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
+
+    if (tag_keys == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
+      if (result == null) {
+        result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+            query, meta_query);
+      }
+
+
+      result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
+          bucket.getDocCount()));
+    }
+    return result;
+  }
+
+  Set<UniqueKeyPair> getTagKeysSet(
+      final Aggregation aggregation) {
+    if (((InternalNested) aggregation).getDocCount() <= 0) {
+      return new HashSet<>();
+    }
+
+    final Aggregation tag_keys_filter = ((InternalNested) aggregation).getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
+    if (tag_keys_filter == null) {
+      return new HashSet<>();
+    }
+
+    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_KEY_UNIQUE);
+
+    if (tag_keys == null) {
+      return new HashSet<>();
+    }
+
+    Set<UniqueKeyPair> tag_key = new HashSet<>();
+    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
+      tag_key.add(new UniqueKeyPair<String, Long>(bucket.getKey(),
+          bucket.getDocCount()));
+    }
+    return tag_key;
+  }
+
+
+  NamespacedAggregatedDocumentResult parseTagValues(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
+      NamespacedAggregatedDocumentResult result) {
+    if (((InternalNested) aggregation).getDocCount() <= 0) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    final Aggregation metrics = ((InternalNested) aggregation).getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.TAG_VALUE_UNIQUE);
+    if (metrics == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    for (final Terms.Bucket bucket : ((StringTerms) metrics).getBuckets()) {
+      if (result == null) {
+        result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+            query, meta_query);
+      }
+
+      result.addTagKeyOrValue(new UniqueKeyPair<String, Long>(bucket.getKey(),
+          bucket.getDocCount()));
+    }
+    return result;
+  }
+
+  NamespacedAggregatedDocumentResult parseTagKeysAndValues(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final Aggregation aggregation,
+      NamespacedAggregatedDocumentResult result) {
+    if (((InternalNested) aggregation).getDocCount() <= 0) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    final Aggregation tag_keys_filter = ((InternalNested) aggregation)
+        .getAggregations()
+        .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
+    if (tag_keys_filter == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+    final Aggregation tag_keys = ((InternalFilter) tag_keys_filter).getAggregations()
+        .get
+            (NamespacedAggregatedDocumentQueryBuilder.TAGS_UNIQUE);
+
+    if (tag_keys == null) {
+      if (result != null) {
+        return result;
+      }
+      return new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.NO_DATA,
+          query, meta_query);
+    }
+
+    for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
+      if (result == null) {
+        result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+            query, meta_query);
+      }
+      Aggregation sub = bucket.getAggregations()
+          .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_AGG);
+      if (sub == null || ((InternalFilter) sub).getDocCount() < 1) {
+        result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
+            bucket.getDocCount()), null);
+      } else {
+        sub = ((InternalFilter) sub).getAggregations()
+            .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_UNIQUE);
+        if (sub == null) {
+          result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
+              bucket.getDocCount()), null);
+        } else {
+          final List<UniqueKeyPair<String, Long>> tag_values = Lists.newArrayList();
+          for (final Terms.Bucket sub_bucket : ((StringTerms) sub).getBuckets()) {
+            tag_values.add(new UniqueKeyPair<String, Long>(sub_bucket.getKey(),
+                sub_bucket.getDocCount()));
+          }
+          result.addTags(new UniqueKeyPair<String, Long>(bucket.getKey(),
+              bucket.getDocCount()), tag_values);
+        }
+      }
+
+    }
+    return result;
+  }
+
+  NamespacedAggregatedDocumentResult parseTimeseries(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final SearchResponse response,
+      NamespacedAggregatedDocumentResult result) {
+    return parseTimeseries(query, meta_query, response, null, result);
+  }
+
+  NamespacedAggregatedDocumentResult parseTimeseries(
+      final BatchMetaQuery query, final MetaQuery meta_query,
+      final SearchResponse response,
+      final String metric,
+      NamespacedAggregatedDocumentResult result) {
+    for (final SearchHit hit : response.getHits().hits()) {
+      final Map<String, Object> source = hit.getSource();
+      List<Map<String, String>> tags = (List<Map<String, String>>)
+          source.get("tags");
+      List<Map<String, String>> metrics = (List<Map<String, String>>)
+          source.get("AM_nested");
+      if (metric == null) {
+        if (metrics != null) {
+          for (Map<String, String> m : metrics) {
+            if (result == null) {
+              result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult
+                  .DATA, query, meta_query);
+            }
+            result.addTimeSeries(buildTimeseries(m.get("name.raw"), tags),
+                meta_query, m.get("name.raw"));
+          }
+        }
+      } else {
+        int idx = metric.indexOf(".");
+        final String metric_only = metric.substring(idx + 1).toLowerCase();
+        if (result == null) {
+          result = new NamespacedAggregatedDocumentResult(MetaDataStorageResult.MetaResult.DATA,
+              query, meta_query);
+        }
+        result.addTimeSeries(buildTimeseries(metric, tags), meta_query, metric_only);
+      }
+    }
+    return result;
+  }
+
+  private TimeSeriesId buildTimeseries(final String metric, final
+  List<Map<String, String>> tags) {
+
+    final BaseTimeSeriesStringId.Builder builder =
+        BaseTimeSeriesStringId.newBuilder();
+    builder.setMetric(metric);
+    for (final Map<String, String> pair : tags) {
+      builder.addTags(pair.get("key.raw"), pair.get("value.raw"));
+    }
+    BaseTimeSeriesStringId timeseries = builder.build();
+    return timeseries;
+  }
+}

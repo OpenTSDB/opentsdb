@@ -12,8 +12,6 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
-import java.util.*;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
@@ -38,6 +36,10 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A generic query object that allows the construction of a complete DAG
@@ -191,16 +193,14 @@ public class SemanticQuery implements TimeSeriesQuery {
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(time_zone), Const.UTF8_CHARSET)
-            .putInt((mode != null ? mode.hashCode() : 0))
-            .hash();
+            .putInt((mode != null ? mode.hashCode() : 0));
     final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(2 +
+            Lists.newArrayListWithCapacity(1 +
                     (execution_graph != null ? execution_graph.size() : 0) +
                     (filters != null ? (2 * filters.size()) : 0));
 
-    hashes.add(hc);
 
     if (execution_graph != null) {
       for (final QueryNodeConfig node : execution_graph) {
@@ -211,11 +211,10 @@ public class SemanticQuery implements TimeSeriesQuery {
     if (filters != null) {
       final List<String> keys = Lists.newArrayList(filters.keySet());
       Collections.sort(keys);
-      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
       for (final String key : keys) {
-        hasher.putString(key, Const.UTF8_CHARSET);
+        hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hasher.hash());
+      hashes.add(hc.hash());
 
       final List<NamedFilter> values = Lists.newArrayList(filters.values());
       for (final NamedFilter val : values) {

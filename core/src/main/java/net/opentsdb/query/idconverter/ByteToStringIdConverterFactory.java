@@ -32,12 +32,12 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
  * 
  * @since 3.0
  */
-public class ByteToStringIdConverterFactory extends BaseQueryNodeFactory {
+public class ByteToStringIdConverterFactory extends BaseQueryNodeFactory<ByteToStringIdConverterConfig, ByteToStringIdConverter> {
 
   public static final String TYPE = "ByteToStringIdConverter";
 
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public ByteToStringIdConverterConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     try {
@@ -47,26 +47,19 @@ public class ByteToStringIdConverterFactory extends BaseQueryNodeFactory {
     }
   }
 
-  @Override
-  public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config,
-                         final QueryPlanner planner) {
-    // no-op
-  }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
-    return new ByteToStringIdConverter(this, context, 
+  public ByteToStringIdConverter newNode(final QueryPipelineContext context) {
+    return new ByteToStringIdConverter(this, context,
         (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
           .setId(TYPE)
           .build());
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
-    return new ByteToStringIdConverter(this, context, 
-        (ByteToStringIdConverterConfig) config);
+  public ByteToStringIdConverter newNode(final QueryPipelineContext context,
+                           final ByteToStringIdConverterConfig config) {
+    return new ByteToStringIdConverter(this, context, config);
   }
 
   @Override

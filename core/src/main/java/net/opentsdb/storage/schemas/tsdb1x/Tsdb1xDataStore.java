@@ -14,9 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 
 /**
@@ -36,8 +35,8 @@ public interface Tsdb1xDataStore extends WritableTimeSeriesDataStore {
    * require a configuration.
    * @return An instantiated node if successful.
    */
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config);
+  public Tsdb1xQueryNode newNode(final QueryPipelineContext context,
+                           final TimeSeriesDataSourceConfig config);
   
   /** @return The ID of this time series data store instance. */
   public String id();

@@ -56,13 +56,12 @@ public interface PBufIteratorSerdes {
    * @param result The original query result.
    * @param iterator A non-null iterator.
    * 
-   * @throws SerdesException If something goes wrong during serialization.
    */
   public void serialize(final TimeSeriesPB.TimeSeries.Builder ts_builder, 
                         final QueryContext context, 
                         final SerdesOptions options, 
                         final QueryResult result,
-                        final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator);
+                        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator);
   
   /**
    * Returns an iterator over the data serialized in the TimeSeriesData
@@ -73,7 +72,6 @@ public interface PBufIteratorSerdes {
    * just return an iterator with it's {@link Iterator#hasNext()} returning
    * false.
    * 
-   * @throws SerdesException If something goes wrong during deserialization.
    */
   public TypedTimeSeriesIterator deserialize(final TimeSeriesData series);
   

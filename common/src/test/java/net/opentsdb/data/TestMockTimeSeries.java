@@ -145,7 +145,7 @@ public class TestMockTimeSeries {
     
     assertFalse(series.iterator(type3).isPresent());
     
-    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
         series.iterator(type1).get();
     assertTrue(iterator.hasNext());
     TimeSeriesValue<? extends TimeSeriesDataType> v = iterator.next();
@@ -164,7 +164,7 @@ public class TestMockTimeSeries {
     
     assertFalse(iterator.hasNext());
     
-    Collection<TypedTimeSeriesIterator> iterators
+    Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators
       = series.iterators();
     assertEquals(2, iterators.size());
   }

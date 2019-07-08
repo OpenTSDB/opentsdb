@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.0
  */
-public class RateFactory extends BaseQueryNodeFactory {
+public class RateFactory extends BaseQueryNodeFactory<RateConfig, Rate> {
   private static final Logger LOG = LoggerFactory.getLogger(RateFactory.class);
   
   public static final String TYPE = "Rate";
@@ -74,8 +74,7 @@ public class RateFactory extends BaseQueryNodeFactory {
   public RateFactory() {
     super();
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
-    registerIteratorFactory(NumericArrayType.TYPE, 
-        new NumericArrayIteratorFactory());
+    registerIteratorFactory(NumericArrayType.TYPE, new NumericArrayIteratorFactory());
   }
   
   @Override
@@ -93,8 +92,8 @@ public class RateFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
+  public Rate newNode(final QueryPipelineContext context,
+                           final RateConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
@@ -102,12 +101,7 @@ public class RateFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
-    throw new UnsupportedOperationException();
-  }
-  
-  @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public RateConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     try {
@@ -119,15 +113,15 @@ public class RateFactory extends BaseQueryNodeFactory {
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
+                         final RateConfig config,
                          final QueryPlanner plan) {
-    if (((RateConfig) config).getInterval().toLowerCase().equals("auto")) {
+    if (config.getInterval().toLowerCase().equals("auto")) {
       if (intervals == null) {
         DownsampleFactory downsample_factory = (DownsampleFactory) tsdb.getRegistry().
             getQueryNodeFactory(DownsampleFactory.TYPE.toLowerCase());
         intervals = downsample_factory.intervals();
       }
-      plan.replace(config, ((RateConfig) config).toBuilder()
+      plan.replace(config, config.newBuilder()
           .setFactory(this)
           .setStartTime(context.query().startTime())
           .setEndTime(context.query().endTime())
@@ -243,10 +237,10 @@ public class RateFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<Rate, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Rate node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -254,7 +248,7 @@ public class RateFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Rate node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -262,7 +256,7 @@ public class RateFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
     
@@ -271,10 +265,10 @@ public class RateFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<Rate, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Rate node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -282,7 +276,7 @@ public class RateFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final Rate node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -290,7 +284,7 @@ public class RateFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
     

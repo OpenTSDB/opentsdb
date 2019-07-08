@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -35,6 +34,11 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.StringUtils;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /**
  * Filters on a set of one or more case sensitive tag value strings.
  * 
@@ -42,7 +46,7 @@ import net.opentsdb.utils.StringUtils;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TagValueLiteralOrFilter.Builder.class)
-public class TagValueLiteralOrFilter extends BaseTagValueFilter 
+public class TagValueLiteralOrFilter extends BaseTagValueFilter
    implements TagValueFilter {
   
   /** A list of strings to match on */
@@ -114,7 +118,6 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
     if (o == null || getClass() != o.getClass())
       return false;
 
-
     final TagValueLiteralOrFilter otherTagKeyFilter = (TagValueLiteralOrFilter) o;
 
     final boolean result = Objects.equal(tag_key, otherTagKeyFilter.getTagKey());
@@ -129,15 +132,12 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
     }
 
     return true;
-
   }
-
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
@@ -148,10 +148,21 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
       for (final String key : keys) {
         hasher.putString(key, Const.UTF8_CHARSET);
       }
+      hasher.putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET);
       return hasher.hash();
     }
     else {
-      return super.buildHashCode();
+      final List<HashCode> hashes =
+              Lists.newArrayListWithCapacity(2);
+
+      final HashCode hc = net.opentsdb.common.Const.HASH_FUNCTION().newHasher()
+              .putString(Strings.nullToEmpty(getType()), net.opentsdb.common.Const.UTF8_CHARSET)
+              .hash();
+
+      hashes.add(hc);
+      hashes.add(super.buildHashCode());
+
+      return Hashing.combineOrdered(hashes);
     }
 
   }

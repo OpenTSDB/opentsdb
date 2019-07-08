@@ -35,7 +35,6 @@ import com.google.common.hash.Hashing;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.JSON;
@@ -47,7 +46,7 @@ import net.opentsdb.utils.JSON;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = GroupByConfig.Builder.class)
-public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
+public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByConfig.Builder, GroupByConfig> {
   private final Set<String> tag_keys;
   private List<byte[]> encoded_tag_keys;
   private final String aggregator;
@@ -108,19 +107,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   public boolean getFullMerge() {
     return full_merge;
   }
-  
-  @Override
-  public Builder toBuilder() {
-    return (Builder) new Builder()
-        .setTagKeys(Sets.newHashSet(tag_keys))
-        .setAggregator(aggregator)
-        .setInfectiousNan(infectious_nan)
-        .setMergeIds(merge_ids)
-        .setFullMerge(full_merge)
-        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
-        .setId(id);
-  }
-  
+
   @Override
   public boolean pushDown() {
     return true;
@@ -130,9 +117,21 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   public boolean joins() {
     return false;
   }
-  
+
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public Builder toBuilder() {
+    return new Builder()
+        .setTagKeys(Sets.newHashSet(tag_keys))
+        .setAggregator(aggregator)
+        .setInfectiousNan(infectious_nan)
+        .setMergeIds(merge_ids)
+        .setFullMerge(full_merge)
+        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+        .setId(id);
+  }
+
+  @Override
+  public int compareTo(GroupByConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -144,7 +143,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     if (o == null || getClass() != o.getClass())
       return false;
 
-    // is this necessary?
     if (!super.equals(o)) {
       return false;
     }
@@ -166,20 +164,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
 
     if (!Objects.equal(tag_keys, otherTagkeys)) {
       return false;
-    }
-
-
-    // check encoded_tag_keys
-
-    List<byte[]> otherEncodedkeys = gbconfig.getEncodedTagKeys();
-    if (encoded_tag_keys != null && otherEncodedkeys == null || encoded_tag_keys == null && otherEncodedkeys != null) {
-      return false;
-    }
-
-    if (encoded_tag_keys != null) {
-      if (!Arrays.deepEquals(encoded_tag_keys.toArray(), otherEncodedkeys.toArray())) {
-        return false;
-      }
     }
 
     return true;
@@ -219,17 +203,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       hashes.add(hasher.hash());
     }
 
-    if (encoded_tag_keys != null) {
-      final List<byte[]> keys = Lists.newArrayList(encoded_tag_keys);
-      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
-      for (final byte[] key : keys) {
-        hasher.putInt(key.hashCode());
-      }
-      hashes.add(hasher.hash());
-    }
-
-
-
     return Hashing.combineOrdered(hashes);
   }
   
@@ -244,7 +217,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, GroupByConfig> {
     @JsonProperty
     private Set<String> tagKeys;
     private List<byte[]> encoded_tag_keys;
@@ -337,7 +310,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
     }
     
     /**
-     * @param merge_ids Whether or not to create a full merge with
+     * @param full_merge Whether or not to create a full merge with
      * disjoint tags.
      * @return The builder.
      */
@@ -351,6 +324,11 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
      * invalid. */
     public GroupByConfig build() {
       return new GroupByConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
   
@@ -416,6 +394,6 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
       }
     }
     
-    return (GroupByConfig) builder.build();
+    return builder.build();
   }
 }

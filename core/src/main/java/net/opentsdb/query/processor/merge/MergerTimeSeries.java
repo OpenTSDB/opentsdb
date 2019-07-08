@@ -97,7 +97,7 @@ public class MergerTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Optional<TypedTimeSeriesIterator> iterator(
+  public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
@@ -115,9 +115,9 @@ public class MergerTimeSeries implements TimeSeries {
   }
 
   @Override
-  public Collection<TypedTimeSeriesIterator> iterators() {
+  public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
     final Collection<TypeToken<? extends TimeSeriesDataType>> types = types(); // calc the union
-    final List<TypedTimeSeriesIterator> iterators =
+    final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(types.size());
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       iterators.add(((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources));

@@ -16,17 +16,19 @@ package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
 import java.util.List;
+
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Pair;
 
 /**
- * The base class for a data source, including ddata types, filters
- * and the metric we want.
- * 
+ * The base class for a data source, including ddata types, filters and the metric we want.
+ *
  * @since 3.0
  */
-public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
+public interface TimeSeriesDataSourceConfig<
+        B extends TimeSeriesDataSourceConfig.Builder<B, C>, C extends TimeSeriesDataSourceConfig>
+    extends QueryNodeConfig<B, C> {
 
   public static final String DEFAULT = "TimeSeriesDataSource";
   
@@ -39,7 +41,7 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
   
   /** @return An optional namespace for such systems as support it. */
   public String getNamespace();
-  
+
   /** @return The non-null metric filter. */
   public MetricFilter getMetric();
   
@@ -51,18 +53,18 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
   
   /** @return Whether or not to fetch just the last (latest) value. */
   public boolean getFetchLast();
-  
-  /** @return An optional list of push down nodes. May be null. */
-  public List<QueryNodeConfig> getPushDownNodes();
-  
+
   /** @return An optional summary interval from an upstream downsampler. */
   public String getSummaryInterval();
-  
+
   /** @return An optional list of summary aggregations from an upstream downsampler. */
   public List<String> getSummaryAggregations();
   
   /** @return An optional list of rollup intervals as durations. */
   public List<String> getRollupIntervals();
+
+  /** @return An optional list of push down nodes. May be null. */
+  List<QueryNodeConfig> getPushDownNodes();
   
   /** @return An optional pre-query start time padding string as a duration. */
   public String getPrePadding();
@@ -86,54 +88,48 @@ public interface TimeSeriesDataSourceConfig extends QueryNodeConfig {
   /**
    * A base builder interface for data source configs.
    */
-  public static interface Builder extends QueryNodeConfig.Builder {
-    public Builder setSourceId(final String source_id);
+  interface Builder<B extends Builder<B, C>, C extends TimeSeriesDataSourceConfig> extends QueryNodeConfig.Builder<B, C> {
+    B setSourceId(final String source_id);
     
-    public Builder setTypes(final List<String> types);
+    B setTypes(final List<String> types);
     
-    public Builder addType(final String type);
+    B addType(final String type);
     
-    public Builder setNamespace(final String namespace);
+    B setNamespace(final String namespace);
     
-    public Builder setMetric(final MetricFilter metric);
+    B setFilterId(final String filter_id);
     
-    public Builder setFilterId(final String filter_id);
+    B setQueryFilter(final QueryFilter filter);
     
-    public Builder setQueryFilter(final QueryFilter filter);
-    
-    public Builder setFetchLast(final boolean fetch_last);
-    
-    public Builder setPushDownNodes(
-        final List<QueryNodeConfig> push_down_nodes);
-    
-    public Builder addPushDownNode(final QueryNodeConfig node);
+    B setFetchLast(final boolean fetch_last);
 
-    public Builder setSummaryInterval(final String summary_interval);
+    B setSummaryInterval(final String summary_interval);
+
+    B setSummaryAggregations(final List<String> summary_aggregations);
+
+    B addSummaryAggregation(final String summary_aggregation);
     
-    public Builder setSummaryAggregations(final List<String> summary_aggregations);
+    B setRollupIntervals(final List<String> rollup_intervals);
     
-    public Builder addSummaryAggregation(final String summary_aggregation);
+    B addRollupInterval(final String rollup_interval);
+
+    B addPushDownNode(final QueryNodeConfig node);
+
+    B setPushDownNodes(final List<QueryNodeConfig> push_down_nodes);
     
-    public Builder setRollupIntervals(final List<String> rollup_intervals);
+    B setPrePadding(final String pre_padding);
     
-    public Builder addRollupInterval(final String rollup_interval);
+    B setPostPadding(final String post_padding);
     
-    public Builder setPrePadding(final String pre_padding);
+    B setTimeShiftInterval(final String interval);
     
-    public Builder setPostPadding(final String post_padding);
+    B setTimeShifts(final Pair<Boolean, TemporalAmount> amounts);
     
-    public Builder setTimeShiftInterval(final String interval);
+    B setHasBeenSetup(final boolean has_been_setup);
     
-    public Builder setTimeShifts(
-        final Pair<Boolean, TemporalAmount> amounts);
+    String id();
     
-    public Builder setHasBeenSetup(final boolean has_been_setup);
-    
-    public String id();
-    
-    public String sourceId();
-    
-    public TimeSeriesDataSourceConfig build();
+    String sourceId();
     
   }
 }

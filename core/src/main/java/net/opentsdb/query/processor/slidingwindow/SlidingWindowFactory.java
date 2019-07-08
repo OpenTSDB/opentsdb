@@ -14,9 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.slidingwindow;
 
-import java.util.Collection;
-import java.util.Map;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +21,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -33,19 +29,19 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * A factory to generate sliding window nodes.
  * 
  * @since 3.0
  */
-public class SlidingWindowFactory extends BaseQueryNodeFactory {
+public class SlidingWindowFactory extends BaseQueryNodeFactory<SlidingWindowConfig, SlidingWindow> {
 
   public static final String TYPE = "SlidingWindow";
   
@@ -74,18 +70,18 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context) {
+  public SlidingWindow newNode(final QueryPipelineContext context) {
     return new SlidingWindow(this, context, null);
   }
 
   @Override
-  public QueryNode newNode(final QueryPipelineContext context, 
-                           final QueryNodeConfig config) {
-    return new SlidingWindow(this, context, (SlidingWindowConfig) config);
+  public SlidingWindow newNode(final QueryPipelineContext context,
+                           final SlidingWindowConfig config) {
+    return new SlidingWindow(this, context, config);
   }
   
   @Override
-  public QueryNodeConfig parseConfig(final ObjectMapper mapper, 
+  public SlidingWindowConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
                                      final JsonNode node) {
     try {
@@ -95,20 +91,13 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
   }
   
-  @Override
-  public void setupGraph(final QueryPipelineContext context, 
-                         final QueryNodeConfig config, 
-                         final QueryPlanner plan) {
-    // TODO Auto-generated method stub
-  }
-  
   /**
    * The default numeric iterator factory.
    */
-  protected class NumericIteratorFactory implements QueryIteratorFactory {
+  protected class NumericIteratorFactory implements QueryIteratorFactory<SlidingWindow, NumericType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final SlidingWindow node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -116,7 +105,7 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final SlidingWindow node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -124,7 +113,7 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericType.TYPE);
     }
     
@@ -133,10 +122,10 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric summary iterator factory.
    */
-  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<SlidingWindow, NumericSummaryType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final SlidingWindow node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -144,7 +133,7 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final SlidingWindow node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -152,7 +141,7 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
     
@@ -161,10 +150,10 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
   /**
    * The default numeric summary iterator factory.
    */
-  protected class NumericArrayIteratorFactory implements QueryIteratorFactory {
+  protected class NumericArrayIteratorFactory implements QueryIteratorFactory<SlidingWindow, NumericArrayType> {
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final SlidingWindow node,
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -172,7 +161,7 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public TypedTimeSeriesIterator newIterator(final QueryNode node,
+    public TypedTimeSeriesIterator newIterator(final SlidingWindow node,
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
@@ -180,7 +169,7 @@ public class SlidingWindowFactory extends BaseQueryNodeFactory {
     }
 
     @Override
-    public Collection<TypeToken<?>> types() {
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
     }
     

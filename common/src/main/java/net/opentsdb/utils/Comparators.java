@@ -63,8 +63,14 @@ public class Comparators {
     
   }
 
+  /**
+   * A method that determines whether two lists contain the same elements
+   * (not necessarily in the same order).
+   *
+   * @param List<T> one First list.
+   * @param List<T> two Second list.
+   */
   public static class ListComparison {
-
     public static <T> boolean equalLists(List<T> one, List<T> two){
       if (one == null && two == null){
         return true;
@@ -80,9 +86,20 @@ public class Comparators {
       one = new ArrayList<>(one);
       two = new ArrayList<>(two);
 
-      return one.containsAll(two) && two.containsAll(one);
+      for (T element: one) {
+        boolean exists = false;
+        for (int i = 0; i < two.size(); i++) {
+          if (two.get(i).equals(element)) {
+            exists = true;
+            two.remove(i);
+            break;
+          }
+        }
+        if (!exists)
+          return false;
+      }
+      return true;
     }
-
 
   }
 }

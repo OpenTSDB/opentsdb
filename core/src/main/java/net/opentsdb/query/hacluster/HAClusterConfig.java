@@ -36,7 +36,6 @@ import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
@@ -50,7 +49,7 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = HAClusterConfig.Builder.class)
-public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
+public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterConfig.Builder, HAClusterConfig> {
 
   /** The non-null and non-empty list of sources to query. */
   private final List<String> data_sources;
@@ -64,22 +63,12 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   /** An optional timeout for the secondary (etc) sources. */
   private final String secondary_timeout;
 
-  /** The original version of optional timeout for the secondary (etc) sources. */
-  private final String original_secondary_timeout;
-
   /** An optional timeout for the primary source when a secondary
    * returns first. */
   private final String primary_timeout;
 
-  /** The original version of optional timeout for the primary source when a secondary
-   * returns first. */
-  private final String original_primary_timeout;
-
-  private final int hash;
-
-  public void display() {
-    System.out.println(merge_aggregator + " " + original_secondary_timeout + " " + original_primary_timeout);
-  }
+  /** A hash that calculates and stores the hash code once. */
+  private int hash;
 
   /**
    * Default ctor.
@@ -90,16 +79,12 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   protected HAClusterConfig(final Builder builder) {
     super(builder);
     data_sources = builder.dataSources == null ?
-            Collections.emptyList() : builder.dataSources;
+        Collections.emptyList() : builder.dataSources;
     data_source_configs = builder.dataSourceConfigs == null ?
-            Collections.emptyList() : builder.dataSourceConfigs;
+        Collections.emptyList() : builder.dataSourceConfigs;
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
     primary_timeout = builder.primaryTimeout;
-
-    original_secondary_timeout = Strings.isNullOrEmpty(getOriginalsecondarytimeout()) ? secondary_timeout : getOriginalsecondarytimeout();
-    original_primary_timeout = Strings.isNullOrEmpty(getOriginalprimarytimeout()) ? primary_timeout : getOriginalprimarytimeout();
-    hash = buildHashCode().asInt();
 
     // validate the timeouts
     if (!Strings.isNullOrEmpty(secondary_timeout)) {
@@ -108,6 +93,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     if (!Strings.isNullOrEmpty(primary_timeout)) {
       DateTime.parseDuration(primary_timeout);
     }
+    hash = buildHashCode().asInt();
   }
 
   /** @return The non-null list of sources to query. The first entry is
@@ -137,16 +123,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     return primary_timeout;
   }
 
-  /** @return The originally set value of the interval. */
-  public String getOriginalsecondarytimeout() {
-    return original_secondary_timeout;
-  }
-
-  /** @return The originally set value of the interval. */
-  public String getOriginalprimarytimeout() {
-    return original_primary_timeout;
-  }
-
   /** @return Whether or not this node has gone through the planner setup
    * step. */
   public boolean getHasBeenSetup() {
@@ -166,21 +142,19 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(HAClusterConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
 
   @Override
   public boolean equals(final Object o) {
-    System.out.println("here");
     if (this == o)
       return true;
     if (o == null || getClass() != o.getClass())
       return false;
 
     if (!super.equals(o)) {
-      System.out.println("super");
       return false;
     }
 
@@ -188,23 +162,20 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
 
 
     final boolean result = Objects.equal(merge_aggregator, haconfig.getMergeAggregator())
-            && Objects.equal(original_secondary_timeout, haconfig.getOriginalsecondarytimeout())
-            && Objects.equal(original_primary_timeout, haconfig.getOriginalprimarytimeout());
+            && Objects.equal(primary_timeout, haconfig.getPrimaryTimeout())
+            && Objects.equal(secondary_timeout, haconfig.getSecondaryTimeout());
 
     if (!result) {
-      System.out.println("result");
       return false;
     }
 
     // comparing data sources
     if (!Comparators.ListComparison.equalLists(data_sources, haconfig.getDataSources())) {
-      System.out.println("datasources");
       return false;
     }
 
     // comparing data sources configs
     if (!Comparators.ListComparison.equalLists(data_source_configs, haconfig.getDataSourceConfigs())) {
-      System.out.println("configs");
       return false;
     }
 
@@ -219,27 +190,23 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(merge_aggregator), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(original_secondary_timeout), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(original_primary_timeout), Const.UTF8_CHARSET)
-            .hash();
+            .putString(Strings.nullToEmpty(secondary_timeout), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(primary_timeout), Const.UTF8_CHARSET);
     final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(3 +
+            Lists.newArrayListWithCapacity(2 +
                     (data_source_configs != null ? data_source_configs.size() : 0));
 
     hashes.add(super.buildHashCode());
 
-    hashes.add(hc);
-
     if (data_sources != null) {
       final List<String> keys = Lists.newArrayList(data_sources);
       Collections.sort(keys);
-      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
       for (final String key : keys) {
-        hasher.putString(key, Const.UTF8_CHARSET);
+        hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hasher.hash());
+      hashes.add(hc.hash());
     }
 
     if (data_source_configs != null) {
@@ -253,18 +220,19 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
 
   @Override
   public Builder toBuilder() {
-    final Builder builder = (Builder) new Builder()
-            .setMergeAggregator(merge_aggregator)
-            .setSecondaryTimeout(secondary_timeout)
-            .setPrimaryTimeout(primary_timeout)
-            .setHasBeenSetup(has_been_setup);
+    final Builder builder = new Builder()
+        .setMergeAggregator(merge_aggregator)
+        .setSecondaryTimeout(secondary_timeout)
+        .setPrimaryTimeout(primary_timeout)
+        .setHasBeenSetup(has_been_setup);
     if (!data_sources.isEmpty()) {
       builder.setDataSources(Lists.newArrayList(data_sources));
     }
     if (!data_source_configs.isEmpty()) {
       builder.setDataSourceConfigs(Lists.newArrayList(data_source_configs));
     }
-    return (Builder) BaseTimeSeriesDataSourceConfig.newBuilder(this, builder);
+    BaseTimeSeriesDataSourceConfig.cloneBuilder(this, builder);
+    return builder;
   }
 
   /** @return A new builder to construct a Cluster Config */
@@ -274,7 +242,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
 
   /** The builder class for cluster configs. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder {
+  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder<Builder, HAClusterConfig> {
     @JsonProperty
     private List<String> dataSources;
     @JsonProperty
@@ -308,7 +276,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
     }
 
     public Builder setDataSourceConfigs(
-            final List<TimeSeriesDataSourceConfig> data_source_configs) {
+        final List<TimeSeriesDataSourceConfig> data_source_configs) {
       dataSourceConfigs = data_source_configs;
       return this;
     }
@@ -377,6 +345,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig {
      * failure. */
     public HAClusterConfig build() {
       return new HAClusterConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
 
   }

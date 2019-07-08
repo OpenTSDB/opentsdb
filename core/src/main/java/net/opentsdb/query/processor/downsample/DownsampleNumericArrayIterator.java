@@ -60,7 +60,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
   protected int intervals;
   
   /** The source iterator. */
-  protected final Iterator<TimeSeriesValue<?>> iterator;
+  protected final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** Values to populate. */
   protected long[] long_values;
@@ -98,7 +98,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     }
     aggregator = factory.newAggregator(
         ((DownsampleConfig) node.config()).getInfectiousNan());
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();

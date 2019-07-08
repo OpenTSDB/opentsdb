@@ -16,9 +16,7 @@ package net.opentsdb.query.filter;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotEquals;
-import static org.mockito.Mockito.mock;
 
-import net.opentsdb.core.TSDB;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -110,7 +108,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     try {
       TagValueLiteralOrFilter.newBuilder()
-        //.setTagKey("host")
+        //.setKey("host")
         .setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");

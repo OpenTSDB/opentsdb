@@ -14,27 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * The base factory for interpolators. It stores the interpolators by
@@ -56,7 +53,6 @@ public abstract class BaseQueryIntperolatorFactory extends BaseTSDBPlugin
   protected Map<TypeToken<?>, QueryInterpolatorConfigParser> parsers = 
       Maps.newHashMap();
   
-  @SuppressWarnings("unchecked")
   @Override
   public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
       final TypeToken<? extends TimeSeriesDataType> type,
@@ -88,11 +84,10 @@ public abstract class BaseQueryIntperolatorFactory extends BaseTSDBPlugin
     }
   }
   
-  @SuppressWarnings("unchecked")
   @Override
   public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
       final TypeToken<? extends TimeSeriesDataType> type,
-      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final QueryInterpolatorConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
@@ -143,8 +138,8 @@ public abstract class BaseQueryIntperolatorFactory extends BaseTSDBPlugin
       final Constructor<?> ts_ctor = clazz.getDeclaredConstructor(
           TimeSeries.class, QueryInterpolatorConfig.class);
       final Constructor<?> iterator_ctor = clazz.getDeclaredConstructor(
-          Iterator.class, QueryInterpolatorConfig.class);
-      types.put(type, new Pair<Constructor<?>, Constructor<?>>(
+          TypedTimeSeriesIterator.class, QueryInterpolatorConfig.class);
+      types.put(type, new Pair(
           ts_ctor, iterator_ctor));
       LOG.info("Stored interpolator builder for type " + type + " in " 
           + id() + " Class: " + clazz);

@@ -135,7 +135,7 @@ public class TestTagValueRegexFilterAndFactory {
         
     try {
       TagValueRegexFilter.newBuilder()
-        //.setTagKey("host")
+        //.setKey("host")
         .setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");

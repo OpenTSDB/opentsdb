@@ -36,8 +36,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class WrappedTimeSeriesDataSourceConfig implements 
-    TimeSeriesDataSourceConfig {
+public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceConfig {
   
   /** The non-null and non-empty ID. */
   private final String id;
@@ -180,14 +179,8 @@ public class WrappedTimeSeriesDataSourceConfig implements
   }
 
   @Override
-  public net.opentsdb.query.QueryNodeConfig.Builder toBuilder() {
-    return config.toBuilder()
-        .setId(id);
-  }
-
-  @Override
-  public int compareTo(QueryNodeConfig o) {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public QueryNodeConfig.Builder toBuilder() {
+    return config.toBuilder().setId(id);
   }
 
   @Override
@@ -205,7 +198,7 @@ public class WrappedTimeSeriesDataSourceConfig implements
     return config.getNamespace();
   }
 
-  @Override
+  /** @return The non-null metric filter. */
   public MetricFilter getMetric() {
     return config.getMetric();
   }
@@ -270,4 +263,8 @@ public class WrappedTimeSeriesDataSourceConfig implements
     return config.timeShifts();
   }
 
+  @Override
+  public int compareTo(Object o) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
 }

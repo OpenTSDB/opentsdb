@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import net.opentsdb.query.QueryNodeConfig;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.DefaultErrorStrategy;
@@ -336,8 +337,7 @@ public class ExpressionParser extends DefaultErrorStrategy
     }
 
     // here we can cleanup, e.g. merge numerics
-    final ExpressionParseNode.Builder builder = ExpressionParseNode
-        .newBuilder()
+    final ExpressionParseNode.Builder builder = ExpressionParseNode.newBuilder()
         .setExpressionConfig(config)
         .setExpressionOp(op);
     setBranch(builder, left, true);

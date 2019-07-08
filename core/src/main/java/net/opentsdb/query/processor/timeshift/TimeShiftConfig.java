@@ -29,7 +29,6 @@ import java.util.List;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
 import org.slf4j.Logger;
@@ -37,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TimeShiftConfig.Builder.class)
-public class TimeShiftConfig extends BaseQueryNodeConfig {
+public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder, TimeShiftConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(TimeShiftConfig.class);
 
   private String timeShiftInterval;
@@ -69,17 +68,13 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
     return timeShiftInterval;
   }
 
-
   @Override
   public Builder toBuilder() {
-    return (Builder) new Builder()
-            .setTimeshiftInterval(timeShiftInterval)
-            .setId(id)
-            .setSources(sources);
+    return new Builder().setTimeshiftInterval(timeShiftInterval).setId(id).setSources(sources);
   }
 
   @Override
-  public int compareTo(final QueryNodeConfig o) {
+  public int compareTo(final TimeShiftConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -135,7 +130,7 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, TimeShiftConfig> {
     protected String interval;
 
     Builder() {
@@ -147,8 +142,14 @@ public class TimeShiftConfig extends BaseQueryNodeConfig {
       return this;
     }
 
-    public QueryNodeConfig build() {
+    @Override
+    public TimeShiftConfig build() {
       return new TimeShiftConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
 

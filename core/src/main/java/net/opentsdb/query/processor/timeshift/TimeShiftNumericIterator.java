@@ -36,7 +36,7 @@ import net.opentsdb.query.QueryResult;
  */
 public class TimeShiftNumericIterator implements QueryIterator {
   /** The iterator. */
-  private Iterator<TimeSeriesValue<?>> iterator;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** The DP we'll update. */
   private MutableNumericValue dp;
@@ -47,7 +47,7 @@ public class TimeShiftNumericIterator implements QueryIterator {
   TimeShiftNumericIterator(final QueryResult result, 
                            final TimeSeries source) {
     this.result = (TimeShiftResult) result;
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();

@@ -136,7 +136,7 @@ public class TestNotFilterAndFactory {
     assertTrue(!filter.equals(filter3));
     assertNotEquals(filter.hashCode(), filter3.hashCode());
 
-
+    assertNotEquals(filter, filter.getFilter());
   }
   
 }

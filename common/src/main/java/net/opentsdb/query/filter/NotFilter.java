@@ -15,10 +15,16 @@
 package net.opentsdb.query.filter;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.stats.Span;
+
+import java.util.List;
 
 /**
  * Inverts the match on a filter.
@@ -67,7 +73,18 @@ public class NotFilter implements NestedQueryFilter {
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    return filter.buildHashCode();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(filter.buildHashCode());
+
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
+            .hash();
+
+    hashes.add(hc);
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override

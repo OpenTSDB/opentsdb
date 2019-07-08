@@ -21,12 +21,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -38,7 +38,7 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = MovingAverageConfig.Builder.class)
-public class MovingAverageConfig extends BaseQueryNodeConfig {
+public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig.Builder, MovingAverageConfig> {
   private final int samples;
   private final String interval;
   private final double alpha;
@@ -133,10 +133,10 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   public boolean getInfectiousNan() {
     return infectious_nan;
   }
-  
+
   @Override
   public Builder toBuilder() {
-    return (Builder) newBuilder()
+    return newBuilder()
         .setInterval(interval)
         .setAlpha(alpha)
         .setAverageInitial(avg_initial)
@@ -146,7 +146,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
         .setSources(sources)
         .setId(id);
   }
-  
+
   @Override
   public boolean pushDown() {
     return true;
@@ -156,24 +156,29 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
   @Override
   public HashCode buildHashCode() {
- // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
+            .putInt(samples)
+            .putString(Strings.nullToEmpty(interval), net.opentsdb.core.Const.UTF8_CHARSET)
+            .putDouble(alpha)
+            .putBoolean(avg_initial)
+            .putBoolean(median)
+            .putBoolean(weighted)
+            .putBoolean(exponential)
+            .putBoolean(infectious_nan)
         .hash();
   }
 
   @Override
-  public int compareTo(final QueryNodeConfig o) {
+  public int compareTo(final MovingAverageConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
 
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
     if (o == null) {
       return false;
     }
@@ -183,8 +188,21 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
     if (!(o instanceof MovingAverageConfig)) {
       return false;
     }
-    
-    return id.equals(((MovingAverageConfig) o).id);
+
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final MovingAverageConfig otherConfig = (MovingAverageConfig) o;
+
+    return Objects.equal(samples, otherConfig.getSamples())
+            && Objects.equal(interval, otherConfig.getInterval())
+            && Objects.equal(alpha, otherConfig.getAlpha())
+            && Objects.equal(avg_initial, otherConfig.getAverageInitial())
+            && Objects.equal(median, otherConfig.getMedian())
+            && Objects.equal(weighted, otherConfig.getWeighted())
+            && Objects.equal(exponential, otherConfig.getExponential())
+            && Objects.equal(infectious_nan, otherConfig.getInfectiousNan());
   }
 
   @Override
@@ -198,7 +216,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, MovingAverageConfig> {
     @JsonProperty
     private int samples;
     @JsonProperty
@@ -266,10 +284,14 @@ public class MovingAverageConfig extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public MovingAverageConfig build() {
       return new MovingAverageConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 
 }

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -32,7 +33,6 @@ import com.google.common.graph.MutableGraph;
 
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -105,7 +105,7 @@ public class TestExpressionFactory {
     graph.putEdge(query.get(1), query.get(0));
     graph.putEdge(SINK, query.get(1));
     
-    factory.setupGraph(mock(QueryPipelineContext.class), query.get(1), plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), (ExpressionConfig) query.get(1), plan);
     assertEquals(3, graph.nodes().size());
     assertTrue(graph.nodes().contains(query.get(0)));
     assertFalse(graph.nodes().contains(query.get(1)));
@@ -146,15 +146,14 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("downsample")
         .build();
-    QueryNodeConfig exp = ExpressionConfig.newBuilder()
-        .setExpression("m1 + 42")
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + 42")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
-    
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
     
@@ -212,15 +211,14 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("downsample")
         .build();
-    QueryNodeConfig exp = ExpressionConfig.newBuilder()
-        .setExpression("m1 + m2")
-        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2")
+        .setJoinConfig(JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
-    
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
     
@@ -281,15 +279,14 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("downsample")
         .build();
-    QueryNodeConfig exp = ExpressionConfig.newBuilder()
-        .setExpression("m1 + m2")
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
-    
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
     
@@ -357,15 +354,15 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("downsample")
         .build();
-    QueryNodeConfig exp =ExpressionConfig.newBuilder()
-        .setExpression("m1 + m2 + m3")
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2 + m3")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
-    
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
     
@@ -456,15 +453,15 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("downsample")
         .build();
-    QueryNodeConfig exp = ExpressionConfig.newBuilder()
-        .setExpression("(m1 * 1024) + (m2 * 1024) + (m3 * 1024)")
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("(m1 * 1024) + (m2 * 1024) + (m3 * 1024)")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
-    
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+        builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
     
@@ -594,14 +591,14 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("downsample")
         .build();
-    QueryNodeConfig exp = ExpressionConfig.newBuilder()
-        .setExpression("(sys.cpu.user * 1024)")
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("(sys.cpu.user * 1024)")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
     
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
@@ -670,22 +667,23 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .setId("ds2")
         .build();
-    QueryNodeConfig exp = ExpressionConfig.newBuilder()
-        .setExpression("m1 + m2 / 100")
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2 / 100")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
-    QueryNodeConfig exp2 = ExpressionConfig.newBuilder()
-        .setExpression("m1 / expression")
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+
+    builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 / expression")
         .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
             .setJoinType(JoinType.NATURAL)
             .build())
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("expression")
-        .build();
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    QueryNodeConfig exp2 = builder.build();
     
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);

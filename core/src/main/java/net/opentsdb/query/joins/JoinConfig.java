@@ -14,25 +14,23 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Maps;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import net.opentsdb.core.Const;
+import net.opentsdb.query.BaseQueryNodeConfig;
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.TreeMap;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Maps;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hasher;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 
 /**
  * The serializable configuration for a time series join.
@@ -41,7 +39,7 @@ import net.opentsdb.query.QueryNodeConfig;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = JoinConfig.Builder.class)
-public class JoinConfig extends BaseQueryNodeConfig {
+public class JoinConfig extends BaseQueryNodeConfig<JoinConfig.Builder, JoinConfig> {
 
   /** The type of join to execute. */
   public static enum JoinType {
@@ -118,13 +116,7 @@ public class JoinConfig extends BaseQueryNodeConfig {
   public boolean getExplicitTags() {
     return explicit_tags;
   }
-  
-  @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
+
   @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
@@ -135,7 +127,12 @@ public class JoinConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return true;
   }
-  
+
+  @Override
+  public Builder toBuilder() {
+    return null;
+  }
+
   @Override
   public HashCode buildHashCode() {
     final Hasher hasher = Const.HASH_FUNCTION().newHasher()
@@ -151,19 +148,16 @@ public class JoinConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public int compareTo(final QueryNodeConfig o) {
+  public int compareTo(final JoinConfig o) {
     if (o == null) {
       return 1;
     }
-    if (!(o instanceof JoinConfig)) {
-      return 1;
-    }
-    
+
     return ComparisonChain.start()
-        .compare(id, ((JoinConfig) o).id)
-        .compare(type.ordinal(), ((JoinConfig) o).type.ordinal())
-        .compare(explicit_tags, ((JoinConfig) o).explicit_tags)
-        .compare(joins, ((JoinConfig) o).joins, JOIN_CMP)
+        .compare(id, o.id)
+        .compare(type.ordinal(), o.type.ordinal())
+        .compare(explicit_tags, o.explicit_tags)
+        .compare(joins, o.joins, JOIN_CMP)
         .result();
   }
 
@@ -187,12 +181,12 @@ public class JoinConfig extends BaseQueryNodeConfig {
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
-  public static Builder newBuilder() {
+
+  public static Builder newBuilder(){
     return new Builder();
   }
   
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, JoinConfig> {
     @JsonProperty
     private JoinType joinType;
     @JsonProperty
@@ -230,10 +224,15 @@ public class JoinConfig extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public JoinConfig build() {
       return new JoinConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
+
   }
  
   static class ListComparator implements Comparator<Map<String, String>> {

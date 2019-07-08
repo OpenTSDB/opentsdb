@@ -30,7 +30,6 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -47,7 +46,7 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = SlidingWindowConfig.Builder.class)
-public class SlidingWindowConfig extends BaseQueryNodeConfig {
+public class SlidingWindowConfig extends BaseQueryNodeConfig<SlidingWindowConfig.Builder, SlidingWindowConfig> {
   private final String window_size;
   private final String aggregator;
   private final boolean infectious_nan;
@@ -93,13 +92,7 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
   public TemporalAmount window() {
     return window;
   }
-  
-  @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
+
   @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
@@ -110,7 +103,13 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
+  @Override
+  public Builder toBuilder() {
+    return null;
+  }
+
+
   @Override
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
@@ -130,7 +129,7 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(SlidingWindowConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -166,7 +165,7 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, SlidingWindowConfig> {
     @JsonProperty
     private String windowSize;
     @JsonProperty
@@ -189,7 +188,7 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public SlidingWindowConfig build() {
       return new SlidingWindowConfig(this);
     }
     
@@ -202,7 +201,11 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig {
       this.infectiousNan = infectious_nan;
       return this;
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 
 }

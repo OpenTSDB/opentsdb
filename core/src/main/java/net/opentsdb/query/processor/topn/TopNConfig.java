@@ -27,7 +27,6 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 
 import java.util.List;
 
@@ -38,7 +37,7 @@ import java.util.List;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TopNConfig.Builder.class)
-public class TopNConfig extends BaseQueryNodeConfig {
+public class TopNConfig extends BaseQueryNodeConfig<TopNConfig.Builder, TopNConfig> {
 
   /** The max number of time series to return. */
   private int count;
@@ -85,13 +84,7 @@ public class TopNConfig extends BaseQueryNodeConfig {
   public boolean getInfectiousNan() {
     return infectious_nan;
   }
-  
-  @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
+
   @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
@@ -101,6 +94,11 @@ public class TopNConfig extends BaseQueryNodeConfig {
   @Override
   public boolean joins() {
     return false;
+  }
+
+  @Override
+  public Builder toBuilder() {
+    return null;
   }
 
   @Override
@@ -148,7 +146,7 @@ public class TopNConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(TopNConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -159,7 +157,7 @@ public class TopNConfig extends BaseQueryNodeConfig {
   }
   
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, TopNConfig> {
     @JsonProperty
     private int count;
     @JsonProperty
@@ -194,10 +192,14 @@ public class TopNConfig extends BaseQueryNodeConfig {
     }
     
     @Override
-    public QueryNodeConfig build() {
+    public TopNConfig build() {
       return new TopNConfig(this);
     }
-    
+
+    @Override
+    public Builder self() {
+      return this;
+    }
   }
 
 }

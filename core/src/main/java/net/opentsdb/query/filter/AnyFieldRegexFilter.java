@@ -107,10 +107,7 @@ public class AnyFieldRegexFilter implements QueryFilter {
 
     final AnyFieldRegexFilter otherRegexFilter = (AnyFieldRegexFilter) o;
 
-
-    return Objects.equal(filter, otherRegexFilter.getFilter())
-            && Objects.equal(pattern.pattern(), otherRegexFilter.pattern().pattern());
-
+    return Objects.equal(filter, otherRegexFilter.getFilter());
   }
 
 
@@ -124,7 +121,7 @@ public class AnyFieldRegexFilter implements QueryFilter {
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
-            .putString(Strings.nullToEmpty(pattern.pattern()), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
 
     return hc;

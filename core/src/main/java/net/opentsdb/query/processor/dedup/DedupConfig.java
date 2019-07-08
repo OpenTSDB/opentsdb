@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.dedup;
 
 import com.google.common.hash.HashCode;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 
 /**
  * A configuration for handling out-of-order and de-duplication of values 
@@ -27,7 +26,7 @@ import net.opentsdb.query.QueryNodeConfig;
  * 
  * @since 3.0
  */
-public class DedupConfig extends BaseQueryNodeConfig {
+public class DedupConfig extends BaseQueryNodeConfig<DedupConfig.Builder, DedupConfig> {
 
   /**
    * Protected ctor.
@@ -38,12 +37,6 @@ public class DedupConfig extends BaseQueryNodeConfig {
   }
 
   @Override
-  public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
-  @Override
   public boolean pushDown() {
     // TODO Auto-generated method stub
     return false;
@@ -53,27 +46,29 @@ public class DedupConfig extends BaseQueryNodeConfig {
   public boolean joins() {
     return false;
   }
-  
+
+  @Override
+  public Builder toBuilder() {
+    return null;
+  }
+
   @Override
   public boolean equals(Object o) {
-    // TODO Auto-generated method stub
     return super.equals(o);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
     return super.hashCode();
   }
 
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
     return super.buildHashCode();
   }
 
   @Override
-  public int compareTo(QueryNodeConfig o) {
+  public int compareTo(DedupConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
@@ -82,10 +77,15 @@ public class DedupConfig extends BaseQueryNodeConfig {
     return new Builder();
   }
 
-  public static class Builder extends BaseQueryNodeConfig.Builder {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, DedupConfig> {
     @Override
     public DedupConfig build() {
       return new DedupConfig(this);
+    }
+
+    @Override
+    public Builder self() {
+      return this;
     }
   }
 }

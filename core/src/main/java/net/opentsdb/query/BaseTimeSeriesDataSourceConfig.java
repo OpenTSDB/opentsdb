@@ -20,24 +20,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
+import com.google.common.base.Objects;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-import com.google.common.base.Objects;
-import java.time.temporal.TemporalAmount;
-import java.util.Collections;
-import java.util.List;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+
+import java.time.temporal.TemporalAmount;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
@@ -48,8 +48,7 @@ import net.opentsdb.utils.Pair;
  */
 @JsonInclude(Include.NON_DEFAULT)
 @JsonDeserialize(builder = BaseTimeSeriesDataSourceConfig.Builder.class)
-public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
-        implements TimeSeriesDataSourceConfig {
+public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
 
   /** The source provider ID. */
   private final String source_id;
@@ -116,18 +115,18 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     filter = builder.filter;
     fetch_last = builder.fetchLast;
     push_down_nodes = builder.push_down_nodes == null ?
-            Collections.emptyList() : builder.push_down_nodes;
+        Collections.emptyList() : builder.push_down_nodes;
     summary_interval = builder.summary_interval;
     summary_aggregations = builder.summary_aggregations == null ?
-            Collections.emptyList() : builder.summary_aggregations;
+        Collections.emptyList() : builder.summary_aggregations;
     rollup_intervals = builder.rollup_intervals == null ?
-            Collections.emptyList() : builder.rollup_intervals;
+        Collections.emptyList() : builder.rollup_intervals;
     pre_padding = builder.pre_padding;
     post_padding = builder.post_padding;
     has_been_setup = builder.has_been_setup;
-
-    if (!Strings.isNullOrEmpty(builder.interval) &&
-            builder.amounts == null) {
+    
+    if (!Strings.isNullOrEmpty(builder.interval) && 
+        builder.amounts == null) {
       DateTime.parseDuration(builder.interval);
       interval = builder.interval;
 
@@ -136,7 +135,7 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
       final int count = DateTime.getDurationInterval(interval);
       final String units = DateTime.getDurationUnits(interval);
       final TemporalAmount amount = DateTime.parseDuration2(
-              Integer.toString(count) + units);
+          Integer.toString(count) + units);
       amounts = new Pair<Boolean, TemporalAmount>(true, amount);
 
     } else {
@@ -248,7 +247,6 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
 
     final BaseTimeSeriesDataSourceConfig tsconfig = (BaseTimeSeriesDataSourceConfig) o;
 
-
     final boolean result = Objects.equal(namespace, tsconfig.getNamespace())
             && Objects.equal(source_id, tsconfig.getSourceId())
             && Objects.equal(filter_id, tsconfig.getFilterId())
@@ -258,8 +256,6 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
             && Objects.equal(interval, tsconfig.getTimeShiftInterval());
 
     if (!result) {
-      System.out.println(namespace + " " + source_id + " " + filter_id + " " + (metric != null ? metric.getMetric() : metric) + " " + (filter != null ? filter.getType() : filter) + " " + fetch_last + " " + interval);
-      System.out.println(tsconfig.getNamespace() + " " + tsconfig.getSourceId() + " " + tsconfig.getFilterId() + " " + (tsconfig.getMetric() != null ? tsconfig.getMetric().getMetric() : tsconfig.getMetric()) + " " + (tsconfig.getFilter() != null ? tsconfig.getFilter().getType() : tsconfig.getFilter()) +  " " + tsconfig.getFetchLast() + " " + tsconfig.getTimeShiftInterval());
       return false;
     }
 
@@ -281,19 +277,16 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(source_id), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(namespace), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(filter_id), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
-            .putBoolean(fetch_last)
-            .hash();
+            .putBoolean(fetch_last);
     final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(5);
+            Lists.newArrayListWithCapacity(4);
 
     hashes.add(super.buildHashCode());
-
-    hashes.add(hc);
 
     if (metric != null) {
       hashes.add(metric.buildHashCode());
@@ -306,65 +299,48 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     if (types != null) {
       final List<String> keys = Lists.newArrayList(types);
       Collections.sort(keys);
-      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
       for (final String key : keys) {
-        hasher.putString(key, Const.UTF8_CHARSET);
+        hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hasher.hash());
+      hashes.add(hc.hash());
     }
 
     return Hashing.combineOrdered(hashes);
   }
 
-  @Override
-  public int compareTo(final QueryNodeConfig o) {
-    if (!(o instanceof BaseTimeSeriesDataSourceConfig)) {
-      return -1;
-    }
-
-    // TODO - implement
-    return ComparisonChain.start()
-            .compare(id, ((BaseTimeSeriesDataSourceConfig) o).id, Ordering.natural().nullsFirst())
-
-            .result();
-  }
-
-
-  /** @return A new builder. */
-  public static Builder newBuilder(final TimeSeriesDataSourceConfig config,
-                                   final Builder builder) {
+  public static void cloneBuilder(BaseTimeSeriesDataSourceConfig config, Builder builder) {
     builder
-            .setSourceId(config.getSourceId())
-            .setTypes(config.getTypes() != null ?
-                    Lists.newArrayList(config.getTypes()) : null)
-            .setNamespace(config.getNamespace())
-            .setMetric(config.getMetric())
-            .setFilterId(config.getFilterId())
-            .setQueryFilter(config.getFilter())
-            .setFetchLast(config.getFetchLast())
-            .setRollupIntervals(config.getRollupIntervals() == null ||
-                    config.getRollupIntervals().isEmpty() ?
-                    null : Lists.newArrayList(config.getRollupIntervals()))
-            .setSummaryInterval(config.getSummaryInterval())
-            .setSummaryAggregations(config.getRollupIntervals() == null ||
-                    config.getSummaryAggregations().isEmpty() ?
-                    null : Lists.newArrayList(config.getSummaryAggregations()))
-            .setPrePadding(config.getPrePadding())
-            .setPostPadding(config.getPostPadding())
-            .setPushDownNodes(config.getPushDownNodes() == null ||
-                    config.getPushDownNodes().isEmpty() ?
-                    null : Lists.newArrayList(config.getPushDownNodes()))
-            .setTimeShiftInterval(config.getTimeShiftInterval())
-            .setTimeShifts(config.timeShifts())
-            .setHasBeenSetup(config.hasBeenSetup())
-            // TODO - overrides if we keep em.
-            .setType(config.getType())
-            .setId(config.getId());
+        .setSourceId(config.getSourceId())
+        .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
+        .setNamespace(config.getNamespace())
+        .setMetric(config.getMetric())
+        .setFilterId(config.getFilterId())
+        .setQueryFilter(config.getFilter())
+        .setFetchLast(config.getFetchLast())
+        .setRollupIntervals(
+            config.getRollupIntervals() == null || config.getRollupIntervals().isEmpty()
+                ? null
+                : Lists.newArrayList(config.getRollupIntervals()))
+        .setSummaryInterval(config.getSummaryInterval())
+        .setSummaryAggregations(
+            config.getRollupIntervals() == null || config.getSummaryAggregations().isEmpty()
+                ? null
+                : Lists.newArrayList(config.getSummaryAggregations()))
+        .setPrePadding(config.getPrePadding())
+        .setPostPadding(config.getPostPadding())
+        .setPushDownNodes(
+            config.getPushDownNodes() == null || config.getPushDownNodes().isEmpty()
+                ? null
+                : Lists.newArrayList(config.getPushDownNodes()))
+        .setTimeShiftInterval(config.getTimeShiftInterval())
+        .setTimeShifts(config.timeShifts())
+        .setHasBeenSetup(config.hasBeenSetup())
+        // TODO - overrides if we keep em.
+        .setType(config.getType())
+        .setId(config.getId());
     if (!config.getSources().isEmpty()) {
       builder.setSources(Lists.newArrayList(config.getSources()));
     }
-    // Skipp push down nodes.
-    return (Builder) builder;
   }
 
   public static void parseConfig(final ObjectMapper mapper,
@@ -401,9 +377,16 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
     QueryFilter filter = factory.parse(tsdb, mapper, n);
     if (filter == null || !(filter instanceof MetricFilter)) {
       throw new IllegalArgumentException("Metric query filter was not "
-              + "an instanceof MetricFilter: " + filter.getClass());
+          + "an instanceof MetricFilter: " + filter.getClass());
     }
     builder.setMetric((MetricFilter) filter);
+
+    n = node.get("types");
+    if (n != null && !n.isNull()) {
+      for (final JsonNode t : n) {
+        builder.addType(t.asText());
+      }
+    }
 
     n = node.get("id");
     if (n == null || Strings.isNullOrEmpty(n.asText())) {
@@ -451,22 +434,22 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
         QueryNodeFactory config_factory = null;
         if (temp != null && !temp.isNull()) {
           config_factory = tsdb.getRegistry()
-                  .getQueryNodeFactory(temp.asText());
+              .getQueryNodeFactory(temp.asText());
         } else {
           temp = pushdown.get("id");
           if (temp != null && !temp.isNull()) {
             config_factory = tsdb.getRegistry()
-                    .getQueryNodeFactory(temp.asText());
+                .getQueryNodeFactory(temp.asText());
           }
         }
 
         if (config_factory == null) {
           throw new IllegalArgumentException("Unable to find a config "
-                  + "factory for type: " + (temp == null || temp.isNull() ?
-                  "null" : temp.asText()));
+              + "factory for type: " + (temp == null || temp.isNull() ?
+              "null" : temp.asText()));
         }
         builder.addPushDownNode(config_factory.parseConfig(
-                mapper, tsdb, pushdown));
+            mapper, tsdb, pushdown));
       }
     }
 
@@ -506,8 +489,11 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static abstract class Builder extends BaseQueryNodeConfig.Builder
-          implements TimeSeriesDataSourceConfig.Builder {
+  public abstract static class Builder<
+          B extends Builder<B, C>, C extends BaseQueryNodeConfig & TimeSeriesDataSourceConfig>
+      extends BaseQueryNodeConfig.Builder<B, C>
+      implements TimeSeriesDataSourceConfig.Builder<B, C> {
+
     @JsonProperty
     protected String sourceId;
     @JsonProperty
@@ -537,124 +523,149 @@ public abstract class BaseTimeSeriesDataSourceConfig extends BaseQueryNodeConfig
       setType(TimeSeriesDataSourceConfig.DEFAULT);
     }
 
-    public Builder setSourceId(final String source_id) {
+    @Override
+    public String id() {
+      return id;
+    }
+
+    @Override
+    public String sourceId() {
+      return sourceId;
+    }
+
+    @Override
+    public B setSourceId(final String source_id) {
       sourceId = source_id;
-      return this;
+      return self();
     }
 
-    public Builder setTypes(final List<String> types) {
+    @Override
+    public B setTypes(final List<String> types) {
       this.types = types;
-      return this;
+      return self();
     }
 
-    public Builder addType(final String type) {
+    @Override
+    public B addType(final String type) {
       if (types == null) {
         types = Lists.newArrayList();
       }
       types.add(type);
-      return this;
+      return self();
     }
 
-    public Builder setNamespace(final String namespace) {
+    @Override
+    public B setNamespace(final String namespace) {
       this.namespace = namespace;
-      return this;
+      return self();
     }
 
     public Builder setMetric(final MetricFilter metric) {
       this.metric = metric;
-      return this;
+      return self();
     }
 
-    public Builder setFilterId(final String filter_id) {
+    @Override
+    public B setFilterId(final String filter_id) {
       this.filterId = filter_id;
-      return this;
+      return self();
     }
 
-    public Builder setQueryFilter(final QueryFilter filter) {
+    @Override
+    public B setQueryFilter(final QueryFilter filter) {
       this.filter = filter;
-      return this;
+      return self();
     }
 
-    public Builder setFetchLast(final boolean fetch_last) {
+    @Override
+    public B setFetchLast(final boolean fetch_last) {
       this.fetchLast = fetch_last;
-      return this;
+      return self();
     }
 
-    public Builder setPushDownNodes(
-            final List<QueryNodeConfig> push_down_nodes) {
+    @Override
+    public B setPushDownNodes(
+        final List<QueryNodeConfig> push_down_nodes) {
       this.push_down_nodes = push_down_nodes;
-      return this;
+      return self();
     }
 
-    public Builder addPushDownNode(final QueryNodeConfig node) {
+    @Override
+    public B addPushDownNode(final QueryNodeConfig node) {
       if (push_down_nodes == null) {
         push_down_nodes = Lists.newArrayList();
       }
       push_down_nodes.add(node);
-      return this;
+      return self();
     }
 
-    public Builder setSummaryInterval(final String summary_interval) {
+    @Override
+    public B setSummaryInterval(final String summary_interval) {
       this.summary_interval = summary_interval;
-      return this;
+      return self();
     }
 
-    public Builder setSummaryAggregations(final List<String> summary_aggregations) {
+    @Override
+    public B setSummaryAggregations(final List<String> summary_aggregations) {
       this.summary_aggregations = summary_aggregations;
-      return this;
+      return self();
     }
 
-    public Builder addSummaryAggregation(final String summary_aggregation) {
+    @Override
+    public B addSummaryAggregation(final String summary_aggregation) {
       if (summary_aggregations == null) {
         summary_aggregations = Lists.newArrayList();
       }
       summary_aggregations.add(summary_aggregation);
-      return this;
+      return self();
     }
 
-    public Builder setRollupIntervals(final List<String> rollup_intervals) {
+    @Override
+    public B setRollupIntervals(final List<String> rollup_intervals) {
       this.rollup_intervals = rollup_intervals;
-      return this;
+      return self();
     }
 
-    public Builder addRollupInterval(final String rollup_interval) {
+    @Override
+    public B addRollupInterval(final String rollup_interval) {
       if (rollup_intervals == null) {
         rollup_intervals = Lists.newArrayList();
       }
       rollup_intervals.add(rollup_interval);
-      return this;
+      return self();
     }
 
-    public Builder setPrePadding(final String pre_padding) {
+    @Override
+    public B setPrePadding(final String pre_padding) {
       this.pre_padding = pre_padding;
-      return this;
+      return self();
     }
 
-    public Builder setPostPadding(final String post_padding) {
+    @Override
+    public B setPostPadding(final String post_padding) {
       this.post_padding = post_padding;
-      return this;
+      return self();
     }
 
-    public Builder setTimeShiftInterval(final String interval) {
+    @Override
+    public B setTimeShiftInterval(final String interval) {
       this.interval = interval;
-      return this;
+      return self();
     }
 
     @Override
-    public Builder setTimeShifts(
-            final Pair<Boolean, TemporalAmount> amounts) {
+    public B setTimeShifts(
+        final Pair<Boolean, TemporalAmount> amounts) {
       this.amounts = amounts;
-      return this;
+      return self();
     }
 
     @Override
-    public Builder setHasBeenSetup(final boolean has_been_setup) {
+    public B setHasBeenSetup(final boolean has_been_setup) {
       this.has_been_setup = has_been_setup;
-      return this;
+      return self();
     }
-
-    public abstract TimeSeriesDataSourceConfig build();
-
+    
   }
 
 }

@@ -27,6 +27,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.List;
 
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,7 +43,6 @@ import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -609,8 +609,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     // no data!
     
     TimeSeriesData.Builder builder = TimeSeriesData.newBuilder(data);
-    TimeSeriesData data2 = factory.serialize(ctx, options, result, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));
+    TimeSeriesData data2 = factory.serialize(ctx, options, result, mock(TypedTimeSeriesIterator.class));
     builder.addSegments(data2.getSegments(0));
     
     query = SemanticQuery.newBuilder()
@@ -666,8 +665,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
   public void iteratorMultipleSegmentsAllEmpty() throws Exception {
     PBufNumericSummaryTimeSeriesSerdes factory = new PBufNumericSummaryTimeSeriesSerdes();
         
-    TimeSeriesData data = factory.serialize(ctx, options, result, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));
+    TimeSeriesData data = factory.serialize(ctx, options, result, mock(TypedTimeSeriesIterator.class));
     assertEquals(1, data.getSegmentsCount());
     assertEquals(1525824000, data.getSegments(0).getStart().getEpoch());
     assertEquals(0, data.getSegments(0).getStart().getNanos());
@@ -689,8 +687,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     // no data!
     
     TimeSeriesData.Builder builder = TimeSeriesData.newBuilder(data);
-    TimeSeriesData data2 = factory.serialize(ctx, options, result, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));
+    TimeSeriesData data2 = factory.serialize(ctx, options, result, mock(TypedTimeSeriesIterator.class));
     builder.addSegments(data2.getSegments(0));
     
     query = SemanticQuery.newBuilder()
@@ -704,8 +701,7 @@ public class TestPBufNumericSummarySerdesFactoryAndIterator {
     
     // no data!
     
-    data2 = factory.serialize(ctx, options, result, 
-        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) mock(Iterator.class));
+    data2 = factory.serialize(ctx, options, result, mock(TypedTimeSeriesIterator.class));
     builder.addSegments(data2.getSegments(0));
     
     PBufNumericSummaryIterator iterator = 

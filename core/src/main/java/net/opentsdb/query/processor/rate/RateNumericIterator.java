@@ -14,13 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -33,6 +27,10 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * Iterator that generates rates from a sequence of adjacent data points.
  * 
@@ -44,7 +42,7 @@ public class RateNumericIterator implements QueryIterator {
   private static final long TO_NANOS = 1000000000L;
   
   /** A sequence of data points to compute rates. */
-  private final Iterator<TimeSeriesValue<?>> source;
+  private final TypedTimeSeriesIterator<? extends TimeSeriesDataType> source;
   
   /** Options for calculating rates. */
   private final RateConfig config;
@@ -92,8 +90,7 @@ public class RateNumericIterator implements QueryIterator {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     config = (RateConfig) node.config();
-    
-    final Optional<TypedTimeSeriesIterator> optional = 
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         sources.iterator().next().iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();

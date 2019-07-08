@@ -190,6 +190,33 @@ public class TestChainFilterAndFactory {
     assertTrue(!filter.equals(filter3));
     assertNotEquals(filter.hashCode(), filter3.hashCode());
 
+    filter3 = ChainFilter.newBuilder()
+            .setOp(FilterOp.AND)
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .addFilter(new UTQueryFilter("host", "web01|web02"))
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .build();
+
+    assertTrue(!filter.equals(filter3));
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+    filter3 = ChainFilter.newBuilder()
+            .setOp(FilterOp.AND)
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .addFilter(new UTQueryFilter("host", "web01|web02"))
+            .addFilter(new UTQueryFilter("user", "me"))
+            .build();
+
+    ChainFilter filter4 = ChainFilter.newBuilder()
+            .setOp(FilterOp.AND)
+            .addFilter(new UTQueryFilter("user", "me"))
+            .addFilter(new UTQueryFilter("owner", "tyrion"))
+            .addFilter(new UTQueryFilter("host", "web01|web02"))
+            .build();
+
+    assertTrue(filter3.equals(filter4));
+    assertNotEquals(filter3.hashCode(), filter4.hashCode());
+
 
   }
   

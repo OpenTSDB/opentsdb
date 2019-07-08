@@ -128,8 +128,8 @@ public class TagKeyRegexFilter implements TagKeyFilter {
 
     final TagKeyRegexFilter otherRegexFilter = (TagKeyRegexFilter) o;
 
-    return Objects.equal(pattern.pattern(), otherRegexFilter.pattern().pattern())
-            && Objects.equal(matches_all, otherRegexFilter.matchesAll());
+    return Objects.equal(matches_all, otherRegexFilter.matchesAll())
+        && Objects.equal(filter(), otherRegexFilter.filter());
 
   }
 
@@ -143,7 +143,8 @@ public class TagKeyRegexFilter implements TagKeyFilter {
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putBoolean(matches_all)
-            .putString(Strings.nullToEmpty(pattern.pattern()), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(filter()), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
 
     return hc;

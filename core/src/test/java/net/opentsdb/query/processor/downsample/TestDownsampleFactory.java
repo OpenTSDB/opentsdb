@@ -14,35 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
-
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -60,6 +36,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -68,7 +45,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
@@ -81,6 +57,28 @@ import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.utils.Pair;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class TestDownsampleFactory {
   
@@ -162,7 +160,7 @@ public class TestDownsampleFactory {
     when(result.rollupConfig()).thenReturn(rollup_config);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     
-    final QueryNode node = mock(QueryNode.class);
+    final Downsample node = mock(Downsample.class);
     when(node.config()).thenReturn(config);
     final QueryPipelineContext context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
@@ -389,7 +387,7 @@ public class TestDownsampleFactory {
     assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
     assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
     assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
-    
+
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
     assertNull(node.getPrePadding());
     assertNull(node.getPostPadding());
@@ -502,7 +500,7 @@ public class TestDownsampleFactory {
     assertEquals("avg", ((DownsampleConfig) new_node).getAggregator());
     assertEquals("1h", ((DownsampleConfig) new_node).getInterval());
     assertFalse(((DownsampleConfig) new_node).getRunAll());
-    
+
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
     assertNull(node.getPrePadding());
     assertNull(node.getPostPadding());
@@ -617,7 +615,7 @@ public class TestDownsampleFactory {
     assertEquals("sum", ((DownsampleConfig) new_node).getAggregator());
     assertEquals("0all", ((DownsampleConfig) new_node).getInterval());
     assertTrue(((DownsampleConfig) new_node).getRunAll());
-    
+
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
     assertNull(node.getPrePadding());
     assertNull(node.getPostPadding());
