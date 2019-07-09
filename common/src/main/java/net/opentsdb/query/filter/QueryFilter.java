@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
@@ -41,4 +42,7 @@ public interface QueryFilter {
    * went wrong with the initialization.
    */
   public Deferred<Void> initialize(final Span span);
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode();
 }

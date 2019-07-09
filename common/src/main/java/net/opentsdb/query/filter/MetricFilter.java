@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.hash.HashCode;
+
 /**
  * A filter that operates on the metric name.
  * 
@@ -30,5 +32,8 @@ public interface MetricFilter extends QueryFilter {
    * @return True if satisfied, false if not.
    */
   public boolean matches(final String metric);
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode();
   
 }

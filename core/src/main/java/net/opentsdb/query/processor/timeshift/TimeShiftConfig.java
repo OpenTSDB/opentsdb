@@ -18,13 +18,17 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import java.time.temporal.TemporalAmount;
-import net.opentsdb.common.Const;
+import java.util.List;
+
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
 import org.slf4j.Logger;
@@ -37,7 +41,7 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
 
   private String timeShiftInterval;
   private Pair<Boolean, TemporalAmount> amounts;
-  
+
   protected TimeShiftConfig(final Builder builder) {
     super(builder);
     timeShiftInterval = builder.interval;
@@ -50,12 +54,12 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
       final int count = DateTime.getDurationInterval(timeShiftInterval);
       final String units = DateTime.getDurationUnits(timeShiftInterval);
       final TemporalAmount amount = DateTime.parseDuration2(
-          Integer.toString(count) + units);
+              Integer.toString(count) + units);
       amounts = new Pair<Boolean, TemporalAmount>(true, amount);
 
     }
   }
-  
+
   public Pair<Boolean, TemporalAmount> amounts() {
     return amounts;
   }
@@ -74,34 +78,41 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
     // TODO Auto-generated method stub
     return 0;
   }
-  
+
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof TimeShiftConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((TimeShiftConfig) o).id);
+
+    final TimeShiftConfig tsconfig = (TimeShiftConfig) o;
+
+    return Objects.equal(timeShiftInterval, tsconfig.getTimeShiftInterval());
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
+    final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(timeShiftInterval), Const.UTF8_CHARSET)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+
+    hashes.add(hc);
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override
@@ -121,11 +132,11 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfig.Builder<Builder, TimeShiftConfig> {
     protected String interval;
-    
+
     Builder() {
       setType(TimeShiftFactory.TYPE);
     }
-    
+
     public Builder setTimeshiftInterval(final String interval) {
       this.interval = interval;
       return this;
@@ -141,5 +152,5 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
       return this;
     }
   }
-  
+
 }

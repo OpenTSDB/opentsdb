@@ -22,10 +22,16 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -99,6 +105,50 @@ public class FieldLiteralOrFilter extends BaseFieldFilter {
 
   public static Builder newBuilder() {
     return new Builder();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final FieldLiteralOrFilter otherFilter = (FieldLiteralOrFilter) o;
+
+    // comparing literals
+    if (!Comparators.ListComparison.equalLists(literals, otherFilter.literals())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(key), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET);
+
+    if (literals != null) {
+      final List<String> keys = Lists.newArrayList(literals);
+      Collections.sort(keys);
+      for (final String key : keys) {
+        hc.putString(key, Const.UTF8_CHARSET);
+      }
+    }
+
+    return hc.hash();
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

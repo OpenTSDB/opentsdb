@@ -24,8 +24,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.base.Objects;
 
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.Const;
+import net.opentsdb.utils.Comparators;
 
 /**
  * A basic configuration implementation handling the ID and overrides
@@ -183,15 +188,52 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   }
 
   @Override
-  public abstract boolean equals(final Object o);
-  
-  @Override
-  public abstract int hashCode();
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
 
-  public void toBuilder(C config, B builder) {
-    builder.setId(id).setType(type).setSources(Lists.newArrayList(sources)).setOverrides(overrides);
+    final BaseQueryNodeConfig queryConfig = (BaseQueryNodeConfig) o;
+
+    final boolean result = Objects.equal(getType(), queryConfig.getType())
+            && Objects.equal(id, queryConfig.getId());
+    if (!result) {
+      return false;
+    }
+
+    if (!Comparators.ListComparison.equalLists(sources, queryConfig.getSources())) {
+      return false;
+    }
+
+    return true;
   }
 
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(type), Const.UTF8_CHARSET);
+
+    if (sources != null) {
+      final List<String> keys = Lists.newArrayList(sources);
+      Collections.sort(keys);
+      for (final String key : keys) {
+        hc.putString(key, Const.UTF8_CHARSET);
+      }
+    }
+
+    return hc.hash();
+  }
+  
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public abstract static class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfig>

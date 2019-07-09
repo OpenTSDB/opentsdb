@@ -19,9 +19,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 
 import java.util.regex.Pattern;
@@ -73,6 +76,41 @@ public class MetricRegexFilter implements MetricFilter {
   public String getType() {
     return MetricRegexFactory.TYPE;
   }
+
+  /** @return The compiled pattern. */
+  public Pattern pattern() {
+    return pattern;
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final MetricRegexFilter otherMetricFilter = (MetricRegexFilter) o;
+
+    return Objects.equal(metric, otherMetricFilter.getMetric());
+
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(metric), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
+            .hash();
+
+    return hc;
+  }
+
+
 
   @Override
   public Deferred<Void> initialize(final Span span) {

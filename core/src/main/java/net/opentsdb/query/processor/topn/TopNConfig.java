@@ -19,11 +19,16 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
-import net.opentsdb.common.Const;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
+
+import java.util.List;
 
 /**
  * A config for TopN processor nodes.
@@ -98,31 +103,46 @@ public class TopNConfig extends BaseQueryNodeConfig<TopNConfig.Builder, TopNConf
 
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof TopNConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((TopNConfig) o).id);
+
+    final TopNConfig tnconfig = (TopNConfig) o;
+
+    return Objects.equal(count, tnconfig.getCount())
+            && Objects.equal(top, tnconfig.getTop())
+            && Objects.equal(aggregator, tnconfig.getAggregator())
+            && Objects.equal(infectious_nan, tnconfig.getInfectiousNan());
+
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putInt(count)
+            .putBoolean(top)
+            .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
+            .putBoolean(infectious_nan)
+            .hash();
+
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+
+    hashes.add(hc);
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override

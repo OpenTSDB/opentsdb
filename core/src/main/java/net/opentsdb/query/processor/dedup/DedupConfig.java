@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.dedup;
 
 import com.google.common.hash.HashCode;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 
 /**
  * A configuration for handling out-of-order and de-duplication of values 
@@ -55,20 +54,17 @@ public class DedupConfig extends BaseQueryNodeConfig<DedupConfig.Builder, DedupC
 
   @Override
   public boolean equals(Object o) {
-    // TODO Auto-generated method stub
-    return false;
+    return super.equals(o);
   }
 
   @Override
   public int hashCode() {
-    // TODO Auto-generated method stub
-    return 0;
+    return super.hashCode();
   }
 
   @Override
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return null;
+    return super.buildHashCode();
   }
 
   @Override

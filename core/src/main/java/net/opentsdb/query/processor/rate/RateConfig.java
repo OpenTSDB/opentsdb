@@ -14,6 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -22,16 +26,16 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
+
+import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.utils.DateTime;
-
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 
 /**
  * Provides additional options that will be used when calculating rates. These
@@ -236,7 +240,9 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
        && Objects.equal(reset_value, options.reset_value)
        && Objects.equal(interval, options.interval)
        && Objects.equal(delta_only, options.delta_only)
-       && Objects.equal(id, options.id);
+       && Objects.equal(id, options.id)
+       && Objects.equal(rate_to_count, options.getRateToCount());
+
   }
   
   @Override
@@ -246,18 +252,27 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(3);
+
+    hashes.add(super.buildHashCode());
+
     Hasher hasher = Const.HASH_FUNCTION().newHasher();
     hasher.putBoolean(counter)
     .putBoolean(drop_resets)
     .putBoolean(delta_only)
     .putLong(counter_max)
     .putLong(reset_value)
-    .putString(interval, Const.UTF8_CHARSET);
-    
+    .putString(interval, Const.UTF8_CHARSET)
+    .putBoolean(rate_to_count);
+
     if (id !=null) {
       hasher.putString(id, Const.UTF8_CHARSET);
     }
-    return hasher.hash();
+
+    hashes.add(hasher.hash());
+
+    return Hashing.combineOrdered(hashes);
   }
   
   @Override

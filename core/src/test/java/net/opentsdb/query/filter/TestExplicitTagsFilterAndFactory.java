@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -243,6 +239,64 @@ public class TestExplicitTagsFilterAndFactory {
     
     assertNull(filter.initialize(null).join());
     verify(filter_a, times(1)).initialize(null);
+  }
+
+
+  @Test
+  public void equality() throws Exception {
+    ExplicitTagsFilter filter = ExplicitTagsFilter.newBuilder()
+            .setFilter(ChainFilter.newBuilder()
+                    .setOp(FilterOp.AND)
+                    .addFilter(TagValueLiteralOrFilter.newBuilder()
+                            .setFilter("web01")
+                            .setTagKey("host")
+                            .build())
+                    .addFilter(TagValueLiteralOrFilter.newBuilder()
+                            .setFilter("tyrion")
+                            .setTagKey("owner")
+                            .build())
+                    .build())
+            .build();
+
+    ExplicitTagsFilter filter2 = ExplicitTagsFilter.newBuilder()
+            .setFilter(ChainFilter.newBuilder()
+                    .setOp(FilterOp.AND)
+                    .addFilter(TagValueLiteralOrFilter.newBuilder()
+                            .setFilter("web01")
+                            .setTagKey("host")
+                            .build())
+                    .addFilter(TagValueLiteralOrFilter.newBuilder()
+                            .setFilter("tyrion")
+                            .setTagKey("owner")
+                            .build())
+                    .build())
+            .build();
+
+    ExplicitTagsFilter filter3 = ExplicitTagsFilter.newBuilder()
+            .setFilter(ChainFilter.newBuilder()
+                    .setOp(FilterOp.AND)
+                    .addFilter(TagValueLiteralOrFilter.newBuilder()
+                            .setFilter("web02")
+                            .setTagKey("host")
+                            .build())
+                    .addFilter(TagValueLiteralOrFilter.newBuilder()
+                            .setFilter("tyrion")
+                            .setTagKey("owner")
+                            .build())
+                    .build())
+            .build();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put("host", "web02");
+    tags.put("owner", "val");
+    assertTrue(filter.matches(tags));
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+
   }
   
 }

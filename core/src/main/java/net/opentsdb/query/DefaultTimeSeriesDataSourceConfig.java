@@ -61,6 +61,12 @@ public class DefaultTimeSeriesDataSourceConfig
     return builder.build();
   }
 
+  @Override
+  public int compareTo(DefaultTimeSeriesDataSourceConfig o) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
   public static void setupTimeShift(
       final TimeSeriesDataSourceConfig<DefaultTimeSeriesDataSourceConfig.Builder, DefaultTimeSeriesDataSourceConfig> config,
       final QueryPlanner planner) {
