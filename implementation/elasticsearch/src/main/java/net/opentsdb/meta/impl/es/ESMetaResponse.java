@@ -53,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.MAX_CARD_KEY;
 

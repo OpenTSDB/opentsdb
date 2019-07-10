@@ -345,7 +345,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()
 //            .setQuery_filter(Arrays
 //                    .asList(filter)).addAggregate(Arrays.asList(filter),
-//                    MetaQuery.AggregationField.METRICS, null, 0).build();
+//                    MetaQueryMarker.AggregationField.METRICS, null, 0).build();
 //
 //
 //    String s = source.toString().replaceAll("\n","")
@@ -375,7 +375,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()
 //            .setQuery_filter(Arrays
 //                    .asList(filter)).addAggregate(Arrays.asList(filter),
-//                    MetaQuery.AggregationField.TAGS_KEYS, null, 0).build();
+//                    MetaQueryMarker.AggregationField.TAGS_KEYS, null, 0).build();
 //
 //
 //    String s = source.toString().replaceAll("\n","")
@@ -402,7 +402,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()
 //            .setQuery_filter(Arrays
 //                    .asList(filter)).addAggregate(Arrays.asList(filter),
-//                    MetaQuery.AggregationField.TAGS_VALUES, "host", 0).build();
+//                    MetaQueryMarker.AggregationField.TAGS_VALUES, "host", 0).build();
 //
 //
 //    String s = source.toString().replaceAll("\n","")
@@ -437,7 +437,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()
 //            .setQuery_filter(Arrays
 //                    .asList(filter)).addAggregate(Arrays.asList(filter),
-//                    MetaQuery.AggregationField.TAGS_VALUES, null, 0).build();
+//                    MetaQueryMarker.AggregationField.TAGS_VALUES, null, 0).build();
 //
 //
 //    String s = source.toString().replaceAll("\n","")
@@ -470,7 +470,7 @@ public class TestNamespacedAggregatedDocumentQuery {
 //    SearchSourceBuilder source = NamespacedAggregatedDocumentQueryBuilder.newBuilder()
 //            .setQuery_filter(Arrays
 //                    .asList(filter)).addAggregate(Arrays.asList(filter),
-//                    MetaQuery.AggregationField.TAGS_VALUES, null, 100).build();
+//                    MetaQueryMarker.AggregationField.TAGS_VALUES, null, 100).build();
 //
 //
 //    String s = source.toString().replaceAll("\n","")

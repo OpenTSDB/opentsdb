@@ -16,13 +16,13 @@
 package net.opentsdb.meta.impl.es;
 
 import net.opentsdb.meta.NamespacedKey;
-import net.opentsdb.meta.impl.MetaQuery;
+import net.opentsdb.meta.impl.MetaQueryMarker;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import java.util.List;
 import java.util.Map;
 
-public class ESMetaQuery implements MetaQuery {
+public class ESMetaQuery implements MetaQueryMarker {
 
   private Map<NamespacedKey, List<SearchSourceBuilder>> query;
 

@@ -25,6 +25,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.impl.MetaClient;
+import net.opentsdb.meta.impl.MetaQueryMarker;
 import net.opentsdb.meta.impl.MetaResponse;
 import net.opentsdb.meta.impl.es.ESClusterClient;
 import net.opentsdb.query.QueryPipelineContext;
@@ -146,7 +147,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       child = null;
     }
 
-    net.opentsdb.meta.impl.MetaQuery metaQuery = client.buildQuery(query);
+    MetaQueryMarker metaQuery = client.buildQuery(query);
 
     if (LOG.isTraceEnabled()) {
       try {
@@ -248,7 +249,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               .setMetaQuery(Lists.newArrayList(meta_query))
               .build();
 
-      net.opentsdb.meta.impl.MetaQuery metaQuery = client.buildMultiGetQuery(query);
+      MetaQueryMarker metaQuery = client.buildMultiGetQuery(query);
 
       class ResultCB implements Callback<MetaDataStorageResult, MetaResponse > {
 

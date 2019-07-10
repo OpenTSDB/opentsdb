@@ -28,7 +28,7 @@ import net.opentsdb.stats.Span;
  *
  * @since 3.0
  */
-public interface MetaClient<Q extends MetaQuery, R extends MetaResponse> {
+public interface MetaClient<Q extends MetaQueryMarker, R extends MetaResponse> {
 
   /**
    * Executes the given query against a single or multiple clusters and returns the results in a
