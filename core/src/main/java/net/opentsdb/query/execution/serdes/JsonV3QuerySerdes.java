@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+import net.opentsdb.data.types.status.StatusIterator;
 import net.opentsdb.data.types.status.StatusType;
 import net.opentsdb.data.types.status.StatusValue;
 import net.opentsdb.query.processor.summarizer.Summarizer;
@@ -194,6 +195,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           json.writeArrayFieldStart("data");
           int idx = 0;
 
+          boolean wasStatus = false;
+          String namespace = null;
           if (opts.getParallelThreshold() > 0 &&
               result.timeSeries().size() > opts.getParallelThreshold()) {
             final List<Pair<Integer, TimeSeries>> pairs =
@@ -237,10 +240,24 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   json,
                   null,
                   result);
+              if (!wasStatus) {
+                for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator :
+                    series.iterators()) {
+                  if (iterator.getType() == StatusType.TYPE) {
+                    namespace = ((StatusIterator) iterator).namespace();
+                    wasStatus = true;
+                    break;
+                  }
+                }
+              }
             }
           }
           // end of the data array
           json.writeEndArray();
+
+          if(wasStatus && null != namespace && !namespace.isEmpty()) {
+            json.writeStringField("namespace", namespace);
+          }
 
           json.writeEndObject();
         } catch (Exception e) {
@@ -436,12 +453,14 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
       while (iterator.hasNext()) {
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
-        if(iterator.getType() == StatusType.TYPE) {
-          was_status = true;
+        if (iterator.getType() == StatusType.TYPE) {
+          if (!was_status) {
+            was_status = true;
+          }
           json.writeStartObject();
           writeStatus((StatusValue) value, json);
           wrote_values = true;
-        }else {
+        } else {
           while (value != null && value.timestamp().compare(Op.LT, start)) {
             if (iterator.hasNext()) {
               value = iterator.next();
@@ -905,6 +924,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     json.writeNumberField("statusType", statusValue.statusType());
     json.writeStringField("message", statusValue.message());
+    json.writeStringField("application", statusValue.application());
   }
 
   /**

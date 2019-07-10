@@ -55,6 +55,8 @@ public interface BatchMetaQuery {
 
   public List<MetaQuery> meta_query = new ArrayList<>();
 
+  String source();
+
   /**
    * Builder through which the query is parsed and parameters are set
    */
@@ -64,6 +66,7 @@ public interface BatchMetaQuery {
     protected String aggregationField;
     protected int agg_size;
     protected QueryType type;
+    protected String source;
     protected Order order = Order.ASCENDING;
     protected String start;
     protected String end;
@@ -92,6 +95,11 @@ public interface BatchMetaQuery {
 
     public Builder setType(final QueryType type) {
       this.type = type;
+      return this;
+    }
+
+    public Builder setSource(final String source) {
+      this.source = source;
       return this;
     }
 

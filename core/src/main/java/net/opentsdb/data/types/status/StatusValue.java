@@ -21,6 +21,7 @@ import net.opentsdb.data.TimeStamp;
 
 public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
 
+  private String application;
   private byte statusCode;
   private byte[] statusCodeArray;
   private byte statusType;
@@ -29,12 +30,14 @@ public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
   private TimeStamp[] timestampArray;
 
   public StatusValue(
+      final String application,
       final byte statusCode,
       final byte[] statusCodeArray,
       final byte statusType,
       final String message,
       final TimeStamp lastUpdateTime,
       final TimeStamp[] timestampArray) {
+    this.application = application;
     this.statusCode = statusCode;
     this.statusCodeArray = statusCodeArray;
     this.statusType = statusType;
@@ -61,6 +64,11 @@ public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
   @Override
   public TypeToken<StatusType> type() {
     return StatusType.TYPE;
+  }
+
+  @Override
+  public String application() {
+    return application;
   }
 
   @Override

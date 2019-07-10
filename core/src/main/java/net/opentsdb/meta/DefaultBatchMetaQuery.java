@@ -67,6 +67,7 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
    */
   private int agg_size;
   private QueryType type;
+  private String source;
   private Order order;
   private TimeStamp start;
   private TimeStamp end;
@@ -79,6 +80,7 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
             null : builder.aggregationField;
     agg_size = builder.agg_size;
     type = builder.type;
+    source = builder.source;
     order = builder.order;
     meta_query = builder.meta_query;
 
@@ -143,6 +145,11 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     return meta_query;
   }
 
+  @Override
+  public String source() {
+    return source;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -194,6 +201,10 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     }
     builder.setType(QueryType.valueOf(n.asText()));
 
+    n = node.get("source");
+    if (n != null && !n.isNull() && !n.asText().isEmpty()) {
+      builder.setSource(n.asText());
+    }
 
     n = node.get("order");
     if (n != null && !n.isNull()) {
@@ -226,16 +237,18 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     }
 
     n = node.get("queries");
-    if (n !=null && !n.isNull()) {
+    if (n != null && !n.isNull()) {
       List<MetaQuery> meta_query = new ArrayList<>();
-      for (int i = 0; i < ((ArrayNode) n).size(); i++) {
-        meta_query.add(DefaultMetaQuery.parse(tsdb, mapper, n.get(i), builder.type)
-          .build());
+      MetaDataStorageSchema plugin =
+          tsdb.getRegistry().getPlugin(MetaDataStorageSchema.class, builder.source);
+      if (null == plugin) {
+        throw new IllegalArgumentException("Plugin not found for type: " + builder.source);
+      }
+      for (int i = 0; i < n.size(); i++) {
+        meta_query.add(plugin.parse(tsdb, mapper, n.get(i), builder.type));
       }
       builder.setMetaQuery(meta_query);
     }
-
     return builder;
-
   }
 }
