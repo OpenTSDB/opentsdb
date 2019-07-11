@@ -14,7 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
+
+import java.util.List;
 
 /**
  * A default implementation of the NamedFilter.
@@ -54,6 +61,44 @@ public class DefaultNamedFilter implements NamedFilter {
   @Override
   public QueryFilter getFilter() {
     return filter;
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final DefaultNamedFilter otherNamedFilter = (DefaultNamedFilter) o;
+
+    return Objects.equal(id, otherNamedFilter.getId())
+            && Objects.equal(filter, otherNamedFilter.getFilter());
+
+  }
+
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(hc);
+
+    if (filter != null) {
+      hashes.add(filter.buildHashCode());
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
 
   public static Builder newBuilder() {

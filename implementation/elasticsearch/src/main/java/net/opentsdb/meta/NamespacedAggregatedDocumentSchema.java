@@ -15,17 +15,17 @@
 package net.opentsdb.meta;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.impl.MetaClient;
+import net.opentsdb.meta.impl.MetaQueryMarker;
 import net.opentsdb.meta.impl.MetaResponse;
 import net.opentsdb.meta.impl.es.ESClusterClient;
 import net.opentsdb.query.QueryPipelineContext;
@@ -40,15 +40,11 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagKeyFilter;
 import net.opentsdb.query.filter.TagValueFilter;
 import net.opentsdb.stats.Span;
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.base.Strings;
-import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -62,13 +58,11 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       NamespacedAggregatedDocumentSchema.class);
 
   public static final String TYPE = "NamespacedAggregatedDocumentSchema";
-
-  public static final String MAX_CARD_KEY = "tsd.meta.max.cardinality";
-  public static final String QUERY_TIMEOUT_KEY = "es.query_timeout";
   public static final String FALLBACK_ON_EX_KEY = "es.fallback.exception";
-  public static final String FALLBACK_ON_NO_DATA_KEY = "es.fallback.nodata";
-  public static final String MAX_RESULTS_KEY = "es.query.results.max";
+  public static final String MAX_CARD_KEY = "tsd.meta.max.cardinality";
   public static final String TAGS_STRING = "tags";
+  public static final String CLIENT_ID = "client.id";
+  public static final String KEY_PREFIX = "meta.schema.";
 
   private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -86,34 +80,29 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
-    client = tsdb.getRegistry().getPlugin(MetaClient.class, null);
-    if (client == null) {
-      throw new IllegalStateException("No client found!");
-    }
 
-    if (!tsdb.getConfig().hasProperty(QUERY_TIMEOUT_KEY)) {
-      tsdb.getConfig().register(QUERY_TIMEOUT_KEY, 5000, true,
-              "How long, in milliseconds, to wait for responses.");
-    }
-    if (!tsdb.getConfig().hasProperty(MAX_CARD_KEY)) {
-      tsdb.getConfig().register(MAX_CARD_KEY, 4096, true,
+    if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_CARD_KEY))) {
+      tsdb.getConfig().register(getConfigKey(MAX_CARD_KEY), 4096, true,
               "The maximum number of entries to allow for multi-get queries.");
     }
-    if (!tsdb.getConfig().hasProperty(FALLBACK_ON_EX_KEY)) {
-      tsdb.getConfig().register(FALLBACK_ON_EX_KEY, true,
-          true, "Whether or not to fall back to scans when the meta "
-              + "query returns an exception.");
+    if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_EX_KEY))) {
+      tsdb.getConfig()
+          .register(
+              getConfigKey(FALLBACK_ON_EX_KEY),
+              true,
+              true,
+              "Whether or not to fall back to scans when the meta "
+                  + "query returns an exception.");
     }
-    if (!tsdb.getConfig().hasProperty(FALLBACK_ON_NO_DATA_KEY)) {
-      tsdb.getConfig().register(FALLBACK_ON_NO_DATA_KEY, false,
-          true, "Whether or not to fall back to scans when the query "
-              + "was empty.");
-    }
-    if (!tsdb.getConfig().hasProperty(MAX_RESULTS_KEY)) {
-      tsdb.getConfig().register(MAX_RESULTS_KEY, 4096,
-          true, "The maximum number of results to return in a multi-get query.");
+    if (!tsdb.getConfig().hasProperty(getConfigKey(CLIENT_ID))) {
+      tsdb.getConfig().register(getConfigKey(CLIENT_ID), null, false, "Meta client id.");
     }
 
+    String clientID = tsdb.getConfig().getString(getConfigKey(CLIENT_ID));
+    client = tsdb.getRegistry().getPlugin(MetaClient.class, clientID);
+    if (client == null) {
+      throw new IllegalStateException("No client found with id: " + clientID);
+    }
     return Deferred.fromResult(null);
   }
 
@@ -122,9 +111,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     return Deferred.fromResult(null);
   }
 
-  @Override
-  public String version() {
-    return "3.0.0";
+  private String getConfigKey(final String key) {
+    return KEY_PREFIX + (id.equals(TYPE) ? "" : id + ".") + key;
   }
 
   protected static int countTagValueFilters(final QueryFilter filter, int count) {
@@ -159,7 +147,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       child = null;
     }
 
-    net.opentsdb.meta.impl.MetaQuery metaQuery = client.buildQuery(query);
+    MetaQueryMarker metaQuery = client.buildQuery(query);
 
     if (LOG.isTraceEnabled()) {
       try {
@@ -174,7 +162,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
       @Override
       public Map<NamespacedKey, MetaDataStorageResult> call(final MetaResponse results) {
-        return results.parse(query, tsdb, child);
+        return results.parse(query, tsdb, null, false, child);
       }
 
     }
@@ -261,75 +249,15 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               .setMetaQuery(Lists.newArrayList(meta_query))
               .build();
 
-      net.opentsdb.meta.impl.MetaQuery metaQuery = client.buildMultiGetQuery(query);
+      MetaQueryMarker metaQuery = client.buildMultiGetQuery(query);
 
-      class ResultCB implements Callback<MetaDataStorageResult, Map<String,
-              MultiSearchResponse> > {
+      class ResultCB implements Callback<MetaDataStorageResult, MetaResponse > {
 
         @Override
-        public MetaDataStorageResult call(final Map<String, MultiSearchResponse>
-                                                          results) throws Exception {
-          final NamespacedAggregatedDocumentResult result;
-          // quick validation
-          long max_hits = 0;
-          for (final Map.Entry<String, MultiSearchResponse> response_entry:
-                  results.entrySet()) {
-            final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
-            if (response.getHits().getTotalHits() > max_hits) {
-              max_hits = response.getHits().getTotalHits();
-            }
+        public MetaDataStorageResult call(final MetaResponse results) {
 
-            // if we have too many results, bail out with a no-data error.
-            if (max_hits > tsdb.getConfig().getInt(MAX_CARD_KEY)) {
-              if (LOG.isTraceEnabled()) {
-                LOG.trace("Too many hits from ES: " + response.getHits().getTotalHits());
-              }
-              if (queryPipelineContext.query().isDebugEnabled()) {
-                queryPipelineContext.queryContext().logDebug(
-                    "Total hits from ES: " + max_hits
-                      + " exceeded the configured limit: "
-                      + tsdb.getConfig().getInt(MAX_CARD_KEY));
-              }
-              result = new NamespacedAggregatedDocumentResult(
-                tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY)
-                  ? MetaResult.NO_DATA_FALLBACK : MetaResult.NO_DATA, null,
-                query);
-              result.setTotalHits(response.getHits().getTotalHits());
-              if (child != null) {
-                child.setSuccessTags()
-                     .setTag("result", result.result().toString())
-                     .finish();
-              }
-              return result;
-            }
-          }
-          result = new NamespacedAggregatedDocumentResult(
-              max_hits > 0 ? MetaResult.DATA :
-                tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY)
-                  ? MetaResult.NO_DATA_FALLBACK : MetaResult.NO_DATA, null,
-                  query);
-          if (max_hits > 0) {
-            for (final Map.Entry<String, MultiSearchResponse> response_entry: results.entrySet()) {
-              final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
-              parseTimeseries(
-                  query,
-                  meta_query,
-                  response,
-                  timeSeriesDataSourceConfig.getMetric().getMetric(),
-                  result);
-            }
-          }
-          result.setTotalHits(max_hits);
-          if (LOG.isTraceEnabled()) {
-            LOG.trace("Total meta results: " + result.timeSeries().size());
-          }
-
-          if (child != null) {
-            child.setSuccessTags()
-                 .setTag("result", result.result().toString())
-                 .finish();
-          }
-          return result;
+          Map<NamespacedKey, MetaDataStorageResult> parse = results.parse(query, tsdb, null, true, child);
+          return parse.entrySet().iterator().next().getValue();
         }
 
       }
@@ -345,7 +273,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
             LOG.debug("Returning exception from ES", ex);
           }
           return new NamespacedAggregatedDocumentResult(
-              tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_EX_KEY) ?
+              tsdb.getConfig().getBoolean(getConfigKey(ESClusterClient.FALLBACK_ON_EX_KEY)) ?
                   MetaResult.EXCEPTION_FALLBACK : MetaResult.EXCEPTION, ex, null);
         }
       }
@@ -366,51 +294,9 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     }
   }
 
-  NamespacedAggregatedDocumentResult parseTimeseries(
-      final BatchMetaQuery query, final MetaQuery meta_query,
-      final SearchResponse response,
-      final String metric,
-      NamespacedAggregatedDocumentResult result) {
-    for (final SearchHit hit : response.getHits().hits()) {
-      final Map<String, Object> source = hit.getSource();
-      List<Map<String, String>> tags = (List<Map<String, String>>)
-              source.get("tags");
-      List<Map<String, String>> metrics = (List<Map<String, String>>)
-              source.get("AM_nested");
-      if (metric == null) {
-        if (metrics != null) {
-          for (Map<String, String> m : metrics) {
-            if (result == null) {
-              result = new NamespacedAggregatedDocumentResult(MetaResult
-                      .DATA, query, meta_query);
-            }
-            result.addTimeSeries(buildTimeseries(m.get("name.raw"), tags),
-                    meta_query, m.get("name.raw"));
-          }
-        }
-      } else {
-        int idx = metric.indexOf(".");
-        final String metric_only = metric.substring(idx + 1).toLowerCase();
-        if (result == null) {
-          result = new NamespacedAggregatedDocumentResult(MetaResult.DATA,
-                  query, meta_query);
-        }
-          result.addTimeSeries(buildTimeseries(metric, tags), meta_query, metric_only);
-      }
-    }
-    return result;
+  @Override
+  public MetaQuery parse(TSDB tsdb, ObjectMapper mapper, JsonNode jsonNode, QueryType type) {
+    return client.parse(tsdb, mapper, jsonNode, type);
   }
 
-  private TimeSeriesId buildTimeseries(final String metric, final
-  List<Map<String, String>> tags) {
-
-    final BaseTimeSeriesStringId.Builder builder =
-            BaseTimeSeriesStringId.newBuilder();
-    builder.setMetric(metric);
-    for (final Map<String, String> pair : tags) {
-      builder.addTags(pair.get("key.raw"), pair.get("value.raw"));
-    }
-    BaseTimeSeriesStringId timeseries = builder.build();
-    return timeseries;
-  }
 }

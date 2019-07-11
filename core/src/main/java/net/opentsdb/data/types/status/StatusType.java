@@ -28,6 +28,8 @@ public interface StatusType extends TimeSeriesDataType<StatusType> {
 
   TypeToken<StatusType> TYPE = TypeToken.of(StatusType.class);
 
+  String application();
+
   String message();
 
   byte statusCode();

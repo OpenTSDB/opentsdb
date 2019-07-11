@@ -86,11 +86,11 @@ public class TestHAClusterFactory {
     ((DefaultRegistry) TSDB.registry).initialize(true).join(60_000);
     MockFactory s1 = new MockFactory("s1", Lists.newArrayList());
     MockFactory s2 = new MockFactory("s2", Lists.newArrayList(
-        DownsampleConfig.class));
+            DownsampleConfig.class));
     MockFactory s3 = new MockFactory("s3", Lists.newArrayList(
-        DownsampleConfig.class, GroupByConfig.class));
+            DownsampleConfig.class, GroupByConfig.class));
     MockFactory s4 = new MockFactory("s4", Lists.newArrayList(
-        DownsampleConfig.class, GroupByConfig.class));
+            DownsampleConfig.class, GroupByConfig.class));
     MockFactory s5 = new MockFactory("s5", Lists.newArrayList(
         DownsampleConfig.class), Const.TS_BYTE_ID);
     MockFactory s6 = new MockFactory("s6", Lists.newArrayList(),
@@ -210,7 +210,6 @@ public class TestHAClusterFactory {
     planner.plan(null).join(250);
 
     assertEquals(2, planner.graph().nodes().size());
-    assertTrue(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("m1");
     assertTrue(node instanceof TimeSeriesDataSource);
     assertEquals("sys.if.in",
@@ -725,9 +724,9 @@ public class TestHAClusterFactory {
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s3")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
-        planner.nodeForId("ha_m1")));
+            planner.nodeForId("ha_m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
+            planner.nodeForId("m1")));
   }
 
   @Test
@@ -1109,7 +1108,6 @@ public class TestHAClusterFactory {
     planner.plan(null).join(250);
 
     assertEquals(2, planner.graph().nodes().size());
-    assertTrue(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("m1");
     assertTrue(node instanceof TimeSeriesDataSource);
     assertEquals("sys.if.in",
@@ -1264,7 +1262,7 @@ public class TestHAClusterFactory {
       when(node.initialize(null)).thenAnswer(new Answer<Object>() {
         @Override
         public Deferred<Void> answer(InvocationOnMock invocation)
-            throws Throwable {
+                throws Throwable {
           return Deferred.<Void>fromResult(null);
         }
       });

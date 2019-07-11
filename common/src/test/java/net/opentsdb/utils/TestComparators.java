@@ -14,13 +14,16 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
-import static org.junit.Assert.assertEquals;
-
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestComparators {
 
@@ -55,5 +58,32 @@ public class TestComparators {
     
     assertEquals(0, new Comparators.MapComparator<Long, String>()
         .compare(m1, m1));
+  }
+
+  @Test
+  public void testEqualLists() throws Exception {
+    List<String> a = new ArrayList<>();
+    List<String> b = new ArrayList<>();
+    a.add("a"); a.add("b"); a.add("b"); a.add("c");
+    b.add("b"); b.add("a"); b.add("b"); b.add("c");
+    assertTrue(Comparators.ListComparison.equalLists(a, b));
+
+    a = new ArrayList<>();
+    a.add("a"); a.add("b"); a.add("b"); a.add("c");
+    b = new ArrayList<>();
+    b.add("a"); b.add("b"); b.add("c"); b.add("c");
+    assertTrue(!Comparators.ListComparison.equalLists(a, b));
+
+    a = new ArrayList<>();
+    a.add("a"); a.add("b"); a.add("b");
+    b = new ArrayList<>();
+    b.add("a"); b.add("b"); b.add("c"); b.add("c");
+    assertTrue(!Comparators.ListComparison.equalLists(a, b));
+
+    a = new ArrayList<>();
+    a.add("a"); a.add("b"); a.add("b"); a.add("c");
+    b = new ArrayList<>();
+    b.add("b"); b.add("b"); b.add("c"); b.add("c");
+    assertTrue(!Comparators.ListComparison.equalLists(a, b));
   }
 }

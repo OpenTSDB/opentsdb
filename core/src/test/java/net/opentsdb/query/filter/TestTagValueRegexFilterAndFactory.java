@@ -14,12 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +23,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
 
 public class TestTagValueRegexFilterAndFactory {
   private static final String TAGK = "host";
@@ -199,6 +195,31 @@ public class TestTagValueRegexFilterAndFactory {
         .setFilter("ogg-01.ops.ankh.morpork.com")
         .build();
     assertNull(filter.initialize(null).join());
+  }
+
+  @Test
+  public void equality() throws Exception {
+    TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    TagValueRegexFilter filter2 = TagValueRegexFilter.newBuilder()
+            .setTagKey("host")
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+
+    TagValueRegexFilter filter3 = TagValueRegexFilter.newBuilder()
+            .setTagKey("host2")
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
   }
   
 }

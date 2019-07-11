@@ -41,7 +41,6 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.joins.JoinConfig;
@@ -234,6 +233,10 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
       return true;
     }
     if (!(o instanceof ExpressionConfig)) {
+      return false;
+    }
+
+    if (!super.equals(o)) {
       return false;
     }
     

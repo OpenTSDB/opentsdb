@@ -70,11 +70,11 @@ import java.util.Set;
  * <p>
  * Note that the first entry in the {@link #default_sources} list is 
  * always considered the primary.
- * 
+ *
  * TODO - select the aggregator based on pushed down nodes like group by
- * and/or downsample. E.g. for average we may want to merge with min 
+ * and/or downsample. E.g. for average we may want to merge with min
  * instead of max.
- * 
+ *
  * TODO - may need more work around > 2 nodes, i.e. do we wait for them
  * all to arrive?
  *
@@ -83,13 +83,13 @@ import java.util.Set;
 public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACluster> implements
     TimeSeriesDataSourceFactory<HAClusterConfig, HACluster> {
   public static final String TYPE = "HACluster";
-  
+
   public static final String KEY_PREFIX = "tsd.query.";
   public static final String SOURCES_KEY = "hacluster.sources";
   public static final String AGGREGATOR_KEY = "hacluster.default.aggregator";
   public static final String PRIMARY_KEY = "hacluster.default.timeout.primary";
   public static final String SECONDARY_KEY = "hacluster.default.timeout.secondary";
-  
+
   /** The default sources updated on config callback. */
   protected final List<String> default_sources;
 
@@ -99,7 +99,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
   public HAClusterFactory() {
     default_sources = Lists.newArrayListWithExpectedSize(2);
   }
-  
+
   @Override
   public HAClusterConfig parseConfig(final ObjectMapper mapper,
                                      final TSDB tsdb,
@@ -115,7 +115,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
       if (cluster_config.getHasBeenSetup()) {
         return true;
       }
-      
+
       final List<String> sources;
       if (cluster_config.getDataSources().isEmpty() && 
           cluster_config.getDataSourceConfigs().isEmpty()) {
@@ -126,7 +126,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
       } else {
         sources = cluster_config.getDataSources();
       }
-      
+
       for (final String source : sources) {
         final TimeSeriesDataSourceFactory factory = 
             tsdb.getRegistry().getPlugin(
@@ -150,7 +150,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
       synchronized (default_sources) {
         sources = Lists.newArrayList(default_sources);
       }
-      
+
       for (final String source : sources) {
         final TimeSeriesDataSourceFactory factory = 
             tsdb.getRegistry().getPlugin(
@@ -160,11 +160,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         }
       }
     }
-    
-    
+
+
     return false;
   }
-  
+
   @Override
   public void setupGraph(final QueryPipelineContext context, 
                          final HAClusterConfig config,
@@ -172,10 +172,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
     if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
       return;
     }
-    
+
     final HAClusterConfig.Builder builder;
     boolean needs_id_converter = false;
-    
+
     if (config instanceof HAClusterConfig) {
       final HAClusterConfig cluster_config = config;
       builder = config.toBuilder();
@@ -214,12 +214,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         builder.setDataSources(Lists.newArrayList(default_sources));
       }
     }
-    
+
     final String new_id = "ha_" + config.getId();
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace("Elligible sources: " + builder.dataSources());
     }
-    
+
     // if there is only one source, drop the merger and ha config nodes
     if (builder.dataSources().size() + builder.dataSourceConfigs().size() == 1) {
       if (!builder.dataSources().isEmpty()) {
@@ -240,14 +240,14 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 //            (TimeSeriesDataSourceConfig) rebuilt, planner);
         return;
       }
-      
+
       if (Strings.isNullOrEmpty(
           builder.dataSourceConfigs().get(0).getSourceId())) {
         throw new IllegalArgumentException("The sourceId cannot be null "
             + "or empty for the config override: " 
             + builder.dataSourceConfigs().get(0));
       }
-      
+
       TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig)
          builder.dataSourceConfigs().get(0).toBuilder()
             .setId(config.getId())
@@ -263,7 +263,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
     final List<TimeSeriesDataSourceConfig.Builder> new_sources = 
         Lists.newArrayList();
     final Map<String, TimeSeriesDataSourceFactory> factories = Maps.newHashMap();
-   
+
     if (config instanceof HAClusterConfig) {
       for (final TimeSeriesDataSourceConfig source : 
             (config).getDataSourceConfigs()) {
@@ -291,7 +291,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
           throw new IllegalArgumentException("No data source found for: " 
               + source.getSourceId());
         }
-        
+
         if (!factory.supportsQuery(context.query(), source)) {
           continue;
         }
@@ -302,62 +302,62 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         new_sources.add(rebuilt);
       }
     }
-    
+
     for (final String source : builder.dataSources()) {
-      final TimeSeriesDataSourceFactory factory = 
-          planner.context().tsdb().getRegistry().getPlugin(
-              TimeSeriesDataSourceFactory.class, source); 
+      final TimeSeriesDataSourceFactory factory =
+              planner.context().tsdb().getRegistry().getPlugin(
+                      TimeSeriesDataSourceFactory.class, source);
       if (factory == null) {
-        throw new IllegalArgumentException("No data source found for: " 
-          + source);
+        throw new IllegalArgumentException("No data source found for: "
+                + source);
       }
       
       if (!factory.supportsQuery(context.query(), config)) {
         continue;
       }
-      
+
       if (factory.idType() != Const.TS_STRING_ID) {
         needs_id_converter = true;
       }
-      
+
       factories.put(source, factory);
 
       Builder rebuilt = config.toBuilder().setSourceId(source).setId(new_id + "_" + source);
       for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
         if (extant.id().equals(rebuilt.id())) {
           throw new IllegalArgumentException("Duplicate source IDs are "
-              + "not allowed: " + source);
+                  + "not allowed: " + source);
         }
       }
       new_sources.add(rebuilt);
     }
-    
+
     if (new_sources.size() == 1) {
       // TODO - handle push-downs
       TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig) new_sources.get(0)
-          .setId(config.getId())
-          .build();
+              .setId(config.getId())
+              .build();
       planner.replace(config, rebuilt);
       return;
     }
-    
+
     // Pull down, e.g. if we send to remote sources then we can merge
-    // at a higher level, after downsample and groupby for example. 
+    // at a higher level, after downsample and groupby for example.
     // This may also determine the merge aggregator.
     Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
     if (!predecessors.isEmpty() && predecessors.size() == 1) {
       QueryNodeConfig predecessor = predecessors.iterator().next();
-      
+
       final List<List<QueryNodeConfig>> push_downs = Lists.newArrayList();
       int max_pushdowns = Integer.MIN_VALUE;
       int min_pushdowns = Integer.MAX_VALUE;
       int max_index = -1;
       for (int i = 0; i < new_sources.size(); i++) {
         final List<QueryNodeConfig> source_push_downs = Lists.newArrayList();
-        canPushDown(predecessor, 
-                    factories.get(new_sources.get(i).sourceId()), 
-                    source_push_downs, 
-                    planner);
+        canPushDown(predecessor,
+                factories.get(new_sources.get(i).sourceId()),
+                source_push_downs,
+                planner);
         push_downs.add(source_push_downs);
         if (source_push_downs.size() > max_pushdowns) {
           max_pushdowns = source_push_downs.size();
@@ -367,33 +367,33 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
           min_pushdowns = source_push_downs.size();
         }
       }
-      
+
       if (max_pushdowns > 0) {
         MergerConfig merger = (MergerConfig) MergerConfig.newBuilder()
-            .setAggregator(builder.mergeAggregator())
-            // TODO - may want to make this configurable.
-            .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-              .setFillPolicy(FillPolicy.NONE)
-              .setRealFillPolicy(FillWithRealPolicy.NONE)
-              .setDataType(NumericType.TYPE.toString())
-              .build())
-            .addSource(new_id)
-            .setId(builder.id())
-            .build();
+                .setAggregator(builder.mergeAggregator())
+                // TODO - may want to make this configurable.
+                .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                        .setFillPolicy(FillPolicy.NONE)
+                        .setRealFillPolicy(FillWithRealPolicy.NONE)
+                        .setDataType(NumericType.TYPE.toString())
+                        .build())
+                .addSource(new_id)
+                .setId(builder.id())
+                .build();
         planner.replace(config, merger);
-        
+
         QueryNodeConfig converter;
         if (needs_id_converter) {
           converter = ByteToStringIdConverterConfig.newBuilder()
-              .setId(config.getId() + "_converter")
-              .build();
+                  .setId(config.getId() + "_converter")
+                  .build();
           planner.addEdge(merger, converter);
         } else {
           converter = null;
         }
-        
-        final List<String> data_sources = 
-            Lists.newArrayListWithExpectedSize(new_sources.size());
+
+        final List<String> data_sources =
+                Lists.newArrayListWithExpectedSize(new_sources.size());
         for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
           data_sources.add(source.id());
         }
@@ -403,24 +403,24 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
             .setId(new_id)
             .build();
         planner.addEdge(converter != null ? converter : merger, rebuilt);
-        
+
         final List<QueryNodeConfig> max = push_downs.get(max_index);
-        final Map<String, QueryNodeConfig> new_push_downs = 
-            Maps.newHashMapWithExpectedSize(max.size());
+        final Map<String, QueryNodeConfig> new_push_downs =
+                Maps.newHashMapWithExpectedSize(max.size());
         QueryNodeConfig last = null;
         for (int i = min_pushdowns; i < max_pushdowns; i++) {
           final QueryNodeConfig push = max.get(i);
           if (last == null) {
             last = push.toBuilder()
-                .setId(new_id + "_" + push.getId())
-                // TODO .setPushDown(false)
-                .build();
+                    .setId(new_id + "_" + push.getId())
+                    // TODO .setPushDown(false)
+                    .build();
             new_push_downs.put(push.getId(), last);
           } else {
             QueryNodeConfig new_node = push.toBuilder()
-                .setId(new_id + "_" + push.getId())
-                // TODO .setPushDown(false)
-                .build();
+                    .setId(new_id + "_" + push.getId())
+                    // TODO .setPushDown(false)
+                    .build();
             new_push_downs.put(push.getId(), new_node);
             planner.addEdge(new_node, last);
             last = new_node;
@@ -429,7 +429,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         if (last != null) {
           planner.addEdge(rebuilt, last);
         }
-        
+
 //        // re-link
 //        planner.removeEdge(max.get(0), merger);
         predecessor = max.get(max.size() - 1);
@@ -438,25 +438,25 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
           planner.addEdge(pred, merger);
           planner.removeEdge(pred, predecessor);
         }
-        
+
         // re-link
         planner.removeEdge(max.get(0), merger);
-                
+
         // we can shuffle the graph
         for (int i = 0; i < new_sources.size(); i++) {
           final List<QueryNodeConfig> source_push_downs = push_downs.get(i);
           if (source_push_downs.isEmpty()) {
             // no push down, just link it in
             planner.addEdge(new_push_downs.get(
-                max.get(0).getId()), new_sources.get(i).build());
+                    max.get(0).getId()), new_sources.get(i).build());
             continue;
           }
-          
+
           // We need to rename the sources for these nodes if they pull from the
           // source.
           final String pushdown_id = new_sources.get(i).id();
-          List<QueryNodeConfig> renamed_pushdowns = 
-              Lists.newArrayListWithExpectedSize(source_push_downs.size());
+          List<QueryNodeConfig> renamed_pushdowns =
+                  Lists.newArrayListWithExpectedSize(source_push_downs.size());
           for (final QueryNodeConfig pd : source_push_downs) {
             if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(pd.getId())) {
               ((DefaultQueryPlanner) planner).sinkFilters().remove(pd.getId());
@@ -464,9 +464,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
             }
             if (pd.getSources().contains(config.getId())) {
               renamed_pushdowns.add(
-                  pd.toBuilder()
-                  .setSources(Lists.newArrayList(pushdown_id))
-                  .build());
+                      pd.toBuilder()
+                              .setSources(Lists.newArrayList(pushdown_id))
+                              .build());
             } else {
               renamed_pushdowns.add(pd);
             }
@@ -478,16 +478,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
             planner.addEdge(rebuilt, new_source);
           } else {
             final QueryNodeConfig mx = new_push_downs.get(
-                max.get(source_push_downs.size()).getId());
+                    max.get(source_push_downs.size()).getId());
             planner.addEdge(mx, new_source);
           }
-          
+
           if (context.query().isTraceEnabled()) {
-            context.queryContext().logTrace("Adding pushdown source: " 
-                + new_source.getSourceId());
+            context.queryContext().logTrace("Adding pushdown source: "
+                    + new_source.getSourceId());
           }
         }
-        
+
         // don't fall through!
         return;
       }
@@ -508,19 +508,19 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         .setId(config.getId())
         .build();
     planner.replace(config, merger);
-    
+
     QueryNodeConfig converter;
     if (needs_id_converter) {
       converter = ByteToStringIdConverterConfig.newBuilder()
-          .setId(config.getId() + "_converter")
-          .build();
+              .setId(config.getId() + "_converter")
+              .build();
       planner.addEdge(merger, converter);
     } else {
       converter = null;
     }
-    
-    final List<String> data_sources = 
-        Lists.newArrayListWithExpectedSize(new_sources.size());
+
+    final List<String> data_sources =
+            Lists.newArrayListWithExpectedSize(new_sources.size());
     for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
       data_sources.add(source.id());
     }
@@ -533,12 +533,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
     for (final TimeSeriesDataSourceConfig.Builder source : new_sources) {
       planner.addEdge(rebuilt, source.build());
       if (Graphs.hasCycle(planner.configGraph())) {
-        throw new IllegalStateException("Cycle created when linking " 
-            + rebuilt.getId() + " => " + source.id());
+        throw new IllegalStateException("Cycle created when linking "
+                + rebuilt.getId() + " => " + source.id());
       }
       if (context.query().isTraceEnabled()) {
-        context.queryContext().logTrace("Adding query source: " 
-            + rebuilt.getSourceId());
+        context.queryContext().logTrace("Adding query source: "
+                + rebuilt.getSourceId());
       }
     }
   }
@@ -559,30 +559,30 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
     registerConfigs(tsdb);
-    
+
     // validate defaults
     if (Strings.isNullOrEmpty(tsdb.getConfig().getString(
-        getConfigKey(AGGREGATOR_KEY)))) {
+            getConfigKey(AGGREGATOR_KEY)))) {
       return Deferred.fromError(new IllegalArgumentException(
-          "Default aggregator cannot be empty."));
+              "Default aggregator cannot be empty."));
     }
-    
+
     try {
       DateTime.parseDuration(tsdb.getConfig().getString(getConfigKey(PRIMARY_KEY)));
     } catch (Exception e) {
       return Deferred.fromError(new IllegalArgumentException(
-          "Failed to parse default primary timeout: " 
-              + tsdb.getConfig().getString(getConfigKey(PRIMARY_KEY)), e));
+              "Failed to parse default primary timeout: "
+                      + tsdb.getConfig().getString(getConfigKey(PRIMARY_KEY)), e));
     }
-    
+
     try {
       DateTime.parseDuration(tsdb.getConfig().getString(getConfigKey(SECONDARY_KEY)));
     } catch (Exception e) {
       return Deferred.fromError(new IllegalArgumentException(
-          "Failed to parse default secondary timeout: " 
-              + tsdb.getConfig().getString(getConfigKey(SECONDARY_KEY)), e));
+              "Failed to parse default secondary timeout: "
+                      + tsdb.getConfig().getString(getConfigKey(SECONDARY_KEY)), e));
     }
-    
+
     return Deferred.fromResult(null);
   }
 
@@ -590,7 +590,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
   public String type() {
     return TYPE;
   }
-  
+
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     // TODO - need to make sure downstream returns identical types.
@@ -599,31 +599,31 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 
   @Override
   public boolean supportsPushdown(
-      final Class<? extends QueryNodeConfig> operation) {
+          final Class<? extends QueryNodeConfig> operation) {
     // TODO - need to compute a join on source operations.
     return false;
   }
 
   @Override
   public Deferred<TimeSeriesStringId> resolveByteId(
-      final TimeSeriesByteId id,
-      final Span span) {
+          final TimeSeriesByteId id,
+          final Span span) {
     // TODO - need to make sure downstream returns identical types.
     throw new UnsupportedOperationException();
   }
 
   @Override
   public Deferred<List<byte[]>> encodeJoinKeys(
-      final List<String> join_keys,
-      final Span span) {
+          final List<String> join_keys,
+          final Span span) {
     // TODO - need to make sure downstream returns identical types.
     throw new UnsupportedOperationException();
   }
 
   @Override
   public Deferred<List<byte[]>> encodeJoinMetrics(
-      final List<String> join_metrics,
-      final Span span) {
+          final List<String> join_metrics,
+          final Span span) {
     // TODO - need to make sure downstream returns identical types.
     throw new UnsupportedOperationException();
   }
@@ -647,7 +647,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
       return KEY_PREFIX + id + "." + suffix;
     }
   }
-  
+
   /** A callback for the sources that updates default_sources. */
   class SettingsCallback implements ConfigurationCallback<Object> {
 
@@ -657,7 +657,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         if (value == null) {
           return;
         }
-        
+
         final String[] sources = ((String) value).split(",");
         synchronized (default_sources) {
           default_sources.clear();
@@ -668,9 +668,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         }
       }
     }
-    
+
   }
-  
+
   /**
    * Helper to register the configs.
    * @param tsdb A non-null TSDB.
@@ -679,24 +679,24 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
   void registerConfigs(final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(getConfigKey(SOURCES_KEY))) {
       tsdb.getConfig().register(getConfigKey(SOURCES_KEY), null, true,
-          "A comma separated list of one or more data sources to query "
-          + "with the primary source first in the list.");
+              "A comma separated list of one or more data sources to query "
+                      + "with the primary source first in the list.");
     }
     if (!tsdb.getConfig().hasProperty(getConfigKey(AGGREGATOR_KEY))) {
       tsdb.getConfig().register(getConfigKey(AGGREGATOR_KEY), "max", true,
-          "The default aggregator to use when merging sources.");
+              "The default aggregator to use when merging sources.");
     }
     if (!tsdb.getConfig().hasProperty(getConfigKey(PRIMARY_KEY))) {
       tsdb.getConfig().register(getConfigKey(PRIMARY_KEY), "10s", true,
-          "A duration defining how long to wait for the primary data when "
-          + "a secondary source responds first.");
+              "A duration defining how long to wait for the primary data when "
+                      + "a secondary source responds first.");
     }
     if (!tsdb.getConfig().hasProperty(getConfigKey(SECONDARY_KEY))) {
       tsdb.getConfig().register(getConfigKey(SECONDARY_KEY), "5s", true,
-          "A duration defining how long to wait for a secondary source "
-              + "the primary source responds first.");
+              "A duration defining how long to wait for a secondary source "
+                      + "the primary source responds first.");
     }
-    
+
     tsdb.getConfig().bind(getConfigKey(SOURCES_KEY), new SettingsCallback());
   }
 
@@ -712,16 +712,16 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
                            final List<QueryNodeConfig> push_downs,
                            final QueryPlanner planner) {
     if (factory.supportsPushdown(current.getClass()) &&
-        current.pushDown()) {
+            current.pushDown()) {
       push_downs.add(current);
-      final Set<QueryNodeConfig> predecessors = 
-          planner.configGraph().predecessors(current);
+      final Set<QueryNodeConfig> predecessors =
+              planner.configGraph().predecessors(current);
       if (predecessors.isEmpty() || predecessors.size() > 1) {
         return;
       }
-      
+
       canPushDown(predecessors.iterator().next(), factory, push_downs, planner);
     }
   }
-  
+
 }

@@ -19,7 +19,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 
 import java.util.regex.Pattern;
@@ -112,5 +116,39 @@ public class FieldRegexFilter extends BaseFieldFilter {
     public FieldRegexFilter build() {
       return new FieldRegexFilter(this);
     }
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final FieldRegexFilter otherFilter = (FieldRegexFilter) o;
+
+    return Objects.equal(matches_all, otherFilter.matchesAll());
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(key), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
+            .putBoolean(matches_all)
+            .hash();
+
+    return hc;
   }
 }

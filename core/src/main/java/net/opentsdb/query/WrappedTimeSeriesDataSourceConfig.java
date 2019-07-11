@@ -18,12 +18,17 @@ import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
+import com.google.common.hash.Hashing;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.Const;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.Pair;
 
 /**
@@ -75,9 +80,57 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   }
 
   @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final WrappedTimeSeriesDataSourceConfig wrappedconfig = (WrappedTimeSeriesDataSourceConfig) o;
+
+    final boolean result = Objects.equal(id, wrappedconfig.getId())
+            && Objects.equal(getNamespace(), wrappedconfig.getNamespace())
+            && Objects.equal(getSourceId(), wrappedconfig.getSourceId())
+            && Objects.equal(getFilterId(), wrappedconfig.getFilterId())
+            && Objects.equal(getMetric(), wrappedconfig.getMetric())
+            && Objects.equal(getFilter(), wrappedconfig.getFilter())
+            && Objects.equal(getFetchLast(), wrappedconfig.getFetchLast())
+            && Objects.equal(getTimeShiftInterval(), wrappedconfig.getTimeShiftInterval());
+
+    if (!result) {
+      return false;
+    }
+
+    // comparing types
+    if (!Comparators.ListComparison.equalLists(getTypes(), wrappedconfig.getTypes())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+  @Override
   public HashCode buildHashCode() {
-    // TODO - implement properly with new ID
-    return config.buildHashCode();
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(hc);
+
+    hashes.add(config.buildHashCode());
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override

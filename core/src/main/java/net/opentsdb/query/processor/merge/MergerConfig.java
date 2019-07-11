@@ -19,13 +19,16 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
-import net.opentsdb.common.Const;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.QueryNodeConfig;
+
+import java.util.List;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = MergerConfig.Builder.class)
@@ -66,33 +69,45 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
         .setId(id);
   }
 
-  @Override
-  public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
-  }
 
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof MergerConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    // is this necessary?
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((MergerConfig) o).id);
+
+    final MergerConfig merger = (MergerConfig) o;
+
+    return Objects.equal(aggregator, merger.getAggregator())
+            && Objects.equal(infectious_nan, merger.getInfectiousNan());
+
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
+  }
+
+  @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
+            .putBoolean(infectious_nan)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2);
+
+    hashes.add(super.buildHashCode());
+    hashes.add(hc);
+
+    return Hashing.combineOrdered(hashes);
   }
   
   @Override

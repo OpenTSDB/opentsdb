@@ -26,22 +26,25 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 
 /**
  * The config for a high-availability cluster query wherein the same data
  * is written to multiple locations and the query is executed against all
  * of them, merging the results.
- * 
+ *
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
@@ -63,6 +66,9 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterCon
   /** An optional timeout for the primary source when a secondary
    * returns first. */
   private final String primary_timeout;
+
+  /** A hash that calculates and stores the hash code once. */
+  private int hash;
 
   /**
    * Default ctor.
@@ -87,6 +93,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterCon
     if (!Strings.isNullOrEmpty(primary_timeout)) {
       DateTime.parseDuration(primary_timeout);
     }
+    hash = buildHashCode().asInt();
   }
 
   /** @return The non-null list of sources to query. The first entry is
@@ -123,14 +130,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterCon
   }
 
   @Override
-  public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
-  }
-
-  @Override
   public boolean pushDown() {
     return false;
   }
@@ -149,24 +148,74 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterCon
   }
 
   @Override
-  public boolean equals(Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+  public boolean equals(final Object o) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof HAClusterConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
 
-    return id.equals(((HAClusterConfig) o).id);
+    final HAClusterConfig haconfig = (HAClusterConfig) o;
+
+
+    final boolean result = Objects.equal(merge_aggregator, haconfig.getMergeAggregator())
+            && Objects.equal(primary_timeout, haconfig.getPrimaryTimeout())
+            && Objects.equal(secondary_timeout, haconfig.getSecondaryTimeout());
+
+    if (!result) {
+      return false;
+    }
+
+    // comparing data sources
+    if (!Comparators.ListComparison.equalLists(data_sources, haconfig.getDataSources())) {
+      return false;
+    }
+
+    // comparing data sources configs
+    if (!Comparators.ListComparison.equalLists(data_source_configs, haconfig.getDataSourceConfigs())) {
+      return false;
+    }
+
+    return true;
   }
 
   @Override
   public int hashCode() {
-    return buildHashCode().asInt();
+    return hash;
+  }
+
+  @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(merge_aggregator), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(secondary_timeout), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(primary_timeout), Const.UTF8_CHARSET);
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(2 +
+                    (data_source_configs != null ? data_source_configs.size() : 0));
+
+    hashes.add(super.buildHashCode());
+
+    if (data_sources != null) {
+      final List<String> keys = Lists.newArrayList(data_sources);
+      Collections.sort(keys);
+      for (final String key : keys) {
+        hc.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hc.hash());
+    }
+
+    if (data_source_configs != null) {
+      for (final TimeSeriesDataSourceConfig node : data_source_configs) {
+        hashes.add(node.buildHashCode());
+      }
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override
@@ -342,5 +391,5 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterCon
 
     return (HAClusterConfig) builder.build();
   }
-  
+
 }

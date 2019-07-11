@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.meta.impl.es;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -29,6 +31,8 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.meta.BatchMetaQuery;
+import net.opentsdb.meta.DefaultMetaQuery;
+import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.meta.impl.MetaClient;
 import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
 import net.opentsdb.meta.NamespacedKey;
@@ -49,7 +53,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.MAX_RESULTS_KEY;
+import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.KEY_PREFIX;
 
 /**
  * A single cluster client.
@@ -66,6 +70,7 @@ public class ESClusterClient extends BaseTSDBPlugin
   public static final String CLUSTERS_KEY = "es.clusters";
   public static final String PING_TIMEOUT_KEY = "es.ping_timeout";
   public static final String QUERY_TIMEOUT_KEY = "es.query_timeout";
+  public static final String MAX_RESULTS_KEY = "es.query.results.max";
   public static final String EXCLUDES_KEY = "es.excludes";
   public static final String FALLBACK_ON_EX_KEY = "es.fallback.exception";
   public static final String FALLBACK_ON_NO_DATA_KEY = "es.fallback.nodata";
@@ -97,26 +102,26 @@ public class ESClusterClient extends BaseTSDBPlugin
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     this.tsdb = tsdb;
-    registerConfigs(tsdb);
+    registerConfigs(tsdb, this.id);
 
-    String raw_hosts = tsdb.getConfig().getString(HOSTS_KEY);
+    String raw_hosts = tsdb.getConfig().getString(getConfigKey(HOSTS_KEY));
     if (Strings.isNullOrEmpty(raw_hosts)) {
       return Deferred.fromError(
-          new ConfigurationException("Missing the hosts config '" + HOSTS_KEY + "'"));
+          new ConfigurationException("Missing the hosts config '" + getConfigKey(HOSTS_KEY) + "'"));
     }
     final String[] hosts = raw_hosts.split(",");
     if (hosts.length < 1) {
       return Deferred.fromError(
-          new ConfigurationException("Must have at least one host in '" + HOSTS_KEY + "'"));
+          new ConfigurationException("Must have at least one host in '" + getConfigKey(HOSTS_KEY) + "'"));
     }
-    String raw_clusters = tsdb.getConfig().getString(CLUSTERS_KEY);
+    String raw_clusters = tsdb.getConfig().getString(getConfigKey(CLUSTERS_KEY));
     if (Strings.isNullOrEmpty(raw_clusters)) {
       return Deferred.fromError(
-          new ConfigurationException("Missing the clusters config '" + CLUSTERS_KEY + "'"));
+          new ConfigurationException("Missing the clusters config '" + getConfigKey(CLUSTERS_KEY) + "'"));
     }
     final String[] clusters = raw_clusters.split(",");
 
-    String temp = tsdb.getConfig().getString(EXCLUDES_KEY);
+    String temp = tsdb.getConfig().getString(getConfigKey(EXCLUDES_KEY));
     if (!Strings.isNullOrEmpty(temp)) {
       excludes = temp.split(",");
     } else {
@@ -134,8 +139,8 @@ public class ESClusterClient extends BaseTSDBPlugin
         final Settings settings =
             ImmutableSettings.settingsBuilder()
                 .put("cluster.name", clusters[i])
-                .put("client.transport.ping_timeout", tsdb.getConfig().getString(PING_TIMEOUT_KEY))
-                .put("client.transport.sniff", tsdb.getConfig().getBoolean(SNIFF_KEY))
+                .put("client.transport.ping_timeout", tsdb.getConfig().getString(getConfigKey(PING_TIMEOUT_KEY)))
+                .put("client.transport.sniff", tsdb.getConfig().getBoolean(getConfigKey(SNIFF_KEY)))
                 .build();
         final TransportClient client = new TransportClient(settings);
         client.addTransportAddress(
@@ -154,6 +159,10 @@ public class ESClusterClient extends BaseTSDBPlugin
       LOG.error("Failed to initialize ES clients", e);
       return Deferred.fromError(e);
     }
+  }
+
+  private String getConfigKey(final String key) {
+    return KEY_PREFIX + (id.equals(TYPE) ? "" : id + ".") + key;
   }
 
   @Override
@@ -229,7 +238,7 @@ public class ESClusterClient extends BaseTSDBPlugin
                       "Query timed out against client: "
                           + clusters.get(idx)
                           + " after "
-                          + tsdb.getConfig().getInt(QUERY_TIMEOUT_KEY)
+                          + tsdb.getConfig().getInt(getConfigKey(QUERY_TIMEOUT_KEY))
                           + "ms")
                   .finish();
             }
@@ -243,7 +252,7 @@ public class ESClusterClient extends BaseTSDBPlugin
                           + "to Elastic Search timed out: "
                           + clusters.get(idx)
                           + " after "
-                          + tsdb.getConfig().getInt(QUERY_TIMEOUT_KEY)
+                          + tsdb.getConfig().getInt(getConfigKey(QUERY_TIMEOUT_KEY))
                           + "ms");
             }
 
@@ -267,7 +276,7 @@ public class ESClusterClient extends BaseTSDBPlugin
                             + "to Elastic Search timed out: "
                             + clusters.get(idx)
                             + " after "
-                            + tsdb.getConfig().getInt(QUERY_TIMEOUT_KEY)
+                            + tsdb.getConfig().getInt(getConfigKey(QUERY_TIMEOUT_KEY))
                             + "ms",
                         408));
               } else {
@@ -397,7 +406,7 @@ public class ESClusterClient extends BaseTSDBPlugin
                     .setSearchType(SearchType.DEFAULT)
                     .setExtraSource(search_source_builder.toString())
                     .setTimeout(
-                        TimeValue.timeValueMillis(tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)));
+                        TimeValue.timeValueMillis(tsdb.getConfig().getLong(getConfigKey(QUERY_TIMEOUT_KEY))));
             multi_search.add(request_builder);
 
             if (context != null) {
@@ -426,7 +435,7 @@ public class ESClusterClient extends BaseTSDBPlugin
             tsdb.getQueryTimer()
                 .newTimeout(
                     new QueryTimer(),
-                    tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY),
+                    tsdb.getConfig().getLong(getConfigKey(QUERY_TIMEOUT_KEY)),
                     TimeUnit.MILLISECONDS));
 
         multi_search.execute().addListener(new FutureCB());
@@ -451,10 +460,15 @@ public class ESClusterClient extends BaseTSDBPlugin
     ESMetaQuery esMetaQuery = buildQuery(batchMetaQuery);
     for (final Map.Entry<NamespacedKey, List<SearchSourceBuilder>> search_entry: esMetaQuery.getQuery().entrySet()){
       for (SearchSourceBuilder searchSourceBuilder : search_entry.getValue()) {
-        searchSourceBuilder.size(tsdb.getConfig().getInt(MAX_RESULTS_KEY));
+        searchSourceBuilder.size(tsdb.getConfig().getInt(getConfigKey(MAX_RESULTS_KEY)));
       }
     }
     return esMetaQuery;
+  }
+
+  @Override
+  public MetaQuery parse(TSDB tsdb, ObjectMapper mapper, JsonNode jsonNode, BatchMetaQuery.QueryType type) {
+    return DefaultMetaQuery.parse(tsdb, mapper, jsonNode, type).build();
   }
 
   /**
@@ -462,44 +476,44 @@ public class ESClusterClient extends BaseTSDBPlugin
    *
    * @param tsdb A non-null TSDB.
    */
-  static void registerConfigs(final TSDB tsdb) {
-    if (!tsdb.getConfig().hasProperty(HOSTS_KEY)) {
+  private void registerConfigs(final TSDB tsdb, String id) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(HOSTS_KEY))) {
       tsdb.getConfig()
           .register(
-              HOSTS_KEY,
+              getConfigKey(HOSTS_KEY),
               null,
               false,
               "A colon separated ElasticSearch cluster address and port. E.g. "
                   + "'https://es-site1:9300'. Comma separated list for multi-site "
                   + "clients.");
     }
-    if (!tsdb.getConfig().hasProperty(CLUSTERS_KEY)) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(CLUSTERS_KEY))) {
       tsdb.getConfig()
           .register(
-              CLUSTERS_KEY,
+              getConfigKey(CLUSTERS_KEY),
               null,
               false,
               "A comma separted list of cluster names. This must be the same "
                   + "length as the '"
-                  + HOSTS_KEY
+                  + getConfigKey(CLUSTERS_KEY)
                   + "'");
     }
-    if (!tsdb.getConfig().hasProperty(PING_TIMEOUT_KEY)) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(PING_TIMEOUT_KEY))) {
       tsdb.getConfig()
           .register(
-              PING_TIMEOUT_KEY,
-              PING_TIMEOUT_DEFAULT,
+              getConfigKey(PING_TIMEOUT_KEY),
+                  PING_TIMEOUT_DEFAULT,
               false,
               "A timeout interval for a machine to fail pings before "
                   + "taking it out of the query pipeline.");
     }
-    if (!tsdb.getConfig().hasProperty(SNIFF_KEY)) {
-      tsdb.getConfig().register(SNIFF_KEY, true, false, "TODO ??");
+    if (!tsdb.getConfig().hasProperty(getConfigKey(SNIFF_KEY))) {
+      tsdb.getConfig().register(getConfigKey(SNIFF_KEY), true, false, "TODO ??");
     }
-    if (!tsdb.getConfig().hasProperty(QUERY_TIMEOUT_KEY)) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(QUERY_TIMEOUT_KEY))) {
       tsdb.getConfig()
           .register(
-              QUERY_TIMEOUT_KEY,
+              getConfigKey(QUERY_TIMEOUT_KEY),
               QUERY_TIMEOUT_DEFAULT,
               true,
               "The number of milliseconds to wait on a query execution.");
@@ -507,33 +521,36 @@ public class ESClusterClient extends BaseTSDBPlugin
     if (!tsdb.getConfig().hasProperty(EXCLUDES_KEY)) {
       tsdb.getConfig()
           .register(
-              EXCLUDES_KEY,
+              getConfigKey(EXCLUDES_KEY),
               EXCLUDES_DEFAULT,
               false,
               "A comma separated list of fields to exclude to save " + "on serdes.");
     }
-    if (!tsdb.getConfig().hasProperty(FALLBACK_ON_EX_KEY)) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_EX_KEY))) {
       tsdb.getConfig()
           .register(
-              FALLBACK_ON_EX_KEY,
+              getConfigKey(FALLBACK_ON_EX_KEY),
               true,
               true,
               "Whether or not to fall back to scans when the meta "
                   + "query returns an exception.");
     }
-    if (!tsdb.getConfig().hasProperty(FALLBACK_ON_NO_DATA_KEY)) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_NO_DATA_KEY))) {
       tsdb.getConfig()
           .register(
-              FALLBACK_ON_NO_DATA_KEY,
+              getConfigKey(FALLBACK_ON_NO_DATA_KEY),
               false,
               true,
               "Whether or not to fall back to scans when the query " + "was empty.");
     }
+    if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_RESULTS_KEY))) {
+      tsdb.getConfig()
+          .register(
+              getConfigKey(MAX_RESULTS_KEY),
+              4096,
+              true,
+              "The maximum number of results to return in a multi-get query.");
+    }
   }
 
-  //  @Override
-  //  public Deferred<ESMetaResponse> runQuery(ESMetaQuery query, QueryPipelineContext context, Span
-  // span) {
-  //    return null;
-  //  }
 }

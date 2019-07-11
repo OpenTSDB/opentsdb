@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.google.common.hash.HashCode;
+
 /**
  * A named filter referenced in queries. The filter can be a single
  * filter or a chain of multiple filters.
@@ -27,5 +29,8 @@ public interface NamedFilter {
   
   /** @return The non-null query filter. */
   public QueryFilter getFilter();
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode();
   
 }

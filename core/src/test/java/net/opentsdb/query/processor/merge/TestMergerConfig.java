@@ -14,10 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
-
+import com.google.common.collect.Sets;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -26,6 +24,8 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
 
 public class TestMergerConfig {
 
@@ -88,5 +88,66 @@ public class TestMergerConfig {
     
     String json = JSON.serializeToString(config);
     System.out.println(json);
+  }
+
+
+  @Test
+  public void equality() throws Exception {
+    MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .setId("ClusterMerge")
+            .build();
+
+    MergerConfig config2 = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .setId("ClusterMerge")
+            .build();
+
+    MergerConfig config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("avg")
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .setId("ClusterMerge")
+            .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("sum")
+//            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .setId("ClusterMerge")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m2")
+            .setId("ClusterMerge")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .setId("Noncluster")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
   }
 }

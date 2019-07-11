@@ -14,12 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
+import com.google.common.collect.Lists;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.hacluster.HAClusterConfig;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -68,6 +69,55 @@ public class TestByteToStringIdConverterConfig {
     assertEquals("cvtr", config.getId());
     assertEquals(ByteToStringIdConverterFactory.TYPE, config.getType());
     
+  }
+
+
+
+  @Test
+  public void equality() throws Exception {
+    TimeSeriesDataSourceFactory m1 = mock(TimeSeriesDataSourceFactory.class);
+    TimeSeriesDataSourceFactory m2 = mock(TimeSeriesDataSourceFactory.class);
+    ByteToStringIdConverterConfig config =
+            (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
+                    .addDataSource("m1", m1)
+                    .addDataSource("m2", m2)
+                    .setId("cvtr")
+                    .build();
+
+    TimeSeriesDataSourceFactory m3 = mock(TimeSeriesDataSourceFactory.class);
+    TimeSeriesDataSourceFactory m4 = mock(TimeSeriesDataSourceFactory.class);
+    ByteToStringIdConverterConfig config2 =
+            (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
+                    .addDataSource("m2", m3)
+                    .addDataSource("m1", m4)
+                    .setId("cvtr")
+                    .build();
+
+    TimeSeriesDataSourceFactory m5 = mock(TimeSeriesDataSourceFactory.class);
+    TimeSeriesDataSourceFactory m6 = mock(TimeSeriesDataSourceFactory.class);
+    ByteToStringIdConverterConfig config3 =
+            (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
+                    .addDataSource("m1", m5)
+                    .addDataSource("m2", m6)
+                    .setId("other")
+                    .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 =
+            (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
+                    .addDataSource("m2", m5)
+                    .addDataSource("m3", m6)
+                    .setId("cvtr")
+                    .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
   }
   
 }

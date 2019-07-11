@@ -14,10 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
 import net.opentsdb.query.pojo.Metric;
@@ -94,5 +92,54 @@ public class TestMetricRegexFilter {
             .build();
     assertNull(filter.initialize(null).join());
   }
+
+  @Test
+  public void equality() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    MetricRegexFactory factory = new MetricRegexFactory();
+    String json = "{\"type\":\"MetricRegex\",\"metric\":\"sys.*\"}";
+
+    JsonNode node = JSON.getMapper().readTree(json);
+    MetricRegexFilter filter = (MetricRegexFilter)
+            factory.parse(tsdb, JSON.getMapper(), node);
+    assertEquals("sys.*", filter.getMetric());
+
+    MetricRegexFilter filter2 = (MetricRegexFilter)
+            factory.parse(tsdb, JSON.getMapper(), node);
+
+    String json2 = "{\"type\":\"MetricRegex\",\"metric\":\"sys.pct.*\"}";
+
+    JsonNode node2 = JSON.getMapper().readTree(json2);
+    MetricRegexFilter filter3 = (MetricRegexFilter)
+            factory.parse(tsdb, JSON.getMapper(), node2);
+
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+
+    filter = MetricRegexFilter.newBuilder()
+            .setMetric("sys.*")
+            .build();
+    assertEquals("sys.*", filter.getMetric());
+
+    // trim
+    filter2 = MetricRegexFilter.newBuilder()
+            .setMetric("  sys.* ")
+            .build();
+
+    filter3 = MetricRegexFilter.newBuilder()
+            .setMetric("sys.pct.*")
+            .build();
+
+    assertTrue(filter.equals(filter2));
+    assertTrue(!filter.equals(filter3));
+    assertEquals(filter.hashCode(), filter2.hashCode());
+    assertNotEquals(filter.hashCode(), filter3.hashCode());
+
+  }
+
 
 }

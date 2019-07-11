@@ -14,17 +14,19 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.utils.JSON;
+
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 
 public class TestBaseQueryNodeConfig {
 
@@ -75,6 +77,53 @@ public class TestBaseQueryNodeConfig {
     assertTrue(json.contains("\"type\":\"datasource\""));
     assertTrue(json.contains("\"sources\":[\"s1\",\"s2\"]"));
   }
+
+
+  @Test
+  public void equality() throws Exception {
+    QueryNodeConfig config = new TestConfig.Builder()
+            .setId("ut")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+    QueryNodeConfig config2 = new TestConfig.Builder()
+            .setId("ut")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+    QueryNodeConfig config3 = new TestConfig.Builder()
+            .setId("ut1")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("datasource")
+            .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = new TestConfig.Builder()
+            .setId("ut")
+            .setSources(Lists.newArrayList("s1"))
+            .setType("datasource")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = new TestConfig.Builder()
+            .setId("ut")
+            .setSources(Lists.newArrayList("s1", "s2"))
+            .setType("data")
+            .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+  }
   
   static class TestConfig extends BaseQueryNodeConfig<TestConfig.Builder, TestConfig> {
 
@@ -86,7 +135,7 @@ public class TestBaseQueryNodeConfig {
     @Override
     public HashCode buildHashCode() {
       // TODO Auto-generated method stub
-      return null;
+      return super.buildHashCode();
     }
 
     @Override
@@ -115,13 +164,13 @@ public class TestBaseQueryNodeConfig {
     @Override
     public boolean equals(Object o) {
       // TODO Auto-generated method stub
-      return false;
+      return super.equals(o);
     }
 
     @Override
     public int hashCode() {
       // TODO Auto-generated method stub
-      return 0;
+      return super.hashCode();
     }
     
     public static class Builder extends BaseQueryNodeConfig.Builder<Builder, TestConfig> {

@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -59,5 +61,45 @@ public class Comparators {
       return 0;
     }
     
+  }
+
+  /**
+   * A method that determines whether two lists contain the same elements
+   * (not necessarily in the same order).
+   *
+   * @param List<T> one First list.
+   * @param List<T> two Second list.
+   */
+  public static class ListComparison {
+    public static <T> boolean equalLists(List<T> one, List<T> two){
+      if (one == null && two == null){
+        return true;
+      }
+
+      if((one == null && two != null)
+              || one != null && two == null
+              || one.size() != two.size()){
+        return false;
+      }
+
+      //to avoid messing the order of the lists we will use a copy
+      one = new ArrayList<>(one);
+      two = new ArrayList<>(two);
+
+      for (T element: one) {
+        boolean exists = false;
+        for (int i = 0; i < two.size(); i++) {
+          if (two.get(i).equals(element)) {
+            exists = true;
+            two.remove(i);
+            break;
+          }
+        }
+        if (!exists)
+          return false;
+      }
+      return true;
+    }
+
   }
 }

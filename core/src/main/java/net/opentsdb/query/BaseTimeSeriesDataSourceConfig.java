@@ -20,10 +20,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
+import com.google.common.base.Objects;
 import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
@@ -31,19 +31,19 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
 
 import java.time.temporal.TemporalAmount;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
- * 
+ *
  * TODO - this is ugly and needs a lot of re-org and work.
- * 
+ *
  * @since 3.0
  */
 @JsonInclude(Include.NON_DEFAULT)
@@ -52,25 +52,25 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
 
   /** The source provider ID. */
   private final String source_id;
-  
+
   /** An optional namespace. */
   private final String namespace;
-  
+
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
 
   /** A non-null metric filter used to determine the metric(s) to fetch. */
   private final MetricFilter metric;
-  
+
   /** An optional filter ID found in the query. */
   private final String filter_id;
-  
+
   /** An optional filter. If filter_id is set, this is ignored. */
   private final QueryFilter filter;
-  
+
   /** Whether or not to fetch only the last value. */
   private final boolean fetch_last;
-  
+
   /** An optional list of nodes to push down to the driver. */
   private final List<QueryNodeConfig> push_down_nodes;
 
@@ -79,25 +79,25 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
 
   /** An optional list of summary aggregations from upstream. */
   private final List<String> summary_aggregations;
-  
+
   /** An optional list of rollup intervals. */
   private final List<String> rollup_intervals;
-  
+
   /** Optional pre-query padding. */
   private final String pre_padding;
-  
+
   /** Optional post-query padding. */
   private final String post_padding;
-  
+
   /** Optional offset interval. */
   private final String interval;
-  
+
   /** Map of dataSource() IDs to amounts. */
   protected final Pair<Boolean, TemporalAmount> amounts;
-  
+
   /** Whether or not this node has been setup already. */
   protected final boolean has_been_setup;
-  
+
   /**
    * Private ctor for the builder.
    * @param builder The non-null builder.
@@ -143,17 +143,17 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
       amounts = builder.amounts;
     }
   }
-  
+
   @Override
   public String getSourceId() {
     return source_id;
   }
-  
+
   @Override
   public List<String> getTypes() {
     return types;
   }
-  
+
   @Override
   public String getNamespace() {
     return namespace;
@@ -163,27 +163,27 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
   public MetricFilter getMetric() {
     return metric;
   }
-  
+
   @Override
   public String getFilterId() {
     return filter_id;
   }
-  
+
   @Override
   public QueryFilter getFilter() {
     return filter;
   }
-  
+
   @Override
   public boolean getFetchLast() {
     return fetch_last;
   }
-  
+
   @Override
   public List<QueryNodeConfig> getPushDownNodes() {
     return push_down_nodes;
   }
-  
+
   @Override
   public boolean pushDown() {
     return false;
@@ -198,81 +198,113 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
   public List<String> getSummaryAggregations() {
     return summary_aggregations;
   }
-  
+
   @Override
   public List<String> getRollupIntervals() {
     return rollup_intervals;
   }
-  
+
   @Override
   public String getPrePadding() {
     return pre_padding;
   }
-  
+
   @Override
   public String getPostPadding() {
     return post_padding;
   }
-  
+
   @Override
   public String getTimeShiftInterval() {
     return interval;
   }
-  
+
   @Override
   public Pair<Boolean, TemporalAmount> timeShifts() {
     return amounts;
   }
-  
+
   @Override
   public boolean hasBeenSetup() {
     return has_been_setup;
   }
-  
+
   @Override
   public boolean joins() {
     return false;
   }
-  
+
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof BaseTimeSeriesDataSourceConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return Objects.equals(id, ((BaseTimeSeriesDataSourceConfig) o).id) &&
-        Objects.equals(source_id, ((BaseTimeSeriesDataSourceConfig) o).source_id);
-  }
-  
-  @Override
-  public int compareTo(final C o) {
 
-    // TODO - implement
-    return ComparisonChain.start()
-        .compare(id, ((BaseTimeSeriesDataSourceConfig) o).id, Ordering.natural().nullsFirst())
-        .result();
+    final BaseTimeSeriesDataSourceConfig tsconfig = (BaseTimeSeriesDataSourceConfig) o;
+
+    final boolean result = Objects.equal(namespace, tsconfig.getNamespace())
+            && Objects.equal(source_id, tsconfig.getSourceId())
+            && Objects.equal(filter_id, tsconfig.getFilterId())
+            && Objects.equal(metric, tsconfig.getMetric())
+            && Objects.equal(filter, tsconfig.getFilter())
+            && Objects.equal(fetch_last, tsconfig.getFetchLast())
+            && Objects.equal(interval, tsconfig.getTimeShiftInterval());
+
+    if (!result) {
+      return false;
+    }
+
+    // comparing types
+    if (!Comparators.ListComparison.equalLists(types, tsconfig.getTypes())) {
+      return false;
+    }
+
+    return true;
+
   }
+
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
-    hashes.add(Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .putString(source_id == null ? "" : source_id, Const.UTF8_CHARSET)
-        .hash());
-    // TODO - implement in full
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(source_id), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(namespace), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(filter_id), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
+            .putBoolean(fetch_last);
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(4);
+
+    hashes.add(super.buildHashCode());
+
+    if (metric != null) {
+      hashes.add(metric.buildHashCode());
+    }
+
+    if (filter != null) {
+      hashes.add(filter.buildHashCode());
+    }
+
+    if (types != null) {
+      final List<String> keys = Lists.newArrayList(types);
+      Collections.sort(keys);
+      for (final String key : keys) {
+        hc.putString(key, Const.UTF8_CHARSET);
+      }
+      hashes.add(hc.hash());
+    }
+
     return Hashing.combineOrdered(hashes);
   }
 
@@ -486,7 +518,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
     protected String interval;
     protected Pair<Boolean, TemporalAmount> amounts;
     protected boolean has_been_setup;
-    
+
     protected Builder() {
       setType(TimeSeriesDataSourceConfig.DEFAULT);
     }
@@ -620,14 +652,14 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
       this.interval = interval;
       return self();
     }
-    
+
     @Override
     public B setTimeShifts(
         final Pair<Boolean, TemporalAmount> amounts) {
       this.amounts = amounts;
       return self();
     }
-    
+
     @Override
     public B setHasBeenSetup(final boolean has_been_setup) {
       this.has_been_setup = has_been_setup;

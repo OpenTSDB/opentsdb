@@ -16,10 +16,16 @@ package net.opentsdb.query.filter;
 
 import java.util.List;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.Deferreds;
 
 /**
@@ -87,6 +93,56 @@ public class ChainFilter implements QueryFilter {
         .append("}")
         .toString();
   }
+
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    final ChainFilter otherChainFilter = (ChainFilter) o;
+
+    if (!Objects.equal(op, otherChainFilter.getOp())) {
+      return false;
+    }
+
+    // comparing filters
+    if (!Comparators.ListComparison.equalLists(filters, otherChainFilter.getFilters())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putInt((op != null ? op.hashCode() : 0))
+            .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
+            .hash();
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(1 +
+                    (filters != null ? filters.size() : 0));
+
+    hashes.add(hc);
+
+    if (filters != null) {
+      for (final QueryFilter filter : filters) {
+        hashes.add(filter.buildHashCode());
+      }
+    }
+
+    return Hashing.combineOrdered(hashes);
+  }
+
   
   @Override
   public Deferred<Void> initialize(final Span span) {

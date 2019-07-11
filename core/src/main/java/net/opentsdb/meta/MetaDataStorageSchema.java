@@ -14,8 +14,12 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -57,4 +61,13 @@ public interface MetaDataStorageSchema {
           final TimeSeriesDataSourceConfig config,
           final Span span);
 
+  /**
+   * Parse the json node and create the MetaQuery
+   * @param tsdb
+   * @param mapper
+   * @param jsonNode
+   * @param type
+   * @return
+   */
+  MetaQuery parse(TSDB tsdb, ObjectMapper mapper, JsonNode jsonNode, BatchMetaQuery.QueryType type);
 }

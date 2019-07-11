@@ -21,12 +21,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -159,9 +159,15 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
 
   @Override
   public HashCode buildHashCode() {
- // TODO Auto-generated method stub
     return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
+            .putInt(samples)
+            .putString(Strings.nullToEmpty(interval), net.opentsdb.core.Const.UTF8_CHARSET)
+            .putDouble(alpha)
+            .putBoolean(avg_initial)
+            .putBoolean(median)
+            .putBoolean(weighted)
+            .putBoolean(exponential)
+            .putBoolean(infectious_nan)
         .hash();
   }
 
@@ -173,7 +179,6 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
 
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
     if (o == null) {
       return false;
     }
@@ -183,8 +188,21 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
     if (!(o instanceof MovingAverageConfig)) {
       return false;
     }
-    
-    return id.equals(((MovingAverageConfig) o).id);
+
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    final MovingAverageConfig otherConfig = (MovingAverageConfig) o;
+
+    return Objects.equal(samples, otherConfig.getSamples())
+            && Objects.equal(interval, otherConfig.getInterval())
+            && Objects.equal(alpha, otherConfig.getAlpha())
+            && Objects.equal(avg_initial, otherConfig.getAverageInitial())
+            && Objects.equal(median, otherConfig.getMedian())
+            && Objects.equal(weighted, otherConfig.getWeighted())
+            && Objects.equal(exponential, otherConfig.getExponential())
+            && Objects.equal(infectious_nan, otherConfig.getInfectiousNan());
   }
 
   @Override

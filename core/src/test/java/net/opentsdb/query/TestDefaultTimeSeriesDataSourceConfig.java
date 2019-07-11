@@ -14,15 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
 import com.google.common.graph.MutableGraph;
-import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.filter.*;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
+import net.opentsdb.query.processor.topn.TopNConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -71,4 +72,244 @@ public class TestDefaultTimeSeriesDataSourceConfig {
 
   }
 
+
+  @Test
+  public void equality() throws Exception {
+    AnyFieldRegexFilter filter = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    QueryNodeConfig config = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter)
+            .setFetchLast(true)
+            .setId("c1")
+            .build();
+
+    AnyFieldRegexFilter filter2 = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    QueryNodeConfig config2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter)
+            .setFetchLast(true)
+            .setId("c1")
+            .build();
+
+    AnyFieldRegexFilter filter3 = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+    QueryNodeConfig config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("DB")     // DIFF
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("VDMS")     // DIFF
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2", "type3"))     // DIFF
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.pct")
+                    .build())     // DIFF
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f2")     // DIFF
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    filter3 = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.diff.com")
+            .build();
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)     // DIFF
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+    filter3 = AnyFieldRegexFilter.newBuilder()
+            .setFilter("ogg-01.ops.ankh.morpork.com")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(false)     // DIFF
+            .setTimeShiftInterval("1m")
+            .setId("c1")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1h")     // DIFF
+            .setId("c1")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setTimeShiftInterval("1m")
+            .setId("c2")     // DIFF
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSourceId("HBase")
+            .setNamespace("Verizon")
+            .setTypes(Lists.newArrayList("type1, type2"))
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric("system.cpu.user")
+                    .build())
+            .setFilterId("f1")
+            .setQueryFilter(filter3)
+            .setFetchLast(true)
+            .setId("c2")
+            .build();
+
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+
+
+  }
+
+
+
+
 }
+

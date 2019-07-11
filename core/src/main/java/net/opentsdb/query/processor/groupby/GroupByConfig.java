@@ -14,9 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,15 +24,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.JSON;
@@ -138,31 +138,72 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByC
 
   @Override
   public boolean equals(final Object o) {
-    // TODO Auto-generated method stub
-    if (o == null) {
-      return false;
-    }
-    if (o == this) {
+    if (this == o)
       return true;
-    }
-    if (!(o instanceof GroupByConfig)) {
+    if (o == null || getClass() != o.getClass())
+      return false;
+
+    if (!super.equals(o)) {
       return false;
     }
-    
-    return id.equals(((GroupByConfig) o).id);
+
+    final GroupByConfig gbconfig = (GroupByConfig) o;
+
+
+    final boolean result = Objects.equal(aggregator, gbconfig.getAggregator())
+            && Objects.equal(infectious_nan, gbconfig.getInfectiousNan())
+            && Objects.equal(merge_ids, gbconfig.getMergeIds())
+            && Objects.equal(full_merge, gbconfig.getFullMerge());
+
+    if (!result) {
+      return false;
+    }
+
+    // check tag_keys
+    Set<String> otherTagkeys = gbconfig.getTagKeys();
+
+    if (!Objects.equal(tag_keys, otherTagkeys)) {
+      return false;
+    }
+
+    return true;
   }
 
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-  
+
   @Override
+  /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    // TODO Auto-generated method stub
-    return Const.HASH_FUNCTION().newHasher()
-        .putString(id, Const.UTF8_CHARSET)
-        .hash();
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
+            .putBoolean(infectious_nan)
+            .putBoolean(merge_ids)
+            .putBoolean(full_merge)
+            .hash();
+
+
+    final List<HashCode> hashes =
+            Lists.newArrayListWithCapacity(4);
+
+    hashes.add(super.buildHashCode());
+
+    hashes.add(hc);
+
+
+    if (tag_keys != null) {
+      final List<String> keys = Lists.newArrayList(tag_keys);
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key, net.opentsdb.core.Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
+    }
+
+    return Hashing.combineOrdered(hashes);
   }
   
   @Override

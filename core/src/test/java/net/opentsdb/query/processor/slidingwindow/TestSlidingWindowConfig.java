@@ -14,12 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.processor.slidingwindow;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -126,6 +125,74 @@ public class TestSlidingWindowConfig {
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals(SlidingWindowFactory.TYPE, config.getType());
+  }
+
+
+  @Test
+  public void equality() throws Exception {
+    SlidingWindowConfig config =
+            (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setWindowSize("1m")
+                    .setInfectiousNan(true)
+                    .setId("win")
+                    .build();
+
+    SlidingWindowConfig config2 =
+            (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setWindowSize("1m")
+                    .setInfectiousNan(true)
+                    .setId("win")
+                    .build();
+
+    SlidingWindowConfig config3 =
+            (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+                    .setAggregator("avg")
+                    .setWindowSize("1m")
+                    .setInfectiousNan(true)
+                    .setId("win")
+                    .build();
+
+
+    assertTrue(config.equals(config2));
+    assertTrue(!config.equals(config3));
+    assertEquals(config.hashCode(), config2.hashCode());
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 =
+            (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setWindowSize("1h")
+                    .setInfectiousNan(true)
+                    .setId("win")
+                    .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 =
+            (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setWindowSize("1m")
+                    .setInfectiousNan(false)
+                    .setId("win")
+                    .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 =
+            (SlidingWindowConfig) SlidingWindowConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setWindowSize("1m")
+                    .setInfectiousNan(true)
+                    .setId("lose")
+                    .build();
+
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
   }
   
 }

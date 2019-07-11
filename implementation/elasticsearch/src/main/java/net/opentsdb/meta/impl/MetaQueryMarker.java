@@ -15,5 +15,5 @@
 
 package net.opentsdb.meta.impl;
 
-public interface MetaQuery {
+public interface MetaQueryMarker {
 }
