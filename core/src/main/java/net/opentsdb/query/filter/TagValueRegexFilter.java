@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
    * @param builder The non-null builder.
    */
   protected TagValueRegexFilter(final Builder builder) {
-    super(builder.tagKey, builder.filter);
+    super(builder.key, builder.filter);
     pattern = Pattern.compile(filter.trim());
     
     if (filter.equals(".*") || 
@@ -166,12 +166,12 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     @JsonProperty
-    private String tagKey;
+    private String key;
     @JsonProperty
     private String filter;
     
-    public Builder setTagKey(final String tag_key) {
-      this.tagKey = tag_key;
+    public Builder setKey(final String tag_key) {
+      this.key = tag_key;
       return this;
     }
     

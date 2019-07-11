@@ -138,7 +138,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .setFilterId("f1")
         .setQueryFilter(TagValueLiteralOrFilter.newBuilder()
             .setFilter("web01")
-            .setTagKey("host")
+            .setKey("host")
             .build())
         .setFetchLast(true)
         .addPushDownNode(TopNConfig.newBuilder()

@@ -42,6 +42,15 @@ public class TestTagValueWildcardFilterAndFactory {
     assertEquals("web*", filter.getFilter());
     assertFalse(filter.matchesAll());
     
+    json = "{\"key\":\"host\",\"filter\":\"web*\"}";
+    
+    node = JSON.getMapper().readTree(json);
+    filter = (TagValueWildcardFilter) 
+        factory.parse(tsdb, JSON.getMapper(), node);
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web*", filter.getFilter());
+    assertFalse(filter.matchesAll());
+    
     try {
       factory.parse(tsdb, JSON.getMapper(), null);
       fail("Expected IllegalArgumentException");
@@ -70,7 +79,7 @@ public class TestTagValueWildcardFilterAndFactory {
     tags.put(TAGK, "ogg-01.ops.ankh.morpork.com");
     
     TagValueWildcardFilter filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*.morpork.com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -80,7 +89,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg*")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -90,7 +99,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -100,7 +109,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg*com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -109,7 +118,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg*ops*ank*com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -118,7 +127,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg*ops*com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -127,7 +136,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*morpork*")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -136,7 +145,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*ops*com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -145,7 +154,7 @@ public class TestTagValueWildcardFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg***com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -155,7 +164,7 @@ public class TestTagValueWildcardFilterAndFactory {
     
     // trim
     filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter(" ogg*ops*com ")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -173,7 +182,7 @@ public class TestTagValueWildcardFilterAndFactory {
     
     try {
       TagValueWildcardFilter.newBuilder()
-        .setTagKey("")
+        .setKey("")
         .setFilter("ogg*ops*com")
         .build();
       fail("Expected IllegalArgumentException");
@@ -181,7 +190,7 @@ public class TestTagValueWildcardFilterAndFactory {
     
     try {
       TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         //.setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");
@@ -189,7 +198,7 @@ public class TestTagValueWildcardFilterAndFactory {
     
     try {
       TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("")
         .build();
       fail("Expected IllegalArgumentException");
@@ -198,7 +207,7 @@ public class TestTagValueWildcardFilterAndFactory {
     // no wildcard
     try {
       TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");
@@ -208,7 +217,7 @@ public class TestTagValueWildcardFilterAndFactory {
   @Test
   public void serialize() throws Exception {
     TagValueWildcardFilter filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*.morpork.com")
         .build();
     
@@ -221,7 +230,7 @@ public class TestTagValueWildcardFilterAndFactory {
   @Test
   public void initialize() throws Exception {
     TagValueWildcardFilter filter = TagValueWildcardFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*.morpork.com")
         .build();
     assertNull(filter.initialize(null).join());
@@ -230,17 +239,17 @@ public class TestTagValueWildcardFilterAndFactory {
   @Test
   public void equality() throws Exception {
     TagValueWildcardFilter filter = TagValueWildcardFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("*.morpork.com")
             .build();
 
     TagValueWildcardFilter filter2 = TagValueWildcardFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("*.morpork.com")
             .build();
 
     TagValueWildcardFilter filter3 = TagValueWildcardFilter.newBuilder()
-            .setTagKey("host2")
+            .setKey("host2")
             .setFilter("*.morpork.com")
             .build();
 
@@ -250,12 +259,12 @@ public class TestTagValueWildcardFilterAndFactory {
     assertNotEquals(filter.hashCode(), filter3.hashCode());
 
     filter = TagValueWildcardFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("ogg*ops*ank*com")
             .build();
 
     filter2 = TagValueWildcardFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("ogg*ops*ank*com")
             .build();
 
@@ -263,7 +272,5 @@ public class TestTagValueWildcardFilterAndFactory {
     assertEquals(filter.hashCode(), filter2.hashCode());
 
   }
-
-
   
 }

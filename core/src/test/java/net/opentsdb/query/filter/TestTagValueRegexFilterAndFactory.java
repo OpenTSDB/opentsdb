@@ -42,6 +42,14 @@ public class TestTagValueRegexFilterAndFactory {
     assertEquals("web.*", filter.getFilter());
     assertFalse(filter.matchesAll());
     
+    json = "{\"key\":\"host\",\"filter\":\"web.*\"}";
+    node = JSON.getMapper().readTree(json);
+    filter = (TagValueRegexFilter) 
+        factory.parse(tsdb, JSON.getMapper(), node);
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web.*", filter.getFilter());
+    assertFalse(filter.matchesAll());
+    
     try {
       factory.parse(tsdb, JSON.getMapper(), null);
       fail("Expected IllegalArgumentException");
@@ -70,7 +78,7 @@ public class TestTagValueRegexFilterAndFactory {
     tags.put(TAGK, "ogg-01.ops.ankh.morpork.com");
     
     TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg-01.ops.ankh.morpork.com")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -79,7 +87,7 @@ public class TestTagValueRegexFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg-01.ops.ankh.*")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -88,7 +96,7 @@ public class TestTagValueRegexFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter(".*")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -97,7 +105,7 @@ public class TestTagValueRegexFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("^.*")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -106,7 +114,7 @@ public class TestTagValueRegexFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter(".*$")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -115,7 +123,7 @@ public class TestTagValueRegexFilterAndFactory {
     assertTrue(filter.matches(tags));
     
     filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("^.*$")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -125,7 +133,7 @@ public class TestTagValueRegexFilterAndFactory {
     
     // trim
     filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter(" ogg-01.ops.ankh.* ")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -143,7 +151,7 @@ public class TestTagValueRegexFilterAndFactory {
     
     try {
       TagValueRegexFilter.newBuilder()
-        .setTagKey("")
+        .setKey("")
         .setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");
@@ -151,7 +159,7 @@ public class TestTagValueRegexFilterAndFactory {
     
     try {
       TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         //.setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");
@@ -159,7 +167,7 @@ public class TestTagValueRegexFilterAndFactory {
     
     try {
       TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("")
         .build();
       fail("Expected IllegalArgumentException");
@@ -168,7 +176,7 @@ public class TestTagValueRegexFilterAndFactory {
     // bad pattern
     try {
       TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("*noprefix")
         .build();
       fail("Expected IllegalArgumentException");
@@ -178,7 +186,7 @@ public class TestTagValueRegexFilterAndFactory {
   @Test
   public void serialize() throws Exception {
     TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg-01.ops.ankh.*")
         .build();
     
@@ -191,7 +199,7 @@ public class TestTagValueRegexFilterAndFactory {
   @Test
   public void initialize() throws Exception {
     TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("ogg-01.ops.ankh.morpork.com")
         .build();
     assertNull(filter.initialize(null).join());
@@ -200,18 +208,18 @@ public class TestTagValueRegexFilterAndFactory {
   @Test
   public void equality() throws Exception {
     TagValueRegexFilter filter = TagValueRegexFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("ogg-01.ops.ankh.morpork.com")
             .build();
 
     TagValueRegexFilter filter2 = TagValueRegexFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("ogg-01.ops.ankh.morpork.com")
             .build();
 
 
     TagValueRegexFilter filter3 = TagValueRegexFilter.newBuilder()
-            .setTagKey("host2")
+            .setKey("host2")
             .setFilter("ogg-01.ops.ankh.morpork.com")
             .build();
 

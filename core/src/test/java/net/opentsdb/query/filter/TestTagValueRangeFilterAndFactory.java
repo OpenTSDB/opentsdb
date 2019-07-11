@@ -41,6 +41,14 @@ public class TestTagValueRangeFilterAndFactory {
     assertEquals("host", filter.getTagKey());
     assertEquals("web{01-04}", filter.getFilter());
     
+    json = "{\"key\":\"host\",\"filter\":\"web{01-04}\"}";
+    
+    node = JSON.getMapper().readTree(json);
+    filter = (TagValueRangeFilter) 
+        factory.parse(tsdb, JSON.getMapper(), node);
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web{01-04}", filter.getFilter());
+    
     try {
       factory.parse(tsdb, JSON.getMapper(), null);
       fail("Expected IllegalArgumentException");
@@ -67,7 +75,7 @@ public class TestTagValueRangeFilterAndFactory {
   public void builderAndMAtches() throws Exception {
     TagValueRangeFilter filter = 
         (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
-        .setTagKey(TAGK)
+        .setKey(TAGK)
         .setFilter("web{01-04}")
         .build();
     assertEquals(4, filter.literals().size());
@@ -91,7 +99,7 @@ public class TestTagValueRangeFilterAndFactory {
   public void serialize() throws Exception {
     TagValueRangeFilter filter = 
         (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
-        .setTagKey(TAGK)
+        .setKey(TAGK)
         .setFilter("web{01-04}")
         .build();
     
@@ -105,7 +113,7 @@ public class TestTagValueRangeFilterAndFactory {
   public void initialize() throws Exception {
     TagValueRangeFilter filter = 
         (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web{01-04}")
         .build();
     assertNull(filter.initialize(null).join());
@@ -191,20 +199,20 @@ public class TestTagValueRangeFilterAndFactory {
   public void equality() throws Exception {
     TagValueRangeFilter filter =
             (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
-                    .setTagKey(TAGK)
+                    .setKey(TAGK)
                     .setFilter("web{01-04}")
                     .build();
 
     TagValueRangeFilter filter2 =
             (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
-                    .setTagKey(TAGK)
+                    .setKey(TAGK)
                     .setFilter("web{01-04}")
                     .build();
 
 
     TagValueRangeFilter filter3 =
             (TagValueRangeFilter) TagValueRangeFilter.newBuilder()
-                    .setTagKey(TAGK)
+                    .setKey(TAGK)
                     .setFilter("web{01-05}")
                     .build();
 

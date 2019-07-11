@@ -37,7 +37,7 @@ public class TestNamespacedAggregatedDocumentQuery {
     MetaQuery meta_query = DefaultMetaQuery.newBuilder()
         .setNamespace("Yahoo")
         .setFilter(TagValueRegexFilter.newBuilder().setFilter("cpu")
-            .setTagKey("host").build())
+            .setKey("host").build())
         .build();
 
     BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
@@ -69,7 +69,7 @@ public class TestNamespacedAggregatedDocumentQuery {
   public void testExplicitTagQuery() {
 
     QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
-        .addFilter(TagValueRegexFilter.newBuilder().setFilter("cpu").setTagKey("host").build())
+        .addFilter(TagValueRegexFilter.newBuilder().setFilter("cpu").setKey("host").build())
         .build();
 
     MetaQuery meta_query = DefaultMetaQuery.newBuilder()
