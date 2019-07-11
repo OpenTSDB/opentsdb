@@ -45,7 +45,7 @@ public class TestSemanticQuery {
     NamedFilter filter = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
             .setFilter("web01")
-            .setTagKey("host")
+            .setKey("host")
             .build())
         .setId("f1")
         .build();
@@ -127,7 +127,7 @@ public class TestSemanticQuery {
     NamedFilter filter = DefaultNamedFilter.newBuilder()
         .setFilter(TagValueLiteralOrFilter.newBuilder()
             .setFilter("web01")
-            .setTagKey("host")
+            .setKey("host")
             .build())
         .setId("f1")
         .build();
@@ -262,7 +262,7 @@ public class TestSemanticQuery {
     NamedFilter filter = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
             .setFilter("web01")
-            .setTagKey("host")
+            .setKey("host")
             .build())
         .setId("f1")
         .build();
@@ -356,7 +356,7 @@ public class TestSemanticQuery {
     NamedFilter filter = DefaultNamedFilter.newBuilder()
           .setFilter(TagValueLiteralOrFilter.newBuilder()
           .setFilter("web01")
-          .setTagKey("host")
+          .setKey("host")
           .build())
       .setId("f1")
         .build();
@@ -423,7 +423,7 @@ public class TestSemanticQuery {
     NamedFilter filter = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                     .setFilter("web01")
-                    .setTagKey("host")
+                    .setKey("host")
                     .build())
             .setId("f1")
             .build();
@@ -440,7 +440,7 @@ public class TestSemanticQuery {
     NamedFilter filter2 = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                     .setFilter("web01")
-                    .setTagKey("host")
+                    .setKey("host")
                     .build())
             .setId("f1")
             .build();
@@ -494,7 +494,7 @@ public class TestSemanticQuery {
     NamedFilter filter3 = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                     .setFilter("web01")
-                    .setTagKey("host")
+                    .setKey("host")
                     .build())
             .setId("f1")
             .build();
@@ -548,7 +548,7 @@ public class TestSemanticQuery {
     filter3 = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                     .setFilter("web02")
-                    .setTagKey("host")
+                    .setKey("host")
                     .build())
             .setId("f1")
             .build();
@@ -569,7 +569,7 @@ public class TestSemanticQuery {
     filter3 = DefaultNamedFilter.newBuilder()
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                     .setFilter("web01")
-                    .setTagKey("host")
+                    .setKey("host")
                     .build())
             .setId("f1")
             .build();

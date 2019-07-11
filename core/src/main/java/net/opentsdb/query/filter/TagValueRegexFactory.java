@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -44,11 +43,23 @@ public class TagValueRegexFactory extends BaseTSDBPlugin
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    try {
-      return (QueryFilter) mapper.treeToValue(node, TagValueRegexFilter.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Failed to parse TagValueRegexFilter", e);
+    TagValueRegexFilter.Builder builder = TagValueRegexFilter.newBuilder();
+    JsonNode n = node.get("tagKey");
+    if (n != null && !n.isNull()) {
+      builder.setKey(n.asText());
     }
+    n = node.get("key");
+    if (n != null && !n.isNull()) {
+      builder.setKey(n.asText());
+    }
+    
+    n = node.get("filter");
+    if (n != null && !n.isNull()) {
+      builder.setFilter(n.asText());
+    } else {
+      throw new IllegalArgumentException("Filter cannot be null or empty.");
+    }
+    return builder.build();
   }
 
   @Override

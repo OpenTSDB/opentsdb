@@ -23,7 +23,7 @@ public class TestDefaultNamedFilter {
   @Test
   public void build() throws Exception {
     QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web01")
         .build();
     
@@ -62,7 +62,7 @@ public class TestDefaultNamedFilter {
   @Test
   public void equality() throws Exception {
     QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("web01")
             .build();
 
@@ -72,7 +72,7 @@ public class TestDefaultNamedFilter {
             .build();
 
     QueryFilter filter2 = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("web01")
             .build();
 
@@ -82,7 +82,7 @@ public class TestDefaultNamedFilter {
             .build();
 
     QueryFilter filter3 = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("web01")
             .build();
 

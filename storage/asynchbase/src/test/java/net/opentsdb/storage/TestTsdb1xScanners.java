@@ -643,11 +643,11 @@ public class TestTsdb1xScanners extends UTBase {
             .setFilter(ExplicitTagsFilter.newBuilder()
                 .setFilter(ChainFilter.newBuilder()
                   .addFilter(TagValueLiteralOrFilter.newBuilder()
-                    .setTagKey(TAGK_STRING)
+                    .setKey(TAGK_STRING)
                     .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
                     .build())
                   .addFilter(TagValueWildcardFilter.newBuilder()
-                      .setTagKey(TAGK_B_STRING)
+                      .setKey(TAGK_B_STRING)
                       .setFilter("*")
                      .build())
                   .build())
@@ -1237,11 +1237,11 @@ public class TestTsdb1xScanners extends UTBase {
             .setFilter(ExplicitTagsFilter.newBuilder()
                 .setFilter(ChainFilter.newBuilder()
                   .addFilter(TagValueLiteralOrFilter.newBuilder()
-                    .setTagKey(TAGK_STRING)
+                    .setKey(TAGK_STRING)
                     .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
                     .build())
                   .addFilter(TagValueWildcardFilter.newBuilder()
-                      .setTagKey(TAGK_B_STRING)
+                      .setKey(TAGK_B_STRING)
                       .setFilter("*")
                      .build())
                   .build())
@@ -1587,11 +1587,11 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBNoKeepers() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(TagValueWildcardFilter.newBuilder()
-              .setTagKey(TAGK_B_STRING)
+              .setKey(TAGK_B_STRING)
               .setFilter("*")
              .build())
           .build();
@@ -1636,11 +1636,11 @@ public class TestTsdb1xScanners extends UTBase {
     // regex tags now
     filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(TagValueRegexFilter.newBuilder()
-              .setTagKey(TAGK_B_STRING)
+              .setKey(TAGK_B_STRING)
               .setFilter("^.*$")
              .build())
           .build();
@@ -1686,11 +1686,11 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBKeepers() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(TagValueWildcardFilter.newBuilder()
-              .setTagKey(TAGK_B_STRING)
+              .setKey(TAGK_B_STRING)
               .setFilter("*yahoo.com")
              .build())
           .build();
@@ -1735,11 +1735,11 @@ public class TestTsdb1xScanners extends UTBase {
     // regexp
     filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(TagValueRegexFilter.newBuilder()
-              .setTagKey(TAGK_B_STRING)
+              .setKey(TAGK_B_STRING)
               .setFilter("pre.*fix")
              .build())
           .build();
@@ -1784,7 +1784,7 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void filterCBMultiGetable() throws Exception {
     QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey(TAGK_STRING)
+        .setKey(TAGK_STRING)
         .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
         .build();
     
@@ -1847,11 +1847,11 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBDupeTagKeys() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING)
             .build())
           .addFilter(TagValueLiteralOrFilter.newBuilder()
-              .setTagKey(TAGK_STRING)
+              .setKey(TAGK_STRING)
               .setFilter(TAGV_B_STRING)
              .build())
           .build();
@@ -1897,11 +1897,11 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBAllNullLiteralOrValues() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
       .addFilter(TagValueLiteralOrFilter.newBuilder()
-        .setTagKey(NSUN_TAGK)
+        .setKey(NSUN_TAGK)
         .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
         .build())
       .addFilter(TagValueWildcardFilter.newBuilder()
-          .setTagKey(TAGK_B_STRING)
+          .setKey(TAGK_B_STRING)
           .setFilter("*")
          .build())
       .build();
@@ -1932,11 +1932,11 @@ public class TestTsdb1xScanners extends UTBase {
     // and ditto if all uids were null.
     filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-          .setTagKey(TAGK_STRING)
+          .setKey(TAGK_STRING)
           .setFilter(NSUN_TAGV + "|" + "none")
           .build())
         .addFilter(TagValueWildcardFilter.newBuilder()
-            .setTagKey(TAGK_B_STRING)
+            .setKey(TAGK_B_STRING)
             .setFilter("*")
            .build())
         .build();
@@ -1956,11 +1956,11 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBNullTagV() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-          .setTagKey(TAGK_STRING)
+          .setKey(TAGK_STRING)
           .setFilter(NSUN_TAGV + "|" + TAGV_B_STRING)
           .build())
         .addFilter(TagValueWildcardFilter.newBuilder()
-            .setTagKey(TAGK_B_STRING)
+            .setKey(TAGK_B_STRING)
             .setFilter("*")
            .build())
         .build();
@@ -2002,11 +2002,11 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterCBExpansionLimit() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-          .setTagKey(TAGK_STRING)
+          .setKey(TAGK_STRING)
           .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
           .build())
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_B_STRING)
+            .setKey(TAGK_B_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
            .build())
         .build();
@@ -2072,7 +2072,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterNotNoTags() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(NotFilter.newBuilder()
@@ -2124,12 +2124,12 @@ public class TestTsdb1xScanners extends UTBase {
   public void filterNotWithTags() throws Exception {
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(NotFilter.newBuilder()
               .setFilter(TagValueLiteralOrFilter.newBuilder()
-                  .setTagKey(TAGK_B_STRING)
+                  .setKey(TAGK_B_STRING)
                   .setFilter(TAGV_STRING)
                   .build())
              .build())
@@ -2206,7 +2206,7 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     
     QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
-          .setTagKey(TAGK_STRING)
+          .setKey(TAGK_STRING)
           .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
           .build();
     setConfig(filter, null, false);
@@ -2271,11 +2271,11 @@ public class TestTsdb1xScanners extends UTBase {
     QueryFilter filter = ExplicitTagsFilter.newBuilder()
         .setFilter(ChainFilter.newBuilder()
           .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(TagValueWildcardFilter.newBuilder()
-              .setTagKey(NSUN_TAGK)
+              .setKey(NSUN_TAGK)
               .setFilter("*")
              .build())
           .build())
@@ -2323,11 +2323,11 @@ public class TestTsdb1xScanners extends UTBase {
     // now we can ignore it
     filter = ChainFilter.newBuilder()
           .addFilter(TagValueLiteralOrFilter.newBuilder()
-            .setTagKey(TAGK_STRING)
+            .setKey(TAGK_STRING)
             .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
             .build())
           .addFilter(TagValueWildcardFilter.newBuilder()
-              .setTagKey(NSUN_TAGK)
+              .setKey(NSUN_TAGK)
               .setFilter("*")
              .build())
           .build();
@@ -2354,11 +2354,11 @@ public class TestTsdb1xScanners extends UTBase {
     catchTsdb1xScanners(caught);
     QueryFilter filter = ChainFilter.newBuilder()
         .addFilter(TagValueLiteralOrFilter.newBuilder()
-          .setTagKey(TAGK_STRING)
+          .setKey(TAGK_STRING)
           .setFilter(TAGV_STRING + "|" + NSUN_TAGV)
           .build())
         .addFilter(TagValueWildcardFilter.newBuilder()
-            .setTagKey(TAGK_B_STRING)
+            .setKey(TAGK_B_STRING)
             .setFilter("*")
            .build())
         .build();
@@ -3128,11 +3128,11 @@ public class TestTsdb1xScanners extends UTBase {
   private QueryFilter setConfig(final boolean with_filter, final String ds, final boolean pre_agg) {
     QueryFilter filter = ChainFilter.newBuilder()
       .addFilter(TagValueLiteralOrFilter.newBuilder()
-        .setTagKey(TAGK_STRING)
+        .setKey(TAGK_STRING)
         .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
         .build())
       .addFilter(TagValueWildcardFilter.newBuilder()
-          .setTagKey(TAGK_B_STRING)
+          .setKey(TAGK_B_STRING)
           .setFilter("*")
          .build())
       .build();

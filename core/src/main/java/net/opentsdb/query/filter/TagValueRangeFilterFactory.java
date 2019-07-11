@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -49,11 +48,23 @@ public class TagValueRangeFilterFactory extends BaseTSDBPlugin
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    try {
-      return (QueryFilter) mapper.treeToValue(node, TagValueRangeFilter.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Failed to parse TagValueRegexFilter", e);
+    TagValueRangeFilter.Builder builder = TagValueRangeFilter.newBuilder();
+    JsonNode n = node.get("tagKey");
+    if (n != null && !n.isNull()) {
+      builder.setKey(n.asText());
     }
+    n = node.get("key");
+    if (n != null && !n.isNull()) {
+      builder.setKey(n.asText());
+    }
+    
+    n = node.get("filter");
+    if (n != null && !n.isNull()) {
+      builder.setFilter(n.asText());
+    } else {
+      throw new IllegalArgumentException("Filter cannot be null or empty.");
+    }
+    return builder.build();
   }
 
   @Override

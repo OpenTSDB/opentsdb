@@ -343,7 +343,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     }
 
     if (tags_filters.filters() == null || tags_filters.filters().size() == 0) {
-      tags_filters.addFilter(TagValueWildcardFilter.newBuilder().setTagKey
+      tags_filters.addFilter(TagValueWildcardFilter.newBuilder().setKey
               (field).setFilter(".*").build());
     }
     // we have to recurse here and find tag key/tag value filters.

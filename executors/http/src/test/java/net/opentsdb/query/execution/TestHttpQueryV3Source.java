@@ -291,7 +291,7 @@ public class TestHttpQueryV3Source {
             .setId("f1")
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                 .setFilter("web01")
-                .setTagKey("host")
+                .setKey("host")
                 .build())
             .build())
         .build();
@@ -325,7 +325,7 @@ public class TestHttpQueryV3Source {
 
     QueryFilter filter = TagValueLiteralOrFilter.newBuilder()
         .setFilter("web01")
-        .setTagKey("host")
+        .setKey("host")
         .build();
 
     TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
@@ -384,7 +384,7 @@ public class TestHttpQueryV3Source {
             .setId("f1")
             .setFilter(TagValueLiteralOrFilter.newBuilder()
                 .setFilter("web01")
-                .setTagKey("host")
+                .setKey("host")
                 .build())
             .build())
         .build();

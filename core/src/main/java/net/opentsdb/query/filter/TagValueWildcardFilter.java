@@ -56,7 +56,7 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
    * @param builder The non-null builder.
    */
   protected TagValueWildcardFilter(final Builder builder) {
-    super(builder.tagKey, builder.filter);
+    super(builder.key, builder.filter);
     if (!filter.contains("*")) {
       throw new IllegalArgumentException("Filter must contain an asterisk");
     }
@@ -140,8 +140,7 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
   public String[] components() {
     return components;
   }
-
-
+  
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -161,8 +160,7 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
-
+  
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     final List<HashCode> hashes =
@@ -191,12 +189,12 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     @JsonProperty
-    private String tagKey;
+    private String key;
     @JsonProperty
     private String filter;
     
-    public Builder setTagKey(final String tag_key) {
-      this.tagKey = tag_key;
+    public Builder setKey(final String tag_key) {
+      this.key = tag_key;
       return this;
     }
     
