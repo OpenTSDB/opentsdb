@@ -365,7 +365,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       final QueryNodeConfig node, 
       final Set<Integer> already_setup, 
       final Set<String> satisfied_filters) {
-    if (!already_setup.contains(System.identityHashCode(node)) && 
+    if (!already_setup.contains(node.hashCode()) && 
         node != context_sink_config) {
       // TODO - ugg!! There must be a better way to determine if the graph
       // has been modified.
@@ -411,7 +411,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
             + node, 400);
       }
       factory.setupGraph(context, node, this);
-      already_setup.add(System.identityHashCode(node));
+      already_setup.add(node.hashCode());
       if (!config_graph.equals(clone)) {
         return true;
       }
