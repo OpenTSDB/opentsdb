@@ -67,9 +67,6 @@ public abstract class BaseQueryContext implements QueryContext {
   /** A local span for tracing. */
   protected Span local_span;
   
-  /** Returns true if the pipeline is closed. */
-  private boolean isClosed;
-  
   protected BaseQueryContext(final Builder builder) {
     tsdb = builder.tsdb;
     query = builder.query;
@@ -85,13 +82,6 @@ public abstract class BaseQueryContext implements QueryContext {
       stats.setQueryContext(this);
     }
 
-    isClosed = false;
-    
-  }
-  
-  @Override
-  public QueryPipelineContext getQueryPipelineContext() {
-    return pipeline;
   }
   
   @Override
@@ -116,14 +106,8 @@ public abstract class BaseQueryContext implements QueryContext {
       // TODO - more stats around the context
       local_span.finish();
     }
-    isClosed = true;
   }
   
-  @Override
-  public boolean isClosed() {
-    return isClosed;
-  }
-
   @Override
   public QueryStats stats() {
     return stats;
