@@ -51,6 +51,8 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.event.EventType;
+import net.opentsdb.data.types.event.EventsValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -450,6 +452,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     boolean wrote_values = false;
     boolean was_status = false;
+    boolean was_event = false;
     for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
       while (iterator.hasNext()) {
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
@@ -459,6 +462,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           }
           json.writeStartObject();
           writeStatus((StatusValue) value, json);
+          wrote_values = true;
+        } else if (iterator.getType() == EventType.TYPE) {
+          was_event = true;
+          json.writeStartObject();
+          writeEvents((EventsValue) value, json);
           wrote_values = true;
         } else {
           while (value != null && value.timestamp().compare(Op.LT, start)) {
@@ -495,7 +503,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     if (wrote_values) {
       // serialize the ID
-      if(!was_status){
+      if(!was_status && !was_event){
         json.writeStringField("metric", id.metric());
       }
       json.writeObjectFieldStart("tags");
@@ -898,6 +906,31 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     return wrote_type;
   }
 
+  private void writeEvents(EventsValue eventsValue, final JsonGenerator json) throws IOException {
+
+    json.writeArrayFieldStart("Event");
+    json.writeStringField("namespace", eventsValue.namespace());
+    json.writeStringField("source", eventsValue.source());
+    json.writeStringField("title", eventsValue.title());
+    json.writeStringField("message", eventsValue.message());
+    json.writeStringField("priority", eventsValue.priority());
+    json.writeStringField("status", eventsValue.status());
+    json.writeStringField("timestamp", Long.toString(eventsValue.timestamp().epoch()));
+    json.writeStringField("endTimestamp", Long.toString(eventsValue.endTimestamp().epoch()));
+    json.writeStringField("userId", eventsValue.userId());
+    json.writeBooleanField("ongoing", eventsValue.ongoing());
+    json.writeStringField("eventId", eventsValue.eventId());
+    json.writeStringField("parentId", eventsValue.parentId());
+    json.writeStringField("childId", eventsValue.childId());
+    if (eventsValue.additionalProps() != null) {
+      for (Map.Entry<String, Object> e : eventsValue.additionalProps().entrySet()) {
+        json.writeStringField(e.getKey(), String.valueOf(e.getValue()));
+      }
+    }
+    json.writeEndArray();
+
+  }
+  
   private void writeStatus(StatusValue statusValue, final JsonGenerator json) throws IOException {
 
     byte[] statusCodeArray = statusValue.statusCodeArray();
