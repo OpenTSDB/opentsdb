@@ -54,8 +54,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.MAX_CARD_KEY;
-
 public class ESMetaResponse implements MetaResponse {
 
   private static Logger LOGGER = LoggerFactory.getLogger(ESMetaResponse.class);
@@ -68,11 +66,13 @@ public class ESMetaResponse implements MetaResponse {
 
   @Override
   public Map<NamespacedKey, MetaDataStorageResult> parse(
-      BatchMetaQuery query,
-      TSDB tsdb,
-      QueryPipelineContext context,
-      boolean isMultiGet,
-      Span child) {
+      final BatchMetaQuery query,
+      final TSDB tsdb,
+      final QueryPipelineContext context,
+      final boolean isMultiGet,
+      final int max_cardinality,
+      final boolean fallback_on_no_data,
+      final Span child) {
     final Map<NamespacedKey, MetaDataStorageResult> final_results = new LinkedHashMap<>();
 
     if (isMultiGet) {
@@ -95,7 +95,7 @@ public class ESMetaResponse implements MetaResponse {
         }
 
         // if we have too many results, bail out with a no-data error.
-        if (max_hits > tsdb.getConfig().getInt(MAX_CARD_KEY)) {
+        if (max_hits > max_cardinality) {
           if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Too many hits from ES: " + response.getHits().getTotalHits());
           }
@@ -106,11 +106,10 @@ public class ESMetaResponse implements MetaResponse {
                     "Total hits from ES: "
                         + max_hits
                         + " exceeded the configured limit: "
-                        + tsdb.getConfig().getInt(MAX_CARD_KEY));
+                        + max_cardinality);
           }
           result =
-              new NamespacedAggregatedDocumentResult(
-                  tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY)
+              new NamespacedAggregatedDocumentResult(fallback_on_no_data
                       ? MetaDataStorageResult.MetaResult.NO_DATA_FALLBACK
                       : MetaDataStorageResult.MetaResult.NO_DATA,
                   null,
@@ -127,7 +126,7 @@ public class ESMetaResponse implements MetaResponse {
           new NamespacedAggregatedDocumentResult(
               max_hits > 0
                   ? MetaDataStorageResult.MetaResult.DATA
-                  : tsdb.getConfig().getBoolean(ESClusterClient.FALLBACK_ON_NO_DATA_KEY)
+                  : fallback_on_no_data
                       ? MetaDataStorageResult.MetaResult.NO_DATA_FALLBACK
                       : MetaDataStorageResult.MetaResult.NO_DATA,
               null,
@@ -691,27 +690,33 @@ public class ESMetaResponse implements MetaResponse {
                       MetaDataStorageResult.MetaResult.DATA, query, meta_query);
             }
             result.addTimeSeries(
-                buildTimeseries(m.get("name.raw"), tags), meta_query, m.get("name.raw"));
+                buildTimeseries(meta_query.namespace() + "." + metric, tags), 
+                meta_query, 
+                m.get("name.raw"));
           }
         }
       } else {
-        int idx = metric.indexOf(".");
-        final String metric_only = metric.substring(idx + 1).toLowerCase();
         if (result == null) {
           result =
               new NamespacedAggregatedDocumentResult(
                   MetaDataStorageResult.MetaResult.DATA, query, meta_query);
         }
-        result.addTimeSeries(buildTimeseries(metric, tags), meta_query, metric_only);
+        
+        result.addTimeSeries(
+            buildTimeseries(meta_query.namespace() + "." + metric, tags), 
+            meta_query, 
+            metric);
       }
     }
     return result;
   }
 
-  private TimeSeriesId buildTimeseries(final String metric, final List<Map<String, String>> tags) {
+  private TimeSeriesId buildTimeseries(final String metric, 
+                                       final List<Map<String, String>> tags) {
 
-    final BaseTimeSeriesStringId.Builder builder = BaseTimeSeriesStringId.newBuilder();
-    builder.setMetric(metric);
+    final BaseTimeSeriesStringId.Builder builder = 
+        BaseTimeSeriesStringId.newBuilder()
+          .setMetric(metric);
     for (final Map<String, String> pair : tags) {
       builder.addTags(pair.get("key.raw"), pair.get("value.raw"));
     }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,8 +72,6 @@ public class ESClusterClient extends BaseTSDBPlugin
   public static final String QUERY_TIMEOUT_KEY = "es.query_timeout";
   public static final String MAX_RESULTS_KEY = "es.query.results.max";
   public static final String EXCLUDES_KEY = "es.excludes";
-  public static final String FALLBACK_ON_EX_KEY = "es.fallback.exception";
-  public static final String FALLBACK_ON_NO_DATA_KEY = "es.fallback.nodata";
   public static final long QUERY_TIMEOUT_DEFAULT = 5000;
   public static final String EXCLUDES_DEFAULT =
       "AM_nested,lastSeenTime,firstSeenTime,application.raw,timestamp";
@@ -525,23 +523,6 @@ public class ESClusterClient extends BaseTSDBPlugin
               EXCLUDES_DEFAULT,
               false,
               "A comma separated list of fields to exclude to save " + "on serdes.");
-    }
-    if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_EX_KEY))) {
-      tsdb.getConfig()
-          .register(
-              getConfigKey(FALLBACK_ON_EX_KEY),
-              true,
-              true,
-              "Whether or not to fall back to scans when the meta "
-                  + "query returns an exception.");
-    }
-    if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_NO_DATA_KEY))) {
-      tsdb.getConfig()
-          .register(
-              getConfigKey(FALLBACK_ON_NO_DATA_KEY),
-              false,
-              true,
-              "Whether or not to fall back to scans when the query " + "was empty.");
     }
     if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_RESULTS_KEY))) {
       tsdb.getConfig()
