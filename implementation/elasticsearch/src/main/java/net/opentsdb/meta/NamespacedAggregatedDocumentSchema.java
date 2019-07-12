@@ -226,7 +226,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       String temp = timeSeriesDataSourceConfig.getMetric().getMetric();
       int idx = temp.indexOf(".");
       String namespace = temp.substring(0, idx);
-      final String metric = temp.substring(idx + 1).toLowerCase();
+      final String metric = temp.substring(idx + 1);
 
       QueryFilter filter = timeSeriesDataSourceConfig.getFilter();
       if (filter == null &&
@@ -304,14 +304,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       }
 
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Running ES Query: " + metaQuery.toString());
+        LOG.trace("Running Meta Query: " + metaQuery.toString());
       }
 
       return client.runQuery(metaQuery, queryPipelineContext, child)
           .addCallback(new ResultCB())
           .addErrback(new ErrorCB());
     } catch (Exception e) {
-      LOG.error("Failed to build ES query", e);
+      LOG.error("Failed to build Meta query", e);
       return Deferred.fromError(e);
     } catch (Error e) {
       LOG.error("Major booboo", e);

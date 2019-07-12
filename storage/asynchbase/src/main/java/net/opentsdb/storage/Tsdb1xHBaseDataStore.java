@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,18 +14,31 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.hbase.async.AppendRequest;
+import org.hbase.async.ClientStats;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.PleaseThrottleException;
 import org.hbase.async.PutRequest;
 import org.hbase.async.RecoverableException;
+import org.hbase.async.RegionClientStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
@@ -33,11 +46,10 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
 import net.opentsdb.uid.IdOrError;
@@ -49,8 +61,10 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
-
+public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
+  private static final Logger LOG = LoggerFactory.getLogger(
+      Tsdb1xHBaseDataStore.class);
+  
   /** Config keys */
   public static final String CONFIG_PREFIX = "tsd.storage.";
   public static final String DATA_TABLE_KEY = "data_table";
@@ -114,12 +128,18 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   private final boolean enable_appends;
   private final boolean enable_appends_coproc;
   
+  private ClientStatsWrapper client_stats;
+  private Map<String, RegionClientStatsWrapper> region_client_stats;
+  
   public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
                               final String id,
                               final Schema schema) {
     this.tsdb = factory.tsdb();
     this.id = id;
     this.schema = schema;
+    
+    client_stats = new ClientStatsWrapper();
+    region_client_stats = Maps.newHashMap();
     
     // TODO - flatten the config and pass it down to the client lib.
     final org.hbase.async.Config async_config = new org.hbase.async.Config();
@@ -277,21 +297,6 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
     enable_appends_coproc = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
     
-//    Map<String, ConfigurationEntryWrapper> cfg = tsdb.getConfig().getView().getEntries();
-//    for (final Entry<String, ConfigurationEntryWrapper> entry : cfg.entrySet()) {
-//      if (entry.getValue().getOverrides() != null && 
-//          !entry.getValue().getOverrides().isEmpty()) {
-//        final Object obj = entry.getValue().getOverrides().get(
-//            entry.getValue().getOverrides().size() - 1).getValue();
-//        async_config.overrideConfig(entry.getKey(), obj == null ? null : obj.toString());
-//        System.out.println("KEY: " + entry.getKey() + "  V: " + (obj == null ? null : obj.toString()));
-//      } else {
-//        final Object obj = entry.getValue().getSchema().getDefaultValue();
-//        async_config.overrideConfig(entry.getKey(),
-//            obj == null ? null : obj.toString());
-//        System.out.println("KEY: " + entry.getKey() + "  V: " + (obj == null ? null : obj.toString()));
-//      }
-//    }
     // TODO - shared client!
     client = new HBaseClient(async_config);
     
@@ -300,6 +305,9 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     uid_store = new Tsdb1xUniqueIdStore(this);
     tsdb.getRegistry().registerSharedObject(Strings.isNullOrEmpty(id) ? 
         "default_uidstore" : id + "_uidstore", uid_store);
+    
+    // start the stats timer.
+    tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
   }
   
   @Override
@@ -495,4 +503,221 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     return tsdb.getConfig().getBoolean(key);
   }
   
+  /** The metric timer task */
+  public void run(final Timeout ignored) {
+    try {
+      final StatsCollector stats = tsdb.getStatsCollector();
+      client_stats.run(client.stats(), stats);
+      final Set<String> region_clients = Sets.newHashSet();
+      for (final RegionClientStats rc_stats : client.regionStats()) {
+        RegionClientStatsWrapper wrapper = region_client_stats.get(rc_stats.remoteEndpoint());
+        if (wrapper == null) {
+          wrapper = new RegionClientStatsWrapper();
+          region_client_stats.put(rc_stats.remoteEndpoint(), wrapper);
+        }
+        wrapper.run(rc_stats, stats);
+        region_clients.add(rc_stats.remoteEndpoint());
+      }
+      
+      // now clean out stale entries.
+      final Iterator<Entry<String, RegionClientStatsWrapper>> iterator = 
+          region_client_stats.entrySet().iterator();
+      while (iterator.hasNext()) {
+        final Entry<String, RegionClientStatsWrapper> entry = iterator.next();
+        if (!region_clients.contains(entry.getKey())) {
+          iterator.remove();
+        }
+      }
+      
+    } catch (Throwable t) {
+      LOG.error("Failed to fetch stats for HBase store: " + id, t);
+    } finally {
+      tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
+    }
+  }
+  
+  class ClientStatsWrapper {
+    private long num_connections_created;
+    private long root_lookups;
+    private long meta_lookups_with_permit;
+    private long meta_lookups_wo_permit;
+    private long num_flushes;
+    private long num_nsres;
+    private long num_nsre_rpcs;
+    private long num_multi_rpcs;
+    private long num_gets;
+    private long num_scanners_opened;
+    private long num_scans;
+    private long num_puts;
+    private long num_appends;
+    private long num_row_locks;
+    private long num_deletes;
+    private long num_atomic_increments;
+    private long idle_connections_closed;
+    
+    void run(final ClientStats client_stats, final StatsCollector stats) {
+      long delta = client_stats.connectionsCreated() - num_connections_created;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.connections.created", delta, "id", id);
+      }
+      
+      delta = client_stats.idleConnectionsClosed() - idle_connections_closed;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.connections.closed", delta, 
+            "id", id, "reason", "idle");
+      }
+
+      delta = client_stats.rootLookups() - root_lookups;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rootLookups", delta, "id", id);
+      }
+      
+      delta = client_stats.uncontendedMetaLookups() - meta_lookups_with_permit;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.meta.lookupsWithPermit", delta, "id", id);
+      }
+      
+      delta = client_stats.contendedMetaLookups() - meta_lookups_wo_permit;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.meta.lookupsWOPermit", delta, "id", id);
+      }
+      
+      delta = client_stats.flushes() - num_flushes;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.flushes", delta, "id", id);
+      }
+      
+      delta = client_stats.noSuchRegionExceptions() - num_nsres;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.nsre.totalHandled", delta, "id", id);
+      }
+      
+      delta = client_stats.numRpcDelayedDueToNSRE() - num_nsre_rpcs;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.nsre.rpcsHandled", delta, "id", id);
+      }
+      
+      delta = client_stats.numBatchedRpcSent() - num_multi_rpcs;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs.batched", delta, "id", id);
+      }
+      
+      delta = client_stats.gets() - num_gets;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "get");
+      }
+      
+      delta = client_stats.scans() - num_scans;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "scans");
+      }
+      
+      delta = client_stats.puts() - num_puts;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "puts");
+      }
+      
+      delta = client_stats.appends() - num_appends;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "appends");
+      }
+      
+      delta = client_stats.rowLocks() - num_row_locks;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "locks");
+      }
+      
+      delta = client_stats.deletes() - num_deletes;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "deletes");
+      }
+      
+      delta = client_stats.atomicIncrements() - num_atomic_increments;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.rpcs", delta, "id", id, "type", "atomicIncrements");
+      }
+      
+      delta = client_stats.scannersOpened()- num_scanners_opened;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.scanners.opened", delta, "id", id);
+      }
+      
+      stats.setGauge("hbase.rpcs.inflight", client_stats.inflightRPCs(), "id", id);
+      stats.setGauge("hbase.rpcs.pending", client_stats.pendingRPCs(), "id", id);
+      stats.setGauge("hbase.rpcs.pendingBatched", client_stats.pendingBatchedRPCs(), 
+          "id", id);
+      stats.setGauge("hbase.regionClients.open", client_stats.regionClients(), "id", id);
+      stats.setGauge("hbase.regionClients.dead", client_stats.deadRegionClients(), "id", id);
+    }
+  }
+  
+  class RegionClientStatsWrapper {
+    private long rpcs_sent;
+    private long rpcs_timedout;
+    private long writes_blocked;
+    private int writes_blocked_by_rate_limiter;
+    private long rpc_response_timedout;
+    private long rpc_response_unknown;
+    private long inflight_breached;
+    
+    void run(final RegionClientStats region_stats, final StatsCollector stats) {
+      String region_server = region_stats.remoteEndpoint(); // TODO
+      
+      long delta = region_stats.rpcsSent() - rpcs_sent;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.sent", delta, "id", id,
+            "regionServer", region_server);
+      }
+      
+      delta = region_stats.rpcsTimedout() - rpcs_timedout;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.timedout", delta, "id", id,
+            "regionServer", region_server);
+      }
+      
+      delta = region_stats.writesBlocked() - writes_blocked;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.writeBlocked", delta, "id", id,
+            "regionServer", region_server);
+      }
+      
+      delta = region_stats.writesBlockedByRateLimiter() - writes_blocked_by_rate_limiter;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.writeBlockedDueToRateLimiter", 
+            delta, "id", id, "regionServer", region_server);
+      }
+      
+      delta = region_stats.rpcResponsesTimedout() - rpc_response_timedout;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.responseAfterTimeout", 
+            delta, "id", id, "regionServer", region_server);
+      }
+      
+      delta = region_stats.rpcResponsesUnknown() - rpc_response_unknown;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.responseUnknown", 
+            delta, "id", id, "regionServer", region_server);
+      }
+      
+      delta = region_stats.inflightBreached() - inflight_breached;
+      if (delta > 0) {
+        stats.incrementCounter("hbase.regionServer.rpcs.inflightBreached", 
+            delta, "id", id, "regionServer", region_server);
+      }
+      
+      stats.setGauge("hbase.regionServer.rpcs.inflight", region_stats.inflightRPCs(),
+          "id", id, "regionServer", region_server);
+      stats.setGauge("hbase.regionServer.rpcs.pending", region_stats.pendingRPCs(),
+          "id", id, "regionServer", region_server);
+      stats.setGauge("hbase.regionServer.rpcs.pendingBatched", 
+          region_stats.pendingBatchedRPCs(), "id", id, "regionServer", region_server);
+      stats.setGauge("hbase.regionServer.rpcId", region_stats.rpcID(),
+          "id", id, "regionServer", region_server);
+      stats.setGauge("hbase.regionServer.dead", region_stats.isDead() ? 1 : 0,
+          "id", id, "regionServer", region_server);
+      stats.setGauge("hbase.regionServer.rateLimit", 
+          Double.isInfinite(region_stats.rateLimit()) ? -1 : region_stats.rateLimit(),
+          "id", id, "regionServer", region_server);
+    }
+  }
 }
