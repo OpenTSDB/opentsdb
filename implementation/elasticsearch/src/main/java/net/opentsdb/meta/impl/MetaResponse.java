@@ -26,5 +26,12 @@ import java.util.Map;
 
 public interface MetaResponse {
 
-  Map<NamespacedKey, MetaDataStorageResult> parse(BatchMetaQuery batchMetaQuery, TSDB tsdb, QueryPipelineContext context, boolean is_multi_get, Span span);
+  Map<NamespacedKey, MetaDataStorageResult> parse(
+      final BatchMetaQuery batchMetaQuery, 
+      final TSDB tsdb, 
+      final QueryPipelineContext context, 
+      final boolean is_multi_get,
+      final int max_cardinality,
+      final boolean fallback_on_no_data,
+      final Span span);
 }
