@@ -33,6 +33,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -80,8 +81,10 @@ import java.util.Set;
  *
  * @since 3.0
  */
-public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACluster> implements
-    TimeSeriesDataSourceFactory<HAClusterConfig, HACluster> {
+public class HAClusterFactory extends BaseQueryNodeFactory<
+    TimeSeriesDataSourceConfig, HACluster> implements
+      TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, HACluster> {
+  
   public static final String TYPE = "HACluster";
 
   public static final String KEY_PREFIX = "tsd.query.";
@@ -109,9 +112,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 
   @Override
   public boolean supportsQuery(final TimeSeriesQuery query, 
-                               final HAClusterConfig config) {
+                               final TimeSeriesDataSourceConfig config) {
     if (config instanceof HAClusterConfig) {
-      final HAClusterConfig cluster_config = config;
+      final HAClusterConfig cluster_config = (HAClusterConfig) config;
       if (cluster_config.getHasBeenSetup()) {
         return true;
       }
@@ -167,7 +170,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final HAClusterConfig config,
+                         final TimeSeriesDataSourceConfig config,
                          final QueryPlanner planner) {
     if (((TimeSeriesDataSourceConfig) config).hasBeenSetup()) {
       return;
@@ -177,8 +180,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
     boolean needs_id_converter = false;
 
     if (config instanceof HAClusterConfig) {
-      final HAClusterConfig cluster_config = config;
-      builder = config.toBuilder();
+      final HAClusterConfig cluster_config = (HAClusterConfig) config;
+      builder = cluster_config.toBuilder();
       builder.setHasBeenSetup(true);
 
       if (Strings.isNullOrEmpty(cluster_config.getMergeAggregator())) {
@@ -203,6 +206,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
       }
     } else {
       builder = HAClusterConfig.newBuilder();
+      HAClusterConfig.cloneBuilder(config, builder);
       builder.setMergeAggregator(tsdb.getConfig().getString(
                getConfigKey(AGGREGATOR_KEY)))
              .setPrimaryTimeout(tsdb.getConfig().getString(
@@ -230,14 +234,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
             + builder.dataSources().get(0));
         }
         
-        QueryNodeConfig rebuilt = builder
+        TimeSeriesDataSourceConfig rebuilt = builder
             .setSourceId(builder.dataSources().get(0))
             .setId(config.getId())
             .build();
         planner.replace(config, rebuilt);
-//        // Check for time offsets.
-//        DefaultTimeSeriesDataSourceConfig.setupTimeShiftSingleNode(
-//            (TimeSeriesDataSourceConfig) rebuilt, planner);
         return;
       }
 
@@ -266,7 +267,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 
     if (config instanceof HAClusterConfig) {
       for (final TimeSeriesDataSourceConfig source : 
-            (config).getDataSourceConfigs()) {
+            ((HAClusterConfig) config).getDataSourceConfigs()) {
         if (Strings.isNullOrEmpty(source.getSourceId())) {
           throw new IllegalArgumentException("The sourceId cannot be null "
               + "or empty for the config override: " + source);
@@ -322,7 +323,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 
       factories.put(source, factory);
 
-      Builder rebuilt = config.toBuilder().setSourceId(source).setId(new_id + "_" + source);
+      TimeSeriesDataSourceConfig.Builder rebuilt = 
+          (TimeSeriesDataSourceConfig.Builder) config.toBuilder();
+      rebuilt.setSourceId(source)
+             .setId(new_id + "_" + source);
       for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
         if (extant.id().equals(rebuilt.id())) {
           throw new IllegalArgumentException("Duplicate source IDs are "
@@ -378,7 +382,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
                         .setDataType(NumericType.TYPE.toString())
                         .build())
                 .addSource(new_id)
-                .setId(builder.id())
+                .setId(config.getId())
                 .build();
         planner.replace(config, merger);
 
@@ -429,9 +433,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
         if (last != null) {
           planner.addEdge(rebuilt, last);
         }
-
-//        // re-link
-//        planner.removeEdge(max.get(0), merger);
+        
         predecessor = max.get(max.size() - 1);
         predecessors = Sets.newHashSet(planner.configGraph().predecessors(predecessor));
         for (final QueryNodeConfig pred : predecessors) {
@@ -473,7 +475,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
           }
           new_sources.get(i).setPushDownNodes(renamed_pushdowns);
           
-          final TimeSeriesDataSourceConfig new_source = (TimeSeriesDataSourceConfig) new_sources.get(i).build();
+          final TimeSeriesDataSourceConfig new_source = (TimeSeriesDataSourceConfig) 
+              new_sources.get(i)
+              .build();
           if (source_push_downs.size() == max_pushdowns) {
             planner.addEdge(rebuilt, new_source);
           } else {
@@ -550,8 +554,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory<HAClusterConfig, HACl
 
   @Override
   public HACluster newNode(final QueryPipelineContext context,
-                           final HAClusterConfig config) {
-    return new HACluster(this, context, config);
+                           final TimeSeriesDataSourceConfig config) {
+    return new HACluster(this, context, (HAClusterConfig) config);
   }
 
   @Override

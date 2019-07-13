@@ -83,7 +83,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
   }
 
   @Override
-  public QueryNodeConfig config() {
+  public HAClusterConfig config() {
     return config;
   }
 
@@ -117,16 +117,18 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     synchronized (results) {
       QueryResult extant = results.putIfAbsent(next.dataSource(), next);
       if (extant != null) {
-        LOG.warn("Late result from source: " 
+        LOG.warn("Duplicate result from source: " 
             + next.source().config().getId() + ":" + next.dataSource());
-        context.queryContext().logWarn(this, "Late result from source: " 
+        context.queryContext().logWarn(this, "Duplicate result from source: " 
             + next.source().config().getId() + next.dataSource());
         return;
       }
      
       for (final Entry<String, QueryResult> entry : results.entrySet()) {
         if (entry.getValue() == null) {
-          LOG.trace("MISSING: " + entry.getKey());
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("MISSING: " + entry.getKey());
+          }
           all_in = false;
           break;
         }
@@ -134,6 +136,9 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     }
     
     if (all_in) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("All in!");
+      }
       complete(false);
       return;
     }
@@ -142,6 +147,10 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     // other sources respond.
     if (Strings.isNullOrEmpty(next.error()) && next.exception() == null) {
       if (config.getDataSources().get(0).equals(next.dataSource())) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Received primary: " + next.source().config().getId() 
+              + next.dataSource());
+        }
         if (context.query().isTraceEnabled()) {
           context.queryContext().logTrace(this, "Received primary: " 
               + next.source().config().getId() + next.dataSource());
@@ -168,8 +177,16 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
         }
         
         if (!matched) {
-          // WTF? 
+          // WTF?
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Source " + next.source().config().getId() + ":" 
+                + next.dataSource() + " did not match a configured data source!");
+          }
         } else {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Received secondary: " + next.source().config().getId() 
+                + next.dataSource());
+          }
           if (context.query().isTraceEnabled()) {
             context.queryContext().logTrace(this, "Received secondary: " 
                 + next.source().config().getId() + next.dataSource());
@@ -300,6 +317,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
       secondary_timer.cancel();
     }
     
+    try {
     // do it
     synchronized (results) {
       QueryResult good_result = null;
@@ -312,6 +330,11 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
       
       for (final Entry<String, QueryResult> entry : results.entrySet()) {
         if (entry.getValue() != null) {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Sending up real result: " 
+                + entry.getValue().source().config().getId() 
+                + ":" + entry.getValue().dataSource());
+          }
           if (timed_out) {
             context.tsdb().getQueryThreadPool().submit(new Runnable() {
               @Override
@@ -330,6 +353,11 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
             final QueryResult cluster_result = new WrappedResult(
                 new EmptyResult(good_result, node));
             if (node.config().getId().equals(entry.getKey())) {
+              if (LOG.isTraceEnabled()) {
+                LOG.trace("Sending up missing result: " 
+                    + cluster_result.source().config().getId() 
+                    + ":" + cluster_result.dataSource());
+              }
               if (timed_out) {
                 context.tsdb().getQueryThreadPool().submit(new Runnable() {
                   @Override
@@ -345,6 +373,9 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
           }
         }
       }
+    }
+    } catch (Throwable t) {
+      LOG.error("WTF?", t);
     }
   }
   

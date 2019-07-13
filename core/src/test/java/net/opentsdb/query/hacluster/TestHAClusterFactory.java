@@ -132,8 +132,7 @@ public class TestHAClusterFactory {
     SemanticQuery query = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(HAClusterConfig.newBuilder()
-            .setMergeAggregator("max")
+        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.if.in")
                 .build())
@@ -349,7 +348,7 @@ public class TestHAClusterFactory {
     SemanticQuery query = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(HAClusterConfig.newBuilder()
+        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.if.in")
                 .build())
@@ -561,8 +560,7 @@ public class TestHAClusterFactory {
     SemanticQuery query = SemanticQuery.newBuilder()
         .setStart("1h-ago")
         .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(HAClusterConfig.newBuilder()
-            .setMergeAggregator("max")
+        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.if.in")
                 .build())
@@ -639,8 +637,7 @@ public class TestHAClusterFactory {
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("gb")));
   }
-
-
+  
   @Test
   public void setupGraphPushDownS2_S3() throws Exception {
     SemanticQuery query = SemanticQuery.newBuilder()

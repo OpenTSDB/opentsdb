@@ -48,7 +48,10 @@ import java.util.List;
  */
 @JsonInclude(Include.NON_DEFAULT)
 @JsonDeserialize(builder = BaseTimeSeriesDataSourceConfig.Builder.class)
-public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
+public abstract class BaseTimeSeriesDataSourceConfig<B extends 
+    BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends 
+        BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends 
+          BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
 
   /** The source provider ID. */
   private final String source_id;
@@ -104,9 +107,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
    */
   protected BaseTimeSeriesDataSourceConfig(final Builder builder) {
     super(builder);
-    if (builder.metric == null) {
-      throw new IllegalArgumentException("Metric filter cannot be null.");
-    }
     source_id = builder.sourceId;
     types = builder.types;
     namespace = builder.namespace;
@@ -268,7 +268,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
 
   }
 
-
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
@@ -302,13 +301,13 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
       for (final String key : keys) {
         hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hc.hash());
     }
+    hashes.add(hc.hash());
 
     return Hashing.combineOrdered(hashes);
   }
 
-  public static void cloneBuilder(BaseTimeSeriesDataSourceConfig config, Builder builder) {
+  public static void cloneBuilder(TimeSeriesDataSourceConfig config, Builder builder) {
     builder
         .setSourceId(config.getSourceId())
         .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
@@ -334,7 +333,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
                 : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .setTimeShifts(config.timeShifts())
-        .setHasBeenSetup(config.hasBeenSetup())
         // TODO - overrides if we keep em.
         .setType(config.getType())
         .setId(config.getId());

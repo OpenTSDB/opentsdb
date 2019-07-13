@@ -49,7 +49,8 @@ import net.opentsdb.utils.DateTime;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = HAClusterConfig.Builder.class)
-public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterConfig.Builder, HAClusterConfig> {
+public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
+    HAClusterConfig.Builder, HAClusterConfig> {
 
   /** The non-null and non-empty list of sources to query. */
   private final List<String> data_sources;
@@ -242,7 +243,8 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<HAClusterCon
 
   /** The builder class for cluster configs. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder<Builder, HAClusterConfig> {
+  public static class Builder extends BaseTimeSeriesDataSourceConfig.Builder<
+      Builder, HAClusterConfig> {
     @JsonProperty
     private List<String> dataSources;
     @JsonProperty

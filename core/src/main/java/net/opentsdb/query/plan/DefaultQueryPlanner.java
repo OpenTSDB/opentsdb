@@ -424,7 +424,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
         return true;
       }
     }
-    
     return false;
   }
   
