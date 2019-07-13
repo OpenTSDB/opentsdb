@@ -25,6 +25,7 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.QueryIteratorFactory;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -42,7 +43,7 @@ import java.util.Map;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryNodeFactory<C extends BaseQueryNodeConfig, N extends AbstractQueryNode>
+public abstract class BaseQueryNodeFactory<C extends QueryNodeConfig, N extends AbstractQueryNode>
     extends BaseTSDBPlugin implements ProcessorFactory<C, N> {
   private final Logger LOG = LoggerFactory.getLogger(getClass());
   

@@ -344,12 +344,16 @@ public class HttpQueryV3Result implements QueryResult {
         final TypeToken<? extends TimeSeriesDataType> type) {
       // TODO - cleanup
       if (types.contains(type)) {
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> data = null;
         if (type == NumericType.TYPE) {
-          return Optional.of(new NumericData(node.get("NumericType")));
+          data = new NumericData(node.get("NumericType"));
         } else if (type == NumericArrayType.TYPE) {
-          return Optional.of(new ArrayData(node.get("NumericType")));
+          data = new ArrayData(node.get("NumericType"));
         } else if (type == NumericSummaryType.TYPE) {
-          return Optional.of(new SummaryData(node.get("NumericSummaryType")));
+          data = new SummaryData(node.get("NumericSummaryType"));
+        }
+        if (data != null) {
+          return Optional.of(data);
         }
         return Optional.empty();
       }

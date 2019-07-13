@@ -22,8 +22,6 @@ import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
 import org.junit.Test;
 
@@ -55,20 +53,6 @@ public class TestHAClusterConfig {
     assertEquals("5s", config.getSecondaryTimeout());
     assertEquals("10s", config.getPrimaryTimeout());
     assertEquals("ha", config.getId());
-
-    try {
-      HAClusterConfig.newBuilder()
-              .setDataSources(Lists.newArrayList())
-              .setMergeAggregator("sum")
-              .setSecondaryTimeout("5s")
-              .setPrimaryTimeout("10s")
-//          .setMetric(MetricLiteralFilter.newBuilder()
-//              .setMetric("sys.cpu.user")
-//              .build())
-          .setId("ha")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
     
     try {
       haBuilder = HAClusterConfig.newBuilder()

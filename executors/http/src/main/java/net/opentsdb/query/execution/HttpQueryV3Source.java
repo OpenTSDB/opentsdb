@@ -138,10 +138,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setLogLevel(context.query().getLogLevel());
 
     TimeSeriesDataSourceConfig.Builder source_builder =
-        config.toBuilder()
-        .setPushDownNodes(null)
-        .setSourceId(null) // TODO - we may want to make this configurable
-        .setType("TimeSeriesDataSource");
+        (Builder) config.toBuilder()
+    .setPushDownNodes(null)
+    .setSourceId(null) // TODO - we may want to make this configurable
+    .setType("TimeSeriesDataSource");
 
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
       builder.addFilter(DefaultNamedFilter.newBuilder()
