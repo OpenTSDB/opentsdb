@@ -198,6 +198,16 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
     return config.getNamespace();
   }
 
+  @Override
+  public int getFrom() {
+    return config.getFrom();
+  }
+
+  @Override
+  public int getSize() {
+    return config.getSize();
+  }
+
   /** @return The non-null metric filter. */
   public MetricFilter getMetric() {
     return config.getMetric();

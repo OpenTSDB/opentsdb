@@ -59,6 +59,12 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   /** An optional namespace. */
   private final String namespace;
 
+  /** An optional starting index for pagination. */
+  private final int from;
+
+  /** An optional size for pagination. */
+  private final int size;
+
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
 
@@ -110,6 +116,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     source_id = builder.sourceId;
     types = builder.types;
     namespace = builder.namespace;
+    from = builder.from;
+    size = builder.size;
     metric = builder.metric;
     filter_id = builder.filterId;
     filter = builder.filter;
@@ -157,6 +165,16 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   @Override
   public String getNamespace() {
     return namespace;
+  }
+
+  @Override
+  public int getFrom() {
+    return from;
+  }
+
+  @Override
+  public int getSize() {
+    return size;
   }
 
   @Override
@@ -499,6 +517,10 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     @JsonProperty
     protected String namespace;
     @JsonProperty
+    protected int from;
+    @JsonProperty
+    protected int size;
+    @JsonProperty
     protected MetricFilter metric;
     @JsonProperty
     protected String filterId;
@@ -555,6 +577,18 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     @Override
     public B setNamespace(final String namespace) {
       this.namespace = namespace;
+      return self();
+    }
+
+    @Override
+    public B setFrom(final int from) {
+      this.from = from;
+      return self();
+    }
+
+    @Override
+    public B setSize(final int size) {
+      this.size = size;
       return self();
     }
 
