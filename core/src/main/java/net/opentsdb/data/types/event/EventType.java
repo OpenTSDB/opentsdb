@@ -40,9 +40,6 @@ public interface EventType extends TimeSeriesDataType<EventType> {
   /** Priority of the event, low/high/medium etc */
   public String priority();
 
-  /** Status of the event, good/bad etc */
-  public String status();
-
   /** Timestamp of the event trigger */
   public TimeStamp timestamp();
 

@@ -914,7 +914,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     json.writeStringField("title", eventsValue.title());
     json.writeStringField("message", eventsValue.message());
     json.writeStringField("priority", eventsValue.priority());
-    json.writeStringField("status", eventsValue.status());
     json.writeStringField("timestamp", Long.toString(eventsValue.timestamp().epoch()));
     json.writeStringField("endTimestamp", Long.toString(eventsValue.endTimestamp().epoch()));
     json.writeStringField("userId", eventsValue.userId());

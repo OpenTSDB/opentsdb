@@ -46,9 +46,6 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
   /** Priority of the event, low/high/medium etc */
   private final String priority;
 
-  /** Status of the event, good/bad etc */
-  private final String status;
-
   /** User of the event */
   private final String userId;
 
@@ -75,7 +72,6 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
     this.title = builder.title;
     this.message = builder.message;
     this.priority = builder.priority;
-    this.status = builder.status;
     this.userId = builder.userId;
     this.ongoing = builder.ongoing;
     this.parentId = builder.parentId;
@@ -130,11 +126,6 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
   }
 
   @Override
-  public String status() {
-    return status;
-  }
-
-  @Override
   public TimeStamp endTimestamp() {
     return endTimestamp;
   }
@@ -185,9 +176,6 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
 
     /** Priority of the event, low/high/medium etc */
     private String priority;
-
-    /** Status of the event, good/bad etc */
-    private String status;
 
     /** User of the event */
     private String userId;
@@ -276,16 +264,6 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
      */
     public Builder setPriority(final String priority) {
       this.priority = priority;
-      return this;
-    }
-
-    /**
-     * 
-     * @param status Status of the event, good/bad etc
-     * @return The builder.
-     */
-    public Builder setStatus(final String status) {
-      this.status = status;
       return this;
     }
 
