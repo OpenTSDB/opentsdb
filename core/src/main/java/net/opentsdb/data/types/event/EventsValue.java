@@ -155,6 +155,10 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
     return additionalProps;
   }
 
+  public Builder newBuilder() {
+    return new Builder();
+  }
+
   public static class Builder {
     /** Unique ID of the event */
     private String eventId;
