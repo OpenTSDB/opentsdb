@@ -81,6 +81,7 @@ public abstract class BaseQueryContext implements QueryContext {
     if (stats != null) {
       stats.setQueryContext(this);
     }
+
   }
   
   @Override
@@ -106,7 +107,7 @@ public abstract class BaseQueryContext implements QueryContext {
       local_span.finish();
     }
   }
-
+  
   @Override
   public QueryStats stats() {
     return stats;
