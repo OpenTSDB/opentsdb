@@ -609,17 +609,17 @@ public class TimeSeriesQuery extends Validatable
         for (final TagVFilter tag_filter : filter.getTags()) {
           if (tag_filter instanceof TagVLiteralOrFilter) {
             chain_builder.addFilter(TagValueLiteralOrFilter.newBuilder()
-                .setTagKey(tag_filter.getTagk())
+                .setKey(tag_filter.getTagk())
                 .setFilter(tag_filter.getFilter())
                 .build());
           } else if (tag_filter instanceof TagVWildcardFilter) {
             chain_builder.addFilter(TagValueWildcardFilter.newBuilder()
-                .setTagKey(tag_filter.getTagk())
+                .setKey(tag_filter.getTagk())
                 .setFilter(tag_filter.getFilter())
                 .build());
           } else if (tag_filter instanceof TagVRegexFilter) {
             chain_builder.addFilter(TagValueRegexFilter.newBuilder()
-                .setTagKey(tag_filter.getTagk())
+                .setKey(tag_filter.getTagk())
                 .setFilter(tag_filter.getFilter())
                 .build());
           }

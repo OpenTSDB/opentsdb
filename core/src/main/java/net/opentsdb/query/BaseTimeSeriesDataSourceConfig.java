@@ -48,13 +48,22 @@ import java.util.List;
  */
 @JsonInclude(Include.NON_DEFAULT)
 @JsonDeserialize(builder = BaseTimeSeriesDataSourceConfig.Builder.class)
-public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
+public abstract class BaseTimeSeriesDataSourceConfig<B extends 
+    BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends 
+        BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends 
+          BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
 
   /** The source provider ID. */
   private final String source_id;
 
   /** An optional namespace. */
   private final String namespace;
+
+  /** An optional starting index for pagination. */
+  private final int from;
+
+  /** An optional size for pagination. */
+  private final int size;
 
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
@@ -104,12 +113,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
    */
   protected BaseTimeSeriesDataSourceConfig(final Builder builder) {
     super(builder);
-    if (builder.metric == null) {
-      throw new IllegalArgumentException("Metric filter cannot be null.");
-    }
     source_id = builder.sourceId;
     types = builder.types;
     namespace = builder.namespace;
+    from = builder.from;
+    size = builder.size;
     metric = builder.metric;
     filter_id = builder.filterId;
     filter = builder.filter;
@@ -157,6 +165,16 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
   @Override
   public String getNamespace() {
     return namespace;
+  }
+
+  @Override
+  public int getFrom() {
+    return from;
+  }
+
+  @Override
+  public int getSize() {
+    return size;
   }
 
   @Override
@@ -268,7 +286,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
 
   }
 
-
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
@@ -302,13 +319,13 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
       for (final String key : keys) {
         hc.putString(key, Const.UTF8_CHARSET);
       }
-      hashes.add(hc.hash());
     }
+    hashes.add(hc.hash());
 
     return Hashing.combineOrdered(hashes);
   }
 
-  public static void cloneBuilder(BaseTimeSeriesDataSourceConfig config, Builder builder) {
+  public static void cloneBuilder(TimeSeriesDataSourceConfig config, Builder builder) {
     builder
         .setSourceId(config.getSourceId())
         .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
@@ -334,7 +351,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
                 : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .setTimeShifts(config.timeShifts())
-        .setHasBeenSetup(config.hasBeenSetup())
         // TODO - overrides if we keep em.
         .setType(config.getType())
         .setId(config.getId());
@@ -501,6 +517,10 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
     @JsonProperty
     protected String namespace;
     @JsonProperty
+    protected int from;
+    @JsonProperty
+    protected int size;
+    @JsonProperty
     protected MetricFilter metric;
     @JsonProperty
     protected String filterId;
@@ -557,6 +577,18 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends BaseTimeSeriesDat
     @Override
     public B setNamespace(final String namespace) {
       this.namespace = namespace;
+      return self();
+    }
+
+    @Override
+    public B setFrom(final int from) {
+      this.from = from;
+      return self();
+    }
+
+    @Override
+    public B setSize(final int size) {
+      this.size = size;
       return self();
     }
 

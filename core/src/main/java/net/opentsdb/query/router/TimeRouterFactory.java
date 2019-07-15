@@ -69,7 +69,7 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, TimeSeriesDataSource> {
-
+  
   public static final String TYPE = "TimeNamespaceRouter";
 
   public static final String KEY_PREFIX = "tsd.query.tnrouter.";

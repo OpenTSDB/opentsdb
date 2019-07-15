@@ -12,26 +12,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package net.opentsdb.query.filter;
 
-package net.opentsdb.meta.impl;
+import com.google.common.hash.HashCode;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.BatchMetaQuery;
-import net.opentsdb.meta.MetaDataStorageResult;
-import net.opentsdb.meta.NamespacedKey;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.stats.Span;
+public interface PassThroughFilter extends QueryFilter {
 
-import java.util.Map;
+  /** @return The non-null and non-empty filter string. */
+  public String getFilter();
 
-public interface MetaResponse {
+  /**
+   * Whether or not the filter is satisfied with the metric.
+   * @param filter The non-null and non-empty metric string.
+   * @return True if satisfied, false if not.
+   */
+  public boolean matches(final String filter);
 
-  Map<NamespacedKey, MetaDataStorageResult> parse(
-      final BatchMetaQuery batchMetaQuery, 
-      final TSDB tsdb, 
-      final QueryPipelineContext context, 
-      final boolean is_multi_get,
-      final int max_cardinality,
-      final boolean fallback_on_no_data,
-      final Span span);
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode();
 }

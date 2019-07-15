@@ -206,8 +206,9 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * Adds the timeseries and filters on the metric.
    * @param id A non-null time series string id.
    */
-  public void addTimeSeries(final TimeSeriesId id, final MetaQuery meta_query, final
-   String metric_only) {
+  public void addTimeSeries(final TimeSeriesId id, 
+                            final MetaQuery meta_query, 
+                            final String metric_only) {
     if (meta_query != null &&
         !matchMetric(metric_only, false, meta_query.filter())) {
       return;
@@ -317,7 +318,6 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     if (filter == null) {
       return true;
     }
-
     if (filter instanceof MetricFilter) {
       final boolean result = ((MetricFilter) filter).matches(metric);
       if (not) {

@@ -143,10 +143,10 @@ public class HttpQueryV3Factory
         builder = config.toBuilder();
 
     TimeSeriesDataSourceConfig new_config =
-        builder
-            .setTimeShifts(config.timeShifts())
-            .setTimeShiftInterval(config.getTimeShiftInterval())
-            .build();
+        (TimeSeriesDataSourceConfig) builder
+        .setTimeShifts(config.timeShifts())
+        .setTimeShiftInterval(config.getTimeShiftInterval())
+        .build();
 
     planner.replace(config, new_config);
 

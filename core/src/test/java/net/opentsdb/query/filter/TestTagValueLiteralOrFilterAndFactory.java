@@ -14,7 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertNotEquals;
 
 import org.junit.Test;
@@ -34,6 +37,17 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     JsonNode node = JSON.getMapper().readTree(json);
     TagValueLiteralOrFilter filter = (TagValueLiteralOrFilter) 
+        factory.parse(tsdb, JSON.getMapper(), node);
+    assertEquals("host", filter.getTagKey());
+    assertEquals("web01|web02", filter.getFilter());
+    assertEquals(2, filter.literals().size());
+    assertTrue(filter.literals().contains("web01"));
+    assertTrue(filter.literals().contains("web02"));
+    
+    json = "{\"key\":\"host\",\"filter\":\"web01|web02\"}";
+    
+    node = JSON.getMapper().readTree(json);
+    filter = (TagValueLiteralOrFilter) 
         factory.parse(tsdb, JSON.getMapper(), node);
     assertEquals("host", filter.getTagKey());
     assertEquals("web01|web02", filter.getFilter());
@@ -66,7 +80,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
   @Test
   public void builder() throws Exception {
     TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web01")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -75,7 +89,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     assertTrue(filter.literals().contains("web01"));
     
     filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web01|web02")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -86,7 +100,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     // trim
     filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter(" web01 | web02 ")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -97,7 +111,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     // leading and trailing pipes
     filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("| web01 | web02 | ")
         .build();
     assertEquals("host", filter.getTagKey());
@@ -116,7 +130,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     try {
       TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("")
+        .setKey("")
         .setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");
@@ -124,7 +138,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     try {
       TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         //.setFilter("web01")
         .build();
       fail("Expected IllegalArgumentException");
@@ -132,7 +146,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     try {
       TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("")
         .build();
       fail("Expected IllegalArgumentException");
@@ -140,7 +154,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
     
     try {
       TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("|")
         .build();
       fail("Expected IllegalArgumentException");
@@ -150,7 +164,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
   @Test
   public void serialize() throws Exception {
     TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web01|web02")
         .build();
     
@@ -163,7 +177,7 @@ public class TestTagValueLiteralOrFilterAndFactory {
   @Test
   public void initialize() throws Exception {
     TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
-        .setTagKey("host")
+        .setKey("host")
         .setFilter("web01")
         .build();
     assertNull(filter.initialize(null).join());
@@ -191,7 +205,6 @@ public class TestTagValueLiteralOrFilterAndFactory {
 
   }
 
-
   @Test
   public void tagkeyRegexEquality() throws Exception {
     TagKeyRegexFilter filter = TagKeyRegexFilter.newBuilder()
@@ -214,27 +227,26 @@ public class TestTagValueLiteralOrFilterAndFactory {
 
   }
 
-
   @Test
   public void tagvalueLiteralEquality() throws Exception {
     TagValueLiteralOrFilter filter = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("web01|web02")
             .build();
 
     TagValueLiteralOrFilter filter2 = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("web01 | web02")
             .build();
 
 
     TagValueLiteralOrFilter filter3 = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host")
+            .setKey("host")
             .setFilter("web01")
             .build();
 
     TagValueLiteralOrFilter filter4 = TagValueLiteralOrFilter.newBuilder()
-            .setTagKey("host2")
+            .setKey("host2")
             .setFilter("web01 | web02")
             .build();
 
@@ -245,6 +257,5 @@ public class TestTagValueLiteralOrFilterAndFactory {
     assertNotEquals(filter.hashCode(), filter3.hashCode());
 
   }
-
 
 }

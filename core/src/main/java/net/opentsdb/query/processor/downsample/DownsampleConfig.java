@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,7 +55,8 @@ import java.util.List;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = DownsampleConfig.Builder.class)
-public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<DownsampleConfig.Builder, DownsampleConfig> {
+public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
+  DownsampleConfig.Builder, DownsampleConfig> {
   
   /** The given start timestamp. */
   private final String start;
@@ -65,6 +66,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
 
   /** The raw, original interval string. */
   private final String interval;
+  private final String original_interval;
 
   /** The timezone for the downsample snapping. Defaults to UTC. */
   private final ZoneId timezone;
@@ -126,6 +128,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
     infectious_nan = builder.infectious_nan;
     run_all = builder.run_all;
     fill = builder.fill;
+    if (Strings.isNullOrEmpty(builder.original_interval)) {
+      original_interval = builder.interval;
+    } else {
+      original_interval = builder.original_interval;
+    }
 
     if (!Strings.isNullOrEmpty(builder.start)) {
       start_time = new MillisecondTimeStamp(
@@ -336,8 +343,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
   public boolean joins() {
     return false;
   }
-
-
+  
   @Override
   public Builder toBuilder() {
     return new Builder()
@@ -365,6 +371,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
         .setInterval(config.interval)
         .setTimeZone(config.timezone.toString())
         .setIntervals(config.intervals)
+        .setOriginalInterval(config.original_interval)
         .setInterpolatorConfigs(Lists.newArrayList(config.interpolator_configs.values()))
         .setSources(Lists.newArrayList(config.getSources()))
         .setId(config.id);
@@ -388,9 +395,9 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
     }
 
     final DownsampleConfig dsconfig = (DownsampleConfig) o;
-
+    
     return Objects.equal(timezone.toString(), dsconfig.getTimezone())
-            && Objects.equal(interval, dsconfig.getInterval())
+            && Objects.equal(original_interval, dsconfig.original_interval)
             && Objects.equal(aggregator, dsconfig.getAggregator())
             && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
             && Objects.equal(run_all, dsconfig.getRunAll())
@@ -406,7 +413,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
-            .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(original_interval), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(timezone.toString()), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
             .putBoolean(infectious_nan)
@@ -447,6 +454,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
     @JsonProperty
     private String end;
     private List<Pair<Long, String>> intervals;
+    private String original_interval;
 
     Builder() {
       setType(DownsampleFactory.TYPE);
@@ -537,6 +545,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<Downs
       return this;
     }
 
+    public Builder setOriginalInterval(final String original_interval) {
+      this.original_interval = original_interval;
+      return this;
+    }
+    
     /** @return The constructed config.
      * @throws IllegalArgumentException if a required parameter is missing or
      * invalid. */

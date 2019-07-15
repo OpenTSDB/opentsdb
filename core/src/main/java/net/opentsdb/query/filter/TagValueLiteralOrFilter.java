@@ -58,7 +58,7 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
    * @throws IllegalArgumentException if the tagk or filter were empty or null
    */
   protected TagValueLiteralOrFilter(final Builder builder) {
-    super(builder.tagKey, builder.filter);
+    super(builder.key, builder.filter);
     if (filter.length() == 1 && filter.charAt(0) == '|') {
       throw new IllegalArgumentException("Filter must contain more than just a pipe");
     }
@@ -179,12 +179,12 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     @JsonProperty
-    private String tagKey;
+    private String key;
     @JsonProperty
     private String filter;
     
-    public Builder setTagKey(final String tag_key) {
-      this.tagKey = tag_key;
+    public Builder setKey(final String tag_key) {
+      this.key = tag_key;
       return this;
     }
     

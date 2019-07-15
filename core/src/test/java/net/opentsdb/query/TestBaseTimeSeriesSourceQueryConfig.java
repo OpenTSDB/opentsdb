@@ -70,14 +70,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     Pair<Boolean, TemporalAmount> pair = config.timeShifts();
     assertTrue(pair.getKey());
     assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
-
-    try {
-      UTConfig.createBuilder()
-        //.setMetric("system.cpu.user")
-        .setId("UT")
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
   }
   
   @Test
@@ -138,7 +130,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .setFilterId("f1")
         .setQueryFilter(TagValueLiteralOrFilter.newBuilder()
             .setFilter("web01")
-            .setTagKey("host")
+            .setKey("host")
             .build())
         .setFetchLast(true)
         .addPushDownNode(TopNConfig.newBuilder()

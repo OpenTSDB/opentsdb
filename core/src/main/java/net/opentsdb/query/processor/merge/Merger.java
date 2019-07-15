@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.merge;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
@@ -80,7 +81,7 @@ public class Merger extends AbstractQueryNode {
   public void onNext(final QueryResult next) {
     synchronized (results) {
       Boolean extant = results.get(next.dataSource());
-      if (extant && extant != null) {
+      if (extant != null && extant) {
         throw new IllegalStateException("Already got a result for: " + next.dataSource());
       } else if (extant != null) {
         results.put(next.dataSource(), true);
@@ -94,8 +95,8 @@ public class Merger extends AbstractQueryNode {
         result.add(next);
       }
       
-      for (final Boolean gotit : results.values()) {
-        if (!gotit) {
+      for (final Entry<String, Boolean> entry : results.entrySet()) {
+        if (!entry.getValue()) {
           return;
         }
       }
