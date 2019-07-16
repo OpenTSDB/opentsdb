@@ -68,7 +68,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   /** A list of data types to fetch. If empty, fetch all. */
   private final List<String> types;
 
-  /** A non-null metric filter used to determine the metric(s) to fetch. */
+  /** A optional metric filter used to determine the metric(s) to fetch. */
   private final MetricFilter metric;
 
   /** An optional filter ID found in the query. */
@@ -374,29 +374,42 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       builder.setNamespace(n.asText());
     }
 
-    n = node.get("metric");
-    if (n == null) {
-      throw new IllegalArgumentException("Missing the metric field.");
+    n = node.get("from");
+    if (n != null && !n.isNull()) {
+      builder.setFrom(n.asInt());
     }
-    JsonNode type_node = n.get("type");
-    if (type_node == null) {
-      throw new IllegalArgumentException("Missing the metric type field.");
-    }
-    String type = type_node.asText();
-    if (Strings.isNullOrEmpty(type)) {
-      throw new IllegalArgumentException("Metric type field cannot be null or empty.");
-    }
-    QueryFilterFactory factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
-    if (factory == null) {
-      throw new IllegalArgumentException("No query filter factory found for: " + type);
-    }
-    QueryFilter filter = factory.parse(tsdb, mapper, n);
-    if (filter == null || !(filter instanceof MetricFilter)) {
-      throw new IllegalArgumentException("Metric query filter was not "
-          + "an instanceof MetricFilter: " + filter.getClass());
-    }
-    builder.setMetric((MetricFilter) filter);
 
+    n = node.get("size");
+    if (n != null && !n.isNull()) {
+      builder.setSize(n.asInt());
+    }
+
+    JsonNode type_node;
+    String type;
+    QueryFilterFactory factory;
+    QueryFilter filter;
+    n = node.get("metric");
+    if (n != null) {
+      type_node = n.get("type");
+      if (type_node == null) {
+        throw new IllegalArgumentException("Missing the metric type field.");
+      }
+      type = type_node.asText();
+      if (Strings.isNullOrEmpty(type)) {
+        throw new IllegalArgumentException("Metric type field cannot be null or empty.");
+      }
+
+      factory = tsdb.getRegistry().getPlugin(QueryFilterFactory.class, type);
+      if (factory == null) {
+        throw new IllegalArgumentException("No query filter factory found for: " + type);
+      }
+      filter = factory.parse(tsdb, mapper, n);
+      if (filter == null || !(filter instanceof MetricFilter)) {
+        throw new IllegalArgumentException("Metric query filter was not "
+            + "an instanceof MetricFilter: " + filter.getClass());
+      }
+      builder.setMetric((MetricFilter) filter);
+    }
     n = node.get("types");
     if (n != null && !n.isNull()) {
       for (final JsonNode t : n) {
