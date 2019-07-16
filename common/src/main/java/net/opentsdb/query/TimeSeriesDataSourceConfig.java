@@ -48,7 +48,7 @@ public interface TimeSeriesDataSourceConfig<
   /** @return An optional size for pagination. */
   public int getSize();
 
-  /** @return The non-null metric filter. */
+  /** @return The optional metric filter. */
   public MetricFilter getMetric();
   
   /** @return An optional filter ID to fetch. */
