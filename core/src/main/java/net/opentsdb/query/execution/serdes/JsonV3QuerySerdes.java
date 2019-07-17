@@ -908,7 +908,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   private void writeEvents(EventsValue eventsValue, final JsonGenerator json) throws IOException {
 
-    json.writeArrayFieldStart("Event");
     json.writeStringField("namespace", eventsValue.namespace());
     json.writeStringField("source", eventsValue.source());
     json.writeStringField("title", eventsValue.title());
@@ -925,18 +924,19 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         json.writeString(p);
       }
     }
+    json.writeEndArray();
     if (eventsValue.childId() != null) {
       json.writeArrayFieldStart("childId");
       for (String c : eventsValue.childId()) {
         json.writeString(c);
       }
     }
+    json.writeEndArray();
     if (eventsValue.additionalProps() != null) {
       for (Map.Entry<String, Object> e : eventsValue.additionalProps().entrySet()) {
         json.writeStringField(e.getKey(), String.valueOf(e.getValue()));
       }
     }
-    json.writeEndArray();
 
   }
   
