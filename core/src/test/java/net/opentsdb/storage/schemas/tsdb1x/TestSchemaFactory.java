@@ -262,18 +262,12 @@ public class TestSchemaFactory extends SchemaBase {
     QueryNode sink = mock(QueryNode.class);
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
-
-    System.out.println(plan.printConfigGraph());
-    assertEquals(3, plan.configGraph().nodes().size());
-    QueryNodeConfig node = plan.configNodeForId("m1");
-    assertNull(node); //we don't run raw query
-
-    System.out.println(plan.printConfigGraph());
+    
     QueryNodeConfig shift = plan.configNodeForId("m1-timeShift");
     assertTrue(shift instanceof TimeShiftConfig);
-    assertFalse(plan.configGraph().hasEdgeConnecting(shift, config));
 
-    node = plan.configNodeForId("P1D-timeShift");
+    assertEquals(3, plan.configGraph().nodes().size());
+    QueryNodeConfig node = plan.configNodeForId("m1");
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
   }
 }
