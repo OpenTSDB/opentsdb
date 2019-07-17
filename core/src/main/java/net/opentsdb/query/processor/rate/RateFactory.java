@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,8 +36,6 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -121,7 +119,7 @@ public class RateFactory extends BaseQueryNodeFactory<RateConfig, Rate> {
             getQueryNodeFactory(DownsampleFactory.TYPE.toLowerCase());
         intervals = downsample_factory.intervals();
       }
-      plan.replace(config, config.newBuilder()
+      plan.replace(config, config.toBuilder()
           .setFactory(this)
           .setStartTime(context.query().startTime())
           .setEndTime(context.query().endTime())

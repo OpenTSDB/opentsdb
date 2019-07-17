@@ -176,7 +176,7 @@ public class RawQueryRpc {
         //.put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
         .put("traceId", trace != null ? trace.traceId() : "")
         .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
-        .put("query", JSON.serializeToString(query))
+        .put("query", query)
         .build()));
     Span setup_span = null;
     if (query_span != null) {
