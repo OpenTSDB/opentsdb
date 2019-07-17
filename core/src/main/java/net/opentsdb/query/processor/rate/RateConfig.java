@@ -367,10 +367,12 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
       this.deltaOnly = delta_only;
       return this;
     }
+    
     public Builder setRateToCount(final boolean rate_to_count) {
       this.rateToCount = rate_to_count;
       return this;
     }
+    
     public Builder setStartTime(final TimeStamp start_time) {
       this.start_time = start_time;
       return this;
