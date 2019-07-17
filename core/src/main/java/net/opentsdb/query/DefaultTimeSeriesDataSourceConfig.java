@@ -70,7 +70,12 @@ public class DefaultTimeSeriesDataSourceConfig
   public static void setupTimeShift(
       final TimeSeriesDataSourceConfig<DefaultTimeSeriesDataSourceConfig.Builder, DefaultTimeSeriesDataSourceConfig> config,
       final QueryPlanner planner) {
-
+    for (final QueryNodeConfig upstream : planner.configGraph().predecessors(config)) {
+      if (upstream instanceof TimeShiftConfig) {
+        return;
+      }
+    }
+    
     final Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
     final BaseQueryNodeConfig shift_config =
             TimeShiftConfig.newBuilder()
@@ -78,30 +83,19 @@ public class DefaultTimeSeriesDataSourceConfig
                 .setId(config.getId() + "-timeShift")
                 .build();
 
-    if (planner.configGraph().nodes().contains(shift_config)) {
-      return;
-    }
 
-    for (final QueryNodeConfig predecessor : predecessors) {
-      planner.addEdge(predecessor, shift_config);
-    }
-
+    planner.replace(config, shift_config);
     // Add the time shift to sink filters too. if they have it
     if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(config.getId())) {
       ((DefaultQueryPlanner) planner).sinkFilters().put(shift_config.id, null);
     }
-
-    String shift_id = config.timeShifts().getValue() + "-timeShift";
+    
     final Pair<Boolean, TemporalAmount> amounts = config.timeShifts();
     TimeSeriesDataSourceConfig.Builder rebuilt_builder =
-        config.toBuilder().setTimeShifts(amounts).setId(shift_id);
-    rebuildPushDownNodesForTimeShift(config, rebuilt_builder, shift_id);
+        config.toBuilder().setTimeShifts(amounts).setId(config.getId());
     ((BaseTimeSeriesDataSourceConfig.Builder) rebuilt_builder).setHasBeenSetup(true);
     QueryNodeConfig rebuilt = rebuilt_builder.build();
     planner.addEdge(shift_config, rebuilt);
-
-    ((DefaultQueryPlanner) planner).sinkFilters().remove(config.getId());
-    planner.removeNode(config);
   }
 
   /**
