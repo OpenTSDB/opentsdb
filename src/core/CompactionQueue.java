@@ -199,7 +199,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       nflushes++;
       maxflushes--;
       size.decrementAndGet();
-      ds.add(tsdb.get(row).addCallbacks(compactcb, handle_read_error));
+      ds.add(tsdb.get(row, false).addCallbacks(compactcb, handle_read_error));
     }
     final Deferred<ArrayList<Object>> group = Deferred.group(ds);
     if (nflushes == max_concurrent_flushes && maxflushes > 0) {
