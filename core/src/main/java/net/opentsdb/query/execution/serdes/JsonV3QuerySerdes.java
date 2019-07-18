@@ -932,10 +932,13 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       }
     }
     json.writeEndArray();
+
     if (eventsValue.additionalProps() != null) {
+      json.writeObjectFieldStart("additionalProps");
       for (Map.Entry<String, Object> e : eventsValue.additionalProps().entrySet()) {
         json.writeStringField(e.getKey(), String.valueOf(e.getValue()));
       }
+      json.writeEndObject();
     }
 
   }
