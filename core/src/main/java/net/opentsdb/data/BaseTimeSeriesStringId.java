@@ -77,8 +77,11 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
   protected Set<String> unique_ids;
   
   /** A cached hash code ID. */
-  protected volatile long cached_hash; 
-  
+  protected volatile long cached_hash;
+
+  /** An optional total number of search hits */
+  protected long hits;
+
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
    * using UTF8.
@@ -122,6 +125,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     } else {
       unique_ids = Collections.emptySet();
     }
+    hits = builder.hits;
   }
 
   @Override
@@ -162,6 +166,11 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
   @Override
   public Set<String> uniqueIds() {
     return unique_ids;
+  }
+
+  @Override
+  public long hits() {
+    return hits;
   }
 
   @Override
@@ -252,6 +261,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
         buf.append(id);
       }
     }
+    buf.append(hits);
     return LongHashFunction.xx_r39().hashChars(buf.toString());
   }
 
@@ -271,7 +281,9 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
         .append(", disjoint_tags=")
         .append(disjoint_tags)
         .append(", uniqueIds=")
-        .append(unique_ids);
+        .append(unique_ids)
+        .append("hits=")
+        .append(hits);
     return buf.toString();
   }
   
@@ -303,8 +315,10 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     @JsonProperty
     private List<String> disjoint_tags;
     @JsonProperty
-    private Set<String> unique_ids; 
-    
+    private Set<String> unique_ids;
+    @JsonProperty
+    private long hits;
+
     public Builder setEncoded(final boolean encoded) {
       this.encoded = encoded;
       return this;
@@ -328,6 +342,11 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
       this.metric = metric;
       return this;
     }
+
+    public Builder setHits(final long hits) {
+      this.hits = hits;
+      return this;
+    }
     
     public String metric() {
       return metric;
@@ -336,7 +355,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
      * Sets the tags map. <b>NOTE:</b> This will maintain a reference to the
      * map and will NOT make a copy. Be sure to avoid mutating the map after 
      * passing it to the builder.
-     * @param metrics A non-null list of metrics.
+     * @param tags A non-null map of tags
      * @return The builder object.
      */
     public Builder setTags(final Map<String, String> tags) {
