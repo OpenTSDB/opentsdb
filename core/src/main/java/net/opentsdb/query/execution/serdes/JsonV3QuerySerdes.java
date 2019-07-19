@@ -503,7 +503,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     if (wrote_values) {
       // serialize the ID
-      if(!was_status && !was_event){
+      if(!was_status && !was_event) {
         json.writeStringField("metric", id.metric());
       }
       json.writeObjectFieldStart("tags");
@@ -514,6 +514,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       json.writeArrayFieldStart("aggregateTags");
       for (final String tag : id.aggregatedTags()) {
         json.writeString(tag);
+      }
+      if (was_event) {
+        json.writeNumberField("hits", id.hits());
       }
       json.writeEndArray();
       json.writeEndObject();

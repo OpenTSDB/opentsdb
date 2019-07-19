@@ -144,5 +144,10 @@ public class TimeSeriesDatumStringWrapperId implements TimeSeriesStringId {
     // TODO Auto-generated method stub
     return Collections.emptySet();
   }
+
+  @Override
+  public long hits() {
+    return 0;
+  }
   
 }
