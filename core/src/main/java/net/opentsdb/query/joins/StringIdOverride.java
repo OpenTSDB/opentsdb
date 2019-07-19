@@ -194,5 +194,10 @@ public class StringIdOverride implements TimeSeriesStringId {
   public Set<String> uniqueIds() {
     return id.uniqueIds();
   }
+
+  @Override
+  public long hits() {
+    return id.hits();
+  }
   
 }

@@ -198,6 +198,11 @@ public class PBufTimeSeriesId implements TimeSeriesStringId {
     return Sets.newHashSet(id.getUniqueIdsList());
   }
 
+  @Override
+  public long hits() {
+    return 0;
+  }
+
   public TimeSeriesIdPB.TimeSeriesId pbufID() {
     return id;
   }
