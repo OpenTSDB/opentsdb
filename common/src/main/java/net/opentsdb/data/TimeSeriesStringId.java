@@ -102,5 +102,13 @@ public interface TimeSeriesStringId extends TimeSeriesId,
    * @return A non-null set of unique identifiers.
    */
   public Set<String> uniqueIds();
+
+
+  /**
+   * An optional long value of total of search hits for a query irrespective of pagination.
+   * Typically used for events and annotations.
+   * @return An long value of the total search hits
+   */
+  public long hits();
   
 }
