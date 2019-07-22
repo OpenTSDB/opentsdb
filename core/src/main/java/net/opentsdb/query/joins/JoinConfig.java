@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
@@ -130,7 +131,25 @@ public class JoinConfig extends BaseQueryNodeConfig<JoinConfig.Builder, JoinConf
 
   @Override
   public Builder toBuilder() {
-    return null;
+
+    Builder cloneBuilder = new Builder();
+
+    cloneBuilder(this, cloneBuilder);
+
+    return cloneBuilder;
+  }
+
+  public static void cloneBuilder(
+          final JoinConfig joinConfig, final Builder builder) {
+
+    builder.setId(joinConfig.getId())
+            .setType(joinConfig.getType())
+            .setOverrides(joinConfig.getOverrides() == null ? null : Maps.newHashMap(joinConfig.getOverrides()))
+            .setSources(joinConfig.getSources() == null ? null : Lists.newArrayList(joinConfig.getSources()))
+            .setJoins(joinConfig.getJoins() == null ? null : Maps.newHashMap(joinConfig.getJoins()))
+            .setJoinType(joinConfig.getJoinType())
+            .setExplicitTags(joinConfig.getExplicitTags());
+
   }
 
   @Override

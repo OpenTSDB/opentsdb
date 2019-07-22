@@ -165,8 +165,10 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
 
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+    Builder cloneBuilder = new Builder();
+    cloneBuilder(this,cloneBuilder);
+
+    return cloneBuilder;
   }
 
   @Override
@@ -342,6 +344,27 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
     }
     
     return builder.build();
+  }
+
+  /**
+   * Following the pattern of DefaultTimeSeriesDataSourceConfig
+   */
+  public static void cloneBuilder(
+          final ExpressionConfig expressionConfig, final Builder builder) {
+
+    final JoinConfig join = expressionConfig.getJoin();
+
+    builder.setId(expressionConfig.getId())
+           .setAs(expressionConfig.getAs())
+           .setType(expressionConfig.getType())
+           .setSources(expressionConfig.getSources() == null ? null : Lists.newArrayList(expressionConfig.getSources()))
+           .setInterpolatorConfigs(expressionConfig.getInterpolatorConfigs() == null ? null : Lists.newArrayList(expressionConfig.getInterpolatorConfigs()) )
+           .setVariableInterpolators(expressionConfig.getVariableInterpolators() == null ? null : Maps.newHashMap(expressionConfig.getVariableInterpolators()))
+           .setOverrides(Maps.newHashMap(expressionConfig.getOverrides()))
+           .setExpression(expressionConfig.getExpression())
+           .setJoinConfig(join.toBuilder().build())
+           .setInfectiousNan(expressionConfig.getInfectiousNan());
+
   }
 
   public static Builder newBuilder(){

@@ -93,7 +93,43 @@ public class TestJoinConfig {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
+  @Test
+  public void toBuilder() throws Exception {
+
+    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.INNER)
+            .addJoins("host", "Hostname")
+            .addJoins("owner", "owner")
+            .setId("join1")
+            .build();
+
+    assertEquals(JoinType.INNER, config.getJoinType());
+    assertEquals(2, config.getJoins().size());
+    assertEquals("Hostname", config.getJoins().get("host"));
+    assertEquals("owner", config.getJoins().get("owner"));
+    assertFalse(config.getExplicitTags());
+
+
+    final JoinConfig fromBuilder = config.toBuilder().build();
+
+    assertEquals(JoinType.INNER, fromBuilder.getJoinType());
+    assertEquals(2, fromBuilder.getJoins().size());
+    assertEquals("Hostname", fromBuilder.getJoins().get("host"));
+    assertEquals("owner", fromBuilder.getJoins().get("owner"));
+    assertFalse(fromBuilder.getExplicitTags());
+
+    String json = JSON.serializeToString(fromBuilder);
+    System.out.println(json);
+    assertTrue(json.contains("\"id\":\"join1\""));
+    assertTrue(json.contains("\"joinType\":\"INNER\""));
+    assertTrue(json.contains("\"joins\":{"));
+    assertTrue(json.contains("\"host\":\"Hostname\""));
+    assertTrue(json.contains("\"owner\":\"owner\""));
+    assertTrue(json.contains("\"explicitTags\":false"));
+
+  }
+
   @Test
   public void compareEqualsHash() throws Exception {
     final JoinConfig c1 = (JoinConfig) JoinConfig.newBuilder()
