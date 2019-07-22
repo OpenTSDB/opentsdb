@@ -360,7 +360,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
            .setSources(expressionConfig.getSources() == null ? null : Lists.newArrayList(expressionConfig.getSources()))
            .setInterpolatorConfigs(expressionConfig.getInterpolatorConfigs() == null ? null : Lists.newArrayList(expressionConfig.getInterpolatorConfigs()) )
            .setVariableInterpolators(expressionConfig.getVariableInterpolators() == null ? null : Maps.newHashMap(expressionConfig.getVariableInterpolators()))
-           .setOverrides(Maps.newHashMap(expressionConfig.getOverrides()))
+           .setOverrides(expressionConfig.getOverrides() == null ? null : Maps.newHashMap(expressionConfig.getOverrides()))
            .setExpression(expressionConfig.getExpression())
            .setJoinConfig(join.toBuilder().build())
            .setInfectiousNan(expressionConfig.getInfectiousNan());
