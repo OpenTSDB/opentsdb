@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -99,16 +100,16 @@ public class TestExpressionResult {
   @Test
   public void ctor() throws Exception {
     ExpressionResult result = new ExpressionResult(node);
-    assertEquals(0, result.results.size());
+    assertNull(result.results);
   }
   
   @Test
   public void joinString() throws Exception {
     List<Pair<TimeSeries, TimeSeries>> joins = 
         Lists.newArrayList(new Pair<TimeSeries, TimeSeries>(mock(TimeSeries.class), mock(TimeSeries.class)));
-    when(joiner.join(any(List.class), any(byte[].class), any(byte[].class), anyBoolean()))
+    when(joiner.join(any(Pair.class), any(byte[].class), any(byte[].class), anyBoolean()))
       .thenReturn(joins);
-    when(joiner.join(any(List.class), any(byte[].class), anyBoolean(), anyBoolean()))
+    when(joiner.join(any(Pair.class), any(byte[].class), anyBoolean(), anyBoolean()))
       .thenReturn(joins);
     
     ExpressionResult result = new ExpressionResult(node);
@@ -272,9 +273,9 @@ public class TestExpressionResult {
   public void joinBytes() throws Exception {
     List<Pair<TimeSeries, TimeSeries>> joins = 
         Lists.newArrayList(new Pair<TimeSeries, TimeSeries>(mock(TimeSeries.class), mock(TimeSeries.class)));
-    when(joiner.join(any(List.class), any(byte[].class), any(byte[].class), anyBoolean()))
+    when(joiner.join(any(Pair.class), any(byte[].class), any(byte[].class), anyBoolean()))
       .thenReturn(joins);
-    when(joiner.join(any(List.class), any(byte[].class), anyBoolean(), anyBoolean()))
+    when(joiner.join(any(Pair.class), any(byte[].class), anyBoolean(), anyBoolean()))
       .thenReturn(joins);
     
     ExpressionResult result = new ExpressionResult(node);

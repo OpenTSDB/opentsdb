@@ -38,6 +38,7 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.utils.Pair;
 
 public class BaseJoinTest {
   protected static final String ID = "UT";
@@ -340,27 +341,8 @@ public class BaseJoinTest {
     return set;
   }
   
-  protected static List<QueryResult> singleResult(final TypeToken<?> ts_type) {
-    final QueryResult result = mock(QueryResult.class);
-    final List<TimeSeries> ts = Lists.newArrayList(
-        L_1, R_1,
-        L_2,
-        R_3,
-        L_4, R_4A, R_4B,
-        L_5A, L_5B, R_5,
-        L_6A, L_6B, R_6A, R_6B);
-    when(result.timeSeries()).thenReturn(ts);
-    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return ts_type;
-      }
-    });
-    return Lists.newArrayList(result);
-  }
-  
-  protected static List<QueryResult> multiResults(final TypeToken<?> ts_type) {
-    final List<QueryResult> results = Lists.newArrayListWithCapacity(2);
+  protected static Pair<QueryResult, QueryResult> multiResults(final TypeToken<?> ts_type) {
+    final Pair<QueryResult, QueryResult> results = new Pair<QueryResult, QueryResult>();
     QueryResult result = mock(QueryResult.class);
     List<TimeSeries> ts = Lists.newArrayList(
         L_1,
@@ -375,7 +357,7 @@ public class BaseJoinTest {
         return ts_type;
       }
     });
-    results.add(result);
+    results.setKey(result);
     
     // right
     result = mock(QueryResult.class);
@@ -392,7 +374,7 @@ public class BaseJoinTest {
         return ts_type;
       }
     });
-    results.add(result);
+    results.setValue(result);
     return results;
   }
   

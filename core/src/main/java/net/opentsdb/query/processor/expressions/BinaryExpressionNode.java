@@ -38,6 +38,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.utils.Bytes.ByteMap;
+import net.opentsdb.utils.Pair;
 
 /**
  * A query node that executes a binary expression such as "a + b" or
@@ -68,7 +69,10 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   
   /** Whether or not we need two sources or if we're operating on a 
    * source and a literal. */
-  protected final Map<String, QueryResult> results;
+  protected final Pair<QueryResult, QueryResult> results;
+  protected String left_source;
+  protected String right_source;
+  protected final int expected;
   
   /** The result to populate and return. */
   protected ExpressionResult result;
@@ -76,7 +80,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   /** Used to filtering when we're working on encoded IDs. */
   protected byte[] left_metric;
   protected byte[] right_metric;
-  protected boolean resolved_metrics;
+  protected volatile boolean resolved_metrics;
   
   /**
    * Default ctor.
@@ -94,22 +98,28 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     this.expression_config = expression_config;
     config = expression_config.getExpressionConfig();
     result = new ExpressionResult(this);
-    results = Maps.newLinkedHashMapWithExpectedSize(2);
+    results = new Pair<QueryResult, QueryResult>();
+    
     if (expression_config.getLeftType() == OperandType.SUB_EXP || 
         expression_config.getLeftType() == OperandType.VARIABLE) {
       if (expression_config.getLeftId() == null) {
-        results.put((String) expression_config.getLeft(), null);
+        left_source = (String) expression_config.getLeft();
       } else {
-        results.put(expression_config.getLeftId(), null);
+        left_source = expression_config.getLeftId();
       }
     }
     if (expression_config.getRightType() == OperandType.SUB_EXP || 
          expression_config.getRightType() == OperandType.VARIABLE) {
       if (expression_config.getRightId() == null) {
-        results.put((String) expression_config.getRight(), null);
+        right_source = (String) expression_config.getRight();
       } else {
-        results.put(expression_config.getRightId(), null);
+        right_source = expression_config.getRightId();
       }
+    }
+    if (!Strings.isNullOrEmpty(left_source) && !Strings.isNullOrEmpty(right_source)) {
+      expected = 2;
+    } else {
+      expected = 1;
     }
     joiner = new Joiner(config.getJoin());
   }
@@ -127,22 +137,24 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   
   @Override
   public void onNext(final QueryResult next) {
-    if (results.containsKey(next.dataSource())) {
+    if (left_source != null && (left_source.equals(next.dataSource()) ||
+        left_source.equalsIgnoreCase(next.source().config().getId()))) {
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
         return;
       }
       synchronized (this) {
-        results.put(next.dataSource(), next);
+        results.setKey(next);
       }
-    } else if (results.containsKey(next.source().config().getId()) || 
-        next.exception() != null) {
-      if (!Strings.isNullOrEmpty(next.error())) {
+    } else if (right_source != null && 
+        (right_source.equals(next.dataSource()) || 
+            right_source.equals(next.source().config().getId()))) {
+      if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
         return;
       }
       synchronized (this) {
-        results.put(next.source().config().getId(), next);
+        results.setValue(next);
       }
     } else {
       return;
@@ -268,20 +280,18 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     // see if all the results are in.
     int received = 0;
     synchronized (this) {
-      for (final QueryResult result : results.values()) {
-        if (result != null) {
-          received++;
-        }
+      if (results.getKey() != null) {
+        received++;
+      }
+      if (results.getValue() != null) {
+        received++;
       }
     }
     
-    if (received == results.size()) {
-      for (final QueryResult r : results.values()) {
-        result.add(r);
-      }
-      
-      result.join();
+    if (received == expected) {
       try {
+        result.set(results);
+        result.join();
         sendUpstream(result);
       } catch (Exception e) {
         sendUpstream(e);
