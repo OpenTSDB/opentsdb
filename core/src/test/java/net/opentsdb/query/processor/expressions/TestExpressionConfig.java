@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -35,6 +36,8 @@ import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
+
+import java.util.ArrayList;
 
 public class TestExpressionConfig {
 
@@ -149,7 +152,61 @@ public class TestExpressionConfig {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
+  @Test
+  public void toBuilder() throws Exception {
+
+    NumericInterpolatorConfig numeric_config =
+            (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+                    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+                    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+                    .setDataType(NumericType.TYPE.toString())
+                    .build();
+
+    ExpressionConfig config = (ExpressionConfig)
+            ExpressionConfig.newBuilder()
+                    .setExpression("a + b")
+                    .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                            .addJoins("host", "host")
+                            .setJoinType(JoinType.INNER)
+                            .setId("jc")
+                            .build())
+                    .addVariableInterpolator("a", numeric_config)
+                    .setAs("some.metric.name")
+                    .addInterpolatorConfig(numeric_config)
+                    .setSources(new ArrayList<String>(){{add("source1");}})
+                    .setId("e1")
+                    .build();
+    assertEquals("e1", config.getId());
+    assertEquals("some.metric.name", config.getAs());
+    assertEquals("a + b", config.getExpression());
+    assertEquals(JoinType.INNER, config.getJoin().getJoinType());
+    assertEquals("host", config.getJoin().getJoins().get("host"));
+    assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
+    assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
+
+    final ExpressionConfig fromBuilder = config.toBuilder().build();
+
+    assertEquals(fromBuilder.getId(), config.getId());
+    assertEquals(fromBuilder.getAs(), config.getAs());
+    assertEquals(fromBuilder.getExpression(), config.getExpression());
+    assertEquals(fromBuilder.getJoin().getJoinType(), config.getJoin().getJoinType());
+
+    assertFalse(fromBuilder.getJoin().getJoins() == config.getJoin().getJoins());
+    assertEquals(fromBuilder.getJoin().getJoins(), config.getJoin().getJoins());
+
+    assertFalse(fromBuilder.getSources() == config.getSources());
+    assertEquals(fromBuilder.getSources(), config.getSources());
+
+    assertFalse(fromBuilder.getInterpolatorConfigs() == config.getInterpolatorConfigs());
+    assertEquals(numeric_config, fromBuilder.interpolatorConfig(NumericType.TYPE));
+
+    assertFalse(fromBuilder.getVariableInterpolators() == config.getVariableInterpolators());
+    assertSame(numeric_config, fromBuilder.getVariableInterpolators().get("a").get(0));
+
+
+  }
+
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     NumericInterpolatorConfig numeric_config = 
