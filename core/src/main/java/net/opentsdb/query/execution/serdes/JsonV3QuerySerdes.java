@@ -198,6 +198,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           int idx = 0;
 
           boolean wasStatus = false;
+          boolean wasEvent =false;
           String namespace = null;
           if (opts.getParallelThreshold() > 0 &&
               result.timeSeries().size() > opts.getParallelThreshold()) {
@@ -242,7 +243,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   json,
                   null,
                   result);
-              if (!wasStatus) {
+              if (!wasStatus ) {
                 for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator :
                     series.iterators()) {
                   if (iterator.getType() == StatusType.TYPE) {
@@ -252,6 +253,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   }
                 }
               }
+
             }
           }
           // end of the data array
@@ -511,14 +513,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         json.writeStringField(entry.getKey(), entry.getValue());
       }
       json.writeEndObject();
-      json.writeArrayFieldStart("aggregateTags");
-      for (final String tag : id.aggregatedTags()) {
-        json.writeString(tag);
-      }
       if (was_event) {
         json.writeNumberField("hits", id.hits());
+      } else {
+        json.writeArrayFieldStart("aggregateTags");
+        for (final String tag : id.aggregatedTags()) {
+          json.writeString(tag);
+        }
+        json.writeEndArray();
       }
-      json.writeEndArray();
       json.writeEndObject();
     }
 
@@ -910,7 +913,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   }
 
   private void writeEvents(EventsValue eventsValue, final JsonGenerator json) throws IOException {
-
+    json.writeObjectFieldStart("EventsType");
     json.writeStringField("namespace", eventsValue.namespace());
     json.writeStringField("source", eventsValue.source());
     json.writeStringField("title", eventsValue.title());
@@ -943,6 +946,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       }
       json.writeEndObject();
     }
+    json.writeEndObject();
 
   }
   

@@ -98,19 +98,6 @@ public class TestBaseTimeSeriesId {
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .setMetric(null)
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      id = BaseTimeSeriesStringId.newBuilder()
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
   }
   
   @Test
