@@ -15,14 +15,25 @@
 
 package net.opentsdb.data.types.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.processor.rate.RateConfig;
 
+@JsonInclude(Include.NON_DEFAULT)
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonDeserialize(builder = EventsValue.Builder.class)
 public class EventsValue implements EventType, TimeSeriesValue<EventType> {
 
   /** Unique ID of the event */
@@ -66,8 +77,8 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
 
   protected EventsValue(final Builder builder) {
     this.eventId = builder.eventId;
-    this.timestamp = builder.timestamp;
-    this.endTimestamp = builder.endTimestamp;
+    this.timestamp = new SecondTimeStamp(builder.timestamp);
+    this.endTimestamp = new SecondTimeStamp(builder.endTimestamp);
     this.source = builder.source;
     this.title = builder.title;
     this.message = builder.message;
@@ -159,44 +170,58 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
     return new Builder();
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     /** Unique ID of the event */
+    @JsonProperty
     private String eventId;
 
     /** Timestamp of the event trigger */
-    private TimeStamp timestamp;
+    @JsonProperty
+    private long timestamp;
 
     /** Timestamp of when the event has ended/will end */
-    private TimeStamp endTimestamp;
+    @JsonProperty
+    private long endTimestamp;
 
     /** Source of the event, could be an agent emitting */
+    @JsonProperty
     private String source;
 
     /** Event title */
+    @JsonProperty
     private String title;
 
     /** Event content */
+    @JsonProperty
     private String message;
 
     /** Priority of the event, low/high/medium etc */
+    @JsonProperty
     private String priority;
 
     /** User of the event */
+    @JsonProperty
     private String userId;
 
     /** Whether the event is still on going */
+    @JsonProperty
     private boolean ongoing;
 
     /** List of parent IDs this event can map to */
+    @JsonProperty
     private List<String> parentId;
 
     /** List of child IDs this event can map to */
+    @JsonProperty
     private List<String> childId;
 
     /** Additional properties */
+    @JsonProperty
     private Map<String, Object> additionalProps;
 
     /** Namespace if necessary */
+    @JsonProperty
     private String namespace;
 
     Builder() {
@@ -220,7 +245,7 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
      * @param timestamp Timestamp of the event trigger
      * @return The builder.
      */
-    public Builder setTimestamp(final TimeStamp timestamp) {
+    public Builder setTimestamp(final long timestamp) {
       this.timestamp = timestamp;
       return this;
     }
@@ -229,7 +254,7 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
      * @param endTimestamp Timestamp of when the event has ended/will end
      * @return The builder.
      */
-    public Builder setEndTimestamp(final TimeStamp endTimestamp) {
+    public Builder setEndTimestamp(final long endTimestamp) {
       this.endTimestamp = endTimestamp;
       return this;
     }

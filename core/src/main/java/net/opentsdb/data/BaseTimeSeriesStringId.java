@@ -92,9 +92,10 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     alias = builder.alias;
     namespace = builder.namespace;
     metric = builder.metric;
-    if (Strings.isNullOrEmpty(metric)) {
+    if (metric.isEmpty()) {
       throw new IllegalArgumentException("Metric cannot be null or empty.");
     }
+
     if (builder.tags != null && !builder.tags.isEmpty()) {
       tags = builder.tags;
     } else {
@@ -261,7 +262,6 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
         buf.append(id);
       }
     }
-    buf.append(hits);
     return LongHashFunction.xx_r39().hashChars(buf.toString());
   }
 

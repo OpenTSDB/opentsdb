@@ -14,6 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
@@ -22,14 +28,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Map.Entry;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-
+import java.util.Optional;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.SecondTimeStamp;
@@ -41,6 +41,8 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.event.EventType;
+import net.opentsdb.data.types.event.EventsValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
@@ -298,10 +300,12 @@ public class HttpQueryV3Result implements QueryResult {
     HttpTimeSeries(final JsonNode node) {
       this.node = node;
       final BaseTimeSeriesStringId.Builder builder = 
-          BaseTimeSeriesStringId.newBuilder()
-          .setMetric(node.get("metric").asText());
-      
-      JsonNode temp = node.get("tags");
+          BaseTimeSeriesStringId.newBuilder();
+      JsonNode temp = node.get("metric");
+      if (temp != null && !temp.isNull()) {
+        builder.setMetric(temp.asText());
+      }
+      temp = node.get("tags");
       if (temp != null && !temp.isNull()) {
         final Iterator<Entry<String, JsonNode>> iterator = temp.fields();
         while (iterator.hasNext()) {
@@ -332,6 +336,11 @@ public class HttpQueryV3Result implements QueryResult {
       if (temp != null && !temp.isNull()) {
         types.add(NumericSummaryType.TYPE);
       }
+
+      temp = node.get("EventsType");
+      if (temp != null && !temp.isNull()) {
+        types.add(EventType.TYPE);
+      }
     }
     
     @Override
@@ -351,6 +360,8 @@ public class HttpQueryV3Result implements QueryResult {
           data = new ArrayData(node.get("NumericType"));
         } else if (type == NumericSummaryType.TYPE) {
           data = new SummaryData(node.get("NumericSummaryType"));
+        } else if (type == EventType.TYPE) {
+          data = new EventData(node.get("EventsType"));
         }
         if (data != null) {
           return Optional.of(data);
@@ -368,6 +379,9 @@ public class HttpQueryV3Result implements QueryResult {
         results.add(new NumericData(node.get("NumericType")));
       } else if (types.contains(NumericArrayType.TYPE)) {
         results.add(new ArrayData(node.get("NumericType")));
+      }
+      else if (types.contains(EventType.TYPE)) {
+       results.add(new EventData(node.get("EventsType")));
       }
       return results;
     }
@@ -591,6 +605,39 @@ public class HttpQueryV3Result implements QueryResult {
       return NumericSummaryType.TYPE;
     }
     
+  }
+
+  class EventData implements TypedTimeSeriesIterator {
+
+    private JsonNode node;
+
+    EventData(final JsonNode data) {
+      node = data;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return node == null ? false : true;
+    }
+
+    @Override
+    public TimeSeriesValue<? extends TimeSeriesDataType> next() {
+
+      EventsValue events_value;
+      try {
+        events_value  = new ObjectMapper().treeToValue(node, EventsValue.class);
+        node = null;
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Unable to parse config", e);
+      }
+      return events_value;
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return EventType.TYPE;
+    }
+
   }
   
   /**
