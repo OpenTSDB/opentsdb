@@ -82,13 +82,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   /** The options for this serialization. */
   private final SerdesOptions options;
-
-  /** The generator. */
-  private final JsonGenerator json;
-
+  
   /** The query start and end timestamps. */
   private final TimeStamp start;
   private final TimeStamp end;
+  private final OutputStream stream;
 
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
@@ -96,6 +94,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   /** TEMP */
   //<set ID, <ts hash, ts wrapper>>
   private Map<String, Map<Long, SeriesWrapper>> partials = Maps.newConcurrentMap();
+  private List<byte[]> serialized_results = Lists.newArrayList();
 
   /**
    * Default ctor.
@@ -115,20 +114,16 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
     this.context = context;
     this.options = options;
-    try {
-      json = JSON.getFactory().createGenerator(stream);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to instantiate a JSON "
-          + "generator", e);
-    }
+    this.stream = stream;
+    
     start = context.query().startTime();
     end = context.query().endTime();
   }
 
   // TODO - find a better way to not sync
   @Override
-  public synchronized Deferred<Object> serialize(final QueryResult result,
-                                                 final Span span) {
+  public Deferred<Object> serialize(final QueryResult result,
+                                    final Span span) {
     if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
@@ -139,16 +134,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       stats.incrementSerializedTimeSeriesCount(result.timeSeries().size());
     }
 
-    if (!initialized) {
-      try {
-        json.writeStartObject();
-        json.writeArrayFieldStart("results");
-      } catch (IOException e) {
-        throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
-      }
-      initialized = true;
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    JsonGenerator json;
+    try {
+      json = JSON.getFactory().createGenerator(baos);
+    } catch (IOException e1) {
+      throw new RuntimeException("Failed to instantiate a JSON "
+          + "generator", e1);
     }
-
+    
     final List<TimeSeries> series;
     final List<Deferred<TimeSeriesStringId>> deferreds;
     if (result.idType() == Const.TS_BYTE_ID) {
@@ -270,6 +264,12 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
               "Unexpected exception "
               + "serializing: " + result, 500, e));
         }
+        
+        json.close();
+        final byte[] serialized = baos.toByteArray();
+        synchronized (serialized_results) {
+          serialized_results.add(serialized);
+        }
         return Deferred.fromResult(null);
       }
 
@@ -305,13 +305,26 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   public void serializeComplete(final Span span) {
     if (!initialized /* Only on QueryResult */ && partials.size() > 0) {
       serializePush();
+      return;
     }
 
+    JsonGenerator json;
+    try {
+      json = JSON.getFactory().createGenerator(stream);
+    } catch (IOException e1) {
+      throw new RuntimeException("Failed to instantiate a JSON "
+          + "generator", e1);
+    }
     try {
       // TODO - other bits like the query and trace data
-      if (!initialized /* Only on QueryResult */ && partials.isEmpty()) {
-        json.writeStartObject();
-        json.writeArrayFieldStart("results");
+      json.writeStartObject();
+      json.writeArrayFieldStart("results");
+      for (int i = 0; i < serialized_results.size(); i++) {
+        if (i > 0) {
+          json.writeRaw(',');
+        }
+        json.writeRaw(new String(serialized_results.get(i), Const.UTF8_CHARSET));
+        serialized_results.set(i, null);
       }
       json.writeEndArray();
 
@@ -997,6 +1010,13 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   void serializePush() {
     try {
+      JsonGenerator json;
+      try {
+        json = JSON.getFactory().createGenerator(stream);
+      } catch (IOException e1) {
+        throw new RuntimeException("Failed to instantiate a JSON "
+            + "generator", e1);
+      }
       json.writeStartObject();
       json.writeArrayFieldStart("results");
 
