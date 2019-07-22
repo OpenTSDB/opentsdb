@@ -80,9 +80,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -99,7 +98,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
     assertEquals(2, set.left_map.get(hash).size());
@@ -109,7 +108,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless should be kicked
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -126,9 +125,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
@@ -145,7 +143,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
     assertEquals(2, set.right_map.get(hash).size());
@@ -164,9 +162,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -180,7 +177,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     assertNull(set.left_map);
     assertNull(set.right_map);
   }
@@ -197,9 +194,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -216,7 +212,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
     assertEquals(1, set.left_map.get(hash).size());
@@ -225,7 +221,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless should be kicked
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -243,9 +239,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
@@ -262,7 +257,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
     assertEquals(1, set.right_map.get(hash).size());
@@ -271,7 +266,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless should be kicked
     set.right_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     
     assertNull(set.left_map);
     assertTrue(set.right_map.isEmpty());
@@ -289,9 +284,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -305,13 +299,13 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     assertNull(set.left_map);
     assertNull(set.right_map);
     
     // tagless should be kicked
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -333,9 +327,8 @@ public class TestJoiner extends BaseJoinTest {
     when(ts.id()).thenReturn(MANY_TAGS_STRING);
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -350,7 +343,7 @@ public class TestJoiner extends BaseJoinTest {
         .addTags("owner", "tyrion")
         .build();
     when(ts.id()).thenReturn(id);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -375,9 +368,8 @@ public class TestJoiner extends BaseJoinTest {
     when(ts.id()).thenReturn(MANY_TAGS_STRING);
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -389,7 +381,7 @@ public class TestJoiner extends BaseJoinTest {
         .addTags("owner", "tyrion")
         .build();
     when(ts.id()).thenReturn(id);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -405,9 +397,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -424,14 +415,14 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertEquals(2, set.left_map.size());
     assertNull(set.right_map);
         
     // tagless is NOT kicked out for naturals.
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -451,9 +442,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -470,14 +460,14 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertEquals(2, set.left_map.size());
     assertNull(set.right_map);
         
     // tagless is kicked out since we have tags.
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -495,9 +485,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -511,12 +500,12 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertNull(set.left_map);
         
     // tagless is kicked out since we have tags.
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -545,10 +534,9 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
-    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
+    joiner.hashStringId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     long hash = set.left_map.keys()[0];
     assertEquals(1, set.left_map.size());
@@ -567,9 +555,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -586,14 +573,14 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertEquals(2, set.left_map.size());
     assertNull(set.right_map);
         
     // tagless is NOT kicked out for naturals.
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -613,9 +600,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -632,7 +618,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
     assertEquals(2, set.left_map.get(hash).size());
@@ -642,7 +628,7 @@ public class TestJoiner extends BaseJoinTest {
     // cross kicks these out if tags are present
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -660,9 +646,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -676,13 +661,13 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     assertNull(set.left_map);
     assertNull(set.right_map);
         
     // cross kicks these out if tags are present
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashStringId(METRIC_L.getBytes(Const.UTF8_CHARSET), ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -702,9 +687,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, HOST);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -721,7 +705,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
     assertEquals(2, set.left_map.get(hash).size());
@@ -731,7 +715,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless should be kicked
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -751,9 +735,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, HOST);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_R_BYTES, R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_R_BYTES, R_1, set, false);
     
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
@@ -770,7 +753,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_R_BYTES, ts, set);
+    joiner.hashByteId(METRIC_R_BYTES, ts, set, false);
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
     assertEquals(2, set.right_map.get(hash).size());
@@ -792,9 +775,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, new byte[] { 1, 1, 1 });
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -808,7 +790,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set);
+    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), ts, set, false);
     assertNull(set.left_map);
     assertNull(set.right_map);
   }
@@ -828,9 +810,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, HOST);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -847,7 +828,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
     assertEquals(1, set.left_map.get(hash).size());
@@ -856,7 +837,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless should be kicked
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -877,9 +858,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, HOST);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_R_BYTES, R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_R_BYTES, R_1, set, false);
     
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
@@ -896,7 +876,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_R_BYTES, ts, set);
+    joiner.hashByteId(METRIC_R_BYTES, ts, set, false);
     assertNull(set.left_map);
     assertEquals(1, set.right_map.size());
     assertEquals(1, set.right_map.get(hash).size());
@@ -905,7 +885,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless should be kicked
     set.right_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_R_BYTES, ts, set);
+    joiner.hashByteId(METRIC_R_BYTES, ts, set, false);
     
     assertNull(set.left_map);
     assertTrue(set.right_map.isEmpty());
@@ -926,9 +906,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, new byte[] { 1, 1, 1 });
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_R_BYTES, R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_R_BYTES, R_1, set, false);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -942,13 +921,13 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_R_BYTES, ts, set);
+    joiner.hashByteId(METRIC_R_BYTES, ts, set, false);
     assertNull(set.left_map);
     assertNull(set.right_map);
     
     // tagless should be kicked
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_R_BYTES, ts, set);
+    joiner.hashByteId(METRIC_R_BYTES, ts, set, false);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -975,9 +954,8 @@ public class TestJoiner extends BaseJoinTest {
     encoded_joins.put(DC, DC);
     encoded_joins.put(ROLE, ROLE);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -992,7 +970,7 @@ public class TestJoiner extends BaseJoinTest {
         .addTags(OWNER, TYRION)
         .build();
     when(ts.id()).thenReturn(id);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1022,9 +1000,8 @@ public class TestJoiner extends BaseJoinTest {
     encoded_joins.put(DC, DC);
     encoded_joins.put(ROLE, ROLE);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -1036,7 +1013,7 @@ public class TestJoiner extends BaseJoinTest {
         .addTags(OWNER, TYRION)
         .build();
     when(ts.id()).thenReturn(id);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -1052,9 +1029,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1071,14 +1047,14 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertEquals(2, set.left_map.size());
     assertNull(set.right_map);
         
     // tagless is NOT kicked out for naturals.
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1101,9 +1077,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, HOST);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1120,14 +1095,14 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertEquals(2, set.left_map.size());
     assertNull(set.right_map);
         
     // tagless is kicked out since we have tags.
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -1149,9 +1124,8 @@ public class TestJoiner extends BaseJoinTest {
     encoded_joins.put(HOST, HOST);
     encoded_joins.put(new byte[] { 2, 2, 2 }, new byte[] { 2, 2, 2 });
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -1165,12 +1139,12 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertNull(set.left_map);
         
     // tagless is kicked out since we have tags.
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -1199,10 +1173,9 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), METRIC_R.getBytes(Const.UTF8_CHARSET));
-    joiner.hashByteId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set);
-    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L.getBytes(Const.UTF8_CHARSET), L_1, set, true);
+    joiner.hashByteId(METRIC_R.getBytes(Const.UTF8_CHARSET), R_1, set, false);
     
     long hash = set.left_map.keys()[0];
     assertEquals(1, set.left_map.size());
@@ -1221,9 +1194,8 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     
     Joiner joiner = new Joiner(config);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1240,14 +1212,14 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertEquals(2, set.left_map.size());
     assertNull(set.right_map);
         
     // tagless is NOT kicked out for naturals.
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1270,9 +1242,8 @@ public class TestJoiner extends BaseJoinTest {
     ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
     encoded_joins.put(HOST, HOST);
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
@@ -1289,7 +1260,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertEquals(1, set.left_map.size());
     assertNull(set.right_map);
     assertEquals(2, set.left_map.get(hash).size());
@@ -1299,7 +1270,7 @@ public class TestJoiner extends BaseJoinTest {
     // cross kicks these out if tags are present
     set.left_map.clear();
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertTrue(set.left_map.isEmpty());
     assertNull(set.right_map);
@@ -1321,9 +1292,8 @@ public class TestJoiner extends BaseJoinTest {
     encoded_joins.put(HOST, HOST);
     encoded_joins.put(new byte[] { 2, 2, 2 }, new byte[] { 2, 2, 2 });
     joiner.setEncodedJoins(encoded_joins);
-    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER, 
-        METRIC_L_BYTES, METRIC_R_BYTES);
-    joiner.hashByteId(METRIC_L_BYTES, L_1, set);
+    KeyedHashedJoinSet set = new KeyedHashedJoinSet(JoinType.INNER);
+    joiner.hashByteId(METRIC_L_BYTES, L_1, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -1337,13 +1307,13 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     when(ts.id()).thenReturn(id);
     
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     assertNull(set.left_map);
     assertNull(set.right_map);
         
     // cross kicks these out if tags are present
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    joiner.hashByteId(METRIC_L_BYTES, ts, set);
+    joiner.hashByteId(METRIC_L_BYTES, ts, set, true);
     
     assertNull(set.left_map);
     assertNull(set.right_map);
@@ -1632,257 +1602,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.aggregatedTags().isEmpty());
     assertTrue(id.disjointTags().isEmpty());
   }
-
-  @Test
-  public void joinStringSingleResult() throws Exception {
-    // See the various joins for details.
-    setStringIds();
-    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setJoinType(JoinType.INNER)
-        .addJoins("host", "host")
-        .setId(ID)
-        .build();
-    
-    Joiner joiner = new Joiner(config);
-    Iterator<Pair<TimeSeries, TimeSeries>> iterator = 
-        joiner.join(singleResult(Const.TS_STRING_ID), 
-            (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-            (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-            false).iterator();
-    int pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    config = (JoinConfig) JoinConfig.newBuilder()
-        .setJoinType(JoinType.OUTER_DISJOINT)
-        .addJoins("host", "host")
-        .setId(ID)
-        .build();
-    
-    joiner = new Joiner(config);
-    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
-            (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-            (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-            false).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      if (pair.getKey() == null) {
-        assertNotNull(pair.getValue());
-      } else {
-        assertNull(pair.getValue());
-      }
-      pairs++;
-    }
-    assertEquals(2, pairs);
-    
-    // wrong keys. Missing the namespace.
-    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
-        METRIC_L.getBytes(Const.UTF8_CHARSET), 
-        METRIC_R.getBytes(Const.UTF8_CHARSET),
-        false).iterator();
-    assertFalse(iterator.hasNext());
-    
-    // empty result
-    QueryResult result = mock(QueryResult.class);
-    when(result.timeSeries()).thenReturn(Collections.emptyList());
-    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return Const.TS_STRING_ID;
-      }
-    });
-    
-    iterator = joiner.join(Lists.newArrayList(result), 
-        (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-        (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-        false).iterator();
-    assertFalse(iterator.hasNext());
-    
-    // null results
-    try {
-      joiner.join(null, 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // empty list.
-    try {
-      joiner.join(Lists.newArrayList(), 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // bad keys
-    try {
-      joiner.join(singleResult(Const.TS_STRING_ID), 
-          null, 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      joiner.join(singleResult(Const.TS_STRING_ID), 
-          new byte[0], 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      joiner.join(singleResult(Const.TS_STRING_ID), 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          null,
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      joiner.join(singleResult(Const.TS_STRING_ID), 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          new byte[0],
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
   
-  @Test
-  public void joinByteSingleResult() throws Exception {
-    // See the various joins for details.
-    setByteIds();
-    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setJoinType(JoinType.INNER)
-        .addJoins("host", "host")
-        .setId(ID)
-        .build();
-    
-    Joiner joiner = new Joiner(config);
-    ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
-    encoded_joins.put(HOST, HOST);
-    joiner.setEncodedJoins(encoded_joins);
-    Iterator<Pair<TimeSeries, TimeSeries>> iterator = 
-        joiner.join(singleResult(Const.TS_BYTE_ID), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_L_BYTES), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_R_BYTES),
-            false).iterator();
-    int pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    config = (JoinConfig) JoinConfig.newBuilder()
-        .setJoinType(JoinType.OUTER_DISJOINT)
-        .addJoins("host", "host")
-        .setId(ID)
-        .build();
-    
-    joiner = new Joiner(config);
-    joiner.setEncodedJoins(encoded_joins);
-    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
-        com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_L_BYTES), 
-        com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_R_BYTES),
-            false).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      if (pair.getKey() == null) {
-        assertNotNull(pair.getValue());
-      } else {
-        assertNull(pair.getValue());
-      }
-      pairs++;
-    }
-    assertEquals(2, pairs);
-    
-    // wrong keys. Missing the namespace.
-    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
-        METRIC_L_BYTES, 
-        METRIC_R_BYTES,
-        false).iterator();
-    assertFalse(iterator.hasNext());
-    
-    // empty result
-    QueryResult result = mock(QueryResult.class);
-    when(result.timeSeries()).thenReturn(Collections.emptyList());
-    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return Const.TS_BYTE_ID;
-      }
-    });
-    
-    iterator = joiner.join(Lists.newArrayList(result), 
-        (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-        (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-        false).iterator();
-    assertFalse(iterator.hasNext());
-    
-    // null results
-    try {
-      joiner.join(null, 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // empty list.
-    try {
-      joiner.join(Lists.newArrayList(), 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // bad keys
-    try {
-      joiner.join(singleResult(Const.TS_BYTE_ID), 
-          null, 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      joiner.join(singleResult(Const.TS_BYTE_ID), 
-          new byte[0], 
-          (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      joiner.join(singleResult(Const.TS_BYTE_ID), 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          null,
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      joiner.join(singleResult(Const.TS_BYTE_ID), 
-          (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-          new byte[0],
-          false);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-
   @Test
   public void joinStringMultipleResult() throws Exception {
     // See the various joins for details.
@@ -1939,7 +1659,7 @@ public class TestJoiner extends BaseJoinTest {
     assertFalse(iterator.hasNext());
     
     // empty results
-    List<QueryResult> results = Lists.newArrayListWithExpectedSize(2);
+    Pair<QueryResult, QueryResult> results = new Pair<QueryResult, QueryResult>();
     QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
@@ -1948,7 +1668,7 @@ public class TestJoiner extends BaseJoinTest {
         return Const.TS_STRING_ID;
       }
     });
-    results.add(result);
+    results.setKey(result);
     
     result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
@@ -1958,7 +1678,7 @@ public class TestJoiner extends BaseJoinTest {
         return Const.TS_STRING_ID;
       }
     });
-    results.add(result);
+    results.setValue(result);
     
     iterator = joiner.join(results, 
         (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
@@ -2048,7 +1768,7 @@ public class TestJoiner extends BaseJoinTest {
     });
     results.add(result);
     
-    iterator = joiner.join(Lists.newArrayList(result), 
+    iterator = joiner.join(new Pair<QueryResult, QueryResult>(result, null), 
         (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
         (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
         false).iterator();
@@ -2063,145 +1783,6 @@ public class TestJoiner extends BaseJoinTest {
           false);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-  }
-
-  @Test
-  public void joinStringAlias() throws Exception {
-    // See the various joins for details.
-    setStringIds();
-    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setJoinType(JoinType.INNER)
-        .addJoins("host", "host")
-        .setId(ID)
-        .build();
-    
-    Joiner joiner = new Joiner(config);
-    Iterator<Pair<TimeSeries, TimeSeries>> iterator = 
-        joiner.join(singleResult(Const.TS_STRING_ID), 
-            (NAMESPACE + ALIAS_L).getBytes(Const.UTF8_CHARSET), 
-            (NAMESPACE + ALIAS_R).getBytes(Const.UTF8_CHARSET),
-            true).iterator();
-    int pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    // fallback left
-    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
-            (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-            (NAMESPACE + ALIAS_R).getBytes(Const.UTF8_CHARSET),
-            true).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    // fallback right
-    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
-            (NAMESPACE + ALIAS_L).getBytes(Const.UTF8_CHARSET), 
-            (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-            true).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    // fallback both
-    iterator = joiner.join(singleResult(Const.TS_STRING_ID), 
-            (NAMESPACE + METRIC_L).getBytes(Const.UTF8_CHARSET), 
-            (NAMESPACE + METRIC_R).getBytes(Const.UTF8_CHARSET),
-            true).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-  }
-  
-  @Test
-  public void joinByteAlias() throws Exception {
-    // See the various joins for details.
-    setByteIds();
-    JoinConfig config = (JoinConfig) JoinConfig.newBuilder()
-        .setJoinType(JoinType.INNER)
-        .addJoins("host", "host")
-        .setId(ID)
-        .build();
-    
-    Joiner joiner = new Joiner(config);
-    ByteMap<byte[]> encoded_joins = new ByteMap<byte[]>();
-    encoded_joins.put(HOST, HOST);
-    joiner.setEncodedJoins(encoded_joins);
-    Iterator<Pair<TimeSeries, TimeSeries>> iterator = 
-        joiner.join(singleResult(Const.TS_BYTE_ID), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_L_BYTES), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_R_BYTES),
-            true).iterator();
-    int pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    // fallback left
-    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_L_BYTES), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_R_BYTES),
-            true).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    // fallback right
-    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, ALIAS_L_BYTES), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_R_BYTES),
-            true).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
-    
-    // fallback left
-    iterator = joiner.join(singleResult(Const.TS_BYTE_ID), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_L_BYTES), 
-            com.google.common.primitives.Bytes.concat(NAMESPACE_BYTES, METRIC_R_BYTES),
-            true).iterator();
-    pairs = 0;
-    while (iterator.hasNext()) {
-      final Pair<TimeSeries, TimeSeries> pair = iterator.next();
-      assertNotNull(pair.getKey());
-      assertNotNull(pair.getValue());
-      pairs++;
-    }
-    assertEquals(9, pairs);
   }
   
   @Test

@@ -41,7 +41,7 @@ public class ExpressionResult implements QueryResult {
   protected final BinaryExpressionNode node;
   
   /** The list of 1 or 2 results. For now. */
-  protected final List<QueryResult> results;
+  protected Pair<QueryResult, QueryResult> results;
   
   /** The list of joined time series. */
   protected List<TimeSeries> time_series;
@@ -52,7 +52,6 @@ public class ExpressionResult implements QueryResult {
    */
   ExpressionResult(final BinaryExpressionNode node) {
     this.node = node;
-    results = Lists.newArrayListWithExpectedSize(2);
   }
   
   /**
@@ -60,8 +59,8 @@ public class ExpressionResult implements QueryResult {
    * @param result A non-null result.
    * Note that we don't check the Id types here.
    */
-  void add(final QueryResult result) {
-    results.add(result);
+  void set(final Pair<QueryResult, QueryResult> results) {
+    this.results = results;
   }
   
   /**
@@ -116,7 +115,8 @@ public class ExpressionResult implements QueryResult {
   
   @Override
   public TimeSpecification timeSpecification() {
-    return results.get(0).timeSpecification();
+    return results.getKey() != null ? results.getKey().timeSpecification() :
+      results.getValue().timeSpecification();
   }
 
   @Override
@@ -138,7 +138,7 @@ public class ExpressionResult implements QueryResult {
   
   @Override
   public long sequenceId() {
-    return results.get(0).sequenceId();
+    return 0;
   }
 
   @Override
@@ -153,23 +153,29 @@ public class ExpressionResult implements QueryResult {
   
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
-    return results.get(0).idType();
+    return results.getKey() != null ? results.getKey().idType() :
+      results.getValue().idType();
   }
 
   @Override
   public ChronoUnit resolution() {
-    return results.get(0).resolution();
+    return results.getKey() != null ? results.getKey().resolution() :
+      results.getValue().resolution();
   }
 
   @Override
   public RollupConfig rollupConfig() {
-    return results.get(0).rollupConfig();
+    return results.getKey() != null ? results.getKey().rollupConfig() :
+        results.getValue().rollupConfig();
   }
 
   @Override
   public void close() {
-    for (final QueryResult result : results) {
-      result.close();
+    if (results.getKey() != null) {
+      results.getKey().close();
+    }
+    if (results.getValue() != null) {
+      results.getValue().close();
     }
   }
   
