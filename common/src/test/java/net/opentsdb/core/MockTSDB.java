@@ -56,6 +56,10 @@ public class MockTSDB implements TSDB {
   public Map<Long, QueryContext> running_queries;
   
   public MockTSDB() {
+    this(false);
+  }
+  
+  public MockTSDB(final boolean run_immediately) {
     config = (UnitTestConfiguration) UnitTestConfiguration.getConfiguration();
     registry = mock(Registry.class);
     stats = new BlackholeStatsCollector();
@@ -69,6 +73,9 @@ public class MockTSDB implements TSDB {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         runnables.add((Runnable) invocation.getArguments()[0]);
+        if (run_immediately) {
+          ((Runnable) invocation.getArguments()[0]).run();
+        }
         return null;
       }
     }).when(query_pool).submit(any(Runnable.class), any(QueryContext.class));
