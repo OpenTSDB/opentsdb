@@ -87,8 +87,6 @@ public class TSDMain {
   public static final String TLS_SECRET_KEY_KEY = "tsd.network.tls.secrets.key";
   public static final String TLS_PROTOCOLS_KEY = "tsd.network.tls.protocols";
   public static final String TLS_CIPHERS_KEY = "tsd.network.tls.ciphers";
-  public static final String CORS_PATTERN_KEY = "tsd.http.request.cors.pattern";
-  public static final String CORS_HEADERS_KEY = "tsd.http.request.cors.headers";
   public static final String DIRECTORY_KEY = "tsd.http.staticroot";
   
   public static final String READ_TO_KEY = "tsd.network.read_timeout";
@@ -173,19 +171,6 @@ public class TSDMain {
     config.register(TLS_CIPHERS_KEY, null, false,
         "A comma separated list of ciphers that the server should accept for "
         + "TLS connections. If null or empty then all ciphers are allowed.");
-    config.register(CORS_PATTERN_KEY, null, false, "A comma separated list "
-        + "of domain names to allow access to OpenTSDB when the Origin "
-        + "header is specified by the client. If empty, CORS requests "
-        + "are passed through without validation. The list may not "
-        + "contain the public wildcard * and specific domains at the "
-        + "same time.");
-    config.register(CORS_HEADERS_KEY, "Authorization, Content-Type, "
-        + "Accept, Origin, User-Agent, DNT, Cache-Control, "
-        + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since", 
-        false, 
-        "A comma separated list of headers sent to clients when "
-        + "executing a CORs request. The literal value of this option "
-        + "will be passed to clients.");
     config.register(DIRECTORY_KEY, null, false, 
         "The path to a directory to host at the root for hosting files.");
     config.register(READ_TO_KEY, 5 * 60 * 1000, false, 
@@ -298,11 +283,11 @@ public class TSDMain {
       HttpHandler handler = Handlers.path(Handlers.redirect(root))
           .addPrefixPath(root, manager.start());
       
-      if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(CORS_PATTERN_KEY))) {
+      CORSHandler.registerConfigs(tsdb);
+      if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(
+          CORSHandler.CORS_ORIGIN_KEY))) {
         // TODO - flesh out settings.
-        handler = CORSHandler.newBuilder().setNext(handler)
-            .setOriginPattern(tsdb.getConfig().getString(CORS_PATTERN_KEY))
-            .build();
+        handler = new CORSHandler(tsdb, handler);
       }
 
       handler = new QueryRegistrationHandler(tsdb, handler);

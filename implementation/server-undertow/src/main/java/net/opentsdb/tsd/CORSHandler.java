@@ -26,6 +26,8 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderValues;
 import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
+import net.opentsdb.configuration.ConfigurationCallback;
+import net.opentsdb.core.TSDB;
 
 /**
  * A CORs handler inspired by https://github.com/Download/undertow-cors-filter 
@@ -34,8 +36,12 @@ import io.undertow.util.HttpString;
  * 
  * @since 3.0
  */
-public class CORSHandler implements HttpHandler {
+public class CORSHandler implements HttpHandler, ConfigurationCallback<Object> {
   private static final Logger LOG = LoggerFactory.getLogger(CORSHandler.class);
+  
+  public static final String CORS_ORIGIN_KEY = "tsd.http.request.cors.pattern";
+  public static final String CORS_HEADERS_KEY = "tsd.http.request.cors.headers";
+  
   private static final HttpString ALLOW_ORIGIN = HttpString.tryFromString("Access-Control-Allow-Origin");
   private static final HttpString ALLOW_HEADERS = HttpString.tryFromString("Access-Control-Allow-Headers");
   private static final HttpString EXPOSE_HEADERS = HttpString.tryFromString("Access-Control-Expose-Headers");
@@ -50,25 +56,24 @@ public class CORSHandler implements HttpHandler {
   
   private static final byte[] FORBIDDEN = ("{\"error\":{\"code\":403,"
       + "\"message\":\"Forbidden.\"}}").getBytes();
-  private final Pattern request_pattern;
-  private final Pattern origin_pattern;
-  private final Builder builder;
+
+  private final HttpHandler next;
+  private volatile Pattern request_pattern;
+  private volatile Pattern origin_pattern;
+  private volatile String allow_headers;
+  private volatile boolean require_origin;
   
-  protected CORSHandler(final Builder builder) {
-    if (builder.next == null) {
+  protected CORSHandler(final TSDB tsdb, final HttpHandler next) {
+    if (next == null) {
       throw new IllegalArgumentException("Next cannot be null.");
     }
-    if (Strings.isNullOrEmpty(builder.request_pattern)) {
-      request_pattern = Pattern.compile(".*");
-    } else {
-      request_pattern = Pattern.compile(builder.request_pattern);
-    }
-    if (Strings.isNullOrEmpty(builder.origin_pattern)) {
-      origin_pattern = Pattern.compile(".*");
-    } else {
-      origin_pattern = Pattern.compile(builder.origin_pattern);
-    }
-    this.builder = builder;
+    this.next = next;
+    
+    // TODO allow for a requet
+    request_pattern = Pattern.compile(".*");
+    origin_pattern = Pattern.compile(tsdb.getConfig().getString(CORS_ORIGIN_KEY));
+    allow_headers = tsdb.getConfig().getString(CORS_HEADERS_KEY);
+    LOG.info("Starting CORS handler with pattern: " + origin_pattern);
   }
   
   @Override
@@ -83,7 +88,7 @@ public class CORSHandler implements HttpHandler {
       final HeaderValues headers = exchange.getRequestHeaders().get("Origin");
       final String origin = headers == null ? null : headers.peekFirst();
       if (Strings.isNullOrEmpty(origin)) {
-        if (builder.require_origin) {
+        if (require_origin) {
           exchange.startBlocking();
           exchange.setStatusCode(403);
           exchange.getResponseHeaders().add(Headers.CONTENT_TYPE, "application/json");
@@ -115,7 +120,7 @@ public class CORSHandler implements HttpHandler {
         
         // matched!
         if (!exchange.getResponseHeaders().contains(ALLOW_HEADERS)) {
-          exchange.getResponseHeaders().add(ALLOW_HEADERS, DEFAULT_ALLOW_HEADERS);
+          exchange.getResponseHeaders().add(ALLOW_HEADERS, allow_headers);
         }
         if (!exchange.getResponseHeaders().contains(ALLOW_CREDENTIALS)) {
           exchange.getResponseHeaders().add(ALLOW_CREDENTIALS, "true");
@@ -136,41 +141,36 @@ public class CORSHandler implements HttpHandler {
       }
     }
     
-    builder.next.handleRequest(exchange);
-  }
-
-  public static Builder newBuilder() {
-    return new Builder();
+    next.handleRequest(exchange);
   }
   
-  public static class Builder {
-    protected HttpHandler next;
-    protected String request_pattern;
-    protected String origin_pattern;
-    protected boolean require_origin;
-    
-    public Builder setNext(final HttpHandler next) {
-      this.next = next;
-      return this;
+  public static void registerConfigs(final TSDB tsdb) {
+    tsdb.getConfig().register(CORS_ORIGIN_KEY, null, false, "A regular expression "
+        + "of domain names to allow access to OpenTSDB when the Origin "
+        + "header is specified by the client. If empty, CORS requests "
+        + "are passed through without validation. The list may not "
+        + "contain the public wildcard * and specific domains at the "
+        + "same time.");
+    tsdb.getConfig().register(CORS_HEADERS_KEY, DEFAULT_ALLOW_HEADERS, 
+        false, 
+        "A comma separated list of headers sent to clients when "
+            + "executing a CORs request. The literal value of this option "
+            + "will be passed to clients.");
+  }
+
+  @Override
+  public void update(final String key, final Object value) {
+    try {
+      if (key.equals(CORS_ORIGIN_KEY)) {
+        origin_pattern = Pattern.compile((String) value);
+        LOG.info("Updated CORS pattern to: " + origin_pattern);
+      } else if (key.equals(CORS_HEADERS_KEY)) {
+        allow_headers = (String) value;
+        LOG.info("Updated CORS allowed headers to: " + allow_headers);
+      }
+    } catch (Throwable t) {
+      LOG.error("Failed to parse setting: " + key, t);
     }
     
-    public Builder setRequestPattern(final String pattern) {
-      this.request_pattern = pattern;
-      return this;
-    }
-    
-    public Builder setOriginPattern(final String pattern) {
-      this.origin_pattern = pattern;
-      return this;
-    }
-    
-    public Builder setRequireOrigin(final boolean require_origin) {
-      this.require_origin = require_origin;
-      return this;
-    }
-    
-    public CORSHandler build() {
-      return new CORSHandler(this);
-    }
   }
 }
