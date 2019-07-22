@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import net.opentsdb.auth.AuthState;
@@ -275,9 +276,22 @@ final public class QueryRpc {
                   .finish();
     }
     
+    Map<String, String> log_headers = null;
+    Enumeration<String> keys = request.getHeaderNames();
+    while (keys.hasMoreElements()) {
+      final String name = keys.nextElement();
+      if (name.toLowerCase().startsWith("x-") &&
+          !Strings.isNullOrEmpty(request.getHeader(name))) {
+        if (log_headers == null) {
+          log_headers = Maps.newHashMap();
+        }
+        log_headers.put(name, request.getHeader(name));
+      }
+    }
+    
     LOG.info("Executing new query=" + JSON.serializeToString(
         ImmutableMap.<String, Object>builder()
-        // TODO - possible upstream headers
+        .put("headers", log_headers == null ? "null" : log_headers)
         .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
         .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
         .put("traceId", trace != null ? trace.traceId() : "")
