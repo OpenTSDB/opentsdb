@@ -219,19 +219,19 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
     // and we need to find our sources if we have a rollup as well as set the 
     // padding.
     final List<QueryNodeConfig> sources = Lists.newArrayList(
-        plan.terminalSourceNodes(newConfig));
+        plan.terminalSourceNodes(config));
     for (final QueryNodeConfig source : sources) {
       if (!(source instanceof TimeSeriesDataSourceConfig)) {
         LOG.debug("Hmmm, wasn't a data source config? " + source);
         continue;
       }
       TimeSeriesDataSourceConfig.Builder new_source = (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
-      new_source.setSummaryInterval((newConfig).getInterval());
-      if (newConfig.getAggregator().equalsIgnoreCase("avg")) {
+      new_source.setSummaryInterval((config).getInterval());
+      if (config.getAggregator().equalsIgnoreCase("avg")) {
         new_source.addSummaryAggregation("sum");
         new_source.addSummaryAggregation("count");
       } else {
-        new_source.addSummaryAggregation(newConfig.getAggregator());
+        new_source.addSummaryAggregation(config.getAggregator());
       }
       
       plan.replace(source, new_source.build());
