@@ -406,8 +406,7 @@ public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConf
    * Helper to register the configs.
    * @param tsdb A non-null TSDB.
    */
-  @VisibleForTesting
-  void registerConfigs(final TSDB tsdb) {
+  protected void registerConfigs(final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(getConfigKey(HOSTS_KEY))) {
       tsdb.getConfig().register(
           ConfigurationEntrySchema.newBuilder()
