@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+import net.opentsdb.data.types.event.EventGroupType;
+import net.opentsdb.data.types.event.EventsGroupValue;
 import net.opentsdb.data.types.status.StatusIterator;
 import net.opentsdb.data.types.status.StatusType;
 import net.opentsdb.data.types.status.StatusValue;
@@ -481,7 +483,14 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         } else if (iterator.getType() == EventType.TYPE) {
           was_event = true;
           json.writeStartObject();
+          json.writeObjectFieldStart("EventsType");
           writeEvents((EventsValue) value, json);
+          json.writeEndObject();
+          wrote_values = true;
+        } else if (iterator.getType() == EventGroupType.TYPE) {
+          was_event = true;
+          json.writeStartObject();
+          writeEventGroup((EventsGroupValue) value, json);
           wrote_values = true;
         } else {
           while (value != null && value.timestamp().compare(Op.LT, start)) {
@@ -925,8 +934,24 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     return wrote_type;
   }
 
+  private void writeEventGroup(EventsGroupValue eventsGroupValue, final JsonGenerator json)
+      throws IOException {
+    json.writeObjectFieldStart("EventsGroupType");
+    if (eventsGroupValue.group() != null) {
+      json.writeObjectFieldStart("group");
+      for (Map.Entry<String, String> e : eventsGroupValue.group().entrySet()) {
+        json.writeStringField(e.getKey(), String.valueOf(e.getValue()));
+      }
+      json.writeEndObject();
+    }
+
+    json.writeObjectFieldStart("event");
+    writeEvents(eventsGroupValue.event(), json);
+    json.writeEndObject();
+
+    json.writeEndObject();
+  }
   private void writeEvents(EventsValue eventsValue, final JsonGenerator json) throws IOException {
-    json.writeObjectFieldStart("EventsType");
     json.writeStringField("namespace", eventsValue.namespace());
     json.writeStringField("source", eventsValue.source());
     json.writeStringField("title", eventsValue.title());
@@ -959,7 +984,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       }
       json.writeEndObject();
     }
-    json.writeEndObject();
 
   }
   

@@ -41,7 +41,9 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.event.EventGroupType;
 import net.opentsdb.data.types.event.EventType;
+import net.opentsdb.data.types.event.EventsGroupValue;
 import net.opentsdb.data.types.event.EventsValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -83,6 +85,9 @@ public class HttpQueryV3Result implements QueryResult {
   
   /** An optional rollup config from summaries. */
   private RollupConfig rollup_config;
+
+  /** Object Mapper for serdes. */
+  private final ObjectMapper mapper = new ObjectMapper();
   
   /**
    * Default ctor without an exception.
@@ -299,7 +304,7 @@ public class HttpQueryV3Result implements QueryResult {
      */
     HttpTimeSeries(final JsonNode node) {
       this.node = node;
-      final BaseTimeSeriesStringId.Builder builder = 
+      final BaseTimeSeriesStringId.Builder builder =
           BaseTimeSeriesStringId.newBuilder();
       JsonNode temp = node.get("metric");
       if (temp != null && !temp.isNull()) {
@@ -313,7 +318,12 @@ public class HttpQueryV3Result implements QueryResult {
           builder.addTags(entry.getKey(), entry.getValue().asText());
         }
       }
-      
+
+      temp = node.get("hits");
+      if (temp != null && !temp.isNull()) {
+        builder.setHits(temp.asLong());
+      }
+
       temp = node.get("aggregateTags");
       if (temp != null && !temp.isNull()) {
         for (final JsonNode tag : temp) {
@@ -321,7 +331,7 @@ public class HttpQueryV3Result implements QueryResult {
         }
       }
       id = builder.build();
-      
+
       types = Lists.newArrayList();
       temp = node.get("NumericType");
       if (temp != null && !temp.isNull()) {
@@ -331,7 +341,7 @@ public class HttpQueryV3Result implements QueryResult {
           types.add(NumericType.TYPE);
         }
       }
-      
+
       temp = node.get("NumericSummaryType");
       if (temp != null && !temp.isNull()) {
         types.add(NumericSummaryType.TYPE);
@@ -340,6 +350,11 @@ public class HttpQueryV3Result implements QueryResult {
       temp = node.get("EventsType");
       if (temp != null && !temp.isNull()) {
         types.add(EventType.TYPE);
+      }
+
+      temp = node.get("EventsGroupType");
+      if (temp != null && !temp.isNull()) {
+        types.add(EventGroupType.TYPE);
       }
     }
     
@@ -362,6 +377,8 @@ public class HttpQueryV3Result implements QueryResult {
           data = new SummaryData(node.get("NumericSummaryType"));
         } else if (type == EventType.TYPE) {
           data = new EventData(node.get("EventsType"));
+        } else if (type == EventGroupType.TYPE) {
+          data = new EventGroupData(node.get("EventsGroupType"));
         }
         if (data != null) {
           return Optional.of(data);
@@ -374,14 +391,16 @@ public class HttpQueryV3Result implements QueryResult {
     @Override
     public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
       // TODO - cleanup
-      List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> results = Lists.newArrayListWithExpectedSize(1);
+      List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> results = Lists
+          .newArrayListWithExpectedSize(1);
       if (types.contains(NumericType.TYPE)) {
         results.add(new NumericData(node.get("NumericType")));
       } else if (types.contains(NumericArrayType.TYPE)) {
         results.add(new ArrayData(node.get("NumericType")));
-      }
-      else if (types.contains(EventType.TYPE)) {
-       results.add(new EventData(node.get("EventsType")));
+      } else if (types.contains(EventType.TYPE)) {
+        results.add(new EventData(node.get("EventsType")));
+      } else if (types.contains(EventGroupType.TYPE)) {
+        results.add(new EventGroupData(node.get("EventsGroupType")));
       }
       return results;
     }
@@ -625,7 +644,7 @@ public class HttpQueryV3Result implements QueryResult {
 
       EventsValue events_value;
       try {
-        events_value  = new ObjectMapper().treeToValue(node, EventsValue.class);
+        events_value  = mapper.treeToValue(node, EventsValue.class);
         node = null;
       } catch (JsonProcessingException e) {
         throw new IllegalArgumentException("Unable to parse config", e);
@@ -636,6 +655,39 @@ public class HttpQueryV3Result implements QueryResult {
     @Override
     public TypeToken<? extends TimeSeriesDataType> getType() {
       return EventType.TYPE;
+    }
+
+  }
+
+  class EventGroupData implements TypedTimeSeriesIterator {
+
+    private JsonNode node;
+
+    EventGroupData(final JsonNode data) {
+      node = data;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return node == null ? false : true;
+    }
+
+    @Override
+    public TimeSeriesValue<? extends TimeSeriesDataType> next() {
+
+      EventsGroupValue events_group_value;
+      try {
+        events_group_value = mapper.treeToValue(node, EventsGroupValue.class);
+        node = null;
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Unable to parse config", e);
+      }
+      return events_group_value;
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesDataType> getType() {
+      return EventGroupType.TYPE;
     }
 
   }

@@ -234,6 +234,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     final String json;
     try {
       json = JSON.serializeToString(builder.build());
+      System.out.println("###################+++ " + json);
       post.setEntity(new StringEntity(json));
     } catch (UnsupportedEncodingException e) {
       try {
