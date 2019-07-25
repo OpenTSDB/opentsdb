@@ -170,6 +170,25 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
     return new Builder();
   }
 
+  @Override
+  public String toString() {
+    return "EventsValue{" +
+        "eventId='" + eventId + '\'' +
+        ", timestamp=" + timestamp +
+        ", endTimestamp=" + endTimestamp +
+        ", source='" + source + '\'' +
+        ", title='" + title + '\'' +
+        ", message='" + message + '\'' +
+        ", priority='" + priority + '\'' +
+        ", userId='" + userId + '\'' +
+        ", ongoing=" + ongoing +
+        ", parentId=" + parentId +
+        ", childId=" + childId +
+        ", additionalProps=" + additionalProps +
+        ", namespace='" + namespace + '\'' +
+        '}';
+  }
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     /** Unique ID of the event */

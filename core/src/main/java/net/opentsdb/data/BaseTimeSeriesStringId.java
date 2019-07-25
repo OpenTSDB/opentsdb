@@ -92,7 +92,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     alias = builder.alias;
     namespace = builder.namespace;
     metric = builder.metric;
-    if (metric.isEmpty()) {
+    if (metric != null && metric.isEmpty()) {
       throw new IllegalArgumentException("Metric cannot be null or empty.");
     }
 

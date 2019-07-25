@@ -334,6 +334,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
         .setFilterId(config.getFilterId())
         .setQueryFilter(config.getFilter())
         .setFetchLast(config.getFetchLast())
+        .setFrom(config.getFrom())
+        .setSize(config.getSize())
         .setRollupIntervals(
             config.getRollupIntervals() == null || config.getRollupIntervals().isEmpty()
                 ? null

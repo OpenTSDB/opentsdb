@@ -51,6 +51,7 @@ public class TestSemanticQuery {
         .build();
     List<QueryNodeConfig> graph = Lists.newArrayList(
         DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setSize(100)
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("sys.cpu.user")
                 .build())
@@ -70,7 +71,6 @@ public class TestSemanticQuery {
             .setId("serdes")
             .build())
         .build();
-
     assertEquals(QueryMode.SINGLE, query.getMode());
     assertEquals("1514764800", query.getStart());
     assertEquals(1514764800, query.startTime().epoch());
