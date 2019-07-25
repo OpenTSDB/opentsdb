@@ -470,6 +470,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     boolean wrote_values = false;
     boolean was_status = false;
     boolean was_event = false;
+    boolean was_event_group = false;
     for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
       while (iterator.hasNext()) {
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
@@ -488,9 +489,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           json.writeEndObject();
           wrote_values = true;
         } else if (iterator.getType() == EventGroupType.TYPE) {
-          was_event = true;
+          was_event_group = true;
           json.writeStartObject();
-          writeEventGroup((EventsGroupValue) value, json);
+          writeEventGroup((EventsGroupValue) value, json, id);
           wrote_values = true;
         } else {
           while (value != null && value.timestamp().compare(Op.LT, start)) {
@@ -530,11 +531,13 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       if(!was_status && !was_event) {
         json.writeStringField("metric", id.metric());
       }
-      json.writeObjectFieldStart("tags");
-      for (final Entry<String, String> entry : id.tags().entrySet()) {
-        json.writeStringField(entry.getKey(), entry.getValue());
+      if (! was_event_group) {
+        json.writeObjectFieldStart("tags");
+        for (final Entry<String, String> entry : id.tags().entrySet()) {
+          json.writeStringField(entry.getKey(), entry.getValue());
+        }
+        json.writeEndObject();
       }
-      json.writeEndObject();
       if (was_event) {
         json.writeNumberField("hits", id.hits());
       } else {
@@ -934,7 +937,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     return wrote_type;
   }
 
-  private void writeEventGroup(EventsGroupValue eventsGroupValue, final JsonGenerator json)
+  private void writeEventGroup(EventsGroupValue eventsGroupValue, final JsonGenerator json,
+      final TimeSeriesStringId id)
       throws IOException {
     json.writeObjectFieldStart("EventsGroupType");
     if (eventsGroupValue.group() != null) {
@@ -947,6 +951,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     json.writeObjectFieldStart("event");
     writeEvents(eventsGroupValue.event(), json);
+    json.writeObjectFieldStart("tags");
+    for (final Entry<String, String> entry : id.tags().entrySet()) {
+      json.writeStringField(entry.getKey(), entry.getValue());
+    }
+    json.writeEndObject();
     json.writeEndObject();
 
     json.writeEndObject();
