@@ -146,4 +146,19 @@ public class TestArrayFirstFactory {
     assertArrayEquals(new long[] { -24, 0 }, agg.longArray());
   }
   
+  @Test
+  public void singleNanDouble() throws Exception {
+    ArrayFirstFactory.ArrayFirst agg = new ArrayFirstFactory.ArrayFirst(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    assertArrayEquals(new double[] { 3, Double.NaN, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+  
+  @Test
+  public void nanThenReals() throws Exception {
+    ArrayFirstFactory.ArrayFirst agg = new ArrayFirstFactory.ArrayFirst(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
+    assertArrayEquals(new double[] { 3, 2, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+  
 }

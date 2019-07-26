@@ -146,4 +146,19 @@ public class TestArrayLastFactory {
     assertArrayEquals(new double[] { -13, 5 }, agg.doubleArray(), 0.001);
   }
   
+  @Test
+  public void singleNanDouble() throws Exception {
+    ArrayLastFactory.ArrayLast agg = new ArrayLastFactory.ArrayLast(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    assertArrayEquals(new double[] { 3, Double.NaN, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+  
+  @Test
+  public void nanThenReals() throws Exception {
+    ArrayLastFactory.ArrayLast agg = new ArrayLastFactory.ArrayLast(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
+    assertArrayEquals(new double[] { 5, 2, 5, 2 }, agg.doubleArray(), 0.001);
+  }
+  
 }

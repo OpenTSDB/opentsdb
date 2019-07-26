@@ -153,4 +153,20 @@ public class TestArrayAverage {
     assertEquals(2, agg.end());
     assertArrayEquals(new double[] { -18.5, 2.5 }, agg.doubleArray(), 0.001);
   }
+
+  @Test
+  public void singleNanDouble() throws Exception {
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    assertArrayEquals(new double[] { 3, Double.NaN, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+  
+  @Test
+  public void nanThenReals() throws Exception {
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
+    assertArrayEquals(new double[] { 4, 2, 5, 0.5 }, agg.doubleArray(), 0.001);
+  }
+  
 }
