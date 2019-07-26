@@ -152,4 +152,19 @@ public class TestArrayMinFactory {
     assertArrayEquals(new double[] { -24, 0 }, agg.doubleArray(), 0.001);
   }
   
+  @Test
+  public void singleNanDouble() throws Exception {
+    ArrayMinFactory.ArrayMin agg = new ArrayMinFactory.ArrayMin(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    assertArrayEquals(new double[] { 3, Double.NaN, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+ 
+  @Test
+  public void nanThenReals() throws Exception {
+    ArrayMinFactory.ArrayMin agg = new ArrayMinFactory.ArrayMin(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
+    assertArrayEquals(new double[] { 3, 2, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+  
 }

@@ -143,7 +143,6 @@ public class ArrayAverageFactory extends BaseArrayFactory {
           double_accumulator[idx++] += values[i];
         }
       }
-      
     }
 
     @Override
@@ -161,6 +160,7 @@ public class ArrayAverageFactory extends BaseArrayFactory {
       if (results == null) {
         results = new double[counts.length];
         for (int i = 0; i < counts.length; i++) {
+          // zero / zero will give us NaN.
           if (long_accumulator != null) {
             results[i] = (double) long_accumulator[i] / (double) counts[i];
           } else {

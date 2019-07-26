@@ -152,4 +152,19 @@ public class TestArrayMaxFactory {
     assertArrayEquals(new double[] { -13, 5 }, agg.doubleArray(), 0.001);
   }
   
+  @Test
+  public void singleNanDouble() throws Exception {
+    ArrayMaxFactory.ArrayMax agg = new ArrayMaxFactory.ArrayMax(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    assertArrayEquals(new double[] { 3, Double.NaN, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+  
+  @Test
+  public void nanThenReals() throws Exception {
+    ArrayMaxFactory.ArrayMax agg = new ArrayMaxFactory.ArrayMax(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
+    assertArrayEquals(new double[] { 5, 2, 5, 2 }, agg.doubleArray(), 0.001);
+  }
+  
 }

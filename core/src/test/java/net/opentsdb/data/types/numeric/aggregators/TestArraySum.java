@@ -151,4 +151,20 @@ public class TestArraySum {
     assertEquals(2, agg.end());
     assertArrayEquals(new double[] { -37, 5 }, agg.doubleArray(), 0.001);
   }
+
+  @Test
+  public void singleNanDouble() throws Exception {
+    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    assertArrayEquals(new double[] { 3, Double.NaN, 5, -1 }, agg.doubleArray(), 0.001);
+  }
+
+  @Test
+  public void nanThenReals() throws Exception {
+    ArraySumFactory.ArraySum agg = new ArraySumFactory.ArraySum(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 5, -1 });
+    agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
+    assertArrayEquals(new double[] { 8, 2, 5, 1 }, agg.doubleArray(), 0.001);
+  }
+  
 }

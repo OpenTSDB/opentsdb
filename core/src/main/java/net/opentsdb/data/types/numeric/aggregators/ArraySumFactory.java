@@ -105,7 +105,8 @@ public class ArraySumFactory extends BaseArrayFactory {
                            final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
-        double_accumulator = new double[to - from];
+        double_accumulator = Arrays.copyOfRange(values, from, to);
+        return;
       }
       
       if (double_accumulator == null) {
@@ -131,7 +132,11 @@ public class ArraySumFactory extends BaseArrayFactory {
             idx++;
           }
         } else {
-          double_accumulator[idx++] += values[i];
+          if (Double.isNaN(double_accumulator[idx]) && !infectious_nans) {
+            double_accumulator[idx++] = values[i];
+          } else {
+            double_accumulator[idx++] += values[i];
+          }
         }
       }
     }
