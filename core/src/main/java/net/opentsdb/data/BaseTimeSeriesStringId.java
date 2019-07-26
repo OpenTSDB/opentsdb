@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -240,7 +241,9 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     buf.append(namespace);
     buf.append(metric);
     if (tags != null) {
-      for (final Entry<String, String> pair : tags.entrySet()) {
+      final TreeMap<String, String> sorted = 
+          new TreeMap<String, String>(tags);
+      for (final Entry<String, String> pair : sorted.entrySet()) {
         buf.append(pair.getKey());
         buf.append(pair.getValue());
       }
