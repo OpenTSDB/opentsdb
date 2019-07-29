@@ -111,20 +111,14 @@ public class TestRedisClusterKeyGenerator {
             .setMetric("sys.cpu.user"))
         .build();
     
-    byte[] timeless_hash = query.buildTimelessHashCode().asBytes();
+    byte[] timeless_hash = Bytes.fromLong(query.buildTimelessHashCode().asLong());
     
-    TimeStamp[][] time_ranges = new TimeStamp[3][];
-    time_ranges[0] = new TimeStamp[2];
-    time_ranges[0][0] = new MillisecondTimeStamp(1493942400000L);
-    time_ranges[0][1] = new MillisecondTimeStamp(1493946000000L);
-    time_ranges[1] = new TimeStamp[2];
-    time_ranges[1][0] = new MillisecondTimeStamp(1493946000000L);
-    time_ranges[1][1] = new MillisecondTimeStamp(1493949600000L);
-    time_ranges[2] = new TimeStamp[2];
-    time_ranges[2][0] = new MillisecondTimeStamp(1493949600000L);
-    time_ranges[2][0] = new MillisecondTimeStamp(1493953200000L);
+    int[] time_ranges = new int[3];
+    time_ranges[0] = 1493942400;
+    time_ranges[1] = 1493946000;
+    time_ranges[2] = 1493949600;
     
-    byte[][] keys = generator.generate(query, time_ranges);
+    byte[][] keys = generator.generate(query.buildTimelessHashCode().asLong(), time_ranges);
     assertEquals(3, keys.length);
     System.out.println(Arrays.toString(keys[0]));
     // prefix
@@ -147,7 +141,7 @@ public class TestRedisClusterKeyGenerator {
         DefaultTimeSeriesCacheKeyGenerator
         .CACHE_PREFIX.length + 2 + timeless_hash.length, 
         keys[0].length);
-    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[0][0].msEpoch())));
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromInt(time_ranges[0])));
     
     // prefix
     hash = Arrays.copyOfRange(keys[1], 
@@ -172,7 +166,7 @@ public class TestRedisClusterKeyGenerator {
         DefaultTimeSeriesCacheKeyGenerator
         .CACHE_PREFIX.length + 2 + timeless_hash.length, 
         keys[1].length);
-    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[1][0].msEpoch())));
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromInt(time_ranges[1])));
     
     // prefix
     hash = Arrays.copyOfRange(keys[2], 
@@ -197,20 +191,15 @@ public class TestRedisClusterKeyGenerator {
         DefaultTimeSeriesCacheKeyGenerator
         .CACHE_PREFIX.length + 2 + timeless_hash.length, 
         keys[2].length);
-    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[2][0].msEpoch())));
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromInt(time_ranges[2])));
     
     try {
-      generator.generate(null, time_ranges);
+      generator.generate(query.buildTimelessHashCode().asLong(), null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      generator.generate(query, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      generator.generate(null, new TimeStamp[0][]);
+      generator.generate(query.buildTimelessHashCode().asLong(), new int[0]);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

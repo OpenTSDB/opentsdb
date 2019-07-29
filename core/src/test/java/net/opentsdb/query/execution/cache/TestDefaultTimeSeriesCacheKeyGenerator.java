@@ -155,7 +155,7 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     hash = Arrays.copyOfRange(keys[0], 
         DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
         keys[0].length);
-    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[0])));
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromInt(time_ranges[0])));
     
     // prefix
     assertEquals(0, Bytes.memcmp(keys[1], 
@@ -171,7 +171,7 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     hash = Arrays.copyOfRange(keys[1], 
         DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
         keys[0].length);
-    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[1])));
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromInt(time_ranges[1])));
     
     // prefix
     assertEquals(0, Bytes.memcmp(keys[2], 
@@ -187,7 +187,7 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     hash = Arrays.copyOfRange(keys[2], 
         DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
         keys[0].length);
-    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[2])));
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromInt(time_ranges[2])));
     
     try {
       generator.generate(query.buildTimelessHashCode().asLong(), null);

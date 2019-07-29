@@ -16,7 +16,6 @@ package net.opentsdb.query.execution.cache;
 
 import java.util.Arrays;
 
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
 
@@ -47,19 +46,16 @@ public class RedisClusterKeyGenerator extends DefaultTimeSeriesCacheKeyGenerator
   }
 
   @Override
-  public byte[][] generate(final TimeSeriesQuery query, 
-                           final TimeStamp[][] time_ranges) {
-    if (query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
-    }
+  public byte[][] generate(final long query_hash, 
+                           final int[] time_ranges) {
     if (time_ranges == null) {
       throw new IllegalArgumentException("Time ranges cannot be null.");
     }
     if (time_ranges.length < 1) {
       throw new IllegalArgumentException("Time ranges cannot be empty.");
     }
-    final byte[] hash = query.buildTimelessHashCode().asBytes();
-    final byte[] key = new byte[hash.length + CACHE_PREFIX.length + 10];
+    final byte[] hash = Bytes.fromLong(query_hash);
+    final byte[] key = new byte[hash.length + CACHE_PREFIX.length + 6];
     key[0] = '{';
     System.arraycopy(CACHE_PREFIX, 0, key, 1, CACHE_PREFIX.length);
     System.arraycopy(hash, 0, key, CACHE_PREFIX.length + 1, hash.length);
@@ -68,8 +64,8 @@ public class RedisClusterKeyGenerator extends DefaultTimeSeriesCacheKeyGenerator
     final byte[][] keys = new byte[time_ranges.length][];
     for (int i = 0; i < time_ranges.length; i++) {
       final byte[] copy = Arrays.copyOf(key, key.length);
-      System.arraycopy(Bytes.fromLong(time_ranges[i][0].msEpoch()), 0, 
-          copy, hash.length + CACHE_PREFIX.length + 2, 8);
+      System.arraycopy(Bytes.fromInt(time_ranges[i]), 0, 
+          copy, hash.length + CACHE_PREFIX.length + 2, 4);
       keys[i] = copy;
     }
     return keys;
