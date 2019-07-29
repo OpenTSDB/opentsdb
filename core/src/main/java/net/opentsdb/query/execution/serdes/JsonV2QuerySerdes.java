@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -49,6 +48,10 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -144,6 +147,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         deferreds = null;
       }
       
+      final boolean fill = fill(result.source());
+      
       /**
        * Performs the serialization after determining if the serializations
        * need to resolve series IDs.
@@ -208,7 +213,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                     id = (TimeSeriesStringId) pair.getValue().id();
                   }
                   
-                  serializeSeries(opts, value, iterator, id, json, result);
+                  serializeSeries(opts, value, iterator, id, json, result, fill);
                   json.close();
                   synchronized(sets) {
                     sets.add(new String(baos.toByteArray(), Const.UTF8_CHARSET));
@@ -271,7 +276,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                 } else {
                   id = (TimeSeriesStringId) series.id();
                 }
-                serializeSeries(opts, value, iterator, id, json, result);
+                serializeSeries(opts, value, iterator, id, json, result, fill);
                 json.flush();
               }
             }
@@ -345,7 +350,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final TimeSeriesStringId id,
       final JsonGenerator json,
-      final QueryResult result) throws IOException {
+      final QueryResult result,
+      final boolean fill) throws IOException {
     json.writeStringField("metric", id.metric());
     json.writeObjectFieldStart("tags");
     for (final Entry<String, String> entry : id.tags().entrySet()) {
@@ -367,7 +373,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
           options, iterator, json, result);
     } else if (iterator.getType() == NumericArrayType.TYPE) {
       writeNumericArray((TimeSeriesValue<NumericArrayType>) value, 
-          options, iterator, json, result);
+          options, iterator, json, result, fill);
     }
 
     json.writeEndObject();
@@ -458,7 +464,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       final JsonV2QuerySerdesOptions options, 
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
-      final QueryResult result) throws IOException {
+      final QueryResult result,
+      final boolean fill) throws IOException {
     
     if (value.value().end() < 1) {
       // no data
@@ -468,10 +475,16 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
     final TimeStamp timestamp = 
         result.timeSpecification().start().getCopy();
     for (int i = value.value().offset(); i < value.value().end(); i++) {
+      if (!value.value().isInteger() && 
+          Double.isNaN(value.value().doubleArray()[i]) && 
+          !fill) {
+        continue;
+      }
       long ts = (options != null && options.getMsResolution()) 
           ? timestamp.msEpoch() 
           : timestamp.msEpoch() / 1000;
       final String ts_string = Long.toString(ts);
+      
       if (value.value() == null) {
         json.writeNullField(ts_string);
       } else {
@@ -486,5 +499,18 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       
       timestamp.add(result.timeSpecification().interval());
     }
+  }
+  
+  boolean fill(final QueryNode node) {
+    if (node instanceof Downsampler) {
+      return ((NumericInterpolatorConfig) ((DownsampleConfig) node.config()).getInterpolatorConfigs().iterator().next()).getFillPolicy() != FillPolicy.NONE;
+    }
+    
+    for (final QueryNode ds : node.pipelineContext().downstream(node)) {
+      if (fill(ds)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
