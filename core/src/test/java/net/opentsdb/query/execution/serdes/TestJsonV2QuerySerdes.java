@@ -60,6 +60,7 @@ import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Metric;
@@ -130,6 +131,11 @@ public class TestJsonV2QuerySerdes {
     ((NumericMillisecondShard) ts2).add(1486045860000L, 0.0015);
     
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
+    QueryPipelineContext ctx = mock(QueryPipelineContext.class);
+    QueryNode src = mock(QueryNode.class);
+    when(src.pipelineContext()).thenReturn(ctx);
+    when(ctx.downstream(any(QueryNode.class))).thenReturn(Lists.newArrayList());
+    when(result.source()).thenReturn(src);
     
     options = (JsonV2QuerySerdesOptions) JsonV2QuerySerdesOptions.newBuilder()
         .setId("json")
