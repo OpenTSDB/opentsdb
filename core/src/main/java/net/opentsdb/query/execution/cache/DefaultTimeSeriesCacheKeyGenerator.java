@@ -178,15 +178,15 @@ public class DefaultTimeSeriesCacheKeyGenerator
       throw new IllegalArgumentException("Time ranges cannot be empty.");
     }
     final byte[] hash = Bytes.fromLong(query_hash);
-    final byte[] key = new byte[hash.length + CACHE_PREFIX.length + 8];
+    final byte[] key = new byte[hash.length + CACHE_PREFIX.length + 4];
     System.arraycopy(CACHE_PREFIX, 0, key, 0, CACHE_PREFIX.length);
     System.arraycopy(hash, 0, key, CACHE_PREFIX.length, hash.length);
     
     final byte[][] keys = new byte[time_ranges.length][];
     for (int i = 0; i < time_ranges.length; i++) {
       final byte[] copy = Arrays.copyOf(key, key.length);
-      System.arraycopy(Bytes.fromLong(time_ranges[i]), 0, 
-          copy, hash.length + CACHE_PREFIX.length, 8);
+      System.arraycopy(Bytes.fromInt(time_ranges[i]), 0, 
+          copy, hash.length + CACHE_PREFIX.length, 4);
       keys[i] = copy;
     }
     return keys;
