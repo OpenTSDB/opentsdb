@@ -66,6 +66,16 @@ final class Uids {
   }
 
   /**
+   * Remove UID from local map (not the storage!).
+   */
+  void localRemoveUid(final String uid) {
+    // TODO if doesn't exist, don't blow up
+    final String name = name2id.get(uid);
+    name2id.remove(uid);
+    id2name.remove(name);
+  }
+
+  /**
    * Replaces or creates the reverse map in storage and in the local map
    */
   void restoreReverseMap(final String kind, final String name, 

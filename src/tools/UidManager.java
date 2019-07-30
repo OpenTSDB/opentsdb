@@ -879,6 +879,77 @@ final class UidManager {
         duration + "] seconds");
     return 0;
   }
+
+  /**
+   * Runs through the entire data table and delete UIDs that are no longer used
+   * from the UID table.
+   *
+   * The process is as follows:
+   * <ul>
+   * <li>Fetch all known UIDs from the UID table, store as unusedUIDs.</li>
+   * <li>Fetch the max number of Metric UIDs as we'll use those to match
+   * on the data rows</li>
+   * <li>Split the # of UIDs amongst worker threads</li>
+   * <li>Setup a scanner in each thread for the range it will be working on and
+   * start iterating</li>
+   * <li>Fetch the TSUID from the row key</li>
+   * <li>For each unprocessed TSUID, remove the metric, tagk, and tagv UIDs
+   * from unusedUIDs.</li>
+   * <li>When done iterating, any remaining UIDs in unusedUIDS are deleted from
+   * the UID table.</li></ul>
+   * @param tsdb The tsdb to use for processing.
+   * @param table The table name for where data is stored.
+   * @return 0 if completed successfully, something else if it dies
+   */
+  private static int uidGarbageCollect(final TSDB tsdb, final byte[] table) throws Exception {
+    final long start_time = System.currentTimeMillis() / 1000;
+
+    // get current uids:
+    // TODO make Uids use ConcurrentHashMap
+    HashMap<String,Uids> unusedUids = Uids.loadUids(tsdb.getClient(), table,
+                                                    LOG, false, false);
+
+    // now figure out how many IDs to divy up between the workers
+    final int workers = Runtime.getRuntime().availableProcessors() * 2;
+    final Set<Integer> processed_tsuids = 
+      Collections.synchronizedSet(new HashSet<Integer>());
+    final ConcurrentHashMap<String, Long> metric_uids = 
+      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> tagk_uids = 
+      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> tagv_uids = 
+      new ConcurrentHashMap<String, Long>();
+
+    // TODO optimize by making this key only, and first key only, and batching,
+    // etc.
+    final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
+    LOG.info("Spooling up [" + scanners.size() + "] worker threads");
+    final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+    int i = 0;
+    for (final Scanner scanner : scanners) {
+      final UIDGarbageCollector worker = new UIDGarbageCollector(tsdb, scanner, i++,
+                                                                 unusedUids);
+      worker.setName("UID GC Scan #" + i);
+      worker.start();
+      threads.add(worker);
+    }
+
+    for (final Thread thread : threads) {
+      thread.join();
+      LOG.info("Thread [" + thread + "] Finished");
+    }
+    LOG.info("All UID GC Scan  threads have completed");
+
+    // TODO now delete all UIDs left in unusedUids:
+
+    // make sure buffered data is flushed to storage before exiting
+    tsdb.flush().joinUninterruptibly();
+
+    final long duration = (System.currentTimeMillis() / 1000) - start_time;
+    LOG.info("Completed UID garbage collection in [" + 
+        duration + "] seconds");
+    return 0;
+  }
   
   /**
    * Runs through the tsdb-uid table and removes TSMeta, UIDMeta and TSUID 
