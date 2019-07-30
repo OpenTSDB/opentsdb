@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -92,6 +93,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
+
+  private static final String NAMESPACE = "namespace";
 
   /** TEMP */
   //<set ID, <ts hash, ts wrapper>>
@@ -233,22 +236,28 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           } else {
             for (final TimeSeries series :
               series != null ? series : result.timeSeries()) {
+              Map<String, String> additionalProps = new HashMap<>();
               serializeSeries(opts,
                   series,
                   ids != null ? ids.get(idx++) : (TimeSeriesStringId) series.id(),
                   json,
                   null,
-                  result);
-              if (!wasStatus ) {
+                  result, additionalProps);
+              if (!additionalProps.isEmpty()) {
+                namespace = additionalProps.get(NAMESPACE);
+                wasStatus = true;
+              }
+              /*if (!wasStatus) {
                 for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator :
                     series.iterators()) {
+                  LOG.info("Gotcha!!~!!");
                   if (iterator.getType() == StatusType.TYPE) {
                     namespace = ((StatusIterator) iterator).namespace();
                     wasStatus = true;
                     break;
                   }
                 }
-              }
+              }*/
 
             }
           }
@@ -256,7 +265,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           json.writeEndArray();
 
           if(wasStatus && null != namespace && !namespace.isEmpty()) {
-            json.writeStringField("namespace", namespace);
+            json.writeStringField(NAMESPACE, namespace);
           }
 
           json.writeEndObject();
@@ -458,6 +467,17 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       JsonGenerator json,
       final List<String> sets,
       final QueryResult result) throws IOException {
+    
+     serializeSeries(options, series, id, json, sets, result, null);
+    
+  }
+    private void serializeSeries(
+        final JsonV2QuerySerdesOptions options,
+        final TimeSeries series,
+        final TimeSeriesStringId id,
+        JsonGenerator json,
+        final List<String> sets,
+        final QueryResult result, Map<String, String> additionalProperties) throws IOException {
 
     final ByteArrayOutputStream baos;
     if (json == null) {
@@ -475,6 +495,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       while (iterator.hasNext()) {
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
         if (iterator.getType() == StatusType.TYPE) {
+          if (additionalProperties != null) {
+            String ns = ((StatusIterator) iterator).namespace();
+            additionalProperties.put(NAMESPACE, ns);
+          }
           if (!was_status) {
             was_status = true;
           }

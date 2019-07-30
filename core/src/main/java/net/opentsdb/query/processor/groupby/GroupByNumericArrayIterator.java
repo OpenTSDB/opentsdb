@@ -16,21 +16,38 @@ package net.opentsdb.query.processor.groupby;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.aggregators.ArrayLastFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.utils.DateTime;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An iterator for grouping arrays. This should be much faster for 
@@ -42,6 +59,8 @@ import java.util.Optional;
 public class GroupByNumericArrayIterator implements QueryIterator, 
   TimeSeriesValue<NumericArrayType> {
   
+  private static final Logger logger = LoggerFactory.getLogger(GroupByNumericArrayIterator.class);
+  
   /** The result we belong to. */
   private final GroupByResult result;
   
@@ -50,7 +69,9 @@ public class GroupByNumericArrayIterator implements QueryIterator,
   
   /** Whether or not another real value is present. True while at least one 
    * of the time series has a real value. */
-  private boolean has_next = false;
+  private volatile boolean has_next = false;
+  
+  private static final Object MUTEX = new Object();
   
   /**
    * Default ctor.
@@ -66,6 +87,50 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     this(node, result, sources == null ? null : sources.values());
   }
   
+  static final GroupByExecutor executor = new GroupByExecutor();
+  
+  static class GroupByExecutor {
+
+    static ExecutorService executor;
+
+    private GroupByExecutor() {
+
+      BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+      executor = new ThreadPoolExecutor(8, 8, 1L, TimeUnit.SECONDS, workQueue);
+
+    }
+
+    public Future<TimeSeriesValue<NumericArrayType>> submit(TimeSeries source) {
+
+      Callable<TimeSeriesValue<NumericArrayType>> c =
+          new Callable<TimeSeriesValue<NumericArrayType>>() {
+
+            @Override
+            public TimeSeriesValue<NumericArrayType> call() throws Exception {
+              if (source == null) {
+                throw new IllegalArgumentException(
+                    "Null time series are not " + "allowed in the sources.");
+              }
+
+              final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
+                  source.iterator(NumericArrayType.TYPE);
+              if (optional.isPresent()) {
+                final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
+                    optional.get();
+                if (iterator.hasNext()) {
+                  return (TimeSeriesValue<NumericArrayType>) iterator.next();
+                }
+              }
+              return null;
+            }
+
+          };
+          
+      return executor.submit(c);
+    }
+    
+  }
+  
   /**
    * Ctor with a collection of source time series.
    * @param node The non-null node this iterator belongs to.
@@ -77,6 +142,7 @@ public class GroupByNumericArrayIterator implements QueryIterator,
   public GroupByNumericArrayIterator(final QueryNode node, 
                                      final QueryResult result,
                                      final Collection<TimeSeries> sources) {
+    long st = DateTime.nanoTime();
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
     }
@@ -104,37 +170,47 @@ public class GroupByNumericArrayIterator implements QueryIterator,
           + ((GroupByConfig) node.config()).getAggregator());
     }
     
-    // gotta do it here otherwise we won't know if there is any data.
-    for (final TimeSeries source : sources) {
-      if (source == null) {
-        throw new IllegalArgumentException("Null time series are not "
-            + "allowed in the sources.");
-      }
-      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
-          source.iterator(NumericArrayType.TYPE);
-      if (optional.isPresent()) {
-        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-        if (iterator.hasNext()) {
-          has_next = true;
-          final TimeSeriesValue<NumericArrayType> array = 
-              (TimeSeriesValue<NumericArrayType>) iterator.next();
-          // skip empties.
-          if (array.value().end() - array.value().offset() > 0) {
-            if (array.value().isInteger()) {
-              if (array.value().longArray().length > 0) {
-                aggregator.accumulate(array.value().longArray(), 
-                    array.value().offset(), array.value().end());
-              }
-            } else if (array.value().doubleArray().length > 0) {
-              aggregator.accumulate(array.value().doubleArray(),
-                  array.value().offset(), array.value().end());
+    List<Future<TimeSeriesValue<NumericArrayType>>> futures = new ArrayList<Future<TimeSeriesValue<NumericArrayType>>>(sources.size());
+
+    for (TimeSeries source : sources) {
+      has_next = true;
+      futures.add(executor.submit(source));
+    }
+    
+    long startTs = DateTime.nanoTime();
+
+    for (Future<TimeSeriesValue<NumericArrayType>> future : futures) {
+      try {
+        
+        TimeSeriesValue<NumericArrayType> array = future.get(); // get will block until the future is done
+        if (array == null) {
+          continue;
+        }
+
+        if (array.value().end() - array.value().offset() > 0) {
+          if (array.value().isInteger()) {
+            if (array.value().longArray().length > 0) {
+              aggregator.accumulate(array.value().longArray(), array.value().offset(),
+                  array.value().end());
             }
+          } else if (array.value().doubleArray().length > 0) {
+            aggregator.accumulate(array.value().doubleArray(), array.value().offset(),
+                array.value().end());
           }
         }
+      } catch (InterruptedException | ExecutionException e3) {
+        logger.error("Unable to get the status of a task", e3);
       }
     }
-  }
 
+    long endTs = DateTime.nanoTime() - startTs;
+    logger.info("Total number of paralelly fetched iterator values {} and parallel fetch took {}",
+        futures.size(), ((double) endTs) / 1000_000);
+
+    double e = ((double) (DateTime.nanoTime() - st)) / 1000_000;
+    logger.info("Groupby iterator took {}, timeseries count {}", e, sources.size());
+  }
+  
   @Override
   public boolean hasNext() {
     return has_next;
