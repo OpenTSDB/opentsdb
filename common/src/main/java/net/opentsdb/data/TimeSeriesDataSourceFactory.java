@@ -50,13 +50,13 @@ public interface TimeSeriesDataSourceFactory<C extends TimeSeriesDataSourceConfi
    * to determine if the data source handles the particular query. E.g. if
    * the source would handle the namespace or metric for the given query.
    * 
-   * @param query The non-null parent query.
+   * @param context The non-null query context.
    * @param config The non-null query that would be passed to this factory.
    * @return True if the data source supports the query (even if the results
    * may be empty) or false if the source does not support the query, e.g.
    * maybe the source doesn't handle the particular namespace or metric.
    */
-  public boolean supportsQuery(final QueryPipelineContext query, 
+  public boolean supportsQuery(final QueryPipelineContext context, 
                                final C config);
   
   /**
