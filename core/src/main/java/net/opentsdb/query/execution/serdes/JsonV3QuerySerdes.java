@@ -43,6 +43,8 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.data.BaseTimeSeriesByteId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeries;
@@ -236,18 +238,17 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           } else {
             for (final TimeSeries series :
               series != null ? series : result.timeSeries()) {
-              Map<String, String> additionalProps = new HashMap<>();
               serializeSeries(opts,
                   series,
                   ids != null ? ids.get(idx++) : (TimeSeriesStringId) series.id(),
                   json,
                   null,
-                  result, additionalProps);
-              if (!additionalProps.isEmpty() && additionalProps.containsKey(NAMESPACE)) {
-                namespace = additionalProps.get(NAMESPACE);
-                wasStatus = true;
+                  result);
+              if (series.types().contains(StatusType.TYPE) && series.id() instanceof BaseTimeSeriesByteId) {
+                  BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) series.id();
+                  namespace = bid.namespace();
+                  wasStatus = true;
               }
-
             }
           }
           // end of the data array
@@ -450,23 +451,12 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   }
 
   private void serializeSeries(
-      final JsonV2QuerySerdesOptions options,
-      final TimeSeries series,
-      final TimeSeriesStringId id,
-      JsonGenerator json,
-      final List<String> sets,
-      final QueryResult result) throws IOException {
-    
-     serializeSeries(options, series, id, json, sets, result, null);
-    
-  }
-    private void serializeSeries(
         final JsonV2QuerySerdesOptions options,
         final TimeSeries series,
         final TimeSeriesStringId id,
         JsonGenerator json,
         final List<String> sets,
-        final QueryResult result, Map<String, String> additionalProperties) throws IOException {
+        final QueryResult result) throws IOException {
 
     final ByteArrayOutputStream baos;
     if (json == null) {
@@ -484,10 +474,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       while (iterator.hasNext()) {
         TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
         if (iterator.getType() == StatusType.TYPE) {
-          if (additionalProperties != null) {
-            String ns = ((StatusIterator) iterator).namespace();
-            additionalProperties.put(NAMESPACE, ns);
-          }
           if (!was_status) {
             was_status = true;
           }

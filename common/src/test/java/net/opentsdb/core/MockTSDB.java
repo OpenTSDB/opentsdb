@@ -22,7 +22,10 @@ import static org.mockito.Mockito.spy;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.mockito.invocation.InvocationOnMock;
@@ -54,6 +57,7 @@ public class MockTSDB implements TSDB {
   public TSDBThreadPoolExecutor query_pool;
   public List<Runnable> runnables;
   public Map<Long, QueryContext> running_queries;
+  private ExecutorService executor;
   
   public MockTSDB() {
     this(false);
@@ -69,6 +73,8 @@ public class MockTSDB implements TSDB {
     query_timer.multi_task = true;
     query_pool = mock(TSDBThreadPoolExecutor.class);
     runnables = Lists.newArrayList();
+    BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+    executor = new ThreadPoolExecutor(8, 8, 1L, TimeUnit.SECONDS, workQueue);
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -178,6 +184,11 @@ public class MockTSDB implements TSDB {
         throw new RuntimeException("Timer task failed: " + pausedTask, e);
       }
     }
+  }
+
+  @Override
+  public ExecutorService quickWorkPool() {
+    return executor;
   }
 
   

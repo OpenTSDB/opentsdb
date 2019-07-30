@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import java.util.concurrent.ExecutorService;
+
 import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.query.QueryContext;
@@ -46,6 +48,14 @@ public interface TSDB {
    * @return A non-null executor service.
    */
   public TSDBThreadPoolExecutor getQueryThreadPool();
+  
+  /**
+   * An executor service used to run tasks with short life span, typically around <10 ms. For long
+   * running tasks, prefer using {@code getQueryThreadPool()}
+   * 
+   * @return
+   */
+  public ExecutorService quickWorkPool();
   
   /**
    * A timer for use by queries.
