@@ -478,6 +478,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       if (!value.value().isInteger() && 
           Double.isNaN(value.value().doubleArray()[i]) && 
           !fill) {
+        timestamp.add(result.timeSpecification().interval());
         continue;
       }
       long ts = (options != null && options.getMsResolution()) 
@@ -503,7 +504,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   
   boolean fill(final QueryNode node) {
     if (node instanceof Downsampler) {
-      return ((NumericInterpolatorConfig) ((DownsampleConfig) node.config()).getInterpolatorConfigs().iterator().next()).getFillPolicy() != FillPolicy.NONE;
+      return ((DownsampleConfig) node.config()).getFill();
     }
     
     for (final QueryNode ds : node.pipelineContext().downstream(node)) {

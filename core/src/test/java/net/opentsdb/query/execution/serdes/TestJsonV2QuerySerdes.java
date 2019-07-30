@@ -537,4 +537,40 @@ public class TestJsonV2QuerySerdes {
     assertTrue(json.contains("\"1486045800\":0.009"));
     assertTrue(json.contains("\"1486045860\":-2.45"));
   }
+
+  @Test
+  public void serdesArrayNoFill() throws Exception {
+    TimeSpecification spec = mock(TimeSpecification.class);
+    when(spec.start()).thenReturn(new SecondTimeStamp(1486045800));
+    when(spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.timeSpecification()).thenReturn(spec);
+    
+    ts1 = new NumericArrayTimeSeries(id1, new SecondTimeStamp(1486045800));
+    ((NumericArrayTimeSeries) ts1).add(1);
+    ((NumericArrayTimeSeries) ts1).add(5);
+    
+    ts2 = new NumericArrayTimeSeries(id2, new SecondTimeStamp(1486045800));
+    ((NumericArrayTimeSeries) ts2).add(Double.NaN);
+    ((NumericArrayTimeSeries) ts2).add(-2.45);
+    
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2));
+    
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+    final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(context, options, output);
+    serdes.serialize(result, null);
+    output.close();
+    final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
+    assertTrue(json.contains("\"metric\":\"sys.cpu.user\""));
+    assertTrue(json.contains("\"tags\":{"));
+    assertTrue(json.contains("\"dc\":\"phx\""));
+    assertTrue(json.contains("\"host\":\"web01\""));
+    assertTrue(json.contains("\"host\":\"web02\""));
+    assertTrue(json.contains("\"aggregateTags\":[\"owner\"]"));
+    assertTrue(json.contains("\"dps\":{"));
+    
+    assertTrue(json.contains("\"1486045800\":1"));
+    assertTrue(json.contains("\"1486045860\":5"));
+    assertFalse(json.contains("\"1486045800\":\"NaN\""));
+    assertTrue(json.contains("\"1486045860\":-2.45"));
+  }
 }
