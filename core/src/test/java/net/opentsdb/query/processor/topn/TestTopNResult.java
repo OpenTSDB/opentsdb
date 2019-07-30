@@ -251,6 +251,25 @@ public class TestTopNResult {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
   }
+  
+  @Test
+  public void evaluateTopNWithNaNs() throws Exception {
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(
+        makeSeries("web01", 
+            new MutableNumericValue(new MillisecondTimeStamp(0L), 1.6),
+            new MutableNumericValue(new MillisecondTimeStamp(1000L), 3),
+            new MutableNumericValue(new MillisecondTimeStamp(2000L), 5)),
+        makeSeries("web02", 
+            new MutableNumericValue(new MillisecondTimeStamp(2000L), Double.NaN))
+        ));
+    TopNResult topn = new TopNResult(node, result);
+    topn.run();
+    assertEquals(1, topn.results.size());
+    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
+    verify(node, times(1)).onNext(topn);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+  }
 
   @Test
   public void evaluateEmptyResults() throws Exception {

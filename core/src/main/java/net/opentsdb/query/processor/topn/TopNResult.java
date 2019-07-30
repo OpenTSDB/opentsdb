@@ -97,7 +97,7 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         
         if (value.isInteger()) {
           sorted_results.computeIfAbsent(value.toDouble(), k -> new ArrayList<>()).add(ts);
-        } else {
+        } else if (!Double.isNaN(value.doubleValue())){
           sorted_results.computeIfAbsent(value.doubleValue(), k -> new ArrayList<>()).add(ts);
         }
       }
