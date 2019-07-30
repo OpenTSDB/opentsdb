@@ -55,8 +55,9 @@ import net.opentsdb.utils.SharedHttpClient;
  * 
  * @since 3.0
  */
-public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConfig, N extends TimeSeriesDataSource> implements
-    TimeSeriesDataSourceFactory<C, N>, TimerTask {
+public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConfig, 
+    N extends TimeSeriesDataSource> implements TimeSeriesDataSourceFactory<C, N>, 
+      TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseHttpExecutorFactory.class);
   

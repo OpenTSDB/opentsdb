@@ -1173,8 +1173,8 @@ public class TestHAClusterFactory {
         .setMode(QueryMode.SINGLE)
         .addExecutionGraphNode(config)
         .build();
-
-    assertTrue(FACTORY.supportsQuery(query, config));
+    
+    assertTrue(FACTORY.supportsQuery(mock(QueryPipelineContext.class), config));
   }
 
   @Test
@@ -1194,10 +1194,11 @@ public class TestHAClusterFactory {
         .addExecutionGraphNode(config)
         .build();
 
-    assertFalse(FACTORY.supportsQuery(query, config));
+    assertFalse(FACTORY.supportsQuery(mock(QueryPipelineContext.class), config));
   }
 
-  static class MockFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, TimeSeriesDataSource> {
+  static class MockFactory extends BaseTSDBPlugin implements 
+      TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, TimeSeriesDataSource> {
 
     final List<Class<? extends QueryNodeConfig>> pushdowns;
     final TypeToken<? extends TimeSeriesId> id_type;
@@ -1236,7 +1237,7 @@ public class TestHAClusterFactory {
     }
 
     @Override
-    public boolean supportsQuery(net.opentsdb.query.TimeSeriesQuery query, TimeSeriesDataSourceConfig config) {
+    public boolean supportsQuery(QueryPipelineContext context, TimeSeriesDataSourceConfig config) {
       return supports_query;
     }
 

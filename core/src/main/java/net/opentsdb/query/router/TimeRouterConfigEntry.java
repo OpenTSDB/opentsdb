@@ -23,8 +23,8 @@ import com.google.common.base.Strings;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
 
 import java.util.List;
@@ -171,13 +171,13 @@ public class TimeRouterConfigEntry {
   /**
    * Package private to allow the factory to determine if this node 
    * matches the query.
-   * @param query The non-null query to pull the time from.
+   * @param context The non-null query context to pull the time from.
    * @param config The non-null config to send to the factory for 
    * validation.
    * @param tsdb The non-null TSDB.
    * @return The type of match made.
    */
-  MatchType match(final TimeSeriesQuery query, 
+  MatchType match(final QueryPipelineContext context, 
                   final TimeSeriesDataSourceConfig config, 
                   final TSDB tsdb) {
     // time match first
@@ -188,11 +188,11 @@ public class TimeRouterConfigEntry {
       
       // first check for out of bounds.
       if (start != 0) {
-        if (start_relative ? query.endTime().epoch() < now - start : 
-            query.endTime().epoch() < start) {
+        if (start_relative ? context.query().endTime().epoch() < now - start : 
+          context.query().endTime().epoch() < start) {
           return MatchType.NONE;
-        } else if (start_relative ? query.startTime().epoch() >= now - start : 
-              query.startTime().epoch() >= start) {
+        } else if (start_relative ? context.query().startTime().epoch() >= now - start : 
+          context.query().startTime().epoch() >= start) {
           // full
         } else {
           match = MatchType.PARTIAL;
@@ -200,12 +200,12 @@ public class TimeRouterConfigEntry {
       }
     
       if (end != 0) {
-        if (end_relative ? query.startTime().epoch() >= now - end : 
-            query.startTime().epoch() >= end) {
+        if (end_relative ? context.query().startTime().epoch() >= now - end : 
+          context.query().startTime().epoch() >= end) {
           return MatchType.NONE;
         } else if (match == MatchType.FULL && 
-            (end_relative ? query.endTime().epoch() < now - end :
-                query.endTime().epoch() < end)) {
+            (end_relative ? context.query().endTime().epoch() < now - end :
+              context.query().endTime().epoch() < end)) {
           // full though we leave it at partial if the start was out of bound.
         } else {
           match = MatchType.PARTIAL;
@@ -238,7 +238,7 @@ public class TimeRouterConfigEntry {
     } else {
       type = null;
     }
-    System.out.println("WORKING: " + type + "  AND : " + data_type);
+    
     if (!Strings.isNullOrEmpty(type) || !Strings.isNullOrEmpty(data_type)) {
       if (Strings.isNullOrEmpty(type)) {
         type = "metric";
@@ -249,13 +249,12 @@ public class TimeRouterConfigEntry {
       }
 
       if (!dt.toLowerCase().equals(type.toLowerCase())) {
-        System.out.println("WRONG TYPE. This factory has type: " + dt + " but we wanted " + type);
         return MatchType.NONE;
       }
     }
 
 
-    if (!factory.supportsQuery(query, config)) {
+    if (!factory.supportsQuery(context, config)) {
       return MatchType.NONE;
     }
     return match;

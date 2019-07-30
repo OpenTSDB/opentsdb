@@ -31,7 +31,6 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -81,7 +80,7 @@ public class SchemaFactory extends BaseTSDBPlugin
   }
   
   @Override
-  public boolean supportsQuery(final TimeSeriesQuery query, 
+  public boolean supportsQuery(final QueryPipelineContext context, 
                                final TimeSeriesDataSourceConfig config) {
     // TODO - let the underlying store handle this.
     return true;

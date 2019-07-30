@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -76,7 +75,7 @@ public class HttpQueryV3Factory
 
   @Override
   public boolean supportsQuery(
-      final TimeSeriesQuery query,
+      final QueryPipelineContext context,
       final TimeSeriesDataSourceConfig<
               ? extends TimeSeriesDataSourceConfig.Builder,
               ? extends TimeSeriesDataSourceConfig>

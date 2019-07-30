@@ -55,7 +55,6 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -132,7 +131,7 @@ public class TestTimeRouterFactory {
         .build();
     
     TimeRouterConfigEntry entry = mock(TimeRouterConfigEntry.class);
-    when(entry.match(any(TimeSeriesQuery.class), 
+    when(entry.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.FULL);
     when(entry.getSourceId()).thenReturn("s1");
@@ -168,7 +167,7 @@ public class TestTimeRouterFactory {
         .build();
     
     TimeRouterConfigEntry entry = mock(TimeRouterConfigEntry.class);
-    when(entry.match(any(TimeSeriesQuery.class), 
+    when(entry.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.NONE);
     when(context.query()).thenReturn(query);
@@ -196,13 +195,13 @@ public class TestTimeRouterFactory {
         .build();
     
     TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(TimeSeriesQuery.class), 
+    when(e1.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.NONE);
     when(e1.getSourceId()).thenReturn("s1");
     
     TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(TimeSeriesQuery.class), 
+    when(e2.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.FULL);
     when(e2.getSourceId()).thenReturn("s2");
@@ -238,13 +237,13 @@ public class TestTimeRouterFactory {
         .build();
     
     TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(TimeSeriesQuery.class), 
+    when(e1.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.NONE);
     when(e1.getSourceId()).thenReturn("s1");
     
     TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(TimeSeriesQuery.class), 
+    when(e2.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.PARTIAL);
     when(e2.getSourceId()).thenReturn("s2");
@@ -280,25 +279,25 @@ public class TestTimeRouterFactory {
         .build();
     
     TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(TimeSeriesQuery.class), 
+    when(e1.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.NONE);
     when(e1.getSourceId()).thenReturn("s1");
     
     TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(TimeSeriesQuery.class), 
+    when(e2.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.PARTIAL);
     when(e2.getSourceId()).thenReturn("s2");
     
     TimeRouterConfigEntry e3 = mock(TimeRouterConfigEntry.class);
-    when(e3.match(any(TimeSeriesQuery.class), 
+    when(e3.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.PARTIAL);
     when(e3.getSourceId()).thenReturn("s3");
     
     TimeRouterConfigEntry e4 = mock(TimeRouterConfigEntry.class);
-    when(e4.match(any(TimeSeriesQuery.class), 
+    when(e4.match(any(QueryPipelineContext.class), 
           any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
       .thenReturn(MatchType.NONE);
     when(context.query()).thenReturn(query);
@@ -332,7 +331,8 @@ public class TestTimeRouterFactory {
         planner.nodeForId("m1")));
   }
   
-  static class MockFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig ,TimeSeriesDataSource> {
+  static class MockFactory extends BaseTSDBPlugin implements 
+      TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig ,TimeSeriesDataSource> {
 
     final List<Class<? extends QueryNodeConfig>> pushdowns;
 
@@ -348,7 +348,7 @@ public class TestTimeRouterFactory {
     }
 
     @Override
-    public boolean supportsQuery(final TimeSeriesQuery query, 
+    public boolean supportsQuery(final QueryPipelineContext context, 
                                  final TimeSeriesDataSourceConfig config) {
       return true;
     }

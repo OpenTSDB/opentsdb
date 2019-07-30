@@ -37,6 +37,7 @@ import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
@@ -57,7 +58,7 @@ public class TestTimeRouterConfigEntry {
     factory = mock(TimeSeriesDataSourceFactory.class);
     when(tsdb.registry.getPlugin(eq(TimeSeriesDataSourceFactory.class), 
         anyString())).thenReturn(factory);
-    when(factory.supportsQuery(any(TimeSeriesQuery.class), 
+    when(factory.supportsQuery(any(QueryPipelineContext.class), 
         any(TimeSeriesDataSourceConfig.class))).thenReturn(true);
   }
   
@@ -80,7 +81,9 @@ public class TestTimeRouterConfigEntry {
     TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
         .build();
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
   }
   
   @Test
@@ -108,29 +111,31 @@ public class TestTimeRouterConfigEntry {
     // 2.5 hours ish
     PowerMockito.stub(PowerMockito.method(DateTime.class, 
         "currentTimeMillis")).toReturn(9000 * 1000L);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
     
     // ******* start == set, end == 0, e.g. 24h cache
     // full
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial due to start
     start.updateEpoch(3600);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // end in future is fine, still full since end is zero.
     start.updateEpoch(7200);
     end.updateEpoch(10800);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // end before start
     start.updateEpoch(0);
     end.updateEpoch(3600);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start before end (now) is ok as end is set to 0.
     start.updateEpoch(10800);
     end.updateEpoch(12600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // ****** start == 0, end == relative (e.g warm storage)
     entry = TimeRouterConfigEntry.newBuilder()
@@ -141,22 +146,22 @@ public class TestTimeRouterConfigEntry {
     // full
     start.updateEpoch(0);
     end.updateEpoch(3600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial due to end being on boundary
     start.updateEpoch(0);
     end.updateEpoch(5400);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // partial due to end being over boundary
     start.updateEpoch(0);
     end.updateEpoch(7200);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // start before end
     start.updateEpoch(5400);
     end.updateEpoch(7200);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // ******* start = relative, end == relative (e.g. transition)
     entry = TimeRouterConfigEntry.newBuilder()
@@ -168,27 +173,27 @@ public class TestTimeRouterConfigEntry {
     // full
     start.updateEpoch(1800);
     end.updateEpoch(3600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial start early
     start.updateEpoch(-3600);
     end.updateEpoch(3600);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // partial end late
     start.updateEpoch(1800);
     end.updateEpoch(5400);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // end out of bounds
     start.updateEpoch(0);
     end.updateEpoch(1799);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start out of bounds
     start.updateEpoch(7200);
     end.updateEpoch(9000);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb)); 
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb)); 
   }
 
   @Test
@@ -216,29 +221,31 @@ public class TestTimeRouterConfigEntry {
     // 2.5 hours ish
     PowerMockito.stub(PowerMockito.method(DateTime.class, 
         "currentTimeMillis")).toReturn(9000 * 1000L);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
     
     // ******* start == set, end == 0, e.g. 24h cache
     // full
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial due to start
     start.updateEpoch(3600);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // end in future is fine, still full since end is zero.
     start.updateEpoch(7200);
     end.updateEpoch(10800);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // end before start
     start.updateEpoch(0);
     end.updateEpoch(3600);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start before end (now) is ok as end is set to 0.
     start.updateEpoch(10800);
     end.updateEpoch(12600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // ****** start == 0, end == relative (e.g warm storage)
     entry = TimeRouterConfigEntry.newBuilder()
@@ -249,22 +256,22 @@ public class TestTimeRouterConfigEntry {
     // full
     start.updateEpoch(0);
     end.updateEpoch(3600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial due to end being on boundary
     start.updateEpoch(0);
     end.updateEpoch(5400);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // partial due to end being over boundary
     start.updateEpoch(0);
     end.updateEpoch(7200);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // start before end
     start.updateEpoch(5400);
     end.updateEpoch(7200);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // ******* start = relative, end == relative (e.g. transition)
     entry = TimeRouterConfigEntry.newBuilder()
@@ -276,27 +283,27 @@ public class TestTimeRouterConfigEntry {
     // full
     start.updateEpoch(1800);
     end.updateEpoch(3600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial start early
     start.updateEpoch(-3600);
     end.updateEpoch(3600);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // partial end late
     start.updateEpoch(1800);
     end.updateEpoch(5400);
-    assertEquals(MatchType.PARTIAL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb));
     
     // end out of bounds
     start.updateEpoch(0);
     end.updateEpoch(1799);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start out of bounds
     start.updateEpoch(7200);
     end.updateEpoch(9000);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb)); 
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb)); 
   }
   
   @Test
@@ -325,29 +332,31 @@ public class TestTimeRouterConfigEntry {
     // 2.5 hours ish
     PowerMockito.stub(PowerMockito.method(DateTime.class, 
         "currentTimeMillis")).toReturn(9000 * 1000L);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
     
     // ******* start == set, end == 0, e.g. 24h cache
     // full
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial due to start
     start.updateEpoch(3600);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // end in future is fine, still full since end is zero.
     start.updateEpoch(7200);
     end.updateEpoch(10800);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // end before start
     start.updateEpoch(0);
     end.updateEpoch(3600);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start before end (now) is ok as end is set to 0.
     start.updateEpoch(10800);
     end.updateEpoch(12600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // ****** start == 0, end == relative (e.g warm storage)
     entry = TimeRouterConfigEntry.newBuilder()
@@ -359,22 +368,22 @@ public class TestTimeRouterConfigEntry {
     // full
     start.updateEpoch(0);
     end.updateEpoch(3600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial due to end being on boundary
     start.updateEpoch(0);
     end.updateEpoch(5400);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // partial due to end being over boundary
     start.updateEpoch(0);
     end.updateEpoch(7200);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start before end
     start.updateEpoch(5400);
     end.updateEpoch(7200);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // ******* start = relative, end == relative (e.g. transition)
     entry = TimeRouterConfigEntry.newBuilder()
@@ -387,27 +396,27 @@ public class TestTimeRouterConfigEntry {
     // full
     start.updateEpoch(1800);
     end.updateEpoch(3600);
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     
     // partial start early
     start.updateEpoch(-3600);
     end.updateEpoch(3600);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // partial end late
     start.updateEpoch(1800);
     end.updateEpoch(5400);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // end out of bounds
     start.updateEpoch(0);
     end.updateEpoch(1799);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     // start out of bounds
     start.updateEpoch(7200);
     end.updateEpoch(9000);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb)); 
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb)); 
   }
   
   @Test
@@ -429,13 +438,16 @@ public class TestTimeRouterConfigEntry {
     TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
         .build();
-    assertEquals(MatchType.FULL, entry.match(query, config, tsdb));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
+    
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb));
     verify(tsdb.registry, times(1)).getPlugin(
         TimeSeriesDataSourceFactory.class, "mock");
     
-    when(factory.supportsQuery(any(TimeSeriesQuery.class), 
+    when(factory.supportsQuery(any(QueryPipelineContext.class), 
         any(TimeSeriesDataSourceConfig.class))).thenReturn(false);
-    assertEquals(MatchType.NONE, entry.match(query, config, tsdb));
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb));
     
     entry = TimeRouterConfigEntry.newBuilder()
         .setSourceId("mock")
@@ -443,7 +455,7 @@ public class TestTimeRouterConfigEntry {
     when(tsdb.registry.getPlugin(eq(TimeSeriesDataSourceFactory.class), 
         anyString())).thenReturn(null);
     try {
-      entry.match(query, config, tsdb);
+      entry.match(context, config, tsdb);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

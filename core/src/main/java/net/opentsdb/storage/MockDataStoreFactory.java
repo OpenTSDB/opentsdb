@@ -33,7 +33,6 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -44,7 +43,7 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public class MockDataStoreFactory extends BaseTSDBPlugin 
-                                  implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode> {
+  implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode> {
 
   public static final String TYPE = "MockDataStore";
   
@@ -59,7 +58,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public boolean supportsQuery(final TimeSeriesQuery query, 
+  public boolean supportsQuery(final QueryPipelineContext context, 
                                final TimeSeriesDataSourceConfig config) {
     return true;
   }
