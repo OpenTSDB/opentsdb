@@ -538,7 +538,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         }
         json.writeEndObject();
       }
-      if (was_event) {
+      if (was_event || was_event_group) {
         json.writeNumberField("hits", id.hits());
       } else {
         json.writeArrayFieldStart("aggregateTags");
@@ -949,15 +949,16 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       json.writeEndObject();
     }
 
-    json.writeObjectFieldStart("event");
-    writeEvents(eventsGroupValue.event(), json);
-    json.writeObjectFieldStart("tags");
-    for (final Entry<String, String> entry : id.tags().entrySet()) {
-      json.writeStringField(entry.getKey(), entry.getValue());
+    if (eventsGroupValue.event() != null) {
+      json.writeObjectFieldStart("event");
+      writeEvents(eventsGroupValue.event(), json);
+      json.writeObjectFieldStart("tags");
+      for (final Entry<String, String> entry : id.tags().entrySet()) {
+        json.writeStringField(entry.getKey(), entry.getValue());
+      }
+      json.writeEndObject();
+      json.writeEndObject();
     }
-    json.writeEndObject();
-    json.writeEndObject();
-
     json.writeEndObject();
   }
   private void writeEvents(EventsValue eventsValue, final JsonGenerator json) throws IOException {
