@@ -181,6 +181,7 @@ tsdb_SRC := \
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
 	src/tools/UidManager.java	\
+	src/tools/Uids.java	\
 	src/tools/ArgValueValidator.java	\
 	src/tools/ConfigArgP.java	\
 	src/tools/ConfigMetaType.java	\

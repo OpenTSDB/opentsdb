@@ -17,6 +17,7 @@ import java.util.HashMap;
 
 import org.slf4j.Logger;
 
+import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.HBaseClient;
@@ -24,6 +25,7 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.UniqueId;
 
@@ -63,7 +65,6 @@ final class Uids {
     errors++;
   }
 
-  
   /**
    * Replaces or creates the reverse map in storage and in the local map
    */
@@ -94,7 +95,7 @@ final class Uids {
       qualifiers[1] = CliUtils.TAGV_META;
     }
 
-    final DeleteRequest delete = new DeleteRequest(table, 
+    final DeleteRequest delete = new DeleteRequest(table,
         UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, qualifiers);
     client.delete(delete);
     // can't remove from the id2name map as this will be called while looping
@@ -110,17 +111,14 @@ final class Uids {
                                         final Logger log,
                                         final boolean fix,
                                         final boolean fix_unknowns) {
-    final long start_time = System.nanoTime();
     final HashMap<String, Uids> name2uids = new HashMap<String, Uids>();
     final Scanner scanner = client.newScanner(table);
     scanner.setMaxNumRows(1024);
-    int kvcount = 0;
     try {
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           for (final KeyValue kv : row) {
-            kvcount++;
             final byte[] qualifier = kv.qualifier();
             // TODO - validate meta data in the future, for now skip it
             if (Bytes.equals(qualifier, TSMeta.META_QUALIFIER()) ||

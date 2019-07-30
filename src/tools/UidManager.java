@@ -454,16 +454,17 @@ final class UidManager {
     } else {
       LOG.info("Running in log only mode");
     }
-
+    final long start_time = System.nanoTime();
     HashMap<String,Uids> name2uids = Uids.loadUids(client, table, LOG, fix,
                                                    fix_unknowns);
-
+    int kvcount = 0;
     // Match up all forward mappings with their reverse mappings and vice
     // versa and make sure they agree.
     int errors = 0;
     for (final Map.Entry<String, Uids> entry : name2uids.entrySet()) {
       final String kind = entry.getKey();
       final Uids uids = entry.getValue();
+      kvcount += uids.id2name.size();
 
       // This will be used in the event that we run into an inconsistent forward
       // mapping that could mean a single UID was assigned to different names.
