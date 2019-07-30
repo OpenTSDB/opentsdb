@@ -243,21 +243,10 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   json,
                   null,
                   result, additionalProps);
-              if (!additionalProps.isEmpty()) {
+              if (!additionalProps.isEmpty() && additionalProps.containsKey(NAMESPACE)) {
                 namespace = additionalProps.get(NAMESPACE);
                 wasStatus = true;
               }
-              /*if (!wasStatus) {
-                for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator :
-                    series.iterators()) {
-                  LOG.info("Gotcha!!~!!");
-                  if (iterator.getType() == StatusType.TYPE) {
-                    namespace = ((StatusIterator) iterator).namespace();
-                    wasStatus = true;
-                    break;
-                  }
-                }
-              }*/
 
             }
           }
