@@ -130,7 +130,7 @@ public class DedupNode extends AbstractQueryNode {
     public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == NumericType.TYPE) {
-        return Optional.of(this);
+        return Optional.of((TypedTimeSeriesIterator<? extends TimeSeriesDataType>) this);
       }
       return timeSeries.iterator(type);
     }

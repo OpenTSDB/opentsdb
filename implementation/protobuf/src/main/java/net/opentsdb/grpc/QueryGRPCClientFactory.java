@@ -194,7 +194,7 @@ public class QueryGRPCClientFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public boolean supportsQuery(TimeSeriesQuery query,
+  public boolean supportsQuery(final QueryPipelineContext context,
       TimeSeriesDataSourceConfig config) {
     // TODO Auto-generated method stub
     return true;

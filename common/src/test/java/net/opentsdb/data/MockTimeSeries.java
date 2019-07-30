@@ -107,7 +107,9 @@ public class MockTimeSeries implements TimeSeries {
     if (sort) {
       Collections.sort(types, new TimeSeriesValue.TimeSeriesValueComparator());
     }
-    return Optional.of(new MockTimeSeriesIterator(types.iterator(), type));
+    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
+        new MockTimeSeriesIterator(types.iterator(), type);
+    return Optional.of(iterator);
   }
 
   @Override

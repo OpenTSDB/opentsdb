@@ -33,12 +33,9 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.hacluster.HAClusterConfig.Builder;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
@@ -111,7 +108,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
   }
 
   @Override
-  public boolean supportsQuery(final TimeSeriesQuery query, 
+  public boolean supportsQuery(final QueryPipelineContext context, 
                                final TimeSeriesDataSourceConfig config) {
     if (config instanceof HAClusterConfig) {
       final HAClusterConfig cluster_config = (HAClusterConfig) config;
@@ -134,7 +131,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         final TimeSeriesDataSourceFactory factory = 
             tsdb.getRegistry().getPlugin(
                 TimeSeriesDataSourceFactory.class, source);
-        if (factory != null && factory.supportsQuery(query, config)) {
+        if (factory != null && factory.supportsQuery(context, config)) {
           return true;
         }
       }
@@ -144,7 +141,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         final TimeSeriesDataSourceFactory factory = 
             tsdb.getRegistry().getPlugin(
                 TimeSeriesDataSourceFactory.class, source.getSourceId());
-        if (factory != null && factory.supportsQuery(query, config)) {
+        if (factory != null && factory.supportsQuery(context, config)) {
           return true;
         }
       }
@@ -158,12 +155,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         final TimeSeriesDataSourceFactory factory = 
             tsdb.getRegistry().getPlugin(
                 TimeSeriesDataSourceFactory.class, source);
-        if (factory != null && factory.supportsQuery(query, config)) {
+        if (factory != null && factory.supportsQuery(context, config)) {
           return true;
         }
       }
     }
-
 
     return false;
   }
@@ -293,7 +289,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
               + source.getSourceId());
         }
 
-        if (!factory.supportsQuery(context.query(), source)) {
+        if (!factory.supportsQuery(context, source)) {
           continue;
         }
         if (factory.idType() != Const.TS_STRING_ID) {
@@ -313,7 +309,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
                 + source);
       }
       
-      if (!factory.supportsQuery(context.query(), config)) {
+      if (!factory.supportsQuery(context, config)) {
         continue;
       }
 

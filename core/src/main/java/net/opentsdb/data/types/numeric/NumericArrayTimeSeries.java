@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -129,7 +128,9 @@ public class NumericArrayTimeSeries implements TimeSeries {
   public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       final TypeToken<? extends TimeSeriesDataType> type) {
     if (type == NumericArrayType.TYPE) {
-      return Optional.of(new LocalIterator());
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+          new LocalIterator();
+      return Optional.of(iterator);
     }
     return Optional.empty();
   }

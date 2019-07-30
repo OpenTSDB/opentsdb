@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package net.opentsdb.query.router;
 
 import java.util.List;
@@ -42,7 +41,6 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -68,7 +66,8 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, TimeSeriesDataSource> {
+public class TimeRouterFactory extends BaseTSDBPlugin implements 
+    TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, TimeSeriesDataSource> {
   
   public static final String TYPE = "TimeNamespaceRouter";
 
@@ -90,7 +89,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataS
   }
 
   @Override
-  public boolean supportsQuery(final TimeSeriesQuery query, 
+  public boolean supportsQuery(final QueryPipelineContext context, 
                                final TimeSeriesDataSourceConfig config) {
     return true;
   }
@@ -102,7 +101,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataS
     final List<TimeRouterConfigEntry> config_ref = this.config;
     List<TimeRouterConfigEntry> sources = Lists.newArrayList();
     for (final TimeRouterConfigEntry entry : config_ref) {
-      final MatchType match = entry.match(context.query(), config, tsdb);
+      final MatchType match = entry.match(context, config, tsdb);
       if (match == MatchType.NONE) {
         continue;
       } else if (match == MatchType.FULL) {
@@ -112,6 +111,16 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataS
         // add partials
         sources.add(entry);
       }
+    }
+    if (context.query().isDebugEnabled()) {
+      StringBuilder buf = new StringBuilder();
+      for (int i = 0; i < sources.size(); i++) {
+        if (i >= 0) {
+          buf.append(", ");
+        }
+        buf.append(sources.get(i).getSourceId());
+      }
+      context.queryContext().logTrace("Potential data sources: " + buf.toString());
     }
     
     if (sources.isEmpty()) {
@@ -124,7 +133,8 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements TimeSeriesDataS
     // data source. In the mean time we just pass the same query to each.
     if (sources.size() == 1) {
 
-      TimeSeriesDataSourceConfig.Builder builder = (TimeSeriesDataSourceConfig.Builder) config.toBuilder();
+      TimeSeriesDataSourceConfig.Builder builder = 
+          (TimeSeriesDataSourceConfig.Builder) config.toBuilder();
       builder.setSourceId(sources.get(0).getSourceId());
       TimeSeriesDataSourceConfig rebuilt = (TimeSeriesDataSourceConfig) builder.build();
       planner.replace(config, rebuilt);

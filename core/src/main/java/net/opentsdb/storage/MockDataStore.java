@@ -1071,7 +1071,9 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
         TypeToken<? extends TimeSeriesDataType> type) {
       if (row != null && row.types().contains(type)) {
-        return Optional.of(new LocalIterator(type));
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+            new LocalIterator(type);
+        return Optional.of(iterator);
       }
       return Optional.empty();
     }

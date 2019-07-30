@@ -16,7 +16,6 @@ package net.opentsdb.data.iterators;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -92,8 +91,9 @@ public class SlicedTimeSeries implements TimeSeries {
     if (!types.contains(type)) {
       return Optional.empty();
     }
-    
-    return Optional.of(new LocalIterator(type));
+    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+        new LocalIterator(type);
+    return Optional.of(iterator);
   }
   
   @Override
