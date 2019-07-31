@@ -23,8 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.Maps;
@@ -92,6 +96,8 @@ public class DefaultTSDB implements TSDB {
 
   public static final String MAINT_TIMER_KEY = "tsd.maintenance.frequency";
   public static final int MAINT_TIMER_DEFAULT = 60000;
+
+  private static ExecutorService executor = null;
   
 //  static final byte[] FAMILY = { 't' };
 //
@@ -340,6 +346,13 @@ public class DefaultTSDB implements TSDB {
           "Whether or not authentication is enabled and required for "
           + "any operations in OpenTSDB.");
     }
+    
+    // Used for tasks with super short running tasks.
+    // TODO: might have to size this queue
+    BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+    // TODO: Need to check if it makes sense to make the threadpool size configurable
+    executor = new ThreadPoolExecutor(8, 8, 1L, TimeUnit.SECONDS, workQueue);
+    
   }
   
   /**
@@ -2046,6 +2059,12 @@ public class DefaultTSDB implements TSDB {
     }
     return true;
   }
+
+  @Override
+  public ExecutorService quickWorkPool() {
+    return executor;
+  }
+  
   
 //  // ------------------ //
 //  // Compaction helpers //

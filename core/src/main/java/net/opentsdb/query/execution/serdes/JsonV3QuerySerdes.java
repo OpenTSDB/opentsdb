@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -42,6 +43,8 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.data.BaseTimeSeriesByteId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeries;
@@ -92,6 +95,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
+
+  private static final String NAMESPACE = "namespace";
 
   /** TEMP */
   //<set ID, <ts hash, ts wrapper>>
@@ -239,24 +244,18 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   json,
                   null,
                   result);
-              if (!wasStatus ) {
-                for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator :
-                    series.iterators()) {
-                  if (iterator.getType() == StatusType.TYPE) {
-                    namespace = ((StatusIterator) iterator).namespace();
-                    wasStatus = true;
-                    break;
-                  }
-                }
+              if (series.types().contains(StatusType.TYPE) && series.id() instanceof BaseTimeSeriesByteId) {
+                  BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) series.id();
+                  namespace = bid.namespace();
+                  wasStatus = true;
               }
-
             }
           }
           // end of the data array
           json.writeEndArray();
 
           if(wasStatus && null != namespace && !namespace.isEmpty()) {
-            json.writeStringField("namespace", namespace);
+            json.writeStringField(NAMESPACE, namespace);
           }
 
           json.writeEndObject();
@@ -452,12 +451,12 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   }
 
   private void serializeSeries(
-      final JsonV2QuerySerdesOptions options,
-      final TimeSeries series,
-      final TimeSeriesStringId id,
-      JsonGenerator json,
-      final List<String> sets,
-      final QueryResult result) throws IOException {
+        final JsonV2QuerySerdesOptions options,
+        final TimeSeries series,
+        final TimeSeriesStringId id,
+        JsonGenerator json,
+        final List<String> sets,
+        final QueryResult result) throws IOException {
 
     final ByteArrayOutputStream baos;
     if (json == null) {
