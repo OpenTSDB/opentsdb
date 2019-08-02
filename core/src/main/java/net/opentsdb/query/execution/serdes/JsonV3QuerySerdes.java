@@ -972,14 +972,14 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     json.writeBooleanField("ongoing", eventsValue.ongoing());
     json.writeStringField("eventId", eventsValue.eventId());
     if (eventsValue.parentId() != null) {
-      json.writeArrayFieldStart("parentId");
+      json.writeArrayFieldStart("parentIds");
       for (String p : eventsValue.parentId()) {
         json.writeString(p);
       }
     }
     json.writeEndArray();
     if (eventsValue.childId() != null) {
-      json.writeArrayFieldStart("childId");
+      json.writeArrayFieldStart("childIds");
       for (String c : eventsValue.childId()) {
         json.writeString(c);
       }
