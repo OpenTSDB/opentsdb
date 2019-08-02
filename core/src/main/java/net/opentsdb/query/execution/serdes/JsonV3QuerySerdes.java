@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,7 +26,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 import net.opentsdb.data.types.event.EventGroupType;
 import net.opentsdb.data.types.event.EventsGroupValue;
-import net.opentsdb.data.types.status.StatusIterator;
 import net.opentsdb.data.types.status.StatusType;
 import net.opentsdb.data.types.status.StatusValue;
 import net.opentsdb.query.processor.summarizer.Summarizer;
@@ -971,16 +969,16 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     json.writeStringField("userId", eventsValue.userId());
     json.writeBooleanField("ongoing", eventsValue.ongoing());
     json.writeStringField("eventId", eventsValue.eventId());
-    if (eventsValue.parentId() != null) {
+    if (eventsValue.parentIds() != null) {
       json.writeArrayFieldStart("parentIds");
-      for (String p : eventsValue.parentId()) {
+      for (String p : eventsValue.parentIds()) {
         json.writeString(p);
       }
     }
     json.writeEndArray();
-    if (eventsValue.childId() != null) {
+    if (eventsValue.childIds() != null) {
       json.writeArrayFieldStart("childIds");
-      for (String c : eventsValue.childId()) {
+      for (String c : eventsValue.childIds()) {
         json.writeString(c);
       }
     }

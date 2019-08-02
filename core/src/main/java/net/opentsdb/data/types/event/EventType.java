@@ -56,10 +56,10 @@ public interface EventType extends TimeSeriesDataType<EventType> {
   public String eventId();
 
   /** List of parent IDs this event can map to */
-  public List<String> parentId();
+  public List<String> parentIds();
 
   /** List of child IDs this event can map to */
-  public List<String> childId();
+  public List<String> childIds();
 
   /** Additional properties */
   public Map<String, Object> additionalProps();
