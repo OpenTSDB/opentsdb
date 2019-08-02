@@ -64,10 +64,10 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
   private final boolean ongoing;
 
   /** List of parent IDs this event can map to */
-  private final List<String> parentId;
+  private final List<String> parentIds;
 
   /** List of child IDs this event can map to */
-  private final List<String> childId;
+  private final List<String> childIds;
 
   /** Additional properties */
   private final Map<String, Object> additionalProps;
@@ -85,8 +85,8 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
     this.priority = builder.priority;
     this.userId = builder.userId;
     this.ongoing = builder.ongoing;
-    this.parentId = builder.parentId;
-    this.childId = builder.childId;
+    this.parentIds = builder.parentIds;
+    this.childIds = builder.childIds;
     this.additionalProps = builder.additionalProps;
     this.namespace = builder.namespace;
   }
@@ -152,13 +152,13 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
   }
 
   @Override
-  public List<String> parentId() {
-    return parentId;
+  public List<String> parentIds() {
+    return parentIds;
   }
 
   @Override
-  public List<String> childId() {
-    return childId;
+  public List<String> childIds() {
+    return childIds;
   }
 
   @Override
@@ -182,8 +182,8 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
         ", priority='" + priority + '\'' +
         ", userId='" + userId + '\'' +
         ", ongoing=" + ongoing +
-        ", parentId=" + parentId +
-        ", childId=" + childId +
+        ", parentIds=" + parentIds +
+        ", childIds=" + childIds +
         ", additionalProps=" + additionalProps +
         ", namespace='" + namespace + '\'' +
         '}';
@@ -229,11 +229,11 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
 
     /** List of parent IDs this event can map to */
     @JsonProperty
-    private List<String> parentId;
+    private List<String> parentIds;
 
     /** List of child IDs this event can map to */
     @JsonProperty
-    private List<String> childId;
+    private List<String> childIds;
 
     /** Additional properties */
     @JsonProperty
@@ -340,8 +340,8 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
      * @param parentId List of parent IDs this event can map to
      * @return The builder.
      */
-    public Builder setParentId(final List<String> parentId) {
-      this.parentId = parentId;
+    public Builder setParentIds(final List<String> parentId) {
+      this.parentIds = parentId;
       return this;
     }
 
@@ -350,8 +350,8 @@ public class EventsValue implements EventType, TimeSeriesValue<EventType> {
      * @param childId List of child IDs this event can map to
      * @return The builder.
      */
-    public Builder setChildId(final List<String> childId) {
-      this.childId = childId;
+    public Builder setChildIds(final List<String> childId) {
+      this.childIds = childId;
       return this;
     }
 
