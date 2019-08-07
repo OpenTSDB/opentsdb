@@ -639,6 +639,71 @@ public final class RpcManager {
     }
   }
 
+  /** The "status" command. */
+  private static final class Status implements TelnetRpc, HttpRpc {
+    String status = "startup";
+
+    private void updateStatus(final TSDB tsdb) {
+      // If execute() was called, that means there was an RpcManager at some
+      // point. So if there isn't one anymore that means shutdown was started.
+      if (INSTANCE.get() == null) {
+        status = "shutting-down";
+        return;
+      }
+
+      bool amOK = tsdb.checkNecessaryTablesExist()
+      // If we're in startup mode we can only transition to "ok", never "error"
+      if (status == "startup") {
+        ;
+      }
+      return status;
+    }
+
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
+      if (chan.isConnected()) {
+        chan.write(BuildData.revisionString() + '\n'
+                   + BuildData.buildString() + '\n');
+      }
+      return Deferred.fromResult(null);
+    }
+
+    public void execute(final TSDB tsdb, final HttpQuery query) throws
+      IOException {
+
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
+      final HashMap<String, String> version = new HashMap<String, String>();
+      version.put("version", BuildData.version);
+      version.put("short_revision", BuildData.short_revision);
+      version.put("full_revision", BuildData.full_revision);
+      version.put("timestamp", Long.toString(BuildData.timestamp));
+      version.put("repo_status", BuildData.repo_status.toString());
+      version.put("user", BuildData.user);
+      version.put("host", BuildData.host);
+      version.put("repo", BuildData.repo);
+      version.put("branch", BuildData.branch);
+
+      if (query.apiVersion() > 0) {
+        query.sendReply(query.serializer().formatVersionV1(version));
+      } else {
+        final boolean json = query.request().getUri().endsWith("json");
+        if (json) {
+          query.sendReply(JSON.serializeToBytes(version));
+        } else {
+          final String revision = BuildData.revisionString();
+          final String build = BuildData.buildString();
+          StringBuilder buf;
+          buf = new StringBuilder(2 // For the \n's
+                                  + revision.length() + build.length());
+          buf.append(revision).append('\n').append(build).append('\n');
+          query.sendReply(buf);
+        }
+      }
+    }
+  }
+
   /** The "version" command. */
   private static final class Version implements TelnetRpc, HttpRpc {
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
