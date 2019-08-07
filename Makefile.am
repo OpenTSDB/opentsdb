@@ -180,6 +180,7 @@ tsdb_SRC := \
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
+	src/tools/UidGarbageCollector.java	\
 	src/tools/UidManager.java	\
 	src/tools/Uids.java	\
 	src/tools/ArgValueValidator.java	\

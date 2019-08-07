@@ -42,8 +42,8 @@ import com.stumbleupon.async.DeferredGroupException;
  * This class should only be used by CLI tools as it can take a long
  * time to complete.
  */
-final class UIDGarbageCollector extends Thread {
-  private static final Logger LOG = LoggerFactory.getLogger(UIDGarbageCollector.class);
+final class UidGarbageCollector extends Thread {
+  private static final Logger LOG = LoggerFactory.getLogger(UidGarbageCollector.class);
   
   /** TSDB to use for storage access */
   final TSDB tsdb;
@@ -64,7 +64,7 @@ final class UIDGarbageCollector extends Thread {
    * @param thread_id The ID of this thread (starts at 0)
    * @param name2uids The currently known UIDs.
    */
-  public UIDGarbageCollector(final TSDB tsdb,
+  public UidGarbageCollector(final TSDB tsdb,
                              final Scanner scanner,
                              final int thread_id,
                              HashMap<String,Uids> name2uids

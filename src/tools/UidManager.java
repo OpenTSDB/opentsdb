@@ -927,7 +927,7 @@ final class UidManager {
     final List<Thread> threads = new ArrayList<Thread>(scanners.size());
     int i = 0;
     for (final Scanner scanner : scanners) {
-      final UIDGarbageCollector worker = new UIDGarbageCollector(tsdb, scanner, i++,
+      final UidGarbageCollector worker = new UidGarbageCollector(tsdb, scanner, i++,
                                                                  unusedUids);
       worker.setName("UID GC Scan #" + i);
       worker.start();
