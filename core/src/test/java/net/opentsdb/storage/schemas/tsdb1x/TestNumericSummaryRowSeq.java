@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import java.time.temporal.ChronoUnit;
+import java.util.Iterator;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,6 +31,10 @@ import org.junit.Test;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Bytes;
 
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
@@ -142,10 +148,36 @@ public class TestNumericSummaryRowSeq {
     assertArrayEquals(buildExpected(
         extant, qualifier, value), seq.summary_data.get(2));
     extant = seq.summary_data.get(2);
+    
+    seq.dedupe(true, false);
+    NumericSummarySpan span = new NumericSummarySpan(false);
+    span.addSequence(seq, false);
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = span.iterator();
+    assertTrue(it.hasNext());
+    
+    TimeSeriesValue<NumericSummaryType> v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME, v.timestamp().epoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    NumericType s = v.value().value(2);
+    assertEquals(42, s.longValue());
+    
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 600, v.timestamp().epoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    s = v.value().value(2);
+    assertEquals(24, s.longValue());
+    
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 1200, v.timestamp().epoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    s = v.value().value(2);
+    assertEquals(42.5, s.doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
   }
   
   @Test
-  public void addRawnMixedTypes() throws Exception {
+  public void addRawMixedTypes() throws Exception {
     NumericSummaryRowSeq seq = new NumericSummaryRowSeq(BASE_TIME, RAW);
     
     byte[] qualifier = RollupUtils.buildRollupQualifier(BASE_TIME, (short) 0, 2, RAW);
@@ -313,6 +345,63 @@ public class TestNumericSummaryRowSeq {
     assertArrayEquals(buildExpectedStripString(
         extant_sum, qualifier, value), seq.summary_data.get(0));
     extant_sum = seq.summary_data.get(0);
+  }
+  
+  @Test
+  public void addRawAppendSingleType() throws Exception {
+    NumericSummaryRowSeq seq = new NumericSummaryRowSeq(BASE_TIME, RAW);
+    seq.addColumn(PREFIX, new byte[] { 0 }, Bytes.concat(
+        getAppendValue(BASE_TIME, 4, RAW),
+        getAppendValue(BASE_TIME + 600, 2000, RAW),
+        getAppendValue(BASE_TIME + 1200, 42.5, RAW),
+        getAppendValue(BASE_TIME + 1800, 24.751, RAW)));
+    
+    seq.addColumn(PREFIX, new byte[] { 2 }, Bytes.concat(
+        getAppendValue(BASE_TIME, 2, RAW),
+        getAppendValue(BASE_TIME + 600, 3, RAW),
+        getAppendValue(BASE_TIME + 1200, 1, RAW),
+        getAppendValue(BASE_TIME + 1800, 6, RAW)));
+    
+    assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 39, seq.size());
+    assertEquals(8, seq.dataPoints());
+    assertEquals(2, seq.summary_data.size());
+    seq.dedupe(true, false);
+    NumericSummarySpan span = new NumericSummarySpan(false);
+    span.addSequence(seq, false);
+    Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = span.iterator();
+    assertTrue(it.hasNext());
+    
+    TimeSeriesValue<NumericSummaryType> v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME, v.timestamp().epoch());
+    assertEquals(2, v.value().summariesAvailable().size());
+    NumericType s = v.value().value(0);
+    assertEquals(4, s.longValue());
+    s = v.value().value(2);
+    assertEquals(2, s.longValue());
+    
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 600, v.timestamp().epoch());
+    assertEquals(2, v.value().summariesAvailable().size());
+    s = v.value().value(0);
+    assertEquals(2000, s.longValue());
+    s = v.value().value(2);
+    assertEquals(3, s.longValue());
+    
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 1200, v.timestamp().epoch());
+    assertEquals(2, v.value().summariesAvailable().size());
+    s = v.value().value(0);
+    assertEquals(42.5, s.doubleValue(), 0.001);
+    s = v.value().value(2);
+    assertEquals(1, s.longValue());
+    
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 1800, v.timestamp().epoch());
+    assertEquals(2, v.value().summariesAvailable().size());
+    s = v.value().value(0);
+    assertEquals(24.751, s.doubleValue(), 0.001);
+    s = v.value().value(2);
+    assertEquals(6, s.longValue());
   }
   
   @Test
@@ -1085,5 +1174,22 @@ public class TestNumericSummaryRowSeq {
     q[name.length()] = ':';
     System.arraycopy(qualifier, 1, q, name.length() + 1, qualifier.length - 1);
     return q;
+  }
+  
+  private static byte[] getAppendValue(final long timestamp, 
+                                       final long value, 
+                                       final RollupInterval interval) {
+    final byte[] val = NumericCodec.vleEncodeLong(value);
+    final short flags = (short) (val.length - 1);  // Just the length.
+    return RollupUtils.buildAppendRollupValue(timestamp, flags, interval, val);
+  }
+  
+  private static byte[] getAppendValue(final long timestamp, 
+                                       final double value, 
+                                       final RollupInterval interval) {
+    //final int base_time = RollupUtils.getRollupBasetime(timestamp, interval);
+    final byte[] val = net.opentsdb.utils.Bytes.fromLong(Double.doubleToRawLongBits(value));
+    final short flags = (short) ((short) (val.length - 1) | NumericCodec.FLAG_FLOAT); 
+    return RollupUtils.buildAppendRollupValue(timestamp, flags, interval, val);
   }
 }

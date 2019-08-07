@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.rollup.RollupInterval;
@@ -103,9 +104,14 @@ public class NumericSummaryRowSeq implements RowSeq {
     // [ 'a', 'g', 'g', ':', offset, offset ]. Offsets may be on 2 or 
     // more bytes. So we can *guess* that if the length is 5 or less 
     // that it's a byte prefix, and > 5 then it's a string prefix.
+    // OR we have an append wherein the qualifier length should be 1 and the
+    // value is the offset|value|offset|value... etc
     final int type;
     final int offset_start;
-    if (qualifier.length < 6) {
+    if (qualifier.length == 1) {
+      type = qualifier[0];
+      offset_start = -1;
+    } else if (qualifier.length < 6) {
       type = qualifier[0];
       offset_start = 1;
     } else {
@@ -115,26 +121,69 @@ public class NumericSummaryRowSeq implements RowSeq {
     
     byte[] data = summary_data.get(type);
     if (data == null) {
-      data = new byte[qualifier.length - offset_start + value.length];
-      System.arraycopy(qualifier, offset_start, data, 0, 
-          qualifier.length - offset_start);
-      System.arraycopy(value, 0, data, qualifier.length - offset_start, 
-          value.length);
+      if (offset_start < 0) {
+        data = Arrays.copyOf(value, value.length);
+        size += value.length;
+        // get dps
+        int i = 0;
+        byte flags;
+        int value_idx;
+        while (i < value.length) {
+          if ((value[i] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+            flags = NumericCodec.getFlags(data, i, (byte) NumericCodec.MS_Q_WIDTH);
+            value_idx = i + NumericCodec.MS_Q_WIDTH; 
+          } else {
+            flags = NumericCodec.getFlags(data, i, (byte) NumericCodec.S_Q_WIDTH);
+            value_idx = i + NumericCodec.S_Q_WIDTH;
+          }
+          i = value_idx + NumericCodec.getValueLength(flags);
+          dps++;
+        }
+      } else {
+        data = new byte[qualifier.length - offset_start + value.length];
+        System.arraycopy(qualifier, offset_start, data, 0, 
+            qualifier.length - offset_start);
+        System.arraycopy(value, 0, data, qualifier.length - offset_start, 
+            value.length);
+        size += qualifier.length - offset_start + value.length;
+        dps++;
+      }
       summary_data.put(type, data);
-      size += qualifier.length - offset_start + value.length;
-      dps++;
+
     } else {
-      final byte[] copy = new byte[data.length + 
-                                   qualifier.length - offset_start + value.length];
-      System.arraycopy(data, 0, copy, 0, data.length);
-      System.arraycopy(qualifier, offset_start, copy, data.length, 
-          qualifier.length - offset_start);
-      System.arraycopy(value, 0, copy, 
-          data.length + qualifier.length - offset_start, 
-          value.length);
+      final byte[] copy;
+      if (offset_start < 0) {
+        copy = new byte[data.length + value.length];
+        System.arraycopy(value, 0, data, data.length, value.length);
+        size += value.length;
+        // get dps
+        int i = 0;
+        byte flags;
+        int value_idx;
+        while (i < value.length) {
+          if ((value[i] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+            flags = NumericCodec.getFlags(data, i, (byte) NumericCodec.MS_Q_WIDTH);
+            value_idx = i + NumericCodec.MS_Q_WIDTH; 
+          } else {
+            flags = NumericCodec.getFlags(data, i, (byte) NumericCodec.S_Q_WIDTH);
+            value_idx = i + NumericCodec.S_Q_WIDTH;
+          }
+          i = value_idx + NumericCodec.getValueLength(flags);
+          dps++;
+        }
+      } else {
+        copy = new byte[data.length + qualifier.length - offset_start + value.length];
+        System.arraycopy(data, 0, copy, 0, data.length);
+        System.arraycopy(qualifier, offset_start, copy, data.length, 
+            qualifier.length - offset_start);
+        System.arraycopy(value, 0, copy, 
+            data.length + qualifier.length - offset_start, 
+            value.length);
+        
+        size += qualifier.length - offset_start + value.length;
+        dps++;
+      }
       summary_data.put(type, copy);
-      size += qualifier.length - offset_start + value.length;
-      dps++;
     }
     // assume the row was pre-filtered for the values we want, e.g. sum
     // and count or just max, etc.
