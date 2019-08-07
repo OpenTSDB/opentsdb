@@ -13,6 +13,7 @@
 package net.opentsdb.tools;
 
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashMap;
 
 import org.slf4j.Logger;
@@ -44,8 +45,8 @@ final class Uids {
   long max_found_id;
   /* Width in bytes of UIDs. */
   short width;
-  final HashMap<String, String> id2name = new HashMap<String, String>();
-  final HashMap<String, String> name2id = new HashMap<String, String>();
+  final ConcurrentHashMap<String, String> id2name = new ConcurrentHashMap<String, String>();
+  final ConcurrentHashMap<String, String> name2id = new ConcurrentHashMap<String, String>();
   Logger log;
   byte[] table;
   HBaseClient client;

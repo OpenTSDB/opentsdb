@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -905,7 +906,6 @@ final class UidManager {
     final long start_time = System.currentTimeMillis() / 1000;
 
     // get current uids:
-    // TODO make Uids use ConcurrentHashMap
     HashMap<String,Uids> unusedUids = Uids.loadUids(tsdb.getClient(), table,
                                                     LOG, false, false);
 
@@ -940,7 +940,17 @@ final class UidManager {
     }
     LOG.info("All UID GC Scan  threads have completed");
 
-    // TODO now delete all UIDs left in unusedUids:
+    // At this point the UidGarbageCollector threads should have deleted all
+    // UIDs that are actually being used. The remaining UIDs are garbage and can
+    // be deleted.
+    final ArrayList<Deferred<Object>> deletes = new ArrayList<Deferred<Object>>();
+    for (final String kind: unusedUids.keySet()) {
+      Uids uids = unusedUids.get(kind);
+      for (final String name: uids.name2id.keySet()) {
+        deletes.add(tsdb.deleteUidAsync(kind, name));
+      }
+    }
+    Deferred.group(deletes).join();
 
     // make sure buffered data is flushed to storage before exiting
     tsdb.flush().joinUninterruptibly();
