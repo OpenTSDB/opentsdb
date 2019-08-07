@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.hbase.async.RegionLocation;
+import org.hbase.async.HBaseRpc;
 
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
@@ -105,7 +107,14 @@ public final class TSDB {
     READONLY,
     WRITEONLY
   }
-  
+
+  /** Whether tables are fully available, partially available, or unavailable. */
+  public enum TableAvailability {
+    FULL,
+    PARTIAL,
+    NONE
+  }
+
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
 
@@ -732,6 +741,73 @@ public final class TSDB {
           config.getString("tsd.storage.hbase.meta_table")));
     }
     return Deferred.group(checks);
+  }
+
+  /**
+   * Check for full or partial data and UID tables availability in HBase.
+   *
+   * @return Status of table availability.
+   *
+   * @since 2.0
+   */
+  public Deferred<TableAvailability> checkNecessaryTablesAvailability() {
+    final class SuccessCallback implements Callback<Boolean, Object> {
+      @Override
+      public Boolean call(final Object o) {
+        return true;
+      }
+    }
+
+    final class FailureCallback implements Callback<Boolean, Exception> {
+      @Override
+      public Boolean call(final Exception e) {
+        return false;
+      }
+    }
+
+    final class TableAvailabilityCB implements Callback<TableAvailability,ArrayList<Boolean>> {
+      @Override
+      public TableAvailability call(final ArrayList<Boolean> available) {
+        if (available.size() == 0) {
+          return TableAvailability.UNAVAILABLE;
+        }
+        bool hasAvailable = false;
+        bool hasUnavailable = false;
+        for (Boolean regionAvailable : available) {
+          if (regionAvailable) {
+            hasAvailable = true;
+          } else {
+            hasUnavailable = true;
+          }
+        }
+        if (hasAvailable && hasUnavailable) {
+          return TableAvailability.PARTIAL;
+        } else if (hasAvailable) {
+          return TableAvailability.FULL;
+        } else {
+          return TableAvailability.UNAVAILABLE;
+        }
+      }
+    }
+
+    final class RegionInfoCallback implements Callback<Deferred<TableAvailablity>,List<RegionLocation>> {
+      @Override
+      public Deferred<ArrayList<Boolean>> call(final List<RegionLocation> regions) {
+        ArrayList<Deferred<Boolean>> available = new ArrayList<Deferred<Boolean>>();
+        for (RegionLocation region : regions) {
+          // TODO do probeKey thing
+          HBaseRpc dummy = GetRequest.exists(table, region.startKey());
+          available.add(((Deferred) client.sendRpcToRegion(dummy)).
+                        addCallbacks(new SuccessCallback(), new FailureCallback()));
+        }
+        return Deferred.gather(available).addCallbackDeferring(new TableAvailablityCB());
+      }
+    }
+
+    client.locateRegions(config.getString("tsd.storage.hbase.uid_table")).addDeferreingCallback(new RegionInfoCallback());
+    /// multiple tables...
+
+    
   }
 
   /** Number of cache hits during lookups involving UIDs. */
