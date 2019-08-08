@@ -7,7 +7,7 @@ script:
       mvn clean deploy -q --settings settings.xml;
       mvn install -q -Dmaven.test.skip=true -Pdocker --settings settings_docker.xml;
     else
-      mvn clean test cobertura:cobertura coveralls:report --quiet;
+      mvn clean test cobertura:cobertura --quiet;
     fi
 addons:
   hostname: short-hostname
