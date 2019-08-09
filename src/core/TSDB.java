@@ -747,18 +747,25 @@ public final class TSDB {
     return Deferred.group(checks);
   }
 
+  /* Suffix for queries from availability check below. */
+  private static byte[] PROBE_SUFFIX = {
+    ':', 'A', 's', 'y', 'n', 'c', 'H', 'B', 'a', 's', 'e',
+    '~', 'p', 'r', 'o', 'b', 'e', '~', '<', ';', '_', '<',
+  };
+
   /**
    * Check for full or partial data and UID tables availability in HBase.
    *
    * @return Status of table availability.
    *
-   * @since 2.0
+   * @since 2.5
    */
   public Deferred<TableAvailability> checkNecessaryTablesAvailability() {
     /** Convert result to true. */
     final class SuccessToBoolCallback implements Callback<Boolean, ArrayList<KeyValue>> {
       @Override
       public Boolean call(final ArrayList<KeyValue> o) {
+        LOG.info("Check HBase availability, got success.");
         return true;
       }
     }
@@ -767,6 +774,7 @@ public final class TSDB {
     final class FailureToBoolCallback implements Callback<Boolean, Exception> {
       @Override
       public Boolean call(final Exception e) {
+        LOG.error("Check HBase availability, got error:", e);
         return false;
       }
     }
@@ -810,10 +818,18 @@ public final class TSDB {
     final class RegionInfoCallback implements Callback<Deferred<TableAvailability>,List<RegionLocation>> {
       @Override
       public Deferred<TableAvailability> call(final List<RegionLocation> regions) {
+        LOG.info("Availability check got this many regions: " + regions.size());
         ArrayList<Deferred<Boolean>> available = new ArrayList<Deferred<Boolean>>();
         for (RegionLocation region : regions) {
-          // TODO do probeKey thing
-          GetRequest dummy = new GetRequest(table, region.startKey());
+          // Use suffix so we don't hit real data:
+          final byte[] key = region.startKey();
+          final byte[] testKey = new byte[key.length + 64];
+          System.arraycopy(key, 0, testKey, 0, key.length);
+          System.arraycopy(PROBE_SUFFIX, 0,
+                           testKey, testKey.length - PROBE_SUFFIX.length,
+                           PROBE_SUFFIX.length);
+          LOG.debug("Checking region with start key " + testKey + " end key " + region.stopKey());
+          GetRequest dummy = new GetRequest(table, testKey);
           available.add(client.get(dummy).addCallbacks(successCB, failureCB));
         }
         return Deferred.group(available).addCallback(new TableAvailabilityCB());
