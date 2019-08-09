@@ -829,8 +829,12 @@ public final class TSDB {
                            testKey, testKey.length - PROBE_SUFFIX.length,
                            PROBE_SUFFIX.length);
           LOG.debug("Checking region with start key " + testKey + " end key " + region.stopKey());
-          GetRequest dummy = new GetRequest(table, testKey);
-          available.add(client.get(dummy).addCallbacks(successCB, failureCB));
+          GetRequest probe = new GetRequest(table, testKey);
+          // If we don't get a response within 1 second, assume the region is
+          // unavailable.
+          probe.setTimeout(1000);
+          probe.setFailfast(true);
+          available.add(client.get(probe).addCallbacks(successCB, failureCB));
         }
         return Deferred.group(available).addCallback(new TableAvailabilityCB());
       }
