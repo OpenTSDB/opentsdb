@@ -265,7 +265,7 @@ public final class RpcManager {
     final ListAggregators aggregators = new ListAggregators();
     final DropCachesRpc dropcaches = new DropCachesRpc();
     final Version version = new Version();
-    final Status status = new Status()
+    final Status status = new Status();
 
     telnet.put("stats", stats);
     telnet.put("dropcaches", dropcaches);
@@ -667,15 +667,16 @@ public final class RpcManager {
           if ((status == "startup") && (availability == TableAvailability.NONE)) {
               return null;
             }
+
+          if (availability == TableAvailability.FULL) {
+            status = "ok";
+          } else if (availability == TableAvailability.PARTIAL) {
+            status = "partial";
+          } else {
+            status = "error";
           }
-        if (availability == TableAvailability.FULL) {
-          status = "ok";
-        } else if (availability == TableAvailability.PARTIAL) {
-          status = "partial";
-        } else {
-          status = "error";
+          return null;
         }
-        return null;
       }
       return availability.addCallback(new AvailabilityToStatusCB());
     }
@@ -688,10 +689,11 @@ public final class RpcManager {
           if (chan.isConnected()) {
             chan.write(status + '\n');
           }
+          return null;
         }
       }
 
-      return updateStatus().addCallback(new WriteStatusCB());
+      return updateStatus(tsdb).addCallback(new WriteStatusCB());
     }
 
     public void execute(final TSDB tsdb, final HttpQuery query) throws
@@ -703,12 +705,13 @@ public final class RpcManager {
         @Override
         public Object call(final Object o) {
           final HashMap<String, String> result = new HashMap<String, String>();
-          version.put("status", status);
-          query.sendReply(JSON.serializeToBytes(version));
+          result.put("status", status);
+          query.sendReply(JSON.serializeToBytes(result));
+          return null;
         }
       }
 
-      updateStatus().addCallback(new WriteStatusCB());
+      updateStatus(tsdb).addCallback(new WriteStatusCB());
     }
   }
 
