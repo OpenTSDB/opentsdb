@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -56,11 +57,13 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.servlet.resources.QueryRpc.RunTSDQuery;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
+import net.opentsdb.threadpools.TSDTask;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.Bytes;
@@ -80,6 +83,22 @@ public class RawQueryRpc {
   /** Request key for the tracer. */
   public static final String TRACE_KEY = "TRACE";
   
+  class RunTSDQuery implements Callable<Response> {
+    final TSDQueryMeta queryMeta;
+    public RunTSDQuery(TSDQueryMeta queryMeta) {
+      this.queryMeta = queryMeta;
+    }
+    @Override
+    public Response call() {
+      try {
+        return handleQuery(queryMeta.servlet_config, queryMeta.request);
+      } catch (Exception e) {
+        LOG.error("Unable to run the query {}", queryMeta.request);
+      }
+      return null;
+    }
+  }
+  
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -94,6 +113,34 @@ public class RawQueryRpc {
           .build();
     }
     
+    return handleQueryAsync(servlet_config, request);
+  }
+  
+  private Response handleQueryAsync(ServletConfig servlet_config, HttpServletRequest request) throws Exception {
+
+    TSDQueryMeta qm = new TSDQueryMeta(servlet_config, request, false);
+
+    Object obj = servlet_config.getServletContext().getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
+    if (obj == null) {
+      throw new WebApplicationException("Unable to pull TSDB instance from " + "servlet context.",
+          Response.Status.INTERNAL_SERVER_ERROR);
+    } else if (!(obj instanceof TSDB)) {
+      throw new WebApplicationException(
+          "Object stored for as the TSDB was " + "of the wrong type: " + obj.getClass(),
+          Response.Status.INTERNAL_SERVER_ERROR);
+    }
+    final TSDB tsdb = (TSDB) obj;
+
+    RunTSDQuery runTsdQuery = new RunTSDQuery(qm);
+    
+    LOG.info("Creating async query");
+
+    return tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
+
+  }
+
+  private Response handleQuery(final ServletConfig servlet_config, final HttpServletRequest request)
+      throws IOException {
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
     if (obj == null) {

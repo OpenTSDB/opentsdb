@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.threadpools;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,13 +79,23 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
    */
   private static final String DISABLE_SCHEDULE = "disable";
 
+  private static final String MAX_PARALLEL_QUERIES = "max.parallel.queries";
+
+  private static final String DISABLE_TASK_LEVEL_SCHEDULE = "task_schedule_disable";
+
   /**
    * Override values for a given user in the config
    */
   private static final String MAX_THREAD_PER_USER_OVERRIDE_PCT = "max.thread.per.user.override.pct";
+  
+  private volatile Map<String, Integer> perUserPerDataFetchLimitOverride = new HashMap<>();
 
   /** Stores the User thread count that's being current executed */
   private final ConcurrentHashMap<String, AtomicInteger> CURRENT_EXECUTIONS =
+      new ConcurrentHashMap<>();
+
+  /** Stores the task thread count that's being current executed */
+  private final  ConcurrentHashMap<TSDTask, AtomicInteger> CURRENT_TASK_LEVEL_EXECUTIONS =
       new ConcurrentHashMap<>();
 
   /** Queue to store the tasks */
@@ -92,21 +105,26 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   private ExecutorService threadPool;
 
   public String id;
+  
+  private volatile int maxParallelQueries = 8;
 
   /** The number of threads to keep in the pool, even if they are idle */
-  private int corePoolSize;
+  protected int corePoolSize;
 
   /** MaximumPoolSize the maximum number of threads to allow in the pool */
-  private int maxTPoolSize;
+  protected int maxTPoolSize;
 
   /** Absolute value calculated based on the percentage defined by THREAD_THRESHOLD_PCT */
-  private int threadThresholdCnt;
+  protected int threadThresholdCnt;
 
   /** Absolute value calculated based on the percentage defined by MAX_THREAD_PER_USER_PCT */
   private int threadThresholdPerUserCnt;
 
   /** Disable schedule flag */
   private volatile boolean disableScheduling = false;
+  
+  /** Disable task level scheduling */
+  private volatile boolean disableTaskLevelScheduling = false;
 
   /**
    * Stores the limit of {@link threadThresholdPerUserCnt} per user defined by
@@ -119,7 +137,7 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   /** Attempts to purge the CURRENT_EXECUTIONS state after every 10000 executions */
   private final AtomicInteger COUNT_TO_PURGE = new AtomicInteger(PURGE_CNT);
 
-  private static final TypeReference<List<Map<String, String>>> TYPE_REF =
+  protected static final TypeReference<List<Map<String, String>>> TYPE_REF =
       new TypeReference<List<Map<String, String>>>() {};
 
   @Override
@@ -157,8 +175,15 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
         }
       } else if (key.equals(getConfigKey(DISABLE_SCHEDULE))) {
         if (value != null) {
-          setDisableScheduling(Boolean.valueOf(value.toString()));
+          disableScheduling = Boolean.valueOf(value.toString());
         }
+      } else if (key.equals(getConfigKey(DISABLE_TASK_LEVEL_SCHEDULE))) {
+        if (value != null) {
+          disableTaskLevelScheduling = Boolean.valueOf(value.toString());
+        }
+      } else if (key.equals(getConfigKey(MAX_PARALLEL_QUERIES))) {
+        maxParallelQueries = Integer.parseInt(value.toString());
+        LOG.info("Updating the max parallel queries to {}", maxParallelQueries);
       }
     }
 
@@ -167,7 +192,7 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   @Override
   public Deferred<Object> initialize(TSDB tsdb, String id) {
     this.id = id;
-
+    
     if (this.threadPool != null) {
       LOG.error("UserAwareThreadPoolExecutor is already initialized!!");
       return Deferred.fromError(
@@ -198,8 +223,18 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
     }
 
     if (!tsdb.getConfig().hasProperty(getConfigKey(DISABLE_SCHEDULE))) {
-      tsdb.getConfig().register(getConfigKey(DISABLE_SCHEDULE), false, false,
-          "Per User schedule is enabled by default. Can be null to use the default.");
+      tsdb.getConfig().register(getConfigKey(DISABLE_SCHEDULE), false, true,
+          "Per User schedule is disabled by default. Can be null to use the default.");
+    }
+
+    if (!tsdb.getConfig().hasProperty(getConfigKey(DISABLE_TASK_LEVEL_SCHEDULE))) {
+      tsdb.getConfig().register(getConfigKey(DISABLE_TASK_LEVEL_SCHEDULE), false, true,
+          "Task level is disabled by default. Can be null to use the default.");
+    }
+    
+    if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_PARALLEL_QUERIES))) {
+      tsdb.getConfig().register(getConfigKey(MAX_PARALLEL_QUERIES), 8, true,
+          "Max parallel queries. Can be null to use the default.");
     }
 
     if (!tsdb.getConfig().hasProperty(getConfigKey(MAX_THREAD_PER_USER_PCT))) {
@@ -229,6 +264,10 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
 
     disableScheduling = tsdb.getConfig().getBoolean(getConfigKey(DISABLE_SCHEDULE));
 
+    disableTaskLevelScheduling = tsdb.getConfig().getBoolean(getConfigKey(DISABLE_TASK_LEVEL_SCHEDULE));
+    
+    maxParallelQueries = tsdb.getConfig().getInt(getConfigKey(MAX_PARALLEL_QUERIES));
+
     threadThresholdCnt = (int) ((double) maxTPoolSize * ((double) threadThresholdPct) / 100);
 
     threadThresholdPerUserCnt =
@@ -240,7 +279,7 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
               .newBuilder()
               .setKey(getConfigKey(MAX_THREAD_PER_USER_OVERRIDE_PCT))
               .setType(TYPE_REF)
-              .setDescription("The list of hosts including protocol, host and port.")
+              .setDescription("Per User override threshold percentages.")
               .isDynamic()
               .isNullable()
               .setSource(getClass().getName())
@@ -250,11 +289,14 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
     tsdb.getConfig().bind(getConfigKey(MAX_THREAD_PER_USER_OVERRIDE_PCT), new SettingsCallback());
 
     tsdb.getConfig().bind(getConfigKey(DISABLE_SCHEDULE), new SettingsCallback());
+    tsdb.getConfig().bind(getConfigKey(DISABLE_TASK_LEVEL_SCHEDULE), new SettingsCallback());
+    
+    tsdb.getConfig().bind(getConfigKey(MAX_PARALLEL_QUERIES), new SettingsCallback());
 
     LOG.info(
         "Initializing new UserAwareThreadPoolExecutor with max queue size of {} with core threads {} and a "
-            + "maximum pool size of {} with threshold Thread count of {}.",
-        maxSize, corePoolSize, maxTPoolSize, threadThresholdCnt);
+            + "maximum pool size of {} with threshold Thread count of {}. Task level threshold is {}",
+        maxSize, corePoolSize, maxTPoolSize, threadThresholdCnt, maxParallelQueries);
 
     LOG.info("Overriding User level thresholds {}", perUserLimitOverride);
 
@@ -286,67 +328,136 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   class QCRunnableWrapper implements Runnable {
     final Runnable r;
     final QueryContext qctx;
+    final TSDTask tsdTask;
 
-    public QCRunnableWrapper(Runnable r, QueryContext qctx) {
+    public QCRunnableWrapper(Runnable r, QueryContext qctx, TSDTask tsdTask) {
       this.r = r;
       this.qctx = qctx;
+      this.tsdTask = tsdTask;
     }
 
     @Override
     public void run() {
 
       if (qctx == null || qctx.authState() == null) {
-        r.run();
+        if (tsdTask == null) {
+          r.run();
+          return;
+        }
+      }
+
+
+      if (qctx != null && qctx.isClosed()) {
+        // Query pipeline is closed upstream, drop this task.
+        // If a task is already running, it will complete.
+        if (tsdTask == TSDTask.QUERY_CLOSE) {
+
+          AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask.getCounterPart());
+          if (ai != null) {
+            ai.decrementAndGet();
+            LOG.debug("Removed the query from state, current number of parallel queries : {}",
+                ai.get());
+          }
+        }
+        String user = qctx == null ? "" : getUser(qctx);
+        LOG.debug("Query context {} for user {} is closed, dropping the task",
+            qctx.query().toString(), user);
         return;
       }
 
-      final String user = getUser(qctx);
-
-      int thresholdPerUser = threadThresholdPerUserCnt;
-      Integer limit = perUserLimitOverride.get(user);
-      if (limit != null) {
-        thresholdPerUser = limit;
-      }
-
-      AtomicInteger ai = CURRENT_EXECUTIONS.get(user);
-      if (ai == null) {
-        ai = CURRENT_EXECUTIONS.computeIfAbsent(user, v -> new AtomicInteger(0));
-      }
-
-      // Check if the task needs to be requeued based on the thresholds.
-      int activeCount = ((ThreadPoolExecutor) threadPool).getActiveCount();
-      if (activeCount > threadThresholdCnt) {
-        if (ai.get() > thresholdPerUser) {
-
-          if (disableScheduling) {
-            LOG.info("User ({}) task would have been rescheduled since the currently executed user "
-                + "tasks are {} out of available {} threads", user, ai.get(), activeCount);
+      if (tsdTask != null && tsdTask == TSDTask.QUERY) {
+        String user = qctx == null ? "" : getUser(qctx);
+        AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask);
+        if (ai == null) {
+          ai = getCurrentTaskExecutions().computeIfAbsent(tsdTask, v -> new AtomicInteger(0));
+        }
+        LOG.debug("Total parallel running queries {}", ai.get());
+        if (ai.get() > maxParallelQueries) {
+          if (disableTaskLevelScheduling) {
+            LOG.info(
+                "User({}) {} would have been rescheduled since the currently executed {} "
+                    + "are {} and maximum concurrent tasks allowed are {}",
+                user, tsdTask.name(), tsdTask.name(), ai.get(), maxParallelQueries);
           } else {
             // Requeue the task.
             // Use execute() instead of submit() to use the same Future object;
             ((ThreadPoolExecutor) threadPool).execute(r);
             if (LOG.isDebugEnabled()) {
               LOG.debug(
-                  "User ({}) task is rescheduled since the currently executed user tasks are {} out of available {} threads",
-                  user, ai.get(), activeCount);
+                  "User ({}) Query is rescheduled since the currently executed queries are {} out of maximum allowed {}",
+                  user, ai.get(), maxParallelQueries);
             }
             return;
           }
+
+        } else {
+
+          // Increment the counter per task..
+          ai.incrementAndGet();
+
+          // Schedule the task
+          r.run();
+        }
+      } else if (tsdTask != null && tsdTask == TSDTask.QUERY_CLOSE) {
+
+        r.run();
+        AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask.getCounterPart());
+        if (ai != null) {
+          ai.decrementAndGet();
+          LOG.debug("Removed the query from state, current number of parallel queries : {}",
+              ai.get());
+        }
+      } else { // User task scheduling
+        String user = getUser(qctx);
+        int thresholdPerUser = threadThresholdPerUserCnt;
+        final Integer limit = perUserLimitOverride.get(user);
+        if (limit != null) {
+          thresholdPerUser = limit;
         }
 
-      }
+        int activeCount = ((ThreadPoolExecutor) threadPool).getActiveCount();
 
-      // Increment the counter per user..
-      ai.incrementAndGet();
+        AtomicInteger ai = CURRENT_EXECUTIONS.get(user);
 
-      try {
-        // Safe to schedule the task
-        r.run();
-      } finally {
-        // Decrement the counter per user..
-        ai.decrementAndGet();
+        if (ai == null) {
+          ai = CURRENT_EXECUTIONS.computeIfAbsent(user, v -> new AtomicInteger(0));
+        }
 
-        purgeStaleState();
+        // Check if the task needs to be requeued based on the thresholds.
+        if (activeCount > threadThresholdCnt) {
+          if (ai.get() > thresholdPerUser) {
+
+            if (disableScheduling) {
+              LOG.info(
+                  "User ({}) task would have been rescheduled since the currently executed user "
+                      + "tasks are {} out of available {} threads",
+                  user, ai.get(), activeCount);
+            } else {
+              // Requeue the task.
+              // Use execute() instead of submit() to use the same Future object;
+              ((ThreadPoolExecutor) threadPool).execute(r);
+              if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                    "User ({}) task is rescheduled since the currently executed user tasks are {} out of available {} threads",
+                    user, ai.get(), activeCount);
+              }
+              return;
+            }
+          }
+
+        }
+        // Increment the counter per user..
+        ai.incrementAndGet();
+
+        try {
+          // Safe to schedule the task
+          r.run();
+        } finally {
+          // Decrement the counter per user..
+          ai.decrementAndGet();
+
+          purgeStaleState();
+        }
       }
 
     }
@@ -356,66 +467,134 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   class QCFutureWrapper<V> extends FutureTask<V> {
 
     final QueryContext qctx;
+    final TSDTask tsdTask;
 
-    public QCFutureWrapper(Callable<V> task, QueryContext qctx) {
+    public QCFutureWrapper(Callable<V> task, QueryContext qctx, TSDTask tsdTask) {
       super(task);
       this.qctx = qctx;
+      this.tsdTask = tsdTask;
     }
 
     @Override
     public void run() {
 
       if (qctx == null || qctx.authState() == null) {
-        super.run();
+        if (tsdTask == null) {
+          super.run();
+          return;
+        }
+      }
+
+
+      if (qctx != null && qctx.isClosed()) {
+        String user = qctx == null ? "" : getUser(qctx);
+        // Query pipeline is closed upstream, drop this task.
+        // If a task is already running, it will complete.
+        if (tsdTask == TSDTask.QUERY_CLOSE) {
+          AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask.getCounterPart());
+          if (ai != null) {
+            ai.decrementAndGet();
+            LOG.debug("Removed the query from state, current number of parallel queries : {}",
+                ai.get());
+          }
+        }
+        LOG.debug("Query context {} for user {} is closed, dropping the task",
+            qctx.query().toString(), user);
         return;
       }
 
-      final String user = getUser(qctx);
-      int thresholdPerUser = threadThresholdPerUserCnt;
-      Integer limit = perUserLimitOverride.get(user);
-      if (limit != null) {
-        thresholdPerUser = limit;
-      }
-
-      AtomicInteger ai = CURRENT_EXECUTIONS.get(user);
-      if (ai == null) {
-        ai = CURRENT_EXECUTIONS.computeIfAbsent(user, v -> new AtomicInteger(0));
-      }
-
-      // Check if the task needs to be requeued based on the thresholds.
-      int activeCount = ((ThreadPoolExecutor) threadPool).getActiveCount();
-      if (activeCount > threadThresholdCnt) {
-        if (ai.get() > thresholdPerUser) {
-
-          if (disableScheduling) {
-            LOG.info("User ({}) task would have been rescheduled since the currently executed user "
-                + "tasks are {} out of available {} threads", user, ai.get(), activeCount);
+      if (tsdTask != null && tsdTask == TSDTask.QUERY) {
+        String user = qctx == null ? "" : getUser(qctx);
+        AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask);
+        if (ai == null) {
+          ai = getCurrentTaskExecutions().computeIfAbsent(tsdTask, v -> new AtomicInteger(0));
+        }
+        LOG.debug("Total parallel running queries {}", ai.get());
+        if (ai.get() > maxParallelQueries) {
+          if (disableTaskLevelScheduling) {
+            LOG.info(
+                "User({}) {} would have been rescheduled since the currently executed {} "
+                    + "are {} and maximum concurrent tasks allowed are {}",
+                user, tsdTask.name(), tsdTask.name(), ai.get(), maxParallelQueries);
           } else {
             // Requeue the task.
+            // Use execute() instead of submit() to use the same Future object;
             ((ThreadPoolExecutor) threadPool).execute(this);
             if (LOG.isDebugEnabled()) {
               LOG.debug(
-                  "User ({}) task is rescheduled since the currently executed user tasks are {} out of available {} threads",
-                  user, ai.get(), activeCount);
+                  "User ({}) Query is rescheduled since the currently executed queries are {} out of maximum allowed {}",
+                  user, ai.get(), maxParallelQueries);
             }
             return;
           }
+        } else {
+
+          // Increment the counter per user..
+          ai.incrementAndGet();
+          // Safe to schedule the task
+          super.run();
+          // Do not decrement yet
+        }
+      } else if (tsdTask != null && tsdTask == TSDTask.QUERY_CLOSE) {
+        AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask.getCounterPart());
+        if (ai != null) {
+          ai.decrementAndGet();
+          LOG.debug("Removed the query from state, current number of parallel queries : {}",
+              ai.get());
+        }
+      } else {
+
+        String user = getUser(qctx);
+        int thresholdPerUser = threadThresholdPerUserCnt;
+        Integer limit = perUserLimitOverride.get(user);
+        if (limit != null) {
+          thresholdPerUser = limit;
         }
 
+        int activeCount = ((ThreadPoolExecutor) threadPool).getActiveCount();
+
+        AtomicInteger ai = CURRENT_EXECUTIONS.get(user);
+
+        if (ai == null) {
+          ai = CURRENT_EXECUTIONS.computeIfAbsent(user, v -> new AtomicInteger(0));
+        }
+
+        // Check if the task needs to be requeued based on the thresholds.
+        if (activeCount > threadThresholdCnt) {
+          if (ai.get() > thresholdPerUser) {
+
+            if (disableScheduling) {
+              LOG.info(
+                  "User ({}) task would have been rescheduled since the currently executed user "
+                      + "tasks are {} out of available {} threads",
+                  user, ai.get(), activeCount);
+            } else {
+              // Requeue the task.
+              ((ThreadPoolExecutor) threadPool).execute(this);
+              if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                    "User ({}) task is rescheduled since the currently executed user tasks are {} out of available {} threads",
+                    user, ai.get(), activeCount);
+              }
+              return;
+            }
+          }
+
+        }
+        // Increment the counter per user..
+        ai.incrementAndGet();
+
+        try {
+          // Safe to schedule the task
+          super.run();
+        } finally {
+          // Decrement the counter per user..
+          ai.decrementAndGet();
+
+          purgeStaleState();
+        }
       }
 
-      // Increment the counter per user..
-      ai.incrementAndGet();
-
-      try {
-        // Safe to schedule the task
-        super.run();
-      } finally {
-        // Decrement the counter per user..
-        ai.decrementAndGet();
-
-        purgeStaleState();
-      }
     }
 
   }
@@ -458,12 +637,11 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   }
 
   private <T> FutureTask<T> newTaskFor(Callable<T> task, QueryContext qctx) {
-    return new QCFutureWrapper<T>(task, qctx);
+    return new QCFutureWrapper<T>(task, qctx, null);
   }
 
-  @Override
-  public Future<?> submit(Runnable task) {
-    return this.threadPool.submit(task);
+  private <T> FutureTask<T> newTaskFor(Callable<T> task, QueryContext qctx, TSDTask tsdTask) {
+    return new QCFutureWrapper<T>(task, qctx, tsdTask);
   }
 
   @Override
@@ -482,10 +660,30 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
     return ftask;
 
   }
+  
+  @Override
+  public Future<?> submit(Runnable task) {
+    return this.threadPool.submit(task);
+  }
 
   @Override
   public Future<?> submit(Runnable task, QueryContext qctx) {
-    return this.threadPool.submit(new QCRunnableWrapper(task, qctx));
+    return this.threadPool.submit(new QCRunnableWrapper(task, qctx, null));
+  }
+
+  @Override
+  public <T> Future<T> submit(Callable<T> task, QueryContext qctx, TSDTask tsdTask) {
+    if (task == null) {
+      throw new NullPointerException("Callable task is null! Query context is " + qctx.query());
+    }
+    RunnableFuture<T> ftask = newTaskFor(task, qctx, tsdTask);
+    ((ThreadPoolExecutor) threadPool).execute(ftask);
+    return ftask;
+  }
+
+  @Override
+  public Future<?> submit(Runnable task, QueryContext qctx, TSDTask tsdTask) {
+    return this.threadPool.submit(new QCRunnableWrapper(task, qctx, tsdTask));
   }
 
   @VisibleForTesting
@@ -501,6 +699,16 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
   @VisibleForTesting
   void setDisableScheduling(boolean disableScheduling) {
     this.disableScheduling = disableScheduling;
+  }
+  
+  @VisibleForTesting
+  void setDisableTaskScheduling(boolean disableTaskScheduling) {
+    this.disableTaskLevelScheduling = disableTaskScheduling;
+  }
+
+  @VisibleForTesting
+  ConcurrentHashMap<TSDTask, AtomicInteger> getCurrentTaskExecutions() {
+    return CURRENT_TASK_LEVEL_EXECUTIONS;
   }
 
 }

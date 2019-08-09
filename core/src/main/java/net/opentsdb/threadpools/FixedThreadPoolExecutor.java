@@ -132,17 +132,27 @@ public class FixedThreadPoolExecutor implements TSDBThreadPoolExecutor {
   }
 
   @Override
+  public <T> Future<T> submit(Callable<T> task, QueryContext qctx) {
+    return this.threadPool.submit(task);
+  }
+  
+  @Override
   public Future<?> submit(Runnable task) {
     return this.threadPool.submit(task);
   }
 
   @Override
-  public <T> Future<T> submit(Callable<T> task, QueryContext qctx) {
+  public Future<?> submit(Runnable task, QueryContext qctx) {
     return this.threadPool.submit(task);
   }
 
   @Override
-  public Future<?> submit(Runnable task, QueryContext qctx) {
+  public Future<?> submit(Runnable task, QueryContext qctx, TSDTask tsdTask) {
+    return this.threadPool.submit(task);
+  }
+
+  @Override
+  public <T> Future<T> submit(Callable<T> task, QueryContext qctx, TSDTask tsdTask) {
     return this.threadPool.submit(task);
   }
 

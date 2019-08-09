@@ -44,6 +44,13 @@ public interface QueryContext {
   public Collection<QuerySink> sinks();
   
   /**
+   * Returns the query pipeline context
+   * 
+   * @return
+   */
+  public QueryPipelineContext getQueryPipelineContext();
+  
+  /**
    * Returns the mode the query is executing in.
    * @return The non-null query mode.
    */
@@ -62,6 +69,13 @@ public interface QueryContext {
    * Closes the pipeline and releases all resources.
    */
   public void close();
+  
+  /**
+   * Returns true if the pipeline is closed
+   * 
+   * @return
+   */
+  public boolean isClosed();
   
   /**
    * @return An optional stats collector for the query, may be null.
