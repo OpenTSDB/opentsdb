@@ -2,7 +2,7 @@ FROM java:openjdk-8-alpine
 
 MAINTAINER jonathan.creasy@gmail.com
 
-ENV       VERSION 2.3.0-RC1
+ENV       VERSION 2.5.0-SNAPSHOT
 ENV       WORKDIR /usr/share/opentsdb
 ENV       LOGDIR  /var/log/opentsdb
 ENV       DATADIR /data/opentsdb
@@ -32,10 +32,10 @@ ENV       TSDB_PORT  4244
 
 WORKDIR   $WORKDIR
 
-ADD       libs $WORKDIR/libs
-ADD       logback.xml $WORKDIR
+ADD       third_party/*/*.jar $WORKDIR/libs/
+ADD       src/logback.xml $WORKDIR
 ADD       tsdb-$VERSION.jar $WORKDIR
-ADD       opentsdb.conf $ETCDIR/opentsdb.conf
+ADD       src/opentsdb.conf $ETCDIR/opentsdb.conf
 
 VOLUME    ["/etc/openstsdb"]
 VOLUME    ["/data/opentsdb"]
