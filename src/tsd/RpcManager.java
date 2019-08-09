@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import com.google.common.collect.Table;
+import net.opentsdb.core.TSDB.TableAvailability;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -263,10 +265,12 @@ public final class RpcManager {
     final ListAggregators aggregators = new ListAggregators();
     final DropCachesRpc dropcaches = new DropCachesRpc();
     final Version version = new Version();
-    
+    final Status status = new Status()
+
     telnet.put("stats", stats);
     telnet.put("dropcaches", dropcaches);
     telnet.put("version", version);
+    telnet.put("status", status);
     telnet.put("exit", new Exit());
     telnet.put("help", new Help());
     
@@ -283,6 +287,7 @@ public final class RpcManager {
       http.put("api/dropcaches", dropcaches);
       http.put("api/stats", stats);
       http.put("api/version", version);
+      http.put("api/status", status);
     }
     
     final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
@@ -643,64 +648,67 @@ public final class RpcManager {
   private static final class Status implements TelnetRpc, HttpRpc {
     String status = "startup";
 
-    private void updateStatus(final TSDB tsdb) {
+    /** Update status, return Deferred that fires when status is updated. */
+    private Deferred<Object> updateStatus(final TSDB tsdb) {
       // If execute() was called, that means there was an RpcManager at some
       // point. So if there isn't one anymore that means shutdown was started.
       if (INSTANCE.get() == null) {
         status = "shutting-down";
-        return;
+        return Deferred.fromResult(null);
       }
 
-      bool amOK = tsdb.checkNecessaryTablesExist()
-      // If we're in startup mode we can only transition to "ok", never "error"
-      if (status == "startup") {
-        ;
+      Deferred<TableAvailability> availability = tsdb.checkNecessaryTablesAvailability();
+
+      final class AvailabilityToStatusCB implements Callback<Object,TableAvailability> {
+        @Override
+        public Object call(final TableAvailability availability) {
+          // If we're in startup mode, lack of availability may just be due to
+          // starting up, so don't consider that an error state.
+          if ((status == "startup") && (availability == TableAvailability.NONE)) {
+              return null;
+            }
+          }
+        if (availability == TableAvailability.FULL) {
+          status = "ok";
+        } else if (availability == TableAvailability.PARTIAL) {
+          status = "partial";
+        } else {
+          status = "error";
+        }
+        return null;
       }
-      return status;
+      return availability.addCallback(new AvailabilityToStatusCB());
     }
 
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
-      if (chan.isConnected()) {
-        chan.write(BuildData.revisionString() + '\n'
-                   + BuildData.buildString() + '\n');
+      final class WriteStatusCB implements Callback<Object,Object> {
+        @Override
+        public Object call(final Object o) {
+          if (chan.isConnected()) {
+            chan.write(status + '\n');
+          }
+        }
       }
-      return Deferred.fromResult(null);
+
+      return updateStatus().addCallback(new WriteStatusCB());
     }
 
     public void execute(final TSDB tsdb, final HttpQuery query) throws
       IOException {
+      // only accept GET
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName());
 
-      // only accept GET / POST
-      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
-
-      final HashMap<String, String> version = new HashMap<String, String>();
-      version.put("version", BuildData.version);
-      version.put("short_revision", BuildData.short_revision);
-      version.put("full_revision", BuildData.full_revision);
-      version.put("timestamp", Long.toString(BuildData.timestamp));
-      version.put("repo_status", BuildData.repo_status.toString());
-      version.put("user", BuildData.user);
-      version.put("host", BuildData.host);
-      version.put("repo", BuildData.repo);
-      version.put("branch", BuildData.branch);
-
-      if (query.apiVersion() > 0) {
-        query.sendReply(query.serializer().formatVersionV1(version));
-      } else {
-        final boolean json = query.request().getUri().endsWith("json");
-        if (json) {
+      final class WriteStatusCB implements Callback<Object,Object> {
+        @Override
+        public Object call(final Object o) {
+          final HashMap<String, String> result = new HashMap<String, String>();
+          version.put("status", status);
           query.sendReply(JSON.serializeToBytes(version));
-        } else {
-          final String revision = BuildData.revisionString();
-          final String build = BuildData.buildString();
-          StringBuilder buf;
-          buf = new StringBuilder(2 // For the \n's
-                                  + revision.length() + build.length());
-          buf.append(revision).append('\n').append(build).append('\n');
-          query.sendReply(buf);
         }
       }
+
+      updateStatus().addCallback(new WriteStatusCB());
     }
   }
 
