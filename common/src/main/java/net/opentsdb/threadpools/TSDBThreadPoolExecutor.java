@@ -90,6 +90,28 @@ public interface TSDBThreadPoolExecutor extends TSDBPlugin {
   <T> Future<T> submit(Callable<T> task, QueryContext qctx);
 
   /**
+   * Submits a value-returning task for execution and returns a
+   * Future representing the pending results of the task. The
+   * Future's {@code get} method will return the task's result upon
+   * successful completion. Uses the {@code QueryContext} and 
+   * {@code TSDTask} in the scheduling logic
+   *
+   * <p>
+   * If you would like to immediately block waiting
+   * for a task, you can use constructions of the form
+   * {@code result = exec.submit(aCallable).get();}
+   *
+   * @param task the task to submit
+   * @param qctx the QueryContext for advanced scheduling
+   * @param tsdTask the {@code TSDTask} for task scheduling
+   * @return a Future representing pending completion of the task
+   * @throws RejectedExecutionException if the task cannot be
+   *         scheduled for execution
+   * @throws NullPointerException if the task is null
+   */
+  <T> Future<T> submit(Callable<T> task, QueryContext qctx, TSDTask tsdTask);
+
+  /**
    * Submits a Runnable task for execution and returns a Future
    * representing that task. The Future's {@code get} method will
    * return {@code null} upon <em>successful</em> completion.
@@ -106,6 +128,7 @@ public interface TSDBThreadPoolExecutor extends TSDBPlugin {
    * Submits a Runnable task for execution and returns a Future
    * representing that task. The Future's {@code get} method will
    * return {@code null} upon <em>successful</em> completion.
+   * Uses the {@code QueryContext} in the scheduling logic
    *
    * @param task the task to submit
    * @param qctx the QueryContext for advanced scheduling
@@ -116,5 +139,20 @@ public interface TSDBThreadPoolExecutor extends TSDBPlugin {
    */
   Future<?> submit(Runnable task, QueryContext qctx);
 
+  /**
+   * Submits a Runnable task for execution and returns a Future
+   * representing that task. The Future's {@code get} method will
+   * return {@code null} upon <em>successful</em> completion. 
+   * Uses the {@code QueryContext} and {@code TSDTask} in the scheduling logic
+   *
+   * @param task the task to submit
+   * @param qctx the QueryContext for advanced scheduling
+   * @param tsdTask the {@code TSDTask} for task scheduling
+   * @return a Future representing pending completion of the task
+   * @throws RejectedExecutionException if the task cannot be
+   *         scheduled for execution
+   * @throws NullPointerException if the task is null
+   */
+  Future<?> submit(Runnable task, QueryContext qctx, TSDTask tsdTask);
 
 }

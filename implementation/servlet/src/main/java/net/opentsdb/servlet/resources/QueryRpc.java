@@ -24,6 +24,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.AsyncContext;
@@ -77,6 +80,7 @@ import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
+import net.opentsdb.threadpools.TSDTask;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
@@ -113,6 +117,23 @@ final public class QueryRpc {
   private final AtomicLong query_exceptions = new AtomicLong();
   private final AtomicLong query_success = new AtomicLong();
   
+  class RunTSDQuery implements Callable<Response> {
+    final TSDQueryMeta queryMeta;
+    public RunTSDQuery(TSDQueryMeta queryMeta) {
+      this.queryMeta = queryMeta;
+    }
+    @Override
+    public Response call() {
+      try {
+        return handleQuery(queryMeta.servlet_config, queryMeta.request, queryMeta.isGet);
+      } catch (Exception e) {
+        LOG.error("Unable to run the query {}", queryMeta.request);
+      }
+      return null;
+    }
+    
+  }
+  
   /**
    * Handles POST requests for parsing TSDB v2 queries from JSON.
    * @param servlet_config The servlet config to fetch the TSDB from.
@@ -134,7 +155,7 @@ final public class QueryRpc {
           .build();
     }
     
-    return handleQuery(servlet_config, request, false);
+    return handleQueryAsync(servlet_config, request, false);
   }
   
   /**
@@ -158,9 +179,33 @@ final public class QueryRpc {
           .build();
     }
     
-    return handleQuery(servlet_config, request, true);
+    return handleQueryAsync(servlet_config, request, true);
   }
   
+  private Response handleQueryAsync(ServletConfig servlet_config, HttpServletRequest request,
+      boolean b) throws Exception {
+
+    TSDQueryMeta qm = new TSDQueryMeta(servlet_config, request, b);
+
+    Object obj = servlet_config.getServletContext().getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
+    if (obj == null) {
+      throw new WebApplicationException("Unable to pull TSDB instance from " + "servlet context.",
+          Response.Status.INTERNAL_SERVER_ERROR);
+    } else if (!(obj instanceof TSDB)) {
+      throw new WebApplicationException(
+          "Object stored for as the TSDB was " + "of the wrong type: " + obj.getClass(),
+          Response.Status.INTERNAL_SERVER_ERROR);
+    }
+    final TSDB tsdb = (TSDB) obj;
+
+    RunTSDQuery runTsdQuery = new RunTSDQuery(qm);
+    
+    LOG.info("Creating async query!");
+
+    return tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
+
+  }
+
   /**
    * Method that parses the query and triggers it asynchronously.
    * @param servlet_config The servlet config to fetch the TSDB from.
