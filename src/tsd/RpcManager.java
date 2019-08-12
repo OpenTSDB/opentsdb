@@ -110,6 +110,8 @@ public final class RpcManager {
   private ImmutableMap<String, HttpRpcPlugin> http_plugin_commands;
   /** List of activated RPC plugins */
   private ImmutableList<RpcPlugin> rpc_plugins;
+  /** Status command—we keep a reference so we can explicitly shut it down. */
+  private Status status;
 
   /** The TSDB that owns us. */
   private TSDB tsdb;
@@ -265,7 +267,7 @@ public final class RpcManager {
     final ListAggregators aggregators = new ListAggregators();
     final DropCachesRpc dropcaches = new DropCachesRpc();
     final Version version = new Version();
-    final Status status = new Status();
+    status = new Status();
 
     telnet.put("stats", stats);
     telnet.put("dropcaches", dropcaches);
@@ -485,6 +487,8 @@ public final class RpcManager {
    * (think of it as {@code Deferred<Void>}).
    */
   public Deferred<ArrayList<Object>> shutdown() {
+    status.shutdown();
+
     // Clear shared instance.
     INSTANCE.set(null);
 
@@ -645,15 +649,18 @@ public final class RpcManager {
   }
 
   /** The "status" command. */
-  private static final class Status implements TelnetRpc, HttpRpc {
+  static final class Status implements TelnetRpc, HttpRpc {
     String status = "startup";
+
+    /** Called by RpcManager when it is shutdown. */
+    public void shutdown() {
+      status = "shutting-down";
+    }
 
     /** Update status, return Deferred that fires when status is updated. */
     private Deferred<Object> updateStatus(final TSDB tsdb) {
-      // If execute() was called, that means there was an RpcManager at some
-      // point. So if there isn't one anymore that means shutdown was started.
-      if (INSTANCE.get() == null) {
-        status = "shutting-down";
+      // Once we're in shutdown mode the status never changes.
+      if (status == "shutting-down") {
         return Deferred.fromResult(null);
       }
 

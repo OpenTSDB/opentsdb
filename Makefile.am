@@ -417,6 +417,7 @@ test_SRC := \
 	test/tsd/TestRTPublisher.java	\
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestStatsRpc.java \
+	test/tsd/TestStatusRpc.java \
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
