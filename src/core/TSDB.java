@@ -840,9 +840,18 @@ public final class TSDB {
       }
     }
 
+    /** If getting regions fails, availability is NONE. */
+    final class FailedRegionInfoCallback implements Callback<TableAvailability,Exception> {
+      @Override
+      public TableAvailability call(final Exception e) {
+        LOG.error("Failed to get regions during table availability check", e);
+        return TableAvailability.NONE;
+      }
+    }
+
     ArrayList<Deferred<TableAvailability>> tables = new ArrayList<Deferred<TableAvailability>>();
-    tables.add(client.locateRegions(config.getString("tsd.storage.hbase.uid_table")).addCallbackDeferring(new RegionInfoCallback()));
-    tables.add(client.locateRegions(config.getString("tsd.storage.hbase.data_table")).addCallbackDeferring(new RegionInfoCallback()));
+    tables.add(client.locateRegions(config.getString("tsd.storage.hbase.uid_table")).addCallbackDeferring(new RegionInfoCallback()).addErrback(new FailedRegionInfoCallback()));
+    tables.add(client.locateRegions(config.getString("tsd.storage.hbase.data_table")).addCallbackDeferring(new RegionInfoCallback()).addErrback(new FailedRegionInfoCallback()));
 
     final class CombineAvailabilityCB implements Callback<TableAvailability,ArrayList<TableAvailability>> {
       @Override

@@ -325,6 +325,7 @@ test_SRC := \
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
 	test/core/TestTSDBAddPoint.java	\
+	test/core/TestTSDBTableAvailability.java	\
 	test/core/TestTsdbQueryDownsample.java	\
 	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\
