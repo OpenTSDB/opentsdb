@@ -754,13 +754,17 @@ public final class TSDB {
   };
 
   /**
-   * Check for full or partial data and UID tables availability in HBase.
+   * Get availability status of regions for a table.
    *
-   * @return Status of table availability.
+   * Implemented as separate method so we can override it in unit tests.
+   *
+   * @return Per-region availability.
    *
    * @since 2.5
    */
-  public Deferred<TableAvailability> checkNecessaryTablesAvailability() {
+  Deferred<ArrayList<Boolean>> getTableRegionAvailability(String table) {
+    final String table_id = config.getString(table);
+    
     /** Convert result to true. */
     final class SuccessToBoolCallback implements Callback<Boolean, ArrayList<KeyValue>> {
       @Override
@@ -782,6 +786,44 @@ public final class TSDB {
     final SuccessToBoolCallback successCB = new SuccessToBoolCallback();
     final FailureToBoolCallback failureCB = new FailureToBoolCallback();
 
+    /** Lookup availability of each region. */
+    final class RegionInfoCallback implements Callback<Deferred<ArrayList<Boolean>>,List<RegionLocation>> {
+      @Override
+      public Deferred<ArrayList<Boolean>> call(final List<RegionLocation> regions) {
+        LOG.info("Availability check got this many regions: " + regions.size());
+        ArrayList<Deferred<Boolean>> available = new ArrayList<Deferred<Boolean>>();
+        for (RegionLocation region : regions) {
+          // Use suffix so we don't hit real data:
+          final byte[] key = region.startKey();
+          final byte[] testKey = new byte[key.length + 64];
+          System.arraycopy(key, 0, testKey, 0, key.length);
+          System.arraycopy(PROBE_SUFFIX, 0,
+                           testKey, testKey.length - PROBE_SUFFIX.length,
+                           PROBE_SUFFIX.length);
+          LOG.debug("Checking region with start key " + testKey + " end key " + region.stopKey());
+          GetRequest probe = new GetRequest(table_id, testKey);
+          // If we don't get a response within 1 second, assume the region is
+          // unavailable.
+          probe.setTimeout(1000);
+          probe.setFailfast(true);
+          available.add(client.get(probe).addCallbacks(successCB, failureCB));
+        }
+        return Deferred.group(available);
+      }
+    }
+
+    return client.locateRegions(config.getString(table))
+      .addCallbackDeferring(new RegionInfoCallback());
+  }
+
+  /**
+   * Check for full or partial data and UID tables availability in HBase.
+   *
+   * @return Status of table availability.
+   *
+   * @since 2.5
+   */
+  public Deferred<TableAvailability> checkNecessaryTablesAvailability() {
     /** Convert list of booleans (indicating a region being available) into full
      * (all were available), partial (some were available), none (none were
      * available).
@@ -811,35 +853,6 @@ public final class TSDB {
       }
     }
 
-    /** Convert a list of regions to full/partial/none availability.
-     *
-     * We do so by looking up start key for each table.
-     */
-    final class RegionInfoCallback implements Callback<Deferred<TableAvailability>,List<RegionLocation>> {
-      @Override
-      public Deferred<TableAvailability> call(final List<RegionLocation> regions) {
-        LOG.info("Availability check got this many regions: " + regions.size());
-        ArrayList<Deferred<Boolean>> available = new ArrayList<Deferred<Boolean>>();
-        for (RegionLocation region : regions) {
-          // Use suffix so we don't hit real data:
-          final byte[] key = region.startKey();
-          final byte[] testKey = new byte[key.length + 64];
-          System.arraycopy(key, 0, testKey, 0, key.length);
-          System.arraycopy(PROBE_SUFFIX, 0,
-                           testKey, testKey.length - PROBE_SUFFIX.length,
-                           PROBE_SUFFIX.length);
-          LOG.debug("Checking region with start key " + testKey + " end key " + region.stopKey());
-          GetRequest probe = new GetRequest(table, testKey);
-          // If we don't get a response within 1 second, assume the region is
-          // unavailable.
-          probe.setTimeout(1000);
-          probe.setFailfast(true);
-          available.add(client.get(probe).addCallbacks(successCB, failureCB));
-        }
-        return Deferred.group(available).addCallback(new TableAvailabilityCB());
-      }
-    }
-
     /** If getting regions fails, availability is NONE. */
     final class FailedRegionInfoCallback implements Callback<TableAvailability,Exception> {
       @Override
@@ -850,9 +863,12 @@ public final class TSDB {
     }
 
     ArrayList<Deferred<TableAvailability>> tables = new ArrayList<Deferred<TableAvailability>>();
-    tables.add(client.locateRegions(config.getString("tsd.storage.hbase.uid_table")).addCallbackDeferring(new RegionInfoCallback()).addErrback(new FailedRegionInfoCallback()));
-    tables.add(client.locateRegions(config.getString("tsd.storage.hbase.data_table")).addCallbackDeferring(new RegionInfoCallback()).addErrback(new FailedRegionInfoCallback()));
+    tables.add(getTableRegionAvailability("tsd.storage.hbase.uid_table")
+               .addCallbacks(new TableAvailabilityCB(), new FailedRegionInfoCallback()));
+    tables.add(getTableRegionAvailability("tsd.storage.hbase.data_table")
+               .addCallbacks(new TableAvailabilityCB(), new FailedRegionInfoCallback()));
 
+    /** Combine availability for two tables by picking the lower of the two. */
     final class CombineAvailabilityCB implements Callback<TableAvailability,ArrayList<TableAvailability>> {
       @Override
       public TableAvailability call(final ArrayList<TableAvailability> availabilities) {
