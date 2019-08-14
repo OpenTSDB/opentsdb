@@ -54,22 +54,6 @@ import com.stumbleupon.async.Deferred;
       Scanner.class, AtomicIncrementRequest.class, Const.class, })
 public final class TestTSDBTableAvailability extends BaseTsdbTest {
 
-  private TSDB createTSDB(List<RegionLocation> uid_regions,
-                          List<RegionLocation> data_regions) {
-    TSDB tsdb = new TSDB(mock(HBaseClient.class), config);
-    String uid_table = config.getString("tsd.storage.hbase.uid_table");
-    String data_table = config.getString("tsd.storage.hbase.data_table");
-
-    Deferred<List<RegionLocation>> d = new Deferred<List<RegionLocation>>();
-    d.callback(uid_regions);
-    when(tsdb.getClient().locateRegions(uid_table)).thenReturn(d);
-
-    Deferred<List<RegionLocation>> d2 = new Deferred<List<RegionLocation>>();
-    d2.callback(data_regions);
-    when(tsdb.getClient().locateRegions(data_table)).thenReturn(d2);
-    return tsdb;
-  }
-
   /** If locateRegions() throws an exception, availability is NONE */
   @Test
   public void failedToGetRegions() throws Exception {
@@ -91,41 +75,97 @@ public final class TestTSDBTableAvailability extends BaseTsdbTest {
   /** If locateRegions() returns empty list, availability is NONE */
   @Test
   public void noRegions() throws Exception {
-    TSDB tsdb = createTSDB(new ArrayList<RegionLocation>(),
-                           new ArrayList<RegionLocation>());
+    TSDB tsdb = new TSDB(mock(HBaseClient.class), config);
+    String uid_table = config.getString("tsd.storage.hbase.uid_table");
+    String data_table = config.getString("tsd.storage.hbase.data_table");
+
+    Deferred<List<RegionLocation>> d = new Deferred<List<RegionLocation>>();
+    d.callback(new ArrayList<RegionLocation>());
+    when(tsdb.getClient().locateRegions(uid_table)).thenReturn(d);
+
+    Deferred<List<RegionLocation>> d2 = new Deferred<List<RegionLocation>>();
+    d2.callback(new ArrayList<RegionLocation>());
+    when(tsdb.getClient().locateRegions(data_table)).thenReturn(d2);
     assertEquals(tsdb.checkNecessaryTablesAvailability().join(),
                  TSDB.TableAvailability.NONE);
   }
 
-  /* If all returned regions return a result, availability is FULL. */
-  @Test
-  public void allRegionsAvailable() throws Exception {
+  private TSDB createTSDB(ArrayList<Boolean> uid_regions,
+                          ArrayList<Boolean> data_regions) {
     TSDB original = new TSDB(mock(HBaseClient.class), config);
     TSDB tsdb = PowerMockito.spy(original);
-    ArrayList<Boolean> region_availability = new ArrayList<Boolean>();
-    region_availability.add(true);
 
     Deferred<ArrayList<Boolean>> get_results = new Deferred<ArrayList<Boolean>>();
-    get_results.callback(region_availability);
+    get_results.callback(uid_regions);
     Deferred<ArrayList<Boolean>> get_results2 = new Deferred<ArrayList<Boolean>>();
-    get_results2.callback(region_availability);
+    get_results2.callback(data_regions);
 
     PowerMockito.doReturn(get_results).when(tsdb)
       .getTableRegionAvailability("tsd.storage.hbase.uid_table");
     PowerMockito.doReturn(get_results2).when(tsdb)
       .getTableRegionAvailability("tsd.storage.hbase.data_table");
 
+    return tsdb;
+  }
+
+  /* If all returned regions return a result, availability is FULL. */
+  @Test
+  public void allRegionsAvailable() throws Exception {
+    ArrayList<Boolean> region_availability = new ArrayList<Boolean>();
+    region_availability.add(true);
+
+    TSDB tsdb = createTSDB(region_availability, region_availability);
     assertEquals(tsdb.checkNecessaryTablesAvailability().join(),
                  TSDB.TableAvailability.FULL);
   }
 
-    // If one out of many regions returned by locateRegions() throws exception,
-    // availability is PARTIAL.
+  /* If one out of many regions returned by locateRegions(), one is unavailable,
+     availability is PARTIAL. */
+  @Test
+  public void partialRegionsAvailable() throws Exception {
+    ArrayList<Boolean> region_availability = new ArrayList<Boolean>();
+    region_availability.add(false);
+    region_availability.add(true);
 
-    // If one table returns PARTIAL and the other returns FULL, final result is
-    // PARTIAL
+    TSDB tsdb = createTSDB(region_availability, region_availability);
+    assertEquals(tsdb.checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.PARTIAL);
+  }
 
-    // If one table returns NONE and the other returns FULL, final result is
-    // NONE
+  /* If one table returns PARTIAL and the other returns FULL, final result is
+     PARTIAL. If one table returns NONE and the other returns FULL, final result
+     is NONE. If one returns PARTIAL and the other NONE, final is result is
+     NONE. */
+  @Test
+  public void differentRegionsAvailable() throws Exception {
+    ArrayList<Boolean> full_availability = new ArrayList<Boolean>();
+    full_availability.add(true);
+    full_availability.add(true);
+    ArrayList<Boolean> partial_availability = new ArrayList<Boolean>();
+    partial_availability.add(false);
+    partial_availability.add(true);
+    ArrayList<Boolean> no_availability = new ArrayList<Boolean>();
+    no_availability.add(false);
+
+    assertEquals(createTSDB(full_availability, partial_availability)
+                 .checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.PARTIAL);
+    assertEquals(createTSDB(partial_availability, full_availability)
+                 .checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.PARTIAL);
+    assertEquals(createTSDB(full_availability, no_availability)
+                 .checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.NONE);
+    assertEquals(createTSDB(no_availability, full_availability)
+                 .checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.NONE);
+    assertEquals(createTSDB(partial_availability, no_availability)
+                 .checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.NONE);
+    assertEquals(createTSDB(no_availability, partial_availability)
+                 .checkNecessaryTablesAvailability().join(),
+                 TSDB.TableAvailability.NONE);
+  }
+
 
 }
