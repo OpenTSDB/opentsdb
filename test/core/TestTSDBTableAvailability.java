@@ -21,7 +21,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import org.hbase.async.AtomicIncrementRequest;
@@ -95,18 +97,13 @@ public final class TestTSDBTableAvailability extends BaseTsdbTest {
   /* If all returned regions return a result, availability is FULL. */
   @Test
   public void allRegionsAvailable() throws Exception {
-    RegionLocation region = mock(RegionLocation.class);
-    byte[] key = {'a'};
-    when(region.startKey()).thenReturn(key);
-    ArrayList<RegionLocation> regions = new ArrayList<RegionLocation>();
-    regions.add(region);
-
-    TSDB tsdb = spy(new TSDB(mock(HBaseClient.class), config));
+    TSDB original = new TSDB(mock(HBaseClient.class), config);
+    TSDB tsdb = spy(original);
     ArrayList<Boolean> region_availability = new ArrayList<Boolean>();
     region_availability.add(true);
-    Deferred<ArrayList<KeyValue>> get_results = new Deferred<ArrayList<KeyValue>>();
+    Deferred<ArrayList<Boolean>> get_results = new Deferred<ArrayList<Boolean>>();
     get_results.callback(region_availability);
-    when(tsdb.getTableRegionAvailability(anyString())).thenReturn(get_results);
+    doReturn(get_results).when(tsdb).getTableRegionAvailability(anyString());
 
     assertEquals(tsdb.checkNecessaryTablesAvailability().join(),
                  TSDB.TableAvailability.FULL);
