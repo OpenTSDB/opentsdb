@@ -14,6 +14,9 @@ package net.opentsdb.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.Mock;
+import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -98,12 +101,19 @@ public final class TestTSDBTableAvailability extends BaseTsdbTest {
   @Test
   public void allRegionsAvailable() throws Exception {
     TSDB original = new TSDB(mock(HBaseClient.class), config);
-    TSDB tsdb = spy(original);
+    TSDB tsdb = PowerMockito.spy(original);
     ArrayList<Boolean> region_availability = new ArrayList<Boolean>();
     region_availability.add(true);
+
     Deferred<ArrayList<Boolean>> get_results = new Deferred<ArrayList<Boolean>>();
     get_results.callback(region_availability);
-    doReturn(get_results).when(tsdb).getTableRegionAvailability(anyString());
+    Deferred<ArrayList<Boolean>> get_results2 = new Deferred<ArrayList<Boolean>>();
+    get_results2.callback(region_availability);
+
+    PowerMockito.doReturn(get_results).when(tsdb)
+      .getTableRegionAvailability("tsd.storage.hbase.uid_table");
+    PowerMockito.doReturn(get_results2).when(tsdb)
+      .getTableRegionAvailability("tsd.storage.hbase.data_table");
 
     assertEquals(tsdb.checkNecessaryTablesAvailability().join(),
                  TSDB.TableAvailability.FULL);
