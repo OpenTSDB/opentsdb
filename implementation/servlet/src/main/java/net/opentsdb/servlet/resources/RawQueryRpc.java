@@ -85,17 +85,14 @@ public class RawQueryRpc {
   
   class RunTSDQuery implements Callable<Response> {
     final TSDQueryMeta queryMeta;
+
     public RunTSDQuery(TSDQueryMeta queryMeta) {
       this.queryMeta = queryMeta;
     }
+
     @Override
-    public Response call() {
-      try {
-        return handleQuery(queryMeta.servlet_config, queryMeta.request);
-      } catch (Exception e) {
-        LOG.error("Unable to run the query {}", queryMeta.request);
-      }
-      return null;
+    public Response call() throws IOException {
+      return handleQuery(queryMeta.servlet_config, queryMeta.request);
     }
   }
   

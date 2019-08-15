@@ -44,13 +44,6 @@ public interface QueryContext {
   public Collection<QuerySink> sinks();
   
   /**
-   * Returns the query pipeline context
-   * 
-   * @return
-   */
-  public QueryPipelineContext getQueryPipelineContext();
-  
-  /**
    * Returns the mode the query is executing in.
    * @return The non-null query mode.
    */
