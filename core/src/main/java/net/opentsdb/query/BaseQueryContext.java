@@ -90,11 +90,6 @@ public abstract class BaseQueryContext implements QueryContext {
   }
   
   @Override
-  public QueryPipelineContext getQueryPipelineContext() {
-    return pipeline;
-  }
-  
-  @Override
   public Collection<QuerySink> sinks() {
     return pipeline.sinks();
   }

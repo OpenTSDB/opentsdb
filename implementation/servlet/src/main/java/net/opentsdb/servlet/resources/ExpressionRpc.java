@@ -125,19 +125,17 @@ public class ExpressionRpc {
 
   class RunTSDQuery implements Callable<Response> {
     final TSDQueryMeta queryMeta;
+
     public RunTSDQuery(TSDQueryMeta queryMeta) {
       this.queryMeta = queryMeta;
     }
+
     @Override
     public Response call() {
-      try {
-        return handleQuery(queryMeta.servlet_config, queryMeta.request);
-      } catch (Exception e) {
-        LOG.error("Unable to run the query {}", queryMeta.request);
-      }
-      return null;
+      return handleQuery(queryMeta.servlet_config, queryMeta.request);
     }
   }
+  
   private Response handleQuery(final ServletConfig servlet_config, final HttpServletRequest request) {
     final Object stream = request.getAttribute("DATA");
     if (stream != null) {

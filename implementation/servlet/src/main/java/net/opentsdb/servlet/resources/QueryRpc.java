@@ -116,24 +116,21 @@ final public class QueryRpc {
   private final AtomicLong query_invalid = new AtomicLong();
   private final AtomicLong query_exceptions = new AtomicLong();
   private final AtomicLong query_success = new AtomicLong();
-  
+
   class RunTSDQuery implements Callable<Response> {
     final TSDQueryMeta queryMeta;
+
     public RunTSDQuery(TSDQueryMeta queryMeta) {
       this.queryMeta = queryMeta;
     }
+
     @Override
-    public Response call() {
-      try {
-        return handleQuery(queryMeta.servlet_config, queryMeta.request, queryMeta.isGet);
-      } catch (Exception e) {
-        LOG.error("Unable to run the query {}", queryMeta.request);
-      }
-      return null;
+    public Response call() throws Exception {
+      return handleQuery(queryMeta.servlet_config, queryMeta.request, queryMeta.isGet);
     }
-    
+
   }
-  
+
   /**
    * Handles POST requests for parsing TSDB v2 queries from JSON.
    * @param servlet_config The servlet config to fetch the TSDB from.

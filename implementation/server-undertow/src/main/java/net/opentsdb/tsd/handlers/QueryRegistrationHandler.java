@@ -17,16 +17,9 @@ public class QueryRegistrationHandler implements HttpHandler {
 
   private TSDB tsdb;
   private final HttpHandler next;
-  private final Runnable closeTask;
   public QueryRegistrationHandler(final TSDB tsdb, final HttpHandler next) {
     this.tsdb = tsdb;
     this.next = next;
-    closeTask = new Runnable() {
-      @Override
-      public void run() {
-        LOG.info("Closing the query!");
-      }
-    };
   }
 
   @Override
@@ -48,7 +41,14 @@ public class QueryRegistrationHandler implements HttpHandler {
               tsdb.completeRunningQuery(hash);
             } finally {
               // Sends a signal to the UserAwareThreadPoolExecutor to update the state for the query.
+              Runnable closeTask = new Runnable() {
+                @Override
+                public void run() {
+                  LOG.debug("Closing the query with hash {}", hash);
+                }
+              };
               tsdb.getQueryThreadPool().submit(closeTask, null, TSDTask.QUERY_CLOSE);
+
               nextListener.proceed();
             }
           }
