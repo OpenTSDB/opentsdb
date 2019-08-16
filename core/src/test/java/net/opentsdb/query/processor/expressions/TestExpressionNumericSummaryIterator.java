@@ -775,19 +775,55 @@ public class TestExpressionNumericSummaryIterator
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullLeftSubstitute() throws Exception {
+    setupData(new long[] { }, new long[] { }, 
+              new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setSubstituteMissing(true)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericSummaryIterator iterator = 
+        new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(4, value.value().value(0).longValue());
+    assertEquals(1, value.value().value(2).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(10, value.value().value(0).longValue());
+    assertEquals(2, value.value().value(2).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(8, value.value().value(0).longValue());
+    assertEquals(2, value.value().value(2).longValue());
   }
   
   @Test
@@ -811,18 +847,63 @@ public class TestExpressionNumericSummaryIterator
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullRightSubstitute() throws Exception {
+    setupData(new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, 
+              new long[] { }, new long[] { }, false);
+    RollupConfig rollup_config = mock(RollupConfig.class);
+    when(rollup_config.getAggregationIds()).thenReturn(
+        (Map) ImmutableMap.builder()
+          .put("sum", 0)
+          .put("count", 2)
+          .put("avg", 5)
+          .build());
+    when(RESULT.rollupConfig()).thenReturn(rollup_config);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setSubstituteMissing(true)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(cfg)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericSummaryIterator iterator = 
+        new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(4, value.value().value(0).longValue());
+    assertEquals(1, value.value().value(2).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(10, value.value().value(0).longValue());
+    assertEquals(2, value.value().value(2).longValue());
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(8, value.value().value(0).longValue());
+    assertEquals(2, value.value().value(2).longValue());
   }
+  
 }

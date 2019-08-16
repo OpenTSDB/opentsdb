@@ -1908,6 +1908,133 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
+    assertFalse(iterator.hasNext());
+    
+    // NE
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // LT
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // GT
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // LE
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // GE
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullLeftSubstitute() throws Exception {
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(5);
+    ((NumericArrayTimeSeries) right).add(8);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setSubstituteMissing(true)
+        .setId("e1")
+        .build();
+    
+    // EQ
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
@@ -2069,6 +2196,133 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .build());
+    assertFalse(iterator.hasNext());
+    
+    // NE
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.NE)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // LT
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.LT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // GT
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.GT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // LE
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.LE)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // GE
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.GE)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullRightSubstitute() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(37);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setSubstituteMissing(true)
+        .setId("e1")
+        .build();
+    
+    // EQ
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.EQ)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
@@ -2204,4 +2458,5 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
+  
 }

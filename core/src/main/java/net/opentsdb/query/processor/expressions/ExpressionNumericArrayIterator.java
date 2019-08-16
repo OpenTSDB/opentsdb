@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may getNot use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 
 /**
  * An iterator handling {@link NumericArrayType} data values.
@@ -60,6 +61,13 @@ public class ExpressionNumericArrayIterator extends
     
     if (sources.get(ExpressionTimeSeries.LEFT_KEY) == null) {
       left = null;
+      if (((BinaryExpressionNode) node).config().getLeftType() 
+          == OperandType.LITERAL_BOOL ||
+        ((BinaryExpressionNode) node).config().getLeftType() 
+          == OperandType.LITERAL_NUMERIC ||
+          ((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+        has_next = true;
+      }
     } else {
       left = sources.get(ExpressionTimeSeries.LEFT_KEY)
           .iterator(NumericArrayType.TYPE).get();
@@ -68,10 +76,19 @@ public class ExpressionNumericArrayIterator extends
     
     if (sources.get(ExpressionTimeSeries.RIGHT_KEY) == null) {
       right = null;
+      if (((BinaryExpressionNode) node).config().getRightType() 
+            != OperandType.LITERAL_BOOL &&
+          ((BinaryExpressionNode) node).config().getRightType() 
+            != OperandType.LITERAL_NUMERIC &&
+            !((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+        has_next = false;
+      }
     } else {
       right = sources.get(ExpressionTimeSeries.RIGHT_KEY)
           .iterator(NumericArrayType.TYPE).get();
-      has_next = right != null ? right.hasNext() : false;
+      if (has_next) {
+        has_next = right != null ? right.hasNext() : false;
+      }
     }
     
     // final sanity check
@@ -105,55 +122,93 @@ public class ExpressionNumericArrayIterator extends
 
     int left_offset = 0;
     int right_offset = 0;
-    if (left_value.value().end() < right_value.value().end()) {
+    if (right_value != null && left_value.value().end() < right_value.value().end()) {
       right_offset = right_value.value().end() - left_value.value().end();
-    }
-    else if (left_value.value().end() > right_value.value().end()) {
+    }  else if (left_value != null && left_value.value().end() > right_value.value().end()) {
       left_offset = left_value.value().end() - right_value.value().end();
     }
 
     switch (((ExpressionParseNode) node.config()).getOperator()) {
     // logical
     case OR:
-      runOr(left_value, right_value, left_offset, right_offset);
+      runOr(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+            right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+            left_offset, 
+            right_offset);
       break;
     case AND:
-      runAnd(left_value, right_value, left_offset, right_offset);
+      runAnd(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     // relational
     case EQ:
-      runEQ(left_value, right_value, left_offset, right_offset);
+      runEQ(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case NE:
-      runNE(left_value, right_value, left_offset, right_offset);
+      runNE(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case LE:
-      runLE(left_value, right_value, left_offset, right_offset);
+      runLE(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case GE:
-      runGE(left_value, right_value, left_offset, right_offset);
+      runGE(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case LT:
-      runLT(left_value, right_value, left_offset, right_offset);
+      runLT(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case GT:
-      runGT(left_value, right_value, left_offset, right_offset);
+      runGT(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     // arithmetic
     case ADD:
-      runAdd(left_value, right_value, left_offset, right_offset);
+      runAdd(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case SUBTRACT:
-      runSubtract(left_value, right_value, left_offset, right_offset);
+      runSubtract(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case DIVIDE:
-      runDivide(left_value, right_value, left_offset, right_offset);
+      runDivide(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 1) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case MULTIPLY:
-      runMultiply(left_value, right_value, left_offset, right_offset);
+      runMultiply(left_value == null ? new Substitute(right_value.value().end(), 1) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 1) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case MOD:
-      runMod(left_value, right_value, left_offset, right_offset);
+      runMod(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
+          right_value == null ? new Substitute(left_value.value().end(), 1) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     default:
       throw new QueryDownstreamException("Expression iterator was "
@@ -1106,5 +1161,56 @@ public class ExpressionNumericArrayIterator extends
       return double_values;
     }
     
+  }
+
+  /** Helper to substitute a missing time series. */
+  class Substitute implements TimeSeriesValue<NumericArrayType>, NumericArrayType {
+    final long[] array;
+    
+    Substitute(final int length, final int value) {
+      array = new long[length];
+      if (value != 0) {
+        Arrays.fill(array, value);
+      }
+    }
+    
+    @Override
+    public TimeStamp timestamp() {
+      // not used here
+      return null;
+    }
+    @Override
+    public NumericArrayType value() {
+      return this;
+    }
+    @Override
+    public TypeToken<NumericArrayType> type() {
+      return NumericArrayType.TYPE;
+    }
+
+    @Override
+    public int offset() {
+      return 0;
+    }
+
+    @Override
+    public int end() {
+      return array.length;
+    }
+
+    @Override
+    public boolean isInteger() {
+      return true;
+    }
+
+    @Override
+    public long[] longArray() {
+      return array;
+    }
+
+    @Override
+    public double[] doubleArray() {
+      return null;
+    }
   }
 }

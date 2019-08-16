@@ -854,6 +854,60 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullLeftSubstitute() throws Exception {
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(10);
+    ((NumericArrayTimeSeries) right).add(8);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setSubstituteMissing(true)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(cfg)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
@@ -908,6 +962,60 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullRightSubstitute() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(2);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setSubstituteMissing(true)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(cfg)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 

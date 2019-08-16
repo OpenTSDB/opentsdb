@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may getNot use this file except in compliance with the License.
@@ -45,6 +45,10 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
 
   /** Epsilon used for floating point calculations. */
   public static final double EPSILON = Math.ulp(1.0);
+  public static final MutableNumericType ZERO_SUBSTITUTE = 
+      new MutableNumericType(0);
+  public static final MutableNumericType ONE_SUBSTITUTE = 
+      new MutableNumericType(1);
   
   /** The node we belong to */
   protected final BinaryExpressionNode node;
@@ -166,9 +170,17 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param right The right operand.
    * @return The {@link #value} or null if either operand was null.
    */
-  NumericType relation(final NumericType left, final NumericType right) {
+  NumericType relation(NumericType left, NumericType right) {
     if (left == null || right == null) {
-      return null;
+      if (!node.expressionConfig().getSubstituteMissing()) {
+        return null;
+      }
+      if (left == null) {
+        left = ZERO_SUBSTITUTE;
+      }
+      if (right == null) {
+        right = ZERO_SUBSTITUTE;
+      }
     }
     
     if (left.isInteger() && right.isInteger()) {
@@ -292,7 +304,14 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param right The right operand.
    * @return The {@link #value}.
    */
-  NumericType logical(final NumericType left, final NumericType right) {
+  NumericType logical(NumericType left, NumericType right) {
+    if (node.expressionConfig().getSubstituteMissing() && left == null) {
+      left = ZERO_SUBSTITUTE;
+    }
+    if (node.expressionConfig().getSubstituteMissing() && right == null) {
+      right = ZERO_SUBSTITUTE;
+    }
+    
     switch (((ExpressionParseNode) node.config()).getOperator()) {
     case OR:
       if (left == null) {
@@ -361,9 +380,17 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param right The right operand.
    * @return The {@link #value} or null if either operand was null.
    */
-  NumericType additive(final NumericType left, final NumericType right) {
+  NumericType additive(NumericType left, NumericType right) {
     if (left == null || right == null) {
-      return null;
+      if (!node.expressionConfig().getSubstituteMissing()) {
+        return null;
+      }
+      if (left == null) {
+        left = ZERO_SUBSTITUTE;
+      }
+      if (right == null) {
+        right = ZERO_SUBSTITUTE;
+      }
     }
     
     if (left.isInteger() && right.isInteger()) {
@@ -429,9 +456,17 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param right The right operand.
    * @return The {@link #value} or null if either operand was null.
    */
-  NumericType divide(final NumericType left, final NumericType right) {
+  NumericType divide(NumericType left, NumericType right) {
     if (left == null || right == null) {
-      return null;
+      if (!node.expressionConfig().getSubstituteMissing()) {
+        return null;
+      }
+      if (left == null) {
+        left = ZERO_SUBSTITUTE;
+      }
+      if (right == null) {
+        right = ONE_SUBSTITUTE;
+      }
     }
     
     if (left.isInteger() && right.isInteger() && 
@@ -485,9 +520,17 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param right The right operand.
    * @return The {@link #value} or null if either operand was null.
    */
-  NumericType multiply(final NumericType left, final NumericType right) {
+  NumericType multiply(NumericType left, NumericType right) {
     if (left == null || right == null) {
-      return null;
+      if (!node.expressionConfig().getSubstituteMissing()) {
+        return null;
+      }
+      if (left == null) {
+        left = ONE_SUBSTITUTE;
+      }
+      if (right == null) {
+        right = ONE_SUBSTITUTE;
+      }
     }
     
     if (left.isInteger() && right.isInteger()) {
@@ -531,9 +574,17 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @param right The right operand.
    * @return The {@link #value} or null if either operand was null.
    */
-  NumericType mod(final NumericType left, final NumericType right) {
+  NumericType mod(NumericType left, NumericType right) {
     if (left == null || right == null) {
-      return null;
+      if (!node.expressionConfig().getSubstituteMissing()) {
+        return null;
+      }
+      if (left == null) {
+        left = ZERO_SUBSTITUTE;
+      }
+      if (right == null) {
+        right = ONE_SUBSTITUTE;
+      }
     }
     
     if (left.isInteger() && right.isInteger()) {
