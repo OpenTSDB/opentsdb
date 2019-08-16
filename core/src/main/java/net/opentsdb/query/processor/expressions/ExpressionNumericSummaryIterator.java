@@ -36,6 +36,7 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 
 /**
  * An expression iterator over summary data.
@@ -73,6 +74,13 @@ public class ExpressionNumericSummaryIterator extends
     
     if (sources.get(ExpressionTimeSeries.LEFT_KEY) == null) {
       left_interpolator = null;
+      if (((BinaryExpressionNode) node).config().getLeftType() 
+            == OperandType.LITERAL_BOOL ||
+         ((BinaryExpressionNode) node).config().getLeftType() 
+            == OperandType.LITERAL_NUMERIC ||
+         ((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+        has_next = true;
+      }
     } else {
       QueryInterpolatorConfig interpolator_config = 
           ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
@@ -138,6 +146,13 @@ public class ExpressionNumericSummaryIterator extends
     
     if (sources.get(ExpressionTimeSeries.RIGHT_KEY) == null) {
       right_interpolator = null;
+      if (((BinaryExpressionNode) node).config().getRightType() 
+            != OperandType.LITERAL_BOOL &&
+          ((BinaryExpressionNode) node).config().getRightType() 
+            != OperandType.LITERAL_NUMERIC &&
+          !((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+        has_next = false;
+      }
     } else {
       QueryInterpolatorConfig interpolator_config = 
           ((BinaryExpressionNode) node).expressionConfig().interpolatorConfig(
@@ -195,7 +210,7 @@ public class ExpressionNumericSummaryIterator extends
       right_interpolator = (QueryInterpolator<NumericSummaryType>) factory.newInterpolator(
           NumericSummaryType.TYPE, sources.get(ExpressionTimeSeries.RIGHT_KEY), 
           interpolator_config);
-      if (!has_next) {
+      if (has_next) {
         has_next = right_interpolator.hasNext();
         if (right_interpolator.hasNext()) {
           next_ts.update(right_interpolator.nextReal());

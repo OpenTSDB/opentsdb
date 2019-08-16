@@ -72,6 +72,9 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
   /** The resulting metric name. */
   private final String as;
   
+  /** Whether or not to substitute missing metrics with somewhat useful values. */
+  private final boolean substitute_missing;
+  
   /**
    * Protected ctor.
    * @param builder The non-null builder.
@@ -96,6 +99,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
     } else {
       as = builder.as;
     }
+    substitute_missing = builder.substituteMissing;
   }
   
   /** @return The raw expression string to be parsed. */
@@ -121,6 +125,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
   /** @return The new name for the metric. */
   public String getAs() {
     return as;
+  }
+  
+  /** @return Whether or not to substitute values for missing time series. */
+  public boolean getSubstituteMissing() {
+    return substitute_missing;
   }
   
   /**
@@ -180,6 +189,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
         .putString(id == null ? "null" : id, Const.UTF8_CHARSET)
         .putString(expression, Const.UTF8_CHARSET)
         .putString(as == null ? "null" : as, Const.UTF8_CHARSET)
+        .putBoolean(substitute_missing)
         .hash());
     if (variable_interpolators != null && !variable_interpolators.isEmpty()) {
       final Map<String, List<QueryInterpolatorConfig>> sorted = 
@@ -223,6 +233,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
         .compare(interpolator_configs, o.interpolator_configs, INTERPOLATOR_CMP)
         .compare(infectious_nan, o.infectious_nan)
         .compare(as, o.as)
+        .compare(substitute_missing, o.substitute_missing)
         .result();
   }
 
@@ -249,7 +260,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
            Objects.equals(variable_interpolators, other.variable_interpolators) &&
            Objects.equals(interpolator_configs, other.interpolator_configs) &&
            Objects.equals(infectious_nan, other.infectious_nan) &&
-           Objects.equals(as, other.as);
+           Objects.equals(as, other.as) &&
+           Objects.equals(substitute_missing, other.substitute_missing);
   }
 
   @Override
@@ -288,6 +300,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
     n = node.get("id");
     if (n != null) {
       builder.setId(n.asText());
+    }
+    
+    n = node.get("substituteMissing");
+    if (n != null && !n.isNull()) {
+      builder.setSubstituteMissing(n.asBoolean());
     }
     
     n = node.get("variableInterpolators");
@@ -382,6 +399,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
     private boolean infectiousNan;
     @JsonProperty
     private String as;
+    @JsonProperty
+    private boolean substituteMissing;
     
     Builder() {
       setType(ExpressionFactory.TYPE);
@@ -424,6 +443,11 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
     
     public Builder setAs(final String as) {
       this.as = as;
+      return this;
+    }
+    
+    public Builder setSubstituteMissing(final boolean substitute_missing) {
+      this.substituteMissing = substitute_missing;
       return this;
     }
     
