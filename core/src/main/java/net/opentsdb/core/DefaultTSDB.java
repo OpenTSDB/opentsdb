@@ -84,6 +84,7 @@ import net.opentsdb.stats.BlackholeStatsCollector;
 //import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
+import net.opentsdb.threadpools.TSDTask;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -2056,6 +2057,16 @@ public class DefaultTSDB implements TSDB {
       }
     } catch (Throwable t) {
       LOG.error("Failed to close query: " + hash, t);
+    } finally {
+      // Sends a signal to the UserAwareThreadPoolExecutor to update the state for the query.
+      Runnable closeTask = new Runnable() {
+        @Override
+        public void run() {
+          LOG.debug("Closing the query with hash {}", hash);
+        }
+      };
+      this.query_pool.submit(closeTask, null, TSDTask.QUERY_CLOSE);
+
     }
     return true;
   }

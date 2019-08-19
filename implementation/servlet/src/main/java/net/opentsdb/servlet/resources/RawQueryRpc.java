@@ -20,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -83,16 +84,25 @@ public class RawQueryRpc {
   /** Request key for the tracer. */
   public static final String TRACE_KEY = "TRACE";
   
-  class RunTSDQuery implements Callable<Response> {
-    final TSDQueryMeta queryMeta;
+  class RunTSDQuery implements Runnable {
 
-    public RunTSDQuery(TSDQueryMeta queryMeta) {
-      this.queryMeta = queryMeta;
+    final Span query_span;
+    final AsyncContext async;
+    final SemanticQuery query;
+
+    final SemanticQueryContext context;
+
+    public RunTSDQuery(Span query_span, AsyncContext async, SemanticQuery query,
+        SemanticQueryContext context) {
+      this.query_span = query_span;
+      this.async = async;
+      this.query = query;
+      this.context = context;
     }
 
     @Override
-    public Response call() throws IOException {
-      return handleQuery(queryMeta.servlet_config, queryMeta.request);
+    public void run() {
+      asyncRun(query_span, async, query, context);
     }
   }
   
@@ -110,34 +120,11 @@ public class RawQueryRpc {
           .build();
     }
     
-    return handleQueryAsync(servlet_config, request);
+    return handleQuery(servlet_config, request);
   }
   
-  private Response handleQueryAsync(ServletConfig servlet_config, HttpServletRequest request) throws Exception {
-
-    TSDQueryMeta qm = new TSDQueryMeta(servlet_config, request, false);
-
-    Object obj = servlet_config.getServletContext().getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
-    if (obj == null) {
-      throw new WebApplicationException("Unable to pull TSDB instance from " + "servlet context.",
-          Response.Status.INTERNAL_SERVER_ERROR);
-    } else if (!(obj instanceof TSDB)) {
-      throw new WebApplicationException(
-          "Object stored for as the TSDB was " + "of the wrong type: " + obj.getClass(),
-          Response.Status.INTERNAL_SERVER_ERROR);
-    }
-    final TSDB tsdb = (TSDB) obj;
-
-    RunTSDQuery runTsdQuery = new RunTSDQuery(qm);
-    
-    LOG.info("Creating async query");
-
-    return tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
-
-  }
-
   private Response handleQuery(final ServletConfig servlet_config, final HttpServletRequest request)
-      throws IOException {
+      throws IOException, InterruptedException, ExecutionException {
     Object obj = servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
     if (obj == null) {
@@ -212,10 +199,6 @@ public class RawQueryRpc {
                 .finish();
     }
     
-    final AsyncContext async = request.startAsync();
-    async.setTimeout((Integer) servlet_config.getServletContext()
-        .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
-    
     Map<String, String> log_headers = null;
     Enumeration<String> keys = request.getHeaderNames();
     while (keys.hasMoreElements()) {
@@ -255,6 +238,10 @@ public class RawQueryRpc {
           .build();
     }
     
+    final AsyncContext async = request.startAsync();
+    async.setTimeout((Integer) servlet_config.getServletContext()
+        .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
+    
     SemanticQueryContext context = (SemanticQueryContext) SemanticQueryContext.newBuilder()
         .setTSDB(tsdb)
         .setQuery(query)
@@ -278,6 +265,17 @@ public class RawQueryRpc {
       context.logDebug("Trace ID: " + trace.traceId());
     }
     
+    RunTSDQuery runTsdQuery = new RunTSDQuery(query_span, async, query, context);
+    
+    LOG.info("Creating async query");
+
+    tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
+    
+    return null;
+  }
+
+  private void asyncRun(final Span query_span, final AsyncContext async, final SemanticQuery query,
+      SemanticQueryContext context) {
     class AsyncTimeout implements AsyncListener {
 
       @Override
@@ -337,7 +335,6 @@ public class RawQueryRpc {
         }
       }
     });
-    return null;
   }
   
 }

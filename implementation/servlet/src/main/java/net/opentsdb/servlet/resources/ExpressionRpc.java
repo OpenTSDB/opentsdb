@@ -21,6 +21,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -48,6 +49,7 @@ import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
@@ -96,47 +98,33 @@ public class ExpressionRpc {
   public Response post(final @Context ServletConfig servlet_config, 
                        final @Context HttpServletRequest request/*,
                        final @Context HttpServletResponse response*/) throws Exception {
-    return handleQueryAsync(servlet_config, request);
+    return handleQuery(servlet_config, request);
   }
 
-  
-  private Response handleQueryAsync(ServletConfig servlet_config, HttpServletRequest request) throws Exception {
+  class RunTSDQuery implements Runnable {
+    final Trace trace;
+    final Span query_span;
+    final Span setup_span;
+    final AsyncContext async;
 
-    TSDQueryMeta qm = new TSDQueryMeta(servlet_config, request, false);
+    final SemanticQueryContext context;
 
-    Object obj = servlet_config.getServletContext().getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
-    if (obj == null) {
-      throw new WebApplicationException("Unable to pull TSDB instance from " + "servlet context.",
-          Response.Status.INTERNAL_SERVER_ERROR);
-    } else if (!(obj instanceof TSDB)) {
-      throw new WebApplicationException(
-          "Object stored for as the TSDB was " + "of the wrong type: " + obj.getClass(),
-          Response.Status.INTERNAL_SERVER_ERROR);
-    }
-    final TSDB tsdb = (TSDB) obj;
-
-    RunTSDQuery runTsdQuery = new RunTSDQuery(qm);
-    
-    LOG.info("Creating async query");
-
-    return tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
-
-  }
-
-  class RunTSDQuery implements Callable<Response> {
-    final TSDQueryMeta queryMeta;
-
-    public RunTSDQuery(TSDQueryMeta queryMeta) {
-      this.queryMeta = queryMeta;
+    public RunTSDQuery(Trace trace, Span query_span, Span setup_span, AsyncContext async,
+        SemanticQueryContext ctx) {
+      this.trace = trace;
+      this.query_span = query_span;
+      this.setup_span = setup_span;
+      this.async = async;
+      this.context = ctx;
     }
 
     @Override
-    public Response call() {
-      return handleQuery(queryMeta.servlet_config, queryMeta.request);
+    public void run() {
+      asyncRun(trace, query_span, setup_span, async, context);
     }
   }
   
-  private Response handleQuery(final ServletConfig servlet_config, final HttpServletRequest request) {
+  private Response handleQuery(final ServletConfig servlet_config, final HttpServletRequest request) throws InterruptedException, ExecutionException {
     final Object stream = request.getAttribute("DATA");
     if (stream != null) {
       return Response.ok()
@@ -312,6 +300,18 @@ public class ExpressionRpc {
     tsdb.registerRunningQuery(Long.parseLong(request.getHeader(
         OpenTSDBApplication.INTERNAL_HASH_HEADER)), context);
     
+    RunTSDQuery runTsdQuery = new RunTSDQuery(trace, query_span, setup_span, async, context);
+    
+    LOG.info("Creating async query");
+
+    tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
+    
+    return null;
+  }
+
+
+  private void asyncRun(final Trace trace, final Span query_span, final Span setup_span,
+      final AsyncContext async, SemanticQueryContext context) {
     class AsyncTimeout implements AsyncListener {
 
       @Override
@@ -381,7 +381,6 @@ public class ExpressionRpc {
         }
       }
     });
-    return null;
   }
   
 }
