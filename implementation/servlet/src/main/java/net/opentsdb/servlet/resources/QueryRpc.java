@@ -74,6 +74,7 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.servlet.resources.RawQueryRpc.RunTSDQuery;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
@@ -116,19 +117,30 @@ final public class QueryRpc {
   private final AtomicLong query_invalid = new AtomicLong();
   private final AtomicLong query_exceptions = new AtomicLong();
   private final AtomicLong query_success = new AtomicLong();
+  
+  class RunTSDQuery implements Runnable {
+    final Trace trace;
+    final Span query_span;
+    final Span setup_span;
+    final AsyncContext async;
+    final TimeSeriesQuery query;
 
-  class RunTSDQuery implements Callable<Response> {
-    final TSDQueryMeta queryMeta;
+    final QueryContext context;
 
-    public RunTSDQuery(TSDQueryMeta queryMeta) {
-      this.queryMeta = queryMeta;
+    public RunTSDQuery(Trace trace, Span query_span, Span setup_span, AsyncContext async,
+        TimeSeriesQuery query, QueryContext ctx) {
+      this.trace = trace;
+      this.query_span = query_span;
+      this.setup_span = setup_span;
+      this.async = async;
+      this.query = query;
+      this.context = ctx;
     }
 
     @Override
-    public Response call() throws Exception {
-      return handleQuery(queryMeta.servlet_config, queryMeta.request, queryMeta.isGet);
+    public void run() {
+      asyncRun(trace, query_span, setup_span, async, context);
     }
-
   }
 
   /**
@@ -152,7 +164,7 @@ final public class QueryRpc {
           .build();
     }
     
-    return handleQueryAsync(servlet_config, request, false);
+    return handleQuery(servlet_config, request, false);
   }
   
   /**
@@ -176,33 +188,9 @@ final public class QueryRpc {
           .build();
     }
     
-    return handleQueryAsync(servlet_config, request, true);
+    return handleQuery(servlet_config, request, true);
   }
   
-  private Response handleQueryAsync(ServletConfig servlet_config, HttpServletRequest request,
-      boolean b) throws Exception {
-
-    TSDQueryMeta qm = new TSDQueryMeta(servlet_config, request, b);
-
-    Object obj = servlet_config.getServletContext().getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
-    if (obj == null) {
-      throw new WebApplicationException("Unable to pull TSDB instance from " + "servlet context.",
-          Response.Status.INTERNAL_SERVER_ERROR);
-    } else if (!(obj instanceof TSDB)) {
-      throw new WebApplicationException(
-          "Object stored for as the TSDB was " + "of the wrong type: " + obj.getClass(),
-          Response.Status.INTERNAL_SERVER_ERROR);
-    }
-    final TSDB tsdb = (TSDB) obj;
-
-    RunTSDQuery runTsdQuery = new RunTSDQuery(qm);
-    
-    LOG.info("Creating async query!");
-
-    return tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
-
-  }
-
   /**
    * Method that parses the query and triggers it asynchronously.
    * @param servlet_config The servlet config to fetch the TSDB from.
@@ -390,6 +378,17 @@ final public class QueryRpc {
     tsdb.registerRunningQuery(Long.parseLong(request.getHeader(
         OpenTSDBApplication.INTERNAL_HASH_HEADER)), ctx);
     
+    RunTSDQuery runTsdQuery = new RunTSDQuery(trace, query_span, setup_span, async, query, ctx);
+    
+    LOG.info("Creating async query");
+
+    tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
+    
+    return null;
+  }
+
+  private void asyncRun(final Trace trace, final Span query_span, final Span setup_span,
+      final AsyncContext async, final QueryContext ctx) {
     class AsyncTimeout implements AsyncListener {
 
       @Override
@@ -458,7 +457,6 @@ final public class QueryRpc {
         }
       }
     });
-    return null;
   }
   
 //  /**
