@@ -390,14 +390,13 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
             return;
           }
 
-        } else {
-
-          // Increment the counter per task..
-          ai.incrementAndGet();
-
-          // Schedule the task
-          r.run();
         }
+
+        // Increment the counter per task..
+        ai.incrementAndGet();
+
+        // Schedule the task
+        r.run();
       } else if (tsdTask != null && tsdTask == TSDTask.QUERY_CLOSE) {
 
         r.run();
@@ -527,14 +526,13 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor {
             }
             return;
           }
-        } else {
-
-          // Increment the counter per user..
-          ai.incrementAndGet();
-          // Safe to schedule the task
-          super.run();
-          // Do not decrement yet
         }
+
+        // Increment the counter per user..
+        ai.incrementAndGet();
+        // Safe to schedule the task
+        super.run();
+        // Do not decrement yet
       } else if (tsdTask != null && tsdTask == TSDTask.QUERY_CLOSE) {
         AtomicInteger ai = getCurrentTaskExecutions().get(tsdTask.getCounterPart());
         if (ai != null) {
