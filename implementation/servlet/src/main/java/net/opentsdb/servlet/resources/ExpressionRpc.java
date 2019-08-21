@@ -304,7 +304,7 @@ public class ExpressionRpc {
     
     LOG.info("Creating async query");
 
-    tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY).get();
+    tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY);
     
     return null;
   }

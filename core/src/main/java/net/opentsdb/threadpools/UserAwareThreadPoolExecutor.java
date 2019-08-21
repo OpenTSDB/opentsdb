@@ -653,9 +653,11 @@ public class UserAwareThreadPoolExecutor implements TSDBThreadPoolExecutor, Time
     }
   }
 
-  private String getUser(QueryContext qctx) {
-    final String user = qctx.authState().getUser() == null ? "Unknown" : qctx.authState().getUser();
-    return user;
+  private String getUser(final QueryContext qctx) {
+    if (qctx.authState() == null) {
+      return "Unknown";
+    }
+    return qctx.authState().getUser() == null ? "Unknown" : qctx.authState().getUser();
   }
 
   @Override
