@@ -95,7 +95,7 @@ public class SaltScanner {
   private final int query_index;
   
   /** A counter used to determine how many scanners are still running */
-  private AtomicInteger completed_tasks = new AtomicInteger();
+  private final AtomicInteger countdown;
   
   /** When the scanning started. We store the scan latency once all scanners
    * are done.*/
@@ -189,6 +189,7 @@ public class SaltScanner {
     this.delete = delete;
     this.query_stats = query_stats;
     this.query_index = query_index;
+    countdown = new AtomicInteger(scanners.size());
   }
 
   /**
@@ -632,7 +633,7 @@ public class SaltScanner {
       if (ok && exception == null) {
         validateAndTriggerCallback(kvs, annotations);
       } else {
-        completed_tasks.incrementAndGet();
+        countdown.decrementAndGet();
       }
     }
   }
@@ -645,9 +646,8 @@ public class SaltScanner {
   private void validateAndTriggerCallback(final List<KeyValue> kvs, 
           final Map<byte[], List<Annotation>> annotations) {
 
-    final int tasks = completed_tasks.incrementAndGet();
     if (kvs.size() > 0) {
-      kv_map.put(tasks, kvs);
+      kv_map.put(index, kvs);
     }
     
     for (final byte[] key : annotations.keySet()) {
@@ -658,7 +658,8 @@ public class SaltScanner {
       }
     }
     
-    if (tasks >= Const.SALT_BUCKETS()) {
+    int scannersRunning = countdown.decrementAndGet();
+    if (scannersRunning <= 0) {
       try {
         mergeAndReturnResults();
       } catch (final Exception ex) {
@@ -676,7 +677,7 @@ public class SaltScanner {
    */
   private void handleException(final Exception e) {
     // make sure only one scanner can set the exception
-    completed_tasks.incrementAndGet();
+    countdown.decrementAndGet();
     if (exception == null) {
       synchronized (this) {
         if (exception == null) {
