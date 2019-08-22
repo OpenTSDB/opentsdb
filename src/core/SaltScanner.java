@@ -23,8 +23,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.meta.Annotation;
@@ -126,7 +126,7 @@ public class SaltScanner {
   private final long max_bytes;
   
   /** A latch used to determine how many scanners are still running */
-  private final CountDownLatch countdown;
+  private final AtomicInteger countdown;
   
   /** When the scanning started. We store the scan latency once all scanners
    * are done.*/
@@ -237,7 +237,7 @@ public class SaltScanner {
     this.rollup_query = rollup_query;
     this.query_stats = query_stats;
     this.query_index = query_index;
-    countdown = new CountDownLatch(scanners.size());
+    countdown = new AtomicInteger(scanners.size());
     if (rollup_query != null && RollupQuery.isValidQuery(rollup_query)) {
       is_rollup = true;
       if (rollup_query.getRollupAgg() == Aggregators.AVG) {
@@ -929,7 +929,7 @@ public class SaltScanner {
       if (ok && exception == null) {
         validateAndTriggerCallback(kvs, annotations, histograms);
       } else {
-        countdown.countDown();
+        countdown.decrementAndGet();
       }
     }
   }
@@ -944,10 +944,8 @@ public class SaltScanner {
       final Map<byte[], List<Annotation>> annotations,
       final List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms) {
 
-    countdown.countDown();
-    final long count = countdown.getCount();
     if (kvs.size() > 0) {
-      kv_map.put((int) count, kvs);
+      kv_map.put(index, kvs);
     }
     
     for (final byte[] key : annotations.keySet()) {
@@ -959,10 +957,11 @@ public class SaltScanner {
     }
     
     if (histograms.size() > 0) {
-      histMap.put((int) count, histograms);
+      histMap.put(index, histograms);
     }
-    
-    if (countdown.getCount() <= 0) {
+
+    int scannersRunning = countdown.decrementAndGet();
+    if (scannersRunning <= 0) {
       try {
         mergeAndReturnResults();
       } catch (final Exception ex) {
@@ -980,7 +979,7 @@ public class SaltScanner {
    */
   private void handleException(final Exception e) {
     // make sure only one scanner can set the exception
-    countdown.countDown();
+    countdown.decrementAndGet();
     if (exception == null) {
       synchronized (this) {
         if (exception == null) {
