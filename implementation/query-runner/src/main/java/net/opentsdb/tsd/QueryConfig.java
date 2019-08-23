@@ -462,9 +462,16 @@ public class QueryConfig implements TimerTask {
         
         final String[] tags = new String[] {
             "id", id, 
-            "endpoint", shuffled_endpoints.get(index), 
-            "status", Integer.toString(status_code)
+            "endpoint", shuffled_endpoints.get(index)
         };
+        
+        if (LOG.isTraceEnabled()) {
+          LOG.trace(id + " " + METRIC_PREFIX + "status: " + Integer.toString(status_code));
+        }
+        TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+            METRIC_PREFIX + "status", 
+            status_code, 
+            tags);
         
         for (final Entry<String, String> metric : metrics.entrySet()) {
           if (metric.getKey().equals("status")) {
@@ -472,13 +479,6 @@ public class QueryConfig implements TimerTask {
           }
           
           if (status_code == 0 && metric.getKey().equals("total.time")) {
-            if (LOG.isTraceEnabled()) {
-              LOG.trace(id + " " + METRIC_PREFIX + metric.getKey() + " 0");
-            }
-            TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
-                METRIC_PREFIX + metric.getKey(), 
-                0.0, 
-                tags);
             continue;
           }
           
