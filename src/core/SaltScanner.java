@@ -464,7 +464,7 @@ public class SaltScanner {
     ArrayList<ArrayList<KeyValue>>> {
     private final Scanner scanner;
     private final int index;
-    private final List<KeyValue> kvs = new ArrayList<KeyValue>();
+    private final List<KeyValue> kvs = Collections.synchronizedList(new ArrayList<KeyValue>());
     private final ByteMap<List<Annotation>> annotations = 
             new ByteMap<List<Annotation>>();
     private final Set<String> skips = Collections.newSetFromMap(
