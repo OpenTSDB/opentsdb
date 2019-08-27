@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 
 import com.google.common.collect.Lists;
@@ -591,6 +592,9 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_calendarWeek() {
+    // Test assumes Sunday is first day of week.
+    Locale.setDefault(Locale.US);
+
     source = SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofLongValue(DST_TS, 1), // a Tuesday in UTC land
         MutableDataPoint.ofLongValue(DST_TS + (86400000L * 7), 2),
@@ -901,7 +905,9 @@ public class TestDownsampler {
         MutableDataPoint.ofLongValue(1357430400000L, 4),
         MutableDataPoint.ofLongValue(1357732800000L, 8)
     }));
-    
+
+    // Test assumes Sunday is first day of week.
+    Locale.setDefault(Locale.US);
     specification = new DownsamplingSpecification("1wc-sum");
     downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE);
     verify(source, never()).next();
@@ -925,7 +931,9 @@ public class TestDownsampler {
         MutableDataPoint.ofLongValue(1357448400000L, 4),
         MutableDataPoint.ofLongValue(1357750800000L, 8)
     }));
-    
+
+    // Test assumes Sunday is first day of week.
+    Locale.setDefault(Locale.US);
     specification = new DownsamplingSpecification("1wc-sum");
     specification.setTimezone(EST_TIME_ZONE);
     downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE);
