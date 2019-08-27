@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.TimeZone;
 
 import org.junit.Before;
@@ -782,6 +783,9 @@ public final class TestDateTime {
   
   @Test
   public void previousIntervalWeeks() {
+    // Test assumes Sunday is first day of week.
+    Locale.setDefault(Locale.US);
+
     // interval 1 DST_TS starts on 13th of Dec, NON starts on the 10th of May
     assertEquals(1449964800000L, DateTime.previousInterval(DST_TS, 
         1, Calendar.DAY_OF_WEEK).getTimeInMillis());
