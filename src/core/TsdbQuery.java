@@ -268,9 +268,9 @@ final class TsdbQuery implements Query {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
-    } else if (end_time != UNSET && timestamp >= getEndTime()) {
+    } else if (end_time != UNSET && timestamp > getEndTime()) {
       throw new IllegalArgumentException("new start time (" + timestamp
-          + ") is greater than or equal to end time: " + getEndTime());
+          + ") is greater than end time: " + getEndTime());
     }
     start_time = timestamp;
   }
@@ -299,9 +299,9 @@ final class TsdbQuery implements Query {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
-    } else if (start_time != UNSET && timestamp <= getStartTime()) {
+    } else if (start_time != UNSET && timestamp < getStartTime()) {
       throw new IllegalArgumentException("new end time (" + timestamp
-          + ") is less than or equal to start time: " + getStartTime());
+          + ") is less than start time: " + getStartTime());
     }
     end_time = timestamp;
   }
