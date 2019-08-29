@@ -101,7 +101,7 @@ public class TestRateFactory {
   @Test
   public void ctor() throws Exception {
     final RateFactory factory = new RateFactory();
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
     factory.initialize(MockTSDBDefault.getMockTSDB(), null).join(1);
     assertEquals(RateFactory.TYPE, factory.id());
@@ -110,11 +110,11 @@ public class TestRateFactory {
   @Test
   public void registerIteratorFactory() throws Exception {
     final RateFactory factory = new RateFactory();
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     
     QueryIteratorFactory mock = mock(QueryIteratorFactory.class);
     factory.registerIteratorFactory(NumericType.TYPE, mock);
-    assertEquals(2, factory.types().size());
+    assertEquals(3, factory.types().size());
     
     try {
       factory.registerIteratorFactory(null, mock);
