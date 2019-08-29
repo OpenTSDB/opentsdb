@@ -34,7 +34,6 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BadQueryResult;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -418,11 +417,11 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 }
               }
             }
-            
             if (context.queryContext().stats() != null) {
               context.queryContext().stats().incrementRawDataSize(json.length());
             }
             
+            int sent = 0;
             for (final JsonNode result : results) {
               final HttpQueryV3Result series_result = new HttpQueryV3Result(
                   HttpQueryV3Source.this, result, 
@@ -432,6 +431,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                     series_result.timeSeries().size());
               }
               sendUpstream(series_result);
+              sent++;
+            }
+            if (sent == 0) {
+              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, null, null));
             }
           }
         } catch (Throwable t) {
