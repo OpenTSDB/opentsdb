@@ -34,6 +34,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -73,6 +74,7 @@ public class RateFactory extends BaseQueryNodeFactory<RateConfig, Rate> {
     super();
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericArrayType.TYPE, new NumericArrayIteratorFactory());
+    registerIteratorFactory(NumericSummaryType.TYPE, new NumericSummaryIteratorFactory());
   }
   
   @Override
@@ -261,7 +263,7 @@ public class RateFactory extends BaseQueryNodeFactory<RateConfig, Rate> {
   }
   
   /**
-   * The default numeric iterator factory.
+   * Array iterators.
    */
   protected class NumericArrayIteratorFactory implements QueryIteratorFactory<Rate, NumericArrayType> {
 
@@ -288,4 +290,31 @@ public class RateFactory extends BaseQueryNodeFactory<RateConfig, Rate> {
     
   }
   
+  /**
+   * Summary iterators.
+   */
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<Rate, NumericSummaryType> {
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final Rate node,
+                                               final QueryResult result,
+                                               final Collection<TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new RateNumericSummaryIterator(node, result, sources);
+    }
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final Rate node,
+                                               final QueryResult result,
+                                               final Map<String, TimeSeries> sources,
+                                               final TypeToken<? extends TimeSeriesDataType> type) {
+      return new RateNumericSummaryIterator(node, result, sources);
+    }
+
+    @Override
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
+      return Lists.newArrayList(NumericSummaryType.TYPE);
+    }
+    
+  }
 }
