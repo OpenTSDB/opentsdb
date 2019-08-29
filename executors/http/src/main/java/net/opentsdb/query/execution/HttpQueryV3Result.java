@@ -114,7 +114,7 @@ public class HttpQueryV3Result implements QueryResult {
     this.node = node;
     this.exception = exception;
     this.rollup_config = rollup_config;
-    if (exception == null) {
+    if (exception == null && root != null) {
       String temp = root.get("source").asText();
       data_source = temp.substring(temp.indexOf(":") + 1);
       
@@ -146,6 +146,7 @@ public class HttpQueryV3Result implements QueryResult {
       }
     } else {
       series = Collections.emptyList();
+      data_source = node.config().getId();
     }
     
   }

@@ -40,6 +40,7 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -347,12 +348,15 @@ public class TestHttpQueryV3Result {
   @Test
   public void exception() throws Exception {
     RuntimeException ex = new RuntimeException("Boo!");
+    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    when(cfg.getId()).thenReturn("m1");
+    when(query_node.config()).thenReturn(cfg);
     HttpQueryV3Result result = new HttpQueryV3Result(query_node, null, null, ex);
     assertNull(result.timeSpecification());
     assertTrue(result.timeSeries().isEmpty());
     assertEquals("Boo!", result.error());
     assertTrue(result.exception() instanceof RuntimeException);
-    assertNull(result.dataSource());
+    assertEquals("m1", result.dataSource());
   }
   
   @Test
