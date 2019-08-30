@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import java.sql.Time;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -31,10 +30,9 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -60,7 +58,8 @@ public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, Time
     super();
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericArrayType.TYPE, new NumericArrayIteratorFactory());
-
+    registerIteratorFactory(NumericSummaryType.TYPE, 
+        new NumericSummaryIteratorFactory());
   }
   
   @Override
@@ -174,6 +173,36 @@ public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, Time
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       return Lists.newArrayList(NumericArrayType.TYPE);
+    }
+
+  }
+  
+  /**
+   * The default numeric iterator factory.
+   */
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory<TimeShift, NumericSummaryType> {
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final TimeShift node,
+        final QueryResult result,
+        final Collection<TimeSeries> sources,
+        final TypeToken<? extends TimeSeriesDataType> type) {
+      return new TimeShiftNumericSummaryIterator(result,
+          sources.iterator().next());
+    }
+
+    @Override
+    public TypedTimeSeriesIterator newIterator(final TimeShift node,
+        final QueryResult result,
+        final Map<String, TimeSeries> sources,
+        final TypeToken<? extends TimeSeriesDataType> type) {
+      return new TimeShiftNumericSummaryIterator(result,
+          sources.values().iterator().next());
+    }
+
+    @Override
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
+      return Lists.newArrayList(NumericSummaryType.TYPE);
     }
 
   }
