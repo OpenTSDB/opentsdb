@@ -22,35 +22,29 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryResult;
 
-/**
- * Shifts a numeric time series by the appropriate amount of time.
- * TODO - handle calendars.
- * 
- * @since 3.0
- */
-public class TimeShiftNumericIterator implements QueryIterator {
+public class TimeShiftNumericSummaryIterator implements QueryIterator {
   /** The iterator. */
   private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** The DP we'll update. */
-  private MutableNumericValue dp;
+  private MutableNumericSummaryValue dp;
   
   /** The result we'll use to get the offset. */
   private TimeShiftResult result;
   
-  TimeShiftNumericIterator(final QueryResult result, 
-                           final TimeSeries source) {
+  TimeShiftNumericSummaryIterator(final QueryResult result, 
+                                  final TimeSeries source) {
     this.result = (TimeShiftResult) result;
     final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
-        source.iterator(NumericType.TYPE);
+        source.iterator(NumericSummaryType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();
-      dp = new MutableNumericValue();
+      dp = new MutableNumericSummaryValue();
     }    
   }
   
@@ -61,8 +55,8 @@ public class TimeShiftNumericIterator implements QueryIterator {
   
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
-    final TimeSeriesValue<NumericType> value = 
-        (TimeSeriesValue<NumericType>) iterator.next();
+    final TimeSeriesValue<NumericSummaryType> value = 
+        (TimeSeriesValue<NumericSummaryType>) iterator.next();
     dp.reset(value);
     if (result.isPrevious()) {
       dp.timestamp().add(result.amount());
@@ -75,7 +69,7 @@ public class TimeShiftNumericIterator implements QueryIterator {
 
   @Override
   public TypeToken<? extends TimeSeriesDataType> getType() {
-    return NumericType.TYPE;
+    return NumericSummaryType.TYPE;
   }
   
 }
