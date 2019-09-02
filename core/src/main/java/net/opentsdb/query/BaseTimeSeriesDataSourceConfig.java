@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.base.Objects;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
@@ -36,8 +37,10 @@ import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
 
 import java.time.temporal.TemporalAmount;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
@@ -53,6 +56,9 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
         BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends 
           BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
 
+  /** The data source id. */
+  private final String data_source_id;
+  
   /** The source provider ID. */
   private final String source_id;
 
@@ -113,6 +119,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
    */
   protected BaseTimeSeriesDataSourceConfig(final Builder builder) {
     super(builder);
+    data_source_id = Strings.isNullOrEmpty(builder.dataSourceId) ? 
+        builder.id : builder.dataSourceId;
     source_id = builder.sourceId;
     types = builder.types;
     namespace = builder.namespace;
@@ -152,6 +160,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     }
   }
 
+  @Override
+  public String getDataSourceId() {
+    return data_source_id;
+  }
+  
   @Override
   public String getSourceId() {
     return source_id;
@@ -201,7 +214,28 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   public List<QueryNodeConfig> getPushDownNodes() {
     return push_down_nodes;
   }
-
+  
+  @Override
+  public Collection<String> pushDownSinks() {
+    if (push_down_nodes == null || push_down_nodes.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    // naive two pass for now, can make it more efficient some day
+    final Set<String> nodes = Sets.newHashSet();
+    for (final QueryNodeConfig node : push_down_nodes) {
+      nodes.add(node.getId());
+    }
+    
+    for (final QueryNodeConfig node : push_down_nodes) {
+      // wtf? why do we need to cast this sucker?
+      for (final Object source : node.getSources()) {
+        nodes.remove((String) source);
+      }
+    }
+    return nodes;
+  }
+  
   @Override
   public boolean pushDown() {
     return false;
@@ -251,7 +285,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   public boolean joins() {
     return false;
   }
-
+  
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -283,7 +317,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     }
 
     return true;
-
   }
 
   @Override
@@ -325,7 +358,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     return Hashing.combineOrdered(hashes);
   }
 
-  public static void cloneBuilder(TimeSeriesDataSourceConfig config, Builder builder) {
+  public static void cloneBuilder(final TimeSeriesDataSourceConfig config, 
+                                  final Builder builder) {
     builder
         .setSourceId(config.getSourceId())
         .setTypes(config.getTypes() != null ? Lists.newArrayList(config.getTypes()) : null)
@@ -336,6 +370,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
         .setFetchLast(config.getFetchLast())
         .setFrom(config.getFrom())
         .setSize(config.getSize())
+        .setDataSourceId(config.getDataSourceId())
         .setRollupIntervals(
             config.getRollupIntervals() == null || config.getRollupIntervals().isEmpty()
                 ? null
@@ -369,6 +404,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     JsonNode n = node.get("sourceId");
     if (n != null && !n.isNull()) {
       builder.setSourceId(n.asText());
+    }
+    
+    n = node.get("dataSourceId");
+    if (n != null && !n.isNull()) {
+      builder.setDataSourceId(n.asText());
     }
 
     n = node.get("namespace");
@@ -526,6 +566,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       implements TimeSeriesDataSourceConfig.Builder<B, C> {
 
     @JsonProperty
+    protected String dataSourceId;
+    @JsonProperty
     protected String sourceId;
     @JsonProperty
     protected List<String> types;
@@ -562,12 +604,17 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     public String id() {
       return id;
     }
-
+    
     @Override
     public String sourceId() {
       return sourceId;
     }
 
+    public B setDataSourceId(final String data_source_id) {
+      dataSourceId = data_source_id;
+      return self();
+    }
+    
     @Override
     public B setSourceId(final String source_id) {
       sourceId = source_id;

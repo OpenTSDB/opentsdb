@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -442,7 +442,7 @@ public class TestDefaultQueryPlanner {
   }
 
   @Test
-  public void oneMetricOneGraphTwoPushDowns() throws Exception {
+  public void oneMetricOneGraphTwoPushDownsAndSummarizerPassThrough() throws Exception {
     when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
       .thenReturn(true);
     when(STORE_FACTORY.supportsPushdown(GroupByConfig.class))
@@ -499,12 +499,196 @@ public class TestDefaultQueryPlanner {
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertNull(planner.nodeForId("ds"));
     assertNull(planner.nodeForId("gb"));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("sum"), 
         planner.nodes_map.get("m1")));
     
     assertEquals(2, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void oneMetricOneGraphTwoPushDownsAndSummarizerNoPassThrough() throws Exception {
+    when(STORE_FACTORY.supportsPushdown(DownsampleConfig.class))
+      .thenReturn(true);
+    when(STORE_FACTORY.supportsPushdown(GroupByConfig.class))
+      .thenReturn(true);
+    
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .setSummaries(Lists.newArrayList("avg", "max", "count"))
+            .setId("sum")
+            .addSource("gb")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("sum")))
+        .build();
+    
+    when(STORE_FACTORY.supportsPushdown(any(Class.class))).thenReturn(true);
+    
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertSame(STORE_NODES.get(0), planner.sources().get(0));
+    assertEquals(3, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertNull(planner.nodeForId("ds"));
+    assertNull(planner.nodeForId("gb"));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("sum"), 
+        planner.nodes_map.get("m1")));
+    
+    assertEquals(1, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void oneMetricOneGraphNoPushdownAndSummarizerPassThrough() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .setSummaries(Lists.newArrayList("avg", "max", "count"))
+            .setId("sum")
+            .addSource("gb")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("gb")))
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("sum")))
+        .build();
+    
+    when(STORE_FACTORY.supportsPushdown(any(Class.class))).thenReturn(false);
+    
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertSame(STORE_NODES.get(0), planner.sources().get(0));
+    assertEquals(5, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("gb"), 
+        planner.nodes_map.get("ds")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("ds"), 
+        planner.nodes_map.get("m1")));
+    
+    assertEquals(2, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void oneMetricOneGraphNoPushdownAndSummarizerNoPassThrough() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds")
+            .addSource("m1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb")
+            .addSource("ds")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .setSummaries(Lists.newArrayList("avg", "max", "count"))
+            .setId("sum")
+            .addSource("gb")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("sum")))
+        .build();
+    
+    when(STORE_FACTORY.supportsPushdown(any(Class.class))).thenReturn(false);
+    
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertSame(STORE_NODES.get(0), planner.sources().get(0));
+    assertEquals(5, planner.graph().nodes().size());
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("gb"), 
+        planner.nodes_map.get("ds")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("ds"), 
+        planner.nodes_map.get("m1")));
+    
+    assertEquals(1, planner.serializationSources().size());
   }
   
   @Test
@@ -1483,6 +1667,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger")
             .build());
     
@@ -1545,6 +1730,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger")
             .build());
     
@@ -1606,6 +1792,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger")
             .build());
     
@@ -1666,6 +1853,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger")
             .build());
     
@@ -1726,6 +1914,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger")
             .build());
     
@@ -1787,6 +1976,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger")
             .build());
     
@@ -1824,7 +2014,6 @@ public class TestDefaultQueryPlanner {
     assertEquals(1, planner.serializationSources().size());
   }
   
-  
   @Test
   public void idConvertMultiLevelMerge() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
@@ -1856,6 +2045,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger1")
             .build(),
         MergerConfig.newBuilder()
@@ -1863,6 +2053,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("Merger1")
             .addSource("m3")
+            .setDataSource("m3")
             .setId("Merger2")
             .build());
     
@@ -1941,6 +2132,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .addSource("m2")
+            .setDataSource("m1")
             .setId("Merger1")
             .build(),
         MergerConfig.newBuilder()
@@ -1948,6 +2140,7 @@ public class TestDefaultQueryPlanner {
             .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("Merger1")
             .addSource("m3")
+            .setDataSource("m1")
             .setId("Merger2")
             .build());
     

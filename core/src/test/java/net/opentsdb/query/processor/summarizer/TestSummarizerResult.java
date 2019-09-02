@@ -33,7 +33,7 @@ import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.processor.summarizer.SummarizerResult.SummarizerTimeSeries;
+import net.opentsdb.query.processor.summarizer.SummarizerNonPassThroughResult.SummarizerTimeSeries;
 
 public class TestSummarizerResult {
 
@@ -70,7 +70,7 @@ public class TestSummarizerResult {
   
   @Test
   public void ctor() throws Exception {
-    SummarizerResult result = new SummarizerResult(node, results);
+    SummarizerNonPassThroughResult result = new SummarizerNonPassThroughResult(node, results);
     assertNull(result.timeSpecification());
     assertEquals(1, result.timeSeries().size());
     assertTrue(result.timeSeries().iterator().next() instanceof SummarizerTimeSeries);

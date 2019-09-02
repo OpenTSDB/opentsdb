@@ -15,12 +15,13 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 
@@ -31,7 +32,6 @@ import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -58,6 +58,9 @@ import net.opentsdb.utils.Pair;
  * @since 3.0
  */
 public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode> {
+  private static final Logger LOG = LoggerFactory.getLogger(
+      BinaryExpressionNode.class);
+  
   /** The original expression config */
   protected final ExpressionConfig config;
   
@@ -137,8 +140,16 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   
   @Override
   public void onNext(final QueryResult next) {
+    final String id = next.source().config().getId();
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Result: " + id + ":" + next.dataSource() + " Want<" + left_source + ", " + right_source +">");
+    }
+    
     if (left_source != null && (left_source.equals(next.dataSource()) ||
-        left_source.equalsIgnoreCase(next.source().config().getId()))) {
+        left_source.equalsIgnoreCase(id))) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Matched left [" + left_source + "] with: " + id + ":" + next.dataSource());
+      }
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
         return;
@@ -146,9 +157,13 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setKey(next);
       }
+      LOG.trace("SET LEFT!");
     } else if (right_source != null && 
         (right_source.equals(next.dataSource()) || 
-            right_source.equals(next.source().config().getId()))) {
+            right_source.equals(id))) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Matched right [" + right_source + "] with: " + id + ":" + next.dataSource());
+      }
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
         return;
@@ -156,7 +171,9 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setValue(next);
       }
+      LOG.trace("SET RACE!");
     } else {
+      LOG.debug("Unmatched result: " + id + ":" + next.dataSource());
       return;
     }
     
@@ -165,6 +182,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     class ErrorCB implements Callback<Object, Exception> {
       @Override
       public Object call(final Exception ex) throws Exception {
+        LOG.error("Failure in binary expression node", ex);
         sendUpstream(ex);
         return null;
       }
@@ -292,10 +310,15 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       try {
         result.set(results);
         result.join();
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Sending expression upstream: " + config.getId());
+        }
         sendUpstream(result);
       } catch (Exception e) {
         sendUpstream(e);
       }
+    } else if (LOG.isTraceEnabled()) {
+      LOG.trace("Not all results are in for: " + config.getId());
     }
   }
   

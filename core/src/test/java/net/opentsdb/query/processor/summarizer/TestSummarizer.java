@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -27,10 +29,14 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
@@ -40,11 +46,18 @@ import net.opentsdb.query.SemanticQuery;
 
 public class TestSummarizer {
 
+  private static MockTSDB TSDB;
+    
   private QueryPipelineContext context;
   private QueryNodeFactory factory;
   private SummarizerConfig config;
   private QueryNode upstream;
   private SemanticQuery query;
+  
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    TSDB = MockTSDBDefault.getMockTSDB();
+  }
   
   @Before
   public void before() throws Exception {
@@ -68,6 +81,8 @@ public class TestSummarizer {
         .setInfectiousNan(true)
         .setId("summarizer")
         .build();
+    
+    when(context.tsdb()).thenReturn(TSDB);
   }
   
   @Test
@@ -77,6 +92,9 @@ public class TestSummarizer {
     assertSame(config, ds.config());
     verify(context, times(1)).upstream(ds);
     verify(context, times(1)).downstream(ds);
+    assertEquals(2, ds.aggregators().size());
+    assertNotNull(ds.aggregators().get("sum"));
+    assertNotNull(ds.aggregators().get("avg"));
     
     try {
       new Summarizer(factory, null, config);
@@ -85,6 +103,21 @@ public class TestSummarizer {
     
     try {
       new Summarizer(factory, context, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void initializeNoSuchAggregator() throws Exception {
+    config = (SummarizerConfig) 
+        SummarizerConfig.newBuilder()
+        .setSummaries(Lists.newArrayList("sum", "nothingfound"))
+        .setInfectiousNan(true)
+        .setId("summarizer")
+        .build();
+    
+    try {
+      new Summarizer(factory, context, config).initialize(null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -115,7 +148,10 @@ public class TestSummarizer {
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onNext(any(QueryResult.class));
-    ds.onNext(results);
+    try {
+      ds.onNext(results);
+      fail("Expected QueryUpstreamException");
+    } catch (QueryUpstreamException e) { }
     verify(upstream, times(2)).onNext(any(QueryResult.class));
   }
   

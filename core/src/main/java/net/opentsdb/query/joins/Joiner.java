@@ -132,7 +132,7 @@ public class Joiner {
     }
     
     final KeyedHashedJoinSet join_set = 
-        new KeyedHashedJoinSet(config.type);
+        new KeyedHashedJoinSet(config.getJoinType());
     
     // calculate the hash for every series and let the hasher kick out
     // inapplicable series.
@@ -265,7 +265,6 @@ public class Joiner {
       }
       
       for (final TimeSeries ts : result.timeSeries()) {
-        
         if (ts.id().type() == Const.TS_BYTE_ID) {
           final TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
           final byte[] key;

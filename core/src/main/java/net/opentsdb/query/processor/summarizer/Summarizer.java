@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,20 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.summarizer.SummarizerPassThroughResult.SummarizerSummarizedResult;
+import net.opentsdb.stats.Span;
 
-import java.util.Collection;
+import java.util.Map;
 
 /**
  * A node that computes summaries across a time series, such as computing
@@ -33,10 +36,12 @@ import java.util.Collection;
  * @since 3.0
  */
 public class Summarizer extends AbstractQueryNode {
-  private static final Logger LOG = LoggerFactory.getLogger(Summarizer.class);
   
   /** The config. */
   private final SummarizerConfig config;
+  
+  /** The map of aggregator string IDs to aggregators for this summary. */
+  private final Map<String, NumericAggregator> aggregators;
   
   /**
    * Default ctor.
@@ -52,6 +57,35 @@ public class Summarizer extends AbstractQueryNode {
       throw new IllegalArgumentException("Config cannot be null.");
     }
     this.config = (SummarizerConfig) config;
+    aggregators = Maps.newHashMapWithExpectedSize(this.config.getSummaries().size());
+  }
+  
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    final Span child;
+    if (span != null) {
+      child = span.newChild(getClass() + ".initialize()").start();
+    } else {
+      child = null;
+    }
+    for (final String summary : this.config.getSummaries()) {
+      final NumericAggregatorFactory agg_factory = context.tsdb()
+          .getRegistry().getPlugin(NumericAggregatorFactory.class, summary);
+      if (agg_factory == null) {
+        throw new IllegalArgumentException("No aggregator found for type: " 
+            + summary);
+      }
+      final NumericAggregator agg = agg_factory.newAggregator(
+          this.config.getInfectiousNan());
+      aggregators.put(summary, agg);
+    }
+    upstream = context.upstream(this);
+    downstream = context.downstream(this);
+    downstream_sources = context.downstreamSources(this);
+    if (child != null) {
+      child.setSuccessTags().finish();
+    }
+    return INITIALIZED;
   }
 
   @Override
@@ -67,16 +101,25 @@ public class Summarizer extends AbstractQueryNode {
   
   @Override
   public void onNext(final QueryResult next) {
-    final SummarizerResult results = new SummarizerResult(this, next);
-    Collection<QueryNode> upstream = this.upstream;
-    for (final QueryNode us : upstream) {
-      try {
-        us.onNext(results);
-      } catch (Exception e) {
-        LOG.error("Failed to call upstream onNext on Node: " + us, e);
-        results.close();
-      }
+    if (next instanceof SummarizerSummarizedResult) {
+      sendUpstream(next);
+      return;
+    }
+    
+    if (config.passThrough()) {
+      final SummarizerPassThroughResult results = 
+          new SummarizerPassThroughResult(this, next);
+      sendUpstream(results);
+    } else {
+      final SummarizerNonPassThroughResult results = 
+          new SummarizerNonPassThroughResult(this, next);
+      sendUpstream(results);
     }
   }
   
+  /** @return Package private method to return the instantiated aggregators for
+   * the summaries requested by the user. */
+  Map<String, NumericAggregator> aggregators() {
+    return aggregators;
+  }
 }

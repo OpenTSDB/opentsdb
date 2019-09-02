@@ -95,6 +95,7 @@ public class TestMergerNumericSummaryIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .addInterpolatorConfig(interpolator_config)
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     result = mock(QueryResult.class);
@@ -190,6 +191,7 @@ public class TestMergerNumericSummaryIterator {
         .setAggregator("sum")
         .setInfectiousNan(true)
         .addInterpolatorConfig(interpolator_config)
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     
@@ -328,6 +330,7 @@ public class TestMergerNumericSummaryIterator {
         .setAggregator("sum")
         .setInfectiousNan(true)
         .addInterpolatorConfig(interpolator_config)
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     
@@ -373,6 +376,7 @@ public class TestMergerNumericSummaryIterator {
         .setAggregator("sum")
         .setInfectiousNan(true)
         .addInterpolatorConfig(interpolator_config)
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     
@@ -418,6 +422,7 @@ public class TestMergerNumericSummaryIterator {
         .setAggregator("sum")
         .setInfectiousNan(true)
         .addInterpolatorConfig(interpolator_config)
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     
@@ -483,6 +488,7 @@ public class TestMergerNumericSummaryIterator {
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setDataType(NumericType.TYPE.toString())
             .build())
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     
@@ -514,6 +520,7 @@ public class TestMergerNumericSummaryIterator {
             .setRealFillPolicy(FillWithRealPolicy.NONE)
             .setDataType(NumericType.TYPE.toString())
             .build())
+        .setDataSource("m1")
         .setId("Testing")
         .build();
     

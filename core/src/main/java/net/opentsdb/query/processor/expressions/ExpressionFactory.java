@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+import net.opentsdb.query.processor.merge.MergerConfig;
 
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,8 @@ import java.util.Map;
  * 
  * @since 3.0
  */
-public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig, BinaryExpressionNode> {
+public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig, 
+    BinaryExpressionNode> {
   
   public static final String TYPE = "Expression";
   
@@ -289,6 +291,14 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig, Bi
           .getMetric().getMetric())) {
         return true;
       }
+    } else if (config instanceof MergerConfig) {
+      
+      final String ds = ((MergerConfig) config).getDataSource();
+      if (left && key.equals(ds)) {
+        return recurseMerger(builder, left, config, plan, ds, depth + 1);
+      } else if (key.equals(ds)) {
+        return recurseMerger(builder, left, config, plan, ds, depth + 1);
+      }
     }
     
     for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
@@ -313,4 +323,50 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig, Bi
         + "removed from the graph.");
   }
   
+  /**
+   * TODO - factor this back into the above and make it generic. May have more
+   * nodes in the future like Merger.
+   * Helper to handle the merger use case.
+   * @param builder 
+   * @param left
+   * @param config
+   * @param plan
+   * @param ds
+   * @param depth
+   * @return
+   */
+  static boolean recurseMerger(final ExpressionParseNode.Builder builder, 
+                                final boolean left,
+                                final QueryNodeConfig config, 
+                                final QueryPlanner plan,
+                                final String ds,
+                                final int depth) {
+    final String key = left ? (String) builder.left() : (String) builder.right();
+    if (config instanceof TimeSeriesDataSourceConfig) {
+      if (left && key.equals(ds)) {
+        builder.setLeft(((TimeSeriesDataSourceConfig) config)
+                 .getMetric().getMetric());
+        return true;
+      } else if (left && 
+          key.equals(((TimeSeriesDataSourceConfig) config)
+              .getMetric().getMetric())) {
+        return true;
+        // right
+      } else if (key.equals(ds)) {
+        builder.setRight(((TimeSeriesDataSourceConfig) config)
+                 .getMetric().getMetric());
+        return true;
+      } else if (key.equals(((TimeSeriesDataSourceConfig) config)
+          .getMetric().getMetric())) {
+        return true;
+      }
+    }
+    
+    for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
+      if (recurseMerger(builder, left, successor, plan, ds, depth + 1)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

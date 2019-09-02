@@ -153,6 +153,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
           .setRealFillPolicy(FillWithRealPolicy.NONE)
           .setDataType(NumericType.TYPE.toString())
           .build())
+        .setDataSource(config.getId())
         .setId(config.getId())
         .build();
     planner.replace(config, merger);

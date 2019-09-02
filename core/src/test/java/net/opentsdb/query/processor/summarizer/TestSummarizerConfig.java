@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.query.processor.slidingwindow.SlidingWindowConfig;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,6 +34,7 @@ public class TestSummarizerConfig {
         SummarizerConfig.newBuilder()
         .setSummaries(Lists.newArrayList("sum", "avg"))
         .setInfectiousNan(true)
+        .setPassThrough(true)
         .setId("summarizer")
         .build();
     
@@ -42,6 +42,7 @@ public class TestSummarizerConfig {
     assertTrue(config.getSummaries().contains("sum"));
     assertTrue(config.getSummaries().contains("avg"));
     assertTrue(config.getInfectiousNan());
+    assertTrue(config.passThrough());
     assertEquals("summarizer", config.getId());
     
     try {
@@ -94,6 +95,7 @@ public class TestSummarizerConfig {
             SummarizerConfig.newBuilder()
                     .setSummaries(Lists.newArrayList("avg", "sum"))
                     .setInfectiousNan(true)
+                    .setPassThrough(true) // ignored
                     .setId("summarizer")
                     .build();
 
@@ -132,8 +134,6 @@ public class TestSummarizerConfig {
 
 
   }
-
-
   
   @Test
   public void serdes() throws Exception {

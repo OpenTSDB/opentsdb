@@ -37,7 +37,7 @@ import net.opentsdb.query.processor.ProcessorFactory;
  * 
  * @since 3.0
  */
-public class SummarizerResult extends BaseWrappedQueryResult {
+public class SummarizerNonPassThroughResult extends BaseWrappedQueryResult {
 
   /** The non-null parent node. */
   private final Summarizer node;
@@ -50,7 +50,7 @@ public class SummarizerResult extends BaseWrappedQueryResult {
    * @param node The non-null node.
    * @param results The non-null results to source from.
    */
-  SummarizerResult(final Summarizer node, final QueryResult results) {
+  SummarizerNonPassThroughResult(final Summarizer node, final QueryResult results) {
     super(results);
     this.node = node;
     series = Lists.newArrayList();
@@ -108,7 +108,7 @@ public class SummarizerResult extends BaseWrappedQueryResult {
           ((ProcessorFactory) node.factory()).newTypedIterator(
               type, 
               node, 
-              SummarizerResult.this,
+              SummarizerNonPassThroughResult.this,
               Lists.newArrayList(source));
       if (iterator != null) {
         return Optional.of(iterator);
@@ -128,7 +128,7 @@ public class SummarizerResult extends BaseWrappedQueryResult {
         iterators.add(((ProcessorFactory) node.factory()).newTypedIterator(
             NumericSummaryType.TYPE, 
             node, 
-            SummarizerResult.this,
+            SummarizerNonPassThroughResult.this,
             Lists.newArrayList(source)));
       }
       return iterators;

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,9 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
   /** Whether or not NaNs are infectious. */
   private final boolean infectious_nan;
   
+  /** Whether or not we only summarize or pass through as well. */
+  private final boolean pass_through;
+  
   protected SummarizerConfig(final Builder builder) {
     super(builder);
     if (builder.summaries == null || builder.summaries.isEmpty()) {
@@ -50,6 +53,7 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
     }
     summaries = builder.summaries;
     infectious_nan = builder.infectiousNan;
+    pass_through = builder.pass_through;
   }
   
   /** @return The non-null and non-empty list of summaries to record. */
@@ -63,6 +67,11 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
     return infectious_nan;
   }
 
+  /** @return Whether or not we summarize only or pass through too. */
+  public boolean passThrough() {
+    return pass_through;
+  }
+  
   @Override
   public int compareTo(SummarizerConfig o) {
     // TODO Auto-generated method stub
@@ -82,8 +91,7 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
     }
 
     final SummarizerConfig sconfig = (SummarizerConfig) o;
-
-
+    
     final boolean result = Objects.equal(infectious_nan, sconfig.getInfectiousNan());
 
     if (!result) {
@@ -137,7 +145,10 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
 
   @Override
   public Builder toBuilder() {
-    return null;
+    return newBuilder()
+        .setSummaries(Lists.newArrayList(summaries))
+        .setInfectiousNan(infectious_nan)
+        .setId(id);
   }
 
   public static Builder newBuilder() {
@@ -150,6 +161,7 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
     private boolean infectiousNan;
     @JsonProperty
     protected List<String> summaries;
+    protected boolean pass_through;
     
     Builder() {
       setType(SummarizerFactory.TYPE);
@@ -175,6 +187,11 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
      */
     public Builder setInfectiousNan(final boolean infectious_nan) {
       infectiousNan = infectious_nan;
+      return this;
+    }
+    
+    public Builder setPassThrough(final boolean pass_through) {
+      this.pass_through = pass_through;
       return this;
     }
     

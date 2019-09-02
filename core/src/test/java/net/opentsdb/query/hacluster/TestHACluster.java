@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -148,6 +147,9 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn("s1");
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("s1");
+    when(n1.config()).thenReturn(c1);
     
     node.onNext(r1);
     assertSame(r1, node.results.get("s1"));
@@ -161,6 +163,9 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn("s2");
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("s2");
+    when(n2.config()).thenReturn(c2);
     
     node.onNext(r2);
     assertSame(r1, node.results.get("s1"));
@@ -184,6 +189,9 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn("s2");
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("s2");
+    when(n2.config()).thenReturn(c2);
     
     node.onNext(r2);
     assertSame(r2, node.results.get("s2"));
@@ -198,6 +206,9 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn("s1");
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("s1");
+    when(n1.config()).thenReturn(c1);
     
     node.onNext(r1);
     assertSame(r1, node.results.get("s1"));
@@ -314,6 +325,9 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn("s1");
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("s1");
+    when(n1.config()).thenReturn(c1);
     
     node.onNext(r1);
     assertSame(r1, node.results.get("s1"));
@@ -326,6 +340,9 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn("s2");
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("s2");
+    when(n2.config()).thenReturn(c2);
     
     node.onNext(r2);
     assertSame(r1, node.results.get("s1"));
@@ -349,6 +366,9 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn("s2");
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("s2");
+    when(n2.config()).thenReturn(c2);
     
     node.onNext(r2);
     assertSame(r2, node.results.get("s2"));
@@ -362,6 +382,9 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn("s1");
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("s1");
+    when(n1.config()).thenReturn(c1);
     
     node.onNext(r1);
     assertSame(r1, node.results.get("s1"));

@@ -67,6 +67,7 @@ public class TestHttpQueryV3Result {
                 .setMetric("system.cpu.user")
                 .build())
             .setFilterId(null)
+            .setDataSourceId("otherMetric")
             .setId("m1")
             .build();
 
@@ -77,6 +78,7 @@ public class TestHttpQueryV3Result {
         .build();
     
     when(query_node.pipelineContext()).thenReturn(context);
+    when(query_node.config()).thenReturn(config);
     when(context.query()).thenReturn(query);
   }
   
@@ -99,7 +101,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("m0", result.dataSource());
+    assertEquals("otherMetric", result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
@@ -179,7 +181,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("m1", result.dataSource());
+    assertEquals("otherMetric", result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
@@ -248,7 +250,7 @@ public class TestHttpQueryV3Result {
     assertNull(result.timeSpecification());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("m1", result.dataSource());
+    assertEquals("otherMetric", result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     RollupConfig rollup_config = result.rollupConfig();
@@ -336,7 +338,7 @@ public class TestHttpQueryV3Result {
     assertNull(result.timeSpecification());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("m1", result.dataSource());
+    assertEquals("otherMetric", result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     rollup_config = result.rollupConfig();
@@ -383,7 +385,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("m1", result.dataSource());
+    assertEquals("otherMetric", result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
@@ -464,7 +466,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("m1", result.dataSource());
+    assertEquals("otherMetric", result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();

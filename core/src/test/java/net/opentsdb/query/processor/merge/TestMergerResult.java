@@ -76,6 +76,7 @@ public class TestMergerResult {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setDataSource("MyMetric")
         .setId("Testing")
         .build();
     node = mock(Merger.class);
@@ -136,6 +137,7 @@ public class TestMergerResult {
     
     merger.add(result_a);
     assertSame(time_spec, merger.timeSpecification());
+    assertEquals("MyMetric", merger.dataSource());
   }
   
   @Test

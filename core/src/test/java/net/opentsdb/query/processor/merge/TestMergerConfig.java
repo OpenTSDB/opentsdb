@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
-import com.google.common.collect.Sets;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -47,6 +45,7 @@ public class TestMergerConfig {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addSource("m1")
+        .setDataSource("m1")
         .setId("ClusterMerge")
         .build();
     
@@ -61,6 +60,7 @@ public class TestMergerConfig {
           //.setAggregator("sum")
           .addInterpolatorConfig(numeric_config)
           .addSource("m1")
+          .setDataSource("m1")
           .setId("ClusterMerge")
           .build();
       fail("Expected IllegalArgumentException");
@@ -71,7 +71,19 @@ public class TestMergerConfig {
           .setAggregator("sum")
           .addInterpolatorConfig(numeric_config)
           .addSource("m1")
+          .setDataSource("m1")
           //.setId("ClusterMerge")
+          .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      MergerConfig.newBuilder()
+          .setAggregator("sum")
+          .addInterpolatorConfig(numeric_config)
+          .addSource("m1")
+          //.setDataSource("m1")
+          .setId("ClusterMerge")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -83,20 +95,24 @@ public class TestMergerConfig {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addSource("m1")
+        .setDataSource("m1")
         .setId("ClusterMerge")
         .build();
     
     String json = JSON.serializeToString(config);
-    System.out.println(json);
+    assertTrue(json.contains("\"id\":\"ClusterMerge\""));
+    assertTrue(json.contains("\"type\":\"Merger\""));
+    assertTrue(json.contains(",\"sources\":[\"m1\"]"));
+    assertTrue(json.contains("\"aggregator\":\"sum\""));
   }
-
-
+  
   @Test
   public void equality() throws Exception {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
+            .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
@@ -104,6 +120,7 @@ public class TestMergerConfig {
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
+            .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
@@ -111,6 +128,7 @@ public class TestMergerConfig {
             .setAggregator("avg")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
+            .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
@@ -124,6 +142,7 @@ public class TestMergerConfig {
             .setAggregator("sum")
 //            .addInterpolatorConfig(numeric_config)
             .addSource("m1")
+            .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
@@ -134,6 +153,7 @@ public class TestMergerConfig {
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m2")
+            .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
@@ -144,6 +164,7 @@ public class TestMergerConfig {
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
+            .setDataSource("m1")
             .setId("Noncluster")
             .build();
 

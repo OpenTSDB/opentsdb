@@ -607,25 +607,17 @@ public abstract class AbstractQueryPipelineContext implements
     
     @Override
     public void close() {
-      if (result.source().config() instanceof TimeSeriesDataSourceConfig ||
-          result.source().config().joins()) {
-        AtomicInteger cntr = countdowns.get(result.dataSource());
-        if (cntr == null) {
-          LOG.error("Unexpected result source, no counter for: " 
-              + result.dataSource());
-        } else {
-          cntr.decrementAndGet();
-        }
+      AtomicInteger cntr = countdowns.get(result.dataSource());
+      if (cntr == null) {
+        cntr = countdowns.get(result.source().config().getId() + ":" + result.dataSource());
+      }
+      
+      if (cntr == null ) {
+        LOG.error("Unexpected result source, no counter for: " 
+            + result.source().config().getId() + ":" 
+            + result.dataSource() + ". WANT: " + countdowns.keySet());
       } else {
-        AtomicInteger cntr = countdowns.get(result.source().config().getId() + ":" 
-            + result.dataSource());
-        if (cntr == null) {
-          LOG.error("Unexpected result source, noo counter for: " 
-              + result.source().config().getId() + ":" 
-              + result.dataSource());
-        } else {
-          cntr.decrementAndGet();
-        }
+        cntr.decrementAndGet();
       }
       checkComplete();
       try {

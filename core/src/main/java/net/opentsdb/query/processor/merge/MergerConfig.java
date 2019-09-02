@@ -34,6 +34,9 @@ import java.util.List;
 @JsonDeserialize(builder = MergerConfig.Builder.class)
 public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerConfig.Builder, MergerConfig> {
 
+  /** The data source we'll send up. */
+  private final String data_source;
+  
   /** The raw aggregator. */
   private final String aggregator;
   
@@ -45,8 +48,16 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
+    if (Strings.isNullOrEmpty(builder.dataSource)) {
+      throw new IllegalArgumentException("Data source cannot be null or empty.");
+    }
+    data_source = builder.dataSource;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
+  }
+  
+  public String getDataSource() {
+    return data_source;
   }
 
   /** @return The non-null and non-empty aggregation function name. */
@@ -63,12 +74,12 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
   @Override
   public Builder toBuilder() {
     return new Builder()
+        .setDataSource(data_source)
         .setAggregator(aggregator)
         .setInfectiousNan(infectious_nan)
         .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
         .setId(id);
   }
-
 
   @Override
   public boolean equals(final Object o) {
@@ -84,7 +95,8 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
 
     final MergerConfig merger = (MergerConfig) o;
 
-    return Objects.equal(aggregator, merger.getAggregator())
+    return Objects.equal(id, merger.getId()) &&
+            Objects.equal(aggregator, merger.getAggregator())
             && Objects.equal(infectious_nan, merger.getInfectiousNan());
 
   }
@@ -134,12 +146,19 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, MergerConfig> {
     @JsonProperty
+    private String dataSource;
+    @JsonProperty
     private String aggregator;
     @JsonProperty
     private boolean infectious_nan;
     
     Builder() {
       setType(MergerFactory.TYPE);
+    }
+    
+    public Builder setDataSource(final String data_source) {
+      dataSource = data_source;
+      return this;
     }
     
     /**

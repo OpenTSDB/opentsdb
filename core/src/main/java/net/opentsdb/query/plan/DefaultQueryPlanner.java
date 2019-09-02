@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +50,8 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
+import net.opentsdb.query.processor.merge.MergerConfig;
+import net.opentsdb.query.processor.summarizer.SummarizerConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Deferreds;
@@ -111,7 +112,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param context The non-null context to pull the query from.
    * @param context_sink The non-null context pass-through node.
    */
- public DefaultQueryPlanner(final QueryPipelineContext context,
+  public DefaultQueryPlanner(final QueryPipelineContext context,
                              final QueryNode context_sink) {
     this.context = context;
     this.context_sink = context_sink;
@@ -160,6 +161,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // the first step is to add the vertices to the graph and we'll stash
     // the nodes in a map by node ID so we can link them later.
     for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
+      System.out.println("NODE: " + node);
       if (config_map.putIfAbsent(node.getId(), node) != null) {
         throw new QueryExecutionException("The node id \"" 
             + node.getId() + "\" appeared more than once in the "
@@ -255,8 +257,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
                 (TimeSeriesDataSourceConfig) 
                 ((BaseTimeSeriesDataSourceConfig.Builder) 
                     tsDataSourceconfig.toBuilder())
-            .setPushDownNodes(push_downs)
-            .build();
+                .setPushDownNodes(push_downs)
+                .build();
             replace(node, new_config);
           }
         }
@@ -389,23 +391,24 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
       
       if (sink_filter.containsKey(node.getId())) {
-        final String source = sink_filter.get(node.getId());
-        if (source != null) {
-          // TODO - make sure this links to the source, otherwise skip it.
-          config_graph.putEdge(context_node, node);
-          if (Graphs.hasCycle(config_graph)) {
-            throw new IllegalArgumentException("Cycle found linking node " 
-                + context_node.getId() + " to " + node.getId());
-          }
-          satisfied_filters.add(node.getId());
-        } else {
-          // we want the link.
-          config_graph.putEdge(context_node, node);
-          if (Graphs.hasCycle(config_graph)) {
-            throw new IllegalArgumentException("Cycle found linking node " 
-                + context_node.getId() + " to " + node.getId());
-          }
-          satisfied_filters.add(node.getId());
+        config_graph.putEdge(context_node, node);
+        if (Graphs.hasCycle(config_graph)) {
+          throw new IllegalArgumentException("Cycle found linking node " 
+              + context_node.getId() + " to " + node.getId());
+        }
+        satisfied_filters.add(node.getId());
+      }
+      
+      // TODO - TEMP!! Special summary pass through code
+      if (node instanceof SummarizerConfig && 
+          ((SummarizerConfig) node).passThrough()) {
+        final Set<QueryNodeConfig> successors = 
+            Sets.newHashSet(config_graph.successors(node));
+        for (final QueryNodeConfig successor : successors) {
+          sink_filter.remove(successor.getId());
+          roots.remove(successor);
+          satisfied_filters.add(successor.getId());
+          config_graph.removeEdge(context_node, successor);
         }
       }
       
@@ -558,7 +561,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
       for (final QueryNode source_node : sources) {
           graph.putEdge(context_sink, source_node);
           if (Graphs.hasCycle(graph)) {
-            throw new IllegalArgumentException("!TF?");
+            throw new IllegalArgumentException("Cycle adding " 
+                + context_sink + " => " + source_node);
           }
       }
       return context_sink;
@@ -656,8 +660,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @return A set of unique results we should see.
    */
   private Set<String> computeSerializationSources(final QueryNodeConfig node) {
-    if (node instanceof TimeSeriesDataSourceConfig ||
-        node.joins()) {
+    if (node instanceof TimeSeriesDataSourceConfig) {
+      return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getDataSourceId());
+    } else if (node.joins()) {
+      if (node instanceof MergerConfig) {
+        return Sets.newHashSet(((MergerConfig) node).getDataSource());
+      }
       return Sets.newHashSet(node.getId());
     }
     
@@ -666,14 +674,27 @@ public class DefaultQueryPlanner implements QueryPlanner {
       final Set<String> downstream_ids = computeSerializationSources(downstream);
       if (node == context_node) {
         // prepend
-        if (downstream instanceof TimeSeriesDataSourceConfig ||
-            downstream.joins()) {
+        if (downstream instanceof TimeSeriesDataSourceConfig) {
+          ids.add(downstream.getId() + ":" 
+              + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
+        } else if (downstream.joins()) {
           ids.addAll(downstream_ids);
+        } else if (downstream instanceof SummarizerConfig &&
+            ((SummarizerConfig) downstream).passThrough()) {
+          for (final QueryNodeConfig successor : config_graph.successors(downstream)) {
+            final Set<String> summarizer_sources = computeSerializationSources(successor);
+            for (final String id : summarizer_sources) {
+              ids.add(successor.getId() + ":" + id);
+              ids.add(downstream.getId() + ":" + id);
+            }
+          }
         } else {
           for (final String id : downstream_ids) {
             ids.add(downstream.getId() + ":" + id);
           }
         }
+      } else if (node instanceof MergerConfig) {
+        ids.add(((MergerConfig) node).getDataSource());
       } else {
         ids.addAll(downstream_ids);
       }
