@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,12 +25,11 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
-import java.util.Collection;
+import java.util.Map.Entry;
 
 /**
  * The iterator that handles summarizing arrays, numerics and other
@@ -38,13 +37,17 @@ import java.util.Collection;
  * 
  * @since 3.0
  */
-public class SummarizerNumericIterator implements QueryIterator {
+public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
 
   /** The node we belong to. */
   private final QueryNode node;
   
   /** The results we came from. */
   private final QueryResult result;
+  
+  /** Rollup IDs for sum and count. */
+  private final int sum;
+  private final int count;
   
   /** Whether or not the iterator has another real or filled value. */
   private boolean has_next;
@@ -71,9 +74,9 @@ public class SummarizerNumericIterator implements QueryIterator {
    * @param result The non-null results.
    * @param source The non-null source.
    */
-  SummarizerNumericIterator(final QueryNode node,
-                            final QueryResult result, 
-                            final TimeSeries source) {
+  SummarizerNonPassthroughNumericIterator(final QueryNode node,
+                                          final QueryResult result, 
+                                          final TimeSeries source) {
     this.node = node;
     this.result = result;
     // pick one and only one
@@ -94,6 +97,11 @@ public class SummarizerNumericIterator implements QueryIterator {
     if (iterator != null) {
       has_next = iterator.hasNext();
       dp = new MutableNumericSummaryValue();
+      sum = result.rollupConfig().getIdForAggregator("sum");
+      count = result.rollupConfig().getIdForAggregator("count");
+    } else {
+      sum = 0;
+      count = 0;
     }
   }
   
@@ -151,21 +159,25 @@ public class SummarizerNumericIterator implements QueryIterator {
         }
 
         if (value.value() != null) {
-          Collection<Integer> summaries =
-              ((TimeSeriesValue<NumericSummaryType>) value)
-                  .value()
-                  .summariesAvailable();
-          if (summaries == null || summaries.isEmpty()) {
-            throw new IllegalArgumentException("Summaries not found in the summarizer!");
-          }
-
-          if (summaries.size() == 1) {
-            NumericType val = value.value().value(summaries.iterator().next());
+          if (value.value().summariesAvailable().size() == 1) {
+            NumericType val = value.value().value(
+                value.value().summariesAvailable().iterator().next());
             if (val.isInteger()) {
               store(val.longValue());
             } else {
               store(val.doubleValue());
             }
+          } else if (value.value().summariesAvailable().size() == 2 && 
+                     value.value().summariesAvailable().contains(sum) && 
+                     value.value().summariesAvailable().contains(count)) {
+            // in this case we got the sum and count so we want the average.
+            NumericType sum = value.value().value(this.sum);
+            NumericType count = value.value().value(this.count);
+            if (sum == null || count == null) {
+              dp.resetNull(iterator.next().timestamp());
+              return dp;
+            }
+            store(sum.toDouble() / count.toDouble());
           } else {
             // TODO
             dp.resetNull(iterator.next().timestamp());
@@ -177,25 +189,17 @@ public class SummarizerNumericIterator implements QueryIterator {
     }
     
     final MutableNumericValue number = new MutableNumericValue();
-    for (final String summary : 
-        ((SummarizerConfig) result.source().config()).getSummaries()) {
-      NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
-          .getRegistry().getPlugin(NumericAggregatorFactory.class, summary);
-      if (agg_factory == null) {
-        throw new IllegalArgumentException("No aggregator found for type: " 
-            + summary);
-      }
-      NumericAggregator agg = agg_factory.newAggregator(
-          ((SummarizerConfig) node.config()).getInfectiousNan());
+    for (Entry<String, NumericAggregator> entry : 
+        ((Summarizer) node).aggregators().entrySet()) {
       if (long_values != null) {
-        agg.run(long_values, offset, idx, number);
+        entry.getValue().run(long_values, offset, idx, number);
       } else {
-        agg.run(double_values, offset, idx, 
+        entry.getValue().run(double_values, offset, idx, 
             ((SummarizerConfig) result.source().config()).getInfectiousNan(), 
             number);
       }
       
-      dp.resetValue(result.rollupConfig().getIdForAggregator(summary), number.value());
+      dp.resetValue(result.rollupConfig().getIdForAggregator(entry.getKey()), number.value());
     }
     
     has_next = false;

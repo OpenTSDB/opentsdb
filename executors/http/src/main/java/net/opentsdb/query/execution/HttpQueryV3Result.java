@@ -52,6 +52,7 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.DateTime;
 
@@ -117,6 +118,11 @@ public class HttpQueryV3Result implements QueryResult {
     if (exception == null && root != null) {
       String temp = root.get("source").asText();
       data_source = temp.substring(temp.indexOf(":") + 1);
+      
+      TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
+      if (!cfg.getId().equals(cfg.getDataSourceId())) {
+        data_source = cfg.getDataSourceId();
+      }
       
       JsonNode n = root.get("timeSpecification");
       if (n != null && !n.isNull()) {

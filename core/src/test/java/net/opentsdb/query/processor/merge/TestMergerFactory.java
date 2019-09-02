@@ -114,6 +114,7 @@ public class TestMergerFactory {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setDataSource("m1")
         .setId("Test")
         .build();
     final NumericMillisecondShard source = new NumericMillisecondShard(

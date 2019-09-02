@@ -79,6 +79,7 @@ public class TestMerger {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setDataSource("m1")
         .setId("merger")
         .build();
     upstream = mock(QueryNode.class);

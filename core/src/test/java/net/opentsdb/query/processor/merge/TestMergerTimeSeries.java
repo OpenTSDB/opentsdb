@@ -88,6 +88,7 @@ public class TestMergerTimeSeries {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setDataSource("m1")
         .setId("GB")
         .build();
     result = mock(QueryResult.class);

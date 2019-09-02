@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
+import java.util.Collection;
 import java.util.List;
 
 import net.opentsdb.query.filter.MetricFilter;
@@ -31,6 +32,10 @@ public interface TimeSeriesDataSourceConfig<
     extends QueryNodeConfig<B, C> {
 
   public static final String DEFAULT = "TimeSeriesDataSource";
+  
+  /** @return The ID of the node as set by the user and populates the 
+   * {@link QueryResult#dataSource()} field. May be the same as the ID. */
+  public String getDataSourceId();
   
   /** @return The source ID. May be null in which case we use the default. */
   public String getSourceId();
@@ -70,7 +75,9 @@ public interface TimeSeriesDataSourceConfig<
   public List<String> getRollupIntervals();
 
   /** @return An optional list of push down nodes. May be null. */
-  List<QueryNodeConfig> getPushDownNodes();
+  public List<QueryNodeConfig> getPushDownNodes();
+  
+  public Collection<String> pushDownSinks();
   
   /** @return An optional pre-query start time padding string as a duration. */
   public String getPrePadding();
@@ -94,7 +101,11 @@ public interface TimeSeriesDataSourceConfig<
   /**
    * A base builder interface for data source configs.
    */
-  interface Builder<B extends Builder<B, C>, C extends TimeSeriesDataSourceConfig> extends QueryNodeConfig.Builder<B, C> {
+  interface Builder<B extends Builder<B, C>, 
+      C extends TimeSeriesDataSourceConfig> extends QueryNodeConfig.Builder<B, C> {
+    
+    B setDataSourceId(final String data_source_id);
+    
     B setSourceId(final String source_id);
     
     B setTypes(final List<String> types);

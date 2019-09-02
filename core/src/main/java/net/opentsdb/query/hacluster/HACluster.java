@@ -1,15 +1,17 @@
-//This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+// This file is part of OpenTSDB.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
-//This program is free software: you can redistribute it and/or modify it
-//under the terms of the GNU Lesser General Public License as published by
-//the Free Software Foundation, either version 2.1 of the License, or (at your
-//option) any later version.  This program is distributed in the hope that it
-//will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-//of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-//General Public License for more details.  You should have received a copy
-//of the GNU Lesser General Public License along with this program.  If not,
-//see <http://www.gnu.org/licenses/>.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.query.hacluster;
 
 import java.util.Collection;
@@ -34,7 +36,6 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -94,33 +95,32 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
 
   @Override
   public void onNext(final QueryResult next) {
+    final String id = next.source().config().getId();
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Result: " + next.source().config().getId() + ":" 
-          + next.dataSource() + " Expect: " + results.keySet());
+      LOG.trace("Result: " + id + ":" + next.dataSource() + " Expect: " 
+          + results.keySet());
     }
     
     // ignore sources we don't care about. They shouldn't be linked
     // to this node anyway.
-    if (!results.containsKey(next.dataSource())) {
+    if (!results.containsKey(id)) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Received unexpected data from: " 
-            + next.source().config().getId() + next.dataSource());
+        LOG.debug("Received unexpected data from: " + id + ":" + next.dataSource());
       }
       if (context.query().isDebugEnabled()) {
         context.queryContext().logDebug(this, "Received unexpected data from: " 
-            + next.source().config().getId() + next.dataSource());
+            + id + ":" + next.dataSource());
       }
       return;
     }
     
     boolean all_in = true;
     synchronized (results) {
-      QueryResult extant = results.putIfAbsent(next.dataSource(), next);
+      QueryResult extant = results.putIfAbsent(id, next);
       if (extant != null) {
-        LOG.warn("Duplicate result from source: " 
-            + next.source().config().getId() + ":" + next.dataSource());
+        LOG.warn("Duplicate result from source: " + id + ":" + next.dataSource());
         context.queryContext().logWarn(this, "Duplicate result from source: " 
-            + next.source().config().getId() + next.dataSource());
+            + id + next.dataSource());
         return;
       }
      
@@ -148,12 +148,11 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     if (Strings.isNullOrEmpty(next.error()) && next.exception() == null) {
       if (config.getDataSources().get(0).equals(next.dataSource())) {
         if (LOG.isTraceEnabled()) {
-          LOG.trace("Received primary: " + next.source().config().getId() 
-              + next.dataSource());
+          LOG.trace("Received primary: " + id + ":" + next.dataSource());
         }
         if (context.query().isTraceEnabled()) {
           context.queryContext().logTrace(this, "Received primary: " 
-              + next.source().config().getId() + next.dataSource());
+              + id + ":" + next.dataSource());
         }
         synchronized (this) {
           if (secondary_timer == null) {
@@ -170,7 +169,8 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
       } else {
         boolean matched = false;
         for (final String source : config.getDataSources()) {
-          if (next.dataSource().equals(source)) {
+          LOG.trace("CMP: " + id + " want src: " + source);
+          if (source.equals(id)) {
             matched = true;
             break;
           }
@@ -179,17 +179,16 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
         if (!matched) {
           // WTF?
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Source " + next.source().config().getId() + ":" 
+            LOG.trace("Source " + id + ":" 
                 + next.dataSource() + " did not match a configured data source!");
           }
         } else {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Received secondary: " + next.source().config().getId() 
-                + next.dataSource());
+            LOG.trace("Received secondary: " + id + ":" + next.dataSource());
           }
           if (context.query().isTraceEnabled()) {
             context.queryContext().logTrace(this, "Received secondary: " 
-                + next.source().config().getId() + next.dataSource());
+                + id + ":" + next.dataSource());
           }
           synchronized (this) {
             if (primary_timer == null) {
@@ -339,19 +338,18 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
             context.tsdb().getQueryThreadPool().submit(new Runnable() {
               @Override
               public void run() {
-                sendUpstream(new WrappedResult(entry.getValue()));
+                sendUpstream(entry.getValue());
               }
             }, context.queryContext());
           } else {
-            sendUpstream(new WrappedResult(entry.getValue()));
+            sendUpstream(entry.getValue());
           }
         } else {
           // we need to send an empty result with the actual downstream 
           // node....
           Collection<QueryNode> downstream_sources = this.downstream_sources;
           for (final QueryNode node : downstream_sources) {
-            final QueryResult cluster_result = new WrappedResult(
-                new EmptyResult(good_result, node));
+            final QueryResult cluster_result = new EmptyResult(good_result, node);
             if (node.config().getId().equals(entry.getKey())) {
               if (LOG.isTraceEnabled()) {
                 LOG.trace("Sending up missing result: " 
@@ -379,19 +377,6 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     }
   }
   
-  class WrappedResult extends BaseWrappedQueryResult {
-    
-    WrappedResult(final QueryResult result) {
-      super(result);
-    }
-    
-    @Override
-    public QueryNode source() {
-      return HACluster.this;
-    }
-    
-  }
-  
   class EmptyResult extends BaseWrappedQueryResult {
     
     private final QueryNode node;
@@ -413,7 +398,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
 
     @Override
     public String dataSource() {
-      return node.config().getId();
+      return result.dataSource();
     }
 
   }

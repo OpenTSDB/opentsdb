@@ -134,8 +134,7 @@ public class HttpQueryV3Factory
     if (config.timeShifts() == null) {
       return;
     }
-
-
+    
     TimeSeriesDataSourceConfig.Builder<
             ? extends TimeSeriesDataSourceConfig.Builder,
             ? extends TimeSeriesDataSourceConfig>
@@ -148,9 +147,7 @@ public class HttpQueryV3Factory
         .build();
 
     planner.replace(config, new_config);
-
-    planner.replace(config, new_config);
-
+    
     // Add timeshift node as a push down
     final TimeShiftConfig shift_config = TimeShiftConfig.newBuilder()
         .setTimeshiftInterval(new_config.getTimeShiftInterval())
@@ -171,9 +168,10 @@ public class HttpQueryV3Factory
       List<QueryNodeConfig> pushdown = new ArrayList<>();
       pushdown.add(shift_config);
 
-
-      BaseTimeSeriesDataSourceConfig.Builder b = (BaseTimeSeriesDataSourceConfig.Builder) new_config.toBuilder();
-      ((BaseTimeSeriesDataSourceConfig)new_config).cloneBuilder((BaseTimeSeriesDataSourceConfig) new_config, b);
+      final BaseTimeSeriesDataSourceConfig.Builder b = 
+          (BaseTimeSeriesDataSourceConfig.Builder) new_config.toBuilder();
+      ((BaseTimeSeriesDataSourceConfig)new_config)
+        .cloneBuilder((BaseTimeSeriesDataSourceConfig) new_config, b);
       b.setPushDownNodes(pushdown);
     } else {
       pushDownNodes.add(shift_config);

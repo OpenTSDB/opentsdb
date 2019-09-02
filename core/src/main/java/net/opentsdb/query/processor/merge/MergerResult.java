@@ -163,7 +163,7 @@ public class MergerResult implements QueryResult {
 
   @Override
   public String dataSource() {
-    return node.config().getId();
+    return ((MergerConfig) node.config()).getDataSource();
   }
   
   @Override

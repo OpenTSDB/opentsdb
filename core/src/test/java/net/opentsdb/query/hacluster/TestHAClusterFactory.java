@@ -49,6 +49,7 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupBy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.merge.Merger;
+import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
@@ -168,8 +169,11 @@ public class TestHAClusterFactory {
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
 
+    node = planner.nodeForId("m1");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
 
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s1")));
@@ -281,8 +285,11 @@ public class TestHAClusterFactory {
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertEquals("f2", ((TimeSeriesDataSourceConfig) node.config()).getFilterId());
 
+    node = planner.nodeForId("m1");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
 
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s1")));
@@ -384,8 +391,11 @@ public class TestHAClusterFactory {
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
 
+    node = planner.nodeForId("m1");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
 
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s1")));
@@ -450,8 +460,11 @@ public class TestHAClusterFactory {
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
 
+    node = planner.nodeForId("m1");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
 
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s1")));
@@ -617,9 +630,12 @@ public class TestHAClusterFactory {
         .getPushDownNodes().get(0) instanceof DownsampleConfig);
     List<QueryNodeConfig> pushDownNodes = ((TimeSeriesDataSourceConfig)node.config()).getPushDownNodes();
     assertEquals("ha_m1_s2", pushDownNodes.get(0).getSources().get(0));
+    
+    node = planner.nodeForId("ds");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
 
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
     assertTrue(planner.nodeForId("ha_m1_ds") instanceof Downsample);
 
     assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
@@ -630,10 +646,10 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_ds")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ds"),
         planner.nodeForId("ha_m1")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
-        planner.nodeForId("m1")));
+        planner.nodeForId("ds")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("gb")));
   }
@@ -708,8 +724,11 @@ public class TestHAClusterFactory {
     assertEquals("ha_m1_s3", ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0).getSources().get(0));
 
+    node = planner.nodeForId("gb");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
     assertTrue(planner.nodeForId("ha_m1_gb") instanceof GroupBy);
 
     assertFalse(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
@@ -720,10 +739,10 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_gb")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s3")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
             planner.nodeForId("ha_m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-            planner.nodeForId("m1")));
+            planner.nodeForId("gb")));
   }
 
   @Test
@@ -808,8 +827,11 @@ public class TestHAClusterFactory {
     assertEquals("ha_m1_s3", ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0).getSources().get(0));
 
+    node = planner.nodeForId("gb");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
     assertTrue(planner.nodeForId("ha_m1_ds") instanceof Downsample);
     assertTrue(planner.nodeForId("ha_m1_gb") instanceof GroupBy);
 
@@ -829,10 +851,10 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_gb")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s3")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
         planner.nodeForId("ha_m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
+        planner.nodeForId("gb")));
   }
 
   @Test
@@ -906,17 +928,20 @@ public class TestHAClusterFactory {
     assertEquals("ha_m1_s4", ((List<QueryNodeConfig>) (((TimeSeriesDataSourceConfig)node.config()))
         .getPushDownNodes()).get(0).getSources().get(0));
 
+    node = planner.nodeForId("gb");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
 
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s3")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s4")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("gb"),
         planner.nodeForId("ha_m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
+        planner.nodeForId("gb")));
   }
 
   @Test
@@ -966,7 +991,7 @@ public class TestHAClusterFactory {
     QueryNode ctx_node = mock(QueryNode.class);
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
-
+System.out.println(planner.printConfigGraph());
     assertEquals(7, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("ha_m1_s2");
@@ -993,8 +1018,11 @@ public class TestHAClusterFactory {
     assertTrue(pushDownNodes.get(2) instanceof DownsampleConfig);
     assertEquals("ha_m1_s3", pushDownNodes.get(0).getSources().get(0));
 
+    node = planner.nodeForId("ds2");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+    
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
     assertTrue(planner.nodeForId("ha_m1_gb") instanceof GroupBy);
     assertTrue(planner.nodeForId("ha_m1_ds2") instanceof Downsample);
 
@@ -1010,10 +1038,10 @@ public class TestHAClusterFactory {
         planner.nodeForId("ha_m1_gb")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),
         planner.nodeForId("ha_m1_s3")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ds2"),
         planner.nodeForId("ha_m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
+        planner.nodeForId("ds2")));
   }
 
   @Test
@@ -1059,8 +1087,11 @@ public class TestHAClusterFactory {
     assertEquals("s5", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
     assertNull(((TimeSeriesDataSourceConfig) node.config()).getFilterId());
 
+    node = planner.nodeForId("m1");
+    assertTrue(node instanceof Merger);
+    assertEquals("m1", ((MergerConfig) node.config()).getDataSource());
+
     assertTrue(planner.nodeForId("ha_m1") instanceof HACluster);
-    assertTrue(planner.nodeForId("m1") instanceof Merger);
     assertTrue(planner.nodeForId("m1_converter") instanceof ByteToStringIdConverter);
 
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("ha_m1"),

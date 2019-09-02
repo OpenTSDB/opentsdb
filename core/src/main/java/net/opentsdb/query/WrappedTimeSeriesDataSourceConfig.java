@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -74,6 +75,11 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
     return config.getType();
   }
 
+  @Override
+  public String getDataSourceId() {
+    return config.getDataSourceId();
+  }
+  
   @Override
   public List<String> getSources() {
     return config.getSources();
@@ -233,6 +239,11 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
     return config.getPushDownNodes();
   }
 
+  @Override
+  public Collection<String> pushDownSinks() {
+    return config.pushDownSinks();
+  }
+  
   @Override
   public String getSummaryInterval() {
     return config.getSummaryInterval();

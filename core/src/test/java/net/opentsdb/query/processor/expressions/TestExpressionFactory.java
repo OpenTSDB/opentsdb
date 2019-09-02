@@ -583,6 +583,7 @@ public class TestExpressionFactory {
     QueryNodeConfig merger = MergerConfig.newBuilder()
         .setAggregator("sum")
         .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setDataSource("m1")
         .setId("m1")
         .build();
     QueryNodeConfig ds = DownsampleConfig.newBuilder()

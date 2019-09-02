@@ -38,7 +38,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
@@ -47,6 +46,8 @@ import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -378,6 +379,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
                         .setDataType(NumericType.TYPE.toString())
                         .build())
                 .addSource(new_id)
+                .setDataSource(config.getId())
                 .setId(config.getId())
                 .build();
         planner.replace(config, merger);
@@ -456,10 +458,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
           List<QueryNodeConfig> renamed_pushdowns =
                   Lists.newArrayListWithExpectedSize(source_push_downs.size());
           for (final QueryNodeConfig pd : source_push_downs) {
-            if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(pd.getId())) {
-              ((DefaultQueryPlanner) planner).sinkFilters().remove(pd.getId());
-              ((DefaultQueryPlanner) planner).sinkFilters().put(merger.getId(), merger.getId());
-            }
             if (pd.getSources().contains(config.getId())) {
               renamed_pushdowns.add(
                       pd.toBuilder()
@@ -470,7 +468,19 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
             }
           }
           new_sources.get(i).setPushDownNodes(renamed_pushdowns);
-          
+          final Collection<String> sinks = pushDownSinks(renamed_pushdowns);
+          if (sinks.size() == 1) {
+            final String new_merger_id = sinks.iterator().next();
+            if (!merger.getId().equals(new_merger_id)) {
+              // only do this once or we get an exception.
+              MergerConfig new_merger = merger.toBuilder()
+                  .setDataSource(config.getId())
+                  .setId(sinks.iterator().next())
+                  .build();
+              planner.replace(merger, new_merger);
+              merger = new_merger;
+            }
+          }
           final TimeSeriesDataSourceConfig new_source = (TimeSeriesDataSourceConfig) 
               new_sources.get(i)
               .build();
@@ -504,6 +514,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
           .setRealFillPolicy(FillWithRealPolicy.NONE)
           .setDataType(NumericType.TYPE.toString())
           .build())
+        .setDataSource(config.getId())
         .addSource(new_id)
         .setId(config.getId())
         .build();
@@ -542,7 +553,27 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
       }
     }
   }
-
+  
+  public Collection<String> pushDownSinks(final List<QueryNodeConfig> push_down_nodes) {
+    if (push_down_nodes == null || push_down_nodes.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    // naive two pass for now, can make it more efficient some day
+    final Set<String> nodes = Sets.newHashSet();
+    for (final QueryNodeConfig node : push_down_nodes) {
+      nodes.add(node.getId());
+    }
+    
+    for (final QueryNodeConfig node : push_down_nodes) {
+      // wtf? why do we need to cast this sucker?
+      for (final Object source : node.getSources()) {
+        nodes.remove((String) source);
+      }
+    }
+    return nodes;
+  }
+  
   @Override
   public HACluster newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException("A config is required.");

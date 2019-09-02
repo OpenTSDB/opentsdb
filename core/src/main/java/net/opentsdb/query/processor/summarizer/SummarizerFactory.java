@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,10 +33,10 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
@@ -97,7 +97,22 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
   public void setupGraph(final QueryPipelineContext context, 
                          final SummarizerConfig config,
                          final QueryPlanner plan) {
-    // we do nothing here.
+    boolean pass_through = false;
+    final Map<String, String> sink_filters = ((DefaultQueryPlanner) plan).sinkFilters();
+    for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
+      if (sink_filters.containsKey(successor.getId())) {
+        sink_filters.remove(successor.getId());
+        pass_through = true;
+      }
+    }
+    
+    if (pass_through) {
+      SummarizerConfig new_config = config.toBuilder()
+          .setPassThrough(true)
+          .build();
+      plan.replace(config, new_config);
+      
+    }
   }
 
   /**
@@ -110,7 +125,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new SummarizerNumericIterator(node, result, 
+      return new SummarizerNonPassthroughNumericIterator(node, result, 
           sources.iterator().next());
     }
 
@@ -119,7 +134,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new SummarizerNumericIterator(node, result, 
+      return new SummarizerNonPassthroughNumericIterator(node, result, 
           sources.values().iterator().next());
     }
 

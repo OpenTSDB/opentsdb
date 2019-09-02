@@ -18,6 +18,9 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
@@ -29,7 +32,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.stats.Span;
 
 public class Merger extends AbstractQueryNode {
-
+  private static final Logger LOG = LoggerFactory.getLogger(Merger.class);
+  
   /** The source config. */
   private final MergerConfig config;
   
@@ -64,6 +68,9 @@ public class Merger extends AbstractQueryNode {
     for (final String id : expected) {
       results.put(id, false);
     }
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Expect to have results: " + results);
+    }
     return INITIALIZED;
   }
   
@@ -79,12 +86,17 @@ public class Merger extends AbstractQueryNode {
   
   @Override
   public void onNext(final QueryResult next) {
+    final String id = next.source().config().getId();
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Result: " + id + ":" + next.dataSource() + " Expect: " 
+          + results.keySet());
+    }
     synchronized (results) {
-      Boolean extant = results.get(next.dataSource());
+      Boolean extant = results.get(id);
       if (extant != null && extant) {
-        throw new IllegalStateException("Already got a result for: " + next.dataSource());
+        throw new IllegalStateException("Already got a result for: " + id);
       } else if (extant != null) {
-        results.put(next.dataSource(), true);
+        results.put(id, true);
       } else {
         return;
       }
@@ -97,12 +109,18 @@ public class Merger extends AbstractQueryNode {
       
       for (final Entry<String, Boolean> entry : results.entrySet()) {
         if (!entry.getValue()) {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Missing result for key: " + entry.getKey());
+          }
           return;
         }
       }
       
       // got em all!
       result.join();
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Sending merged results upstream!");
+      }
       sendUpstream(result);
     }
     

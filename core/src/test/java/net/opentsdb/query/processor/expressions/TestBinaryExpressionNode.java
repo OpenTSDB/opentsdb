@@ -209,6 +209,11 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
     when(r2.dataSource()).thenReturn("b");
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
@@ -246,6 +251,11 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     
     node.onNext(r1);
     assertSame(r1, node.results.getKey());
@@ -372,6 +382,11 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
     when(r2.dataSource()).thenReturn("ignored");
     when(r2.source()).thenReturn(n2);
@@ -560,6 +575,11 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("b");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -643,6 +663,11 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -716,8 +741,18 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
     when(r2.dataSource()).thenReturn("b");
+    QueryNode n2 = mock(QueryNode.class);
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("b");
+    when(n2.config()).thenReturn(c1);
+    when(r2.source()).thenReturn(n1);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -786,8 +821,18 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
     when(r2.dataSource()).thenReturn("b");
+    QueryNode n2 = mock(QueryNode.class);
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("a");
+    when(n2.config()).thenReturn(c2);
+    when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -866,8 +911,18 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
     when(r2.dataSource()).thenReturn("b");
+    QueryNode n2 = mock(QueryNode.class);
+    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    when(c2.getId()).thenReturn("a");
+    when(n2.config()).thenReturn(c2);
+    when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -946,6 +1001,11 @@ public class TestBinaryExpressionNode {
     
     QueryResult r1 = mock(QueryResult.class);
     when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
     when(r1.error()).thenReturn("Boo!");
     
     node.onNext(r1);
