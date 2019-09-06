@@ -22,6 +22,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.ArrayLastFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
@@ -29,10 +30,16 @@ import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.utils.DateTime;
 
+import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +47,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -86,6 +94,21 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     this(node, result, sources == null ? null : sources.values());
   }
   
+  static final int NUM_THREADS = 8;
+  
+  static List<ExecutorService> executorList;
+  static {
+    executorList = new ArrayList<>();
+    for (int i = 0; i< NUM_THREADS; i++) {
+      BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+      // One Thread per executor.
+      ExecutorService executor = new ThreadPoolExecutor(1, 1, 1L, TimeUnit.SECONDS, workQueue);
+      executorList.add(executor);
+    }
+  }
+  
+  double[][] valuesCombiner;
+  
   /**
    * Ctor with a collection of source time series.
    * @param node The non-null node this iterator belongs to.
@@ -97,6 +120,7 @@ public class GroupByNumericArrayIterator implements QueryIterator,
   public GroupByNumericArrayIterator(final QueryNode node, 
                                      final QueryResult result,
                                      final Collection<TimeSeries> sources) {
+    
     long st = DateTime.nanoTime();
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
@@ -128,17 +152,38 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     }
     
     long startTs = DateTime.nanoTime();
+    
+    TemporalAmount temporalAmount = this.result.downstreamResult().timeSpecification().interval();
+    
+    TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
+    int intervals = 0;
+    while (ts.compare(Op.LT, node.pipelineContext().query().endTime())) {
+      intervals++;
+      ts.add(temporalAmount);
+    }
+    
+    logger.info("Sources size {}, Intervals found {}", sources.size(), intervals);
+
+    // interval * 2 to capture sum and count; [sum1,count1 ... sumn,countn]
+    valuesCombiner = new double[NUM_THREADS][intervals * 2];
+
+    // init with NaN
+    for (int i = 0; i < NUM_THREADS; i++) {
+      Arrays.fill(valuesCombiner[i], Double.NaN);
+    }
 
     // TODO: Need to check if it makes sense to make this threshold configurable
-    if (sources.size() >= 1000) {
+    if (sources.size() >= NUM_THREADS) {
 
       List<Future<TimeSeriesValue<NumericArrayType>>> futures =
           new ArrayList<Future<TimeSeriesValue<NumericArrayType>>>(sources.size());
-
-      parallelFetch(sources, futures);
+      
+      parallel(sources, futures);
+//      parallelFetch(sources, futures);
       long endTs = DateTime.nanoTime() - startTs;
       logger.info("Total number of paralelly fetched iterator values {} and parallel fetch took {}",
           futures.size(), ((double) endTs) / 1000_000);
+      accumulate();
     } else {
       for (final TimeSeries source : sources) {
         if (source == null) {
@@ -160,16 +205,42 @@ public class GroupByNumericArrayIterator implements QueryIterator,
         }
       }
     }
+    
 
     double e = ((double) (DateTime.nanoTime() - st)) / 1000_000;
     logger.info("Groupby iterator took {}, timeseries count {}", e, sources.size());
+  }
+  
+  private void parallel(final Collection<TimeSeries> sources,
+      List<Future<TimeSeriesValue<NumericArrayType>>> futures) {
+
+    Iterator<TimeSeries> iterator = sources.iterator();
+    while (iterator.hasNext()) {
+      for (int j = 0; j < executorList.size(); j++) {
+        has_next = true;
+        if (iterator.hasNext()) {
+          TimeSeries source = iterator.next();
+          futures.add(submit(executorList.get(j), source, valuesCombiner[j]));
+        }
+      }
+    }
+
+    for (Future<TimeSeriesValue<NumericArrayType>> future : futures) {
+      try {
+
+        TimeSeriesValue<NumericArrayType> array = future.get(); // get will block until the future
+                                                                // is done
+      } catch (InterruptedException | ExecutionException e3) {
+        logger.error("Unable to get the status of a task", e3);
+      }
+    }
   }
 
   private void parallelFetch(final Collection<TimeSeries> sources,
       List<Future<TimeSeriesValue<NumericArrayType>>> futures) {
     for (TimeSeries source : sources) {
       has_next = true;
-      futures.add(submit(source));
+      futures.add(submit(executor, source, null));
     }
 
     for (Future<TimeSeriesValue<NumericArrayType>> future : futures) {
@@ -187,6 +258,14 @@ public class GroupByNumericArrayIterator implements QueryIterator,
       }
     }
   }
+  
+  private void accumulate() {
+    for (int i = 0; i < valuesCombiner.length; i++) {
+      logger.info("Accumulator length {}, {}", valuesCombiner.length, Arrays.asList(valuesCombiner[i]));
+      aggregator.accumulate(valuesCombiner[i]);
+    }
+    
+  }
 
   private void accumulate(TimeSeriesValue<NumericArrayType> array) {
     if (array.value().end() - array.value().offset() > 0) {
@@ -202,7 +281,7 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     }
   }
   
-  public Future<TimeSeriesValue<NumericArrayType>> submit(TimeSeries source) {
+  public Future<TimeSeriesValue<NumericArrayType>> submit(ExecutorService executor, TimeSeries source, double[] valuesPool) {
 
     Callable<TimeSeriesValue<NumericArrayType>> c =
         new Callable<TimeSeriesValue<NumericArrayType>>() {
@@ -220,7 +299,11 @@ public class GroupByNumericArrayIterator implements QueryIterator,
               final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
                   optional.get();
               if (iterator.hasNext()) {
-                return (TimeSeriesValue<NumericArrayType>) iterator.next();
+                if (valuesPool != null) {
+                  return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(valuesPool);
+                } else {
+                  return (TimeSeriesValue<NumericArrayType>) iterator.next();
+                }
               }
             }
             return null;

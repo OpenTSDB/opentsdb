@@ -29,5 +29,9 @@ public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> extends I
    * @return The non-null type of data returned in the iterator.
    */
   public TypeToken<T> getType();
-
+  
+  public default TimeSeriesValue<? extends TimeSeriesDataType> nextPool(double[] valuePool) {
+    return null;
+  }
+  
 }
