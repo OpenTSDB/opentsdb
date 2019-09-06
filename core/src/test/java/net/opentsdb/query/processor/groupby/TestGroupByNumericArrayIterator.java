@@ -95,6 +95,11 @@ public class TestGroupByNumericArrayIterator {
     when(node.pipelineContext()).thenReturn(context);
     final TSDB tsdb = mock(TSDB.class);
     when(context.tsdb()).thenReturn(tsdb);
+    final TimeSeriesQuery q = mock(TimeSeriesQuery.class);
+    when(context.query()).thenReturn(q);
+    TimeStamp st = new SecondTimeStamp(System.currentTimeMillis()/1000l);
+    when(q.startTime()).thenReturn(st);
+    when(q.endTime()).thenReturn(st);  
     registry = mock(Registry.class);
     when(tsdb.getRegistry()).thenReturn(registry);
     when(registry.getPlugin(any(Class.class), anyString()))
