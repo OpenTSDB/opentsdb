@@ -29,6 +29,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupConfig;
 
 /**
@@ -147,7 +148,7 @@ public class Tsdb1xQueryResult implements QueryResult {
 
   @Override
   public String dataSource() {
-    return node.config().getId();
+    return ((TimeSeriesDataSourceConfig) node.config()).getDataSourceId();
   }
   
   @Override
