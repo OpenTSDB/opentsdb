@@ -16,24 +16,21 @@ package net.opentsdb.query.processor.groupby;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.aggregators.ArrayLastFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.utils.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
@@ -47,14 +44,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An iterator for grouping arrays. This should be much faster for 
@@ -106,8 +99,8 @@ public class GroupByNumericArrayIterator implements QueryIterator,
       executorList.add(executor);
     }
   }
-  
-  double[][] valuesCombiner;
+
+  NumericArrayAggregator[] valuesCombiner;
   
   /**
    * Ctor with a collection of source time series.
@@ -164,12 +157,9 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     
     logger.info("Sources size {}, Intervals found {}", sources.size(), intervals);
 
-    // interval * 2 to capture sum and count; [sum1,count1 ... sumn,countn]
-    valuesCombiner = new double[NUM_THREADS][intervals * 2];
-
-    // init with NaN
-    for (int i = 0; i < NUM_THREADS; i++) {
-      Arrays.fill(valuesCombiner[i], Double.NaN);
+    valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
+    for (int i = 0; i < valuesCombiner.length; i++) {
+      valuesCombiner[i] = factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
     }
 
     // TODO: Need to check if it makes sense to make this threshold configurable
@@ -261,8 +251,9 @@ public class GroupByNumericArrayIterator implements QueryIterator,
   
   private void accumulate() {
     for (int i = 0; i < valuesCombiner.length; i++) {
-      logger.info("Accumulator length {}, {}", valuesCombiner.length, Arrays.asList(valuesCombiner[i]));
-      aggregator.accumulate(valuesCombiner[i]);
+      double[] values = valuesCombiner[i].doubleArray();
+      logger.info("Accumulator length {}, {}", valuesCombiner.length, Arrays.asList(values));
+      this.aggregator.accumulate(values);
     }
     
   }
@@ -281,7 +272,7 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     }
   }
   
-  public Future<TimeSeriesValue<NumericArrayType>> submit(ExecutorService executor, TimeSeries source, double[] valuesPool) {
+  public Future<TimeSeriesValue<NumericArrayType>> submit(ExecutorService executor, TimeSeries source, NumericArrayAggregator aggregator) {
 
     Callable<TimeSeriesValue<NumericArrayType>> c =
         new Callable<TimeSeriesValue<NumericArrayType>>() {
@@ -299,8 +290,8 @@ public class GroupByNumericArrayIterator implements QueryIterator,
               final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
                   optional.get();
               if (iterator.hasNext()) {
-                if (valuesPool != null) {
-                  return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(valuesPool);
+                if (aggregator != null) {
+                  return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(aggregator);
                 } else {
                   return (TimeSeriesValue<NumericArrayType>) iterator.next();
                 }

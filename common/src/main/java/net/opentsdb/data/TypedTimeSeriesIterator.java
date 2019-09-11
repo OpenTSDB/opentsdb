@@ -30,7 +30,7 @@ public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> extends I
    */
   public TypeToken<T> getType();
   
-  public default TimeSeriesValue<? extends TimeSeriesDataType> nextPool(double[] valuePool) {
+  public default TimeSeriesValue<? extends TimeSeriesDataType> nextPool(Aggregator aggregator) {
     return null;
   }
   
