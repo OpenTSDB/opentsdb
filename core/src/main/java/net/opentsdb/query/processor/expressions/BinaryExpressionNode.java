@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +77,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   protected String left_source;
   protected String right_source;
   protected final int expected;
+  protected final AtomicBoolean all_in;
   
   /** The result to populate and return. */
   protected ExpressionResult result;
@@ -102,6 +104,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     config = expression_config.getExpressionConfig();
     result = new ExpressionResult(this);
     results = new Pair<QueryResult, QueryResult>();
+    all_in = new AtomicBoolean();
     
     if (expression_config.getLeftType() == OperandType.SUB_EXP || 
         expression_config.getLeftType() == OperandType.VARIABLE) {
@@ -307,15 +310,17 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     }
     
     if (received == expected) {
-      try {
-        result.set(results);
-        result.join();
-        if (LOG.isTraceEnabled()) {
-          LOG.trace("Sending expression upstream: " + config.getId());
+      if (all_in.compareAndSet(false, true)) {
+        try {
+          result.set(results);
+          result.join();
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Sending expression upstream: " + config.getId());
+          }
+          sendUpstream(result);
+        } catch (Exception e) {
+          sendUpstream(e);
         }
-        sendUpstream(result);
-      } catch (Exception e) {
-        sendUpstream(e);
       }
     } else if (LOG.isTraceEnabled()) {
       LOG.trace("Not all results are in for: " + config.getId());
