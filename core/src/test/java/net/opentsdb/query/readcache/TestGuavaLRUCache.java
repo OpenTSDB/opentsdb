@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution.cache;
+package net.opentsdb.query.readcache;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -44,6 +44,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.readcache.GuavaLRUCache;
 import net.opentsdb.query.readcache.ReadCacheCallback;
 import net.opentsdb.query.readcache.ReadCacheQueryResult;
 import net.opentsdb.query.readcache.ReadCacheQueryResultSet;
