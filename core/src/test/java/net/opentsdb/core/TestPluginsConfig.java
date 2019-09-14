@@ -47,7 +47,7 @@ import net.opentsdb.core.PluginsConfig.PluginConfig;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
-import net.opentsdb.query.execution.cache.QueryCachePlugin;
+import net.opentsdb.query.readcache.QueryCachePlugin;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
