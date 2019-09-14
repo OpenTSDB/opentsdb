@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,15 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
     DEBUG,
     TRACE
   }
+
+  /** A cache mode for the query. Default is normal, i.e. read and write. */
+  public static enum CacheMode {
+    NORMAL,
+    READONLY,
+    WRITEONLY,
+    BYPASS,
+    CLEAR
+  }
   
   /** @return The overall start timestamp for the query. This is used to
    * filter the output. */
@@ -55,6 +64,9 @@ public interface TimeSeriesQuery extends Comparable<TimeSeriesQuery> {
   
   /** @return The query execution mode. */
   public QueryMode getMode();
+  
+  /** @return The Cache mode. */
+  public CacheMode getCacheMode();
   
   /** @return An optional list of named filters. May be empty but may
    * not be null. */
