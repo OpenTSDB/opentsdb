@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -69,6 +69,9 @@ public class SemanticQuery implements TimeSeriesQuery {
   
   /** The execution mode of the query. */
   private QueryMode mode;
+  
+  /** The cache mode. */
+  private CacheMode cache_mode;
   
   /** The serialization options. */
   private List<SerdesOptions> serdes_options;
@@ -147,13 +150,12 @@ public class SemanticQuery implements TimeSeriesQuery {
     }
     
     mode = builder.mode;
+    cache_mode = builder.cache_mode;
     serdes_options = builder.serdes_config == null ? 
         Collections.emptyList() : builder.serdes_config;
     log_level = builder.log_level;
   }
-
-
-
+  
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -182,14 +184,12 @@ public class SemanticQuery implements TimeSeriesQuery {
 
     return true;
   }
-
-
+  
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
-
+  
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
@@ -227,11 +227,7 @@ public class SemanticQuery implements TimeSeriesQuery {
 
     return Hashing.combineOrdered(hashes);
   }
-
-
-
-
-
+  
   @Override
   public String getStart() {
     return start;
@@ -293,11 +289,15 @@ public class SemanticQuery implements TimeSeriesQuery {
     // TODO Auto-generated method stub
     return 0;
   }
-
-
+  
   @Override
   public LogLevel getLogLevel() {
     return log_level;
+  }
+  
+  @Override
+  public CacheMode getCacheMode() {
+    return cache_mode;
   }
   
   @Override
@@ -315,6 +315,22 @@ public class SemanticQuery implements TimeSeriesQuery {
     return log_level.ordinal() >= LogLevel.WARN.ordinal();
   }
   
+  public Builder toBuilder() {
+    Builder builder = newBuilder();
+    builder.setStart(start_ts != null ? Long.toString(start_ts.msEpoch()) : start)
+           .setEnd(end_ts != null ? Long.toString(end_ts.msEpoch()) : end)
+           .setTimeZone(time_zone)
+           .setMode(mode)
+           .setExecutionGraph(Lists.newArrayList(execution_graph))
+           .setLogLevel(log_level)
+           .setCacheMode(cache_mode)
+           .setSerdesConfigs(Lists.newArrayList(serdes_options));
+    if (filters != null) {
+      builder.setFilters(Lists.newArrayList(filters.values()));
+    }
+    return builder;
+  }
+  
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -326,6 +342,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     private List<QueryNodeConfig> execution_graph;
     private List<NamedFilter> filters;
     private QueryMode mode;
+    private CacheMode cache_mode;
     private List<SerdesOptions> serdes_config;
     private LogLevel log_level = LogLevel.ERROR;
     
@@ -372,6 +389,11 @@ public class SemanticQuery implements TimeSeriesQuery {
     
     public Builder setMode(final QueryMode mode) {
       this.mode = mode;
+      return this;
+    }
+    
+    public Builder setCacheMode(final CacheMode cache_mode) {
+      this.cache_mode = cache_mode;
       return this;
     }
     
@@ -505,7 +527,7 @@ public class SemanticQuery implements TimeSeriesQuery {
     }
     
     node = root.get("mode");
-    if (node != null) {
+    if (node != null && !node.isNull()) {
       try {
         builder.setMode(JSON.getMapper().treeToValue(node, QueryMode.class));
       } catch (JsonProcessingException e) {
@@ -513,6 +535,15 @@ public class SemanticQuery implements TimeSeriesQuery {
       }
     } else {
       builder.setMode(QueryMode.SINGLE);
+    }
+    
+    node = root.get("cacheMode");
+    if (node != null && !node.isNull()) {
+      try {
+        builder.setCacheMode(JSON.getMapper().treeToValue(node, CacheMode.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalStateException("Failed to parse query", e);
+      }
     }
     
     node = root.get("logLevel");
