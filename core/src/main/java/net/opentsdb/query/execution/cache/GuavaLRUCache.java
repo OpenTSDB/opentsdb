@@ -36,6 +36,7 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.query.readcache.QueryCachePlugin;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes.ByteArrayKey;
