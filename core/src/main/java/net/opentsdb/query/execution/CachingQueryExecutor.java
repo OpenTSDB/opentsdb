@@ -43,7 +43,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceFactory;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.readcache.QueryCachePlugin;
+import net.opentsdb.query.readcache.QueryReadCache;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
 import org.slf4j.Logger;
@@ -77,7 +77,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   private final TSDB tsdb;
   
   /** The default cache plugin to use. */
-  private final QueryCachePlugin plugin;
+  private final QueryReadCache plugin;
   
   /** The default serdes class to use. */
   private final TimeSeriesSerdes serdes;
@@ -103,7 +103,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
     this.tsdb = tsdb;
-    plugin = tsdb.getRegistry().getDefaultPlugin(QueryCachePlugin.class);    
+    plugin = tsdb.getRegistry().getDefaultPlugin(QueryReadCache.class);    
     serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesSerdes.class);
     key_generator = tsdb.getRegistry().getDefaultPlugin(TimeSeriesCacheKeyGenerator.class);
     if (plugin == null) {
@@ -229,8 +229,8 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
             class SerdesCB implements Callback<Object, Object> {
               @Override
               public Object call(Object arg) throws Exception {
-                plugin.cache(key, baos.toByteArray(), expiration, 
-                    TimeUnit.MILLISECONDS, null);
+//                plugin.cache(key, baos.toByteArray(), expiration, 
+//                    TimeUnit.MILLISECONDS, null);
                 return null;
               }
             }
@@ -443,16 +443,16 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
         } else if (config.simultaneous) {
             // fire both before attaching callbacks to avoid a race on canceling
             // the executors.
-            cache_execution = plugin.fetch(context.queryContext(), key, child);
-            fetchDownstream(child);
-            cache_execution.deferred()
-              .addCallback(new CacheCB())
-              .addErrback(new ErrorCB());
+//            cache_execution = plugin.fetch(context.queryContext(), key, child);
+//            fetchDownstream(child);
+//            cache_execution.deferred()
+//              .addCallback(new CacheCB())
+//              .addErrback(new ErrorCB());
         } else {
-          cache_execution = plugin.fetch(context.queryContext(), key, child);
-          cache_execution.deferred()
-            .addCallback(new CacheCB())
-            .addErrback(new ErrorCB());
+//          cache_execution = plugin.fetch(context.queryContext(), key, child);
+//          cache_execution.deferred()
+//            .addCallback(new CacheCB())
+//            .addErrback(new ErrorCB());
         }
       } catch (Exception e) {
         try {
@@ -782,7 +782,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   }
   
   @VisibleForTesting
-  QueryCachePlugin plugin() {
+  QueryReadCache plugin() {
     return plugin;
   }
   
