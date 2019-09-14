@@ -47,7 +47,7 @@ import net.opentsdb.core.PluginsConfig.PluginConfig;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
-import net.opentsdb.query.readcache.QueryCachePlugin;
+import net.opentsdb.query.readcache.QueryReadCache;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
@@ -499,16 +499,16 @@ public class TestPluginsConfig {
     final GuavaLRUCache guava_plugin = mock(GuavaLRUCache.class);
     
     // as default
-    config.registerPlugin(QueryCachePlugin.class, null, 
+    config.registerPlugin(QueryReadCache.class, null, 
         guava_plugin);
     assertSame(guava_plugin, config.getPlugin(
-        QueryCachePlugin.class, null));
+        QueryReadCache.class, null));
     
     // with ID
-    config.registerPlugin(QueryCachePlugin.class, "GuavaLRU", 
+    config.registerPlugin(QueryReadCache.class, "GuavaLRU", 
         guava_plugin);
     assertSame(guava_plugin, config.getPlugin(
-        QueryCachePlugin.class, "GuavaLRU"));
+        QueryReadCache.class, "GuavaLRU"));
     
     try {
       config.registerPlugin(null, "GuavaLRU", guava_plugin);
@@ -516,7 +516,7 @@ public class TestPluginsConfig {
     } catch (IllegalArgumentException e) { }
     
     try {
-      config.registerPlugin(QueryCachePlugin.class, null, null);
+      config.registerPlugin(QueryReadCache.class, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -528,7 +528,7 @@ public class TestPluginsConfig {
     
     // already present
     try {
-      config.registerPlugin(QueryCachePlugin.class, null, 
+      config.registerPlugin(QueryReadCache.class, null, 
           guava_plugin);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }

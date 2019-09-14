@@ -31,7 +31,7 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.readcache.QueryCachePlugin;
+import net.opentsdb.query.readcache.QueryReadCache;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.TsdbTrace;
 import org.slf4j.Logger;
@@ -79,7 +79,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   private final QueryExecutor<T> executor;
   
   /** The cache plugin to use. */
-  private final QueryCachePlugin plugin;
+  private final QueryReadCache plugin;
   
   /** The serdes class to use. */
   private final TimeSeriesSerdes serdes;
@@ -839,7 +839,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   }
   
   @VisibleForTesting
-  QueryCachePlugin plugin() {
+  QueryReadCache plugin() {
     return plugin;
   }
   

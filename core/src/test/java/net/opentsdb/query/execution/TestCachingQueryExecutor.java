@@ -61,7 +61,7 @@ import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.query.readcache.QueryCachePlugin;
+import net.opentsdb.query.readcache.QueryReadCache;
 import net.opentsdb.stats.Span;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -74,7 +74,7 @@ public class TestCachingQueryExecutor {
 
   private Configuration tsd_config;
   private Config config;
-  private QueryCachePlugin plugin;
+  private QueryReadCache plugin;
   private TimeSeriesSerdes serdes;
   private TimeSeriesCacheKeyGenerator key_generator;
   
