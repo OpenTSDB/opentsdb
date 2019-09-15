@@ -31,7 +31,7 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.readcache.QueryReadCache;
-import net.opentsdb.query.readcache.TimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.TsdbTrace;
 import org.slf4j.Logger;
@@ -85,7 +85,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   private final TimeSeriesSerdes serdes;
   
   /** A key generator used for reading and writing the cache data. */
-  private final TimeSeriesCacheKeyGenerator key_generator;
+  private final ReadCacheKeyGenerator key_generator;
   
   /**
    * Default ctor.
@@ -849,7 +849,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   }
   
   @VisibleForTesting
-  TimeSeriesCacheKeyGenerator keyGenerator() {
+  ReadCacheKeyGenerator keyGenerator() {
     return key_generator;
   }
   
