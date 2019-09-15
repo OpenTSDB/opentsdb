@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution;
+package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -49,12 +49,13 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.CachingQueryExecutor;
 import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.execution.CachingQueryExecutor.Config;
-import net.opentsdb.query.execution.CachingQueryExecutor.LocalExecution;
+import net.opentsdb.query.CachingQueryExecutor.Config;
+import net.opentsdb.query.CachingQueryExecutor.LocalExecution;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
