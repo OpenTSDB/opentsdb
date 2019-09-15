@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anySet;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -51,6 +52,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
@@ -70,6 +72,9 @@ public class TestRedisClusterQueryCache {
     tsdb = mock(TSDB.class);
     registry = mock(DefaultRegistry.class);
     cluster = mock(JedisCluster.class);
+    ReadCacheSerdesFactory serdes_factory = mock(ReadCacheSerdesFactory.class);
+    when(registry.getPlugin(eq(ReadCacheSerdesFactory.class), anyString()))
+      .thenReturn(serdes_factory);
     
     config_map = Maps.newHashMap();
     config_map.put("redis.query.cache.hosts", 
