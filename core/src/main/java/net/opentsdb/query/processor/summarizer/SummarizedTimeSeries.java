@@ -22,10 +22,12 @@ import java.util.Map.Entry;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -40,6 +42,8 @@ import net.opentsdb.query.QueryIterator;
  * @since 3.0
  */
 public class SummarizedTimeSeries implements TimeSeries {
+  public static final TimeStamp ZERO_TS = new SecondTimeStamp(0);
+  
   /** The pass through result. */
   protected final SummarizerPassThroughResult result;
   
@@ -95,11 +99,10 @@ public class SummarizedTimeSeries implements TimeSeries {
   }
   
   void fillEmpty() {
-    summary.resetNull(result.source().pipelineContext().query().startTime());
+    summary.resetNull(ZERO_TS);
   }
   
   void summarize(final long[] values, int offset, int end) {
-    summary.resetTimestamp(result.source().pipelineContext().query().startTime());
     final MutableNumericValue number = new MutableNumericValue();
     for (Entry<String, NumericAggregator> entry : 
       ((Summarizer) result.summarizerNode()).aggregators().entrySet()) {
@@ -110,7 +113,6 @@ public class SummarizedTimeSeries implements TimeSeries {
   }
   
   void summarize(final double[] values, int offset, int end) {
-    summary.resetTimestamp(result.source().pipelineContext().query().startTime());
     final MutableNumericValue number = new MutableNumericValue();
     for (Entry<String, NumericAggregator> entry : 
       ((Summarizer) result.summarizerNode()).aggregators().entrySet()) {
