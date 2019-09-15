@@ -118,7 +118,6 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
       // TODO - handle multiple nexts
       final TimeSeriesValue<NumericArrayType> value = 
           (TimeSeriesValue<NumericArrayType>) iterator.next();
-      dp.resetTimestamp(value.timestamp());
       if (value.value() != null) {
         if (value.value().isInteger()) {
           long_values = value.value().longArray();
@@ -130,14 +129,9 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
       }
     } else if (type == NumericType.TYPE) {
       long_values = new long[8];
-      boolean got_timestamp = false;
       while (iterator.hasNext()) {
         final TimeSeriesValue<NumericType> value = 
             (TimeSeriesValue<NumericType>) iterator.next();
-        if (!got_timestamp) {
-          dp.resetTimestamp(value.timestamp());
-          got_timestamp = true;
-        }
         if (value.value() != null) {
           if (value.value().isInteger()) {
             store(value.value().longValue());
@@ -148,16 +142,9 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
       }
     } else if (type == NumericSummaryType.TYPE) {
       long_values = new long[8];
-      boolean got_timestamp = false;
       while (iterator.hasNext()) {
         final TimeSeriesValue<NumericSummaryType> value =
             (TimeSeriesValue<NumericSummaryType>) iterator.next();
-
-        if (!got_timestamp) {
-          dp.resetTimestamp(value.timestamp());
-          got_timestamp = true;
-        }
-
         if (value.value() != null) {
           if (value.value().summariesAvailable().size() == 1) {
             NumericType val = value.value().value(
@@ -174,13 +161,13 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
             NumericType sum = value.value().value(this.sum);
             NumericType count = value.value().value(this.count);
             if (sum == null || count == null) {
-              dp.resetNull(iterator.next().timestamp());
+              dp.resetNull(SummarizedTimeSeries.ZERO_TS);
               return dp;
             }
             store(sum.toDouble() / count.toDouble());
           } else {
             // TODO
-            dp.resetNull(iterator.next().timestamp());
+            dp.resetNull(SummarizedTimeSeries.ZERO_TS);
             has_next = false;
             return dp;
           }
@@ -199,7 +186,8 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
             number);
       }
       
-      dp.resetValue(result.rollupConfig().getIdForAggregator(entry.getKey()), number.value());
+      dp.resetValue(result.rollupConfig().getIdForAggregator(entry.getKey()), 
+          number.value());
     }
     
     has_next = false;

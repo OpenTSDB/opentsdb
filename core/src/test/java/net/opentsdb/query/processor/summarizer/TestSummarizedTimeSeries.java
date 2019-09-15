@@ -114,7 +114,7 @@ public class TestSummarizedTimeSeries {
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = iterator.next();
-    assertEquals(BASE_TIME, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().epoch());
     assertEquals(2, value.value().summariesAvailable().size());
     assertEquals(85, value.value().value(0).longValue());
     assertEquals(17, value.value().value(5).longValue());
@@ -134,7 +134,7 @@ public class TestSummarizedTimeSeries {
     assertTrue(iterator.hasNext());
     
     TimeSeriesValue<NumericSummaryType> value = iterator.next();
-    assertEquals(BASE_TIME, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().epoch());
     assertEquals(2, value.value().summariesAvailable().size());
     assertEquals(86.31, value.value().value(0).doubleValue(), 0.001);
     assertEquals(17.262, value.value().value(5).doubleValue(), 0.001);

@@ -191,7 +191,7 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeriesValue<NumericSummaryType> value =
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
 
-    assertEquals(1, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().epoch());
 
     NumericSummaryType summary = value.value();
 
@@ -240,7 +240,7 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeriesValue<NumericSummaryType> value =
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
 
-    assertEquals(1, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().epoch());
 
     NumericSummaryType summary = value.value();
 
@@ -289,7 +289,7 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeriesValue<NumericSummaryType> value =
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
 
-    assertEquals(1, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().epoch());
 
     NumericSummaryType summary = value.value();
 
@@ -344,7 +344,7 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeriesValue<NumericSummaryType> value =
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
 
-    assertEquals(1, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().epoch());
 
     NumericSummaryType summary = value.value();
 
