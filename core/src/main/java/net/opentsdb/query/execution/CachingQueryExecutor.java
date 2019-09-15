@@ -43,7 +43,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.readcache.QueryReadCache;
-import net.opentsdb.query.readcache.TimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
 import org.slf4j.Logger;
@@ -83,7 +83,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   private final TimeSeriesSerdes serdes;
   
   /** A key generator used for reading and writing the cache data. */
-  private final TimeSeriesCacheKeyGenerator key_generator;
+  private final ReadCacheKeyGenerator key_generator;
   
   /** TEMP!! */
   public CachingQueryExecutor() {
@@ -105,7 +105,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
     this.tsdb = tsdb;
     plugin = tsdb.getRegistry().getDefaultPlugin(QueryReadCache.class);    
     serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesSerdes.class);
-    key_generator = tsdb.getRegistry().getDefaultPlugin(TimeSeriesCacheKeyGenerator.class);
+    key_generator = tsdb.getRegistry().getDefaultPlugin(ReadCacheKeyGenerator.class);
     if (plugin == null) {
       throw new IllegalArgumentException("No default cache plugin loaded.");
     }
@@ -792,7 +792,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   }
   
   @VisibleForTesting
-  TimeSeriesCacheKeyGenerator keyGenerator() {
+  ReadCacheKeyGenerator keyGenerator() {
     return key_generator;
   }
 

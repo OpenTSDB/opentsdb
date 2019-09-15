@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,10 +23,9 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationCallback;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.readcache.TimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 
@@ -42,20 +41,16 @@ import net.opentsdb.utils.DateTime;
  * blocks.</li>
  * </ul>
  * 
- * TODO - a log function
- * TODO - this needs to know about storage intervals for better expiration
- * calculations.
- * 
  * @since 3.0
  */
-public class DefaultTimeSeriesCacheKeyGenerator 
-  extends TimeSeriesCacheKeyGenerator implements ConfigurationCallback<Object> {
+public class DefaultReadCacheKeyGenerator 
+  extends ReadCacheKeyGenerator implements ConfigurationCallback<Object> {
   
   public static final String TYPE = 
-      DefaultTimeSeriesCacheKeyGenerator.class.getSimpleName().toString();
+      DefaultReadCacheKeyGenerator.class.getSimpleName().toString();
   
   private static final Logger LOG = LoggerFactory.getLogger(
-      DefaultTimeSeriesCacheKeyGenerator.class);
+      DefaultReadCacheKeyGenerator.class);
   
   /** Default minimum expiration for current block in ms. */
   public static final String EXPIRATION_KEY = "tsd.query.cache.expiration";
@@ -69,7 +64,7 @@ public class DefaultTimeSeriesCacheKeyGenerator
   public static final String INTERVAL_KEY = "tsd.query.cache.default_interval";
   public static final String DEFAULT_INTERVAL = "1m";
   
-  /** Default historical cautoff. 0 disables it. */
+  /** Default historical cutoff. 0 disables it. */
   public static final String HISTORICAL_CUTOFF_KEY = 
       "tsd.query.cache.historical_cutoff";
   public static final long DEFAULT_HISTORICAL_CUTOFF = 0;
@@ -155,123 +150,61 @@ public class DefaultTimeSeriesCacheKeyGenerator
   }
   
   @Override
-  public byte[] generate(final TimeSeriesQuery query, 
-                         final boolean with_timestamps) {
-    if (query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
-    }
-    final byte[] hash = with_timestamps ? 
-        query.buildHashCode().asBytes() : 
-        query.buildTimelessHashCode().asBytes();
-    final byte[] key = new byte[hash.length + CACHE_PREFIX.length];
-    System.arraycopy(CACHE_PREFIX, 0, key, 0, CACHE_PREFIX.length);
-    System.arraycopy(hash, 0, key, CACHE_PREFIX.length, hash.length);
-    return key;
-  }
-
-  @Override
   public byte[][] generate(final long query_hash, 
-                           final int[] time_ranges) {
-    if (time_ranges == null) {
-      throw new IllegalArgumentException("Time ranges cannot be null.");
-    }
-    if (time_ranges.length < 1) {
-      throw new IllegalArgumentException("Time ranges cannot be empty.");
-    }
+                           final String interval,
+                           final int[] timestamps,
+                           final long[] expirations) {
     final byte[] hash = Bytes.fromLong(query_hash);
-    final byte[] key = new byte[hash.length + CACHE_PREFIX.length + 4];
+    final byte[] interval_bytes = interval.getBytes(Const.ASCII_CHARSET);
+    final byte[] key = new byte[CACHE_PREFIX.length + hash.length + interval.length() + 4];
     System.arraycopy(CACHE_PREFIX, 0, key, 0, CACHE_PREFIX.length);
-    System.arraycopy(hash, 0, key, CACHE_PREFIX.length, hash.length);
+    System.arraycopy(interval_bytes, 0, key, CACHE_PREFIX.length, interval_bytes.length);
+    System.arraycopy(hash, 0, key, CACHE_PREFIX.length + interval_bytes.length, hash.length);
     
-    final byte[][] keys = new byte[time_ranges.length][];
-    for (int i = 0; i < time_ranges.length; i++) {
+    final int now = (int) (DateTime.currentTimeMillis() / 1000L);
+    final long ds_interval = expirations[0] > 0 ? expirations[0] : default_interval;
+    final long segment_interval = DateTime.parseDuration(interval) / 1000;
+    final byte[][] keys = new byte[timestamps.length][];
+    for (int i = 0; i < timestamps.length; i++) {
       final byte[] copy = Arrays.copyOf(key, key.length);
-      System.arraycopy(Bytes.fromInt(time_ranges[i]), 0, 
-          copy, hash.length + CACHE_PREFIX.length, 4);
+      System.arraycopy(Bytes.fromInt(timestamps[i]), 0, 
+          copy, CACHE_PREFIX.length + interval_bytes.length + hash.length, 4);
       keys[i] = copy;
+      
+      // expiration
+      if (timestamps[i] >= now) {
+        expirations[i] = default_expiration;
+      } else {
+        long delta = now - timestamps[i];
+        if (historical_cutoff > 0 && delta > (historical_cutoff / 1000)) {
+          // we have an old segment we don't expect to update so just keep it as
+          // long as configured.
+          expirations[i] = default_max_expiration;
+        } else if (delta < (ds_interval / 1000)) {
+          // we're less than a full ds interval into the segment so we want to 
+          // cache even less.
+          expirations[i] = delta * 1000;
+        } else if (delta <= segment_interval) {
+          // "now" is within the current segment so we keep it only for a ds
+          // interval.
+          expirations[i] = ds_interval;
+        } else {
+          // now we can backoff, but we need to account for the possibility 
+          // that this segment is adjacent to the "now" segment and may have 
+          // data that would be updated. So we'll subtract a segment worth of
+          // ds from the diff.
+          delta /= (ds_interval / 1000);
+          delta -= (segment_interval / (ds_interval / 1000));
+          expirations[i] = delta * ds_interval;
+        }
+        if (expirations[i] < default_expiration) {
+          expirations[i] = default_expiration;
+        }
+      }
     }
     return keys;
   }
   
-  @Override
-  public long expiration(final TimeSeriesQuery query, final long expiration) {
-    if (expiration == 0) {
-      return 0;
-    }
-    if (expiration > 0) {
-      return expiration;
-    }
-    if (query == null) {
-      return default_expiration;
-    }
-    
-    final TimeStamp end = query.getTime().endTime();
-    final long timestamp = DateTime.currentTimeMillis();
-    
-    // for data older than the cutoff, always return the max
-    if (historical_cutoff > 0 && (timestamp - end.msEpoch() > historical_cutoff)) {
-      return default_max_expiration;
-    }
-    
-    final long interval;
-    if (query.getMetrics().size() == 1 && 
-        query.getMetrics().get(0).getDownsampler() != null) {
-      // in this case we have a split query with one metric per query so
-      // we can look to the metric's downsampler. If there were multiple
-      // metrics then we can't really judge so we need to use the common
-      // denominator.
-      long ds_interval = DateTime.parseDuration(query.getMetrics().get(0).getDownsampler()
-          .getInterval());
-      if (ds_interval < 1) {
-        interval = default_interval;
-      } else {
-        interval = ds_interval;
-      }
-    } else if (query.getTime().getDownsampler() != null) {
-      long ds_interval = DateTime.parseDuration(query.getTime().getDownsampler()
-          .getInterval());
-      if (ds_interval < 1) {
-        interval = default_interval;
-      } else {
-        interval = ds_interval;
-      }
-    } else {
-      interval = default_interval;
-    }
-    
-    long min_cache = ((timestamp - (timestamp % interval)) + interval) - timestamp;
-    if (timestamp - end.msEpoch() < 0) {
-      // this is the "now" block so only cache it for a tiny bit of time, till the
-      // end of the interval.
-      return min_cache;
-    }
-    
-    final long delta = (timestamp - end.msEpoch());
-    if (historical_cutoff > 0 && delta > historical_cutoff) {
-      return default_max_expiration;
-    }
-    
-    // use step or not
-    if (historical_cutoff > 0 && step_interval > 0) {
-      // step
-      if (step_interval > delta) {
-        // this is the adjacent block and we don't want to cache it for very
-        // long as it may receive updates.
-        return min_cache;
-      }
-      long step = ((delta / step_interval) * step_interval) / 
-          (historical_cutoff / step_interval);
-      return step;
-    }
-    
-    if (historical_cutoff > 0) {
-      if (delta > historical_cutoff) {
-        return default_max_expiration;
-      }
-    }
-    return min_cache;
-  }
-
   @Override
   public String type() {
     return TYPE;
@@ -295,5 +228,5 @@ public class DefaultTimeSeriesCacheKeyGenerator
     } else if (key.equals(STEP_INTERVAL_KEY)) {
       step_interval = (long) value;
     }
-  }
+  }  
 }

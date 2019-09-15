@@ -59,9 +59,9 @@ import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.query.readcache.DefaultTimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.readcache.DefaultReadCacheKeyGenerator;
 import net.opentsdb.query.readcache.QueryReadCache;
-import net.opentsdb.query.readcache.TimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
 import net.opentsdb.stats.Span;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
@@ -76,7 +76,7 @@ public class TestCachingQueryExecutor {
   private Config config;
   private QueryReadCache plugin;
   private TimeSeriesSerdes serdes;
-  private TimeSeriesCacheKeyGenerator key_generator;
+  private ReadCacheKeyGenerator key_generator;
   
 //  @SuppressWarnings("unchecked")
 //  @Before
