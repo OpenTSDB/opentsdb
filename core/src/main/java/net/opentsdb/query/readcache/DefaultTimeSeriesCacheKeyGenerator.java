@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution.cache;
+package net.opentsdb.query.readcache;
 
 import java.util.Arrays;
 
@@ -26,6 +26,7 @@ import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.readcache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 

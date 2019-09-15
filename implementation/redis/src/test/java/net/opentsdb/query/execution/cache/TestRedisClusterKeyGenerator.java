@@ -36,6 +36,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.readcache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 
