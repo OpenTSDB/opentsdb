@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import java.util.List;
+import java.util.Map;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.stats.QueryStats;
@@ -73,11 +74,25 @@ public interface QueryContextBuilder {
   public QueryContextBuilder addSink(final QuerySink sink);
   
   /**
+   * Allows overriding the sinks when cloning a context.
+   * @param sinks A list of sinks or null.
+   * @return The builder.
+   */
+  public QueryContextBuilder setLocalSinks(final List<QuerySink> sinks);
+  
+  /**
    * Sets the authentication state for the query context.
    * @param auth_state A non-null authentication state object.
    * @return The builder.
    */
   public QueryContextBuilder setAuthState(final AuthState auth_state);
+  
+  /**
+   * Sets request headers or a map of strings to strings for filtering.
+   * @param headers The map to set.
+   * @return The builder.
+   */
+  public QueryContextBuilder setHeaders(final Map<String, String> headers);
   
   /**
    * Returns a context ready for execution via {@link QueryContext#fetchNext()}.

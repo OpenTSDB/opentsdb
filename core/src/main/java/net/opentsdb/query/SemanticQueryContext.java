@@ -18,7 +18,6 @@ public class SemanticQueryContext extends BaseQueryContext {
   
   protected SemanticQueryContext(final Builder builder) {
     super((BaseQueryContext.Builder) builder);
-    pipeline = new LocalPipeline(this, builder.sinks);
   }
   
   public static Builder newBuilder() {
