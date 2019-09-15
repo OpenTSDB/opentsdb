@@ -17,6 +17,7 @@ package net.opentsdb.query.execution.serdes;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -72,6 +73,7 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
@@ -129,7 +131,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   @Override
   public Deferred<Object> serialize(final QueryResult result,
                                     final Span span) {
-    System.out.println("   ****** SERIALIZING: " + result.getClass());
     if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
@@ -173,32 +174,61 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
             throws Exception {
         try {
           json.writeStartObject();
-          json.writeStringField("source", result.source().config().getId() + ":" + result.dataSource());
-          // TODO - array of data sources
-
+          json.writeStringField("source", result.source().config().getId() 
+              + ":" + result.dataSource());
+          final TimeStamp spec_start;
+          final TimeStamp spec_end;
+          
           // serdes time spec if present
           if (result.timeSpecification() != null) {
+            if (result.timeSpecification().start().compare(Op.LT, start)) {
+              spec_start = start.getCopy();
+              int interval = DateTime.getDurationInterval(
+                  result.timeSpecification().stringInterval());
+              ChronoUnit u = DateTime.unitsToChronoUnit(
+                  DateTime.getDurationUnits(result.timeSpecification().stringInterval()));
+              if (spec_start.compare(Op.LT, start)) {
+                spec_start.snapToPreviousInterval(interval, u);
+                spec_start.add(result.timeSpecification().interval());
+              }
+            } else {
+              spec_start = start;
+            }
+
+             if (result.timeSpecification().end().compare(Op.GT, end)) {
+              spec_end = end.getCopy();
+              int interval = DateTime.getDurationInterval(
+                  result.timeSpecification().stringInterval());
+              ChronoUnit u = DateTime.unitsToChronoUnit(
+                  DateTime.getDurationUnits(result.timeSpecification().stringInterval()));
+              end.snapToPreviousInterval(interval, u);
+            } else {
+              spec_end = end;
+            }
+             
             json.writeObjectFieldStart("timeSpecification");
             // TODO - ms, second, nanos, etc
-            json.writeNumberField("start", result.timeSpecification().start().epoch());
-            json.writeNumberField("end", result.timeSpecification().end().epoch());
+            json.writeNumberField("start", spec_start.epoch());
+            json.writeNumberField("end", spec_end.epoch());
             json.writeStringField("intervalISO", result.timeSpecification().interval() != null ?
                 result.timeSpecification().interval().toString() : "null");
             json.writeStringField("interval", result.timeSpecification().stringInterval());
-            //json.writeNumberField("intervalNumeric", result.timeSpecification().interval().get(result.timeSpecification().units()));
             if (result.timeSpecification().timezone() != null) {
               json.writeStringField("timeZone", result.timeSpecification().timezone().toString());
             }
             json.writeStringField("units", result.timeSpecification().units() != null ?
                 result.timeSpecification().units().toString() : "null");
             json.writeEndObject();
+          } else {
+            spec_start = start;
+            spec_end = end;
           }
 
           json.writeArrayFieldStart("data");
           int idx = 0;
 
           boolean wasStatus = false;
-          boolean wasEvent =false;
+          boolean wasEvent = false;
           String namespace = null;
           if (opts.getParallelThreshold() > 0 &&
               result.timeSeries().size() > opts.getParallelThreshold()) {
@@ -219,6 +249,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                       (TimeSeriesStringId) pair.getValue().id(),
                     json,
                     null,
+                    spec_start,
+                    spec_end,
                     result);
               } catch (Exception e) {
                 LOG.error("Failed to serialize ts: " + series, e);
@@ -242,6 +274,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   ids != null ? ids.get(idx++) : (TimeSeriesStringId) series.id(),
                   json,
                   null,
+                  spec_start,
+                  spec_end,
                   result);
               if (series.types().contains(StatusType.TYPE) && series.id() instanceof BaseTimeSeriesByteId) {
                   BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) series.id();
@@ -320,6 +354,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       json.writeStartObject();
       json.writeArrayFieldStart("results");
       for (int i = 0; i < serialized_results.size(); i++) {
+        if (serialized_results.get(i) == null) {
+          continue;
+        }
         if (i > 0) {
           json.writeRaw(',');
         }
@@ -455,6 +492,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         final TimeSeriesStringId id,
         JsonGenerator json,
         final List<String> sets,
+        final TimeStamp start,
+        final TimeStamp end,
         final QueryResult result) throws IOException {
 
     final ByteArrayOutputStream baos;
@@ -492,31 +531,23 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           writeEventGroup((EventsGroupValue) value, json, id);
           wrote_values = true;
         } else {
-          while (value != null && value.timestamp().compare(Op.LT, start)) {
-            if (iterator.hasNext()) {
-              value = iterator.next();
-            } else {
-              value = null;
-            }
-          }
-
           if (value == null) {
             continue;
           }
-          if (value.timestamp().compare(Op.LT, start) || value.timestamp().compare(Op.GT, end)) {
-            continue;
-          }
-
+          
           if (iterator.getType() == NumericType.TYPE) {
-            if (writeNumeric((TimeSeriesValue<NumericType>) value, options, iterator, json, result, wrote_values)) {
+            if (writeNumeric((TimeSeriesValue<NumericType>) value, options, 
+                  iterator, json, result, start, end, wrote_values)) {
               wrote_values = true;
             }
           } else if (iterator.getType() == NumericSummaryType.TYPE) {
-            if (writeNumericSummary(value, options, iterator, json, result, wrote_values)) {
+            if (writeNumericSummary(value, options, iterator, json, result, 
+                  start, end, wrote_values)) {
               wrote_values = true;
             }
           } else if (iterator.getType() == NumericArrayType.TYPE) {
-            if(writeNumericArray((TimeSeriesValue<NumericArrayType>) value, options, iterator, json, result, wrote_values)) {
+            if(writeNumericArray((TimeSeriesValue<NumericArrayType>) value, 
+                  options, iterator, json, result, start, end, wrote_values)) {
               wrote_values = true;
             }
           }
@@ -565,11 +596,22 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
+      final TimeStamp start,
+      final TimeStamp end,
       boolean wrote_values) throws IOException {
     boolean wrote_type = false;
     if (result.timeSpecification() != null) {
       // just the values
       while (value != null) {
+        if (value.timestamp().compare(Op.LT, start)) {
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericType>) iterator.next();
+          } else {
+            value = null;
+          }
+          continue;
+        }
+        
         if (value.timestamp().compare(Op.GT, end)) {
           break;
         }
@@ -600,16 +642,28 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           value = null;
         }
       }
-      json.writeEndArray();
+      if (wrote_type) {
+        json.writeEndArray();
+      }
       return wrote_type;
     }
 
     // timestamp and values
     boolean wrote_local = false;
     while (value != null) {
+      if (value.timestamp().compare(Op.LT, start)) {
+        if (iterator.hasNext()) {
+          value = (TimeSeriesValue<NumericType>) iterator.next();
+        } else {
+          value = null;
+        }
+        continue;
+      }
+      
       if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
+      
       long ts = (options != null && options.getMsResolution())
           ? value.timestamp().msEpoch()
           : value.timestamp().msEpoch() / 1000;
@@ -655,6 +709,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
+      final TimeStamp start,
+      final TimeStamp end,
       boolean wrote_values) throws IOException {
 
     boolean wrote_type = false;
@@ -664,6 +720,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
       // just the values
       while (value != null) {
+        if (value.timestamp().epoch() > 0 && value.timestamp().compare(Op.LT, start)) {
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+          } else {
+            value = null;
+          }
+          continue;
+        }
+        
         if (value.timestamp().compare(Op.GT, end)) {
           break;
         }
@@ -703,7 +768,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           value = null;
         }
       }
-      json.writeEndArray();
+      if (wrote_type) {
+        json.writeEndArray();
+      }
       return wrote_type;
     }
 
@@ -763,13 +830,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
+      final TimeStamp start,
+      final TimeStamp end,
       boolean wrote_values) throws IOException {
 
     boolean wrote_type = false;
     if (result.timeSpecification() != null) {
       if (!(result.source() instanceof Summarizer)) {
-        return writeRollupNumeric((TimeSeriesValue<NumericSummaryType>) value, options, iterator, json,
-            result, wrote_values);
+        return writeRollupNumeric((TimeSeriesValue<NumericSummaryType>) value,
+            options, iterator, json, result, start, end, wrote_values);
       }
 
       Collection<Integer> summaries =
@@ -779,9 +848,19 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
       value = (TimeSeriesValue<NumericSummaryType>) value;
       while (value != null) {
+        if (value.timestamp().epoch() > 0 && value.timestamp().compare(Op.LT, start)) {
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+          } else {
+            value = null;
+          }
+          continue;
+        }
+        
         if (value.timestamp().compare(Op.GT, end)) {
           break;
         }
+        
         long ts = (options != null && options.getMsResolution())
             ? value.timestamp().msEpoch()
             : value.timestamp().msEpoch() / 1000;
@@ -836,7 +915,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     // Rollups result would typically be a groupby and not a summarizer
     if (!(result.source() instanceof Summarizer)) {
       return writeRollupNumeric((TimeSeriesValue<NumericSummaryType>) value,
-          options, iterator, json, result, wrote_values);
+          options, iterator, json, result, start, end, wrote_values);
     }
 
     if (((TimeSeriesValue<NumericSummaryType>) value).value() != null) {
@@ -845,6 +924,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
       value = (TimeSeriesValue<NumericSummaryType>) value;
       while (value != null) {
+        if (value.timestamp().epoch() > 0 && value.timestamp().compare(Op.LT, start)) {
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+          } else {
+            value = null;
+          }
+          continue;
+        }
+        
         if (value.timestamp().compare(Op.GT, end)) {
           break;
         }
@@ -906,6 +994,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
+      final TimeStamp start,
+      final TimeStamp end,
       boolean wrote_values) throws IOException {
 
     if (value.value().end() < 1) {
@@ -913,6 +1003,42 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       return false;
     }
 
+    if (!start.compare(Op.EQ, result.timeSpecification().start()) || 
+        !end.compare(Op.EQ, result.timeSpecification().end())) {
+      TimeStamp cur = result.timeSpecification().start().getCopy();
+      int idx = value.value().offset();
+      while (idx < value.value().end() && cur.compare(Op.LT, start)) {
+        idx++;
+        cur.add(result.timeSpecification().interval());
+      }
+
+       boolean wrote_type = false;
+      for (; idx < value.value().end(); idx++) {
+        if (cur.compare(Op.GTE, end)) {
+          break;
+        }
+        
+         if (!wrote_values) {
+          json.writeStartObject();
+          wrote_values = true;
+        }
+        if (!wrote_type) {
+          json.writeArrayFieldStart("NumericType"); // yeah, it's numeric.
+          wrote_type = true;
+        }
+        if (value.value().isInteger()) {
+          json.writeNumber(value.value().longArray()[idx]);
+        } else {
+          json.writeNumber(value.value().doubleArray()[idx]);
+        }
+        cur.add(result.timeSpecification().interval());
+      }
+      if (wrote_type) {
+        json.writeEndArray();
+      }
+      return wrote_type;
+    }
+    
     // we can assume here that we have a time spec as we can't get arrays
     // without it.
     boolean wrote_type = false;
@@ -959,6 +1085,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
     json.writeEndObject();
   }
+  
   private void writeEvents(EventsValue eventsValue, final JsonGenerator json) throws IOException {
     json.writeStringField("namespace", eventsValue.namespace());
     json.writeStringField("source", eventsValue.source());
