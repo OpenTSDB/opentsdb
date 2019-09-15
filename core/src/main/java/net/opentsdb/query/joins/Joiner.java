@@ -416,13 +416,33 @@ public class Joiner {
       if (right.id().type() == Const.TS_BYTE_ID) {
         return new ByteIdOverride((TimeSeriesByteId) right.id(), as);
       } else {
-        return new StringIdOverride((TimeSeriesStringId) right.id(), as);
+        final TimeSeriesStringId id = (TimeSeriesStringId) right.id();
+        return BaseTimeSeriesStringId.newBuilder()
+            .setAlias(as)
+            .setNamespace(id.namespace())
+            .setMetric(as)
+            .setTags(id.tags())
+            .setAggregatedTags(id.aggregatedTags())
+            .setDisjointTags(id.disjointTags())
+            .setUniqueId(id.uniqueIds())
+            .setHits(id.hits())
+            .build();
       }
     } else {
       if (left.id().type() == Const.TS_BYTE_ID) {
         return new ByteIdOverride((TimeSeriesByteId) left.id(), as);
       } else {
-        return new StringIdOverride((TimeSeriesStringId) left.id(), as);
+        final TimeSeriesStringId id = (TimeSeriesStringId) left.id();
+        return BaseTimeSeriesStringId.newBuilder()
+            .setAlias(as)
+            .setNamespace(id.namespace())
+            .setMetric(as)
+            .setTags(id.tags())
+            .setAggregatedTags(id.aggregatedTags())
+            .setDisjointTags(id.disjointTags())
+            .setUniqueId(id.uniqueIds())
+            .setHits(id.hits())
+            .build();
       }
     }
   }
