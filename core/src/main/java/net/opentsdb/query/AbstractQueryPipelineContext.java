@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -79,6 +80,10 @@ public abstract class AbstractQueryPipelineContext implements
   /** The query plan. */
   protected final DefaultQueryPlanner plan;
   
+  /** TODO - A temporary safety feature to avoid sending sinks upstream more 
+   * than once. */
+  protected final AtomicBoolean complete;
+  
   /** Used to iterate over sources when in a client streaming mode. */
   protected int source_idx = 0;
   
@@ -106,6 +111,7 @@ public abstract class AbstractQueryPipelineContext implements
       throw new IllegalArgumentException("The context cannot be null.");
     }
     this.context = context;
+    complete = new AtomicBoolean();
     plan = new DefaultQueryPlanner(this, (QueryNode) this);
     sinks = Lists.newArrayListWithExpectedSize(1);
     countdowns = Maps.newHashMap();
@@ -579,13 +585,18 @@ public abstract class AbstractQueryPipelineContext implements
       }
     }
     
-    // done!
-    for (final QuerySink sink : sinks) {
-      try {
-        sink.onComplete();
-      } catch (Throwable t) {
-        LOG.error("Failed to close sink: " + sink, t);
+    if (complete.compareAndSet(false, true)) {
+      // done!
+      for (final QuerySink sink : sinks) {
+        try {
+          sink.onComplete();
+        } catch (Throwable t) {
+          LOG.error("Failed to close sink: " + sink, t);
+        }
       }
+    } else {
+      LOG.warn("Called AQPC checkComplete() more than once. Find the leak.", 
+          new RuntimeException("Whoops."));
     }
     return true;
   }
@@ -594,7 +605,7 @@ public abstract class AbstractQueryPipelineContext implements
    * A simple pass-through wrapper that will decrement the proper counter
    * when the result is closed.
    */
-  private class ResultWrapper extends BaseWrappedQueryResult {
+  public class ResultWrapper extends BaseWrappedQueryResult {
     
     ResultWrapper(final QueryResult result) {
       super(result);
@@ -603,6 +614,23 @@ public abstract class AbstractQueryPipelineContext implements
     @Override
     public QueryNode source() {
       return result.source();
+    }
+    
+    public void closeWrapperOnly() {
+      AtomicInteger cntr = countdowns.get(result.dataSource());
+      if (cntr == null) {
+        cntr = countdowns.get(result.source().config().getId() + ":" 
+            + result.dataSource());
+      }
+
+       if (cntr == null ) {
+        LOG.error("Unexpected result source, no counter for: " 
+            + result.source().config().getId() + ":" 
+            + result.dataSource() + ". Want sources: " + countdowns);
+      } else {
+        cntr.decrementAndGet();
+      }
+      checkComplete();
     }
     
     @Override
