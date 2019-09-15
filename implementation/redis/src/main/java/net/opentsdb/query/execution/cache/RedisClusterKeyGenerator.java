@@ -17,6 +17,7 @@ package net.opentsdb.query.execution.cache;
 import java.util.Arrays;
 
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.readcache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.utils.Bytes;
 
 /**

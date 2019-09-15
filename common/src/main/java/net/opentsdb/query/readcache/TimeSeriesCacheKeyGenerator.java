@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution.cache;
+package net.opentsdb.query.readcache;
 
 import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.TimeSeriesQuery;
 
 /**
  * A class used to generate cache keys and expirations for a time series
