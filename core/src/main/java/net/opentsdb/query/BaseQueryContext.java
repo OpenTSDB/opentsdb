@@ -22,11 +22,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+
 import com.google.common.reflect.TypeToken;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.query.TimeSeriesQuery.CacheMode;
 import net.opentsdb.query.TimeSeriesQuery.LogLevel;
 import net.opentsdb.query.filter.NamedFilter;
 import net.opentsdb.stats.QueryStats;
@@ -56,13 +59,19 @@ public abstract class BaseQueryContext implements QueryContext {
   protected List<QuerySinkConfig> sink_configs;
   
   /** The pipeline. */
-  protected LocalPipeline pipeline;
+  protected QueryPipelineContext pipeline;
   
   /** The authentication state. */
   protected AuthState auth_state;
   
+  /** Headers for this context. */
+  protected Map<String, String> headers;
+  
   /** Our logs. */
   protected List<String> logs;
+  
+  /** The sinks from the builder so we can copy them if needed. */
+  protected List<QuerySink> builder_sinks;
   
   /** A local span for tracing. */
   protected Span local_span;
@@ -81,12 +90,12 @@ public abstract class BaseQueryContext implements QueryContext {
           .start();
     }
     auth_state = builder.auth_state;
+    headers = builder.headers;
     if (stats != null) {
       stats.setQueryContext(this);
     }
-
+    builder_sinks = builder.sinks;
     isClosed = false;
-    
   }
   
   @Override
@@ -146,6 +155,16 @@ public abstract class BaseQueryContext implements QueryContext {
   
   @Override
   public Deferred<Void> initialize(final Span span) {
+    final QueryContextFilter query_filter = 
+        tsdb.getRegistry().getDefaultPlugin(QueryContextFilter.class);
+    if (query_filter != null) {
+      final TimeSeriesQuery modified = query_filter.filter(query, auth_state, headers);
+      if (modified != null) {
+        // TODO - really is only one kind.
+        query = (SemanticQuery) modified;
+      }
+    }
+    
     List<Deferred<Void>> initializations = null;
     if (query.getFilters() != null && !query.getFilters().isEmpty()) {
       initializations = Lists.newArrayListWithExpectedSize(
@@ -155,10 +174,30 @@ public abstract class BaseQueryContext implements QueryContext {
       }
     }
     
+    class CacheInitCB implements Callback<Deferred<Void>, Void> {
+      @Override
+      public Deferred<Void> call(final Void ignored) throws Exception {
+        if (((ReadCacheQueryPipelineContext) pipeline).skipCache()) {
+          pipeline.close();
+          pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
+          return pipeline.initialize(local_span);
+        }
+        return Deferred.fromResult(null);
+      }
+    }
+    
     class FilterCB implements Callback<Deferred<Void>, Void> {
       @Override
-      public Deferred<Void> call(Void arg) throws Exception {
-        return pipeline.initialize(local_span);
+      public Deferred<Void> call(final Void ignored) throws Exception {
+        if (query.getCacheMode() == CacheMode.BYPASS) {
+          pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
+          return pipeline.initialize(local_span);
+        }
+        
+        pipeline = new ReadCacheQueryPipelineContext(
+            BaseQueryContext.this, builder_sinks);
+        return pipeline.initialize(local_span)
+            .addCallbackDeferring(new CacheInitCB());
       }
     }
     
@@ -167,7 +206,13 @@ public abstract class BaseQueryContext implements QueryContext {
           .addBoth(Deferreds.VOID_GROUP_CB)
           .addCallbackDeferring(new FilterCB());
     } else {
-      return pipeline.initialize(local_span);
+      if (query.getCacheMode() == null || query.getCacheMode() == CacheMode.BYPASS) {
+        pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
+        return pipeline.initialize(local_span);
+      } else {
+        pipeline = new ReadCacheQueryPipelineContext(BaseQueryContext.this, builder_sinks);
+        return pipeline.initialize(local_span).addCallbackDeferring(new CacheInitCB());
+      }
     }
   }
   
@@ -230,6 +275,15 @@ public abstract class BaseQueryContext implements QueryContext {
   @Override
   public void logTrace(final QueryNode node, final String log) {
     log(LogLevel.TRACE, node, log);
+  }
+  
+  /**
+   * Package private method to allow a pipeline context to reset the query with
+   * modifications.
+   * @param query The non-null query to set.
+   */
+  void resetQuery(final SemanticQuery query) {
+    this.query = query;
   }
   
   /**
@@ -307,6 +361,7 @@ public abstract class BaseQueryContext implements QueryContext {
     protected List<QuerySinkConfig> sink_configs;
     protected List<QuerySink> sinks;
     protected AuthState auth_state;
+    protected Map<String, String> headers;
     
     public QueryContextBuilder setTSDB(final TSDB tsdb) {
       this.tsdb = tsdb;
@@ -359,8 +414,20 @@ public abstract class BaseQueryContext implements QueryContext {
     }
     
     @Override
+    public QueryContextBuilder setLocalSinks(final List<QuerySink> sinks) {
+      this.sinks = sinks;
+      return this;
+    }
+    
+    @Override
     public QueryContextBuilder setAuthState(final AuthState auth_state) {
       this.auth_state = auth_state;
+      return this;
+    }
+    
+    @Override
+    public QueryContextBuilder setHeaders(final Map<String, String> headers) {
+      this.headers = headers;
       return this;
     }
     

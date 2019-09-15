@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,592 +14,1009 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
-import com.google.common.base.Strings;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
-import com.google.common.hash.HashCode;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.common.Const;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.exceptions.QueryExecutionCanceled;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QuerySourceFactory;
-import net.opentsdb.query.execution.QueryExecution;
-import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.readcache.QueryReadCache;
-import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
-import net.opentsdb.query.serdes.TimeSeriesSerdes;
-import net.opentsdb.stats.Span;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.MutableGraph;
+import com.google.common.hash.HashCode;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
-/**
- * Executor that can either query a cache for a query and then send it 
- * downstream on a miss, or query both the cache and downstream at the same
- * time and return the results of whoever responds quicker.
- * <p>
- * On a cache exception, the downstream result will always be preferred.
- * <p>
- * Once the caching plugin and serdes modules are set via the default config,
- * query time overridden settings are ignored. (TODO - should we allow?)
- * <p>
- * TODO - handle streaming
- * TODO - merge execution graph with pipeline
- * 
- * @since 3.0
- */
-public class ReadCacheQueryPipelineContext extends BaseTSDBPlugin implements QuerySourceFactory<ReadCacheQueryPipelineContext.Config, ReadCacheQueryPipelineContext.LocalExecution> {
-  public static final String TYPE = ReadCacheQueryPipelineContext.class.getSimpleName().toString();
-  private static final Logger LOG = LoggerFactory.getLogger(
+import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.TimeSeriesQuery.CacheMode;
+import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
+import net.opentsdb.query.processor.merge.MergerConfig;
+import net.opentsdb.query.processor.summarizer.Summarizer;
+import net.opentsdb.query.processor.summarizer.SummarizerConfig;
+import net.opentsdb.query.processor.summarizer.SummarizerFactory;
+import net.opentsdb.query.processor.topn.TopNConfig;
+import net.opentsdb.query.readcache.CombinedCachedResult;
+import net.opentsdb.query.readcache.QueryReadCache;
+import net.opentsdb.query.readcache.ReadCacheCallback;
+import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
+import net.opentsdb.query.readcache.ReadCacheQueryResult;
+import net.opentsdb.query.readcache.ReadCacheQueryResultSet;
+import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
+
+public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext 
+    implements ReadCacheCallback {
+  static final Logger LOG = LoggerFactory.getLogger(
       ReadCacheQueryPipelineContext.class);
   
-  /** Reference to the TSD. */
-  private final TSDB tsdb;
+  public static final String CACHE_PLUGIN_KEY = "tsd.query.cache.plugin_id";
+  public static final String KEYGEN_PLUGIN_KEY = "tsd.query.cache.keygen.plugin_id";
   
-  /** The default cache plugin to use. */
-  private final QueryReadCache plugin;
+  protected final long current_time;
+  protected int[] slices;
+  protected int interval_in_seconds;
+  protected String string_interval;
+  protected int min_interval;
+  protected boolean skip_cache;
+  protected QueryReadCache cache;
+  protected ReadCacheKeyGenerator key_gen;
+  protected boolean tip_query;
+  protected byte[][] keys;
+  protected long[] expirations;
+  protected ResultOrSubQuery[] results;
+  protected AtomicInteger cache_latch;
+  protected AtomicInteger hits;
+  protected AtomicBoolean failed;
+  protected QueryContext full_query_context;
+  protected List<QueryResult> sub_results;
+  protected Map<String, QueryNode> summarizer_node_map;
   
-  /** The default serdes class to use. */
-  private final TimeSeriesSerdes serdes;
-  
-  /** A key generator used for reading and writing the cache data. */
-  private final ReadCacheKeyGenerator key_generator;
-  
-  /** TEMP!! */
-  public ReadCacheQueryPipelineContext() {
-    tsdb = null;
-    plugin = null;
-    serdes = null;
-    key_generator = null;
-  }
-  
-  /**
-   * <b>TEMPORARY</b> Ctor till we get the execution graph code merged
-   * with the pipeline.
-   * @param tsdb A non-null TSD.
-   */
-  public ReadCacheQueryPipelineContext(final TSDB tsdb) {
-    if (tsdb == null) {
-      throw new IllegalArgumentException("TSDB cannot be null.");
+  ReadCacheQueryPipelineContext(final QueryContext context, 
+                                final List<QuerySink> direct_sinks) {
+    super(context);
+    if (direct_sinks != null && !direct_sinks.isEmpty()) {
+      sinks.addAll(direct_sinks);
     }
-    this.tsdb = tsdb;
-    plugin = tsdb.getRegistry().getDefaultPlugin(QueryReadCache.class);    
-    serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesSerdes.class);
-    key_generator = tsdb.getRegistry().getDefaultPlugin(ReadCacheKeyGenerator.class);
-    if (plugin == null) {
-      throw new IllegalArgumentException("No default cache plugin loaded.");
-    }
-    if (serdes == null) {
-      throw new IllegalArgumentException("No default serdes plugin loaded.");
-    }
-    if (key_generator == null) {
-      throw new IllegalArgumentException("No default key generator loaded.");
-    }
-    
+    failed = new AtomicBoolean();
+    current_time = DateTime.currentTimeMillis();
   }
   
   @Override
-  public LocalExecution newNode(final QueryPipelineContext context) {
-    // TODO pull the default config from some place
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<Void> initialize(final Span span) {
+    registerConfigs(context.tsdb());
+    
+    cache = context.tsdb().getRegistry().getPlugin(QueryReadCache.class, 
+        context.tsdb().getConfig().getString(CACHE_PLUGIN_KEY));
+    if (cache == null) {
+      throw new IllegalArgumentException("No cache plugin found for: " +
+          (Strings.isNullOrEmpty(
+              context.tsdb().getConfig().getString(CACHE_PLUGIN_KEY)) ? 
+                  "Default" : context.tsdb().getConfig().getString(CACHE_PLUGIN_KEY)));
+    }
+    key_gen = context.tsdb().getRegistry()
+        .getPlugin(ReadCacheKeyGenerator.class, 
+            context.tsdb().getConfig().getString(KEYGEN_PLUGIN_KEY));
+    if (key_gen == null) {
+      throw new IllegalArgumentException("No key gen plugin found for: " + 
+          (Strings.isNullOrEmpty(
+              context.tsdb().getConfig().getString(KEYGEN_PLUGIN_KEY)) ? 
+                  "Default" : context.tsdb().getConfig().getString(KEYGEN_PLUGIN_KEY)));
+    }
+    
+    // TODO - pull this out into another shared function.
+    // For now we find the highest common denominator for intervals.
+    
+    // TODO - issue: If we have a downsample of 1w, we can't query on 1 day segments
+    // so we either cache the whole shebang or we bypass the cache.
+    interval_in_seconds = 0;
+    int ds_interval = Integer.MAX_VALUE;
+    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+      if (config instanceof TopNConfig) {
+        skip_cache = true;
+        LOG.warn("Skipping cache as we had a TOPN query.");
+        break;
+      }
+      
+      final QueryNodeFactory factory = context.tsdb().getRegistry()
+          .getQueryNodeFactory(DownsampleFactory.TYPE);
+      if (factory == null) {
+        LOG.error("Unable to find a factory for the downsampler.");
+      }
+      if (((DownsampleFactory) factory).intervals() == null) {
+        LOG.error("No auto intervals for the downsampler.");
+      }
+      
+      if (config instanceof DownsampleConfig) {
+        String interval;
+        if (((DownsampleConfig) config).getRunAll()) {
+          skip_cache = true;
+          break;
+        } else if (((DownsampleConfig) config).getOriginalInterval()
+            .toLowerCase().equals("auto")) {
+          final long delta = context.query().endTime().msEpoch() - 
+              context.query().startTime().msEpoch();
+          interval = DownsampleFactory.getAutoInterval(delta, 
+              ((DownsampleFactory) factory).intervals());
+        } else {
+          // normal interval
+          interval = ((DownsampleConfig) config).getInterval();
+        }
+        
+        int parsed = (int) DateTime.parseDuration(interval) / 1000;
+        if (parsed < ds_interval) {
+          ds_interval = parsed;
+        }
+        
+        if (parsed > interval_in_seconds) {
+          interval_in_seconds = parsed;
+          string_interval = interval;
+        }
+      }
+    }
+    
+    if (interval_in_seconds >= 86400) {
+      skip_cache = true;
+      LOG.warn("Skipping cache for now as we have a rollup query.");
+      return Deferred.fromResult(null);
+    }
+    
+    if (skip_cache) {
+      // don't bother doing anything else.
+      return Deferred.fromResult(null);
+    }
+
+    class CB implements Callback<Void, ArrayList<Void>> {
+      final int ds_interval;
+      
+      CB(final int ds_interval) {
+        this.ds_interval = ds_interval;
+      }
+      
+      @Override
+      public Void call(ArrayList<Void> arg) throws Exception {
+        // TODO - in the future use rollup config. For now snap to one day.
+        // AND 
+        if (interval_in_seconds >= 3600) {
+          interval_in_seconds = 86400;
+          string_interval = "1d";
+        } else {
+          interval_in_seconds = 3600;
+          string_interval = "1h";
+        }
+        
+        if (ds_interval == Integer.MAX_VALUE) {
+          min_interval = 0;
+        } else {
+          min_interval = ds_interval;
+        }
+        
+        // TODO - validate calendaring. May need to snap differently based on timezone.
+        long start = context.query().startTime().epoch();
+        start = start - (start % interval_in_seconds);
+        
+        long end = context.query().endTime().epoch();
+        end = end - (end % interval_in_seconds);
+        if (end != context.query().endTime().epoch()) {
+          end += interval_in_seconds;
+        }
+        
+        slices = new int[(int) ((end - start) / interval_in_seconds)];
+        int ts = (int) start;
+        for (int i = 0; i < slices.length; i++) {
+          slices[i] = ts;
+          ts += interval_in_seconds;
+        }
+        
+        expirations = new long[slices.length];
+        expirations[0] = min_interval * 1000; // needs to be in millis
+        keys = key_gen.generate(context.query().buildHashCode().asLong(), 
+            string_interval, slices, expirations);
+        if (tip_query) {
+          keys = Arrays.copyOf(keys, keys.length - 1);
+        }
+        results = new ResultOrSubQuery[slices.length];
+        
+        if (context.sinkConfigs() != null) {
+          for (final QuerySinkConfig config : context.sinkConfigs()) {
+            final QuerySinkFactory factory = context.tsdb().getRegistry()
+                .getPlugin(QuerySinkFactory.class, config.getId());
+            if (factory == null) {
+              throw new IllegalArgumentException("No sink factory found for: " 
+                  + config.getId());
+            }
+            
+            final QuerySink sink = factory.newSink(context, config);
+            if (sink == null) {
+              throw new IllegalArgumentException("Factory returned a null sink for: " 
+                  + config.getId());
+            }
+            sinks.add(sink);
+            if (sinks.size() > 1) {
+              throw new UnsupportedOperationException("Only one sink allowed for now, sorry!");
+            }
+          }
+        }
+        
+        final Set<String> serdes_sources = computeSerializationSources();
+        for (final String source : serdes_sources) {
+          countdowns.put(source, new AtomicInteger(sinks.size()));
+        }
+        
+        return null;
+      }
+      
+    }
+    
+    // strip summarizers as we need to join the underlying results first and then
+    // sum over all of them. If we run the full query, we need to tweak the query
+    // to get the data feeding into the summarizer and cache *that*, not the
+    // summary.
+    
+    // TODO - handle the case wherein a summary is in the middle of a DAG. That
+    // could happen. For now we assume it's always at the end.
+    Map<String, QueryNodeConfig> summarizers = Maps.newHashMap();
+    List<QueryNodeConfig> new_execution_graph = Lists.newArrayList();
+    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+      if (config instanceof SummarizerConfig) {
+        summarizers.put(config.getId(), config);
+      } else {
+        new_execution_graph.add(config);
+      }
+    }
+    
+    Set<String> old_serdes_filters = Sets.newHashSet();
+    if (!summarizers.isEmpty()) {
+      SemanticQuery.Builder builder = ((SemanticQuery) context.query()).toBuilder();
+      Set<String> new_serdes_filter = Sets.newHashSet();
+      if (context.query().getSerdesConfigs() != null && 
+          !context.query().getSerdesConfigs().isEmpty()) {
+        // TODO - genercize for all types of filters
+        // TODO - handle multiple filters
+        // add summarizer sources
+        for (final QueryNodeConfig config : summarizers.values()) {
+          // wtf? figure this out
+          for (final Object source : config.getSources()) {
+            new_serdes_filter.add((String) source);
+          }
+        }
+        
+        for (final SerdesOptions config : context.query().getSerdesConfigs()) {
+          for (final String id : config.getFilter()) {
+            old_serdes_filters.add(id);
+            if (!summarizers.containsKey(id)) {
+              new_serdes_filter.add(id);
+            }
+          }
+        }
+        
+        builder.setExecutionGraph(new_execution_graph);
+        builder.setSerdesConfigs(Lists.newArrayList(
+            JsonV2QuerySerdesOptions.newBuilder()
+                .setFilter(Lists.newArrayList(new_serdes_filter))
+                .setId("serdes")
+                .build()
+            ));
+        ((BaseQueryContext) context).resetQuery(builder.build());
+      }
+      
+      // now compute the DAG
+      summarizer_node_map = Maps.newHashMap();
+      QueryNodeFactory factory = context.tsdb().getRegistry().getQueryNodeFactory(
+          SummarizerFactory.TYPE);
+      if (factory == null) {
+        throw new IllegalStateException("No factory for summary??");
+      }
+      
+      ArrayList<Deferred<Void>> deferreds = Lists.newArrayList();
+      for (QueryNodeConfig config : summarizers.values()) {
+        // pass through or not?
+        boolean pass_through = false;
+        for (final Object source : config.getSources()) {
+          if (new_serdes_filter.contains((String) source) && 
+              old_serdes_filters.contains((String) source)) {
+            pass_through = true;
+            break;
+          }
+        }
+        
+        if (pass_through) {
+          config = ((SummarizerConfig) config).toBuilder()
+              .setPassThrough(true)
+              .setSources(config.getSources())
+              .build();
+        }
+        
+        final QueryNode summarizer = factory.newNode(this, config);
+        for (final Object source : config.getSources()) {
+          summarizer_node_map.put((String) source, summarizer);
+        }
+        deferreds.add(summarizer.initialize(span));
+      }
+      return Deferred.group(deferreds).addCallback(new CB(ds_interval));
+    }
+    
+    try {
+      return Deferred.fromResult(new CB(ds_interval).call(null));
+    } catch (Exception e) {
+      return Deferred.fromError(e);
+    }
+  }
+
+  @Override
+  public void fetchNext(final Span span) {
+    if (skip_cache) {
+      throw new RuntimeException("We shouldn't be here as we're skipping the cache!!");
+    }
+    hits = new AtomicInteger();
+    cache_latch = new AtomicInteger(slices.length);
+    cache.fetch(this, keys, this, null);
   }
   
   @Override
-  public LocalExecution newNode(final QueryPipelineContext context,
-                                      final Config config) {
-    return new LocalExecution(context, config);
+  public void onCacheResult(final ReadCacheQueryResultSet result) {
+    if (failed.get()) {
+      return;
+    }
+    
+    try {
+      ResultOrSubQuery ros = null;
+      int idx = 0;
+      for (int i = 0; i < keys.length; i++) {
+        if (Bytes.memcmp(keys[i], result.key()) == 0) {
+          synchronized (results) {
+            results[i] = new ResultOrSubQuery(i);
+            results[i].key = result.key();
+            if (result.results() != null && !result.results().isEmpty()) {
+              results[i].map = Maps.newHashMapWithExpectedSize(
+                  result.results().size());
+              for (final Entry<String, ReadCacheQueryResult> entry : 
+                  result.results().entrySet()) {
+                results[i].map.put(entry.getKey(), entry.getValue());
+              }
+            }
+          }
+          ros = results[i];
+          idx = i;
+          break;
+        }
+      }
+      
+      if (ros == null) {
+        onCacheError(-1, new RuntimeException("Whoops, got a result that wasn't in "
+            + "our keys? " + Arrays.toString(result.key())));
+        return;
+      }
+      
+      if (ros.map == null || ros.map.isEmpty()) {
+        // TODO - configure the threshold
+        if (okToRunMisses(hits.get())) {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Running sub query for interval at: " + slices[idx]);
+          }
+          if (query().isTraceEnabled()) {
+            context.logTrace("Running sub query for interval at: " + slices[idx]);
+          }
+          //latch.incrementAndGet();
+          ros.sub_context = ros.sub_context = buildQuery(slices[idx], 
+              slices[idx] + interval_in_seconds, context, ros);
+          ros.sub_context.initialize(null)
+            .addCallback(new SubQueryCB(ros.sub_context))
+            .addErrback(new ErrorCB());
+        }
+      } else {
+        if (context.query().isTraceEnabled()) {
+          context.logTrace("Cache hit for timestamp: " + slices[idx]);
+        }
+        if (okToRunMisses(hits.incrementAndGet())) {
+          runCacheMissesAfterSatisfyingPercent();
+        }
+        if (requestTip(idx, result.lastValueTimestamp())) {
+          ros.map = null;
+          if (okToRunMisses(hits.get())) {
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Running sub query for interval at: " + slices[idx]);
+            }
+            if (query().isTraceEnabled()) {
+              context.logTrace("Running sub query for interval at: " + slices[idx]);
+            }
+            if (context.query().isTraceEnabled()) {
+              context.logTrace("Querying for more recent data at timestamp: " 
+            + slices[idx]);
+            }
+            ros.sub_context = ros.sub_context = buildQuery(slices[idx], 
+                slices[idx] + interval_in_seconds, context, ros);
+            ros.sub_context.initialize(null)
+              .addCallback(new SubQueryCB(ros.sub_context))
+              .addErrback(new ErrorCB());
+          }
+        } else {
+          ros.complete.set(true);
+        }
+      }
+      
+      if (cache_latch.decrementAndGet() == 0) {
+        // all cache are in, see if we should send up or if we need to fire
+        // sub queries.
+        processResults();
+      }
+    } catch (Throwable t) {
+      onCacheError(-1, t);
+    }
   }
 
-  /** Local execution class. */
-  class LocalExecution extends AbstractQueryNode implements 
-      TimeSeriesDataSource {
-    /** The default or overridden config. */
-    protected final Config config;
+  @Override
+  public void onCacheError(final int index, final Throwable t) {
+    if (failed.compareAndSet(false, true)) {
+      LOG.warn("Failure from cache", t);
+      onError(t);
+    } else if (LOG.isDebugEnabled()) {
+      LOG.debug("Failure from cache after initial failure", t);
+    }
+  }
+  
+  @Override
+  public void close() {
+    cleanup();
+    try {
+      super.close();
+    } catch (Throwable t) {
+      LOG.warn("failed to close super", t);
+    }
+  }
+  
+  void processResults() {
+    if (hits.get() < keys.length) {
+      for (int i = 0; i < results.length; i++) {
+        if (!results[i].complete.get()) {
+          if (okToRunMisses(hits.get())) {
+            runCacheMissesAfterSatisfyingPercent();
+          } else {
+            // We failed the cache threshold so we run a FULL query.
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Too many cache misses: " + (slices.length - hits.get()) 
+                  + " out of " + slices.length + "; running the full query.");
+            }
+            if (query().isTraceEnabled()) {
+              context.logTrace("Too many cache misses: " + 
+                  (slices.length - hits.get()) + " out of " + slices.length 
+                  + "; running the full query.");
+            }
+            if (full_query_context != null) {
+              throw new IllegalStateException("Unexpected exception: "
+                  + "SUB CONTEXT != null?");
+            }
+            full_query_context = buildQuery(
+                slices[0], 
+                slices[slices.length - 1] + interval_in_seconds, 
+                context, 
+                new FullQuerySink());
+            if (query().isTraceEnabled()) {
+              context.logTrace("Full query: " + JSON.serializeToString(
+                  full_query_context.query()));
+            }
+            
+            full_query_context.initialize(null)
+                .addCallback(new SubQueryCB(full_query_context))
+                .addErrback(new ErrorCB());
+            
+            // while that's running, release the old resources
+            cleanup();
+          }
+          return;
+        }
+      }
+      return;
+    }
     
-    /** A lock to determine when we've received results. Required when executing
-     * simultaneously. */
-    protected final AtomicBoolean complete;
-
-    /** The key for the cache entry. */
-    protected final byte[] key;
+    if (!rosqComplete()) {
+      return;
+    }
     
-    /** The cache execution to track. */
-    protected QueryExecution<byte[]> cache_execution;
+    // all sub queries in, ready to go.
+    try {
+      // sort and merge
+      Map<String, QueryResult[]> sorted = Maps.newHashMap();
+      for (int i = 0; i < results.length; i++) {
+        if (results[i] == null || results[i].map == null) {
+          continue;
+        }
+        
+        for (final Entry<String, QueryResult> entry : results[i].map.entrySet()) {
+          QueryResult[] qrs = sorted.get(entry.getKey());
+          if (qrs == null) {
+            qrs = new QueryResult[results.length + (tip_query ? 1 : 0)];
+            sorted.put(entry.getKey(), qrs);
+          }
+          qrs[i] = entry.getValue();
+        }
+      }
+      
+      for (final Entry<String, QueryResult[]> results : sorted.entrySet()) {
+        if (results.getValue() == null) {
+          continue;
+        }
+        // TODO - implement
+        // TODO - send in thread pool
+        QueryNode first_node = null;
+        String data_source = null;
+        for (int i = 0; i < results.getValue().length; i++) {
+          if (results.getValue()[i] == null) {
+            continue;
+          }
+          
+          if (results.getValue()[i].source() != null) {
+            first_node = results.getValue()[i].source();
+            data_source = results.getValue()[i].dataSource();
+            break;
+          }
+        }
+        
+        if (first_node == null) {
+          throw new IllegalStateException("Where's my node??");
+        }
+        final QueryResult result = new CombinedCachedResult(
+            this, 
+            results.getValue(), 
+            first_node, 
+            data_source, 
+            sinks, 
+            string_interval);
+        final QueryNode summarizer = summarizer_node_map != null ? 
+            summarizer_node_map.get(first_node.config().getId()) : null; 
+        if (summarizer != null) {
+          summarizer.onNext(result);
+        } else {
+          onNext(result);
+        }
+      }
+      
+      for (int i = 0; i < results.length; i++) {
+        final int x = i;
+        if (results[i].sub_context == null) {
+          continue;
+        }
+        
+        // write to the cache
+        if (context.query().getCacheMode() == CacheMode.NORMAL ||
+            context.query().getCacheMode() == CacheMode.WRITEONLY) {
+          context.tsdb().getQueryThreadPool().submit(new Runnable() {
+            @Override
+            public void run() {
+              cache.cache(slices[x], keys[x], expirations[x], 
+                  results[x].map.values(), null);
+            }
+          }, context);
+        }
+      }
     
-    /** A child tracer if we got one. */
-    protected Span child;
+    } catch (Throwable t) {
+      LOG.error("Failed to process results", t);
+      onError(t);
+    }
+  }
+  
+  @Override
+  public Collection<QueryNode> upstream(final QueryNode node) {
+    return Lists.newArrayList(this);
+  }
+  
+  @Override
+  public Collection<QueryNode> downstream(final QueryNode node) {
+    return Collections.emptyList();
+  }
+  
+  @Override
+  public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node) {
+    return Collections.emptyList();
+  }
+  
+  /** @return if we found a query we couldn't cache. */
+  public boolean skipCache() {
+    return skip_cache;
+  }
+  
+  class ResultOrSubQuery implements QuerySink {
+    final int idx;
+    byte[] key;
+    QueryContext sub_context;
+    volatile Map<String, QueryResult> map = Maps.newConcurrentMap();
+    AtomicBoolean complete = new AtomicBoolean();
     
-    /**
-     * Default ctor
-     * @param context The query context.
-     * @param config The config for the node.
-     */
-    public LocalExecution(final QueryPipelineContext context,
-                          final Config config) {
-      super(ReadCacheQueryPipelineContext.this, context);
-      complete = new AtomicBoolean();
-
-      key = null; /*key_generator.generate(context.query(), 
-          ((Config) config).use_timestamps);*/
-      this.config = config;
-//      final QueryExecutorConfig override = 
-//          context.getConfigOverride(node.getExecutorId());
-//      if (override != null) {
-//        config = (Config) override;
-//      } else {
-//        config = (Config) node.getDefaultConfig();
-//      }
-//      
-//      if (context.getTracer() != null) {
-//        setSpan(context, 
-//            CachingQueryExecutor.this.getClass().getSimpleName(), 
-//            upstream_span,
-//            TsdbTrace.addTags(
-//                "order", Integer.toString(query.getOrder()),
-//                "query", JSON.serializeToString(query),
-//                "startThread", Thread.currentThread().getName()));
-//      }
+    ResultOrSubQuery(final int idx) {
+      this.idx = idx;
     }
     
     @Override
-    public Config config() {
-      return config;
-    }
-    
-    @Override
-    public void onComplete(final QueryNode downstream, 
-                           final long final_sequence,
-                           final long total_sequences) {
-      completeUpstream(final_sequence, total_sequences);
+    public void onComplete() {
+      if (failed.get()) {
+        return;
+      }
+      
+      complete.compareAndSet(false, true);  
+      if (rosqComplete()) {
+        processResults();
+      }
     }
     
     @Override
     public void onNext(final QueryResult next) {
-      // Only cache if the result source didn't come from this execution.
-      // If the cache implementation forgets to set the source of it's 
-      // result it would be null but all other nodes should have a proper
-      // source.
-      if (!complete.get() &&
-          next.source() != null && (
-          downstream.contains(next.source()) || 
-          next.source() != LocalExecution.this)) {
-        try {
-          tsdb.getStatsCollector().incrementCounter("query.cache.executor.miss",
-              "node", "CachingQueryExecutor");
-//          final net.opentsdb.query.pojo.TimeSeriesQuery query = 
-//              (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
-          
-          final long expiration = 0;/*key_generator.expiration(query, 
-              config.getExpiration());*/
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Calculated cache expiration: " + expiration);
-          }
-          if (expiration > 0) {
-            // only serialize string IDs so in this case we're going to 
-            // convert asynchronously and call ourselves back with the
-            // results.
-            if (next.idType() == Const.TS_BYTE_ID) {
-              // NOTE: If this implementation fails to call onError or
-              // onNext, we're screwed.
-              ConvertedQueryResult.convert(next, LocalExecution.this, child);
-              return;
-            }
-            
-            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            class SerdesCB implements Callback<Object, Object> {
-              @Override
-              public Object call(Object arg) throws Exception {
-//                plugin.cache(key, baos.toByteArray(), expiration, 
-//                    TimeUnit.MILLISECONDS, null);
-                return null;
-              }
-            }
-            
-            class ErrorCB implements Callback<Object, Exception> {
-              @Override
-              public Object call(final Exception ex) throws Exception {
-                LOG.warn("Failed to serialize result: " + next, ex);
-                return null;
-              }
-            }
-            
-            // TODO - normalize times.
-//            final SerdesOptions options = BaseSerdesOptions.newBuilder()
-//                .setStart(query.getTime().startTime())
-//                .setEnd(query.getTime().endTime())
-//                .build();
-//            serdes.serialize(context.queryContext(), options, baos, next, child)
-//              .addCallbacks(new SerdesCB(), new ErrorCB());
-          }
-        } catch (Exception e) {
-          LOG.error("Failed to process results for cache", e);
-        }
-      } else {
-        tsdb.getStatsCollector().incrementCounter("query.cache.executor.hit",
-            "node", "CachingQueryExecutor");
+      if (failed.get()) {
+        return;
       }
       
-      if (complete.compareAndSet(false, true)) {
-        sendUpstream(next);
-        if (next.source() == null || next.source() == LocalExecution.this || 
-            (!downstream.contains(next.source()))) {
-          // only call complete if we had a cached result.
-          completeUpstream(next.sequenceId(), next.sequenceId());
-        }
-        
-        if (config.getSimultaneous()) {
-          try {
-            if (cache_execution != null) {
-              cache_execution.cancel();
-            }
-          } catch (Exception e) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Error cancelling the cache execution", e);
+      // don't cache summaries so we avoid reading them out.
+      if (!(next.source() instanceof Summarizer)) {
+        final String id = next.source().config().getId() + ":" + next.dataSource();
+        if (map == null) {
+          synchronized (this) {
+            if (map == null) {
+              map = Maps.newConcurrentMap();
             }
           }
         }
-      } else {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Race sending results upstream.");
-        }
+        map.put(id, next);
+      }
+      if (next instanceof ResultWrapper) {
+        ((ResultWrapper) next).closeWrapperOnly();
       }
     }
     
     @Override
-    public void fetchNext(final Span span) {
-      if (span != null) {
-        child = span.newChild(getClass().getName() + ".fetchNext()")
-            .start();
-      }
-//      /** The callback for downstream data. */
-//      class DownstreamCB implements Callback<Object, T> {
-//        @Override
-//        public Object call(final T results) throws Exception {
-//          if (!complete.compareAndSet(false, true)) {
-//            if (LOG.isDebugEnabled()) {
-//              LOG.debug("Call downstream completed after the call to the cache.");
-//            }
-//            return null;
-//          }
-//          outstanding_executions.remove(LocalExecution.this);
-//          callback(results,
-//              TsdbTrace.successfulTags());
-//          
-//          final Span cache_span;
-//          if (context.getTracer() != null) {
-//            cache_span = context.getTracer().buildSpan(
-//                CachingQueryExecutor.this.getClass().getSimpleName() 
-//                  + "#cacheWrite")
-//              .asChildOf(tracer_span)
-//              .withTag("order", Integer.toString(query.getOrder()))
-//              .withTag("query", JSON.serializeToString(query))
-//              .withTag("startThread", Thread.currentThread().getName())
-//              .start();
-//          } else {
-//            cache_span = null;
-//          }
-//          if (config.bypass) {
-//            if (LOG.isDebugEnabled()) {
-//              LOG.debug("Bypassing cache write.");
-//            }
-//            return null;
-//          }
-//          try {
-//            final long expiration = key_generator.expiration(query, 
-//                config.expiration);
-//            if (expiration == 0) {
-//              // told not to write to the cache.
-//              return null;
-//            }
-//            
-//            // TODO - run this in another thread pool. Would let us hit cache
-//            // quicker if someone's firing off the same query.
-//            final ByteArrayOutputStream output = new ByteArrayOutputStream();
-//            //serdes.serialize(query, null, output, results);
-//            output.close();
-//            
-//            final byte[] data = output.toByteArray();
-//            plugin.cache(key, data, expiration, TimeUnit.MILLISECONDS, null);
-//            if (cache_span != null) {
-//              cache_span.setTag("status", "OK");
-//              cache_span.setTag("finalThread", Thread.currentThread().getName());
-//              cache_span.setTag("bytes", Integer.toString(data.length));
-//              cache_span.finish();
-//            }
-//          } catch (Exception e) {
-//            LOG.error("Unexpected exception: " + e.getMessage(), e);
-//            if (cache_span != null) {
-//              cache_span.setTag("status", "Error");
-//              cache_span.setTag("finalThread", Thread.currentThread().getName());
-//              cache_span.setTag("error", e != null ? e.getMessage() : "Unknown");
-//              cache_span.log(TsdbTrace.exceptionAnnotation(e));
-//              cache_span.finish();
-//            }
-//          }
-//          
-//          if (config.simultaneous && cache_execution != null) {
-//            // ^^ race here but shouldn't be a big deal.
-//            try {
-//              cache_execution.cancel();
-//            } catch (Exception e) {
-//              LOG.warn("Exception thrown cancelling cache execution: " 
-//                  + cache_execution, e);
-//            }
-//          }
-//          
-//          return null;
-//        }
-//      }
-      
-      /** The callback for exceptions. Used for both cache and downstream. */
-      class ErrorCB implements Callback<Object, Exception> {
-        @Override
-        public Object call(final Exception ex) throws Exception {
-            cache_execution = null;
-            if (ex instanceof QueryExecutionCanceled) {
-              return null;
-            }
-            if (!config.simultaneous) {
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("Firing query downstream after exception from cache.");
-              }
-              if (child != null) {
-                child.setErrorTags(ex)
-                     .finish();
-              }
-              fetchDownstream(child);
-            }
-            LOG.warn("Exception returned from cache: " + this, ex);
-          return null;
-        }
-      }
-      
-      /** The cache response callback that will continue downstream if needed. */
-      class CacheCB implements Callback<Object, byte[]> {
-        @Override
-        public Object call(final byte[] cache_data) throws Exception {
-          cache_execution = null;
-          
-          // cache miss, so start the downstream call if we haven't already.
-          if (cache_data == null && !config.simultaneous) {
-            fetchDownstream(child);
-          } else {
-            // TODO - see if we can cancel the other call.
-//            if (downstream != null) {
-//              try {
-//                downstream.cancel();
-//              } catch (Exception e) {
-//                LOG.warn("Exception thrown cancelling downstream executor: " 
-//                    + downstream, e);
-//              }
-//            }
-            if (child != null) {
-              child.setSuccessTags()
-                   .finish();
-            }
-            
-            // TODO - normalize times.
-//            final net.opentsdb.query.pojo.TimeSeriesQuery query = 
-//                (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
-//            final SerdesOptions options = BaseSerdesOptions.newBuilder()
-//                .setStart(query.getTime().startTime())
-//                .setEnd(query.getTime().endTime())
-//                .build();
-//            serdes.deserialize(options, 
-//                new ByteArrayInputStream(cache_data), 
-//                LocalExecution.this,
-//                child);
-          }
-          return null;
-        }
-      }
-      
-      try {
-        if (config.getBypass()) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Bypassing cache query.");
-          }
-          fetchDownstream(child);
-        } else if (config.simultaneous) {
-            // fire both before attaching callbacks to avoid a race on canceling
-            // the executors.
-//            cache_execution = plugin.fetch(context.queryContext(), key, child);
-//            fetchDownstream(child);
-//            cache_execution.deferred()
-//              .addCallback(new CacheCB())
-//              .addErrback(new ErrorCB());
-        } else {
-//          cache_execution = plugin.fetch(context.queryContext(), key, child);
-//          cache_execution.deferred()
-//            .addCallback(new CacheCB())
-//            .addErrback(new ErrorCB());
-        }
-      } catch (Exception e) {
-        try {
-          final Exception ex = new QueryExecutionCanceled(
-              "Unexpected exception initiating query: " + this, 500, 0/** TODO query.getOrder()*/);
-          if (child != null) {
-            child.setErrorTags(ex)
-                 .finish();
-          }
-          sendUpstream(ex);
-        } catch (IllegalArgumentException ex) {
-          // lost race, no prob.
-        } catch (Exception ex) {
-          LOG.warn("Failed to complete callback due to unexepcted "
-              + "exception: " + this, ex);
-        }
-      }
+    public void onNext(final PartialTimeSeries next, 
+                       final QuerySinkCallback callback) {
+      // TODO Auto-generated method stub
     }
-
+    
     @Override
     public void onError(final Throwable t) {
-      if (complete.compareAndSet(false, true)) {
-        sendUpstream(t);        
+      if (failed.compareAndSet(false, true)) {
+        ReadCacheQueryPipelineContext.this.onError(t);
+      } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Failure in sub query after initial failure", t);
+        }
       }
     }
     
-    @Override
-    public void close() {
-      if (!complete.get()) {
-        try {
-          final Exception e = new QueryExecutionCanceled(
-              "Query was cancelled upstream: " + this, 400, 0/** TODO query.getOrder()*/);
-          //callback(e, TsdbTrace.canceledTags(e));
-          sendUpstream(e);
-        } catch (IllegalArgumentException ex) {
-          // lost race, no prob.
-        } catch (Exception ex) {
-          LOG.warn("Failed to complete callback due to unexepcted "
-              + "exception: " + this, ex);
-        }
-      }
-      
-      if (cache_execution != null) {
-        try {
-          cache_execution.cancel();
-        } catch (Exception e) {
-          LOG.warn("Failed canceling cache execution: " + cache_execution, e);
-        }
-      }
-      if (downstream != null) {
-        try {
-          // TODO - close all downstream?
-          //downstream.cancel();
-        } catch (Exception e) {
-          LOG.warn("Failed canceling downstream execution: " + downstream, e);
-        }
-      }
-    }
+  }
+  
+  static QueryContext buildQuery(final int start, 
+                                 final int end, 
+                                 final QueryContext context, 
+                                 final QuerySink sink) {
+    final SemanticQuery.Builder builder = ((SemanticQuery) context.query())
+        .toBuilder()
+        .setCacheMode(CacheMode.BYPASS)
+        .setStart(Integer.toString(start))
+        .setEnd(Integer.toString(end));
+    
+    return SemanticQueryContext.newBuilder()
+        .setTSDB(context.tsdb())
+        .setLocalSinks((List<QuerySink>) Lists.newArrayList(sink))
+        .setQuery(builder.build())
+        .setStats(context.stats())
+        .setAuthState(context.authState())
+        .build();
+  }
 
-    @Override
-    public String[] setIntervals() {
-      // TODO Auto-generated method stub
-      return null;
+  void registerConfigs(final TSDB tsdb) {
+    // TODO - factory
+    synchronized (tsdb.getConfig()) {
+      if (!tsdb.getConfig().hasProperty(CACHE_PLUGIN_KEY)) {
+        tsdb.getConfig().register(CACHE_PLUGIN_KEY, null, true, 
+            "The ID of a cache plugin to use.");
+      }
+      if (!tsdb.getConfig().hasProperty(KEYGEN_PLUGIN_KEY)) {
+        tsdb.getConfig().register(KEYGEN_PLUGIN_KEY, null, true,
+            "The ID of a key generator plugin to use.");
+      }
     }
-  
   }
   
-  @Override
-  public String type() {
-    return TYPE;
+  void runCacheMissesAfterSatisfyingPercent() {
+    synchronized (results) {
+      for (int i = 0; i < results.length; i++) {
+        final ResultOrSubQuery ros = results[i];
+        if (ros == null) {
+          continue;
+        }
+        
+        if (ros.sub_context == null && 
+            (ros.map == null || ros.map.isEmpty())) {
+          ros.sub_context = buildQuery(slices[i], slices[i] + 
+              interval_in_seconds, context, ros);
+          ros.sub_context.initialize(null)
+            .addCallback(new SubQueryCB(ros.sub_context))
+            .addErrback(new ErrorCB());
+        }
+      }
+    }
   }
   
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
-    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
-    return Deferred.fromResult(null);
+  boolean okToRunMisses(final int hits) {
+    return hits > 0 && ((double) hits / (double) keys.length) > .60;
   }
   
-  @JsonInclude(Include.NON_NULL)
-  @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends BaseQueryNodeConfig<Config.Builder, Config> {
-    private final String cache_id;
-    private final String serdes_id;
-    private final boolean simultaneous;
-    private final String key_generator_id;
-    private final long expiration;
-    private final boolean bypass;
-    private final boolean use_timestamps;
-    
-    /**
-     * Default ctor.
-     * @param builder A non-null builder.
-     */
-    protected Config(final Builder builder) {
-      super(builder);
-      cache_id = builder.cacheId;
-      serdes_id = builder.serdesId;
-      simultaneous = builder.simultaneous;
-      key_generator_id = builder.keyGeneratorId;
-      expiration = builder.expiration;
-      bypass = builder.bypass;
-      use_timestamps = builder.useTimestamps;
-    }
-    
-    /** @return A cache ID representing a plugin in the registry. */
-    public String getCacheId() {
-      return cache_id;
-    }
-    
-    /** @return A serdes ID representing a serializer in the registry. */
-    public String getSerdesId() {
-      return serdes_id;
-    }
-    
-    /** @return Whether or not to fire downstream and to the cache
-      * at the same time (true) or wait for the cache to return before sending */
-    public boolean getSimultaneous() {
-      return simultaneous;
-    }
-    
-    /** @return An optional key generator id, null for the default. */
-    public String getKeyGeneratorId() {
-      return key_generator_id;
-    }
-    
-    /** @return How long, in milliseconds, to keep the data in cache. 0 = don't
-     * write, -1 means use query end-time and downsampling. */
-    public long getExpiration() {
-      return expiration;
-    }
-    
-    /** @return Whether or not to bypass the cache query and write.  */
-    public boolean getBypass() {
-      return bypass;
-    }
-    
-    /** @return Whether or not to use the timestamps of the query when generating
-     * the query key. */
-    public boolean getUseTimestamps() {
-      return use_timestamps;
-    }
-    
-    @Override
-    public boolean pushDown() {
+  boolean requestTip(final int index, final TimeStamp ts) {
+    // if the index is earlier than the final two buckets then we know we
+    // don't need to request any data as it's old enough.
+    if (index < results.length - 3 || ts == null) {
       return false;
     }
     
+    if (current_time - ts.msEpoch() > (min_interval * 1000)) {
+      return false;
+    }
+    return true;
+  }
+  
+  void cleanup() {
+    if (results == null) {
+      return;
+    }
+    
+    for (int i = 0; i < results.length; i++) {
+      if (results[i] == null) {
+        continue;
+      }
+      
+      if (results[i].map != null) {
+        for (final QueryResult result : results[i].map.values()) {
+          try {
+            result.close();
+          } catch (Throwable t) {
+            LOG.warn("Failed to close result", t);
+          }
+        }
+      }
+      
+      results[i].map = null;
+      if (results[i].sub_context != null) {
+        try {
+          results[i].sub_context.close();
+        } catch (Throwable t) {
+          LOG.warn("Failed to close sub context", t);
+        }
+      }
+    }
+  }
+  
+  class SubQueryCB implements Callback<Void, Void> {
+    final QueryContext context;
+    
+    SubQueryCB(final QueryContext context) {
+      this.context = context;
+    }
+    
+    @Override
+    public Void call(final Void arg) throws Exception {
+      context.fetchNext(null);
+      return null;
+    }
+    
+  }
+  
+  class ErrorCB implements Callback<Void, Exception> {
+
+    @Override
+    public Void call(final Exception e) throws Exception {
+      if (failed.compareAndSet(false, true)) {
+        onError(e);
+      } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Failure in sub query after initial failure", e);
+        }
+      }
+      return null;
+    }
+    
+  }
+
+  class FullQuerySink implements QuerySink {
+
+    @Override
+    public void onComplete() {
+      // no-op
+    }
+    
+    @Override
+    public void onNext(final QueryResult next) {
+      if (next.source() instanceof Summarizer) {
+        ReadCacheQueryPipelineContext.this.onNext(next);
+        return;
+      }
+      
+      synchronized (ReadCacheQueryPipelineContext.this) {
+        if (sub_results == null) {
+          sub_results = Lists.newArrayList();
+        }
+        sub_results.add(next);
+      }
+      
+      final QueryNode summarizer = summarizer_node_map != null ? 
+          summarizer_node_map.get(next.source().config().getId()) : null;
+      if (summarizer != null) {
+        summarizer.onNext(next);
+      } else {
+        ReadCacheQueryPipelineContext.this.onNext(next);
+      }
+    }
+    
+    @Override
+    public void onNext(final PartialTimeSeries next, 
+                       final QuerySinkCallback callback) {
+      // TODO Auto-generated method stub
+    }
+    
+    @Override
+    public void onError(final Throwable t) {
+      if (failed.compareAndSet(false, true)) {
+        ReadCacheQueryPipelineContext.this.onError(t);
+      } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Failure in main query after initial failure", t);
+        }
+      }
+    }
+    
+  }
+  
+  boolean rosqComplete() {
+    if (cache_latch.get() != 0) {
+      return false;
+    }
+    
+    int non_null = 0;
+    int complete = 0;
+    for (int i = 0; i < results.length; i++) {
+      if (results[i] == null) {
+        continue;
+      }
+      
+      non_null++;
+      if (results[i].complete.get()) {
+        complete++;
+      }
+    }
+    
+    return complete == non_null;
+  }
+  
+  @Override
+  protected boolean checkComplete() {
+    if (super.checkComplete()) {
+      if (full_query_context != null && 
+          (context.query().getCacheMode() == CacheMode.NORMAL ||
+           context.query().getCacheMode() == CacheMode.WRITEONLY)) {
+        context.tsdb().getQueryThreadPool().submit(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              System.out.println("CACHING: " + sub_results.get(0).source().config().getId());
+              cache.cache(slices, keys, expirations, sub_results, null);
+            } catch (Throwable t) {
+              LOG.error("Failed to cache the data", t);
+            } finally {
+//              for (int i = 0; i < sub_results.size(); i++) {
+//                sub_results.get(i).close();
+//              }
+            }
+          }
+        }, context);
+      } else {
+        // TODO - need to handle closing result AFTER caching is done.
+        // for (int i = 0; i < sub_results.size(); i++) {
+        //  sub_results.get(i).close();
+        // }
+      }
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * TODO - look at this to find a better way than having a generic
+   * config.
+   */
+  class ContextNodeConfig implements QueryNodeConfig {
+
+    @Override
+    public String getId() {
+      return "QueryContext";
+    }
+    
+    @Override
+    public String getType() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public List<String> getSources() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    @Override
+    public HashCode buildHashCode() {
+      // TODO Auto-generated method stub
+      return Const.HASH_FUNCTION().newHasher()
+          .putInt(System.identityHashCode(this)) // TEMP!
+          .hash();
+    }
+
+    @Override
+    public boolean pushDown() {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
     @Override
     public boolean joins() {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public Map<String, String> getOverrides() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public String getString(Configuration config, String key) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public int getInt(Configuration config, String key) {
+      // TODO Auto-generated method stub
+      return 0;
+    }
+
+    @Override
+    public long getLong(Configuration config, String key) {
+      // TODO Auto-generated method stub
+      return 0;
+    }
+
+    @Override
+    public boolean getBoolean(Configuration config, String key) {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public double getDouble(Configuration config, String key) {
+      // TODO Auto-generated method stub
+      return 0;
+    }
+
+    @Override
+    public boolean hasKey(String key) {
+      // TODO Auto-generated method stub
       return false;
     }
 
@@ -609,207 +1026,95 @@ public class ReadCacheQueryPipelineContext extends BaseTSDBPlugin implements Que
     }
 
     @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Config config = (Config) o;
-      return Objects.equal(id, config.id)
-          && Objects.equal(cache_id, config.cache_id)
-          && Objects.equal(serdes_id, config.serdes_id)
-          && Objects.equal(simultaneous, config.simultaneous)
-          && Objects.equal(key_generator_id, config.key_generator_id)
-          && Objects.equal(expiration, config.expiration)
-          && Objects.equal(bypass, config.bypass)
-          && Objects.equal(use_timestamps, config.use_timestamps);
+    public int compareTo(Object o) {
+      return 0;
     }
+  }
 
-    @Override
-    public int hashCode() {
-      return buildHashCode().asInt();
-    }
-
-    @Override
-    public HashCode buildHashCode() {
-      return Const.HASH_FUNCTION().newHasher()
-          .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(cache_id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(serdes_id), Const.UTF8_CHARSET)
-          .putBoolean(simultaneous)
-          .putString(Strings.nullToEmpty(key_generator_id), Const.UTF8_CHARSET)
-          .putLong(expiration)
-          .putBoolean(bypass)
-          .putBoolean(use_timestamps)
-          .hash();
-    }
-
-    @Override
-    public int compareTo(final Config other) {
-      final Config config = (Config) other;
-      return ComparisonChain.start()
-          .compare(id, config.id, Ordering.natural().nullsFirst())
-          .compare(cache_id, ((Config) config).cache_id, 
-              Ordering.natural().nullsFirst())
-          .compare(serdes_id, ((Config) config).serdes_id, 
-              Ordering.natural().nullsFirst())
-          .compareTrueFirst(simultaneous, ((Config) config).simultaneous)
-          .compare(key_generator_id, ((Config) config).key_generator_id, 
-              Ordering.natural().nullsFirst())
-          .compare(expiration, ((Config) config).expiration)
-          .compareTrueFirst(bypass, ((Config) config).bypass)
-          .compareTrueFirst(use_timestamps, (((Config) config).use_timestamps))
-          .result();
-    }
-
-    /** @return A new builder. */
-    public static Builder newBuilder() {
-      return new Builder();
-    }
-
-    public static void cloneBuilder(final Config config, Builder builder) {
-      builder
-          .setCacheId(config.cache_id)
-          .setSerdesId(config.serdes_id)
-          .setSimultaneous(config.simultaneous)
-          .setKeyGeneratorId(config.key_generator_id)
-          .setExpiration(config.expiration)
-          .setUseTimestamps(config.use_timestamps)
-          .setId(config.id);
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Builder extends BaseQueryNodeConfig.Builder<Builder, Config> {
-      @JsonProperty
-      private String cacheId;
-      @JsonProperty
-      private String serdesId;
-      @JsonProperty
-      private boolean simultaneous;
-      @JsonProperty
-      private String keyGeneratorId;
-      @JsonProperty
-      private long expiration = -1;
-      @JsonProperty
-      private boolean bypass;
-      @JsonProperty
-      private boolean useTimestamps;
-      
-      /**
-       * @param cacheId A non-null and non-empty cache ID.
-       * @return The builder.
-       */
-      public Builder setCacheId(final String cacheId) {
-        this.cacheId = cacheId;
-        return this;
-      }
-      
-      /**
-       * @param serdesId A non-null and non-empty serdes ID.
-       * @return The builder.
-       */
-      public Builder setSerdesId(final String serdesId) {
-        this.serdesId = serdesId;
-        return this;
-      }
-      
-      /**
-       * @param simultaneous Whether or not to fire downstream and to the cache
-       * at the same time (true) or wait for the cache to return before sending
-       * downstream on a miss.
-       * @return The builder.
-       */
-      public Builder setSimultaneous(final boolean simultaneous) {
-        this.simultaneous = simultaneous;
-        return this;
-      }
-      
-      /**
-       * @param keyGeneratorId An optional key generator Id. If null, the default
-       * is used.
-       * @return The builder.
-       */
-      public Builder setKeyGeneratorId(final String keyGeneratorId) {
-        this.keyGeneratorId = keyGeneratorId;
-        return this;
-      }
-      
-      /**
-       * @param expiration How long, in milliseconds, to keep the data in cache.
-       * 0 = don't write, -1 means use query end-time and downsampling. 
-       * @return The builder.
-       */
-      public Builder setExpiration(final long expiration) {
-        this.expiration = expiration;
-        return this;
-      }
-      
-      /**
-       * @param bypass Whether or not to bypass the cache query and write.
-       * @return The builder.
-       */
-      public Builder setBypass(final boolean bypass) {
-        this.bypass = bypass;
-        return this;
-      }
-      
-      /**
-       * @param useTimestamps Whether or not to include the query timestamps
-       * when generating the key.
-       * @return The builder.
-       */
-      public Builder setUseTimestamps(final boolean useTimestamps) {
-        this.useTimestamps = useTimestamps;
-        return this;
-      }
-      
-      @Override
-      public Config build() {
-        return new Config(this);
-      }
-
-      @Override
-      public Builder self() {
-        return this;
-      }
-    }
-
+  Set<String> computeSerializationSources() {
+    MutableGraph<QueryNodeConfig> config_graph = GraphBuilder.directed()
+        .allowsSelfLoops(false)
+        .build();
     
+    Map<String, QueryNodeConfig> configs = Maps.newHashMap();
+    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+      config_graph.addNode(config);
+      configs.put(config.getId(), config);
+    }
+    if (summarizer_node_map != null) {
+      for (final QueryNode summarizer : summarizer_node_map.values()) {
+        configs.put(summarizer.config().getId(), summarizer.config());
+        for (final Object source : summarizer.config().getSources()) {
+          config_graph.putEdge(summarizer.config(), configs.get((String) source));
+        }
+      }
+    }
+    
+    // next pass
+    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+      for (final Object source : config.getSources()) {
+        config_graph.putEdge(config, configs.get((String) source));
+      }
+    }
+    
+    // find roots
+    final Set<QueryNodeConfig> roots = Sets.newHashSet();
+    for (final QueryNodeConfig config : config_graph.nodes()) {
+      if (config_graph.predecessors(config).isEmpty()) {
+        roots.add(config);
+      }
+    }
+    
+    Set<String> serdes_sources = Sets.newHashSet();
+    for (final QueryNodeConfig root : roots) {
+      for (final String src : computeSerializationSources(config_graph, root)) {
+        if (src.contains(":")) {
+          serdes_sources.add(src);
+        } else {
+          serdes_sources.add(root.getId() + ":" + src);
+        }
+      }
+    }
+    
+    return serdes_sources;
   }
   
-  @VisibleForTesting
-  QueryReadCache plugin() {
-    return plugin;
-  }
-  
-  @VisibleForTesting
-  TimeSeriesSerdes serdes() {
-    return serdes;
-  }
-  
-  @VisibleForTesting
-  ReadCacheKeyGenerator keyGenerator() {
-    return key_generator;
-  }
-
-  @Override
-  public Config parseConfig(ObjectMapper mapper, TSDB tsdb,
-      JsonNode node) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public void setupGraph(final QueryPipelineContext context, 
-                         final Config config,
-                         final QueryPlanner plan) {
-    // TODO Auto-generated method stub
-  }
-  
-   @Override
-  public String version() {
-    return "3.0.0";
+  private Set<String> computeSerializationSources(
+      final MutableGraph<QueryNodeConfig> config_graph, 
+      final QueryNodeConfig node) {
+    if (node instanceof TimeSeriesDataSourceConfig) {
+      return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getDataSourceId());
+    } else if (node.joins()) {
+      return Sets.newHashSet(node.getId());
+    }
+    
+    final Set<String> ids = Sets.newHashSetWithExpectedSize(1);
+    for (final QueryNodeConfig downstream : config_graph.successors(node)) {
+      final Set<String> downstream_ids = computeSerializationSources(config_graph, downstream);
+      if (config_graph.predecessors(node).isEmpty()) {
+        // prepend
+        if (downstream instanceof TimeSeriesDataSourceConfig) {
+          ids.add(downstream.getId() + ":" 
+              + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
+        } else if (node instanceof SummarizerConfig &&
+            ((SummarizerConfig) node).passThrough()) {
+          for (final QueryNodeConfig successor : config_graph.successors(node)) {
+            final Set<String> summarizer_sources = 
+                computeSerializationSources(config_graph, successor);
+            for (final String id : summarizer_sources) {
+              ids.add(successor.getId() + ":" + id);
+              ids.add(node.getId() + ":" + id);
+            }
+          }
+        } else {
+          ids.addAll(downstream_ids);
+        }
+      } else if (node instanceof MergerConfig) {
+        ids.add(((MergerConfig) node).getDataSource());
+      } else {
+        ids.addAll(downstream_ids);
+      }
+    }
+    return ids;
   }
 }
