@@ -49,13 +49,13 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.CachingQueryExecutor;
+import net.opentsdb.query.ReadCacheQueryPipelineContext;
 import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.CachingQueryExecutor.Config;
-import net.opentsdb.query.CachingQueryExecutor.LocalExecution;
+import net.opentsdb.query.ReadCacheQueryPipelineContext.Config;
+import net.opentsdb.query.ReadCacheQueryPipelineContext.LocalExecution;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -70,8 +70,8 @@ import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ CachingQueryExecutor.class, ConvertedQueryResult.class })
-public class TestCachingQueryExecutor {
+@PrepareForTest({ ReadCacheQueryPipelineContext.class, ConvertedQueryResult.class })
+public class TestReadCacheQueryPipelineContext {
 
   private Configuration tsd_config;
   private Config config;

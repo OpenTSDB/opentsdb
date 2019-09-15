@@ -66,10 +66,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  * @since 3.0
  */
-public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceFactory<CachingQueryExecutor.Config, CachingQueryExecutor.LocalExecution> {
-  public static final String TYPE = CachingQueryExecutor.class.getSimpleName().toString();
+public class ReadCacheQueryPipelineContext extends BaseTSDBPlugin implements QuerySourceFactory<ReadCacheQueryPipelineContext.Config, ReadCacheQueryPipelineContext.LocalExecution> {
+  public static final String TYPE = ReadCacheQueryPipelineContext.class.getSimpleName().toString();
   private static final Logger LOG = LoggerFactory.getLogger(
-      CachingQueryExecutor.class);
+      ReadCacheQueryPipelineContext.class);
   
   /** Reference to the TSD. */
   private final TSDB tsdb;
@@ -84,7 +84,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
   private final ReadCacheKeyGenerator key_generator;
   
   /** TEMP!! */
-  public CachingQueryExecutor() {
+  public ReadCacheQueryPipelineContext() {
     tsdb = null;
     plugin = null;
     serdes = null;
@@ -96,7 +96,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
    * with the pipeline.
    * @param tsdb A non-null TSD.
    */
-  public CachingQueryExecutor(final TSDB tsdb) {
+  public ReadCacheQueryPipelineContext(final TSDB tsdb) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
@@ -154,7 +154,7 @@ public class CachingQueryExecutor extends BaseTSDBPlugin implements QuerySourceF
      */
     public LocalExecution(final QueryPipelineContext context,
                           final Config config) {
-      super(CachingQueryExecutor.this, context);
+      super(ReadCacheQueryPipelineContext.this, context);
       complete = new AtomicBoolean();
 
       key = null; /*key_generator.generate(context.query(), 
