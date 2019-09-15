@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution;
+package net.opentsdb.query;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -34,13 +34,11 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceFactory;
+import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.readcache.QueryReadCache;
 import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
