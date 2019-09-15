@@ -14,8 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.execution.cache;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -28,6 +30,15 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.readcache.QueryReadCache;
+import net.opentsdb.query.readcache.ReadCacheCallback;
+import net.opentsdb.query.readcache.ReadCacheQueryResult;
+import net.opentsdb.query.readcache.ReadCacheQueryResultSet;
+import net.opentsdb.query.readcache.ReadCacheSerdes;
+import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.ByteCache;
 import redis.clients.jedis.HostAndPort;
@@ -41,7 +52,7 @@ import redis.clients.jedis.JedisCluster;
  * @since 3.0
  */
 public class RedisClusterQueryCache extends BaseTSDBPlugin 
-    implements ByteCache {
+    implements ByteCache, QueryReadCache {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisClusterQueryCache.class);
 
@@ -51,6 +62,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
   public static final String HOSTS_KEY = "redis.query.cache.hosts";
   public static final String SHARED_OBJECT_KEY = 
       "redis.query.cache.shared_object";
+  public static final String SERDES_KEY = "redis.query.cache.serdes.id";
   
   /** Redis flag: Write if the key does not exist. */
   static final byte[] NX = new byte[] { 'N', 'X' };
@@ -63,6 +75,9 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
   
   /** The cluster object. */
   private JedisCluster cluster;
+  
+  /** The serdes plugin for this cache instance. */
+  private ReadCacheSerdes serdes;
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -78,6 +93,10 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
       tsdb.getConfig().register(SHARED_OBJECT_KEY, (String) null, false, 
           "The string ID of an optional shared object to use for "
           + "sharing a client connection pool.");
+    }
+    if (!tsdb.getConfig().hasProperty(SERDES_KEY)) {
+      tsdb.getConfig().register(SERDES_KEY, (String) null, false, 
+          "The ID of a read cache serdes plugin factory.");
     }
     
     String hosts = tsdb.getConfig().getString(HOSTS_KEY);
@@ -136,6 +155,16 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
             + hosts);
       }
     }
+    
+    final String serdes_id = tsdb.getConfig().getString(SERDES_KEY);
+    final ReadCacheSerdesFactory factory = tsdb.getRegistry().getPlugin(
+        ReadCacheSerdesFactory.class, serdes_id);
+    if (factory == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "No serdes factory found for " + (Strings.isNullOrEmpty(serdes_id) ? 
+              "Default" : serdes_id)));
+    }
+    serdes = factory.getSerdes();
     return Deferred.fromResult(null);
   }
 
@@ -277,6 +306,72 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
   }
 
   @Override
+  public void fetch(final QueryPipelineContext context, 
+                    final byte[][] keys, 
+                    final ReadCacheCallback callback, 
+                    final Span upstream_span) {
+    List<byte[]> raw = null;
+    Exception ex = null;
+    try {
+      raw = cluster.mget(keys);
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.mget", 
+          (String[]) null);
+    } catch (Exception e) {
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.mget.exception", 
+          (String[]) null);
+      LOG.warn("Exception querying Redis for cache data", e);
+      ex = e;
+    }
+  
+    class CQR implements ReadCacheQueryResultSet {
+      final byte[] key;
+      final Map<String, ReadCacheQueryResult> results;
+      final int idx;
+      
+      CQR(final int idx, final byte[] raw) {
+        this.idx = idx;
+        key = keys[idx];
+        if (raw == null) {
+          results = null;
+        } else {
+          results = serdes.deserialize(raw);
+        }
+      }
+      
+      @Override
+      public byte[] key() {
+        return key;
+      }
+
+      @Override
+      public int index() {
+        return idx;
+      }
+      
+      @Override
+      public Map<String, ReadCacheQueryResult> results() {
+        return results;
+      }
+
+      @Override
+      public TimeStamp lastValueTimestamp() {
+        // TODO Auto-generated method stub
+        return null;
+      }
+    }
+    
+    if (ex != null) {
+      for (int i = 0; i < keys.length; i++) {
+        callback.onCacheError(i, ex);
+      }
+    } else {
+      for (int i = 0; i < keys.length; i++) {
+        callback.onCacheResult(new CQR(i, raw.get(i)));
+      }
+    }
+  }
+  
+  @Override
   public void cache(final byte[] key, 
                     final byte[] data, 
                     final long expiration, 
@@ -304,6 +399,8 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
           (String[]) null);
     } catch (Exception e) {
       LOG.error("Unexpected exception writing to Redis.", e);
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.set.exception", 
+          (String[]) null);
     }
   }
 
@@ -345,14 +442,106 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
           continue;
         }
         cluster.set(keys[i], data[i], NX, EXP, expirations[i]);
-        tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
+        tsdb.getStatsCollector().incrementCounter("query.cache.redis.mset", 
             (String[]) null);
       } catch (Exception e) {
         LOG.error("Unexpected exception writing to Redis.", e);
+        tsdb.getStatsCollector().incrementCounter("query.cache.redis.mset.exception", 
+            (String[]) null);
       }
     }
   }
 
+  @Override
+  public Deferred<Void> cache(final int timestamp, 
+                              final byte[] key, 
+                              final long expiration,
+                              final Collection<QueryResult> results,
+                              final Span span) {
+    if (key == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Key cannot be null."));
+    }
+    if (key.length < 1) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Key length must be at least 1 byte."));
+    }
+    if (expiration < 0) {
+      return Deferred.fromResult(null);
+    }
+
+    // best effort
+    try {
+      final byte[] data = serdes.serialize(results);
+      
+      try {
+        cluster.set(key, data, NX, EXP, expiration);
+        tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
+            (String[]) null);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception writing to Redis.", e);
+        return Deferred.fromError(e);
+      }
+      return Deferred.fromResult(null);
+    } catch (Exception e) {
+      return Deferred.fromError(e);
+    }
+  }
+  
+  @Override
+  public Deferred<Void> cache(final int[] timestamps, 
+                              final byte[][] keys,
+                              final long[] expirations,
+                              final Collection<QueryResult> results,
+                              final Span span) {
+    if (timestamps == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Timestamps array cannot be null."));
+    }
+    if (keys == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Keys array cannot be null."));
+    }
+    if (results == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Results cannot be null."));
+    }
+    if (expirations == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Expirations cannot be null."));
+    }
+    if (timestamps.length != keys.length) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Timestamps and keys arrays must be of the same length."));
+    }
+    if (expirations.length != keys.length) {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Expirations and keys arrays must be of the same length."));
+    }
+    
+    try {
+      final byte[][] data = serdes.serialize(timestamps, results);
+      for (int i = 0; i < keys.length; i++) {
+        if (keys[i] == null) {
+          return Deferred.fromError(new IllegalArgumentException(
+              "Key at index " + i + " was null and cannot be."));
+        }
+        if (expirations[i] < 0) {
+          continue;
+        }
+        
+        cluster.set(keys[i], data[i], NX, EXP, expirations[i]);
+        tsdb.getStatsCollector().incrementCounter("query.cache.redis.mset", 
+            (String[]) null);
+      }
+    } catch (Exception e) {
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.mset.exception", 
+          (String[]) null);
+      return Deferred.fromError(e);
+    }
+    return Deferred.fromResult(null);
+  }
+  
   @Override
   public String type() {
     return TYPE;
