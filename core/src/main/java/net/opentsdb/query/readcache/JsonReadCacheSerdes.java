@@ -86,10 +86,10 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class JsonReadCacheSeardes implements ReadCacheSerdes, 
-                                             ReadCacheSerdesFactory {
+public class JsonReadCacheSerdes implements ReadCacheSerdes, 
+                                            ReadCacheSerdesFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
-      JsonReadCacheSeardes.class);
+      JsonReadCacheSerdes.class);
 
   // TODO - UGLY TEMP!!
   static RollupConfig ROLLUP_CONFIG = DefaultRollupConfig.newBuilder()
