@@ -43,10 +43,10 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   private static final Logger LOG = LoggerFactory.getLogger(
       DefaultQueryContextFilter.class);
   
-  private static final TypeReference<Map<String, Map<String, String>>> MAP_OF_MAPS =
+  private static final TypeReference<Map<String, Map<String, String>>> USER_FILTERS =
       new TypeReference<Map<String, Map<String, String>>>() { };
   private static final TypeReference<
-    Map<String, Map<String, Map<String, String>>>> MAP_OF_MAP_OF_MAPS =
+    Map<String, Map<String, Map<String, String>>>> HEADER_FILTERS =
       new TypeReference<Map<String, Map<String, Map<String, String>>>>() { };
   private static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
   private static final String USER_KEY = "tsd.queryfilter.filter.users";
@@ -61,7 +61,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           .setKey(HEADER_KEY)
           .setDefaultValue(Maps.newHashMap())
           .setDescription("TODO")
-          .setType(MAP_OF_MAP_OF_MAPS)
+          .setType(HEADER_FILTERS)
           .setSource(this.getClass().toString())
           .isDynamic()
           .build());
@@ -72,7 +72,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           .setKey(USER_KEY)
           .setDefaultValue(Maps.newHashMap())
           .setDescription("TODO")
-          .setType(MAP_OF_MAPS)
+          .setType(USER_FILTERS)
           .setSource(this.getClass().toString())
           .isDynamic()
           .build());
@@ -87,7 +87,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
       final Map<String, String> headers) {
     SemanticQuery.Builder builder = null;
     Map<String, Map<String, Map<String, String>>> hdr_filter = 
-        tsdb.getConfig().getTyped(HEADER_KEY, MAP_OF_MAP_OF_MAPS);
+        tsdb.getConfig().getTyped(HEADER_KEY, HEADER_FILTERS);
     if (!hdr_filter.isEmpty() && headers != null) {
       for (final Entry<String, String> entry : headers.entrySet()) {
         Map<String, Map<String, String>> header_filter = 
@@ -113,7 +113,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     }
     
     Map<String, Map<String, String>> user_filters = 
-        tsdb.getConfig().getTyped(USER_KEY, MAP_OF_MAPS);
+        tsdb.getConfig().getTyped(USER_KEY, USER_FILTERS);
     if (user_filters != null) {
       final String user = auth_state != null && 
           auth_state.getPrincipal() != null ? 
