@@ -136,7 +136,7 @@ public class TestPBufTimeSeriesId {
 //    assertNotEquals(id1, id2);
 //    assertEquals(-1, id1.compareTo(id2));
     
-    PBufTimeSeriesId.newBuilder(
+    id2 = PBufTimeSeriesId.newBuilder(
         BaseTimeSeriesStringId.newBuilder()
         .setAlias("FakeID")
         .setNamespace("Yahoo") // <-- DIFF
@@ -148,8 +148,11 @@ public class TestPBufTimeSeriesId {
         .addUniqueId("000002")
         .build()
       ).build();
+    assertNotEquals(id1.hashCode(), id2.hashCode());
+    assertNotEquals(id1, id2);
+    assertEquals(-1, id1.compareTo(id2));
     
-    PBufTimeSeriesId.newBuilder(
+    id2 = PBufTimeSeriesId.newBuilder(
         BaseTimeSeriesStringId.newBuilder()
         .setAlias("FakeID")
         //.setNamespace("OpenTSDB") // <-- IDFF
@@ -163,9 +166,9 @@ public class TestPBufTimeSeriesId {
       ).build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
-    assertEquals(-1, id1.compareTo(id2));
+    assertEquals(1, id1.compareTo(id2));
     
-    PBufTimeSeriesId.newBuilder(
+    id2 = PBufTimeSeriesId.newBuilder(
         BaseTimeSeriesStringId.newBuilder()
         .setAlias("FakeID")
         .setNamespace("OpenTSDB")
@@ -179,7 +182,7 @@ public class TestPBufTimeSeriesId {
       ).build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
-    assertEquals(-1, id1.compareTo(id2));
+    assertEquals(1, id1.compareTo(id2));
     
     Map<String, String> tags2 = Maps.newHashMap();
     tags.put("host", "web02"); // <-- Diff

@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.reflect.TypeToken;
 import net.opentsdb.auth.AuthState;
@@ -79,6 +80,9 @@ public abstract class BaseQueryContext implements QueryContext {
   /** Returns true if the pipeline is closed. */
   private boolean isClosed;
   
+  /** Flag to determine if we're cachable or not. */
+  protected final AtomicBoolean cacheable;
+  
   protected BaseQueryContext(final Builder builder) {
     tsdb = builder.tsdb;
     query = builder.query;
@@ -96,6 +100,7 @@ public abstract class BaseQueryContext implements QueryContext {
     }
     builder_sinks = builder.sinks;
     isClosed = false;
+    cacheable = new AtomicBoolean(true);
   }
   
   @Override
@@ -156,6 +161,11 @@ public abstract class BaseQueryContext implements QueryContext {
   @Override
   public Map<String, String> headers() {
     return headers;
+  }
+  
+  @Override
+  public boolean cacheable() {
+    return cacheable.get();
   }
   
   @Override
@@ -298,6 +308,11 @@ public abstract class BaseQueryContext implements QueryContext {
    * @param log The log.
    */
   protected void log(final LogLevel level, final QueryNode node, final String log) {
+    if (level == LogLevel.ERROR || level == LogLevel.WARN) {
+      if (cacheable.get()) {
+        cacheable.set(false);
+      }
+    }
     if (level.ordinal() > query.getLogLevel().ordinal()) {
       return;
     }

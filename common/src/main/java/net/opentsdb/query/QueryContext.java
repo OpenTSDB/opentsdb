@@ -94,6 +94,13 @@ public interface QueryContext {
   /** @return The optional headers map. */
   public Map<String, String> headers();
   
+  /** @return A flag that determines if query results are caceable or not. A 
+   * good use of this would be if we have a multi-data-center query and one of
+   * the DCs fails to respond. We don't want to cache that result as there may
+   * be some missing data. In that case we can return data but want to wait for
+   * a full response before caching. */
+  public boolean cacheable();
+  
   /**
    * Called after building the context but before calling 
    * {@link #fetchNext(Span)} so filters and such can be initialized.

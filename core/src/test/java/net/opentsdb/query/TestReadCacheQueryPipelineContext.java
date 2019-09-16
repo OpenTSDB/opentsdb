@@ -1207,6 +1207,11 @@ public class TestReadCacheQueryPipelineContext {
     }
     
     @Override
+    public boolean cacheable() {
+      return true;
+    }
+    
+    @Override
     public Deferred<Void> initialize(Span span) {
       initialized = true;
       return Deferred.fromResult(null);
