@@ -717,6 +717,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         .setQuery(builder.build())
         .setStats(context.stats())
         .setAuthState(context.authState())
+        .setHeaders(context.headers())
         .build();
   }
 

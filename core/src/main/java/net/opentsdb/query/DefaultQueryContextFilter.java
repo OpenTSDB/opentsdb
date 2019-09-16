@@ -88,7 +88,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     SemanticQuery.Builder builder = null;
     Map<String, Map<String, Map<String, String>>> hdr_filter = 
         tsdb.getConfig().getTyped(HEADER_KEY, MAP_OF_MAP_OF_MAPS);
-    if (!hdr_filter.isEmpty()) {
+    if (!hdr_filter.isEmpty() && headers != null) {
       for (final Entry<String, String> entry : headers.entrySet()) {
         Map<String, Map<String, String>> header_filter = 
             hdr_filter.get(entry.getKey());
@@ -99,8 +99,9 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
             if (builder == null) {
               builder = ((SemanticQuery) query).toBuilder();
             }
+            
             String ov = values.get("cacheMode");
-            if (ov != null && query.getCacheMode() != CacheMode.valueOf(ov)) {
+            if (ov != null && query.getCacheMode() == null) {
               builder.setCacheMode(CacheMode.valueOf(ov));
               LOG.trace("Overriding cache mode for header: " + 
                   entry.getKey() + ":" + entry.getValue() + " to " + 
@@ -124,7 +125,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           builder = ((SemanticQuery) query).toBuilder();
         }
         String ov = filter.get("cacheMode");
-        if (ov != null && query.getCacheMode() != CacheMode.valueOf(ov)) {
+        if (ov != null && query.getCacheMode() == null) {
           builder.setCacheMode(CacheMode.valueOf(ov));
           if (LOG.isTraceEnabled()) {
             LOG.trace("Overriding cache mode for user: " + user + " to " 
