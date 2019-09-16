@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
@@ -89,6 +90,9 @@ public interface QueryContext {
   
   /** @return The optional auth state. May be null if auth is not enabled. */
   public AuthState authState();
+  
+  /** @return The optional headers map. */
+  public Map<String, String> headers();
   
   /**
    * Called after building the context but before calling 

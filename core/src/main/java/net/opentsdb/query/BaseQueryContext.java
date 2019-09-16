@@ -154,6 +154,11 @@ public abstract class BaseQueryContext implements QueryContext {
   }
   
   @Override
+  public Map<String, String> headers() {
+    return headers;
+  }
+  
+  @Override
   public Deferred<Void> initialize(final Span span) {
     final QueryContextFilter query_filter = 
         tsdb.getRegistry().getDefaultPlugin(QueryContextFilter.class);

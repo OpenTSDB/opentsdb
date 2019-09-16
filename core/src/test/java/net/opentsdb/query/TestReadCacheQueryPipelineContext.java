@@ -1202,6 +1202,11 @@ public class TestReadCacheQueryPipelineContext {
     }
 
     @Override
+    public Map<String, String> headers() {
+      return null;
+    }
+    
+    @Override
     public Deferred<Void> initialize(Span span) {
       initialized = true;
       return Deferred.fromResult(null);
@@ -1279,7 +1284,6 @@ public class TestReadCacheQueryPipelineContext {
       // TODO Auto-generated method stub
       
     }
-
     
     @Override
     public boolean isClosed() {
