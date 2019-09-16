@@ -600,13 +600,19 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         // write to the cache
         if (context.query().getCacheMode() == CacheMode.NORMAL ||
             context.query().getCacheMode() == CacheMode.WRITEONLY) {
-          context.tsdb().getQueryThreadPool().submit(new Runnable() {
-            @Override
-            public void run() {
-              cache.cache(slices[x], keys[x], expirations[x], 
-                  results[x].map.values(), null);
+          if (results[i].sub_context.cacheable()) {
+            context.tsdb().getQueryThreadPool().submit(new Runnable() {
+              @Override
+              public void run() {
+                cache.cache(slices[x], keys[x], expirations[x], 
+                    results[x].map.values(), null);
+              }
+            }, context);
+          } else {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Skipping caching of sub query as it wasn't cacheable.");
             }
-          }, context);
+          }
         }
       }
     
@@ -910,21 +916,26 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       if (full_query_context != null && 
           (context.query().getCacheMode() == CacheMode.NORMAL ||
            context.query().getCacheMode() == CacheMode.WRITEONLY)) {
-        context.tsdb().getQueryThreadPool().submit(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              System.out.println("CACHING: " + sub_results.get(0).source().config().getId());
-              cache.cache(slices, keys, expirations, sub_results, null);
-            } catch (Throwable t) {
-              LOG.error("Failed to cache the data", t);
-            } finally {
-//              for (int i = 0; i < sub_results.size(); i++) {
-//                sub_results.get(i).close();
-//              }
+        if (full_query_context.cacheable()) {
+          context.tsdb().getQueryThreadPool().submit(new Runnable() {
+            @Override
+            public void run() {
+              try {
+                cache.cache(slices, keys, expirations, sub_results, null);
+              } catch (Throwable t) {
+                LOG.error("Failed to cache the data", t);
+              } finally {
+  //              for (int i = 0; i < sub_results.size(); i++) {
+  //                sub_results.get(i).close();
+  //              }
+              }
             }
+          }, context);
+        } else {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Will not cache full query as it's marked as not cacheable.");
           }
-        }, context);
+        }
       } else {
         // TODO - need to handle closing result AFTER caching is done.
         // for (int i = 0; i < sub_results.size(); i++) {

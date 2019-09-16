@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.Map.Entry;
 
 import com.google.common.base.Objects;
@@ -131,13 +132,15 @@ public class PBufTimeSeriesId implements TimeSeriesStringId {
   @Override
   public long buildHashCode() {
     final StringBuilder buf = new StringBuilder();
-    if (alias() != null) {
-      buf.append(alias());
-    }
+//    if (alias() != null) {
+//      buf.append(alias());
+//    }
     buf.append(namespace());
     buf.append(metric());
     if (tags() != null) {
-      for (final Entry<String, String> pair : tags().entrySet()) {
+      final TreeMap<String, String> sorted = 
+          new TreeMap<String, String>(tags());
+      for (final Entry<String, String> pair : sorted.entrySet()) {
         buf.append(pair.getKey());
         buf.append(pair.getValue());
       }
