@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -235,9 +234,9 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
   @Override
   public long buildHashCode() {
     final StringBuilder buf = new StringBuilder();
-    if (alias != null) {
-      buf.append(alias);
-    }
+    // if (alias != null) {
+    //   buf.append(alias);
+    // }
     buf.append(namespace);
     buf.append(metric);
     if (tags != null) {
