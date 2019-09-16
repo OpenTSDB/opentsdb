@@ -289,6 +289,7 @@ public class ExpressionRpc {
             .setQuerySpan(query_span)
             .build())
         .setAuthState(auth_state)
+        .setHeaders(log_headers)
         .addSink(ServletSinkConfig.newBuilder()
             .setId(ServletSinkFactory.TYPE)
             .setSerdesOptions(serdes)
