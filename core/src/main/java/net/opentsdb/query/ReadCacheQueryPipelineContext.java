@@ -526,7 +526,6 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           return;
         }
       }
-      return;
     }
     
     if (!rosqComplete()) {
