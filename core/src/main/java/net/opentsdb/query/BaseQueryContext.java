@@ -337,18 +337,37 @@ public abstract class BaseQueryContext implements QueryContext {
       return;
     }
     
+    // size the builder
+    final StringBuilder buf = new StringBuilder(15 + 6 + 14 + 29 + 32 + log.length())
+        .append(TS_FORMATTER.format(Instant.now()))
+        .append("  ")
+        .append(level)
+        .append("  CTX:")
+        .append(System.identityHashCode(this))
+        .append(" Q:");
+    
+    if (node == null) {
+      if (query == null) {
+        buf.append("na");
+      } else {
+        buf.append(query.buildHashCode().asLong());
+      }
+    } else {
+      if (node.pipelineContext() == null || node.pipelineContext().query() == null) {
+        buf.append("na");
+      } else {
+        buf.append(node.pipelineContext().query().buildHashCode().asLong());
+      }
+    }
+    buf.append("  [")
+       .append(node == null ? "None" : node.config().getId())
+       .append("] - ")
+       .append(log);
+    
     synchronized (this) {
       if (logs == null) {
         logs = Lists.newArrayList();
       }
-      final StringBuilder buf = new StringBuilder(15 + 6 + 32 + log.length())
-          .append(TS_FORMATTER.format(Instant.now()))
-          .append(" ")
-          .append(level)
-          .append("  [")
-          .append(node == null ? "None" : node.config().getId())
-          .append("] - ")
-          .append(log);
       logs.add(buf.toString());
     }
   }

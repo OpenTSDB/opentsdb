@@ -658,6 +658,10 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         return;
       }
       
+      if (sub_context != null && sub_context.logs() != null) {
+        ((BaseQueryContext) context).appendLogs(sub_context.logs());
+      }
+      
       complete.compareAndSet(false, true);  
       if (rosqComplete()) {
         processResults();
@@ -844,6 +848,9 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     @Override
     public void onComplete() {
       // no-op
+      if (full_query_context != null && full_query_context.logs() != null) {
+        ((BaseQueryContext) context).appendLogs(full_query_context.logs());
+      }
     }
     
     @Override
@@ -941,6 +948,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         //  sub_results.get(i).close();
         // }
       }
+      
       return true;
     }
     return false;
