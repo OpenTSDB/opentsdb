@@ -204,7 +204,8 @@ public abstract class BaseQueryContext implements QueryContext {
     class FilterCB implements Callback<Deferred<Void>, Void> {
       @Override
       public Deferred<Void> call(final Void ignored) throws Exception {
-        if (query.getCacheMode() == CacheMode.BYPASS) {
+        if (query.getCacheMode() == null || 
+            query.getCacheMode() == CacheMode.BYPASS) {
           pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
           return pipeline.initialize(local_span);
         }
@@ -221,7 +222,8 @@ public abstract class BaseQueryContext implements QueryContext {
           .addBoth(Deferreds.VOID_GROUP_CB)
           .addCallbackDeferring(new FilterCB());
     } else {
-      if (query.getCacheMode() == null || query.getCacheMode() == CacheMode.BYPASS) {
+      if (query.getCacheMode() == null || 
+          query.getCacheMode() == CacheMode.BYPASS) {
         pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
         return pipeline.initialize(local_span);
       } else {
@@ -299,6 +301,24 @@ public abstract class BaseQueryContext implements QueryContext {
    */
   void resetQuery(final SemanticQuery query) {
     this.query = query;
+  }
+  
+  /**
+   * Append the logs from a sub context to this one.
+   * @param logs The list of logs to add.
+   */
+  void appendLogs(final List<String> logs) {
+    if (logs == null) {
+      return;
+    }
+    
+    synchronized (this) {
+      if (this.logs == null) {
+        this.logs = Lists.newArrayList(logs);
+      } else {
+        this.logs.addAll(logs);
+      }
+    }
   }
   
   /**
