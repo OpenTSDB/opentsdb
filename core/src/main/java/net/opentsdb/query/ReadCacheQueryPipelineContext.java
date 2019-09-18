@@ -89,6 +89,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   protected AtomicInteger hits;
   protected AtomicBoolean failed;
   protected QueryContext full_query_context;
+  protected final AtomicBoolean full_query_caching;
   protected List<QueryResult> sub_results;
   protected Map<String, QueryNode> summarizer_node_map;
   
@@ -100,6 +101,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     }
     failed = new AtomicBoolean();
     current_time = DateTime.currentTimeMillis();
+    full_query_caching = new AtomicBoolean();
   }
   
   @Override
@@ -600,14 +602,53 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         if (context.query().getCacheMode() == CacheMode.NORMAL ||
             context.query().getCacheMode() == CacheMode.WRITEONLY) {
           if (results[i].sub_context.cacheable()) {
+            final int idx = x;
             context.tsdb().getQueryThreadPool().submit(new Runnable() {
               @Override
               public void run() {
                 cache.cache(slices[x], keys[x], expirations[x], 
-                    results[x].map.values(), null);
+                    results[x].map.values(), null)
+                .addBoth(new Callback<Void, Void>() {
+                  @Override
+                  public Void call(Void arg) throws Exception {
+                    if (results[idx].map != null) {
+                      for (final QueryResult result : results[idx].map.values()) {
+                        if (result != null) {
+                          try {
+                            result.close();
+                          } catch (Exception e) {
+                            LOG.warn("Failed to close result: " + result, e);
+                          }
+                        }
+                      }
+                    }
+                    try {
+                      results[x].sub_context.close();
+                    } catch (Exception e) {
+                      LOG.warn("Failed to close sub context: " + results[x].sub_context, e);
+                    }
+                    return null;
+                  }
+                });
               }
             }, context);
           } else {
+            if (results[x].map != null) {
+              for (final QueryResult result : results[x].map.values()) {
+                if (result != null) {
+                  try {
+                    result.close();
+                  } catch (Exception e) {
+                    LOG.warn("Failed to close result: " + result, e);
+                  }
+                }
+              }
+            }
+            try {
+              results[x].sub_context.close();
+            } catch (Exception e) {
+              LOG.warn("Failed to close sub context: " + results[x].sub_context, e);
+            }
             if (LOG.isDebugEnabled()) {
               LOG.debug("Skipping caching of sub query as it wasn't cacheable.");
             }
@@ -852,6 +893,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       if (full_query_context != null && full_query_context.logs() != null) {
         ((BaseQueryContext) context).appendLogs(full_query_context.logs());
       }
+      
     }
     
     @Override
@@ -924,17 +966,34 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           (context.query().getCacheMode() == CacheMode.NORMAL ||
            context.query().getCacheMode() == CacheMode.WRITEONLY)) {
         if (full_query_context.cacheable()) {
+          full_query_caching.set(true);
           context.tsdb().getQueryThreadPool().submit(new Runnable() {
             @Override
             public void run() {
               try {
-                cache.cache(slices, keys, expirations, sub_results, null);
+                cache.cache(slices, keys, expirations, sub_results, null)
+                  .addBoth(new Callback<Void, Void>() {
+                    @Override
+                    public Void call(Void arg) throws Exception {
+                      for (final QueryResult result : sub_results) {
+                        if (result != null) {
+                          try {
+                            result.close();
+                          } catch (Exception e) {
+                            LOG.warn("Failed t oclose result: " + result, e);
+                          }
+                        }
+                      }
+                      try {
+                        full_query_context.close();
+                      } catch (Exception e) {
+                        LOG.warn("Failed to close full query context", e);
+                      }
+                      return null;
+                    }
+                  });
               } catch (Throwable t) {
                 LOG.error("Failed to cache the data", t);
-              } finally {
-  //              for (int i = 0; i < sub_results.size(); i++) {
-  //                sub_results.get(i).close();
-  //              }
               }
             }
           }, context);
@@ -942,14 +1001,17 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           if (LOG.isDebugEnabled()) {
             LOG.debug("Will not cache full query as it's marked as not cacheable.");
           }
+          for (final QueryResult result : sub_results) {
+            if (result != null) {
+              try {
+                result.close();
+              } catch (Exception e) {
+                LOG.warn("Failed t oclose result: " + result, e);
+              }
+            }
+          }
         }
-      } else {
-        // TODO - need to handle closing result AFTER caching is done.
-        // for (int i = 0; i < sub_results.size(); i++) {
-        //  sub_results.get(i).close();
-        // }
       }
-      
       return true;
     }
     return false;
