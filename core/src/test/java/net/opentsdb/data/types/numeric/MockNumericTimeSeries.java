@@ -73,7 +73,8 @@ public class MockNumericTimeSeries implements TimeSeries {
     if (type != NumericType.TYPE) {
       return Optional.empty();
     }
-    return Optional.of(new LocalIterator(data.iterator()));
+    final TypedTimeSeriesIterator it = new LocalIterator(data.iterator());
+    return Optional.of(it);
   }
 
   @Override

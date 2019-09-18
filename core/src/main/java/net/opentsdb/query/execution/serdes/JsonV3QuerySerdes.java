@@ -187,8 +187,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   result.timeSpecification().stringInterval());
               ChronoUnit u = DateTime.unitsToChronoUnit(
                   DateTime.getDurationUnits(result.timeSpecification().stringInterval()));
+              spec_start.snapToPreviousInterval(interval, u);
               if (spec_start.compare(Op.LT, start)) {
-                spec_start.snapToPreviousInterval(interval, u);
                 spec_start.add(result.timeSpecification().interval());
               }
             } else {

@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 
 import org.junit.Test;
 
@@ -29,6 +30,8 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.query.QueryResult;
 
@@ -386,6 +389,182 @@ private static final int BASE_TIME = 1546300800;
   }
   
   @Test
+  public void filterQueryTimeFullPaddingAtEnd() throws Exception {
+    CombinedCachedResult result = mock(CombinedCachedResult.class);
+    TimeSpecification time_spec = mock(TimeSpecification.class);
+    when(result.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME + 300));
+    when(time_spec.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3) - 300));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.resultInterval()).thenReturn(1);
+    when(result.resultUnits()).thenReturn(ChronoUnit.HOURS);
+    
+    TimeSeries[] rs = generateDoubleSeries(3, BASE_TIME, false, result);
+    
+    QueryResult r = mock(QueryResult.class);
+    TimeSpecification ts = mock(TimeSpecification.class);
+    when(r.timeSpecification()).thenReturn(ts);
+    when(ts.start()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 2) - 360));
+    when(ts.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3)));
+    when(ts.interval()).thenReturn(Duration.ofSeconds(60));
+    when(ts.stringInterval()).thenReturn("1m");
+    result.results()[2] = r;
+    rs[2] = generateDoubleSeries(114, 65, BASE_TIME + (3600 * 2) - 360);
+    
+    CombinedCachedNumericArray iterator = new CombinedCachedNumericArray(result, rs);
+    
+    assertEquals(BASE_TIME + 300, iterator.timestamp().epoch());
+    assertEquals(0, iterator.offset());
+    assertEquals(170, iterator.end());
+    assertEquals(170, iterator.doubleArray().length);
+    int want = 5;
+    int offset = 1;
+    for (int i = iterator.offset(); i < iterator.end(); i++) {
+      if (++offset % 3 == 0) {
+        assertTrue(Double.isNaN(iterator.doubleArray()[i]));
+      } else {
+        assertEquals(want, iterator.doubleArray()[i], 0.001);
+      }
+      want++;
+    }
+  }
+  
+  @Test
+  public void filterQueryTimeFullNumAtEnd() throws Exception {
+    CombinedCachedResult result = mock(CombinedCachedResult.class);
+    TimeSpecification time_spec = mock(TimeSpecification.class);
+    when(result.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME + 300));
+    when(time_spec.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3) - 300));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.resultInterval()).thenReturn(1);
+    when(result.resultUnits()).thenReturn(ChronoUnit.HOURS);
+    
+    TimeSeries[] rs = generateDoubleSeries(3, BASE_TIME, false, result);
+    rs[2] = generateDoubleNumericSeries(120, 60, BASE_TIME + (3600 * 2));
+    CombinedCachedNumericArray iterator = new CombinedCachedNumericArray(result, rs);
+    
+    assertEquals(BASE_TIME + 300, iterator.timestamp().epoch());
+    assertEquals(0, iterator.offset());
+    assertEquals(170, iterator.end());
+    assertEquals(170, iterator.doubleArray().length);
+    int want = 5;
+    int offset = 1;
+    for (int i = iterator.offset(); i < iterator.end(); i++) {
+      if (++offset % 3 == 0) {
+        assertTrue(Double.isNaN(iterator.doubleArray()[i]));
+      } else {
+        assertEquals(want, iterator.doubleArray()[i], 0.001);
+      }
+      want++;
+    }
+  }
+  
+  @Test
+  public void filterQueryTimeFullNumAtEndWithPadding() throws Exception {
+    CombinedCachedResult result = mock(CombinedCachedResult.class);
+    TimeSpecification time_spec = mock(TimeSpecification.class);
+    when(result.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME + 300));
+    when(time_spec.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3) - 300));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.resultInterval()).thenReturn(1);
+    when(result.resultUnits()).thenReturn(ChronoUnit.HOURS);
+    
+    TimeSeries[] rs = generateDoubleSeries(3, BASE_TIME, false, result);
+    
+    QueryResult r = mock(QueryResult.class);
+    TimeSpecification ts = mock(TimeSpecification.class);
+    when(r.timeSpecification()).thenReturn(ts);
+    when(ts.start()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 2) - 360));
+    when(ts.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3)));
+    when(ts.interval()).thenReturn(Duration.ofSeconds(60));
+    when(ts.stringInterval()).thenReturn("1m");
+    result.results()[2] = result;
+    rs[2] = generateDoubleNumericSeries(114, 65, BASE_TIME + (3600 * 2) - 360);
+    CombinedCachedNumericArray iterator = new CombinedCachedNumericArray(result, rs);
+    
+    assertEquals(BASE_TIME + 300, iterator.timestamp().epoch());
+    assertEquals(0, iterator.offset());
+    assertEquals(170, iterator.end());
+    assertEquals(170, iterator.doubleArray().length);
+    int want = 5;
+    int offset = 1;
+    
+    for (int i = iterator.offset(); i < iterator.end(); i++) {
+      if (++offset % 3 == 0) {
+        assertTrue(Double.isNaN(iterator.doubleArray()[i]));
+      } else {
+        assertEquals(want, iterator.doubleArray()[i], 0.001);
+      }
+      want++;
+    }
+  }
+  
+  @Test
+  public void filterQueryTimeFullTwoNumsAtEnd() throws Exception {
+    CombinedCachedResult result = mock(CombinedCachedResult.class);
+    TimeSpecification time_spec = mock(TimeSpecification.class);
+    when(result.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME + 300));
+    when(time_spec.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3) - 300));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.resultInterval()).thenReturn(1);
+    when(result.resultUnits()).thenReturn(ChronoUnit.HOURS);
+    
+    TimeSeries[] rs = generateDoubleSeries(3, BASE_TIME, false, result);
+    rs[1] = generateDoubleNumericSeries(60, 60, BASE_TIME + 3600);
+    rs[2] = generateDoubleNumericSeries(120, 60, BASE_TIME + (3600 * 2));
+    CombinedCachedNumericArray iterator = new CombinedCachedNumericArray(result, rs);
+    
+    assertEquals(BASE_TIME + 300, iterator.timestamp().epoch());
+    assertEquals(0, iterator.offset());
+    assertEquals(170, iterator.end());
+    assertEquals(170, iterator.doubleArray().length);
+    int want = 5;
+    int offset = 1;
+    for (int i = iterator.offset(); i < iterator.end(); i++) {
+      if (++offset % 3 == 0) {
+        assertTrue(Double.isNaN(iterator.doubleArray()[i]));
+      } else {
+        assertEquals(want, iterator.doubleArray()[i], 0.001);
+      }
+      want++;
+    }
+  }
+  
+  @Test
+  public void filterQueryTimeFullNumInMiddle() throws Exception {
+    CombinedCachedResult result = mock(CombinedCachedResult.class);
+    TimeSpecification time_spec = mock(TimeSpecification.class);
+    when(result.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME + 300));
+    when(time_spec.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3) - 300));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.resultInterval()).thenReturn(1);
+    when(result.resultUnits()).thenReturn(ChronoUnit.HOURS);
+    
+    TimeSeries[] rs = generateDoubleSeries(3, BASE_TIME, false, result);
+    rs[1] = generateDoubleNumericSeries(60, 60, BASE_TIME + 3600);
+    CombinedCachedNumericArray iterator = new CombinedCachedNumericArray(result, rs);
+    
+    assertEquals(BASE_TIME + 300, iterator.timestamp().epoch());
+    assertEquals(0, iterator.offset());
+    assertEquals(170, iterator.end());
+    assertEquals(170, iterator.doubleArray().length);
+    int want = 5;
+    int offset = 1;
+    for (int i = iterator.offset(); i < iterator.end(); i++) {
+      if (++offset % 3 == 0) {
+        assertTrue(Double.isNaN(iterator.doubleArray()[i]));
+      } else {
+        assertEquals(want, iterator.doubleArray()[i], 0.001);
+      }
+      want++;
+    }
+  }
+  
+  @Test
   public void filterQueryTimeGapAtStart() throws Exception {
     CombinedCachedResult result = mock(CombinedCachedResult.class);
     TimeSpecification time_spec = mock(TimeSpecification.class);
@@ -406,6 +585,7 @@ private static final int BASE_TIME = 1546300800;
     
     int want = 5;
     int offset = 1;
+    
     for (int i = iterator.offset(); i < iterator.end(); i++) {
       if (++offset % 3 == 0 || i < 56) {
         assertTrue(Double.isNaN(iterator.doubleArray()[i]));
@@ -538,14 +718,48 @@ private static final int BASE_TIME = 1546300800;
     }
   }
   
-  TimeSeries generateLongSeries(int first_val, 
-                                final int timestamp) {
+  TimeSeries generateLongSeries(int first_val, final int timestamp) {
     TimeSeries ts = new NumericArrayTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(timestamp * 1000));
     for (int i = 0; i < 60; i++) {
       ((NumericArrayTimeSeries) ts).add(first_val++);
+    }
+    return ts;
+  }
+  
+  TimeSeries generateDoubleSeries(int first_val, int count, int timestamp) {
+    TimeSeries ts = new NumericArrayTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build(), new MillisecondTimeStamp(timestamp * 1000));
+    for (int i = 0; i < count; i++) {
+      if (i % 3 == 0) {
+        ((NumericArrayTimeSeries) ts).add(Double.NaN);
+        first_val++;
+      } else {
+        ((NumericArrayTimeSeries) ts).add(first_val++);
+      }
+    }
+    return ts;
+  }
+  
+  TimeSeries generateDoubleNumericSeries(int first_val, int count, int timestamp) {
+    TimeSeries ts = new MockNumericTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build());
+    for (int i = 0; i < count; i++) {
+      if (i % 3 == 0) {
+        ((MockNumericTimeSeries) ts).add(new MutableNumericValue(
+            new SecondTimeStamp(timestamp), Double.NaN));
+        first_val++;
+      } else {        
+        ((MockNumericTimeSeries) ts).add(new MutableNumericValue(
+            new SecondTimeStamp(timestamp), (double) first_val++));
+      }
+      timestamp += 60;
     }
     return ts;
   }

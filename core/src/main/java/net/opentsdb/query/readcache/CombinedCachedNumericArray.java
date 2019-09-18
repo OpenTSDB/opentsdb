@@ -104,7 +104,8 @@ public class CombinedCachedNumericArray implements
       }
       
       final TimeSeriesValue<? extends TimeSeriesDataType> v = iterator.next();
-      while (next_epoch != series_spec.start().epoch()) {
+      while (series_spec.start().epoch() > next_epoch && 
+             series_spec.end().epoch() > next_epoch) {
         // fill
         if (double_array == null) {
           double_array = new double[array_length];
@@ -129,18 +130,22 @@ public class CombinedCachedNumericArray implements
               interval_in_seconds);
         }
         next_epoch += series_spec.end().epoch() - series_spec.start().epoch();
-        if (next_epoch > result.timeSpecification().end().epoch()) {
-          throw new IllegalStateException("Coding bug, please report this query.");
-        }
       }
       
+      /** --------- ARRAY TYPE ------------ */
       if (iterator.getType() == NumericArrayType.TYPE) {
         final TimeSeriesValue<NumericArrayType> value = (TimeSeriesValue<NumericArrayType>) v;
-        int start_offset = result.timeSpecification().start().epoch() > 
-            series_spec.start().epoch() ?
-            (int) (value.value().offset() + (result.timeSpecification().start().epoch() - 
-                series_spec.start().epoch()) / interval_in_seconds)
-            : value.value().offset();
+
+        int start_offset;
+        if (next_epoch > series_spec.start().epoch()) {
+          start_offset = (int) ((next_epoch - series_spec.start().epoch()) / interval_in_seconds);
+        } else {
+          start_offset = result.timeSpecification().start().epoch() > 
+              series_spec.start().epoch() ?
+              (int) (value.value().offset() + (result.timeSpecification().start().epoch() - 
+                  series_spec.start().epoch()) / interval_in_seconds)
+              : value.value().offset();
+        }
         int end = series_spec.end().compare(Op.GT, result.timeSpecification().end()) ?
             (int) (value.value().end() - (series_spec.end().epoch() - 
                   result.timeSpecification().end().epoch()) / 
@@ -155,8 +160,8 @@ public class CombinedCachedNumericArray implements
               double_array = new double[array_length];
               Arrays.fill(double_array, Double.NaN);
               for (int x = start_offset; x < end; x++) {
-                if (idx >= double_array.length) {
-                  LOG.warn("Coding bug wherein the index " + idx 
+                if (idx > double_array.length) {
+                  LOG.warn("Coding bug 1 wherein the index " + idx 
                       + " was greater than the double array " + double_array.length);
                   break;
                 }
@@ -166,8 +171,8 @@ public class CombinedCachedNumericArray implements
             } else {
               // start with a long array
               long_array = new long[array_length];
-              if (idx + (end - start_offset) >= long_array.length) {
-                LOG.warn("Coding bug wherein the index " + (idx + end - start_offset) 
+              if (idx + (end - start_offset) > long_array.length) {
+                LOG.warn("Coding bug 1 wherein the index " + (idx + end - start_offset) 
                     + " was greater than the long array " + long_array.length);
                 end -= (idx + end - start_offset - long_array.length);
               }
@@ -177,16 +182,15 @@ public class CombinedCachedNumericArray implements
             }
           } else if (double_array != null) {
             for (int x = start_offset; x < end; x++) {
-              if (idx >= double_array.length) {
-                LOG.warn("Coding bug wherein the index " + idx 
+              if (idx > double_array.length) {
+                LOG.warn("Coding bug 2 wherein the index " + idx 
                     + " was greater than the double array " + double_array.length);
-                break;
               }
               double_array[idx++] = value.value().longArray()[x];
             }
           } else {
-            if (idx + (end - start_offset) >= long_array.length) {
-              LOG.warn("Coding bug wherein the index " + (idx + end - start_offset) 
+            if (idx + (end - start_offset) > long_array.length) {
+              LOG.warn("Coding bug 2 wherein the index " + (idx + end - start_offset) 
                   + " was greater than the long array " + long_array.length);
               end -= (idx + end - start_offset - long_array.length);
             }
@@ -204,10 +208,14 @@ public class CombinedCachedNumericArray implements
             }
             long_array = null;
           }
-          if (idx + (end - start_offset) >= double_array.length) {
-            LOG.warn("Coding bug wherein the index " + (idx + end - start_offset) 
+          if (idx + end > double_array.length) {
+            LOG.warn("Coding bug 3 wherein the index " + (idx + end) 
                 + " was greater than the double array " + double_array.length);
-            end -= (idx + end - start_offset - double_array.length);
+            end -= (idx + end - double_array.length);
+          } if (end > value.value().doubleArray().length) {
+            LOG.warn("Coding but 6 wherein the end " + end + " is greater than "
+                + "the source array len: " + value.value().doubleArray().length);
+            end = value.value().doubleArray().length;
           }
           
           System.arraycopy(value.value().doubleArray(), start_offset, 
@@ -215,9 +223,10 @@ public class CombinedCachedNumericArray implements
           idx += end;
         }
       } else {
+        /** --------- NUMERIC TYPE ------------ */
         TimeSeriesValue<NumericType> value = (TimeSeriesValue<NumericType>) v;
         // handle early cache expirations
-        while (value != null && value.timestamp().compare(Op.LT, result.timeSpecification().start())) {
+        while (value != null && value.timestamp().epoch() < next_epoch) {
           if (iterator.hasNext()) {
             value = (TimeSeriesValue<NumericType>) iterator.next(); 
           } else {
@@ -244,18 +253,18 @@ public class CombinedCachedNumericArray implements
             idx++;
           } else if (value.value().isInteger()) {
             if (long_array == null) {
-              if (idx >= double_array.length) {
-                LOG.warn("Coding bug wherein the numeric type index " + idx 
+              if (idx > double_array.length) {
+                LOG.warn("Coding bug 4 wherein the numeric type index " + idx 
                     + " was greater than the double array " + double_array.length);
               } else {
                 double_array[idx++] = value.value().toDouble();
               }
             } else {
-              if (idx >= long_array.length) {
-                LOG.warn("Coding bug wherein the numeric type index " + idx 
+              if (idx > long_array.length) {
+                LOG.warn("Coding bug 4 wherein the numeric type index " + idx 
                     + " was greater than the long array " + long_array.length);
               } else {
-              long_array[idx++] = value.value().longValue();
+                long_array[idx++] = value.value().longValue();
               }
             }
           } else {
@@ -269,10 +278,11 @@ public class CombinedCachedNumericArray implements
               long_array = null;
             }
             if (idx >= double_array.length) {
-              LOG.warn("Coding bug wherein the numeric type index " + idx 
-                  + " was greater than the double array " + double_array.length);
+              LOG.warn("Coding bug 5 wherein the numeric type index " + idx 
+                  + " was greater than the double array " + double_array.length + " => " + value);
+              break;
             } else {
-            double_array[idx++] = value.value().toDouble();
+              double_array[idx++] = value.value().toDouble();
             }
           }
           
