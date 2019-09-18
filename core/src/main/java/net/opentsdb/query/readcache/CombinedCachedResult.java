@@ -124,14 +124,20 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
       if (results[i] == null) {
         continue;
       }
-      
+      // SNAP!!!!
       if (spec_start == null && results[i].timeSpecification() != null) {
+        int interval = DateTime.getDurationInterval(
+            results[i].timeSpecification().stringInterval());
+        ChronoUnit u = DateTime.unitsToChronoUnit(
+            DateTime.getDurationUnits(results[i].timeSpecification().stringInterval()));
         spec_start = context.query().startTime();
+        spec_start.snapToPreviousInterval(interval, u);
         while (spec_start.compare(Op.LT, context.query().startTime())) {
           spec_start.add(results[i].timeSpecification().interval());
         }
         
         spec_end = context.query().endTime();
+        spec_end.snapToPreviousInterval(interval, u);
         while (spec_end.compare(Op.GT, context.query().endTime())) {
           spec_end.subtract(results[i].timeSpecification().interval());
         }

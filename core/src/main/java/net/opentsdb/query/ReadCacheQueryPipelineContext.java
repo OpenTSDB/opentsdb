@@ -717,7 +717,8 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     final SemanticQuery.Builder builder = ((SemanticQuery) context.query())
         .toBuilder()
         .setCacheMode(CacheMode.BYPASS)
-        .setStart(Integer.toString(start))
+        // TODO - PADDING compute the padding
+        .setStart(Integer.toString(start - 300))
         .setEnd(Integer.toString(end));
     
     return SemanticQueryContext.newBuilder()
