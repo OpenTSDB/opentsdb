@@ -453,6 +453,38 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
   }
 
   @Override
+  public Deferred<Void> delete(final int timestamp, final byte[] key) {
+    try {
+      cluster.del(key);
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del", 
+          (String[]) null);
+      return Deferred.fromResult(null);
+    } catch (Exception e) {
+      LOG.error("Unexpected exception deleting from Redis.", e);
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del.exception", 
+          (String[]) null);
+      return Deferred.fromError(e);
+    }
+  }
+  
+  @Override
+  public Deferred<Void> delete(final int[] timestamps, final byte[][] keys) {
+    try {
+      for (int i = 0; i < keys.length; i++) {
+        cluster.del(keys[i]);
+        tsdb.getStatsCollector().incrementCounter("query.cache.redis.del", 
+            (String[]) null);
+      }
+      return Deferred.fromResult(null);
+    } catch (Exception e) {
+      LOG.error("Unexpected exception deleting from Redis.", e);
+      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del.exception", 
+          (String[]) null);
+      return Deferred.fromError(e);
+    }
+  }
+  
+  @Override
   public Deferred<Void> cache(final int timestamp, 
                               final byte[] key, 
                               final long expiration,

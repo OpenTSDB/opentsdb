@@ -331,6 +331,20 @@ public class GuavaLRUCache extends BaseTSDBPlugin implements
   }
   
   @Override
+  public Deferred<Void> delete(final int timestamp, final byte[] key) {
+    cache.invalidate(new ByteArrayKey(key));
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
+  public Deferred<Void> delete(final int[] timestamps, final byte[][] keys) {
+    for (final byte[] key : keys) {
+      cache.invalidate(new ByteArrayKey(key));
+    }
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
   public String type() {
     return TYPE;
   }
@@ -483,7 +497,5 @@ public class GuavaLRUCache extends BaseTSDBPlugin implements
           "The ID of a cache serdes plugin to load.");
     }
   }
-
-
   
 }
