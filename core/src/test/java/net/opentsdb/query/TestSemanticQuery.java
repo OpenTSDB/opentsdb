@@ -415,9 +415,7 @@ public class TestSemanticQuery {
         .build();
     assertNull(query.getFilter("f1"));
   }
-
-
-
+  
   @Test
   public void equality() throws Exception {
     NamedFilter filter = DefaultNamedFilter.newBuilder()
@@ -604,10 +602,5 @@ public class TestSemanticQuery {
 
 
   }
-
-
-
-
-
-
+  
 }

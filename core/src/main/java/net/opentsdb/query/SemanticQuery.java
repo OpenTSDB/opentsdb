@@ -40,6 +40,8 @@ import net.opentsdb.utils.JSON;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 /**
  * A generic query object that allows the construction of a complete DAG
@@ -78,6 +80,8 @@ public class SemanticQuery implements TimeSeriesQuery {
   
   /** The log level for this query. */
   private LogLevel log_level;
+  
+  private volatile HashCode cached_hash;
   
   SemanticQuery(final Builder builder) {
     if (Strings.isNullOrEmpty(builder.start) && Strings.isNullOrEmpty(builder.end)) {
@@ -193,39 +197,33 @@ public class SemanticQuery implements TimeSeriesQuery {
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final Hasher hc = Const.HASH_FUNCTION().newHasher()
-            .putString(Strings.nullToEmpty(time_zone), Const.UTF8_CHARSET)
-            .putInt((mode != null ? mode.hashCode() : 0));
-    final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(1 +
-                    (execution_graph != null ? execution_graph.size() : 0) +
-                    (filters != null ? (2 * filters.size()) : 0));
-
-
-    if (execution_graph != null) {
-      for (final QueryNodeConfig node : execution_graph) {
-        hashes.add(node.buildHashCode());
-      }
-    }
-
-    if (filters != null) {
-      final List<String> keys = Lists.newArrayList(filters.keySet());
-      Collections.sort(keys);
-      for (final String key : keys) {
-        hc.putString(key, Const.UTF8_CHARSET);
-      }
+    if (cached_hash == null) {
+      final Hasher hc = Const.HASH_FUNCTION().newHasher()
+              .putString(Strings.nullToEmpty(time_zone), Const.UTF8_CHARSET)
+              .putString(mode != null ? mode.toString() : "", Const.UTF8_CHARSET);
+      final List<HashCode> hashes =
+              Lists.newArrayListWithCapacity(1 +
+                      (execution_graph != null ? execution_graph.size() : 0) +
+                      (filters != null ? (2 * filters.size()) : 0));
       hashes.add(hc.hash());
-
-      final List<NamedFilter> values = Lists.newArrayList(filters.values());
-      for (final NamedFilter val : values) {
-        if (val != null) {
-          hashes.add(val.buildHashCode());
+  
+      if (execution_graph != null) {
+        for (final QueryNodeConfig node : execution_graph) {
+          hashes.add(node.buildHashCode());
         }
       }
-
+  
+      if (filters != null) {
+        final TreeMap<String, NamedFilter> sorted = 
+            new TreeMap<String, NamedFilter>(filters);
+        for (final Entry<String, NamedFilter> entry : sorted.entrySet()) {
+          hashes.add(entry.getValue().buildHashCode());
+        }
+      }
+  
+      cached_hash = Hashing.combineOrdered(hashes);
     }
-
-    return Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
   
   @Override

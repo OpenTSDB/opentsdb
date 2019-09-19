@@ -93,8 +93,7 @@ public class ChainFilter implements QueryFilter {
         .append("}")
         .toString();
   }
-
-
+  
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -104,7 +103,7 @@ public class ChainFilter implements QueryFilter {
 
     final ChainFilter otherChainFilter = (ChainFilter) o;
 
-    if (!Objects.equal(op, otherChainFilter.getOp())) {
+    if (!Objects.equal(op.toString(), otherChainFilter.getOp().toString())) {
       return false;
     }
 
@@ -120,18 +119,16 @@ public class ChainFilter implements QueryFilter {
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
-
+  
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
-            .putInt((op != null ? op.hashCode() : 0))
+            .putString(op != null ? op.toString() : "", Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(getType()), Const.UTF8_CHARSET)
             .hash();
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(1 +
                     (filters != null ? filters.size() : 0));
-
     hashes.add(hc);
 
     if (filters != null) {
@@ -139,10 +136,9 @@ public class ChainFilter implements QueryFilter {
         hashes.add(filter.buildHashCode());
       }
     }
-
+    
     return Hashing.combineOrdered(hashes);
   }
-
   
   @Override
   public Deferred<Void> initialize(final Span span) {
