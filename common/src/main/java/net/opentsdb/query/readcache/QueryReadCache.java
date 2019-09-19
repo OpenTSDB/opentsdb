@@ -105,15 +105,21 @@ public interface QueryReadCache {
    * @param timestamp The Unix epoch timestamp in seconds.
    * @param key A non-null and non-empty key.
    * @return A deferred resolving to null on complete.
+   * @throws IllegalStateException of the cache has not been initialized.
+   * @throws IllegalArgumentException if the key was null or empty.
    */
   public Deferred<Void> delete(final int timestamp, final byte[] key);
   
   /**
-   * Removes the entries from the cache.
-   * @param timestampsAn array of Unix epoch timestamps in seconds, must be
+   * Removes the entries from the cache. Note that the number of keys must
+   * match the number of timestamps. Each key must be a non-null value.
+   * @param timestamps An array of Unix epoch timestamps in seconds, must be
    * the same size as the keys.
    * @param keys A non-null and non-empty array of non-null and non-empty keys.
    * @return A deferred resolving to null on complete.
+   * @throws IllegalStateException of the cache has not been initialized.
+   * @throws IllegalArgumentException if the keys were null or empty or the
+   * key and data arrays differed in length.
    */
   public Deferred<Void> delete(final int[] timestamps, final byte[][] keys);
   
