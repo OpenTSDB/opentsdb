@@ -215,7 +215,7 @@ public class CombinedCachedNumericArray implements
           } if (end > value.value().doubleArray().length) {
             LOG.warn("Coding but 6 wherein the end " + end + " is greater than "
                 + "the source array len: " + value.value().doubleArray().length);
-            end = value.value().doubleArray().length;
+            end = value.value().doubleArray().length - start_offset;
           }
           
           System.arraycopy(value.value().doubleArray(), start_offset, 

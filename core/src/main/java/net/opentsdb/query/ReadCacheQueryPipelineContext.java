@@ -89,7 +89,6 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   protected AtomicInteger hits;
   protected AtomicBoolean failed;
   protected QueryContext full_query_context;
-  protected final AtomicBoolean full_query_caching;
   protected List<QueryResult> sub_results;
   protected Map<String, QueryNode> summarizer_node_map;
   
@@ -101,7 +100,6 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     }
     failed = new AtomicBoolean();
     current_time = DateTime.currentTimeMillis();
-    full_query_caching = new AtomicBoolean();
   }
   
   @Override
@@ -238,6 +236,15 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           keys = Arrays.copyOf(keys, keys.length - 1);
         }
         results = new ResultOrSubQuery[slices.length];
+        
+        if (context.query().getCacheMode() == CacheMode.CLEAR) {
+          LOG.info("Clearing cache for query " 
+              + context.query().buildHashCode().asLong() 
+              + " at timestamps " + Arrays.toString(slices));
+          cache.delete(slices, keys);
+          skip_cache = true;
+          return null;
+        }
         
         if (context.sinkConfigs() != null) {
           for (final QuerySinkConfig config : context.sinkConfigs()) {
@@ -966,7 +973,6 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           (context.query().getCacheMode() == CacheMode.NORMAL ||
            context.query().getCacheMode() == CacheMode.WRITEONLY)) {
         if (full_query_context.cacheable()) {
-          full_query_caching.set(true);
           context.tsdb().getQueryThreadPool().submit(new Runnable() {
             @Override
             public void run() {

@@ -99,5 +99,22 @@ public interface QueryReadCache {
                               final long[] expirations,
                               final Collection<QueryResult> results,
                               final Span upstream_span);
-   
+  
+  /**
+   * Remove the entry from the cache.
+   * @param timestamp The Unix epoch timestamp in seconds.
+   * @param key A non-null and non-empty key.
+   * @return A deferred resolving to null on complete.
+   */
+  public Deferred<Void> delete(final int timestamp, final byte[] key);
+  
+  /**
+   * Removes the entries from the cache.
+   * @param timestampsAn array of Unix epoch timestamps in seconds, must be
+   * the same size as the keys.
+   * @param keys A non-null and non-empty array of non-null and non-empty keys.
+   * @return A deferred resolving to null on complete.
+   */
+  public Deferred<Void> delete(final int[] timestamps, final byte[][] keys);
+  
 }
