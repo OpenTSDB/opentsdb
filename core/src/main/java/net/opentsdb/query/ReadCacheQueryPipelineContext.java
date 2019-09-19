@@ -242,6 +242,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         
         expirations = new long[slices.length];
         expirations[0] = min_interval * 1000; // needs to be in millis
+        
         keys = key_gen.generate(context.query().buildHashCode().asLong(), 
             string_interval, slices, expirations);
         if (tip_query) {
