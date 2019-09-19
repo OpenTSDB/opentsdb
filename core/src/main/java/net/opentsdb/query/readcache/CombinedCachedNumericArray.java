@@ -212,15 +212,20 @@ public class CombinedCachedNumericArray implements
             LOG.warn("Coding bug 3 wherein the index " + (idx + end) 
                 + " was greater than the double array " + double_array.length);
             end -= (idx + end - double_array.length);
-          } if (end > value.value().doubleArray().length) {
+          } 
+          if (end > value.value().end()) {
             LOG.warn("Coding but 6 wherein the end " + end + " is greater than "
                 + "the source array len: " + value.value().doubleArray().length);
-            end = value.value().doubleArray().length - start_offset;
+            end = value.value().end() - start_offset;
           }
           
-          System.arraycopy(value.value().doubleArray(), start_offset, 
-              double_array, idx, end);
-          idx += end;
+          // can happen if we have a tiny bit of data at the start of a segment
+          // that is overlapping but not enough to add to the array.
+          if (end > start_offset) {
+            System.arraycopy(value.value().doubleArray(), start_offset, 
+                double_array, idx, end);
+            idx += end;
+          }
         }
       } else {
         /** --------- NUMERIC TYPE ------------ */
