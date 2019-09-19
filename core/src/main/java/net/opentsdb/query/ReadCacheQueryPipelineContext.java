@@ -61,6 +61,7 @@ import net.opentsdb.query.readcache.ReadCacheQueryResult;
 import net.opentsdb.query.readcache.ReadCacheQueryResultSet;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
@@ -70,9 +71,19 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   static final Logger LOG = LoggerFactory.getLogger(
       ReadCacheQueryPipelineContext.class);
   
+  public static final String SEGMENTS_HIT = "query.cache.segments.hit";
+  public static final String SEGMENTS_MISS = "query.cache.segments.miss";
+  public static final String SEGMENTS_CLEAR = "query.cache.segments.delete";
+  public static final String SEGMENTS_UNCACHEABLE = "query.cache.segments.uncacheable";
+  public static final String SEGMENTS_CACHED = "query.cache.segments.cached";
+  public static final String SKIPS = "query.cache.skip";
+  public static final String FULL_QUERY = "query.cache.fullQuery";
+  public static final String[] NULL_TAGS = (String[]) null;
+  
   public static final String CACHE_PLUGIN_KEY = "tsd.query.cache.plugin_id";
   public static final String KEYGEN_PLUGIN_KEY = "tsd.query.cache.keygen.plugin_id";
   
+  protected final StatsCollector stats;
   protected final long current_time;
   protected int[] slices;
   protected int interval_in_seconds;
@@ -95,6 +106,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   ReadCacheQueryPipelineContext(final QueryContext context, 
                                 final List<QuerySink> direct_sinks) {
     super(context);
+    stats = context.tsdb().getStatsCollector();
     if (direct_sinks != null && !direct_sinks.isEmpty()) {
       sinks.addAll(direct_sinks);
     }
@@ -178,11 +190,11 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     if (interval_in_seconds >= 86400) {
       skip_cache = true;
       LOG.warn("Skipping cache for now as we have a rollup query.");
-      return Deferred.fromResult(null);
     }
     
     if (skip_cache) {
       // don't bother doing anything else.
+      stats.incrementCounter(SKIPS, NULL_TAGS);
       return Deferred.fromResult(null);
     }
 
@@ -242,6 +254,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
               + context.query().buildHashCode().asLong() 
               + " at timestamps " + Arrays.toString(slices));
           cache.delete(slices, keys);
+          stats.incrementCounter(SEGMENTS_CLEAR, keys.length, NULL_TAGS);
           skip_cache = true;
           return null;
         }
@@ -495,20 +508,21 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   }
   
   void processResults() {
-    if (hits.get() < keys.length) {
+    final int local_hits = hits.get();
+    if (local_hits < keys.length) {
       for (int i = 0; i < results.length; i++) {
         if (!results[i].complete.get()) {
-          if (okToRunMisses(hits.get())) {
+          if (okToRunMisses(local_hits)) {
             runCacheMissesAfterSatisfyingPercent();
           } else {
             // We failed the cache threshold so we run a FULL query.
             if (LOG.isTraceEnabled()) {
-              LOG.trace("Too many cache misses: " + (slices.length - hits.get()) 
+              LOG.trace("Too many cache misses: " + (slices.length - local_hits) 
                   + " out of " + slices.length + "; running the full query.");
             }
             if (query().isTraceEnabled()) {
               context.logTrace("Too many cache misses: " + 
-                  (slices.length - hits.get()) + " out of " + slices.length 
+                  (slices.length - local_hits) + " out of " + slices.length 
                   + "; running the full query.");
             }
             if (full_query_context != null) {
@@ -528,7 +542,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
             full_query_context.initialize(null)
                 .addCallback(new SubQueryCB(full_query_context))
                 .addErrback(new ErrorCB());
-            
+            stats.incrementCounter(FULL_QUERY, NULL_TAGS);
             // while that's running, release the old resources
             cleanup();
           }
@@ -541,6 +555,8 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       return;
     }
     
+    stats.incrementCounter(SEGMENTS_HIT, local_hits, NULL_TAGS);
+    stats.incrementCounter(SEGMENTS_MISS, slices.length - local_hits, NULL_TAGS);
     // all sub queries in, ready to go.
     try {
       // sort and merge
@@ -618,6 +634,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
                 .addBoth(new Callback<Void, Void>() {
                   @Override
                   public Void call(Void arg) throws Exception {
+                    stats.incrementCounter(SEGMENTS_CACHED, keys.length, NULL_TAGS);
                     if (results[idx].map != null) {
                       for (final QueryResult result : results[idx].map.values()) {
                         if (result != null) {
@@ -640,6 +657,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
               }
             }, context);
           } else {
+            stats.incrementCounter(SEGMENTS_UNCACHEABLE, keys.length, NULL_TAGS);
             if (results[x].map != null) {
               for (final QueryResult result : results[x].map.values()) {
                 if (result != null) {
@@ -981,6 +999,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
                   .addBoth(new Callback<Void, Void>() {
                     @Override
                     public Void call(Void arg) throws Exception {
+                      stats.incrementCounter(SEGMENTS_CACHED, NULL_TAGS);
                       for (final QueryResult result : sub_results) {
                         if (result != null) {
                           try {
@@ -1004,6 +1023,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
             }
           }, context);
         } else {
+          stats.incrementCounter(SEGMENTS_UNCACHEABLE, NULL_TAGS);
           if (LOG.isDebugEnabled()) {
             LOG.debug("Will not cache full query as it's marked as not cacheable.");
           }
