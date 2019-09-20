@@ -595,8 +595,8 @@ public abstract class AbstractQueryPipelineContext implements
         }
       }
     } else {
-      LOG.warn("Called AQPC checkComplete() more than once. Find the leak.", 
-          new RuntimeException("Whoops."));
+//      LOG.warn("Called AQPC checkComplete() more than once. Find the leak.", 
+//          new RuntimeException("Whoops."));
     }
     return true;
   }
