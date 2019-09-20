@@ -85,6 +85,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   
   protected final StatsCollector stats;
   protected final long current_time;
+  protected final long original_query_hash;
   protected int[] slices;
   protected int interval_in_seconds;
   protected String string_interval;
@@ -112,6 +113,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     }
     failed = new AtomicBoolean();
     current_time = DateTime.currentTimeMillis();
+    original_query_hash = context.query().buildHashCode().asLong();
   }
   
   @Override
@@ -243,7 +245,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         expirations = new long[slices.length];
         expirations[0] = min_interval * 1000; // needs to be in millis
         
-        keys = key_gen.generate(context.query().buildHashCode().asLong(), 
+        keys = key_gen.generate(original_query_hash, 
             string_interval, slices, expirations);
         if (tip_query) {
           keys = Arrays.copyOf(keys, keys.length - 1);
@@ -252,7 +254,10 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         
         if (context.query().getCacheMode() == CacheMode.CLEAR) {
           LOG.info("Clearing cache for query " 
-              + context.query().buildHashCode().asLong() 
+              + original_query_hash
+              + " at timestamps " + Arrays.toString(slices));
+          context.logInfo("Clearing cache for query " 
+              + original_query_hash
               + " at timestamps " + Arrays.toString(slices));
           cache.delete(slices, keys);
           stats.incrementCounter(SEGMENTS_CLEAR, keys.length, NULL_TAGS);

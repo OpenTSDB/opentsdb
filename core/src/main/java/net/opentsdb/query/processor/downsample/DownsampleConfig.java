@@ -418,7 +418,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
-            .putString(Strings.nullToEmpty(original_interval), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(timezone.toString()), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
             .putBoolean(infectious_nan)
