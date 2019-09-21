@@ -398,7 +398,11 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     }
     hits = new AtomicInteger();
     cache_latch = new AtomicInteger(slices.length);
-    cache.fetch(this, keys, this, null);
+    try {
+      cache.fetch(this, keys, this, null);
+    } catch(Exception e) {
+      onCacheError(-1, e);
+    }
   }
   
   @Override
@@ -497,7 +501,27 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   public void onCacheError(final int index, final Throwable t) {
     if (failed.compareAndSet(false, true)) {
       LOG.warn("Failure from cache", t);
-      onError(t);
+      //onError(t);
+      context.logError("Cache exception, running full query: " + t.getMessage());
+      if (full_query_context != null) {
+        throw new IllegalStateException("Unexpected exception: "
+            + "SUB CONTEXT != null?");
+      }
+      full_query_context = buildQuery(
+          slices[0], 
+          slices[slices.length - 1] + interval_in_seconds, 
+          context, 
+          new FullQuerySink());
+      if (query().isTraceEnabled()) {
+        context.logTrace("Full query: " + JSON.serializeToString(
+            full_query_context.query()));
+      }
+      full_query_context.initialize(null)
+          .addCallback(new SubQueryCB(full_query_context))
+          .addErrback(new ErrorCB());
+      stats.incrementCounter(FULL_QUERY, NULL_TAGS);
+      // while that's running, release the old resources
+      cleanup();
     } else if (LOG.isDebugEnabled()) {
       LOG.debug("Failure from cache after initial failure", t);
     }
