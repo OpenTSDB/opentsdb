@@ -157,9 +157,16 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     
     logger.info("Sources size {}, Intervals found {}", sources.size(), intervals);
 
+    int size = ((GroupBy)node).getIntervals();
+    logger.info("Group size: " + size);
+
     valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
     for (int i = 0; i < valuesCombiner.length; i++) {
-      valuesCombiner[i] = factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
+      NumericArrayAggregator aggregator = factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
+      double[] nans = new double[size];
+      Arrays.fill(nans, Double.NaN);
+      aggregator.accumulate(nans);
+      valuesCombiner[i] = aggregator;
     }
 
     // TODO: Need to check if it makes sense to make this threshold configurable
@@ -173,7 +180,7 @@ public class GroupByNumericArrayIterator implements QueryIterator,
       long endTs = DateTime.nanoTime() - startTs;
       logger.info("Total number of paralelly fetched iterator values {} and parallel fetch took {}",
           futures.size(), ((double) endTs) / 1000_000);
-      accumulate();
+//      accumulate();
     } else {
       for (final TimeSeries source : sources) {
         if (source == null) {
@@ -200,29 +207,30 @@ public class GroupByNumericArrayIterator implements QueryIterator,
     double e = ((double) (DateTime.nanoTime() - st)) / 1000_000;
     logger.info("Groupby iterator took {}, timeseries count {}", e, sources.size());
   }
-  
-  private void parallel(final Collection<TimeSeries> sources,
+
+  private void parallel(
+      final Collection<TimeSeries> sources,
       List<Future<TimeSeriesValue<NumericArrayType>>> futures) {
 
-    Iterator<TimeSeries> iterator = sources.iterator();
-    while (iterator.hasNext()) {
-      for (int j = 0; j < executorList.size(); j++) {
-        has_next = true;
-        if (iterator.hasNext()) {
-          TimeSeries source = iterator.next();
-          futures.add(submit(executorList.get(j), source, valuesCombiner[j]));
-        }
-      }
+    int i = 0;
+    for (TimeSeries timeSeries : sources) {
+      int index = (i++) % NUM_THREADS;
+      futures.add(submit(executorList.get(index), timeSeries, valuesCombiner[index]));
+      has_next = true;
     }
 
     for (Future<TimeSeriesValue<NumericArrayType>> future : futures) {
       try {
-
-        TimeSeriesValue<NumericArrayType> array = future.get(); // get will block until the future
-                                                                // is done
+        future.get(); // get will block until the future is done
       } catch (InterruptedException | ExecutionException e3) {
         logger.error("Unable to get the status of a task", e3);
       }
+    }
+
+    for (NumericArrayAggregator combiner : valuesCombiner) {
+      double[] doubles = combiner.doubleArray();
+      logger.trace("Group by values: " + Arrays.toString(doubles));
+      aggregator.accumulate(doubles, combiner.offset(), combiner.end());
     }
   }
 
@@ -275,31 +283,25 @@ public class GroupByNumericArrayIterator implements QueryIterator,
   public Future<TimeSeriesValue<NumericArrayType>> submit(ExecutorService executor, TimeSeries source, NumericArrayAggregator aggregator) {
 
     Callable<TimeSeriesValue<NumericArrayType>> c =
-        new Callable<TimeSeriesValue<NumericArrayType>>() {
-
-          @Override
-          public TimeSeriesValue<NumericArrayType> call() throws Exception {
-            if (source == null) {
-              throw new IllegalArgumentException(
-                  "Null time series are not " + "allowed in the sources.");
-            }
-
-            final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
-                source.iterator(NumericArrayType.TYPE);
-            if (optional.isPresent()) {
-              final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
-                  optional.get();
-              if (iterator.hasNext()) {
-                if (aggregator != null) {
-                  return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(aggregator);
-                } else {
-                  return (TimeSeriesValue<NumericArrayType>) iterator.next();
-                }
-              }
-            }
-            return null;
+        () -> {
+          if (source == null) {
+            throw new IllegalArgumentException(
+                "Null time series are not " + "allowed in the sources.");
           }
 
+          final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
+              source.iterator(NumericArrayType.TYPE);
+          if (optional.isPresent()) {
+            final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
+            if (iterator.hasNext()) {
+              if (aggregator != null) {
+                return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(aggregator);
+              } else {
+                return (TimeSeriesValue<NumericArrayType>) iterator.next();
+              }
+            }
+          }
+          return null;
         };
         
     return executor.submit(c);

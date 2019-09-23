@@ -107,6 +107,23 @@ public class ArrayMaxFactory extends BaseArrayFactory {
     }
 
     @Override
+    public void accumulate(double value, int index) {
+      if (Double.isNaN(value)) {
+        if (infectious_nans) {
+          double_accumulator[index] = Double.NaN;
+        }
+      } else {
+        if (Double.isNaN(double_accumulator[index]) && !infectious_nans) {
+          double_accumulator[index] = value;
+        } else {
+          if (value > double_accumulator[index]) {
+            double_accumulator[index] = value;
+          }
+        }
+      }
+    }
+
+    @Override
     public void accumulate(final double[] values, 
                            final int from, 
                            final int to) {

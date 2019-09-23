@@ -90,6 +90,13 @@ public class ArrayCountFactory extends BaseArrayFactory {
     }
 
     @Override
+    public void accumulate(double value, int index) {
+      if(!Double.isNaN(value)) {
+        long_accumulator[index]++;
+      }
+    }
+
+    @Override
     public void accumulate(final double[] values, 
                            final int from, 
                            final int to) {
@@ -105,11 +112,10 @@ public class ArrayCountFactory extends BaseArrayFactory {
       
       int idx = 0;
       for (int i = from; i < to; i++) {
-        if (Double.isNaN(values[i])) {
-          idx++;
-        } else {
-          long_accumulator[idx++]++;
+        if(!Double.isNaN(values[i])) {
+          long_accumulator[idx]++;
         }
+        idx++;
       }
     }
     
