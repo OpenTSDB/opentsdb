@@ -224,7 +224,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
             boolean found = false;
             if (!found) {
               throw new QueryExecutionException("Unsatisfied sink filter: " 
-                  + key, 400);
+                  + key + printConfigGraph(), 400);
             }
           }
         }
