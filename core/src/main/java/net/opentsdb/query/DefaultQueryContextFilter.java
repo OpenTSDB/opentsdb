@@ -56,16 +56,16 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   private static final Logger LOG = LoggerFactory.getLogger(
       DefaultQueryContextFilter.class);
   
-  private static final TypeReference<Map<String, Map<String, String>>> USER_FILTERS =
+  protected static final TypeReference<Map<String, Map<String, String>>> USER_FILTERS =
       new TypeReference<Map<String, Map<String, String>>>() { };
-  private static final TypeReference<
+  protected static final TypeReference<
     Map<String, Map<String, Map<String, String>>>> HEADER_FILTERS =
       new TypeReference<Map<String, Map<String, Map<String, String>>>>() { };
-  private static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
+  protected static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
       new TypeReference<Map<String, PreAggConfig>>() { };
-  private static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
-  private static final String USER_KEY = "tsd.queryfilter.filter.users";
-  private static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
+  protected static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
+  protected static final String USER_KEY = "tsd.queryfilter.filter.users";
+  protected static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -110,8 +110,8 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   
   @Override
   public TimeSeriesQuery filter(final TimeSeriesQuery query, 
-      final AuthState auth_state, 
-      final Map<String, String> headers) {
+                                final AuthState auth_state, 
+                                final Map<String, String> headers) {
     SemanticQuery.Builder builder = null;
     Map<String, Map<String, Map<String, String>>> hdr_filter = 
         tsdb.getConfig().getTyped(HEADER_KEY, HEADER_FILTERS);
@@ -384,7 +384,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     final ChainFilter.Builder builder = ChainFilter.newBuilder()
         .setOp(filter.getOp());
     builder.addFilter(TagValueLiteralOrFilter.newBuilder()
-        .setFilter(agg)
+        .setFilter(agg.toUpperCase())
         .setKey("_aggregate")
         .build());
     for (final QueryFilter sub : filter.getFilters()) {
