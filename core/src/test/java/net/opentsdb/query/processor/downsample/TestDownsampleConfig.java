@@ -484,5 +484,68 @@ public class TestDownsampleConfig {
 
   }
 
+  @Test
+  public void testSnapStartAndEndTime() {
+
+    long start = 1546329600; // Tuesday, January 1, 2019 8:00:00 AM
+    long end = 1546333200; // Tuesday, January 1, 2019 9:00:00 AM
+
+    DownsampleConfig config =
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("boo")
+            .setTimeZone("UTC")
+            .setInterval("1m")
+            .setStart(String.valueOf(start + 2))
+            .setEnd(String.valueOf(end + 2))
+            .addInterpolatorConfig(numeric_config)
+            .build();
+
+    assertEquals(start + 60, config.startTime().epoch());
+    assertEquals(end, config.endTime().epoch());
+  }
+
+  @Test
+  public void testDoesNotSnapStartAndEndTimeIfRunAll() {
+
+    long start = 1546329602; // Tuesday, January 1, 2019 8:00:02 AM
+    long end = 1546333200; // Tuesday, January 1, 2019 9:00:02 AM
+
+    DownsampleConfig config =
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("boo")
+            .setTimeZone("UTC")
+            .setInterval("1m")
+            .setRunAll(true)
+            .setStart(String.valueOf(start))
+            .setEnd(String.valueOf(end))
+            .addInterpolatorConfig(numeric_config)
+            .build();
+
+    assertEquals(start, config.startTime().epoch());
+    assertEquals(end, config.endTime().epoch());
+    assertNull(config.interval());
+  }
+
+  @Test
+  public void testIntervalIsNullIfRunAll() {
+
+    long start = 1546329602; // Tuesday, January 1, 2019 8:00:02 AM
+    long end = 1546333200; // Tuesday, January 1, 2019 9:00:02 AM
+
+    DownsampleConfig config =
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("boo")
+            .setTimeZone("UTC")
+            .setInterval("1m")
+            .setRunAll(true)
+            .setStart(String.valueOf(start))
+            .setEnd(String.valueOf(end))
+            .addInterpolatorConfig(numeric_config)
+            .build();
+    assertNull(config.interval());
+  }
 
 }
