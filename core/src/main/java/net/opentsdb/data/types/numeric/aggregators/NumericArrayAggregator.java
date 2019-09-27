@@ -23,7 +23,7 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
  * 
  * @since 3.0
  */
-public interface NumericArrayAggregator extends Aggregator<NumericArrayType>, 
+public interface NumericArrayAggregator extends Aggregator<NumericArrayType>,
                                                 NumericArrayType {
 
   /**
@@ -66,5 +66,11 @@ public interface NumericArrayAggregator extends Aggregator<NumericArrayType>,
   public void accumulate(final double[] values,
                          final int from, 
                          final int to);
+
+  /**
+   * Combines the accumulated values from a given aggregator.
+   * @param aggregator
+   */
+  public void combine(NumericArrayAggregator aggregator);
   
 }

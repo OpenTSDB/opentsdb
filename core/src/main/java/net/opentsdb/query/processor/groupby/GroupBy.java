@@ -60,7 +60,7 @@ public class GroupBy extends AbstractQueryNode {
   /** The config for this group by node. */
   private final GroupByConfig config;
 
-  private int intervals;
+  private DownsampleConfig downsampleConfig;
     
   /**
    * Default ctor.
@@ -83,7 +83,6 @@ public class GroupBy extends AbstractQueryNode {
     return super.initialize(span)
         .addCallback(
             arg -> {
-              DownsampleConfig downsampleConfig = null;
               for (QueryNode node : (Collection<QueryNode>) this.downstream) {
                 if (node instanceof TimeSeriesDataSource) {
                   TimeSeriesDataSource timeSeriesDataSource = (TimeSeriesDataSource) node;
@@ -97,9 +96,6 @@ public class GroupBy extends AbstractQueryNode {
                   }
                   break;
                 }
-              }
-              if (downsampleConfig != null) {
-                this.intervals = downsampleConfig.intervals();
               }
               return null;
             });
@@ -171,7 +167,8 @@ public class GroupBy extends AbstractQueryNode {
     return upstream.size();
   }
 
-  public int getIntervals() {
-    return intervals;
+  public DownsampleConfig getDownsampleConfig() {
+    return downsampleConfig;
   }
+
 }
