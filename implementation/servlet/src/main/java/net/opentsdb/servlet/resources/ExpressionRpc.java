@@ -160,7 +160,7 @@ public class ExpressionRpc {
       if (request.getAttribute(AuthFilter.AUTH_STATE_KEY) == null || 
           ((AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY))
             .getStatus() != AuthStatus.SUCCESS) {
-        throw new QueryExecutionException("Autentication failed.", 403);
+        throw new QueryExecutionException("Authentication failed.", 403);
       }
       auth_state = (AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY);
     } else {
