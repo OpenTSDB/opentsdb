@@ -100,6 +100,11 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
   }
 
   @Override
+  public void accumulate(long value, int index) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public String toString() {
     if (isInteger()) {
       return Arrays.toString(long_accumulator);

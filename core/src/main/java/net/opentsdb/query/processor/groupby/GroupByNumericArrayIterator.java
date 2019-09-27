@@ -154,7 +154,9 @@ public class GroupByNumericArrayIterator
       size = downsampleConfig.intervals();
     }
 
-    logger.trace("Group size: " + size);
+    if(logger.isTraceEnabled()) {
+      logger.trace("Group size: " + size);
+    }
 
     aggregator =
         factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
@@ -180,16 +182,20 @@ public class GroupByNumericArrayIterator
   }
 
   private NumericArrayAggregator createAggregator(
-      QueryNode node, NumericArrayAggregatorFactory factory, int size) {
+      final QueryNode node, final NumericArrayAggregatorFactory factory, final int size) {
     NumericArrayAggregator aggregator =
         factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
     if (aggregator == null) {
       throw new IllegalArgumentException(
           "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
     }
-    double[] nans = new double[size];
-    Arrays.fill(nans, Double.NaN);
-    aggregator.accumulate(nans);
+    if(aggregator.isInteger()) {
+      aggregator.accumulate(new long[size]);
+    } else {
+      double[] nans = new double[size];
+      Arrays.fill(nans, Double.NaN);
+      aggregator.accumulate(nans);
+    }
     return aggregator;
   }
 

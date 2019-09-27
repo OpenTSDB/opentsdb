@@ -35,6 +35,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.Span;
@@ -60,8 +61,12 @@ public class GroupBy extends AbstractQueryNode {
   /** The config for this group by node. */
   private final GroupByConfig config;
 
+  /**
+   * An optional downsample config for use by the GroupByArrayIterator to size it's array properly
+   * when running in parallel.
+   */
   private DownsampleConfig downsampleConfig;
-    
+
   /**
    * Default ctor.
    * @param factory The non-null factory for generating iterators.
@@ -94,6 +99,11 @@ public class GroupBy extends AbstractQueryNode {
                         break;
                       }
                   }
+                  break;
+                }
+                if(node instanceof Downsample){
+                  Downsample downsample = (Downsample) node;
+                  downsampleConfig = (DownsampleConfig) downsample.config();
                   break;
                 }
               }

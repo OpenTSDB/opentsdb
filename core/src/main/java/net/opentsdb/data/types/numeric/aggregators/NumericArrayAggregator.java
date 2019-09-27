@@ -33,6 +33,14 @@ public interface NumericArrayAggregator extends Aggregator<NumericArrayType>,
   public void accumulate(final long[] values);
 
   /**
+   * Accumulate a long value at a specific index.
+   *
+   * @param value
+   * @param index
+   */
+  public void accumulate(final long value, final int index);
+
+  /**
    * Accumulates the integer values.
    * @param values A non-null (potentially empty) values array.
    * @param from the initial index of the range to be copied, inclusive.
@@ -50,7 +58,7 @@ public interface NumericArrayAggregator extends Aggregator<NumericArrayType>,
   public void accumulate(final double[] values);
 
   /**
-   * Accumulate a double value at a specific index
+   * Accumulate a double value at a specific index.
    * @param value
    * @param index
    */
