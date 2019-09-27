@@ -69,6 +69,18 @@ public class ArrayCountFactory extends BaseArrayFactory {
     }
 
     @Override
+    public void combine(NumericArrayAggregator aggregator) {
+      long[] values = ((BaseArrayAggregator) aggregator).long_accumulator;
+      if (long_accumulator == null) {
+        long_accumulator = Arrays.copyOf(values, values.length);
+      } else {
+        for (int i = 0; i < long_accumulator.length; i++) {
+          long_accumulator[i] += values[i];
+        }
+      }
+    }
+
+    @Override
     public void accumulate(final long[] values, 
                            final int from, 
                            final int to) {
@@ -90,6 +102,13 @@ public class ArrayCountFactory extends BaseArrayFactory {
     }
 
     @Override
+    public void accumulate(double value, int index) {
+      if(!Double.isNaN(value)) {
+        long_accumulator[index]++;
+      }
+    }
+
+    @Override
     public void accumulate(final double[] values, 
                            final int from, 
                            final int to) {
@@ -105,14 +124,13 @@ public class ArrayCountFactory extends BaseArrayFactory {
       
       int idx = 0;
       for (int i = from; i < to; i++) {
-        if (Double.isNaN(values[i])) {
-          idx++;
-        } else {
-          long_accumulator[idx++]++;
+        if(!Double.isNaN(values[i])) {
+          long_accumulator[idx]++;
         }
+        idx++;
       }
     }
-    
+
     @Override
     public String name() {
       return ArrayCountFactory.TYPE;

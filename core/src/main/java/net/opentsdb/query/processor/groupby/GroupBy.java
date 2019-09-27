@@ -14,22 +14,33 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 
+import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.processor.downsample.Downsample;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+import net.opentsdb.stats.Span;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Performs the time series grouping aggregation by sorting time series according
@@ -44,10 +55,18 @@ import net.opentsdb.query.processor.groupby.GroupByConfig;
  * @since 3.0
  */
 public class GroupBy extends AbstractQueryNode {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractQueryNode.class);
   
   /** The config for this group by node. */
   private final GroupByConfig config;
-    
+
+  /**
+   * An optional downsample config for use by the GroupByArrayIterator to size it's array properly
+   * when running in parallel.
+   */
+  private DownsampleConfig downsampleConfig;
+
   /**
    * Default ctor.
    * @param factory The non-null factory for generating iterators.
@@ -63,7 +82,35 @@ public class GroupBy extends AbstractQueryNode {
     }
     this.config = config;
   }
-    
+
+  @Override
+  public Deferred<Void> initialize(Span span) {
+    return super.initialize(span)
+        .addCallback(
+            arg -> {
+              for (QueryNode node : (Collection<QueryNode>) this.downstream) {
+                if (node instanceof TimeSeriesDataSource) {
+                  TimeSeriesDataSource timeSeriesDataSource = (TimeSeriesDataSource) node;
+                  TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig) timeSeriesDataSource.config();
+                  List<QueryNodeConfig> pushDownNodes = config.getPushDownNodes();
+                  for (QueryNodeConfig queryNodeConfig : pushDownNodes) {
+                      if(queryNodeConfig instanceof DownsampleConfig) {
+                        downsampleConfig = (DownsampleConfig) queryNodeConfig;
+                        break;
+                      }
+                  }
+                  break;
+                }
+                if(node instanceof Downsample){
+                  Downsample downsample = (Downsample) node;
+                  downsampleConfig = (DownsampleConfig) downsample.config();
+                  break;
+                }
+              }
+              return null;
+            });
+  }
+
   @Override
   public void close() {
     // No-op
@@ -129,4 +176,9 @@ public class GroupBy extends AbstractQueryNode {
   protected int upstreams() {
     return upstream.size();
   }
+
+  public DownsampleConfig getDownsampleConfig() {
+    return downsampleConfig;
+  }
+
 }

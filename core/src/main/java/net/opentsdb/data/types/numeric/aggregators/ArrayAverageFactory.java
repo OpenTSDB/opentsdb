@@ -108,12 +108,35 @@ public class ArrayAverageFactory extends BaseArrayFactory {
     }
 
     @Override
+    public void accumulate(double value, int idx) {
+      if (Double.isNaN(value)) {
+        if (infectious_nans) {
+          double_accumulator[idx] = Double.NaN;
+        }
+      } else {
+        counts[idx]++;
+        if (Double.isNaN(double_accumulator[idx]) && !infectious_nans) {
+          double_accumulator[idx] = value;
+        } else {
+          double_accumulator[idx] += value;
+        }
+      }
+    }
+
+    @Override
     public void accumulate(final double[] values, 
                            final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
-        double_accumulator = new double[to - from];
-        counts = new int[to - from];
+        double_accumulator = Arrays.copyOfRange(values, from, to);
+        counts = new int[double_accumulator.length];
+
+        for (int i = 0; i < double_accumulator.length; i++) {
+          if(!Double.isNaN(double_accumulator[i])){
+            counts[i] = 1;
+          }
+        }
+        return;
       }
       
       if (double_accumulator == null) {
@@ -132,16 +155,8 @@ public class ArrayAverageFactory extends BaseArrayFactory {
       
       int idx = 0;
       for (int i = from; i < to; i++) {
-        if (Double.isNaN(values[i])) {
-          if (infectious_nans) {
-            double_accumulator[idx++] += values[i];
-          } else {
-            idx++;
-          }
-        } else {
-          counts[idx]++;
-          double_accumulator[idx++] += values[i];
-        }
+        accumulate(values[i], idx);
+        idx++;
       }
     }
 

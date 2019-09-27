@@ -101,6 +101,21 @@ public class ArraySumFactory extends BaseArrayFactory {
     }
 
     @Override
+    public void accumulate(double value, int index) {
+      if (Double.isNaN(value)) {
+        if (infectious_nans) {
+          double_accumulator[index] = Double.NaN;
+        }
+      } else {
+        if (Double.isNaN(double_accumulator[index]) && !infectious_nans) {
+          double_accumulator[index] = value;
+        } else {
+          double_accumulator[index] += value;
+        }
+      }
+    }
+
+    @Override
     public void accumulate(final double[] values, 
                            final int from, 
                            final int to) {
@@ -118,8 +133,8 @@ public class ArraySumFactory extends BaseArrayFactory {
       }
       
       if (to - from != double_accumulator.length) {
-        throw new IllegalArgumentException("Values of length " 
-            + (to - from) + " did not match the original lengh of " 
+        throw new IllegalArgumentException("Values of length "
+            + (to - from) + " did not match the original lengh of "
             + double_accumulator.length);
       }
       

@@ -149,5 +149,26 @@ public class TestArrayCountFactory {
     assertEquals(2, agg.end());
     assertArrayEquals(new long[] { 2, 2 }, agg.longArray());
   }
+
+  @Test
+  public void testCombine() {
+
+    ArrayCountFactory arrayCountFactory = new ArrayCountFactory();
+    ArraySumFactory arraySumFactory = new ArraySumFactory();
+
+    NumericArrayAggregator sourceAggregator1 = arraySumFactory.newAggregator(false);
+    NumericArrayAggregator sourceAggregator2 = arraySumFactory.newAggregator(false);
+
+    sourceAggregator1.accumulate(new long[] {11, 11, 11, 11});
+    sourceAggregator2.accumulate(new long[] {10, 10, 10, 10});
+
+    NumericArrayAggregator destination = arrayCountFactory.newAggregator(false);
+
+    destination.combine(sourceAggregator1);
+    destination.combine(sourceAggregator1);
+    destination.combine(sourceAggregator2);
+
+    assertArrayEquals(new long[] {32, 32, 32, 32}, destination.longArray());
+  }
   
 }

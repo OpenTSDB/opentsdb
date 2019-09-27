@@ -19,6 +19,8 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 
+import java.util.Arrays;
+
 /**
  * A base implementation for numeric array aggregation functions.
  * 
@@ -52,7 +54,20 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
   public void accumulate(final double[] values) {
     accumulate(values, 0, values.length);
   }
-  
+
+  @Override
+  public void combine(NumericArrayAggregator aggregator) {
+    double[] double_accumulator = ((BaseArrayAggregator) aggregator).double_accumulator;
+    long[] long_accumulator = ((BaseArrayAggregator) aggregator).long_accumulator;
+
+    if (double_accumulator != null) {
+      accumulate(double_accumulator);
+    }
+    if (long_accumulator != null) {
+      accumulate(long_accumulator);
+    }
+  }
+
   @Override
   public boolean isInteger() {
     return long_accumulator == null ? false : true;
@@ -83,5 +98,19 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
     return long_accumulator != null ? long_accumulator.length : 
       double_accumulator.length;
   }
-  
+
+  @Override
+  public void accumulate(long value, int index) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public String toString() {
+    if (isInteger()) {
+      return Arrays.toString(long_accumulator);
+    } else {
+      return Arrays.toString(double_accumulator);
+    }
+  }
+
 }
