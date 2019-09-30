@@ -69,7 +69,7 @@ public class JsonV3QuerySerdesFactory extends BaseTSDBPlugin implements SerdesFa
                                    final JsonNode node) {
     try {
       return (SerdesOptions) mapper.treeToValue(node, 
-          JsonV2QuerySerdesOptions.class);
+          JsonV3QuerySerdesOptions.class);
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to parse config.", e);
     }

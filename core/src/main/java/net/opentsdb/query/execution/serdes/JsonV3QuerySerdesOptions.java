@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018 The OpenTSDB Authors.
+// Copyright (C) 2019 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,13 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import net.opentsdb.query.serdes.SerdesOptions;
 
 /**
- * Serdes options for the Json version 2 serializer.
+ * Serdes options for the Json version 3 serializer.
  * 
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
-@JsonDeserialize(builder = JsonV2QuerySerdesOptions.Builder.class)
-public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
+@JsonDeserialize(builder = JsonV3QuerySerdesOptions.Builder.class)
+public class JsonV3QuerySerdesOptions extends BaseSerdesOptions {
   /** Whether or not to show the TSUIDs. */
   private boolean show_tsuids;
   
@@ -52,7 +52,7 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
    * Default ctor.
    * @param builder Non-null builder.
    */
-  protected JsonV2QuerySerdesOptions(final Builder builder) {
+  protected JsonV3QuerySerdesOptions(final Builder builder) {
     super(builder);
     show_tsuids = builder.showTsuids;
     msResolution = builder.msResolution;
@@ -106,7 +106,7 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     private int parallelThreshold;
     
     protected Builder() {
-      setType(JsonV2QuerySerdesFactory.TYPE);
+      setType(JsonV3QuerySerdesFactory.TYPE);
     }
     
     public Builder setShowTsuids(final boolean showTsuids) {
@@ -140,7 +140,7 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     }
     
     public SerdesOptions build() {
-      return new JsonV2QuerySerdesOptions(this);
+      return new JsonV3QuerySerdesOptions(this);
     }
   }
   

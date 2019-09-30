@@ -61,11 +61,11 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   protected static final TypeReference<
     Map<String, Map<String, Map<String, String>>>> HEADER_FILTERS =
       new TypeReference<Map<String, Map<String, Map<String, String>>>>() { };
-  protected static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
+  private static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
       new TypeReference<Map<String, PreAggConfig>>() { };
   protected static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
   protected static final String USER_KEY = "tsd.queryfilter.filter.users";
-  protected static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
+  private static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -384,7 +384,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     final ChainFilter.Builder builder = ChainFilter.newBuilder()
         .setOp(filter.getOp());
     builder.addFilter(TagValueLiteralOrFilter.newBuilder()
-        .setFilter(agg.toUpperCase())
+        .setFilter(agg)
         .setKey("_aggregate")
         .build());
     for (final QueryFilter sub : filter.getFilters()) {
