@@ -61,11 +61,11 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   protected static final TypeReference<
     Map<String, Map<String, Map<String, String>>>> HEADER_FILTERS =
       new TypeReference<Map<String, Map<String, Map<String, String>>>>() { };
-  private static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
+  protected static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
       new TypeReference<Map<String, PreAggConfig>>() { };
   protected static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
   protected static final String USER_KEY = "tsd.queryfilter.filter.users";
-  private static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
+  protected static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -258,7 +258,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
               ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
               .setFilterId(null)
               .setQueryFilter(rebuildFilter(
-                  query.getFilter(tsdc.getFilterId()), agg))
+                  query.getFilter(tsdc.getFilterId()), agg.toUpperCase()))
               .build();
           rebuilt.put(tsdc.getId(), tsdc);
         } else {
@@ -268,7 +268,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           }
           tsdc = (TimeSeriesDataSourceConfig) 
               ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
-              .setQueryFilter(rebuildFilter(tsdc.getFilter(), agg))
+              .setQueryFilter(rebuildFilter(tsdc.getFilter(), agg.toUpperCase()))
               .build();
           rebuilt.put(tsdc.getId(), tsdc);
         }
@@ -304,11 +304,14 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     public List<String> excludedAggTags;
   }
   
-  String findAgg(final String id, final MutableGraph<QueryNodeConfig> graph, final QueryNodeConfig config) {
+  String findAgg(final String id, 
+                 final MutableGraph<QueryNodeConfig> graph, 
+                 final QueryNodeConfig config) {
     return findAgg(graph, config);
   }
   
-  String findAgg(final MutableGraph<QueryNodeConfig> graph, final QueryNodeConfig config) {
+  String findAgg(final MutableGraph<QueryNodeConfig> graph, 
+                 final QueryNodeConfig config) {
     if (config instanceof GroupByConfig) {
       return ((GroupByConfig) config).getAggregator();
     }

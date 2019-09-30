@@ -14,12 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDataSource;
@@ -27,6 +30,7 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -50,6 +54,8 @@ import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.processor.summarizer.SummarizerConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.utils.JSON;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -158,6 +164,22 @@ public class TestDefaultQueryPlanner {
     });
     when(S1.id()).thenReturn("s1");
     when(S2.id()).thenReturn("s2");
+    
+    when(STORE_FACTORY.parseConfig(any(ObjectMapper.class), any(TSDB.class), any(JsonNode.class)))
+    .thenAnswer(new Answer<QueryNodeConfig>() {
+      @Override
+      public QueryNodeConfig answer(InvocationOnMock invocation)
+          throws Throwable {
+        DefaultTimeSeriesDataSourceConfig.Builder builder = DefaultTimeSeriesDataSourceConfig.newBuilder();
+        
+        DefaultTimeSeriesDataSourceConfig.parseConfig
+            ((ObjectMapper) invocation.getArguments()[0], 
+                invocation.getArgumentAt(1, TSDB.class), 
+                (JsonNode) invocation.getArguments()[2],
+                (BaseTimeSeriesDataSourceConfig.Builder) builder);
+        return builder.build();
+      }
+    });
     
     NUMERIC_CONFIG = (NumericInterpolatorConfig) 
         NumericInterpolatorConfig.newBuilder()
@@ -2468,6 +2490,166 @@ public class TestDefaultQueryPlanner {
     assertTrue(planner.configGraph().nodes().contains(u1));
     assertTrue(planner.configGraph().nodes().contains(n));
     assertFalse(planner.configGraph().nodes().contains(d1));
+  }
+  
+  @Test
+  public void q1_smoothing_expressions_shift() throws Exception {
+    // A complex real-world query, used to fix hashes
+    String json = "{\"start\": \"1569862761754\",\"end\": \"1569866361754\",\"filters\": "
+        + "[{\"id\": \"f1\",\"filter\": {\"filters\": [{\"filter\": \"normal\",\"type\": "
+        + "\"TagValueLiteralOr\",\"tagKey\": \"type\"}],\"op\": \"AND\",\"type\": \"Chain\"}}],"
+        + "\"mode\": \"SINGLE\",\"traceEnabled\": false,\"debugEnabled\": false,"
+        + "\"warnEnabled\": false,\"timezone\": null,\"cacheMode\": \"NORMAL\","
+        + "\"executionGraph\": [{\"id\": \"q1_m1\",\"type\": \"TimeSeriesDataSource\","
+        + "\"metric\": {\"metric\": \"ssp.exch.bdr.BidResponses\",\"type\": \"MetricLiteral\"},"
+        + "\"filterId\": \"f1\",\"dataSourceId\": \"q1_m1\"}, {\"id\": "
+        + "\"q1_m1_downsample\",\"type\": \"Downsample\",\"sources\": [\"q1_m1\"],"
+        + "\"interval\": \"1m\",\"timezone\": \"UTC\",\"aggregator\": "
+        + "\"avg\",\"fill\": true,\"runAll\": false,\"originalInterval\": "
+        + "\"auto\",\"infectiousNan\": false,\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": "
+        + "\"numeric\"}]}, {\"id\": \"q1_m1_groupby\",\"type\": \"GroupBy\",\"sources\": "
+        + "[\"q1_m1_downsample\"],\"aggregator\": \"sum\",\"infectiousNan\": false,"
+        + "\"fullMerge\": false,\"mergeIds\": false,\"tagKeys\": [],"
+        + "\"interpolatorConfigs\": [{\"fillPolicy\": \"nan\",\"realFillPolicy\": "
+        + "\"NONE\",\"dataType\": \"numeric\"}]}, {\"id\": \"q1_m1-smooth\",\"type\":"
+        + " \"MovingAverage\",\"sources\": [\"q1_m1_groupby\"],\"samples\": 5,"
+        + "\"alpha\": 0.0,\"median\": false,\"weighted\": false,\"exponential\": true,"
+        + "\"infectiousNan\": false,\"averageInitial\": true}, {\"id\": \"q1_m2\","
+        + "\"type\": \"TimeSeriesDataSource\",\"metric\": {\"metric\": "
+        + "\"app.server.requests\",\"type\": \"MetricLiteral\"},\"filterId\": "
+        + "\"f1\",\"dataSourceId\": \"q1_m2\"}, {\"id\": \"q1_m2_downsample\","
+        + "\"type\": \"Downsample\",\"sources\": [\"q1_m2\"],\"interval\": \"1m\","
+        + "\"timezone\": \"UTC\",\"aggregator\": \"avg\",\"fill\": true,\"runAll\": false,"
+        + "\"originalInterval\": \"auto\",\"infectiousNan\": false,"
+        + "\"interpolatorConfigs\": [{\"fillPolicy\": \"nan\",\"realFillPolicy\": "
+        + "\"NONE\",\"dataType\": \"numeric\"}]}, {\"id\": \"q1_m2_groupby\",\"type\": "
+        + "\"GroupBy\",\"sources\": [\"q1_m2_downsample\"],\"aggregator\": \"sum\","
+        + "\"infectiousNan\": false,\"fullMerge\": false,\"mergeIds\": false,\"tagKeys\": "
+        + "[],\"interpolatorConfigs\": [{\"fillPolicy\": \"nan\",\"realFillPolicy\": "
+        + "\"NONE\",\"dataType\": \"numeric\"}]}, {\"id\": \"q1_m2-smooth\",\"type\": "
+        + "\"MovingAverage\",\"sources\": [\"q1_m2_groupby\"],\"samples\": 5,\"alpha\": 0.0,"
+        + "\"median\": false,\"weighted\": false,\"exponential\": true,\"infectiousNan\": "
+        + "false,\"averageInitial\": true}, {\"id\": \"q2_m1\",\"type\": "
+        + "\"TimeSeriesDataSource\",\"metric\": {\"metric\": \"ssp.exch.bdr.BidResponses\","
+        + "\"type\": \"MetricLiteral\"},\"filterId\": \"f1\",\"timeShiftInterval\": "
+        + "\"1d\",\"dataSourceId\": \"q2_m1\"}, {\"id\": \"q2_m1_downsample\",\"type\": "
+        + "\"Downsample\",\"sources\": [\"q2_m1\"],\"interval\": \"1m\",\"timezone\":"
+        + " \"UTC\",\"aggregator\": \"avg\",\"fill\": true,\"runAll\": false,"
+        + "\"originalInterval\": \"auto\",\"infectiousNan\": false,\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": "
+        + "\"numeric\"}]}, {\"id\": \"q2_m1_groupby\",\"type\": \"GroupBy\",\"sources\": "
+        + "[\"q2_m1_downsample\"],\"aggregator\": \"sum\",\"infectiousNan\": false,"
+        + "\"fullMerge\": false,\"mergeIds\": false,\"tagKeys\": [],\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": "
+        + "\"numeric\"}]}, {\"id\": \"q2_m1-smooth\",\"type\": \"MovingAverage\","
+        + "\"sources\": [\"q2_m1_groupby\"],\"samples\": 5,\"alpha\": 0.0,\"median\": "
+        + "false,\"weighted\": false,\"exponential\": true,\"infectiousNan\": false,"
+        + "\"averageInitial\": true}, {\"id\": \"q2_m2\",\"type\": "
+        + "\"TimeSeriesDataSource\",\"metric\": {\"metric\": \"app.server.requests\","
+        + "\"type\": \"MetricLiteral\"},\"filterId\": \"f1\",\"timeShiftInterval\": "
+        + "\"1d\",\"dataSourceId\": \"q2_m2\"}, {\"id\": \"q2_m2_downsample\",\"type\": "
+        + "\"Downsample\",\"sources\": [\"q2_m2\"],\"interval\": \"1m\",\"timezone\": "
+        + "\"UTC\",\"aggregator\": \"avg\",\"fill\": true,\"runAll\": false,"
+        + "\"originalInterval\": \"auto\",\"infectiousNan\": false,\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": "
+        + "\"numeric\"}]}, {\"id\": \"q2_m2_groupby\",\"type\": \"GroupBy\",\"sources\": "
+        + "[\"q2_m2_downsample\"],\"aggregator\": \"sum\",\"infectiousNan\": false,"
+        + "\"fullMerge\": false,\"mergeIds\": false,\"tagKeys\": [],\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": \"numeric\"}]}, "
+        + "{\"id\": \"q2_m2-smooth\",\"type\": \"MovingAverage\",\"sources\": "
+        + "[\"q2_m2_groupby\"],\"samples\": 5,\"alpha\": 0.0,\"median\": false,"
+        + "\"weighted\": false,\"exponential\": true,\"infectiousNan\": false,"
+        + "\"averageInitial\": true}, {\"id\": \"q3_m1\",\"type\": \"TimeSeriesDataSource\","
+        + "\"metric\": {\"metric\": \"ssp.exch.bdr.BidResponses\",\"type\": "
+        + "\"MetricLiteral\"},\"filterId\": \"f1\",\"timeShiftInterval\": \"1w\","
+        + "\"dataSourceId\": \"q3_m1\"}, {\"id\": \"q3_m1_downsample\",\"type\": "
+        + "\"Downsample\",\"sources\": [\"q3_m1\"],\"interval\": \"1m\",\"timezone\": "
+        + "\"UTC\",\"aggregator\": \"avg\",\"fill\": true,\"runAll\": false,"
+        + "\"originalInterval\": \"auto\",\"infectiousNan\": false,\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": "
+        + "\"numeric\"}]}, {\"id\": \"q3_m1_groupby\",\"type\": \"GroupBy\",\"sources\": "
+        + "[\"q3_m1_downsample\"],\"aggregator\": \"sum\",\"infectiousNan\": "
+        + "false,\"fullMerge\": false,\"mergeIds\": false,\"tagKeys\": [],"
+        + "\"interpolatorConfigs\": [{\"fillPolicy\": \"nan\",\"realFillPolicy\": "
+        + "\"NONE\",\"dataType\": \"numeric\"}]}, {\"id\": \"q3_m1-smooth\",\"type\": "
+        + "\"MovingAverage\",\"sources\": [\"q3_m1_groupby\"],\"samples\": 5,"
+        + "\"alpha\": 0.0,\"median\": false,\"weighted\": false,\"exponential\": true,"
+        + "\"infectiousNan\": false,\"averageInitial\": true}, {\"id\": \"q3_m2\","
+        + "\"type\": \"TimeSeriesDataSource\",\"metric\": {\"metric\": \"app.server.requests\","
+        + "\"type\": \"MetricLiteral\"},\"filterId\": \"f1\",\"timeShiftInterval\": "
+        + "\"1w\",\"dataSourceId\": \"q3_m2\"}, {\"id\": \"q3_m2_downsample\",\"type\": "
+        + "\"Downsample\",\"sources\": [\"q3_m2\"],\"interval\": \"1m\",\"timezone\": "
+        + "\"UTC\",\"aggregator\": \"avg\",\"fill\": true,\"runAll\": false,"
+        + "\"originalInterval\": \"auto\",\"infectiousNan\": false,\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\":"
+        + " \"numeric\"}]}, {\"id\": \"q3_m2_groupby\",\"type\": \"GroupBy\",\"sources\": "
+        + "[\"q3_m2_downsample\"],\"aggregator\": \"sum\",\"infectiousNan\": false,"
+        + "\"fullMerge\": false,\"mergeIds\": false,\"tagKeys\": [],\"interpolatorConfigs\": "
+        + "[{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": "
+        + "\"numeric\"}]}, {\"id\": \"q3_m2-smooth\",\"type\": \"MovingAverage\","
+        + "\"sources\": [\"q3_m2_groupby\"],\"samples\": 5,\"alpha\": 0.0,\"median\": false,"
+        + "\"weighted\": false,\"exponential\": true,\"infectiousNan\": false,"
+        + "\"averageInitial\": true}, {\"id\": \"q1_e1\",\"type\": \"Expression\","
+        + "\"sources\": [\"q1_m1-smooth\", \"q1_m2-smooth\"],\"expression\": "
+        + "\" q1_m1  /  q1_m2  * 100\",\"as\": \"q1_e1\",\"infectiousNan\": true,"
+        + "\"substituteMissing\": true,\"join\": {\"id\": \"Join\",\"type\": \"Join\","
+        + "\"sources\": [],\"joins\": {},\"joinType\": \"NATURAL_OUTER\","
+        + "\"explicitTags\": false},\"interpolatorConfigs\": [{\"fillPolicy\": \"nan\","
+        + "\"realFillPolicy\": \"NONE\",\"dataType\": \"numeric\"}]}, {\"id\": \"q2_e1\","
+        + "\"type\": \"Expression\",\"sources\": [\"q2_m1-smooth\", \"q2_m2-smooth\"],"
+        + "\"expression\": \" q2_m1  /  q2_m2  * 100\",\"as\": \"q2_e1\",\"infectiousNan\": true,"
+        + "\"substituteMissing\": true,\"join\": {\"id\": \"Join\",\"type\": \"Join\","
+        + "\"sources\": [],\"joins\": {},\"joinType\": \"NATURAL_OUTER\","
+        + "\"explicitTags\": false},\"interpolatorConfigs\": [{\"fillPolicy\": \"nan\","
+        + "\"realFillPolicy\": \"NONE\",\"dataType\": \"numeric\"}]}, {\"id\": "
+        + "\"q3_e1\",\"type\": \"Expression\",\"sources\": [\"q3_m1-smooth\", \"q3_m2-smooth\"],"
+        + "\"expression\": \" q3_m1  /  q3_m2  * 100\",\"as\": \"q3_e1\","
+        + "\"infectiousNan\": true,\"substituteMissing\": true,\"join\": {\"id\": "
+        + "\"Join\",\"type\": \"Join\",\"sources\": [],\"joins\": {},\"joinType\": "
+        + "\"NATURAL_OUTER\",\"explicitTags\": false},\"interpolatorConfigs\": ["
+        + "{\"fillPolicy\": \"nan\",\"realFillPolicy\": \"NONE\",\"dataType\": \"numeric\"}]}],"
+        + "\"serdesConfigs\": [{\"id\": \"serdes\",\"type\": \"JsonV3QuerySerdes\","
+        + "\"filter\": [\"q2_m1-smooth\", \"q2_m2-smooth\", \"q3_e1\", \"q2_e1\", "
+        + "\"q3_m1-smooth\", \"q3_m2-smooth\", \"q1_e1\", \"q1_m2-smooth\", \"q1_m1-smooth\"],"
+        + "\"msResolution\": false,\"showQuery\": false,\"showStats\": false,"
+        + "\"showSummary\": false,\"showTsuids\": false,\"parallelThreshold\": 0}],"
+        + "\"logLevel\": \"ERROR\"}";
+
+    SemanticQuery query = SemanticQuery.parse(TSDB, JSON.getMapper().readTree(json)).build();
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+ 
+    // validate
+    assertEquals(6, planner.sources().size());
+    assertEquals(6, STORE_NODES.size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(2)));
+    assertEquals(31, planner.graph().nodes().size());
+
+    assertEquals(9, planner.serializationSources().size());
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q1_e1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q2_e1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q3_e1")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q1_m1-smooth")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q2_m1-smooth")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q3_m1-smooth")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q1_m2-smooth")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q2_m2-smooth")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, 
+        planner.nodeForId("q3_m2-smooth")));
   }
   
   private SerdesOptions serdesConfigs(final List<String> filter) {

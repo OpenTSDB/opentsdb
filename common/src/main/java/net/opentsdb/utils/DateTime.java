@@ -177,7 +177,7 @@ public class DateTime {
   }
   
   /**
-   * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
+   * Parses a human-readable duration (e.g, "10m", "3h", "14d") into milliseconds.
    * <p>
    * Formats supported:<ul>
    * <li>{@code ms}: milliseconds</li>

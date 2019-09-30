@@ -161,7 +161,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // the first step is to add the vertices to the graph and we'll stash
     // the nodes in a map by node ID so we can link them later.
     for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
-      System.out.println("NODE: " + node);
       if (config_map.putIfAbsent(node.getId(), node) != null) {
         throw new QueryExecutionException("The node id \"" 
             + node.getId() + "\" appeared more than once in the "
