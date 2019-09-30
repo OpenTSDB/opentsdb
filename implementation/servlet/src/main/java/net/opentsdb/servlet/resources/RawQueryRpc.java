@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 import javax.servlet.AsyncContext;
@@ -53,7 +52,7 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
-import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
+import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesOptions;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
@@ -233,7 +232,7 @@ public class RawQueryRpc {
     SerdesOptions serdes = query.getSerdesConfigs().isEmpty() ? null :
       query.getSerdesConfigs().get(0);
     if (serdes == null) {
-      serdes = JsonV2QuerySerdesOptions.newBuilder()
+      serdes = JsonV3QuerySerdesOptions.newBuilder()
           .setId("JsonV3QuerySerdes")
           .build();
     }

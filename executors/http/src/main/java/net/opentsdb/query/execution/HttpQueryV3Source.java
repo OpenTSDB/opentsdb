@@ -41,7 +41,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
-import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
+import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -205,7 +205,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     }
     
     if (pushdown_serdes != null) {
-      builder.addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+      builder.addSerdesConfig(JsonV3QuerySerdesOptions.newBuilder()
           .setId("JsonV3QuerySerdes")
           .setFilter(pushdown_serdes)
           .build());
