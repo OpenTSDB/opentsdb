@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.movingaverage;
 
 import java.time.temporal.TemporalAmount;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -23,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
@@ -159,7 +162,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
 
   @Override
   public HashCode buildHashCode() {
-    return Const.HASH_FUNCTION().newHasher()
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putInt(samples)
             .putString(Strings.nullToEmpty(interval), net.opentsdb.core.Const.UTF8_CHARSET)
             .putDouble(alpha)
@@ -169,6 +172,11 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
             .putBoolean(exponential)
             .putBoolean(infectious_nan)
         .hash();
+    final List<HashCode> hashes =
+        Lists.newArrayListWithCapacity(2);
+    hashes.add(super.buildHashCode());
+    hashes.add(hc);
+    return Hashing.combineOrdered(hashes);
   }
 
   @Override

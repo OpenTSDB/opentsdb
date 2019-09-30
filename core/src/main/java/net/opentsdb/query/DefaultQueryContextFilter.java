@@ -258,7 +258,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
               ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
               .setFilterId(null)
               .setQueryFilter(rebuildFilter(
-                  query.getFilter(tsdc.getFilterId()), agg))
+                  query.getFilter(tsdc.getFilterId()), agg.toUpperCase()))
               .build();
           rebuilt.put(tsdc.getId(), tsdc);
         } else {
@@ -268,7 +268,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           }
           tsdc = (TimeSeriesDataSourceConfig) 
               ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
-              .setQueryFilter(rebuildFilter(tsdc.getFilter(), agg))
+              .setQueryFilter(rebuildFilter(tsdc.getFilter(), agg.toUpperCase()))
               .build();
           rebuilt.put(tsdc.getId(), tsdc);
         }
@@ -304,11 +304,14 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     public List<String> excludedAggTags;
   }
   
-  String findAgg(final String id, final MutableGraph<QueryNodeConfig> graph, final QueryNodeConfig config) {
+  String findAgg(final String id, 
+                 final MutableGraph<QueryNodeConfig> graph, 
+                 final QueryNodeConfig config) {
     return findAgg(graph, config);
   }
   
-  String findAgg(final MutableGraph<QueryNodeConfig> graph, final QueryNodeConfig config) {
+  String findAgg(final MutableGraph<QueryNodeConfig> graph, 
+                 final QueryNodeConfig config) {
     if (config instanceof GroupByConfig) {
       return ((GroupByConfig) config).getAggregator();
     }
@@ -384,7 +387,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     final ChainFilter.Builder builder = ChainFilter.newBuilder()
         .setOp(filter.getOp());
     builder.addFilter(TagValueLiteralOrFilter.newBuilder()
-        .setFilter(agg.toUpperCase())
+        .setFilter(agg)
         .setKey("_aggregate")
         .build());
     for (final QueryFilter sub : filter.getFilters()) {

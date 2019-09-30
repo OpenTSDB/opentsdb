@@ -112,9 +112,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     if (options == null) {
       throw new IllegalArgumentException("Options cannot be null.");
     }
-    if (!(options instanceof JsonV2QuerySerdesOptions)) {
+    if (!(options instanceof JsonV3QuerySerdesOptions)) {
       throw new IllegalArgumentException("Options must be an instance of "
-          + "JsonV2QuerySerdesOptions.");
+          + "JsonV3QuerySerdesOptions.");
     }
     if (stream == null) {
       throw new IllegalArgumentException("Stream cannot be null.");
@@ -134,7 +134,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
-    final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
+    final JsonV3QuerySerdesOptions opts = (JsonV3QuerySerdesOptions) options;
 
     final QueryStats stats = context.stats();
     if (stats != null) {
@@ -487,7 +487,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   }
 
   private void serializeSeries(
-        final JsonV2QuerySerdesOptions options,
+        final JsonV3QuerySerdesOptions options,
         final TimeSeries series,
         final TimeSeriesStringId id,
         JsonGenerator json,
@@ -592,7 +592,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   private boolean writeNumeric(
       TimeSeriesValue<NumericType> value,
-      final JsonV2QuerySerdesOptions options,
+      final JsonV3QuerySerdesOptions options,
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
@@ -705,7 +705,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   private boolean writeRollupNumeric(
       TimeSeriesValue<NumericSummaryType> value,
-      final JsonV2QuerySerdesOptions options,
+      final JsonV3QuerySerdesOptions options,
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
@@ -826,7 +826,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   private boolean writeNumericSummary(
       TimeSeriesValue value,
-      final JsonV2QuerySerdesOptions options,
+      final JsonV3QuerySerdesOptions options,
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
@@ -990,7 +990,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
   private boolean writeNumericArray(
       TimeSeriesValue<NumericArrayType> value,
-      final JsonV2QuerySerdesOptions options,
+      final JsonV3QuerySerdesOptions options,
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result,
