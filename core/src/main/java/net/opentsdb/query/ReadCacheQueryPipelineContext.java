@@ -931,9 +931,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       if (failed.compareAndSet(false, true)) {
         onError(e);
       } else {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Failure in sub query after initial failure", e);
-        }
+        LOG.warn("Failure in sub query after initial failure", e);
       }
       return null;
     }
@@ -985,9 +983,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       if (failed.compareAndSet(false, true)) {
         ReadCacheQueryPipelineContext.this.onError(t);
       } else {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Failure in main query after initial failure", t);
-        }
+        LOG.warn("Failure in main query after initial failure", t);
       }
     }
     

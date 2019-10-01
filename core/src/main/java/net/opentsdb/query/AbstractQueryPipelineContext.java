@@ -502,7 +502,8 @@ public abstract class AbstractQueryPipelineContext implements
         }
       }
     } catch (Throwable t) {
-      LOG.error("Unexpected exception processing PTS post Sink: " + series + "  SET: " + series.set(), t);
+      LOG.error("Unexpected exception processing PTS post Sink: " + series 
+          + "  SET: " + series.set(), t);
       onError(t);
     } finally {
       try {
@@ -626,7 +627,8 @@ public abstract class AbstractQueryPipelineContext implements
        if (cntr == null ) {
         LOG.error("Unexpected result source, no counter for: " 
             + result.source().config().getId() + ":" 
-            + result.dataSource() + ". Want sources: " + countdowns);
+            + result.dataSource() + " of type " + result.getClass() 
+            + ". Want sources: " + countdowns);
       } else {
         cntr.decrementAndGet();
       }
