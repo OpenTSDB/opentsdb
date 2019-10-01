@@ -285,7 +285,8 @@ public class TestJsonV2QuerySerdes {
     serdes.serializeComplete(null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
-    assertEquals("[]", json);
+    // TODO maybe filter these out again
+    assertTrue(json.contains("dps\":{}"));
   }
   
   @Test
@@ -308,7 +309,8 @@ public class TestJsonV2QuerySerdes {
     serdes.serializeComplete(null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
-    assertEquals("[]", json);
+    // TODO maybe filter these out again
+    assertTrue(json.contains("dps\":{}"));
   }
   
   @Test
@@ -506,6 +508,7 @@ public class TestJsonV2QuerySerdes {
   public void serializeArrayFull() throws Exception {
     TimeSpecification spec = mock(TimeSpecification.class);
     when(spec.start()).thenReturn(new SecondTimeStamp(1486045800));
+    when(spec.end()).thenReturn(new SecondTimeStamp(1486045800 + 3600));
     when(spec.interval()).thenReturn(Duration.ofSeconds(60));
     when(result.timeSpecification()).thenReturn(spec);
     
@@ -542,6 +545,7 @@ public class TestJsonV2QuerySerdes {
   public void serdesArrayNoFill() throws Exception {
     TimeSpecification spec = mock(TimeSpecification.class);
     when(spec.start()).thenReturn(new SecondTimeStamp(1486045800));
+    when(spec.end()).thenReturn(new SecondTimeStamp(1486045800 + 3600));
     when(spec.interval()).thenReturn(Duration.ofSeconds(60));
     when(result.timeSpecification()).thenReturn(spec);
     

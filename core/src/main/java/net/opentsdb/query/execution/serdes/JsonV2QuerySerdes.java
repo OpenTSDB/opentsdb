@@ -48,9 +48,7 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -251,20 +249,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                 
                 TimeSeriesValue<? extends TimeSeriesDataType> value = 
                     (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
-                while (value != null && value.timestamp().compare(
-                    Op.LT, start)) {
-                  if (iterator.hasNext()) {
-                    value = (TimeSeriesValue<NumericType>) iterator.next();
-                  } else {
-                    value = null;
-                  }
-                }
-                
                 if (value == null) {
-                  continue;
-                }
-                if (value.timestamp().compare(Op.LT, start) ||
-                    value.timestamp().compare(Op.GT, end)) {
                   continue;
                 }
                 
@@ -387,6 +372,15 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       final JsonGenerator json,
       final QueryResult result) throws IOException {
     while (value != null) {
+      if (value.timestamp().compare(Op.LT, start)) {
+        if (iterator.hasNext()) {
+          value = (TimeSeriesValue<NumericType>) iterator.next();
+        } else {
+          value = null;
+        }
+        continue;
+      }
+      
       if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
@@ -424,6 +418,16 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       if (value.timestamp().compare(Op.GT, end)) {
         break;
       }
+      
+      if (value.timestamp().compare(Op.LT, start)) {
+        if (iterator.hasNext()) {
+          value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+        } else {
+          value = null;
+        }
+        continue;
+      }
+      
       long ts = (options != null && options.getMsResolution()) 
           ? value.timestamp().msEpoch() 
           : value.timestamp().msEpoch() / 1000;
@@ -472,9 +476,18 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       return;
     }
     
+    int idx = value.value().offset();
     final TimeStamp timestamp = 
         result.timeSpecification().start().getCopy();
-    for (int i = value.value().offset(); i < value.value().end(); i++) {
+    if (!start.compare(Op.EQ, result.timeSpecification().start()) || 
+        !end.compare(Op.EQ, result.timeSpecification().end())) {
+      while (idx < value.value().end() && timestamp.compare(Op.LT, start)) {
+        idx++;
+        timestamp.add(result.timeSpecification().interval());
+      }
+    }
+    
+    for (int i = idx; i < value.value().end(); i++) {
       if (!value.value().isInteger() && 
           Double.isNaN(value.value().doubleArray()[i]) && 
           !fill) {

@@ -152,7 +152,7 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
 
   @Override
   public boolean pushDown() {
-    return true;
+    return false;
   }
   
   @Override
