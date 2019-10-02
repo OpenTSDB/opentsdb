@@ -192,7 +192,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                 spec_start.add(result.timeSpecification().interval());
               }
             } else {
-              spec_start = start;
+              spec_start = result.timeSpecification().start();
             }
 
              if (result.timeSpecification().end().compare(Op.GT, end)) {
@@ -203,7 +203,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   DateTime.getDurationUnits(result.timeSpecification().stringInterval()));
               end.snapToPreviousInterval(interval, u);
             } else {
-              spec_end = end;
+              spec_end = result.timeSpecification().end();
             }
              
             json.writeObjectFieldStart("timeSpecification");
