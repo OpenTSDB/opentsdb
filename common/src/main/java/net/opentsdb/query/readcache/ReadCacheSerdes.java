@@ -17,6 +17,7 @@ package net.opentsdb.query.readcache;
 import java.util.Collection;
 import java.util.Map;
 
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 
 /**
@@ -48,10 +49,13 @@ public interface ReadCacheSerdes {
 
   /**
    * Deserializes the given result collection.
+   * @param context The Query pipeline context.
    * @param data A non-null byte array.
    * @return The deserialized cache result map, may be empty, keyed on the
    * result ID.
    */
-  public Map<String, ReadCacheQueryResult> deserialize(final byte[] data);
+  public Map<String, ReadCacheQueryResult> deserialize(
+      final QueryPipelineContext context, 
+      final byte[] data);
 
 }

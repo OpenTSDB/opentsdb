@@ -106,12 +106,12 @@ public class TestGuavaLRUCache {
       }
     });
     
-    when(serdes.deserialize(any(byte[].class))).thenAnswer(
+    when(serdes.deserialize(any(QueryPipelineContext.class), any(byte[].class))).thenAnswer(
         new Answer<Map<String, ReadCacheQueryResult>>() {
           @Override
           public Map<String, ReadCacheQueryResult> answer(
               InvocationOnMock invocation) throws Throwable {
-            SerdesObj obj = serdes_calls.get((byte[]) invocation.getArguments()[0]);
+            SerdesObj obj = serdes_calls.get((byte[]) invocation.getArguments()[1]);
             return obj.deserialized;
           }
     });
@@ -289,7 +289,8 @@ public class TestGuavaLRUCache {
       fail("Expected UnitTestException");
     } catch (UnitTestException e) { }
     
-    doThrow(new UnitTestException()).when(serdes).deserialize(any(byte[].class));
+    doThrow(new UnitTestException()).when(serdes).deserialize(
+        any(QueryPipelineContext.class), any(byte[].class));
     ReadCacheQueryResultSet[] results = new ReadCacheQueryResultSet[2];
     Throwable[] errors = new Throwable[2];
     class CB implements ReadCacheCallback {

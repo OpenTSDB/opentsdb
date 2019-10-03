@@ -192,7 +192,7 @@ public class GuavaLRUCache extends BaseTSDBPlugin implements
           } else if (value.value == null) {
             results = Collections.emptyMap();
           } else {
-            results = serdes.deserialize(value.value);
+            results = serdes.deserialize(context, value.value);
           }
         }
         

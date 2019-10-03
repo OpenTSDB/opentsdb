@@ -239,6 +239,7 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
+    System.out.println(json);
     assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
     assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));

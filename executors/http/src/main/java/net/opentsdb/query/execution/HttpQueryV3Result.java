@@ -53,6 +53,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.DateTime;
 
@@ -112,17 +113,14 @@ public class HttpQueryV3Result implements QueryResult {
                     final JsonNode root, 
                     final RollupConfig rollup_config,
                     final Exception exception) {
-    this.node = node;
     this.exception = exception;
     this.rollup_config = rollup_config;
+    this.node = new CachedQueryNode(node.config().getId(), node.pipelineContext());
     if (exception == null && root != null) {
       String temp = root.get("source").asText();
-      data_source = temp.substring(temp.indexOf(":") + 1);
-      
+      // TEMP - old versions didn't handle IDs correctly so we override the result.
       TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
-      if (!cfg.getId().equals(cfg.getDataSourceId())) {
-        data_source = cfg.getDataSourceId();
-      }
+      data_source = cfg.getDataSourceId();
       
       JsonNode n = root.get("timeSpecification");
       if (n != null && !n.isNull()) {

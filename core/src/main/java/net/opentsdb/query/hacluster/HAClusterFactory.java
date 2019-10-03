@@ -82,7 +82,6 @@ import java.util.Set;
 public class HAClusterFactory extends BaseQueryNodeFactory<
     TimeSeriesDataSourceConfig, HACluster> implements
       TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, HACluster> {
-  
   public static final String TYPE = "HACluster";
 
   public static final String KEY_PREFIX = "tsd.query.";
@@ -215,6 +214,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         builder.setDataSources(Lists.newArrayList(default_sources));
       }
     }
+    
+    builder.setDataSourceId(config.getDataSourceId());
 
     final String new_id = "ha_" + config.getId();
     if (context.query().isTraceEnabled()) {

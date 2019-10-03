@@ -39,6 +39,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 
@@ -95,21 +96,26 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
 
   @Override
   public void onNext(final QueryResult next) {
+    final String real_id = next.source().config().getId() + ":" + next.dataSource();
     final String id = next.source().config().getId();
+    if (completed.get()) {
+      LOG.trace("Late result from: " + real_id);
+      return;
+    }
+    
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Result: " + id + ":" + next.dataSource() + " Expect: " 
-          + results.keySet());
+      LOG.trace("Result: " + real_id + " Expect: " + results.keySet());
     }
     
     // ignore sources we don't care about. They shouldn't be linked
     // to this node anyway.
     if (!results.containsKey(id)) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Received unexpected data from: " + id + ":" + next.dataSource());
+        LOG.debug("Received unexpected data from: " + real_id);
       }
       if (context.query().isDebugEnabled()) {
         context.queryContext().logDebug(this, "Received unexpected data from: " 
-            + id + ":" + next.dataSource());
+            + real_id);
       }
       return;
     }
@@ -118,9 +124,9 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     synchronized (results) {
       QueryResult extant = results.putIfAbsent(id, next);
       if (extant != null) {
-        LOG.warn("Duplicate result from source: " + id + ":" + next.dataSource());
+        LOG.warn("Duplicate result from source: " + real_id);
         context.queryContext().logWarn(this, "Duplicate result from source: " 
-            + id + next.dataSource());
+            + real_id);
         return;
       }
      
@@ -146,13 +152,12 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     // if the result was in error then don't start a timer so we can let the
     // other sources respond.
     if (Strings.isNullOrEmpty(next.error()) && next.exception() == null) {
-      if (config.getDataSources().get(0).equals(next.dataSource())) {
+      if (config.getDataSources().get(0).equals(id)) {
         if (LOG.isTraceEnabled()) {
-          LOG.trace("Received primary: " + id + ":" + next.dataSource());
+          LOG.trace("Received primary: " + real_id);
         }
         if (context.query().isTraceEnabled()) {
-          context.queryContext().logTrace(this, "Received primary: " 
-              + id + ":" + next.dataSource());
+          context.queryContext().logTrace(this, "Received primary: " + real_id);
         }
         synchronized (this) {
           if (secondary_timer == null) {
@@ -169,7 +174,6 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
       } else {
         boolean matched = false;
         for (final String source : config.getDataSources()) {
-          LOG.trace("CMP: " + id + " want src: " + source);
           if (source.equals(id)) {
             matched = true;
             break;
@@ -179,16 +183,15 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
         if (!matched) {
           // WTF?
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Source " + id + ":" 
-                + next.dataSource() + " did not match a configured data source!");
+            LOG.trace("Source " + real_id + " did not match a configured "
+                + "data source!");
           }
         } else {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Received secondary: " + id + ":" + next.dataSource());
+            LOG.trace("Received secondary: " + real_id);
           }
           if (context.query().isTraceEnabled()) {
-            context.queryContext().logTrace(this, "Received secondary: " 
-                + id + ":" + next.dataSource());
+            context.queryContext().logTrace(this, "Received secondary: " + real_id);
           }
           synchronized (this) {
             if (primary_timer == null) {
@@ -291,7 +294,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
         Collection<QueryNode> downstream_sources = HACluster.this.downstream_sources;
         for (final QueryNode down : downstream_sources) {
           if (down.config().getId().equals(entry.getKey())) {
-            results.put(entry.getKey(), new EmptyResult(good_result, down));
+            results.put(entry.getKey(), new EmptyResult(good_result, down, entry.getKey()));
             break;
           }
         }
@@ -349,7 +352,8 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
           // node....
           Collection<QueryNode> downstream_sources = this.downstream_sources;
           for (final QueryNode node : downstream_sources) {
-            final QueryResult cluster_result = new EmptyResult(good_result, node);
+            final QueryResult cluster_result = 
+                new EmptyResult(good_result, node, entry.getKey());
             if (node.config().getId().equals(entry.getKey())) {
               if (LOG.isTraceEnabled()) {
                 LOG.trace("Sending up missing result: " 
@@ -380,10 +384,14 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
   class EmptyResult extends BaseWrappedQueryResult {
     
     private final QueryNode node;
+    private final String missing_src;
     
-    EmptyResult(final QueryResult result, final QueryNode node) {
+    EmptyResult(final QueryResult result, 
+                final QueryNode node, 
+                final String missing_src) {
       super(result);
-      this.node = node;
+      this.node = new CachedQueryNode(missing_src, node.pipelineContext());
+      this.missing_src = missing_src;
     }
     
     @Override
