@@ -213,7 +213,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
         List<String> sources = plan.getDataSourceIds(successor);
         Set<String> metrics = plan.getMetrics(successor);
         if (metrics.size() > 1) {
-          throw new IllegalStateException("Whoops too many metrics: " + metrics);
+          throw new IllegalStateException("Whoops too many metrics: " + metrics + " and node " + successor.getId());
         }
         
         String metric = metrics.size() == 1 ? metrics.iterator().next() : null;
