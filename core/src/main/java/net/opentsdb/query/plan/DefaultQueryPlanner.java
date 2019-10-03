@@ -50,6 +50,8 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
+import net.opentsdb.query.processor.expressions.ExpressionConfig;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.processor.summarizer.SummarizerConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -984,6 +986,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
   public Set<String> getMetrics(final QueryNodeConfig node) {
     if (node instanceof TimeSeriesDataSourceConfig) {
       return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
+    } else if (node.joins()) {
+      if (node instanceof ExpressionParseNode) {
+        return Sets.newHashSet(((ExpressionParseNode) node).getAs());
+      } else if (node instanceof ExpressionConfig) {
+        return Sets.newHashSet(((ExpressionConfig) node).getAs());
+      }
     }
     
     Set<String> metrics = Sets.newHashSet();
