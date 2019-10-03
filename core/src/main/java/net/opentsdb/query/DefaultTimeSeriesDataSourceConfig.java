@@ -85,10 +85,6 @@ public class DefaultTimeSeriesDataSourceConfig
 
 
     planner.replace(config, shift_config);
-    // Add the time shift to sink filters too. if they have it
-    if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(config.getId())) {
-      ((DefaultQueryPlanner) planner).sinkFilters().put(shift_config.id, null);
-    }
     
     final Pair<Boolean, TemporalAmount> amounts = config.timeShifts();
     TimeSeriesDataSourceConfig.Builder rebuilt_builder =
@@ -124,12 +120,7 @@ public class DefaultTimeSeriesDataSourceConfig
     for (final QueryNodeConfig predecessor : shift_predecessors) {
       planner.addEdge(predecessor, shift_config);
     }
-
-    // Add the time shift to sink filters too. if they have it
-    if (((DefaultQueryPlanner) planner).sinkFilters().containsKey(merger.id)) {
-      ((DefaultQueryPlanner) planner).sinkFilters().put(shift_config.id, null);
-    }
-
+    
     // now for each time shift we have to duplicate the sub-graph from the
     // merger to the destinations. *sigh*.
     // TODO - make this cleaner some day. This is SUPER ugly. For now we do it

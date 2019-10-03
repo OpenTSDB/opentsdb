@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -365,6 +365,7 @@ public class TestBinaryExpressionNode {
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("sub")
+        .setRightId("sub:m1")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -388,7 +389,7 @@ public class TestBinaryExpressionNode {
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("ignored");
+    when(r2.dataSource()).thenReturn("m1");
     when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -470,8 +471,10 @@ public class TestBinaryExpressionNode {
   public void onNextByteDoubleTwoSubExp() throws Exception {
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("sub1")
+        .setLeftId("sub1:m1")
         .setLeftType(OperandType.SUB_EXP)
         .setRight("sub2")
+        .setRightId("sub2:m1")
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -493,10 +496,10 @@ public class TestBinaryExpressionNode {
     when(c2.getId()).thenReturn("sub2");
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("ignore");
+    when(r1.dataSource()).thenReturn("m1");
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("ignore");
+    when(r2.dataSource()).thenReturn("m1");
     when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override

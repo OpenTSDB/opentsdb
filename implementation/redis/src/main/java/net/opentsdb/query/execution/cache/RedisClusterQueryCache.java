@@ -334,7 +334,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
         if (raw == null) {
           results = null;
         } else {
-          results = serdes.deserialize(raw);
+          results = serdes.deserialize(context, raw);
         }
       }
       

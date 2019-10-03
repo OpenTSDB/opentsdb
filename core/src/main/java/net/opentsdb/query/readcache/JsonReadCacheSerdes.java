@@ -64,7 +64,9 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.status.StatusIterator;
 import net.opentsdb.data.types.status.StatusType;
 import net.opentsdb.data.types.status.StatusValue;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.summarizer.Summarizer;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -188,7 +190,8 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
   }
 
   @Override
-  public Map<String, ReadCacheQueryResult> deserialize(byte[] data) {
+  public Map<String, ReadCacheQueryResult> deserialize(final QueryPipelineContext context, 
+                                                       final byte[] data) {
     Map<String, ReadCacheQueryResult> map = Maps.newHashMap();
     try {
       JsonNode results = JSON.getMapper().readTree(data);
@@ -807,69 +810,75 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
     
     /**
      * Default ctor without an exception.
-     * @param node The non-null parent node.
+     * @param context The non-null context.
      * @param root The non-null root node.
      */
-    JsonCachedResult(final QueryNode node, 
-                      final JsonNode root, 
-                      final RollupConfig rollup_config) {
-      this(node, root, rollup_config, null);
+    JsonCachedResult(final QueryPipelineContext context,
+                     final JsonNode root, 
+                     final RollupConfig rollup_config) {
+      this(context, root, rollup_config, null);
     }
     
     /**
      * Ctor with an exception. If the exception isn't null then the root 
      * must be set.
-     * @param node The non-null parent node.
+     * @param context The non-null context.
      * @param root The root node. Cannot be null if the exception is null.
      * @param exception An optional exception.
      */
-    JsonCachedResult(final QueryNode node, 
+    JsonCachedResult(final QueryPipelineContext context,
                      final JsonNode root, 
                      final RollupConfig rollup_config,
                      final Exception exception) {
-      String temp = root.get("source").asText();
-      data_source = temp.substring(temp.indexOf(":") + 1);
-      this.node = new CachedQueryNode(temp.substring(0, temp.indexOf(":")));
-      
-      this.exception = exception;
-      this.rollup_config = rollup_config;
-      if (exception == null) {
+      try {
+        String temp = root.get("source").asText();
+        data_source = temp.substring(temp.indexOf(":") + 1);
+        this.node = new CachedQueryNode(temp.substring(0, temp.indexOf(":")), 
+            context);
         
-        JsonNode n = root.get("timeSpecification");
-        if (n != null && !n.isNull()) {
-          time_spec = new TimeSpec(n);
-        }
-        
-        n = root.get("lastValueTimestamp");
-        if (n != null && !n.isNull()) {
-          last_value_ts = new SecondTimeStamp(n.asInt());
-        } else {
-          throw new RuntimeException("Missing last value timestamp!");
-        }
-        
-        n = root.get("data");
-        if (n != null && !n.isNull()) {
-          series = Lists.newArrayList();
-          int i = 0;
-          for (final JsonNode ts : n) {
-            series.add(new HttpTimeSeries(ts));
-            if (i++ == 0) {
-              // check for numerics
-              JsonNode rollups = ts.get("NumericSummaryType");
-              if (rollup_config == null) {
-                if (rollups != null && !rollups.isNull()) {
-                  this.rollup_config = new RollupData(ts);
-                } else {
-                  this.rollup_config = null;
+        this.exception = exception;
+        this.rollup_config = rollup_config;
+        if (exception == null) {
+          
+          JsonNode n = root.get("timeSpecification");
+          if (n != null && !n.isNull()) {
+            time_spec = new TimeSpec(n);
+          }
+          
+          n = root.get("lastValueTimestamp");
+          if (n != null && !n.isNull()) {
+            last_value_ts = new SecondTimeStamp(n.asInt());
+          } else {
+            throw new RuntimeException("Missing last value timestamp!");
+          }
+          
+          n = root.get("data");
+          if (n != null && !n.isNull()) {
+            series = Lists.newArrayList();
+            int i = 0;
+            for (final JsonNode ts : n) {
+              series.add(new HttpTimeSeries(ts));
+              if (i++ == 0) {
+                // check for numerics
+                JsonNode rollups = ts.get("NumericSummaryType");
+                if (rollup_config == null) {
+                  if (rollups != null && !rollups.isNull()) {
+                    this.rollup_config = new RollupData(ts);
+                  } else {
+                    this.rollup_config = null;
+                  }
                 }
               }
             }
+          } else {
+            series = Collections.emptyList();
           }
         } else {
           series = Collections.emptyList();
         }
-      } else {
-        series = Collections.emptyList();
+      } catch (Exception e) {
+        LOG.error("Failed to parse cache result: " + root, e);
+        throw new QueryExecutionException("Cache exception", 500, e);
       }
     }
 

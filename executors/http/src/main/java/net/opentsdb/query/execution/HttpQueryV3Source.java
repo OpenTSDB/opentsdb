@@ -16,15 +16,9 @@ package net.opentsdb.query.execution;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
@@ -41,10 +35,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
-import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesOptions;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.storage.SourceNode;
@@ -75,7 +67,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
   public static final String REMOTE_LATENCY_METRIC = "tsdb.executor.httpv3.latency";
   
   /** The query to execute. */
-  private final TimeSeriesDataSourceConfig<? extends Builder, ? extends TimeSeriesDataSourceConfig> config;
+  private final TimeSeriesDataSourceConfig<? extends Builder, ? 
+      extends TimeSeriesDataSourceConfig> config;
   
   /** The client to query. */
   private final CloseableHttpAsyncClient client;
@@ -138,76 +131,34 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
 
     TimeSeriesDataSourceConfig.Builder source_builder =
         (Builder) config.toBuilder()
-    .setPushDownNodes(null)
-    .setSourceId(null) // TODO - we may want to make this configurable
-    .setType("TimeSeriesDataSource");
+        .setPushDownNodes(null)
+        .setSourceId(null) // TODO - we may want to make this configurable
+        .setDataSourceId(config.getId())
+        .setId(config.getDataSourceId())
+        .setType("TimeSeriesDataSource");
+    
+    builder.addExecutionGraphNode(source_builder.build());
+    for (QueryNodeConfig c : config.getPushDownNodes()) {
+      if (c.getSources() != null && c.getSources().contains(config.getId())) {
+        // TODO copy properly eventually.
+        if (c instanceof DownsampleConfig) {
+          DownsampleConfig downsampleConfig = (DownsampleConfig) c;
+          DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
+          DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
+          c = newBuilder.setStart(context.query().getStart())
+              .setEnd(context.query().getEnd())
+              .setId(c.getId()).build();
+        }
+        c.getSources().remove(config.getId());
+        c.getSources().add(config.getDataSourceId());
+      }
+      builder.addExecutionGraphNode(c);
+    }
 
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
       builder.addFilter(DefaultNamedFilter.newBuilder()
           .setId(config.getFilterId())
           .setFilter(context.query().getFilter(config.getFilterId()))
-          .build());
-
-    }
-    
-    final Set<String> serdes_filters = Sets.newHashSet();
-    if (context.query().getSerdesConfigs() != null) {
-      for (final SerdesOptions serdes : context.query().getSerdesConfigs()) {
-        // TODO handle other options.
-        if (serdes.getFilter() != null) {
-          serdes_filters.addAll(serdes.getFilter());
-        }
-      }
-    }
-    List<String> pushdown_serdes = null;
-
-    // TODO - we need to confirm the graph links.
-    Map<String, QueryNodeConfig> pushdowns = Maps.newHashMap();
-    pushdowns.put(config.getId(), source_builder.build());
-    int index = 0;
-    for (QueryNodeConfig pushdown : config.getPushDownNodes()) {
-      if (pushdown instanceof DownsampleConfig) {
-        DownsampleConfig downsampleConfig = (DownsampleConfig) pushdown;
-        DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
-        DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
-        pushdown = newBuilder.setStart(context.query().getStart()).setEnd(context.query().getEnd()).setId(pushdown.getId()).build();
-        config.getPushDownNodes().set(index, pushdown);
-      }
-      index++;
-
-      pushdowns.put(pushdown.getId(), pushdown);
-    }
-
-
-    for (final QueryNodeConfig pushdown : pushdowns.values()) {
-      if (pushdown.getSources().isEmpty()) {
-        // just the source, add it
-        builder.addExecutionGraphNode(pushdown);
-      } else {
-        List<String> sources = pushdown.getSources();
-        for (final String source : sources) {
-          if (pushdowns.containsKey(source)) {
-            builder.addExecutionGraphNode(pushdown.toBuilder()
-                .setSources(Lists.newArrayList(source))
-                .build());
-            break;
-          }
-        }
-        
-        if (serdes_filters.contains(pushdown.getId())) {
-          if (pushdown_serdes == null) {
-            pushdown_serdes = Lists.newArrayList(pushdown.getId());
-          } else {
-            pushdown_serdes.add(pushdown.getId());
-          }
-        }
-      }
-    }
-    
-    if (pushdown_serdes != null) {
-      builder.addSerdesConfig(JsonV3QuerySerdesOptions.newBuilder()
-          .setId("JsonV3QuerySerdes")
-          .setFilter(pushdown_serdes)
           .build());
     }
     

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -143,15 +143,16 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   
   @Override
   public void onNext(final QueryResult next) {
-    final String id = next.source().config().getId();
+    final String id = next.source().config().getId() + ":" + next.dataSource();
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Result: " + id + ":" + next.dataSource() + " Want<" + left_source + ", " + right_source +">");
+      LOG.trace("Result: " + id + " (" + next.getClass() + ") " 
+        + " Want<" + left_source + ", " + right_source +">");
     }
     
     if (left_source != null && (left_source.equals(next.dataSource()) ||
         left_source.equalsIgnoreCase(id))) {
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Matched left [" + left_source + "] with: " + id + ":" + next.dataSource());
+        LOG.trace("Matched left [" + left_source + "] with: " + id);
       }
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
@@ -165,7 +166,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
         (right_source.equals(next.dataSource()) || 
             right_source.equals(id))) {
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Matched right [" + right_source + "] with: " + id + ":" + next.dataSource());
+        LOG.trace("Matched right [" + right_source + "] with: " + id);
       }
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
@@ -174,9 +175,8 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setValue(next);
       }
-      LOG.trace("SET RACE!");
     } else {
-      LOG.debug("Unmatched result: " + id + ":" + next.dataSource());
+      LOG.debug("Unmatched result: " + id);
       return;
     }
     

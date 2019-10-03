@@ -257,6 +257,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
                 ((BaseTimeSeriesDataSourceConfig.Builder) 
                     tsDataSourceconfig.toBuilder())
                 .setPushDownNodes(push_downs)
+                .setId(push_downs.get(push_downs.size() - 1).getId())
                 .build();
             replace(node, new_config);
           }
@@ -682,8 +683,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
             ((SummarizerConfig) downstream).passThrough()) {
           for (final QueryNodeConfig successor : config_graph.successors(downstream)) {
             final Set<String> summarizer_sources = computeSerializationSources(successor);
+            List<String> srcs = getDataSourceIds(successor);
             for (final String id : summarizer_sources) {
-              ids.add(successor.getId() + ":" + id);
+              ids.add(srcs.get(0));
               ids.add(downstream.getId() + ":" + id);
             }
           }
@@ -944,6 +946,52 @@ public class DefaultQueryPlanner implements QueryPlanner {
       sources.addAll(terminalSourceNodes(successor));
     }
     return sources;
+  }
+  
+  @Override
+  public List<String> getDataSourceIds(final QueryNodeConfig node) {
+    if (node instanceof MergerConfig) {
+      if (!node.getId().equals(((MergerConfig) node).getDataSource())) {
+        return Lists.newArrayList(node.getId() + ":" + ((MergerConfig) node).getDataSource());
+      }
+      return Lists.newArrayList(((MergerConfig) node).getDataSource() + ":" + ((MergerConfig) node).getDataSource());
+    } else if (node.joins()) {
+      return Lists.newArrayList(node.getId() + ":" + node.getId());
+    } else if (node instanceof TimeSeriesDataSourceConfig) {
+      
+      return Lists.newArrayList(node.getId() + ":" + ((TimeSeriesDataSourceConfig) node).getDataSourceId());
+    }
+    
+    List<String> sources = null;
+    final Set<QueryNodeConfig> successors = config_graph.successors(node);
+    if (successors != null) {
+      sources = Lists.newArrayList();
+      for (final QueryNodeConfig successor : successors) {
+        sources.addAll(getDataSourceIds(successor));
+      }
+      
+      List<String> new_sources = Lists.newArrayListWithExpectedSize(sources.size());
+      for (final String source : sources) {
+        new_sources.add(node.getId() + ":" + source.substring(source.indexOf(":") + 1));
+      }
+      return new_sources;
+    }
+    throw new IllegalStateException("Made it to the root of a config graph "
+        + "without a source: " + node.getId());
+  }
+  
+  @Override
+  public Set<String> getMetrics(final QueryNodeConfig node) {
+    if (node instanceof TimeSeriesDataSourceConfig) {
+      return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
+    }
+    
+    Set<String> metrics = Sets.newHashSet();
+    final Set<QueryNodeConfig> successors = config_graph.successors(node);
+    for (final QueryNodeConfig successor : successors) {
+      metrics.addAll(getMetrics(successor));
+    }
+    return metrics;
   }
   
   /**

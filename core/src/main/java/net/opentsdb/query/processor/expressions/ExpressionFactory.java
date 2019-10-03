@@ -24,14 +24,14 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
-import net.opentsdb.query.processor.merge.MergerConfig;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A factory used to instantiate expression nodes in the graph. This 
@@ -115,7 +115,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
         } else {
           throw new RuntimeException("Failed to find a data source for the "
               + "left operand: " + parse_node.getLeft() + " for expression node: " 
-              + config.getId());
+              + config.getId() + ((DefaultQueryPlanner) plan).printConfigGraph());
         }
       }
       
@@ -129,7 +129,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
         } else {
           throw new RuntimeException("Failed to find a data source for the "
               + "right operand: " + parse_node.getRight() + " for expression node: " 
-              + config.getId());
+              + config.getId() + ((DefaultQueryPlanner) plan).printConfigGraph());
         }
       }
       final ExpressionParseNode rebuilt = 
@@ -159,10 +159,11 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     // now yank ourselves out and link.
     plan.configGraph().removeNode(config);
     for (final QueryNodeConfig node : new_nodes) {
-
       List<String> sources = node.getSources();
       for (final String source : sources) {
-        plan.configGraph().putEdge(node, node_map.get(source));
+        final String src = source.contains(":") ? 
+            source.substring(0, source.indexOf(":")) : source;
+        plan.configGraph().putEdge(node, node_map.get(src));
         if (Graphs.hasCycle(plan.configGraph())) {
           throw new IllegalStateException("Cylcle found when generating "
               + "sub expression graph for " + node.getId() + " => " 
@@ -172,12 +173,11 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     }
     
     for (final QueryNodeConfig up : upstream) {
-      //try {
       plan.configGraph().putEdge(up, new_nodes.get(new_nodes.size() - 1));
       if (Graphs.hasCycle(plan.configGraph())) {
         throw new IllegalStateException("Cylcle found when generating "
             + "sub expression graph for " + up.getId() + " => " 
-            +new_nodes.get(new_nodes.size() - 1).getId());
+            + new_nodes.get(new_nodes.size() - 1).getId());
       }
     }
   }
@@ -207,42 +207,35 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
         }
         return downstream.getId();
       }
-    } else if (downstream instanceof TimeSeriesDataSourceConfig) {
-      if (left && key.equals(downstream.getId())) {
-        // TODO - cleanup the filter checks as it may be a regex or something else!!!
-        builder.setLeft(((TimeSeriesDataSourceConfig) downstream)
-                 .getMetric().getMetric())
-               .setLeftId(downstream.getId());
-        return downstream.getId();
-      } else if (left && 
-          key.equals(((TimeSeriesDataSourceConfig) downstream)
-              .getMetric().getMetric())) {
-        builder.setLeftId(downstream.getId());
-        return downstream.getId();
-        // right
-      } else if (key.equals(downstream.getId())) {
-        builder.setRight(((TimeSeriesDataSourceConfig) downstream)
-                 .getMetric().getMetric())
-               .setRightId(downstream.getId());
-        return downstream.getId();
-      } else if (key.equals(((TimeSeriesDataSourceConfig) downstream)
-          .getMetric().getMetric())) {
-        builder.setRightId(downstream.getId());
-        return downstream.getId();
-      }
-    } else if (depth > 0 && downstream.joins()) {
-      if (joinsRecursive(builder, left, downstream, plan, downstream.getId(), depth)) {
-        if (left) {
-          builder.setLeftId(downstream.getId());
-        } else {
-          builder.setRightId(downstream.getId());
+    } else {
+      // node data source first
+      for (final QueryNodeConfig successor : plan.configGraph().successors(downstream)) {
+        List<String> sources = plan.getDataSourceIds(successor);
+        Set<String> metrics = plan.getMetrics(successor);
+        if (metrics.size() > 1) {
+          throw new IllegalStateException("Whoops too many metrics: " + metrics);
         }
-        return downstream.getId();
+        
+        String metric = metrics.size() == 1 ? metrics.iterator().next() : null;
+        for (final String source : sources) {
+          String data_src = source.substring(source.indexOf(":") + 1);
+          if (key.equals(data_src) || 
+              (metric != null && key.equals(metric))) {
+            if (left) {
+              builder.setLeft(metric)
+                     .setLeftId(source);
+            } else {
+              builder.setRight(metric)
+                     .setRightId(source);
+            }
+            return source;
+          }
+        }
       }
     }
     
     for (final QueryNodeConfig graph_node : 
-        plan.configGraph().successors(downstream)) {
+      plan.configGraph().successors(downstream)) {
       final String ds = validate(builder, left, plan, graph_node, depth + 1);
       if (ds != null) {
         if (depth == 0) {
@@ -253,61 +246,6 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     }
     
     return null;
-  }
-
-  /**
-   * NOTE: Still not perfect. I'd like to clean this up some day. For now it'll
-   * work for HAClusterConfig.
-   * @param builder
-   * @param left
-   * @param config
-   * @param plan
-   * @param join_node_id
-   * @param depth
-   * @return
-   */
-  static boolean joinsRecursive(final ExpressionParseNode.Builder builder, 
-                                final boolean left,
-                                final QueryNodeConfig config, 
-                                final QueryPlanner plan,
-                                final String join_node_id,
-                                final int depth) {
-    final String key = left ? (String) builder.left() : (String) builder.right();
-    if (config instanceof TimeSeriesDataSourceConfig) {
-      if (left && key.equals(join_node_id)) {
-        builder.setLeft(((TimeSeriesDataSourceConfig) config)
-                 .getMetric().getMetric());
-        return true;
-      } else if (left && 
-          key.equals(((TimeSeriesDataSourceConfig) config)
-              .getMetric().getMetric())) {
-        return true;
-        // right
-      } else if (key.equals(join_node_id)) {
-        builder.setRight(((TimeSeriesDataSourceConfig) config)
-                 .getMetric().getMetric());
-        return true;
-      } else if (key.equals(((TimeSeriesDataSourceConfig) config)
-          .getMetric().getMetric())) {
-        return true;
-      }
-    } else if (config instanceof MergerConfig) {
-      
-      final String ds = ((MergerConfig) config).getDataSource();
-      if (left && key.equals(ds)) {
-        return recurseMerger(builder, left, config, plan, ds, depth + 1);
-      } else if (key.equals(ds)) {
-        return recurseMerger(builder, left, config, plan, ds, depth + 1);
-      }
-    }
-    
-    for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
-      if (joinsRecursive(builder, left, successor, plan, join_node_id, depth + 1)) {
-        return true;
-      }
-    }
-    
-    return false;
   }
   
   @Override
@@ -323,50 +261,4 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
         + "removed from the graph.");
   }
   
-  /**
-   * TODO - factor this back into the above and make it generic. May have more
-   * nodes in the future like Merger.
-   * Helper to handle the merger use case.
-   * @param builder 
-   * @param left
-   * @param config
-   * @param plan
-   * @param ds
-   * @param depth
-   * @return
-   */
-  static boolean recurseMerger(final ExpressionParseNode.Builder builder, 
-                                final boolean left,
-                                final QueryNodeConfig config, 
-                                final QueryPlanner plan,
-                                final String ds,
-                                final int depth) {
-    final String key = left ? (String) builder.left() : (String) builder.right();
-    if (config instanceof TimeSeriesDataSourceConfig) {
-      if (left && key.equals(ds)) {
-        builder.setLeft(((TimeSeriesDataSourceConfig) config)
-                 .getMetric().getMetric());
-        return true;
-      } else if (left && 
-          key.equals(((TimeSeriesDataSourceConfig) config)
-              .getMetric().getMetric())) {
-        return true;
-        // right
-      } else if (key.equals(ds)) {
-        builder.setRight(((TimeSeriesDataSourceConfig) config)
-                 .getMetric().getMetric());
-        return true;
-      } else if (key.equals(((TimeSeriesDataSourceConfig) config)
-          .getMetric().getMetric())) {
-        return true;
-      }
-    }
-    
-    for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
-      if (recurseMerger(builder, left, successor, plan, ds, depth + 1)) {
-        return true;
-      }
-    }
-    return false;
-  }
 }

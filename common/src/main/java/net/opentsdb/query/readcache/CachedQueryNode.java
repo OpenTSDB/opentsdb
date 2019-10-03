@@ -40,8 +40,11 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
   /** The ID of this node. */
   protected final String id;
   
-  public CachedQueryNode(final String id) {
+  protected final QueryPipelineContext context;
+  
+  public CachedQueryNode(final String id, final QueryPipelineContext context) {
     this.id = id;
+    this.context = context;
   }
   
   @Override
@@ -129,8 +132,7 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
 
   @Override
   public QueryPipelineContext pipelineContext() {
-    // TODO Auto-generated method stub
-    return null;
+    return context;
   }
 
   @Override
