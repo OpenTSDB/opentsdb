@@ -21,15 +21,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
@@ -66,7 +61,8 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   protected final ChronoUnit result_units;
   
   /** Map of <id hash, time series> keyed time series we'll merge results into. */
-  protected final TLongObjectMap<TimeSeries> time_series;
+  protected final Map<Long, TimeSeries> time_series;
+  // TODO - trove here since we don't need synchronicity.
   
   /** The source node. */
   protected final QueryNode<?> node;
@@ -114,7 +110,6 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
                               final String data_source,
                               final List<QuerySink> sinks, 
                               final String result_interval) {
-    Logger LOG = LoggerFactory.getLogger("foo");
     this.context = context;
     this.results = results;
     this.node = node;
@@ -124,7 +119,7 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
     // TODO - if we have more in the future, handle the proper units.
     result_units = DateTime.getDurationUnits(result_interval).equals("h") ? 
         ChronoUnit.HOURS : ChronoUnit.DAYS;
-    time_series = new TLongObjectHashMap<TimeSeries>();
+    time_series = Maps.newHashMap();
     for (int i = 0; i < results.length; i++) {
       if (results[i] == null) {
         continue;
@@ -168,7 +163,6 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
       // TODO handle tip merge eventually
       for (final TimeSeries ts : results[i].timeSeries()) {
         final long hash = ts.id().buildHashCode();
-        LOG.info("[" + hash + "] " + results[i].timeSpecification().start().epoch() + " TS: " + ts.id().toString() + " TYE: " + results[i].getClass());
         TimeSeries combined = time_series.get(hash);
         if (combined == null) {
           combined = new CombinedCachedTimeSeries(this, i, ts);
@@ -203,7 +197,7 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
 
   @Override
   public Collection<TimeSeries> timeSeries() {
-    return time_series.valueCollection();
+    return time_series.values();
   }
 
   @Override
