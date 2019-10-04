@@ -403,8 +403,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       
       // TODO - TEMP!! Special summary pass through code
       if (node instanceof SummarizerConfig && 
-          ((SummarizerConfig) node).passThrough() &&
-          (!sink_filter.isEmpty() ? sink_filter.containsKey(node.getId()) : true)) {
+          ((SummarizerConfig) node).passThrough()) {
         final Set<QueryNodeConfig> successors = 
             Sets.newHashSet(config_graph.successors(node));
         for (final QueryNodeConfig successor : successors) {
