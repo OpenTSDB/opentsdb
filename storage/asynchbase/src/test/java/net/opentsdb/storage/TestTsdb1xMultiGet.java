@@ -726,7 +726,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // rollup tables
     setMultiRollupQuery();
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
+    List<TimeSeries> series = mock(List.class);
     when(series.isEmpty()).thenReturn(false);
     when(result.timeSeries()).thenReturn(series);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
@@ -764,7 +764,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // rollup tables
     setMultiRollupQuery();
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
+    List<TimeSeries> series = mock(List.class);
     when(series.isEmpty()).thenReturn(false);
     when(result.timeSeries()).thenReturn(series);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
@@ -854,7 +854,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // rollup tables
     setMultiRollupQuery();
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
+    List<TimeSeries> series = mock(List.class);
     when(series.isEmpty()).thenReturn(false);
     when(result.timeSeries()).thenReturn(series);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
@@ -944,7 +944,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // rollup tables
     setMultiRollupQuery(false, TS_DOUBLE_SERIES);
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
-    Collection<TimeSeries> series = mock(Collection.class);
+    List<TimeSeries> series = mock(List.class);
     when(series.isEmpty())
       .thenReturn(true)
       .thenReturn(false);

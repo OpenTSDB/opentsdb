@@ -156,16 +156,16 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(2, merger.groups.size());
+    assertEquals(2, merger.results.size());
     
     // xx hash is deterministic
     MergerTimeSeries ts = (MergerTimeSeries) 
-        merger.groups.get(ts1.id().buildHashCode());
+        getSeries(merger, ts1.id().buildHashCode());
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     assertTrue(ts.sources.contains(ts3));
     
-    ts = (MergerTimeSeries) merger.groups.get(ts2.id().buildHashCode());
+    ts = (MergerTimeSeries) getSeries(merger, ts2.id().buildHashCode());
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
     assertTrue(ts.sources.contains(ts4));
@@ -181,15 +181,15 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(2, merger.groups.size());
+    assertEquals(2, merger.results.size());
     
     // xx hash is deterministic
     MergerTimeSeries ts = (MergerTimeSeries) 
-        merger.groups.get(ts1.id().buildHashCode());
+        getSeries(merger, ts1.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts3));
     
-    ts = (MergerTimeSeries) merger.groups.get(ts2.id().buildHashCode());
+    ts = (MergerTimeSeries) getSeries(merger, ts2.id().buildHashCode());
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
     assertTrue(ts.sources.contains(ts4));
@@ -205,15 +205,15 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(2, merger.groups.size());
+    assertEquals(2, merger.results.size());
     
     // xx hash is deterministic
     MergerTimeSeries ts = (MergerTimeSeries) 
-        merger.groups.get(ts1.id().buildHashCode());
+        getSeries(merger, ts1.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     
-    ts = (MergerTimeSeries) merger.groups.get(ts2.id().buildHashCode());
+    ts = (MergerTimeSeries) getSeries(merger, ts2.id().buildHashCode());
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
     assertTrue(ts.sources.contains(ts4));
@@ -229,15 +229,15 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(2, merger.groups.size());
+    assertEquals(2, merger.results.size());
     
     // xx hash is deterministic
     MergerTimeSeries ts = (MergerTimeSeries) 
-        merger.groups.get(ts1.id().buildHashCode());
+        getSeries(merger, ts1.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts3));
     
-    ts = (MergerTimeSeries) merger.groups.get(ts2.id().buildHashCode());
+    ts = (MergerTimeSeries) getSeries(merger, ts2.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts4));
   }
@@ -252,15 +252,15 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(2, merger.groups.size());
+    assertEquals(2, merger.results.size());
     
     // xx hash is deterministic
     MergerTimeSeries ts = (MergerTimeSeries) 
-        merger.groups.get(ts1.id().buildHashCode());
+        getSeries(merger, ts1.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     
-    ts = (MergerTimeSeries) merger.groups.get(ts2.id().buildHashCode());
+    ts = (MergerTimeSeries) getSeries(merger, ts2.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
   }
@@ -277,7 +277,7 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(0, merger.groups.size());
+    assertEquals(0, merger.results.size());
     assertEquals(0, merger.timeSeries().size());
   }
   
@@ -293,12 +293,12 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(1, merger.groups.size());
+    assertEquals(1, merger.results.size());
     assertNull(merger.error());
     
     // xx hash is deterministic
     MergerTimeSeries ts = (MergerTimeSeries) 
-        merger.groups.get(ts2.id().buildHashCode());
+        getSeries(merger, ts2.id().buildHashCode());
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
   }
@@ -317,7 +317,17 @@ public class TestMergerResult {
     merger.join();
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(0, merger.groups.size());
+    assertEquals(0, merger.results.size());
     assertEquals("ErrorA", merger.error);
+  }
+  
+  private MergerTimeSeries getSeries(final MergerResult results,
+                                     final long hash) {
+    for (final TimeSeries result : results.results) {
+      if (result.id().buildHashCode() == hash) {
+        return (MergerTimeSeries) result;
+      }
+    }
+    return null;
   }
 }

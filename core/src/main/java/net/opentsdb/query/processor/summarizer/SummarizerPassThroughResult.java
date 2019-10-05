@@ -16,55 +16,53 @@ package net.opentsdb.query.processor.summarizer;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.processor.ProcessorFactory;
-import net.opentsdb.query.processor.summarizer.SummarizerNonPassThroughResult.SummarizerTimeSeries;
 
 public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
 
   /** The non-null parent node. */
   final Summarizer node;
   
+  /** The incoming results to summarize. */
   private final QueryResult results;
   
   /** The non-null list of summarizer time series. */
   private final List<TimeSeries> series;
   
-  final Map<Long, TimeSeries> summarized_series;
+  /** The summarized series. */
+  final List<TimeSeries> summarized_series;
   
   SummarizerPassThroughResult(final Summarizer node, final QueryResult results) {
     super(results);
     this.node = node;
     this.results = results;
-    series = Lists.newArrayList();
-    summarized_series = Maps.newConcurrentMap();
-    for (final TimeSeries ts : results.timeSeries()) {
-      series.add(new SummarizerPassThroughTimeSeries(ts));
+    series = Lists.newArrayListWithExpectedSize(results.timeSeries().size());
+    for (int i = 0; i < results.timeSeries().size(); i++) {
+      series.add(new SummarizerPassThroughTimeSeries(i, results.timeSeries().get(i)));
+    }
+    summarized_series = Lists.newArrayListWithExpectedSize(series.size());
+    for (int i = 0; i < series.size(); i++) {
+      summarized_series.add(null);
     }
   }
   
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return series;
   }
   
@@ -87,14 +85,20 @@ public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
    * Summarizer time series. 
    */
   class SummarizerPassThroughTimeSeries implements TimeSeries {
+    /** Index into the array. */
+    private final int index;
+    
     /** The non-null source. */
     private final TimeSeries source;
     
     /**
      * Default ctor.
-     * @param source The non-null source to pull data from.
+     * @param index The index into the array.
+     * @param source The non-null source to pull data from
      */
-    private SummarizerPassThroughTimeSeries(final TimeSeries source) {
+    private SummarizerPassThroughTimeSeries(final int index, 
+                                            final TimeSeries source) {
+      this.index = index;
       this.source = source;
     }
     
@@ -117,9 +121,10 @@ public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
       // iterator otherwise we need a new pass-through.
       final SummarizedTimeSeries sts = new SummarizedTimeSeries(
           SummarizerPassThroughResult.this, source);
-      if (summarized_series.putIfAbsent(source.id().buildHashCode(), sts) != null) {
+      if (summarized_series.get(index) != null) {
         return source.iterator(type);
       } else {
+        summarized_series.set(index, sts);
         if (type == NumericType.TYPE) {
           final TypedTimeSeriesIterator<? extends TimeSeriesDataType> it = 
               new SummarizerPassThroughNumericIterator(sts);
@@ -148,9 +153,10 @@ public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
         }
         final SummarizedTimeSeries sts = new SummarizedTimeSeries(
             SummarizerPassThroughResult.this, source);
-        if (summarized_series.putIfAbsent(source.id().buildHashCode(), sts) != null) {
+        if (summarized_series.get(index) != null) {
           iterators.add(source.iterator(type).get());
         } else {
+          summarized_series.set(index, sts);
           if (type == NumericType.TYPE) {
             iterators.add(new SummarizerPassThroughNumericIterator(sts));
           } else if (type == NumericArrayType.TYPE) {
@@ -186,8 +192,8 @@ public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
     }
     
     @Override
-    public Collection<TimeSeries> timeSeries() {
-      return summarized_series.values();
+    public List<TimeSeries> timeSeries() {
+      return summarized_series;
     }
     
     @Override

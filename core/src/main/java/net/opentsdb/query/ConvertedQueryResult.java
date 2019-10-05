@@ -177,7 +177,7 @@ public class ConvertedQueryResult extends BaseWrappedQueryResult
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return series == null ? result.timeSeries() : series;
   }
 

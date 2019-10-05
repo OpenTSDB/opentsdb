@@ -15,7 +15,6 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -120,7 +119,7 @@ public class ExpressionResult implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return time_series;
   }
 

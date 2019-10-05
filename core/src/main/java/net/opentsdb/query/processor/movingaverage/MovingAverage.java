@@ -159,7 +159,7 @@ public class MovingAverage extends AbstractQueryNode {
     }
     
     @Override
-    public Collection<TimeSeries> timeSeries() {
+    public List<TimeSeries> timeSeries() {
       return series;
     }
     

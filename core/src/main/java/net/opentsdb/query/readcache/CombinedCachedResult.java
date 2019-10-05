@@ -17,10 +17,10 @@ package net.opentsdb.query.readcache;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
-import java.util.Collection;
 import java.util.List;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import gnu.trove.map.TLongObjectMap;
@@ -60,8 +60,8 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   /** Parsed result units. */
   protected final ChronoUnit result_units;
   
-  /** Map of <id hash, time series> keyed time series we'll merge results into. */
-  protected final TLongObjectMap<TimeSeries> time_series;
+  /** List of final time series results. */
+  protected final List<TimeSeries> final_results;
   
   /** The source node. */
   protected final QueryNode<?> node;
@@ -118,7 +118,10 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
     // TODO - if we have more in the future, handle the proper units.
     result_units = DateTime.getDurationUnits(result_interval).equals("h") ? 
         ChronoUnit.HOURS : ChronoUnit.DAYS;
-    time_series = new TLongObjectHashMap<TimeSeries>();
+    
+    // TODO - figure out how to maintain order if at all possible.
+    final TLongObjectMap<TimeSeries> time_series = 
+        new TLongObjectHashMap<TimeSeries>();
     for (int i = 0; i < results.length; i++) {
       if (results[i] == null) {
         continue;
@@ -171,6 +174,7 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
         }
       }
     }
+    final_results = Lists.newArrayList(time_series.valueCollection());
     
     // determine if we're aligned
     long start = context.query().startTime().epoch();
@@ -195,8 +199,8 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
-    return time_series.valueCollection();
+  public List<TimeSeries> timeSeries() {
+    return final_results;
   }
 
   @Override

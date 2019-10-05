@@ -32,7 +32,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -108,7 +107,7 @@ public class Rate extends AbstractQueryNode<RateConfig> {
     }
     
     @Override
-    public Collection<TimeSeries> timeSeries() {
+    public List<TimeSeries> timeSeries() {
       return downsamplers;
     }
 
