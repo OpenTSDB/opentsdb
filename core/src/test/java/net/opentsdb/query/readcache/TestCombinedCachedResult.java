@@ -20,15 +20,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -118,9 +115,9 @@ private static final int BASE_TIME = 1546300800;
         node, data_source, sinks, "1h");
     
     assertEquals(2, result.timeSeries().size());
-    TimeSeries ts = result.time_series.get(series.get(0).id().buildHashCode());
+    TimeSeries ts = getSeries(result, series.get(0).id().buildHashCode());
     assertSame(ts.id(), series.get(0).id());
-    ts = result.time_series.get(series.get(1).id().buildHashCode());
+    ts = getSeries(result, series.get(1).id().buildHashCode());
     assertSame(ts.id(), series.get(1).id());
     
     assertNull(result.timeSpecification());
@@ -145,9 +142,9 @@ private static final int BASE_TIME = 1546300800;
         node, data_source, sinks, "1h");
     
     assertEquals(2, result.timeSeries().size());
-    TimeSeries ts = result.time_series.get(series.get(0).id().buildHashCode());
+    TimeSeries ts = getSeries(result, series.get(0).id().buildHashCode());
     assertSame(ts.id(), series.get(0).id());
-    ts = result.time_series.get(series.get(1).id().buildHashCode());
+    ts = getSeries(result, series.get(1).id().buildHashCode());
     assertSame(ts.id(), series.get(1).id());
     
     assertNull(result.timeSpecification());
@@ -175,9 +172,9 @@ private static final int BASE_TIME = 1546300800;
         node, data_source, sinks, "1h");
     
     assertEquals(2, result.timeSeries().size());
-    TimeSeries ts = result.time_series.get(mockTimeSeries("web01").id().buildHashCode());
+    TimeSeries ts = getSeries(result, mockTimeSeries("web01").id().buildHashCode());
     assertEquals(ts.id(), mockTimeSeries("web01").id());
-    ts = result.time_series.get(mockTimeSeries("web02").id().buildHashCode());
+    ts = getSeries(result, mockTimeSeries("web02").id().buildHashCode());
     assertEquals(ts.id(), mockTimeSeries("web02").id());
     
     assertNull(result.timeSpecification());
@@ -202,9 +199,9 @@ private static final int BASE_TIME = 1546300800;
         node, data_source, sinks, "1h");
     
     assertEquals(2, result.timeSeries().size());
-    TimeSeries ts = result.time_series.get(series.get(0).id().buildHashCode());
+    TimeSeries ts = getSeries(result, series.get(0).id().buildHashCode());
     assertSame(ts.id(), series.get(0).id());
-    ts = result.time_series.get(series.get(1).id().buildHashCode());
+    ts = getSeries(result, series.get(1).id().buildHashCode());
     assertSame(ts.id(), series.get(1).id());
     
     TimeSpecification spec = mockTimeSpec(BASE_TIME);
@@ -238,9 +235,9 @@ private static final int BASE_TIME = 1546300800;
         node, data_source, sinks, "1h");
     
     assertEquals(2, result.timeSeries().size());
-    TimeSeries ts = result.time_series.get(series.get(0).id().buildHashCode());
+    TimeSeries ts = getSeries(result, series.get(0).id().buildHashCode());
     assertSame(ts.id(), series.get(0).id());
-    ts = result.time_series.get(series.get(1).id().buildHashCode());
+    ts = getSeries(result, series.get(1).id().buildHashCode());
     assertSame(ts.id(), series.get(1).id());
     
     TimeSpecification spec = mockTimeSpec(BASE_TIME);
@@ -273,9 +270,9 @@ private static final int BASE_TIME = 1546300800;
         node, data_source, sinks, "1h");
     
     assertEquals(2, result.timeSeries().size());
-    TimeSeries ts = result.time_series.get(series.get(0).id().buildHashCode());
+    TimeSeries ts = getSeries(result, series.get(0).id().buildHashCode());
     assertSame(ts.id(), series.get(0).id());
-    ts = result.time_series.get(series.get(1).id().buildHashCode());
+    ts = getSeries(result, series.get(1).id().buildHashCode());
     assertSame(ts.id(), series.get(1).id());
     
     assertNull(result.timeSpecification());
@@ -343,6 +340,16 @@ private static final int BASE_TIME = 1546300800;
 //    
 //    verify(sinks.get(0), times(1)).onComplete();
 //  }
+  
+  private TimeSeries getSeries(final CombinedCachedResult results, 
+                                      final long hash) {
+    for (final TimeSeries result : results.final_results) {
+      if (result.id().buildHashCode() == hash) {
+        return result;
+      }
+    }
+    return null;
+  }
   
   QueryResult mockResult(final List<TimeSeries> series, 
                          final TimeSpecification spec, 

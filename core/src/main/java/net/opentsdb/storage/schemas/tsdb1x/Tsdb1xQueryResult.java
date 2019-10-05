@@ -15,10 +15,11 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
@@ -81,8 +82,12 @@ public class Tsdb1xQueryResult implements QueryResult {
   /** An exception from downstream. */
   protected Throwable exception;
   
+  /** The list of results instantiated on the first fetch. **/
+  protected List<TimeSeries> final_results;
+  
   /**
-   * Default ctor. The node is expected to have a {@link BaseTimeSeriesDataSourceConfig}
+   * Default ctor. The node is expected to have a 
+   * {@link BaseTimeSeriesDataSourceConfig}
    * configuration that will give us a {@link Configuration} config to
    * use when determining the byte and dp limits.
    * @param sequence_id The sequence ID.
@@ -122,8 +127,12 @@ public class Tsdb1xQueryResult implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
-    return results.values();
+  public List<TimeSeries> timeSeries() {
+    // TODO - double check to see this isn't called from multiple threads.
+    if (final_results == null) {
+      final_results = Lists.newArrayList(results.values());
+    }
+    return final_results;
   }
 
   @Override

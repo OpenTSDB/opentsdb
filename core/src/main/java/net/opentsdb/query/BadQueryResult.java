@@ -15,8 +15,8 @@
 package net.opentsdb.query;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
@@ -51,7 +51,7 @@ public class BadQueryResult implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return Collections.emptyList();
   }
 

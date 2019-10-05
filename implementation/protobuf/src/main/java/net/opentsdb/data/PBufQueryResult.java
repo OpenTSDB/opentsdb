@@ -107,7 +107,7 @@ public class PBufQueryResult implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     if (series == null) {
       series = Lists.newArrayListWithCapacity(
           result.getTimeseriesCount());

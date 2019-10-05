@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.topn;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -127,7 +126,7 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return results;
   }
   

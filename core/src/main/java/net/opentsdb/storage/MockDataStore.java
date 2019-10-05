@@ -761,7 +761,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
 
     @Override
-    public Collection<TimeSeries> timeSeries() {
+    public List<TimeSeries> timeSeries() {
       return matched_series;
     }
     

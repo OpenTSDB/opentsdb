@@ -15,16 +15,15 @@
 package net.opentsdb.query.processor.merge;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
@@ -52,8 +51,8 @@ public class MergerResult implements QueryResult {
   /** The downstream result received by the group by node. */
   protected final List<QueryResult> next;
   
-  /** The map of hash codes to groups. */
-  protected final Map<Long, TimeSeries> groups;
+  /** The list of results. */
+  protected List<TimeSeries> results;
   
   /** The first non-null time specification. */
   protected TimeSpecification time_spec;
@@ -83,7 +82,6 @@ public class MergerResult implements QueryResult {
     this.node = node;
     this.next = Lists.newArrayList();
     this.next.add(next);
-    groups = Maps.newHashMap();
     time_spec = next.timeSpecification();
     rollup_config = next.rollupConfig();
   }
@@ -107,6 +105,10 @@ public class MergerResult implements QueryResult {
    */
   void join() {
     int with_error = 0;
+    // TODO - potential ordering if we wind up pushing down TopN. BUT that causes
+    // issues in that what if one colo returns A, B, C and another returns 
+    // A, C, D?
+    final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
     for (final QueryResult next : this.next) {
       if (!Strings.isNullOrEmpty(next.error())) {
         with_error++;
@@ -123,6 +125,7 @@ public class MergerResult implements QueryResult {
         ((MergerTimeSeries) ts).addSource(series);
       }
     }
+    results = Lists.newArrayList(groups.valueCollection());
     
     if (with_error == next.size()) {
       // TODO - maybe find a common error, otherwise pick one.
@@ -137,8 +140,8 @@ public class MergerResult implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
-    return groups.values();
+  public List<TimeSeries> timeSeries() {
+    return results;
   }
   
   @Override

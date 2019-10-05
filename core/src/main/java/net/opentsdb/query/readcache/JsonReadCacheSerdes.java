@@ -888,7 +888,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
     }
 
     @Override
-    public Collection<TimeSeries> timeSeries() {
+    public List<TimeSeries> timeSeries() {
       return series;
     }
 

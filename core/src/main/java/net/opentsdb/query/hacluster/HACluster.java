@@ -17,6 +17,7 @@ package net.opentsdb.query.hacluster;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
@@ -395,7 +396,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     }
     
     @Override
-    public Collection<TimeSeries> timeSeries() {
+    public List<TimeSeries> timeSeries() {
       return Collections.emptyList();
     }
     

@@ -161,7 +161,7 @@ public class HttpQueryV3Result implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return series;
   }
 
