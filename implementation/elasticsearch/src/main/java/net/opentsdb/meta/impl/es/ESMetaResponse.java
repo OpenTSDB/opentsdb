@@ -99,7 +99,7 @@ public class ESMetaResponse implements MetaResponse {
           if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Too many hits from ES: " + response.getHits().getTotalHits());
           }
-          if (context.query().isDebugEnabled()) {
+          if (context != null && context.query().isDebugEnabled()) {
             context
                 .queryContext()
                 .logDebug(
