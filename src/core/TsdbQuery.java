@@ -1508,9 +1508,11 @@ final class TsdbQuery implements Query {
     long start = getStartTime();
 
     // Convert to seconds if we have a query in ms.
-    if ((start & Const.SECOND_MASK) != 0L) {
-      start /= 1000L;
-    }
+//    if ((start & Const.SECOND_MASK) != 0L) {
+//      start /= 1000L;
+//    }
+    //fix ISSUE#1132
+    start /= 1000L;
     
     // if we have a rollup query, we have different row key start times so find
     // the base time from which we need to search
@@ -1550,15 +1552,16 @@ final class TsdbQuery implements Query {
     long end = getEndTime();
 
     // Convert to seconds if we have a query in ms.
-    if ((end & Const.SECOND_MASK) != 0L) {
-      end /= 1000L;
-      if (end - (end * 1000) < 1) {
+//    if ((end & Const.SECOND_MASK) != 0L) {
+//      end /= 1000L;
+//      if (end - (end * 1000) < 1) {
         // handle an edge case where a user may request a ms time between
         // 0 and 1 seconds. Just bump it a second.
-        end++;
-      }
-    }
-    
+//        end++;
+//      }
+//    }
+    //fix ISSUE#1132
+    end /= 1000L;
     if (rollup_query != null) {
       return RollupUtils.getRollupBasetime(end + 
           (rollup_query.getRollupInterval().getIntervalSeconds() * 
