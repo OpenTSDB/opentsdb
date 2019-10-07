@@ -110,15 +110,18 @@ public class ArrayAverageFactory extends BaseArrayFactory {
     @Override
     public void accumulate(double value, int idx) {
       if (Double.isNaN(value)) {
-        if (infectious_nans) {
+        if (infectious_nans && !Double.isNaN(double_accumulator[idx])) {
           double_accumulator[idx] = Double.NaN;
+          counts[idx] = 0;
         }
       } else {
-        counts[idx]++;
-        if (Double.isNaN(double_accumulator[idx]) && !infectious_nans) {
-          double_accumulator[idx] = value;
-        } else {
-          double_accumulator[idx] += value;
+        if (!infectious_nans || !Double.isNaN(double_accumulator[idx])) {
+          if (Double.isNaN(double_accumulator[idx])) {
+            double_accumulator[idx] = value;
+          } else {
+            double_accumulator[idx] += value;
+          }
+          counts[idx]++;
         }
       }
     }
@@ -157,6 +160,59 @@ public class ArrayAverageFactory extends BaseArrayFactory {
       for (int i = from; i < to; i++) {
         accumulate(values[i], idx);
         idx++;
+      }
+    }
+
+    @Override
+    public void combine(NumericArrayAggregator aggregator) {
+      ArrayAverage arrayAverage = (ArrayAverage) aggregator;
+      double[] double_accumulator = arrayAverage.double_accumulator;
+      long[] long_accumulator = arrayAverage.long_accumulator;
+      int[] counts = arrayAverage.counts;
+
+      if (double_accumulator != null) {
+        combine(double_accumulator, counts);
+      }
+      if (long_accumulator != null) {
+        combine(long_accumulator, counts);
+      }
+    }
+
+    private void combine(long[] values, int[] counts) {
+      if (this.long_accumulator == null) {
+        this.long_accumulator = Arrays.copyOfRange(values, 0, values.length);
+        this.counts = Arrays.copyOfRange(counts, 0, counts.length);
+      } else {
+        for (int i = 0; i < values.length; i++) {
+          this.long_accumulator[i] += values[i];
+          this.counts[i] += counts[i];
+        }
+      }
+    }
+
+    private void combine(double[] values, int[] counts) {
+      if (this.double_accumulator == null) {
+        this.double_accumulator = Arrays.copyOfRange(values, 0, values.length);
+        this.counts = Arrays.copyOfRange(counts, 0, counts.length);
+      } else {
+        for (int i = 0; i < values.length; i++) {
+          double value = values[i];
+          if (Double.isNaN(value)) {
+            if (infectious_nans && !Double.isNaN(this.double_accumulator[i])) {
+              this.double_accumulator[i] = Double.NaN;
+              this.counts[i] = 0;
+            }
+          } else {
+            if (!infectious_nans || !Double.isNaN(double_accumulator[i])) {
+              if (Double.isNaN(double_accumulator[i])) {
+                double_accumulator[i] = value;
+              } else {
+                double_accumulator[i] += value;
+              }
+              this.counts[i] += counts[i];
+            }
+          }
+        }
       }
     }
 
