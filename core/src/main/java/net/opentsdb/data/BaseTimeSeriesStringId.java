@@ -177,7 +177,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
   @Override
   public int compareTo(final TimeSeriesStringId o) {
     return ComparisonChain.start()
-        .compare(Strings.nullToEmpty(alias), Strings.nullToEmpty(o.alias()))
+        //.compare(Strings.nullToEmpty(alias), Strings.nullToEmpty(o.alias()))
         .compare(Strings.nullToEmpty(namespace), Strings.nullToEmpty(o.namespace()))
         .compare(metric, o.metric())
         .compare(tags, o.tags(), STR_MAP_CMP)
@@ -199,9 +199,9 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
     
     final TimeSeriesStringId id = (TimeSeriesStringId) o;
     
-    if (!Objects.equal(alias, id.alias())) {
-      return false;
-    }
+    //if (!Objects.equal(alias, id.alias())) {
+    //  return false;
+    //}
     if (!Objects.equal(namespace(), id.namespace())) {
       return false;
     }
