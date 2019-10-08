@@ -268,7 +268,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
           buf.write(id);
         }
       }
-      return LongHashFunction.xx_r39().hashChars(buf.toString());
+      return LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
     } catch (IOException e) {
       throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
     }

@@ -330,7 +330,7 @@ public class TestGroupByResult {
     assertEquals(2, gbr.results.size());
     
     // xx hash is deterministic
-    GroupByTimeSeries ts = getSeries(gbr, -8580805216277987470L);
+    GroupByTimeSeries ts = getSeries(gbr, -5615300353302416798L);
     TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
     assertArrayEquals("a".getBytes(), id.metric());
     assertEquals(1, id.tags().size());
@@ -341,7 +341,7 @@ public class TestGroupByResult {
     assertTrue(ts.sources.contains(ts3));
     assertTrue(ts.sources.contains(ts4));
     
-    ts = getSeries(gbr, -6049738877415029404L);
+    ts = getSeries(gbr, -1137681723123188454L);
     id = (TimeSeriesByteId) ts.id();
     assertArrayEquals("a".getBytes(), id.metric());
     assertEquals(1, id.tags().size());
@@ -372,19 +372,19 @@ public class TestGroupByResult {
     assertEquals(4, gbr.results.size());
     
     // xx hash is deterministic
-    GroupByTimeSeries ts = getSeries(gbr, -4260552963732685742L);
+    GroupByTimeSeries ts = getSeries(gbr, 8606452997040963279L);
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
     
-    ts = getSeries(gbr, 6634156367469064744L);
+    ts = getSeries(gbr, 3728368451019728235L);
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts3));
     
-    ts = getSeries(gbr, -6715383164234650014L);
+    ts = getSeries(gbr, -5921137706139174957L);
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts4));
     
-    ts = getSeries(gbr, 5445909701660766317L);
+    ts = getSeries(gbr, -4228542243250309079L);
     assertEquals(1, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
   }
@@ -425,7 +425,7 @@ public class TestGroupByResult {
     assertEquals(1, gbr.results.size());
     
     // xx hash is deterministic
-    GroupByTimeSeries ts = getSeries(gbr, -1939960532314980458L);
+    GroupByTimeSeries ts = getSeries(gbr, -3292477735350538661L);
     assertEquals(4, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     assertTrue(ts.sources.contains(ts2));
@@ -446,7 +446,7 @@ public class TestGroupByResult {
     assertEquals(1, gbr.results.size());
     
     // xx hash is deterministic
-    ts = getSeries(gbr, -1939960532314980458L);
+    ts = getSeries(gbr, -3292477735350538661L);
     assertEquals(4, ts.sources().size());
     assertTrue(ts.sources.contains(ts1));
     assertTrue(ts.sources.contains(ts2));
@@ -483,14 +483,14 @@ public class TestGroupByResult {
     assertEquals(2, gbr.results.size());
     
     // xx hash is deterministic
-    GroupByTimeSeries ts = getSeries(gbr, -4926403421177527306L);
+    GroupByTimeSeries ts = getSeries(gbr, 5980207842827758726L);
     TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
     assertArrayEquals("a".getBytes(), id.metric());
     assertEquals(1, id.tags().size());
     assertArrayEquals("phx".getBytes(), id.tags().get("dc".getBytes()));
     assertTrue(id.aggregatedTags().isEmpty());
     
-    ts = getSeries(gbr, -1041762796556252699L);
+    ts = getSeries(gbr, 1162320332169197607L);
     id = (TimeSeriesByteId) ts.id();
     assertArrayEquals("a".getBytes(), id.metric());
     assertEquals(1, id.tags().size());
@@ -515,7 +515,7 @@ public class TestGroupByResult {
     assertEquals(1, gbr.results.size());
     
     // xx hash is deterministic
-    GroupByTimeSeries ts = getSeries(gbr, -1939960532314980458L);
+    GroupByTimeSeries ts = getSeries(gbr, -3292477735350538661L);
     TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
     assertArrayEquals("a".getBytes(), id.metric());
     assertTrue(id.tags().isEmpty());
