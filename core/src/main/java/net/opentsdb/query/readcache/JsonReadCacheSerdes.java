@@ -114,12 +114,16 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
   public byte[] serialize(Collection<QueryResult> results) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     JsonGenerator json;
+    QueryPipelineContext ctx = null;
     try {
       json = JSON.getFactory().createGenerator(baos);
       json.writeStartObject();
       json.writeArrayFieldStart("results");
       
       for (final QueryResult result : results) {
+        if (ctx != null) {
+          ctx = result.source().pipelineContext();
+        }
         // TODO make sure ids are strings.
         json.writeStartObject();
         json.writeStringField("source", result.source().config().getId() 
@@ -186,12 +190,22 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
           + "generator", e1);
     }
     
-    return baos.toByteArray();
+    final byte[] array = baos.toByteArray();
+    if (ctx != null && ctx.query().isTraceEnabled()) {
+      ctx.queryContext().logTrace("Caching single segment: " 
+          + new String(array, Const.UTF8_CHARSET));
+    }
+    return array;
   }
 
   @Override
-  public Map<String, ReadCacheQueryResult> deserialize(final QueryPipelineContext context, 
-                                                       final byte[] data) {
+  public Map<String, ReadCacheQueryResult> deserialize(
+      final QueryPipelineContext context, 
+      final byte[] data) {
+    if (context.query().isTraceEnabled()) {
+      context.queryContext().logTrace("Parsing cached segment: " 
+          + new String(data, Const.UTF8_CHARSET));
+    }
     Map<String, ReadCacheQueryResult> map = Maps.newHashMap();
     try {
       JsonNode results = JSON.getMapper().readTree(data);
@@ -1512,9 +1526,13 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
   public byte[][] serialize(final int[] timestamps, 
                             final Collection<QueryResult> results) {
     final byte[][] cache_data = new byte[timestamps.length][];
-    QR[] serializers = new QR[results.size()];
+    final QR[] serializers = new QR[results.size()];
+    QueryPipelineContext ctx = null;
     int i = 0;
     for (final QueryResult result : results) {
+      if (ctx == null) {
+        ctx = result.source().pipelineContext();
+      }
       serializers[i++] = new QR(result);
     }
     
@@ -1542,6 +1560,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         json.writeEndObject();
         json.close();
         cache_data[i] = baos.toByteArray();
+        
+        if (ctx != null && ctx.query().isTraceEnabled()) {
+          ctx.queryContext().logTrace("Caching sub segment: " 
+              + new String(cache_data[i], Const.UTF8_CHARSET));
+        }
       } catch (Throwable t) {
         LOG.error("WTF?", t);
       }
