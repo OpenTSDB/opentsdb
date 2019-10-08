@@ -943,7 +943,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
             ? value.timestamp().msEpoch()
             : value.timestamp().msEpoch() / 1000;
         if (value.timestamp().epoch() == 0) {
-          ts = value.timestamp().epoch();
+          ts = start.epoch();
         }
         final String ts_string = Long.toString(ts);
 
