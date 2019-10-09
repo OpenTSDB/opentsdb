@@ -152,6 +152,22 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         break;
       }
       
+      if (config instanceof TimeSeriesDataSourceConfig) {
+        final List<String> types = ((TimeSeriesDataSourceConfig) config).getTypes();
+        if (types != null && !types.isEmpty()) {
+          for (final String type : types) {
+            if (!type.equalsIgnoreCase("METRIC")) {
+              skip_cache = true;
+              LOG.warn("Skipping cache as we had a query for type: " + type);
+            }
+          }
+        }
+        
+        if (skip_cache) {
+          break;
+        }
+      }
+      
       final QueryNodeFactory factory = context.tsdb().getRegistry()
           .getQueryNodeFactory(DownsampleFactory.TYPE);
       if (factory == null) {
