@@ -137,7 +137,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     final JsonV3QuerySerdesOptions opts = (JsonV3QuerySerdesOptions) options;
 
     final QueryStats stats = context.stats();
-    if (stats != null) {
+    if (stats != null && result.timeSeries() != null) {
       stats.incrementSerializedTimeSeriesCount(result.timeSeries().size());
     }
 

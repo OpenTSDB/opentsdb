@@ -51,7 +51,7 @@ public abstract class BaseWrappedQueryResult implements QueryResult {
 
   @Override
   public List<TimeSeries> timeSeries() {
-    return result.timeSeries();
+    return result == null ? null : result.timeSeries();
   }
 
   @Override
