@@ -1109,8 +1109,8 @@ public class ExpressionNumericArrayIterator extends
     
     LiteralArray(final int length, final NumericType literal) {
       if (literal == null) {
-        // TODO - dunno if this is right.
-        long_values = new long[length];
+        double_values = new double[length];
+        Arrays.fill(double_values, Double.NaN);
       } else if (literal.isInteger()) {
         long_values = new long[length];
         Arrays.fill(long_values, literal.longValue());

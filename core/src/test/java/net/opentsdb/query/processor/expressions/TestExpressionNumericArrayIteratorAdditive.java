@@ -911,8 +911,8 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 4, 10, 8 },
-        value.value().longArray());
+    assertArrayEquals(new double[] { 4, 10, 8 },
+        value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
@@ -936,8 +936,8 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { -4, -10, -8 },
-        value.value().longArray());
+    assertArrayEquals(new double[] { 4, 10, 8 },
+        value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
@@ -1025,8 +1025,8 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 1, 5, 2 },
-        value.value().longArray());
+    assertArrayEquals(new double[] { 1, 5, 2 },
+        value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
@@ -1050,8 +1050,8 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 1, 5, 2 },
-        value.value().longArray());
+    assertArrayEquals(new double[] { 1, 5, 2 },
+        value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
