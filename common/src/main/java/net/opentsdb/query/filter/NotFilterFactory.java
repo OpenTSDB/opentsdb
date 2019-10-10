@@ -17,6 +17,7 @@ package net.opentsdb.query.filter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
@@ -36,6 +37,12 @@ public class NotFilterFactory extends BaseTSDBPlugin implements
     return TYPE;
   }
 
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+    this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    return Deferred.fromResult(null);
+  }
+  
   @Override
   public QueryFilter parse(final TSDB tsdb, 
                            final ObjectMapper mapper, 
@@ -68,8 +75,7 @@ public class NotFilterFactory extends BaseTSDBPlugin implements
         .setFilter(factory.parse(tsdb, mapper, filter))
         .build();
   }
-
-
+  
   @Override
   public String type() {
     return TYPE;
