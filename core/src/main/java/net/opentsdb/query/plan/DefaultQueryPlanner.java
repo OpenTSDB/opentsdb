@@ -681,7 +681,13 @@ public class DefaultQueryPlanner implements QueryPlanner {
           ids.add(downstream.getId() + ":" 
               + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
         } else if (downstream.joins()) {
-          ids.addAll(downstream_ids);
+          if (downstream instanceof ExpressionConfig) {
+            ids.add(downstream.getId() + ":" + ((ExpressionConfig) downstream).getAs());
+          } else if (downstream instanceof ExpressionParseNode) {
+            ids.add(downstream.getId() + ":" + ((ExpressionParseNode) downstream).getAs());
+          } else {
+            ids.addAll(downstream_ids);
+          }
         } else if (downstream instanceof SummarizerConfig &&
             ((SummarizerConfig) downstream).passThrough()) {
           for (final QueryNodeConfig successor : config_graph.successors(downstream)) {
