@@ -2088,7 +2088,7 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 1, 1, 1 },
+    assertArrayEquals(new long[] { 0, 0, 0 },
         value.value().longArray());
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -2138,7 +2138,7 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 1, 1, 1 },
+    assertArrayEquals(new long[] { 0, 0, 0 },
         value.value().longArray());
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -2401,7 +2401,7 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 1, 1, 1 },
+    assertArrayEquals(new long[] { 0, 0, 0 },
         value.value().longArray());
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -2451,7 +2451,7 @@ public class TestExpressionNumericArrayIteratorRelational extends BaseNumericTes
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new long[] { 1, 1, 1 },
+    assertArrayEquals(new long[] { 0, 0, 0 },
         value.value().longArray());
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
