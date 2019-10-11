@@ -109,7 +109,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     }
 
     if (filter instanceof NotFilter) {
-      return FilterBuilders.notFilter(
+      return FilterBuilders.boolFilter().mustNot(
           setFilter(((NotFilter) filter).getFilter(), metric_filters));
     }
 
@@ -257,6 +257,11 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof ChainFilter) {
 
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        if (sub_filter instanceof NotFilter) {
+          if (((NotFilter) sub_filter).getFilter() instanceof MetricFilter) {
+            metric_only_filter.addFilter(sub_filter);
+          }
+        }
         if (sub_filter instanceof MetricFilter) {
           metric_only_filter.addFilter(sub_filter);
         }
@@ -282,6 +287,11 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     ChainFilter.Builder tags_filters = ChainFilter.newBuilder();
     if (filter instanceof ChainFilter) {
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        if (sub_filter instanceof NotFilter) {
+          if (((NotFilter) sub_filter).getFilter() instanceof TagKeyFilter) {
+            tags_filters.addFilter(sub_filter);
+          }
+        }
         if (sub_filter instanceof TagKeyFilter) {
             tags_filters.addFilter(sub_filter);
         }
@@ -327,6 +337,20 @@ public class NamespacedAggregatedDocumentQueryBuilder {
 
     if (filter instanceof ChainFilter) {
       for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        if (sub_filter instanceof NotFilter) {
+          if (sub_filter instanceof TagKeyFilter) {
+            if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
+                (((TagKeyFilter) sub_filter).filter())) {
+              tags_filters.addFilter(sub_filter);
+            }
+          }
+          if (sub_filter instanceof TagValueFilter) {
+            if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
+                (((TagValueFilter) sub_filter).getTagKey())) {
+              tags_filters.addFilter(sub_filter);
+            }
+          }
+        }
         if (sub_filter instanceof TagValueFilter) {
           if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
                   (((TagValueFilter) sub_filter).getTagKey())) {
