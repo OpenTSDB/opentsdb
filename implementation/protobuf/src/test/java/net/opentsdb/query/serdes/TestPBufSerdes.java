@@ -63,6 +63,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
@@ -170,6 +171,11 @@ public class TestPBufSerdes {
     when(spec.timezone()).thenReturn(ZoneId.of("America/Denver"));
     
     QueryResult result = mock(QueryResult.class);
+    QueryNode node = mock(QueryNode.class);
+    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    when(config.getId()).thenReturn("ds");
+    when(node.config()).thenReturn(config);
+    when(result.source()).thenReturn(node);
     when(result.dataSource()).thenReturn("UT");
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts, ts2));
@@ -184,7 +190,6 @@ public class TestPBufSerdes {
     
     // now deserialize
     final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-    QueryNode node = mock(QueryNode.class);
     QueryPipelineContext ctx = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(ctx);
     when(ctx.tsdb()).thenReturn(TSDB);
@@ -229,6 +234,11 @@ public class TestPBufSerdes {
     when(context.query()).thenReturn(query);
     
     QueryResult result = mock(QueryResult.class);
+    QueryNode node = mock(QueryNode.class);
+    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    when(config.getId()).thenReturn("ds");
+    when(node.config()).thenReturn(config);
+    when(result.source()).thenReturn(node);
     when(result.dataSource()).thenReturn("UT");
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
@@ -242,7 +252,6 @@ public class TestPBufSerdes {
     
     // now deserialize
     final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-    QueryNode node = mock(QueryNode.class);
     final boolean[] validated = new boolean[1];
     doAnswer(new Answer<Void>() {
 
