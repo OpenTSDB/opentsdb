@@ -83,6 +83,7 @@ import net.opentsdb.stats.BlackholeStatsCollector;
 //import net.opentsdb.stats.QueryStats;
 //import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.threadpools.FixedThreadPoolExecutor;
 import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 import net.opentsdb.threadpools.TSDTask;
 
@@ -374,12 +375,17 @@ public class DefaultTSDB implements TSDB {
         return null;
       }
     }
+    
     class SetQueryPool implements Callback<Object, Object> {
       @Override
       public Object call(Object arg) throws Exception {
-        
         query_pool = registry.getDefaultPlugin(TSDBThreadPoolExecutor.class);
-
+        if (query_pool == null) {
+          query_pool = new FixedThreadPoolExecutor();
+          // TODO - deferred on it.
+          return ((FixedThreadPoolExecutor) query_pool)
+              .initialize(DefaultTSDB.this, null);
+        }
         return null;
       }
     }
