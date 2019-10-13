@@ -51,6 +51,7 @@ public class TestPBufQueryResult {
     QueryResult pbuf = QueryResult.newBuilder()
         .setResolution(2)
         .setSequenceId(42)
+        .setNodeId("ds")
         .addTimeseries(TimeSeriesPB.TimeSeries.newBuilder())
         .addTimeseries(TimeSeriesPB.TimeSeries.newBuilder())
         .setTimeSpecification(TimeSpecificationPB.TimeSpecification.newBuilder()
@@ -77,7 +78,7 @@ public class TestPBufQueryResult {
     assertEquals(2, result.timeSeries().size());
     assertEquals(2, result.timeSeries().size());
     assertEquals(42, result.sequenceId());
-    assertSame(node, result.source());
+    assertEquals("ds", result.source().config().getId());
     assertEquals(Const.TS_STRING_ID, result.idType());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     verify(context, times(2)).tsdb();
@@ -128,6 +129,7 @@ public class TestPBufQueryResult {
     QueryResult pbuf = QueryResult.newBuilder()
         .setResolution(2)
         .setSequenceId(42)
+        .setNodeId("ds")
         .build();
     PBufSerdesFactory factory = new PBufSerdesFactory();
     QueryNode node = mock(QueryNode.class);
@@ -137,7 +139,7 @@ public class TestPBufQueryResult {
     assertNull(result.timeSpecification());
     assertTrue(result.timeSeries().isEmpty());
     assertEquals(42, result.sequenceId());
-    assertSame(node, result.source());
+    assertEquals("ds", result.source().config().getId());
     assertEquals(Const.TS_STRING_ID, result.idType());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
   }

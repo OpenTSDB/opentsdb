@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package net.opentsdb.data;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -29,6 +28,7 @@ import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.query.serdes.PBufSerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.rollup.RollupConfig;
@@ -67,7 +67,6 @@ public class PBufQueryResult implements QueryResult {
                          final SerdesOptions options, 
                          final InputStream stream) {
     this.factory = factory;
-    this.node = node;
     try {
       result = QueryResultPB.QueryResult.parseFrom(stream);
       if (result.hasTimeSpecification()) {
@@ -78,6 +77,7 @@ public class PBufQueryResult implements QueryResult {
     } catch (IOException e) {
       throw new SerdesException("Failed to parse the query results.", e);
     }
+    this.node = new CachedQueryNode(result.getNodeId(), node.pipelineContext());
   }
   
   /**
