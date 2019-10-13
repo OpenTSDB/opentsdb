@@ -16,6 +16,9 @@ package net.opentsdb.storage;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -43,8 +46,11 @@ import net.opentsdb.stats.Span;
  * @since 3.0
  */
 public class MockDataStoreFactory extends BaseTSDBPlugin 
-  implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode> {
-
+  implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode>,
+             WritableTimeSeriesDataStoreFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(
+      MockDataStoreFactory.class);
+  
   public static final String TYPE = "MockDataStore";
   
   /** The data store. */
@@ -106,6 +112,19 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     mds = new MockDataStore(tsdb, this.id);
+    
+    if (!tsdb.getConfig().hasProperty("MockDataStore.register.writer")) {
+      // TODO - named configs
+      tsdb.getConfig().register("MockDataStore.register.writer", false, false, 
+          "Whether or not to register the mock data store as a writer as well.");
+    }
+    
+    if (tsdb.getConfig().getBoolean("MockDataStore.register.writer")) {
+      tsdb.getRegistry().registerPlugin(WritableTimeSeriesDataStoreFactory.class, 
+          this.id.equals(TYPE) ? null : this.id, this);
+      LOG.info("Registered Mock Data Store writer as: " 
+          + (this.id.equals(TYPE) ? null : this.id));
+    }
     return Deferred.fromResult(null);
   }
 
@@ -140,4 +159,13 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   public RollupConfig rollupConfig() {
     return null;
   }
+
+  
+  @Override
+  public WritableTimeSeriesDataStore newStoreInstance(
+      final TSDB tsdb, 
+      final String id) {
+    return mds;
+  }
+  
 }
