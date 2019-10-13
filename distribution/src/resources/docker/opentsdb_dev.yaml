@@ -50,3 +50,6 @@ tsd.plugin.config:
   pluginLocations:
   continueOnError: true
   loadDefaultInstances: true
+
+# Mock Data Store Settings
+MockDataStore.register.writer: true

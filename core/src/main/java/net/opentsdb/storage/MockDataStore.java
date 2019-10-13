@@ -226,10 +226,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
     
     public void addValue(TimeSeriesValue<?> value) {
-      
       long base_time = value.timestamp().msEpoch() - 
           (value.timestamp().msEpoch() % ROW_WIDTH);
-      
       for (final MockRow row : rows) {
         if (row.base_timestamp == base_time) {
           row.addValue(value);
@@ -417,7 +415,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       try {
         if (completed.get()) {
           if (LOG.isDebugEnabled()) {
-            LOG.debug("Already completed by 'fetchNext()' wsa called.");
+            LOG.debug("Already completed by 'fetchNext()' was called.");
           }
           return;
         }
