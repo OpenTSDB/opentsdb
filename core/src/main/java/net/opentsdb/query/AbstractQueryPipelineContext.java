@@ -158,6 +158,13 @@ public abstract class AbstractQueryPipelineContext implements
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
+    
+    // Happens if we have a cached node. 
+    // TODO - figure out how to pass it properly. We could search by ID.
+    if (!plan.graph().nodes().contains(node)) {
+      return Collections.emptyList();
+    }
+    
     final Set<QueryNode> downstream = plan.graph().successors(node);
     if (downstream.isEmpty()) {
       return Collections.emptyList();
