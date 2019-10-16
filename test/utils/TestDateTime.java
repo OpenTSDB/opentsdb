@@ -413,6 +413,11 @@ public final class TestDateTime {
   public void getDurationUnitsEmpty() {
     DateTime.getDurationUnits("");
   }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIsNull() {
+    DateTime.getDurationUnits(null);
+  }
   
   @Test
   public void getDurationInterval() {
