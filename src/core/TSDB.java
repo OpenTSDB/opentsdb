@@ -183,7 +183,13 @@ public final class TSDB {
   
   /** Whether or not to block writing of derived rollups/pre-ags */
   private final boolean rollups_block_derived;
-  
+
+  /**
+   * Whether or not to enable splitting rollup queries if the rollup table is lagging
+   * Global config setting: tsd.rollups.split_query.enable = true
+   */
+  private final boolean rollups_split_queries;
+
   /** An optional histogram manger used when the TSD will be dealing with
    * histograms and sketches. Instantiated ONLY if 
    * {@link #initializePlugins(boolean)} was called.*/
@@ -312,6 +318,7 @@ public final class TSDB {
       agg_tag_key = config.getString("tsd.rollups.agg_tag_key");
       raw_agg_tag_value = config.getString("tsd.rollups.raw_agg_tag_value");
       rollups_block_derived = config.getBoolean("tsd.rollups.block_derived");
+      rollups_split_queries = config.getBoolean("tsd.rollups.split_query.enable");
     } else {
       rollup_config = null;
       default_interval = null;
@@ -319,6 +326,7 @@ public final class TSDB {
       agg_tag_key = null;
       raw_agg_tag_value = null;
       rollups_block_derived = false;
+      rollups_split_queries = false;
     }
     
     QueryStats.setEnableDuplicates(
@@ -549,7 +557,7 @@ public final class TSDB {
           uid_filter.getClass().getCanonicalName() + "] version: "
           + uid_filter.version());
     }
-    
+
     // finally load the histo manager after plugins have been loaded.
     if (config.hasProperty("tsd.core.histograms.config")) {
       histogram_manager = new HistogramCodecManager(this);
@@ -566,7 +574,7 @@ public final class TSDB {
   public final Authentication getAuth() {
     return this.authentication;
   }
-
+  
   /** 
    * Returns the configured HBase client
    * @return The HBase client
@@ -2124,7 +2132,18 @@ public final class TSDB {
     return raw_agg_tag_value;
   }
 
-  /** @return The optional histogram manager registered to this TSD. 
+  /**
+   * Returns whether the global config setting allows splitting rollups queries
+   * if the rollups table to be hit is lagging.
+   *
+   * @return Whether or not splitting rollup queries is enabled
+   * @since 2.4
+   */
+  public boolean isRollupsSplittingEnabled() {
+    return rollups_split_queries;
+  }
+
+  /** @return The optional histogram manager registered to this TSD.
    * @since 2.4 */
   public HistogramCodecManager histogramManager() {
     return histogram_manager;
