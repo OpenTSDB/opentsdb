@@ -30,6 +30,11 @@ public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> extends I
    */
   public TypeToken<T> getType();
   
+  /**
+   * The pre computed result in array aggregator
+   * @param aggregator
+   * @return
+   */
   public default TimeSeriesValue<? extends TimeSeriesDataType> nextPool(Aggregator aggregator) {
     return null;
   }

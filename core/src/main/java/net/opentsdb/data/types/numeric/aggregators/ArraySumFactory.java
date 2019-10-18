@@ -69,6 +69,26 @@ public class ArraySumFactory extends BaseArrayFactory {
     }
     
     @Override
+    public void accumulate(long value, int index) {
+      long_accumulator[index] += value;
+    }
+    
+    @Override
+    public void accumulate(double value, int index) {
+      if (Double.isNaN(value)) {
+        if (infectious_nans) {
+          double_accumulator[index] = Double.NaN;
+        }
+      } else {
+        if (Double.isNaN(double_accumulator[index]) && !infectious_nans) {
+          double_accumulator[index] = value;
+        } else {
+          double_accumulator[index] += value;
+        }
+      }
+    }
+    
+    @Override
     public void accumulate(final long[] values,
                            final int from,
                            final int to) {
@@ -96,21 +116,6 @@ public class ArraySumFactory extends BaseArrayFactory {
         int idx = 0;
         for (int i = from; i < to; i++) {
           double_accumulator[idx++] += values[i];
-        }
-      }
-    }
-
-    @Override
-    public void accumulate(double value, int index) {
-      if (Double.isNaN(value)) {
-        if (infectious_nans) {
-          double_accumulator[index] = Double.NaN;
-        }
-      } else {
-        if (Double.isNaN(double_accumulator[index]) && !infectious_nans) {
-          double_accumulator[index] = value;
-        } else {
-          double_accumulator[index] += value;
         }
       }
     }
