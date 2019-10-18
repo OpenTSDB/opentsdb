@@ -171,7 +171,13 @@ public class GroupByNumericArrayIterator
       valuesCombiner[i] = createAggregator(node, factory, size);
     }
 
-    accumulateInParallel(sources, valuesCombiner);
+    if (size == 0) { // Previous node is not downsample.
+      for (TimeSeries source : sources) {
+        accumulate(source, null);
+      }
+    } else {
+      accumulateInParallel(sources, valuesCombiner);
+    }
 
   }
 
