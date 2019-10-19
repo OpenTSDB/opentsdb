@@ -106,7 +106,7 @@ public class Downsample extends AbstractQueryNode {
    * A downsample result that's a member class of the main node so that we share
    * the references to the config and node.
    */
-  class DownsampleResult extends BaseWrappedQueryResult 
+  public class DownsampleResult extends BaseWrappedQueryResult 
       implements TimeSpecification {
     /** Countdown latch for closing the result set based on the upstreams. */
     private final CountDownLatch latch;
@@ -269,7 +269,7 @@ public class Downsample extends AbstractQueryNode {
      * The super simple wrapper around the time series source that generates 
      * iterators using the factory.
      */
-    class DownsampleTimeSeries implements TimeSeries {
+    public class DownsampleTimeSeries implements TimeSeries {
       /** The non-null source. */
       private final TimeSeries source;
       

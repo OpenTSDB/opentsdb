@@ -28,6 +28,7 @@ import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,8 +171,10 @@ public class GroupByNumericArrayIterator
     for (int i = 0; i < valuesCombiner.length; i++) {
       valuesCombiner[i] = createAggregator(node, factory, size);
     }
-
-    if (size == 0) { // Previous node is not downsample.
+    
+    if (size == 0 || !(sources.iterator()
+        .next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries)) {
+      // Previous node is not a downsample node.
       for (TimeSeries source : sources) {
         accumulate(source, null);
       }

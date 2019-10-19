@@ -27,6 +27,7 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.ArrayCountFactory.ArrayCount;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -34,6 +35,7 @@ import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -76,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * @since 3.0
  */
-public class DownsampleNumericToNumericArrayIterator implements QueryIterator {
+public class DownsampleNumericToNumericArrayIterator implements QueryIterator, TimeSeriesValue<NumericArrayType> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(DownsampleNumericToNumericArrayIterator.class);
@@ -134,7 +136,11 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator {
   /** Enum identifying the aggregation function */
   private final AggEnum aggEnum;
 
+  /** Downsample interval unit */
   private int intervalPart;
+  
+  /** Numeric aggregator */
+  private NumericArrayAggregator agg;
 
   /**
    * Default ctor. This will seek to the proper source timestamp.
@@ -239,7 +245,7 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator {
               next.timestamp().epoch() - (next.timestamp().epoch() % intervalPart) + intervalPart;
           nextTs.updateEpoch(nextTsRoundoff);
         }
-
+        
         if (accumulator.isFull() || flush) {
           accumulateDoubles(accumulator, localLongAggs, localDoubleAggs);
           accumulateLongs(accumulator, localLongAggs, localDoubleAggs);
@@ -367,7 +373,7 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator {
     }
     return v;
   }
-
+  
   private void resetLocalAggs(double[] localDoubleAggs, long[] localLongAggs) {
     for (int i = 0; i < localDoubleAggs.length; i++) {
       localDoubleAggs[i] = partial_doubles[i];
@@ -528,33 +534,43 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator {
 
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
-    
-    throw new UnsupportedOperationException("This method is not supported");
 
-    // TODO:
-    /*final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
+    final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
         .getPlugin(NumericArrayAggregatorFactory.class, this.aggEnum.name());
     if (factory == null) {
       throw new IllegalArgumentException(
           "No numeric array aggregator factory found for type: " + this.aggEnum.name());
     }
-
-    NumericArrayAggregator numericArrayAggregator =
-        factory.newAggregator(config.getInfectiousNan());
+    agg = factory.newAggregator(config.getInfectiousNan());
 
     double[] nans = new double[config.intervals()];
     Arrays.fill(nans, Double.NaN);
-    numericArrayAggregator.accumulate(nans);
+    agg.accumulate(nans);
 
-    nextPool(numericArrayAggregator);
+    nextPool(agg);
 
-    double[] values = numericArrayAggregator.doubleArray();
-    return null;*/
+    return this;
 
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericArrayType.TYPE;
   }
 
   @Override
-  public TypeToken<? extends TimeSeriesDataType> getType() {
+  public TimeStamp timestamp() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public NumericArrayType value() {
+    return agg;
+  }
+
+  @Override
+  public TypeToken<NumericArrayType> type() {
     return NumericArrayType.TYPE;
   }
 
