@@ -66,7 +66,7 @@ public class SummarizerNonPassThroughResult extends BaseWrappedQueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return series;
   }
   

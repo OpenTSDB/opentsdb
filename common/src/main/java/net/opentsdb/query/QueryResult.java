@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 package net.opentsdb.query;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
+import java.util.List;
 
 import com.google.common.reflect.TypeToken;
 
@@ -45,10 +45,11 @@ public interface QueryResult {
   // we can link to the schema.
   
   /**
-   * The collection of time series results. May be empty but will not be null.
-   * @return A non-null collection of zero or more time series.
+   * The collection of time series results, potentially in order (e.g. if TopN
+   * is used). May be empty but will not be null.
+   * @return A non-null list of zero or more time series.
    */
-  public Collection<TimeSeries> timeSeries();
+  public List<TimeSeries> timeSeries();
   
   /**
    * An optional error from downstream. If this is set, then 

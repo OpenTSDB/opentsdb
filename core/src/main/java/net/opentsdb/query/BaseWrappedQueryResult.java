@@ -15,7 +15,7 @@
 package net.opentsdb.query;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
+import java.util.List;
 
 import com.google.common.reflect.TypeToken;
 
@@ -50,8 +50,8 @@ public abstract class BaseWrappedQueryResult implements QueryResult {
   }
 
   @Override
-  public Collection<TimeSeries> timeSeries() {
-    return result.timeSeries();
+  public List<TimeSeries> timeSeries() {
+    return result == null ? null : result.timeSeries();
   }
 
   @Override

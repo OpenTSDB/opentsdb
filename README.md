@@ -38,6 +38,6 @@ Each module and sub-module should have readmes with more details when appropriat
 
 ## Getting Started
 
-For a quick start with OpenTSDB 3.0, see the [Undertow Server] (https://github.com/OpenTSDB/opentsdb/tree/3.0/implementation/server-undertow) implementation. We'll have more info and better docs as we flush out 3.0.
+For a quick start with OpenTSDB 3.0, see the [Undertow Server] (https://github.com/OpenTSDB/opentsdb/tree/3.0/implementation/server-undertow) implementation. We'll have more info and better docs as we flesh out 3.0.
 
 And of course, OpenTSDB 3.0 is backwards compatible with previous versions.

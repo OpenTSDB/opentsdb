@@ -168,5 +168,96 @@ public class TestArrayAverage {
     agg.accumulate(new double[] { 5, 2, Double.NaN, 2 });
     assertArrayEquals(new double[] { 4, 2, 5, 0.5 }, agg.doubleArray(), 0.001);
   }
-  
+
+  @Test
+  public void combine() {
+    ArrayAverageFactory.ArrayAverage agg1 = new ArrayAverageFactory.ArrayAverage(false);
+    agg1.accumulate(new double[] { 3, Double.NaN, 9, -1 });
+    agg1.accumulate(new double[] { 4, 5, Double.NaN, -19 });
+
+    ArrayAverageFactory.ArrayAverage agg2 = new ArrayAverageFactory.ArrayAverage(false);
+    agg2.accumulate(new double[] { 3, 8, Double.NaN, 2 });
+
+    ArrayAverageFactory.ArrayAverage combiner = new ArrayAverageFactory.ArrayAverage(false);
+    combiner.combine(agg1);
+    assertArrayEquals(new double[] {7, 5, 9, -20}, combiner.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 1, 1, 2}, combiner.counts);
+
+    combiner.combine(agg2);
+    assertArrayEquals(new double[] {10, 13, 9, -18}, combiner.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {3, 2, 1, 3}, combiner.counts);
+
+    assertArrayEquals(new double[] {3.3333333333333335, 6.5, 9, -6}, combiner.doubleArray(), 0.0001);
+  }
+
+  @Test
+  public void combineWithInfectiousNan() {
+    ArrayAverageFactory.ArrayAverage agg1 = new ArrayAverageFactory.ArrayAverage(true);
+    agg1.accumulate(new double[] { 3, Double.NaN, 9, -1 });
+    agg1.accumulate(new double[] { 4, 5, Double.NaN, -19 });
+
+    ArrayAverageFactory.ArrayAverage agg2 = new ArrayAverageFactory.ArrayAverage(true);
+    agg2.accumulate(new double[] { 3, 8, Double.NaN, 2 });
+
+    ArrayAverageFactory.ArrayAverage combiner = new ArrayAverageFactory.ArrayAverage(true);
+    combiner.combine(agg1);
+    assertArrayEquals(new double[] {7, Double.NaN, Double.NaN, -20}, combiner.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 0, 2}, combiner.counts);
+
+    combiner.combine(agg2);
+    assertArrayEquals(new double[] {10, Double.NaN, Double.NaN, -18}, combiner.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {3, 0, 0, 3}, combiner.counts);
+
+    assertArrayEquals(new double[] {3.3333333333333335, Double.NaN, Double.NaN, -6}, combiner.doubleArray(), 0.0001);
+  }
+
+  @Test
+  public void accumulate() {
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(false);
+    agg.accumulate(new double[] { 3, Double.NaN, 9, -1 });
+    assertArrayEquals(new double[] {3, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {1, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(1.0, 0);
+    assertArrayEquals(new double[] {4, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(Double.NaN, 1);
+    assertArrayEquals(new double[] {4, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(2.0, 1);
+    assertArrayEquals(new double[] {4, 2, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 1, 1, 1}, agg.counts);
+
+    agg.accumulate(Double.NaN, 2);
+    assertArrayEquals(new double[] {4, 2, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 1, 1, 1}, agg.counts);
+  }
+
+  @Test
+  public void accumulateWithInfectiousNan() {
+    ArrayAverageFactory.ArrayAverage agg = new ArrayAverageFactory.ArrayAverage(true);
+
+    agg.accumulate(new double[] { 3, Double.NaN, 9, -1 });
+    assertArrayEquals(new double[] {3, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {1, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(1.0, 0);
+    assertArrayEquals(new double[] {4, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(Double.NaN, 1);
+    assertArrayEquals(new double[] {4, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(2.0, 1);
+    assertArrayEquals(new double[] {4, Double.NaN, 9, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 1, 1}, agg.counts);
+
+    agg.accumulate(Double.NaN, 2);
+    assertArrayEquals(new double[] {4, Double.NaN, Double.NaN, -1 }, agg.double_accumulator, 0.001);
+    assertArrayEquals(new int[] {2, 0, 0, 1}, agg.counts);
+  }
+
 }

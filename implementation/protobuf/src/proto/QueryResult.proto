@@ -40,4 +40,7 @@ message QueryResult {
   /* The name of the data source. */
   string data_source = 5;
   
+  /* The id of the associated Query Node. */
+  string node_id = 6;
+  
 }

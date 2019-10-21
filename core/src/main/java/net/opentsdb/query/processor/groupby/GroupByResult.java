@@ -16,16 +16,16 @@ package net.opentsdb.query.processor.groupby;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
@@ -53,8 +53,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
   /** The parent node. */
   protected final GroupBy node;
   
-  /** The map of hash codes to groups. */
-  protected final Map<Long, TimeSeries> groups;
+  /** The list of groups. */
+  protected final List<TimeSeries> results;
   
   /**
    * The default ctor.
@@ -73,7 +73,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
     
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
-    groups = Maps.newHashMap();
+    final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
     if (next.idType().equals(Const.TS_STRING_ID)) {
       for (final TimeSeries series : next.timeSeries()) {
         final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
@@ -189,11 +189,12 @@ public class GroupByResult extends BaseWrappedQueryResult {
       // TODO - proper exception type
       throw new RuntimeException("Unhandled time series ID type: " + next.idType());
     }
+    results = Lists.newArrayList(groups.valueCollection());
   }
   
   @Override
-  public Collection<TimeSeries> timeSeries() {
-    return groups.values();
+  public List<TimeSeries> timeSeries() {
+    return results;
   }
   
   @Override

@@ -101,7 +101,6 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
     final Map<String, String> sink_filters = ((DefaultQueryPlanner) plan).sinkFilters();
     for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
       if (sink_filters.containsKey(successor.getId())) {
-        sink_filters.remove(successor.getId());
         pass_through = true;
       }
     }

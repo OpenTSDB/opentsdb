@@ -91,7 +91,7 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
   }
   
   @Override
-  public Collection<TimeSeries> timeSeries() {
+  public List<TimeSeries> timeSeries() {
     return time_series;
   }
   

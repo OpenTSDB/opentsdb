@@ -137,7 +137,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     final JsonV3QuerySerdesOptions opts = (JsonV3QuerySerdesOptions) options;
 
     final QueryStats stats = context.stats();
-    if (stats != null) {
+    if (stats != null && result.timeSeries() != null) {
       stats.incrementSerializedTimeSeriesCount(result.timeSeries().size());
     }
 
@@ -864,6 +864,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         long ts = (options != null && options.getMsResolution())
             ? value.timestamp().msEpoch()
             : value.timestamp().msEpoch() / 1000;
+        if (value.timestamp().epoch() == 0) {
+          ts = start.epoch();
+        }
 
         if (!wrote_values) {
           json.writeStartObject();
@@ -939,6 +942,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         long ts = (options != null && options.getMsResolution())
             ? value.timestamp().msEpoch()
             : value.timestamp().msEpoch() / 1000;
+        if (value.timestamp().epoch() == 0) {
+          ts = start.epoch();
+        }
         final String ts_string = Long.toString(ts);
 
         if (!wrote_values) {

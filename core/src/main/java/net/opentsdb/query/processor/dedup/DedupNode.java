@@ -98,7 +98,7 @@ public class DedupNode extends AbstractQueryNode {
     }
     
     @Override
-    public Collection<TimeSeries> timeSeries() {
+    public List<TimeSeries> timeSeries() {
       return results;
     }
     

@@ -224,7 +224,8 @@ public class PBufSerdes implements TimeSeriesSerdes {
   public QueryResultPB.QueryResult serializeResult(final QueryResult result) {
     final QueryResultPB.QueryResult.Builder result_builder = 
         QueryResultPB.QueryResult.newBuilder()
-          .setDataSource(result.dataSource());
+          .setDataSource(result.dataSource())
+          .setNodeId(result.source().config().getId());
     if (result.timeSpecification() != null) {
       result_builder.setTimeSpecification(TimeSpecification.newBuilder()
           .setStart(TimeStamp.newBuilder()

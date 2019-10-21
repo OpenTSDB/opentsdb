@@ -152,6 +152,22 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         break;
       }
       
+      if (config instanceof TimeSeriesDataSourceConfig) {
+        final List<String> types = ((TimeSeriesDataSourceConfig) config).getTypes();
+        if (types != null && !types.isEmpty()) {
+          for (final String type : types) {
+            if (!type.equalsIgnoreCase("METRIC")) {
+              skip_cache = true;
+              LOG.warn("Skipping cache as we had a query for type: " + type);
+            }
+          }
+        }
+        
+        if (skip_cache) {
+          break;
+        }
+      }
+      
       final QueryNodeFactory factory = context.tsdb().getRegistry()
           .getQueryNodeFactory(DownsampleFactory.TYPE);
       if (factory == null) {
@@ -291,6 +307,18 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           countdowns.put(source, new AtomicInteger(sinks.size()));
         }
         
+        if (context.query().isTraceEnabled()) {
+          context.logTrace("Cache timestamps=" + Arrays.toString(slices));
+          StringBuilder buf = new StringBuilder().append("Cache keys=[");
+          for (int i = 0; i < keys.length; i++) {
+            if (i > 0) {
+              buf.append(",");
+            }
+            buf.append(Arrays.toString(keys[i]));
+          }
+          buf.append("]");
+          context.logTrace(buf.toString());
+        }
         return null;
       }
       
@@ -655,7 +683,9 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         if (context.query().getCacheMode() == CacheMode.NORMAL ||
             context.query().getCacheMode() == CacheMode.WRITEONLY) {
           if (results[i].sub_context.cacheable()) {
-            final int idx = x;
+            if (context.query().isTraceEnabled()) {
+              context.logTrace("Caching sub segment at time: " + slices[i]);
+            }
             context.tsdb().getQueryThreadPool().submit(new Runnable() {
               @Override
               public void run() {
@@ -665,8 +695,8 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
                   @Override
                   public Void call(Void arg) throws Exception {
                     stats.incrementCounter(SEGMENTS_CACHED, keys.length, NULL_TAGS);
-                    if (results[idx].map != null) {
-                      for (final QueryResult result : results[idx].map.values()) {
+                    if (results[x].map != null) {
+                      for (final QueryResult result : results[x].map.values()) {
                         if (result != null) {
                           try {
                             result.close();
@@ -688,6 +718,10 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
             }, context);
           } else {
             stats.incrementCounter(SEGMENTS_UNCACHEABLE, keys.length, NULL_TAGS);
+            if (context.query().isTraceEnabled()) {
+              context.logTrace("Skipping cache at timestamp " + slices[i] 
+                  + " as it was marked uncacheable.");
+            }
             if (results[x].map != null) {
               for (final QueryResult result : results[x].map.values()) {
                 if (result != null) {
@@ -1017,6 +1051,9 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           (context.query().getCacheMode() == CacheMode.NORMAL ||
            context.query().getCacheMode() == CacheMode.WRITEONLY)) {
         if (full_query_context.cacheable()) {
+          if (context.query().isTraceEnabled()) {
+            context.logTrace("Caching full query");
+          }
           context.tsdb().getQueryThreadPool().submit(new Runnable() {
             @Override
             public void run() {
@@ -1050,6 +1087,9 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           }, context);
         } else {
           stats.incrementCounter(SEGMENTS_UNCACHEABLE, NULL_TAGS);
+          if (context.query().isTraceEnabled()) {
+            context.logTrace("Not caching full query as it was marked uncacheable.");
+          }
           if (LOG.isDebugEnabled()) {
             LOG.debug("Will not cache full query as it's marked as not cacheable.");
           }
@@ -1058,7 +1098,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
               try {
                 result.close();
               } catch (Exception e) {
-                LOG.warn("Failed t oclose result: " + result, e);
+                LOG.warn("Failed to close result: " + result, e);
               }
             }
           }

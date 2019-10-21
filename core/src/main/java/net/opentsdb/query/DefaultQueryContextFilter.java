@@ -35,6 +35,7 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.TimeSeriesQuery.CacheMode;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.NestedQueryFilter;
@@ -66,6 +67,9 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   protected static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
   protected static final String USER_KEY = "tsd.queryfilter.filter.users";
   protected static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
+  
+  protected static final QueryExecutionException BLACKLISTED = 
+      new QueryExecutionException("Access forbidden due to blacklist.", 403);
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -134,6 +138,11 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
                   entry.getKey() + ":" + entry.getValue() + " to " + 
                   CacheMode.valueOf(ov));
             }
+            
+            ov = values.get("blacklist");
+            if (ov != null && Boolean.parseBoolean(ov)) {
+              throw BLACKLISTED;
+            }
           }
         }
       }
@@ -158,6 +167,11 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
             LOG.trace("Overriding cache mode for user: " + user + " to " 
                 + CacheMode.valueOf(ov));
           }
+        }
+        
+        ov = filter.get("blacklist");
+        if (ov != null && Boolean.parseBoolean(ov)) {
+          throw BLACKLISTED;
         }
       }
     }

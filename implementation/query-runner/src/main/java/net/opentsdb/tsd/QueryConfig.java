@@ -54,10 +54,8 @@ import io.netty.util.TimerTask;
 import jersey.repackaged.com.google.common.collect.Maps;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.YAML;
 
 /**
@@ -85,7 +83,7 @@ public class QueryConfig implements TimerTask {
   protected final String frequency;
   
   /** The query to run. */
-  protected final SemanticQuery.Builder query_builder;
+  protected final String query;
   
   /** A schedule timeout used to cancel runs. */
   protected Timeout timeout;
@@ -113,7 +111,7 @@ public class QueryConfig implements TimerTask {
     this.endpoints = builder.endpoints;
     shuffled_endpoints = Lists.newArrayList(endpoints);
     this.frequency = builder.frequency;
-    this.query_builder = builder.query_builder;
+    this.query = builder.query;
     this.runner = builder.runner;
     rnd = new Random(DateTime.currentTimeMillis());
     cancel = new AtomicBoolean();
@@ -162,7 +160,7 @@ public class QueryConfig implements TimerTask {
       if (temp == null || temp.isNull()) {
         throw new IllegalArgumentException("File " + file + " was missing the query.");
       }
-      config.setQueryBuilder(SemanticQuery.parse(TsdbQueryRunner.TSDB, temp));
+      config.setQuery(temp.toString());
       
       return config.build();
     } catch (FileNotFoundException e) {
@@ -190,11 +188,7 @@ public class QueryConfig implements TimerTask {
       return false;
     }
     
-    // TODO - WARNING: This is not a good long-term solution as we need to 
-    // build the query and use the .equals() on the constructed queries.
-    String local = JSON.serializeToString(query_builder.build());
-    String remote = JSON.serializeToString(other.query_builder.build());
-    return Objects.equal(local, remote);
+    return Objects.equal(query, other.query);
   }
 
   @Override
@@ -213,7 +207,7 @@ public class QueryConfig implements TimerTask {
         latch.set(shuffled_endpoints.size());
         if (runner.use_curl) {
           // write the query
-          Files.write(JSON.serializeToBytes(query_builder.build()), 
+          Files.write(query.getBytes(Const.UTF8_CHARSET), 
               new File(runner.curl_temp + id + ".json"));
           TsdbQueryRunner.TSDB.getQueryThreadPool().submit(new CurlRunner(0));
         } else {
@@ -221,8 +215,7 @@ public class QueryConfig implements TimerTask {
           try {
             final HttpPost post = new HttpPost(endpoint);
             post.addHeader("Content-Type", "application/json");
-            post.setEntity(new StringEntity(JSON.serializeToString(
-                query_builder.build())));
+            post.setEntity(new StringEntity(query));
             ResponseCallback cb = callbacks.get(0);
             cb.start();
             runner.client.execute(post, cb);
@@ -342,8 +335,7 @@ public class QueryConfig implements TimerTask {
         try {
           final HttpPost post = new HttpPost(endpoint);
           post.addHeader("Content-Type", "application/json");
-          post.setEntity(new StringEntity(JSON.serializeToString(
-              query_builder.build())));
+          post.setEntity(new StringEntity(query));
           ResponseCallback cb = callbacks.get(index + 1);
           cb.start();
           runner.client.execute(post, cb);
@@ -520,7 +512,7 @@ public class QueryConfig implements TimerTask {
     private String id;
     private List<String> endpoints;
     private String frequency;
-    private SemanticQuery.Builder query_builder;
+    private String query;
     private TsdbQueryRunner runner;
     
     public Builder setId(final String id) {
@@ -538,8 +530,8 @@ public class QueryConfig implements TimerTask {
       return this;
     }
     
-    public Builder setQueryBuilder(final SemanticQuery.Builder query_builder) {
-      this.query_builder = query_builder;
+    public Builder setQuery(final String query) {
+      this.query = query;
       return this;
     }
     

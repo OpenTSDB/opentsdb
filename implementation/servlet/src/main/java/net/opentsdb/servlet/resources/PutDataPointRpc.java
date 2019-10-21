@@ -327,6 +327,15 @@ public class PutDataPointRpc {
         // TODO Auto-generated method stub
         return 0;
       }
+      
+      @Override
+      public String toString() {
+        return new StringBuilder()
+            .append(dp.getMetric())
+            .append(" ")
+            .append(dp.getTags())
+            .toString();
+      }
 
     }
 

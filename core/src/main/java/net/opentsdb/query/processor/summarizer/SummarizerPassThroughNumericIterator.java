@@ -50,7 +50,7 @@ public class SummarizerPassThroughNumericIterator implements QueryIterator {
     if (!iterator.hasNext()) {
       if (long_values != null) {
         sts.summarize(long_values, 0, idx);
-      } else {
+      } else if (double_values != null) {
         sts.summarize(double_values, 0, idx);
       }
       return false;

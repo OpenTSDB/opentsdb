@@ -19,16 +19,20 @@ The core module is the heart of OpenTSDB, containing the definitions of plugins,
 
 As of OpenTSDB 3.0 the code has undergone an extensive re-write which necessitates a breaking Java API change. We'll try our best to remain compatible with the old Java APIs but some classes and methods will move around. We'll try to document these as much as possible.
 
-From the external API standpoint we'll keep things the same and continue adding more features. However since the new design is much more extensible, admins will have to choose which features to enable or disable for their individual installations.
+From the external API standpoint we'll strive to keep things the same and continue adding more features. However since the new design is much more extensible, admins will have to choose which features to enable or disable for their individual installations.
 
 Goals and features for 3.x and beyond include:
 
 * A composable query layer to allow:
   * Fetching data from multiple data stores including read and write caches, multiple data centers for master/master merging and integrating with meta stores.
   * Flexible operation ordering.
-  * Streaming and time sharded queries.
-* Multiple storage backends including the original HBase schema along with newer Berengi, Bigtable or Cassandra.
+  * Extended filtering options.
+* Multiple storage backends including the original HBase schema along with Bigtable, InfluxDB, Cloudwatch, Prometheus, etc. A single TSD will be able to query data from multiple sources for analysis.
 * Pluggable data types beyond the included numerics and annotations.
+
+**TODOs**
+
+* The QueryResult pipeline is working well and is memory efficient but operationally slow. While it has the benefit of providing access to the raw data with precise timestamps, most monitoring users don't care as much about precision and are happy to use aggregated data. Thus most modern time series databases will emit downsampled vectors for CPU cache efficiency and fast query times. We're in the process of moving the 3.0 code to a *push* based pipeline where data is bubbled up from storage through the pipeline in either raw and precise data or aggregates.
 
 ### Finding your way around the new code Base
 
@@ -46,12 +50,12 @@ The code in here includes the abstract and interfaces that define time series da
 
 #### **[Query] (https://github.com/OpenTSDB/opentsdb/tree/3.0/core/src/main/java/net/opentsdb/query)**
 
-OpenTSDB's new query pipeline is located here. The high level components include:
+OpenTSDB's new query pipeline is located here. Queries are now flexible DAGs currently defined programatically or via an ugly semantic JSON/YAML format. The high level components include:
 
 * **Context** - An object that travels with individual queries storing session data as well as state used to execute and complete the query.
-* **Execution** - Query pipeline components that assemble into a query graph for fetching and serializing data. Examples include sharding a query by metric and time, reading/writing to caches and sending queries to external components.
-* **Filters/Pojos** - The query definition that tells the TSD what to fetch.
-* **Processor** - Components that mutate the queried data prior to serialization. These are responsible for things like downsampling, expression calculation and rate conversion.
+* **Filters** - Filters over data and tags to determine what data is fetched for a query.
+* **Processors** - Components that mutate the queried data prior to serialization. These are responsible for things like downsampling, expression calculation and rate conversion. 
+* **Routers** - Handles routing queries to the proper destiations including HA support, etc.
 
 #### **[Storage] (https://github.com/OpenTSDB/opentsdb/tree/3.0/core/src/main/java/net/opentsdb/storage)**
 
@@ -61,95 +65,56 @@ This contains the abstract interface to a concrete data store (responsible for s
 
 Until the main documentation is up we'll note some important configs here.
 
-So far, the 3.x configuration is similar to the 2.x branch with the ``opentsdb.yaml`` file. Here are some important, common configs for 3.x.
+TSDB V3 has a new config system supporting command line, environment, JVM, properties formatted files, YAML or JSON formatted files and HTTP fetches for configuration. Multiple configs can be provided and flattened into one view allowing for easier distribution of TSDs in a containerized environment. YAML/JSON will be the format going forward as it allows for storing advanced configs like lists and maps as well as complex objects.
 
-* ``tsd.query.default_execution_graphs`` - A JSON config that defines the default execution graphs available on startup for the TSD. If the config value ends with ``.json`` (in lower case) then it's assumed the value is the path to a file that will be opened and parsed. Otherwise users can paste quote-escaped (``\"``) JSON in the config file. (But since it's ugly, try using the file method).
-* ``tsd.plugin.config`` - A JSON config that defines the plugins loaded by the TSD and the order in which they are initialized.
+Because just about everything is a plugin in v3, a TSD won't do much without a configuration that tells it, at a minimum, what data store to load. A dummy in-memory store is provided with some test metrics to test with but of course a TSD can configured to talk to an existing HBase or Bigtable instance. Below we'll describe the quick start config and some config details.
 
-Both of these configs are currently required and we'll clean them up in the future.
+### Quickstart Config
 
-### Execution Graphs Config
+```yaml
+# The TCP port TSD should use for the HTTP Server
+# *** REQUIRED or use tsd.network.ssl_port ***
+tsd.network.port: 4242
 
-This config contains a list of execution graphs available for use at query time. At least one default must be provided in order for queries to execute. For example:
+# The Plugin JSON (with escaped quotes, on one line) or config file (ending in .json)
+# that determines what plugins to load and in what order.
+tsd.plugin.config:
+  configs:
+    -
+      plugin: net.opentsdb.storage.MockDataStoreFactory
+      isDefault: true
+      type: net.opentsdb.data.TimeSeriesDataSourceFactory
+  
+  pluginLocations:
+  continueOnError: true
+  loadDefaultInstances: true
 
-```javascript
-[{
-  "id": null,
-  "nodes": [{
-    "executorId": "LocalCache",
-    "dataType": "timeseries",
-    "upstream": null,
-    "executorType": "TimeSlicedCachingExecutor",
-    "defaultConfig": {
-      "executorId": "LocalCache",
-      "executorType": "TimeSlicedCachingExecutor",
-      "plannerId": "IteratorGroupsSlicePlanner",
-      "expiration": 60000
-    }
-  }, {
-    "executorId": "http",
-    "dataType": "timeseries",
-    "upstream": "LocalCache",
-    "executorType": "HttpQueryV2Executor",
-    "defaultConfig": {
-      "executorType": "HttpQueryV2Executor",
-      "executorId": "http",
-      "endpoint": "**** YOUR TSD ROTATION HERE ****",
-      "timeout": 60000
-    }
-  }]
-}]
 ```
 
-The two components of each execution graph are:
+This is the file found in the Docker image under the name `opentsdb_dev.yaml`.
 
-* ``id`` - The unique name for the graph. If null or empty then the graph is treated as the default execution graph.
-* ``nodes`` - The list of execution nodes creating the graph.
+The first entry `tsd.network.port` is used to set the listening port for the Undertow HTTP server. Note that some properties from the v2 config can transfer over to the new v3 config.
 
-Each node config has the following fields:
-
-* ``executorId`` - A required unique, descriptive name for the node within the graph.
-* ``dataType`` - Always set to ``timeseries`` for now.
-* ``upstream`` - If the node is downstream of another node (e.g. the HTTP executor can be downstream of a cache node) then the ``executorId`` of the upstream node is given here.
-* ``executorType`` - This is the class name of an executor implementation (defaults or plugins). It can be the fully qualified class name or just the simple name.
-* ``defaultConfig`` - This is the default configuration for the executor that is passed in during instantiation. Each config is a little different but has the following common fields:
-    * ``executorId`` - Must be the same name as the node config's ``executorId``.
-    * ``executorType`` - The same class name as the node config's ``executorType``.
-
-On TSD startup, the executors are initialized one time and queries flow through the graphs independently.
-
-For details on what parameters are available for each executor, until we get them documented nicely you'll have to look at the ``Config`` class towards the bottom of each source code file. The builder methods are documented in the source.
+Next is a required, complex config called the `tsd.plugin.conf` that determines what plugins are loaded and in what order.
 
 ### Plugin Config
 
-This config file contains information about what plugins to load, where to find them, and what to name them. For example:
+From the example above, we see that we are loading a single plugin with the Java class name `net.opentsdb.storage.MockDataStoreFactory` of the type `net.opentsdb.data.TimeSeriesDataSourceFactory`. This means we'll load a single data store (the dummy in-memory store) and it will be the default store used by queries as `isDefault` is set to true.
 
-```javascript
-{
-  "configs": [
-  {
-    "type": "net.opentsdb.query.execution.QueryExecutorFactory"
-  },{
-    "plugin": "net.opentsdb.stats.BraveTracer",
-    "default": true,
-    "type": "net.opentsdb.stats.TsdbTracer"
-  }],
-  "pluginLocations": [],
-  "continueOnError": true
-}
-```
+Multiple plugins can be loaded and multiple plugins of the same time can be loaded as long as each has a unique ID. The order of the plugins in the YAML config is important as those at the top are loaded first. So if a plugin, such as a Redis cache, depends on another plugin to be loaded, make sure it appears *after* the dependency.
 
-The fields available are:
+The top-level fields available for the overall plugin config are:
 
-* ``configs`` - A list of plugin configs, defined below.
-* ``pluginLocations`` - A list of paths that may include either directories or explicit JAR files (ending in ``.jar``) to load. These are processed before loading the configs.
+* ``configs`` - A list of plugin configs. Details follow below.
+* ``pluginLocations`` - A list (or JSON array) of paths that may include either directories or explicit JAR files (ending in ``.jar``) to load. These are processed before loading the configs.
 * ``continueOnError`` - Whether or not to allow the TSD to continue loading plugins if one of the configurations could not find implementations or had an error on instantiation. When set to false (the default) then the TSD will stop and load the errors.
+* `loadDefaultInstances` Whether or not to load the default plugins, such as built in filters and processors, are loaded. Note that if this set set to true, the config will likely need to be pretty big to explicitly load all of the types of plugins available.
 
 Each config entry has the following fields:
 
-* ``type`` - The fully qualified class name of the plugin *type*. Not the concrete implementation. E.g. ``net.opentsdb.query.execution.QueryExecutorFactory`` is a *type* of plugin of which there are many implementations.
-* ``plugin`` - The fully qualified class name of the plugin *implementation*. E.g. ``net.opentsdb.query.execution.CachingQueryExecutor`` is a concrete implementation of the ``net.opentsdb.query.execution.QueryExecutorFactory`` *type*.
-* ``id`` - A unique name for the instance of this plugin. This allows more than one instance to be loaded with different configurations. If this ID is null or empty, then ``default`` must be set to ``true``.
+* ``type`` - The fully qualified class name of the plugin *type*. Not the concrete implementation. E.g. ``net.opentsdb.data.TimeSeriesDataSourceFactory`` is a *type* of plugin of which there are many implementations.
+* ``plugin`` - The fully qualified class name of the plugin *implementation*. E.g. ``net.opentsdb.storage.schemas.tsdb1x.SchemaFactory`` is a concrete implementation of the ``net.opentsdb.data.TimeSeriesDataSourceFactory`` *type*.
+* ``id`` - A *unique name* for the instance of this plugin. This allows more than one instance to be loaded with different configurations. If this ID is null or empty, then ``default`` must be set to ``true``.
 * ``default`` - Determines whether or not the plugin should be the default implementation for it's ``type``. This is set to ``false`` by default.
 
 A couple of rules define these configs:
