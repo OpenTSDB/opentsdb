@@ -35,7 +35,6 @@ import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -129,7 +128,7 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator, T
    * Enums for aggregation functions
    *
    */
-  protected static enum AggEnum {
+   static enum AggEnum {
     sum, count, min, max, last, avg;
   }
 
@@ -237,6 +236,7 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator, T
           flush = true;
 
           // find the index to update in the Aggregator
+          // index will be relative to the start timestamp
           index = (int) (((nextTs.epoch() - interval_start.epoch() - intervalPart) / intervalPart)
               % intervals);
 
@@ -485,7 +485,14 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator, T
     }
   }
 
-  static class Accumulator {
+  /**
+   * Exercise caution while modifying thie class, keep is super light weight
+   * 
+   * It might be a bad idea to have the Accumulator as an abstract/interface types due to the
+   * reference overheads the abstract/interface types brings to the variable access.
+   *
+   */
+  final static class Accumulator {
     private final double[] doubleValues;
     private final long[] longValues;
     private final int size;
@@ -542,6 +549,7 @@ public class DownsampleNumericToNumericArrayIterator implements QueryIterator, T
           "No numeric array aggregator factory found for type: " + this.aggEnum.name());
     }
     agg = factory.newAggregator(config.getInfectiousNan());
+    has_next = false;
 
     double[] nans = new double[config.intervals()];
     Arrays.fill(nans, Double.NaN);

@@ -172,8 +172,8 @@ public class GroupByNumericArrayIterator
       valuesCombiner[i] = createAggregator(node, factory, size);
     }
     
-    if (size == 0 || !(sources.iterator()
-        .next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries)) {
+    if (size == 0 || (sources.iterator() != null && sources.iterator().hasNext() && !(sources
+        .iterator().next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries))) {
       // Previous node is not a downsample node.
       for (TimeSeries source : sources) {
         accumulate(source, null);

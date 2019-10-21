@@ -57,8 +57,8 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
 
   @Override
   public void combine(NumericArrayAggregator aggregator) {
-    double[] double_accumulator = ((BaseArrayAggregator) aggregator).doubleArray();
-    long[] long_accumulator = ((BaseArrayAggregator) aggregator).longArray();
+    double[] double_accumulator = ((BaseArrayAggregator) aggregator).double_accumulator;
+    long[] long_accumulator = ((BaseArrayAggregator) aggregator).long_accumulator;
 
     if (double_accumulator != null) {
       accumulate(double_accumulator);

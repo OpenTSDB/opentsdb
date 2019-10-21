@@ -74,7 +74,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
   /** The auto downsample intervals. */
   private List<Pair<Long, String>> intervals;
   
-  private boolean processAsArrays = true;
+  private boolean processAsArrays;
   
   /**
    * Default ctor.
@@ -142,7 +142,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
       builder.setTimeZone(n.asText());
     }
 
-    n = node.get("process_as_arrays");
+    n = node.get("processAsArrays");
     if (n != null) {
       builder.setProcessAsArrays(n.asBoolean());
     } else {
@@ -392,9 +392,9 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
       tsdb.getConfig().register(ARRAY_PROCESS_KEY, true, true,
           "Flag to determine whether to process the data source as arrays");
     }
-    this.processAsArrays = tsdb.getConfig().getBoolean(ARRAY_PROCESS_KEY);
 
     tsdb.getConfig().bind(ARRAY_PROCESS_KEY, new SettingsCallback());
+    this.processAsArrays = tsdb.getConfig().getBoolean(ARRAY_PROCESS_KEY);
     tsdb.getConfig().bind(AUTO_KEY, new SettingsCallback());
   }
   
