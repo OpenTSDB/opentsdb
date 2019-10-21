@@ -28,6 +28,7 @@ import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,7 +156,7 @@ public class GroupByNumericArrayIterator
     }
 
     if(logger.isTraceEnabled()) {
-      logger.trace("Group size: " + size);
+      logger.trace("Group size is {} and sources size is {} ", size, sources.size());
     }
 
     aggregator =
@@ -166,19 +167,21 @@ public class GroupByNumericArrayIterator
     }
 
     // TODO: Need to check if it makes sense to make this threshold configurable
-    if (sources.size() >= NUM_THREADS) {
-      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
-      for (int i = 0; i < valuesCombiner.length; i++) {
-        valuesCombiner[i] = createAggregator(node, factory, size);
-      }
-
-      accumulateInParallel(sources, valuesCombiner);
-
-    } else {
-      for (final TimeSeries source : sources) {
+    NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
+    for (int i = 0; i < valuesCombiner.length; i++) {
+      valuesCombiner[i] = createAggregator(node, factory, size);
+    }
+    
+    if (size == 0 || (sources.iterator() != null && sources.iterator().hasNext() && !(sources
+        .iterator().next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries))) {
+      // Previous node is not a downsample node.
+      for (TimeSeries source : sources) {
         accumulate(source, null);
       }
+    } else {
+      accumulateInParallel(sources, valuesCombiner);
     }
+
   }
 
   private NumericArrayAggregator createAggregator(
@@ -229,26 +232,31 @@ public class GroupByNumericArrayIterator
 
   }
 
-  private TimeSeriesValue<NumericArrayType> accumulate(
-      TimeSeries source, NumericArrayAggregator aggregator) {
-    if (source == null) {
-      throw new IllegalArgumentException("Null time series are not " + "allowed in the sources.");
-    }
+  private TimeSeriesValue<NumericArrayType> accumulate(TimeSeries source,
+      NumericArrayAggregator aggregator) {
+    try {
+      if (source == null) {
+        throw new IllegalArgumentException("Null time series are not " + "allowed in the sources.");
+      }
 
-    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
-        source.iterator(NumericArrayType.TYPE);
-    if (optional.isPresent()) {
-      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-      if (iterator.hasNext()) {
-        has_next = true;
-        if (aggregator != null) {
-          return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(aggregator);
-        } else {
-          TimeSeriesValue<NumericArrayType> array = (TimeSeriesValue<NumericArrayType>) iterator.next();
-          accumulate(array);
-          return array;
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
+          source.iterator(NumericArrayType.TYPE);
+      if (optional.isPresent()) {
+        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
+        if (iterator.hasNext()) {
+          has_next = true;
+          if (aggregator != null) {
+            return (TimeSeriesValue<NumericArrayType>) iterator.nextPool(aggregator);
+          } else {
+            TimeSeriesValue<NumericArrayType> array =
+                (TimeSeriesValue<NumericArrayType>) iterator.next();
+            accumulate(array);
+            return array;
+          }
         }
       }
+    } catch (Throwable t) {
+      logger.error("Unable to accumulate for a timeseries", t);
     }
     return null;
   }

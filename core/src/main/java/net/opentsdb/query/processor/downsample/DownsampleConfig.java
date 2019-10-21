@@ -82,6 +82,9 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
 
   /** Whether or not to fill empty timestamps. */
   private final boolean fill;
+  
+  /** Whether or not to process the data as arrays. */
+  private final boolean process_as_arrays;
 
   /** The numeric part of the parsed interval. */
   private final int interval_part;
@@ -128,6 +131,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     infectious_nan = builder.infectious_nan;
     run_all = builder.run_all;
     fill = builder.fill;
+    process_as_arrays = builder.process_as_arrays;
     if (Strings.isNullOrEmpty(builder.original_interval)) {
       original_interval = builder.interval;
     } else {
@@ -243,6 +247,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   /** @return Whether or not to downsample to a single value. */
   public boolean getRunAll() {
     return run_all;
+  }
+
+  /** @return Whether or not to process the data as arrays. */
+  public boolean getProcessAsArrays() {
+    return process_as_arrays;
   }
 
   /** @return Whether or not to fill missing values. */
@@ -453,6 +462,8 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     @JsonProperty
     private boolean run_all;
     @JsonProperty
+    private boolean process_as_arrays = true;
+    @JsonProperty
     private boolean fill;
     @JsonProperty
     private String start;
@@ -523,6 +534,15 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
      */
     public Builder setRunAll(final boolean run_all) {
       this.run_all = run_all;
+      return this;
+    }
+    
+    /**
+     * @param run_all Whether or not to downsample to a single value.
+     * @return The builder.
+     */
+    public Builder setProcessAsArrays(final boolean process_as_arrays) {
+      this.process_as_arrays = process_as_arrays;
       return this;
     }
 

@@ -108,6 +108,16 @@ public class ArrayCountFactory extends BaseArrayFactory {
       }
     }
 
+    public void accumulate(double value, int index, boolean partialCounts) {
+      if (!Double.isNaN(value)) {
+        if (partialCounts) {
+          long_accumulator[index] += value;
+        } else {
+          long_accumulator[index]++;
+        }
+      }
+    }
+
     @Override
     public void accumulate(final double[] values, 
                            final int from, 

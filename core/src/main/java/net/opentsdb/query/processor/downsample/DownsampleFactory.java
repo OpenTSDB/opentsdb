@@ -66,12 +66,15 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
   public static final String TYPE = "Downsample";
   
   public static final String AUTO_KEY = "tsd.query.downsample.auto.config";
+  public static final String ARRAY_PROCESS_KEY = "tsd.query.downsample.array.process";
   
   public static final TypeReference<Map<String, String>> AUTO_REF = 
       new TypeReference<Map<String, String>>() { };
   
   /** The auto downsample intervals. */
   private List<Pair<Long, String>> intervals;
+  
+  private boolean processAsArrays;
   
   /**
    * Default ctor.
@@ -137,6 +140,15 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
     n = node.get("timezone");
     if (n != null) {
       builder.setTimeZone(n.asText());
+    }
+
+    n = node.get("processAsArrays");
+    if (n != null) {
+      builder.setProcessAsArrays(n.asBoolean());
+    } else {
+      // If this flag (process_as_arrays) is not part of the query, then use the default value from
+      // the tsd configs
+      builder.setProcessAsArrays(processAsArrays);
     }
     
     n = node.get("aggregator");
@@ -350,6 +362,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
           Collections.sort(intervals, REVERSE_PAIR_CMP);
           LOG.info("Updated auto downsample intervals: " + intervals);
         }
+      } else if (key.equals(ARRAY_PROCESS_KEY)) {
+        if (value != null) {
+          processAsArrays = Boolean.valueOf(value.toString());
+        }
       }
     }
   }
@@ -372,6 +388,13 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
           .setSource(getClass().getName())
           .build());
     }
+    if (!tsdb.getConfig().hasProperty(ARRAY_PROCESS_KEY)) {
+      tsdb.getConfig().register(ARRAY_PROCESS_KEY, true, true,
+          "Flag to determine whether to process the data source as arrays");
+    }
+
+    tsdb.getConfig().bind(ARRAY_PROCESS_KEY, new SettingsCallback());
+    this.processAsArrays = tsdb.getConfig().getBoolean(ARRAY_PROCESS_KEY);
     tsdb.getConfig().bind(AUTO_KEY, new SettingsCallback());
   }
   
