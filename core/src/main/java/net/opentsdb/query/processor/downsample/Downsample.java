@@ -342,7 +342,8 @@ public class Downsample extends AbstractQueryNode {
       @Override
       public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
         // TODO - join with the factories supported.
-        if (config.getProcessAsArrays()) {
+        if (config.getProcessAsArrays() && (source.types().contains(NumericType.TYPE)
+            || source.types().contains(NumericArrayType.TYPE))) {
           return Lists.newArrayList(NumericArrayType.TYPE);
         } else {
           return source.types();
