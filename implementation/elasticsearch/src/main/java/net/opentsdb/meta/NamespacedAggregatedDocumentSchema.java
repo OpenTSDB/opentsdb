@@ -20,8 +20,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.impl.MetaClient;
@@ -63,8 +68,11 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   public static final String TAGS_STRING = "tags";
   public static final String CLIENT_ID = "client.id";
   public static final String KEY_PREFIX = "meta.schema.";
+  public static final String SKIP_META_NAMESPACES = "skip.meta";
+  public static final int META_RETENTION = 2*7*24*60*60;
 
   private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private List<String> skip_meta;
 
   private TSDB tsdb;
 
@@ -107,6 +115,13 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       tsdb.getConfig().register(getConfigKey(CLIENT_ID), null, false, "Meta client id.");
     }
 
+    String skip_meta_namespaces = tsdb.getConfig().getString(SKIP_META_NAMESPACES);
+    skip_meta = new ArrayList<>();
+
+    String[] namespaces = skip_meta_namespaces.split(",");
+    for (String namespace : namespaces) {
+      skip_meta.add(namespace.trim());
+    }
     String clientID = tsdb.getConfig().getString(getConfigKey(CLIENT_ID));
     client = tsdb.getRegistry().getPlugin(MetaClient.class, clientID);
     if (client == null) {
@@ -213,6 +228,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       final QueryPipelineContext queryPipelineContext,
       final TimeSeriesDataSourceConfig timeSeriesDataSourceConfig,
       final Span span) {
+
+    if (skip_meta.contains(timeSeriesDataSourceConfig.getNamespace()) &&
+    (System.currentTimeMillis()/1000L) - queryPipelineContext.query().startTime().epoch() >  META_RETENTION) {
+      NamespacedAggregatedDocumentResult result = new NamespacedAggregatedDocumentResult(
+          MetaResult.NO_DATA_FALLBACK, new Exception("Skipping meta store"), null);
+      return Deferred.fromResult(result);
+    }
+
     final Span child;
     if (span != null) {
       child = span.newChild(getClass().getSimpleName() + ".runQuery")
