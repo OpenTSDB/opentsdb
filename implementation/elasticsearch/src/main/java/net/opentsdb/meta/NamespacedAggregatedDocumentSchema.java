@@ -72,6 +72,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   protected static final TypeReference<Map<String, String>> NAMESPACE_FILTERS =
       new TypeReference<Map<String, String>>() { };
 
+  private static Exception skip_meta_ex = new RuntimeException("Skipping meta for this namespace");
+
   private TSDB tsdb;
 
   /** The elastic search client to use */
@@ -113,7 +115,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       tsdb.getConfig().register(getConfigKey(CLIENT_ID), null, false, "Meta client id.");
     }
 
-    if (tsdb.getConfig().hasProperty(SKIP_META)) {
+    if (tsdb.getConfig().hasProperty(getConfigKey(SKIP_META))) {
       tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
           .setKey(SKIP_META)
           .setDefaultValue(Maps.newHashMap())
@@ -231,14 +233,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       final TimeSeriesDataSourceConfig timeSeriesDataSourceConfig,
       final Span span) {
 
-    Map<String, String> namespaces = tsdb.getConfig().getTyped(SKIP_META, NAMESPACE_FILTERS);
+    Map<String, String> namespaces = tsdb.getConfig().getTyped(getConfigKey(SKIP_META), NAMESPACE_FILTERS);
 
     if (namespaces.containsKey(timeSeriesDataSourceConfig.getNamespace())) {
       String retention = namespaces.get(timeSeriesDataSourceConfig.getNamespace());
       long retention_ms = DateTime.parseDuration(retention);
       if (System.currentTimeMillis() - queryPipelineContext.query().startTime().msEpoch() > retention_ms) {
         NamespacedAggregatedDocumentResult result = new NamespacedAggregatedDocumentResult(
-            MetaResult.NO_DATA_FALLBACK, new Exception("Skipping meta store"), null);
+            MetaResult.NO_DATA_FALLBACK, skip_meta_ex, null);
         return Deferred.fromResult(result);
       }
     }
