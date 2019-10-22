@@ -133,4 +133,12 @@ public interface QueryPlanner {
    */
   public Set<String> getMetrics(final QueryNodeConfig node);
   
+  /**
+   * A recursive look for the metric matching the given data source Id.
+   * @param node The start node for the recursive search.
+   * @param data_source_id The non-null data source to match.
+   * @return The matched metric name in the format <metric>
+   */
+  public String getMetricForDataSource(final QueryNodeConfig node, 
+                                       final String data_source_id);
 }

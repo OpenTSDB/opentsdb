@@ -307,30 +307,40 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
 
   static class Builder extends BaseQueryNodeConfig.Builder<Builder, ExpressionParseNode> {
     @JsonProperty
-    private Object left;
+    protected Object left;
     @JsonProperty
-    private OperandType leftType;
+    protected OperandType leftType;
     @JsonProperty
-    private Object right;
+    protected Object right;
     @JsonProperty
-    private OperandType rightType;
+    protected OperandType rightType;
     @JsonProperty
-    private ExpressionOp op;
+    protected ExpressionOp op;
     @JsonProperty
-    private boolean negate;
+    protected boolean negate;
     @JsonProperty
-    private boolean not;
+    protected boolean not;
     @JsonProperty
-    private ExpressionConfig expressionConfig;
+    protected ExpressionConfig expressionConfig;
     @JsonProperty
-    private String as;
+    protected String as;
     @JsonProperty
-    private String leftId;
+    protected String leftId;
     @JsonProperty
-    private String rightId;
+    protected String rightId;
     
     Builder() {
       setType(BinaryExpressionNodeFactory.TYPE);
+    }
+    
+    public Builder addSource(final String source) {
+      if (sources == null) {
+        sources = Lists.newArrayListWithExpectedSize(1);
+      }
+      if (!sources.contains(source)) {
+        sources.add(source);
+      }
+      return this;
     }
     
     public Builder setLeft(final Object left) {

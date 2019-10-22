@@ -161,7 +161,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setKey(next);
       }
-      LOG.trace("SET LEFT!");
+      LOG.trace("[" + config.getId() + "] Matched left source: " + id);
     } else if (right_source != null && 
         (right_source.equals(next.dataSource()) || 
             right_source.equals(id))) {
@@ -175,6 +175,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setValue(next);
       }
+      LOG.trace("[" + config.getId() + "] Matched right source: " + id);
     } else {
       LOG.debug("Unmatched result: " + id);
       return;
