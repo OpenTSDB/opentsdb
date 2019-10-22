@@ -184,7 +184,7 @@ public class GroupByNumericArrayIterator
       }
     } catch (Throwable throwable) {
       logger.error("Error constructing the GroupByNumericArrayIterator", throwable);
-      throw new RuntimeException(throwable);
+      throw new IllegalArgumentException(throwable);
     }
 
   }
