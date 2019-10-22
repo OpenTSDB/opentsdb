@@ -14,9 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gnu.trove.set.hash.TLongHashSet;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.utils.Pair;
@@ -57,7 +54,6 @@ public class NaturalOuterJoin extends BaseJoin {
   
   @Override
   protected void advance() {
-    Logger LOG = LoggerFactory.getLogger(this.getClass());
     // exhaust the left hand side first.
     if (left_iterator != null) {
       while (left_iterator.hasNext() || 
@@ -88,7 +84,6 @@ public class NaturalOuterJoin extends BaseJoin {
             // null check
             if (left_series == null || left_series.isEmpty()) {
               left_series = null;
-              LOG.info("LEFT WAS NULL, skipping");
               continue;
             }
           } else {
@@ -185,7 +180,6 @@ public class NaturalOuterJoin extends BaseJoin {
             // them as we go.
             if (completed.contains(right_iterator.key())) {
               right_series = null;
-              LOG.info("RIGHT was marked complete?, skipping");
               continue;
             }
           } else {

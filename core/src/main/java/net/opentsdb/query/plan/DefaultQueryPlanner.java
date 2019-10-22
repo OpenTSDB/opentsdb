@@ -268,6 +268,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         // TODO clean out nodes that won't contribute to serialization.
         // compute source IDs.
         serialization_sources = computeSerializationSources(context_node);
+        
         // now go and build the node graph
         graph = GraphBuilder.directed()
             .allowsSelfLoops(false)
@@ -681,10 +682,14 @@ public class DefaultQueryPlanner implements QueryPlanner {
           ids.add(downstream.getId() + ":" 
               + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
         } else if (downstream.joins()) {
-          if (downstream instanceof ExpressionConfig) {
-            ids.add(downstream.getId() + ":" + ((ExpressionConfig) downstream).getAs());
-          } else if (downstream instanceof ExpressionParseNode) {
-            ids.add(downstream.getId() + ":" + ((ExpressionParseNode) downstream).getAs());
+          if (node instanceof MergerConfig) {
+            ids.add(((MergerConfig) node).getDataSource());
+          } else if (downstream instanceof ExpressionConfig || 
+                     downstream instanceof ExpressionParseNode) {
+            final Set<String> ds_ids = getMetrics(downstream);
+            for (final String id : ds_ids) {
+              ids.add(downstream.getId() + ":" + id.substring(id.indexOf(":") + 1));
+            }
           } else {
             ids.addAll(downstream_ids);
           }
@@ -957,18 +962,21 @@ public class DefaultQueryPlanner implements QueryPlanner {
     return sources;
   }
   
+  // Returns stuff like <nodeID>:<dataSourceNodeID>
   @Override
   public List<String> getDataSourceIds(final QueryNodeConfig node) {
     if (node instanceof MergerConfig) {
       if (!node.getId().equals(((MergerConfig) node).getDataSource())) {
-        return Lists.newArrayList(node.getId() + ":" + ((MergerConfig) node).getDataSource());
+        return Lists.newArrayList(node.getId() + ":" 
+            + ((MergerConfig) node).getDataSource());
       }
-      return Lists.newArrayList(((MergerConfig) node).getDataSource() + ":" + ((MergerConfig) node).getDataSource());
+      return Lists.newArrayList(((MergerConfig) node).getDataSource() + ":" 
+          + ((MergerConfig) node).getDataSource());
     } else if (node.joins()) {
       return Lists.newArrayList(node.getId() + ":" + node.getId());
     } else if (node instanceof TimeSeriesDataSourceConfig) {
-      
-      return Lists.newArrayList(node.getId() + ":" + ((TimeSeriesDataSourceConfig) node).getDataSourceId());
+      return Lists.newArrayList(node.getId() + ":" 
+          + ((TimeSeriesDataSourceConfig) node).getDataSourceId());
     }
     
     List<String> sources = null;
@@ -981,7 +989,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
       
       List<String> new_sources = Lists.newArrayListWithExpectedSize(sources.size());
       for (final String source : sources) {
-        new_sources.add(node.getId() + ":" + source.substring(source.indexOf(":") + 1));
+        new_sources.add(node.getId() + ":" 
+            + source.substring(source.indexOf(":") + 1));
       }
       return new_sources;
     }
@@ -989,16 +998,32 @@ public class DefaultQueryPlanner implements QueryPlanner {
         + "without a source: " + node.getId());
   }
   
+  // Returns <nodeId>:<metric/as>
   @Override
   public Set<String> getMetrics(final QueryNodeConfig node) {
     if (node instanceof TimeSeriesDataSourceConfig) {
-      return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
+      return Sets.newHashSet(node.getId() + ":" + 
+          ((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
     } else if (node.joins()) {
-      if (node instanceof ExpressionParseNode) {
-        return Sets.newHashSet(((ExpressionParseNode) node).getAs());
+      if (node instanceof MergerConfig) {
+        Set<String> mg = Sets.newHashSet();
+        for (final QueryNodeConfig ds : config_graph.successors(node)) {
+          Set<String> m = getMetrics(ds);
+          for (final String src : m) {
+            mg.add(node.getId() + ":" + src.substring(src.indexOf(":") + 1));
+          }
+        }
+        return mg;
       } else if (node instanceof ExpressionConfig) {
-        return Sets.newHashSet(((ExpressionConfig) node).getAs());
+        return Sets.newHashSet(node.getId() + ":" + 
+            ((ExpressionConfig) node).getAs());
+      } else if (node instanceof ExpressionParseNode) {
+        return Sets.newHashSet(node.getId() + ":" + 
+            ((ExpressionParseNode) node).getAs());
       }
+      
+      // fallback for now
+      return Sets.newHashSet(node.getId() + ":" + node.getId());
     }
     
     Set<String> metrics = Sets.newHashSet();
@@ -1007,6 +1032,55 @@ public class DefaultQueryPlanner implements QueryPlanner {
       metrics.addAll(getMetrics(successor));
     }
     return metrics;
+  }
+  
+  @Override
+  public String getMetricForDataSource(final QueryNodeConfig node, 
+                                       final String data_source_id) {
+    if (node instanceof TimeSeriesDataSourceConfig &&
+        (node.getId().equals(data_source_id) ||
+         ((TimeSeriesDataSourceConfig) node).getDataSourceId().equals(data_source_id))) {
+      return ((TimeSeriesDataSourceConfig) node).getMetric().getMetric();
+    } else if (node.joins()) {
+      if (node instanceof MergerConfig) {
+        if (!((MergerConfig) node).getDataSource().equals(data_source_id)) {
+          return null;
+        }
+        
+        // depth first as we're gauranteed, at least for now, to have something
+        // like merger <- ha <- src1
+        //                 ^--- src2
+        // where each src has the same metric.
+        QueryNodeConfig config = config_graph.successors(node).iterator().next();
+        while (config != null && !(config instanceof TimeSeriesDataSourceConfig)) {
+          final Set<QueryNodeConfig> successors = config_graph.successors(config);
+          if (successors.isEmpty()) {
+            config = null;
+          } else {
+            config = successors.iterator().next();
+          }
+        }
+        
+        if (config == null) {
+          return null;
+        }
+        
+        return ((TimeSeriesDataSourceConfig) config).getMetric().getMetric();
+      }
+    } else if (node instanceof ExpressionConfig) {
+      return ((ExpressionConfig) node).getAs();
+    } else if (node instanceof ExpressionParseNode) {
+      return ((ExpressionParseNode) node).getAs();
+    }
+    
+    for (final QueryNodeConfig successor : config_graph.successors(node)) {
+      final String metric = getMetricForDataSource(successor, data_source_id);
+      if (metric != null) {
+        return metric;
+      }
+    }
+    
+    return null;
   }
   
   /**
@@ -1094,11 +1168,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
     final StringBuilder buffer = new StringBuilder();
     buffer.append(" -------------------------\n");
     for (final QueryNodeConfig node : config_graph.nodes()) {
-      buffer.append("[V] " + node.getId() + " (" + node.getClass().getSimpleName() + ")\n");
+      buffer.append("[V] " + node.getId() + " {" + node.getClass().getSimpleName() + "} (" + System.identityHashCode(node) + ")\n");
     }
     buffer.append("\n");
     for (final EndpointPair<QueryNodeConfig> pair : config_graph.edges()) {
-      buffer.append("[E] " + pair.nodeU().getId() + " => " + pair.nodeV().getId() + "\n");
+      buffer.append("[E] " + pair.nodeU().getId() + " (" + System.identityHashCode(pair.nodeU()) + ") => " + pair.nodeV().getId() + " (" + System.identityHashCode(pair.nodeV()) + ")\n");
     }
     buffer.append(" -------------------------\n");
     return buffer.toString();

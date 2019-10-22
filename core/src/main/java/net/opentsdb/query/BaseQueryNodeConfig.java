@@ -242,9 +242,9 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
     @JsonProperty
     protected String id;
     @JsonProperty
-    private String type;
+    protected String type;
     @JsonProperty
-    private List<String> sources;
+    protected List<String> sources;
     @JsonProperty
     protected Map<String, String> overrides;
 

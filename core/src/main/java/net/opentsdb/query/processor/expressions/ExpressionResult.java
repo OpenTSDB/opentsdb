@@ -101,7 +101,7 @@ public class ExpressionResult implements QueryResult {
       joins = node.joiner().join(
           results, 
           node.rightMetric() != null ? node.rightMetric() :
-            ((String)  config.getRight()).getBytes(Const.UTF8_CHARSET), 
+            ((String) config.getRight()).getBytes(Const.UTF8_CHARSET), 
           false, 
           use_alias);
     }

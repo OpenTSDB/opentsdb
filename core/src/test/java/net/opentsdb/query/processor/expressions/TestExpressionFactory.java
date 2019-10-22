@@ -19,6 +19,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +43,7 @@ import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
@@ -103,15 +106,16 @@ public class TestExpressionFactory {
     
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
-    when(plan.getMetrics(any(QueryNodeConfig.class)))
-      .thenReturn(Sets.newHashSet("sys.cpu.user"));
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), anyString()))
+      .thenReturn("sys.cpu.user");
     when(plan.getDataSourceIds(any(QueryNodeConfig.class)))
       .thenReturn(Lists.newArrayList("m1:m1"));
     
     graph.putEdge(query.get(1), query.get(0));
     graph.putEdge(SINK, query.get(1));
     
-    factory.setupGraph(mock(QueryPipelineContext.class), (ExpressionConfig) query.get(1), plan);
+    factory.setupGraph(mock(QueryPipelineContext.class), 
+        (ExpressionConfig) query.get(1), plan);
     assertEquals(3, graph.nodes().size());
     assertTrue(graph.nodes().contains(query.get(0)));
     assertFalse(graph.nodes().contains(query.get(1)));
@@ -162,8 +166,8 @@ public class TestExpressionFactory {
     ExpressionConfig exp = builder.build();
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
-    when(plan.getMetrics(any(QueryNodeConfig.class)))
-      .thenReturn(Sets.newHashSet("sys.cpu.user"));
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), anyString()))
+      .thenReturn("sys.cpu.user");
     when(plan.getDataSourceIds(any(QueryNodeConfig.class)))
       .thenReturn(Lists.newArrayList("downsample:m1"));
     
@@ -194,459 +198,494 @@ public class TestExpressionFactory {
     assertNull(p1.getRightId());
     assertEquals(ExpressionOp.ADD, p1.getOperator());
   }
+  
+  @Test
+  public void setupGraph2MetricsThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("m1")
+        .build();
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.sys")
+            .build())
+        .setFilterId("f1")
+        .setId("m2")
+        .build();
+    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("downsample")
+        .build();
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2")
+        .setJoinConfig(JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+    DefaultQueryPlanner plan = mock(DefaultQueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
+      .thenReturn("sys.cpu.user");
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m2")))
+      .thenReturn("sys.cpu.sys");
+    when(plan.getDataSourceIds(any(QueryNodeConfig.class)))
+      .thenReturn(Lists.newArrayList("downsample:m1", "downsample:m2"));
+    
+    graph.putEdge(ds, m1);
+    graph.putEdge(ds, m2);
+    graph.putEdge(exp, ds);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(5, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(m2));
+    assertTrue(graph.nodes().contains(ds));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    QueryNodeConfig b1 = graph.predecessors(ds).iterator().next();
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.hasEdgeConnecting(ds, m1));
+    assertTrue(graph.hasEdgeConnecting(ds, m2));
+    assertTrue(graph.hasEdgeConnecting(b1, ds));
+    assertTrue(graph.hasEdgeConnecting(SINK, b1));
+    
+    ExpressionParseNode p1 = (ExpressionParseNode) b1;
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("downsample:m1", p1.getLeftId());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals("sys.cpu.sys", p1.getRight());
+    assertEquals("downsample:m2", p1.getRightId());
+    assertEquals(OperandType.VARIABLE, p1.getRightType());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
+  }
+  
+  @Test
+  public void setupGraph2Metrics1ThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("m1")
+        .build();
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.sys")
+            .build())
+        .setFilterId("f1")
+        .setId("m2")
+        .build();
+    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("downsample")
+        .build();
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+    QueryPlanner plan = mock(QueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
+      .thenReturn("sys.cpu.user");
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m2")))
+      .thenReturn("sys.cpu.sys");
+    when(plan.getDataSourceIds(ds))
+      .thenReturn(Lists.newArrayList("downsample:m1"));
+    when(plan.getDataSourceIds(m2))
+      .thenReturn(Lists.newArrayList("m2:m2"));
+    
+    graph.putEdge(ds, m1);
+    graph.putEdge(exp, m2);
+    graph.putEdge(exp, ds);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(5, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(m2));
+    assertTrue(graph.nodes().contains(ds));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    QueryNodeConfig b1 = graph.predecessors(ds).iterator().next();
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.hasEdgeConnecting(ds, m1));
+    assertTrue(graph.hasEdgeConnecting(b1, m2));
+    assertTrue(graph.hasEdgeConnecting(b1, ds));
+    assertTrue(graph.hasEdgeConnecting(SINK, b1));
+    
+    ExpressionParseNode p1 = (ExpressionParseNode) b1;
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("downsample:m1", p1.getLeftId());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals("sys.cpu.sys", p1.getRight());
+    assertEquals("m2:m2", p1.getRightId());
+    assertEquals(OperandType.VARIABLE, p1.getRightType());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
+  }
+  
+  @Test
+  public void setupGraph3MetricsThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("m1")
+        .build();
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.sys")
+            .build())
+        .setFilterId("f1")
+        .setId("m2")
+        .build();
+    QueryNodeConfig m3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.idle")
+            .build())
+        .setFilterId("f1")
+        .setId("m3")
+        .build();
+    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("downsample")
+        .build();
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("m1 + m2 + m3")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
 
-// TODO - restore the through node code. Have to do that in planner.
-//  @Test
-//  public void setupGraph2MetricsThroughNode() throws Exception {
-//    ExpressionFactory factory = new ExpressionFactory();
-//    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
-//        .allowsSelfLoops(false).build();
-//    
-//    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.user")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m1")
-//        .build();
-//    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.sys")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m2")
-//        .build();
-//    QueryNodeConfig ds = DownsampleConfig.newBuilder()
-//        .setAggregator("sum")
-//        .setInterval("1m")
-//        .addInterpolatorConfig(NUMERIC_CONFIG)
-//        .setId("downsample")
-//        .build();
-//    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
-//    builder.setExpression("m1 + m2")
-//        .setJoinConfig(JoinConfig.newBuilder()
-//            .setJoinType(JoinType.NATURAL)
-//            .build())
-//        .addInterpolatorConfig(NUMERIC_CONFIG);
-//    builder.setId("expression");
-//    ExpressionConfig exp = builder.build();
-//    QueryPlanner plan = mock(QueryPlanner.class);
-//    when(plan.configGraph()).thenReturn(graph);
-//    
-//    graph.putEdge(ds, m1);
-//    graph.putEdge(ds, m2);
-//    graph.putEdge(exp, ds);
-//    graph.putEdge(SINK, exp);
-//    
-//    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
-//    assertEquals(5, graph.nodes().size());
-//    assertTrue(graph.nodes().contains(m1));
-//    assertTrue(graph.nodes().contains(m2));
-//    assertTrue(graph.nodes().contains(ds));
-//    assertFalse(graph.nodes().contains(exp));
-//    assertTrue(graph.nodes().contains(SINK));
-//    
-//    QueryNodeConfig b1 = graph.predecessors(ds).iterator().next();
-//    assertEquals("BinaryExpression", b1.getType());
-//    assertTrue(graph.hasEdgeConnecting(ds, m1));
-//    assertTrue(graph.hasEdgeConnecting(ds, m2));
-//    assertTrue(graph.hasEdgeConnecting(b1, ds));
-//    assertTrue(graph.hasEdgeConnecting(SINK, b1));
-//    
-//    ExpressionParseNode p1 = (ExpressionParseNode) b1;
-//    assertEquals("expression", p1.getId());
-//    assertEquals("sys.cpu.user", p1.getLeft());
-//    assertEquals("m1", p1.getLeftId());
-//    assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//    assertEquals("sys.cpu.sys", p1.getRight());
-//    assertEquals("m2", p1.getRightId());
-//    assertEquals(OperandType.VARIABLE, p1.getRightType());
-//    assertEquals(ExpressionOp.ADD, p1.getOperator());
-//  }
-//  
-//  @Test
-//  public void setupGraph2Metrics1ThroughNode() throws Exception {
-//    ExpressionFactory factory = new ExpressionFactory();
-//    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
-//        .allowsSelfLoops(false).build();
-//    
-//    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.user")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m1")
-//        .build();
-//    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.sys")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m2")
-//        .build();
-//    QueryNodeConfig ds = DownsampleConfig.newBuilder()
-//        .setAggregator("sum")
-//        .setInterval("1m")
-//        .addInterpolatorConfig(NUMERIC_CONFIG)
-//        .setId("downsample")
-//        .build();
-//    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
-//    builder.setExpression("m1 + m2")
-//        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-//            .setJoinType(JoinType.NATURAL)
-//            .build())
-//        .addInterpolatorConfig(NUMERIC_CONFIG);
-//    builder.setId("expression");
-//    ExpressionConfig exp = builder.build();
-//    QueryPlanner plan = mock(QueryPlanner.class);
-//    when(plan.configGraph()).thenReturn(graph);
-//    
-//    graph.putEdge(ds, m1);
-//    graph.putEdge(exp, m2);
-//    graph.putEdge(exp, ds);
-//    graph.putEdge(SINK, exp);
-//    
-//    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
-//    assertEquals(5, graph.nodes().size());
-//    assertTrue(graph.nodes().contains(m1));
-//    assertTrue(graph.nodes().contains(m2));
-//    assertTrue(graph.nodes().contains(ds));
-//    assertFalse(graph.nodes().contains(exp));
-//    assertTrue(graph.nodes().contains(SINK));
-//    
-//    QueryNodeConfig b1 = graph.predecessors(ds).iterator().next();
-//    assertEquals("BinaryExpression", b1.getType());
-//    assertTrue(graph.hasEdgeConnecting(ds, m1));
-//    assertTrue(graph.hasEdgeConnecting(b1, m2));
-//    assertTrue(graph.hasEdgeConnecting(b1, ds));
-//    assertTrue(graph.hasEdgeConnecting(SINK, b1));
-//    
-//    ExpressionParseNode p1 = (ExpressionParseNode) b1;
-//    assertEquals("expression", p1.getId());
-//    assertEquals("sys.cpu.user", p1.getLeft());
-//    assertEquals("m1", p1.getLeftId());
-//    assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//    assertEquals("sys.cpu.sys", p1.getRight());
-//    assertEquals("m2", p1.getRightId());
-//    assertEquals(OperandType.VARIABLE, p1.getRightType());
-//    assertEquals(ExpressionOp.ADD, p1.getOperator());
-//  }
-//  
-//  @Test
-//  public void setupGraph3MetricsThroughNode() throws Exception {
-//    ExpressionFactory factory = new ExpressionFactory();
-//    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
-//        .allowsSelfLoops(false).build();
-//    
-//    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.user")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m1")
-//        .build();
-//    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.sys")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m2")
-//        .build();
-//    QueryNodeConfig m3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.idle")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m3")
-//        .build();
-//    QueryNodeConfig ds = DownsampleConfig.newBuilder()
-//        .setAggregator("sum")
-//        .setInterval("1m")
-//        .addInterpolatorConfig(NUMERIC_CONFIG)
-//        .setId("downsample")
-//        .build();
-//    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
-//    builder.setExpression("m1 + m2 + m3")
-//        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-//            .setJoinType(JoinType.NATURAL)
-//            .build())
-//        .addInterpolatorConfig(NUMERIC_CONFIG);
-//    builder.setId("expression");
-//    ExpressionConfig exp = builder.build();
-//
-//    QueryPlanner plan = mock(QueryPlanner.class);
-//    when(plan.configGraph()).thenReturn(graph);
-//    
-//    graph.putEdge(ds, m1);
-//    graph.putEdge(ds, m2);
-//    graph.putEdge(ds, m3);
-//    graph.putEdge(exp, ds);
-//    graph.putEdge(SINK, exp);
-//    
-//    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
-//    assertEquals(7, graph.nodes().size());
-//    assertTrue(graph.nodes().contains(m1));
-//    assertTrue(graph.nodes().contains(m2));
-//    assertTrue(graph.nodes().contains(m3));
-//    assertTrue(graph.nodes().contains(ds));
-//    assertFalse(graph.nodes().contains(exp));
-//    assertTrue(graph.nodes().contains(SINK));
-//    
-//    assertTrue(graph.hasEdgeConnecting(ds, m1));
-//    assertTrue(graph.hasEdgeConnecting(ds, m2));
-//    
-//    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
-//    assertEquals(2, expressions.size());
-//    for (final QueryNodeConfig binary : expressions) {
-//      assertTrue(graph.hasEdgeConnecting(binary, ds));
-//      assertEquals("BinaryExpression", binary.getType());
-//      
-//      if (binary.getId().equals("expression_SubExp#0")) {
-//        ExpressionParseNode p1 = (ExpressionParseNode) binary;
-//        assertEquals("expression_SubExp#0", p1.getId());
-//        assertEquals("sys.cpu.user", p1.getLeft());
-//        assertEquals("m1", p1.getLeftId());
-//        assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//        assertEquals("sys.cpu.sys", p1.getRight());
-//        assertEquals("m2", p1.getRightId());
-//        assertEquals(OperandType.VARIABLE, p1.getRightType());
-//        assertEquals(ExpressionOp.ADD, p1.getOperator());
-//        
-//        assertFalse(graph.hasEdgeConnecting(SINK, binary));
-//      } else {
-//        assertEquals("expression", binary.getId());
-//        ExpressionParseNode p1 = (ExpressionParseNode) binary;
-//        assertEquals("expression", p1.getId());
-//        assertEquals("expression_SubExp#0", p1.getLeft());
-//        assertEquals("expression_SubExp#0", p1.getLeftId());
-//        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
-//        assertEquals("sys.cpu.idle", p1.getRight());
-//        assertEquals("m3", p1.getRightId());
-//        assertEquals(OperandType.VARIABLE, p1.getRightType());
-//        assertEquals(ExpressionOp.ADD, p1.getOperator());
-//        
-//        assertTrue(graph.hasEdgeConnecting(SINK, binary));
-//      }
-//    }
-//    
-//  }
-//  
-//  @Test
-//  public void setupGraph3MetricsComplexThroughNode() throws Exception {
-//    ExpressionFactory factory = new ExpressionFactory();
-//    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
-//        .allowsSelfLoops(false).build();
-//    
-//    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.user")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m1")
-//        .build();
-//    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.sys")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m2")
-//        .build();
-//    QueryNodeConfig m3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.idle")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("m3")
-//        .build();
-//    QueryNodeConfig ds = DownsampleConfig.newBuilder()
-//        .setAggregator("sum")
-//        .setInterval("1m")
-//        .addInterpolatorConfig(NUMERIC_CONFIG)
-//        .setId("downsample")
-//        .build();
-//    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
-//    builder.setExpression("(m1 * 1024) + (m2 * 1024) + (m3 * 1024)")
-//        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-//            .setJoinType(JoinType.NATURAL)
-//            .build())
-//        .addInterpolatorConfig(NUMERIC_CONFIG);
-//        builder.setId("expression");
-//    ExpressionConfig exp = builder.build();
-//
-//    QueryPlanner plan = mock(QueryPlanner.class);
-//    when(plan.configGraph()).thenReturn(graph);
-//    
-//    graph.putEdge(ds, m1);
-//    graph.putEdge(ds, m2);
-//    graph.putEdge(ds, m3);
-//    graph.putEdge(exp, ds);
-//    graph.putEdge(SINK, exp);
-//    
-//    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
-//    assertEquals(10, graph.nodes().size());
-//    assertTrue(graph.nodes().contains(m1));
-//    assertTrue(graph.nodes().contains(m2));
-//    assertTrue(graph.nodes().contains(m3));
-//    assertTrue(graph.nodes().contains(ds));
-//    assertFalse(graph.nodes().contains(exp));
-//    assertTrue(graph.nodes().contains(SINK));
-//    
-//    assertTrue(graph.hasEdgeConnecting(ds, m1));
-//    assertTrue(graph.hasEdgeConnecting(ds, m2));
-//    
-//    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
-//    assertEquals(3, expressions.size());
-//    for (final QueryNodeConfig binary : expressions) {
-//      assertTrue(graph.hasEdgeConnecting(binary, ds));
-//      assertEquals("BinaryExpression", binary.getType());
-//      if (binary.getId().equals("expression_SubExp#0")) {
-//        ExpressionParseNode p1 = (ExpressionParseNode) binary;
-//        assertEquals("expression_SubExp#0", p1.getId());
-//        assertEquals("sys.cpu.user", p1.getLeft());
-//        assertEquals("m1", p1.getLeftId());
-//        assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
-//        assertNull(p1.getRightId());
-//        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
-//        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
-//        
-//        assertFalse(graph.hasEdgeConnecting(SINK, binary));
-//        assertEquals(1, graph.predecessors(binary).size());
-//        assertEquals("expression_SubExp#2", 
-//            graph.predecessors(binary).iterator().next().getId());
-//      } else if (binary.getId().equals("expression_SubExp#1")) {
-//        ExpressionParseNode p1 = (ExpressionParseNode) binary;
-//        assertEquals("expression_SubExp#1", p1.getId());
-//        assertEquals("sys.cpu.sys", p1.getLeft());
-//        assertEquals("m2", p1.getLeftId());
-//        assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
-//        assertNull(p1.getRightId());
-//        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
-//        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
-//        
-//        assertFalse(graph.hasEdgeConnecting(SINK, binary));
-//        assertEquals(1, graph.predecessors(binary).size());
-//        QueryNodeConfig b2 = graph.predecessors(binary).iterator().next();
-//        assertEquals("expression_SubExp#2", b2.getId());
-//        
-//        // validate sub2 here
-//        p1 = (ExpressionParseNode) b2;
-//        assertEquals("expression_SubExp#2", p1.getId());
-//        assertEquals("expression_SubExp#0", p1.getLeft());
-//        assertEquals("expression_SubExp#0", p1.getLeftId());
-//        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
-//        assertEquals("expression_SubExp#1", p1.getRight());
-//        assertEquals("expression_SubExp#1", p1.getRightId());
-//        assertEquals(OperandType.SUB_EXP, p1.getRightType());
-//        assertEquals(ExpressionOp.ADD, p1.getOperator());
-//        
-//        assertFalse(graph.hasEdgeConnecting(SINK, b2));
-//        
-//      } else if (binary.getId().equals("expression_SubExp#3")) {
-//        ExpressionParseNode p1 = (ExpressionParseNode) binary;
-//        assertEquals("expression_SubExp#3", p1.getId());
-//        assertEquals("sys.cpu.idle", p1.getLeft());
-//        assertEquals("m3", p1.getLeftId());
-//        assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
-//        assertNull(p1.getRightId());
-//        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
-//        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
-//        
-//        assertFalse(graph.hasEdgeConnecting(SINK, binary));
-//        assertEquals(1, graph.predecessors(binary).size());
-//        
-//        // validate the expression here
-//        QueryNodeConfig b2 = graph.predecessors(binary).iterator().next();
-//        assertEquals("expression", b2.getId());
-//        
-//        // validate parent here
-//        p1 = (ExpressionParseNode) b2;
-//        assertEquals("expression", p1.getId());
-//        assertEquals("expression_SubExp#2", p1.getLeft());
-//        assertEquals("expression_SubExp#2", p1.getLeftId());
-//        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
-//        assertEquals("expression_SubExp#3", p1.getRight());
-//        assertEquals("expression_SubExp#3", p1.getRightId());
-//        assertEquals(OperandType.SUB_EXP, p1.getRightType());
-//        assertEquals(ExpressionOp.ADD, p1.getOperator());
-//        
-//        assertTrue(graph.hasEdgeConnecting(SINK, b2));
-//      }
-//    }
-//    
-//  }
-//  
-//  @Test
-//  public void setupGraphThroughJoinNodeMetricName() throws Exception {
-//    ExpressionFactory factory = new ExpressionFactory();
-//    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
-//        .allowsSelfLoops(false).build();
-//    
-//    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
-//        .setMetric(MetricLiteralFilter.newBuilder()
-//            .setMetric("sys.cpu.user")
-//            .build())
-//        .setFilterId("f1")
-//        .setId("ha_m1")
-//        .build();
-//    QueryNodeConfig merger = MergerConfig.newBuilder()
-//        .setAggregator("sum")
-//        .addInterpolatorConfig(NUMERIC_CONFIG)
-//        .setDataSource("m1")
-//        .setId("m1")
-//        .build();
-//    QueryNodeConfig ds = DownsampleConfig.newBuilder()
-//        .setAggregator("sum")
-//        .setInterval("1m")
-//        .addInterpolatorConfig(NUMERIC_CONFIG)
-//        .setId("downsample")
-//        .build();
-//    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
-//    builder.setExpression("(sys.cpu.user * 1024)")
-//        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
-//            .setJoinType(JoinType.NATURAL)
-//            .build())
-//        .addInterpolatorConfig(NUMERIC_CONFIG);
-//    builder.setId("expression");
-//    ExpressionConfig exp = builder.build();
-//    
-//    QueryPlanner plan = mock(QueryPlanner.class);
-//    when(plan.configGraph()).thenReturn(graph);
-//    
-//    graph.putEdge(merger, m1);
-//    graph.putEdge(ds, merger);
-//    graph.putEdge(exp, ds);
-//    graph.putEdge(SINK, exp);
-//    
-//    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
-//    assertEquals(5, graph.nodes().size());
-//    assertTrue(graph.nodes().contains(m1));
-//    assertTrue(graph.nodes().contains(merger));
-//    assertTrue(graph.nodes().contains(ds));
-//    assertFalse(graph.nodes().contains(exp));
-//    assertTrue(graph.nodes().contains(SINK));
-//    
-//    assertTrue(graph.hasEdgeConnecting(merger, m1));
-//    
-//    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
-//    assertEquals(1, expressions.size());
-//    ExpressionParseNode p1 = (ExpressionParseNode) expressions.get(0);
-//    assertTrue(graph.hasEdgeConnecting(p1, ds));
-//    assertEquals("expression", p1.getId());
-//    assertEquals("sys.cpu.user", p1.getLeft());
-//    assertEquals("m1", p1.getLeftId());
-//    assertEquals(OperandType.VARIABLE, p1.getLeftType());
-//    assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
-//    assertNull(p1.getRightId());
-//    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
-//    assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
-//    
-//    assertTrue(graph.hasEdgeConnecting(SINK, p1));
-//    assertEquals(1, graph.predecessors(p1).size());
-//  }
-//  
+    QueryPlanner plan = mock(QueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
+      .thenReturn("sys.cpu.user");
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m2")))
+      .thenReturn("sys.cpu.sys");
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m3")))
+      .thenReturn("sys.cpu.idle");
+    when(plan.getDataSourceIds(ds))
+      .thenReturn(Lists.newArrayList("downsample:m1", "downsample:m2", "downsample:m3"));
+    
+    graph.putEdge(ds, m1);
+    graph.putEdge(ds, m2);
+    graph.putEdge(ds, m3);
+    graph.putEdge(exp, ds);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(7, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(m2));
+    assertTrue(graph.nodes().contains(m3));
+    assertTrue(graph.nodes().contains(ds));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    assertTrue(graph.hasEdgeConnecting(ds, m1));
+    assertTrue(graph.hasEdgeConnecting(ds, m2));
+    
+    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
+    assertEquals(2, expressions.size());
+    for (final QueryNodeConfig binary : expressions) {
+      assertTrue(graph.hasEdgeConnecting(binary, ds));
+      assertEquals("BinaryExpression", binary.getType());
+      
+      if (binary.getId().equals("expression_SubExp#0")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary;
+        assertEquals("expression_SubExp#0", p1.getId());
+        assertEquals("sys.cpu.user", p1.getLeft());
+        assertEquals("downsample:m1", p1.getLeftId());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals("sys.cpu.sys", p1.getRight());
+        assertEquals("downsample:m2", p1.getRightId());
+        assertEquals(OperandType.VARIABLE, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
+        
+        assertFalse(graph.hasEdgeConnecting(SINK, binary));
+      } else {
+        assertEquals("expression", binary.getId());
+        ExpressionParseNode p1 = (ExpressionParseNode) binary;
+        assertEquals("expression", p1.getId());
+        assertEquals("expression_SubExp#0", p1.getLeft());
+        assertEquals("expression_SubExp#0", p1.getLeftId());
+        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
+        assertEquals("sys.cpu.idle", p1.getRight());
+        assertEquals("downsample:m3", p1.getRightId());
+        assertEquals(OperandType.VARIABLE, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
+        
+        assertTrue(graph.hasEdgeConnecting(SINK, binary));
+      }
+    }
+    
+  }
+  
+  @Test
+  public void setupGraph3MetricsComplexThroughNode() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("m1")
+        .build();
+    QueryNodeConfig m2 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.sys")
+            .build())
+        .setFilterId("f1")
+        .setId("m2")
+        .build();
+    QueryNodeConfig m3 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.idle")
+            .build())
+        .setFilterId("f1")
+        .setId("m3")
+        .build();
+    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("downsample")
+        .build();
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("(m1 * 1024) + (m2 * 1024) + (m3 * 1024)")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+        builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+
+    QueryPlanner plan = mock(QueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
+      .thenReturn("sys.cpu.user");
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m2")))
+      .thenReturn("sys.cpu.sys");
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m3")))
+      .thenReturn("sys.cpu.idle");
+    when(plan.getDataSourceIds(ds))
+      .thenReturn(Lists.newArrayList("downsample:m1", "downsample:m2", "downsample:m3"));
+  
+    graph.putEdge(ds, m1);
+    graph.putEdge(ds, m2);
+    graph.putEdge(ds, m3);
+    graph.putEdge(exp, ds);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(10, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(m2));
+    assertTrue(graph.nodes().contains(m3));
+    assertTrue(graph.nodes().contains(ds));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    assertTrue(graph.hasEdgeConnecting(ds, m1));
+    assertTrue(graph.hasEdgeConnecting(ds, m2));
+    
+    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
+    assertEquals(3, expressions.size());
+    for (final QueryNodeConfig binary : expressions) {
+      assertTrue(graph.hasEdgeConnecting(binary, ds));
+      assertEquals("BinaryExpression", binary.getType());
+      if (binary.getId().equals("expression_SubExp#0")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary;
+        assertEquals("expression_SubExp#0", p1.getId());
+        assertEquals("sys.cpu.user", p1.getLeft());
+        assertEquals("downsample:m1", p1.getLeftId());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertNull(p1.getRightId());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
+        
+        assertFalse(graph.hasEdgeConnecting(SINK, binary));
+        assertEquals(1, graph.predecessors(binary).size());
+        assertEquals("expression_SubExp#2", 
+            graph.predecessors(binary).iterator().next().getId());
+      } else if (binary.getId().equals("expression_SubExp#1")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary;
+        assertEquals("expression_SubExp#1", p1.getId());
+        assertEquals("sys.cpu.sys", p1.getLeft());
+        assertEquals("downsample:m2", p1.getLeftId());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertNull(p1.getRightId());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
+        
+        assertFalse(graph.hasEdgeConnecting(SINK, binary));
+        assertEquals(1, graph.predecessors(binary).size());
+        QueryNodeConfig b2 = graph.predecessors(binary).iterator().next();
+        assertEquals("expression_SubExp#2", b2.getId());
+        
+        // validate sub2 here
+        p1 = (ExpressionParseNode) b2;
+        assertEquals("expression_SubExp#2", p1.getId());
+        assertEquals("expression_SubExp#0", p1.getLeft());
+        assertEquals("expression_SubExp#0", p1.getLeftId());
+        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
+        assertEquals("expression_SubExp#1", p1.getRight());
+        assertEquals("expression_SubExp#1", p1.getRightId());
+        assertEquals(OperandType.SUB_EXP, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
+        
+        assertFalse(graph.hasEdgeConnecting(SINK, b2));
+        
+      } else if (binary.getId().equals("expression_SubExp#3")) {
+        ExpressionParseNode p1 = (ExpressionParseNode) binary;
+        assertEquals("expression_SubExp#3", p1.getId());
+        assertEquals("sys.cpu.idle", p1.getLeft());
+        assertEquals("downsample:m3", p1.getLeftId());
+        assertEquals(OperandType.VARIABLE, p1.getLeftType());
+        assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+        assertNull(p1.getRightId());
+        assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+        assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
+        
+        assertFalse(graph.hasEdgeConnecting(SINK, binary));
+        assertEquals(1, graph.predecessors(binary).size());
+        
+        // validate the expression here
+        QueryNodeConfig b2 = graph.predecessors(binary).iterator().next();
+        assertEquals("expression", b2.getId());
+        
+        // validate parent here
+        p1 = (ExpressionParseNode) b2;
+        assertEquals("expression", p1.getId());
+        assertEquals("expression_SubExp#2", p1.getLeft());
+        assertEquals("expression_SubExp#2", p1.getLeftId());
+        assertEquals(OperandType.SUB_EXP, p1.getLeftType());
+        assertEquals("expression_SubExp#3", p1.getRight());
+        assertEquals("expression_SubExp#3", p1.getRightId());
+        assertEquals(OperandType.SUB_EXP, p1.getRightType());
+        assertEquals(ExpressionOp.ADD, p1.getOperator());
+        
+        assertTrue(graph.hasEdgeConnecting(SINK, b2));
+      }
+    }
+    
+  }
+  
+  @Test
+  public void setupGraphThroughJoinNodeMetricName() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    QueryNodeConfig m1 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setId("ha_m1")
+        .build();
+    QueryNodeConfig merger = MergerConfig.newBuilder()
+        .setAggregator("sum")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setDataSource("m1")
+        .setId("m1")
+        .build();
+    QueryNodeConfig ds = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("downsample")
+        .build();
+    ExpressionConfig.Builder builder = ExpressionConfig.newBuilder();
+    builder.setExpression("(sys.cpu.user * 1024)")
+        .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+            .setJoinType(JoinType.NATURAL)
+            .build())
+        .addInterpolatorConfig(NUMERIC_CONFIG);
+    builder.setId("expression");
+    ExpressionConfig exp = builder.build();
+    
+    QueryPlanner plan = mock(QueryPlanner.class);
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
+      .thenReturn("sys.cpu.user");
+    when(plan.getDataSourceIds(ds))
+      .thenReturn(Lists.newArrayList("downsample:m1"));
+    when(plan.getMetrics(ds))
+      .thenReturn(Sets.newHashSet("m1:sys.cpu.user"));
+    
+    graph.putEdge(merger, m1);
+    graph.putEdge(ds, merger);
+    graph.putEdge(exp, ds);
+    graph.putEdge(SINK, exp);
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), exp, plan);
+    assertEquals(5, graph.nodes().size());
+    assertTrue(graph.nodes().contains(m1));
+    assertTrue(graph.nodes().contains(merger));
+    assertTrue(graph.nodes().contains(ds));
+    assertFalse(graph.nodes().contains(exp));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    assertTrue(graph.hasEdgeConnecting(merger, m1));
+    
+    List<QueryNodeConfig> expressions = Lists.newArrayList(graph.predecessors(ds));
+    assertEquals(1, expressions.size());
+    ExpressionParseNode p1 = (ExpressionParseNode) expressions.get(0);
+    assertTrue(graph.hasEdgeConnecting(p1, ds));
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("downsample:m1", p1.getLeftId());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals(1024, ((NumericLiteral) p1.getRight()).longValue());
+    assertNull(p1.getRightId());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertEquals(ExpressionOp.MULTIPLY, p1.getOperator());
+    
+    assertTrue(graph.hasEdgeConnecting(SINK, p1));
+    assertEquals(1, graph.predecessors(p1).size());
+  }
+  
   @Test
   public void setupGraphNestedExpression() throws Exception {
     ExpressionFactory factory = new ExpressionFactory();
@@ -700,9 +739,9 @@ public class TestExpressionFactory {
     QueryPlanner plan = mock(QueryPlanner.class);
     when(plan.configGraph()).thenReturn(graph);
     when(plan.getMetrics(ds1))
-      .thenReturn(Sets.newHashSet("sys.cpu.user"));
+      .thenReturn(Sets.newHashSet("ds1:sys.cpu.user"));
     when(plan.getMetrics(ds2))
-      .thenReturn(Sets.newHashSet("sys.cpu.busy"));
+      .thenReturn(Sets.newHashSet("ds2:sys.cpu.busy"));
     when(plan.getDataSourceIds(ds1))
       .thenReturn(Lists.newArrayList("ds1:m1"));
     when(plan.getDataSourceIds(ds2))

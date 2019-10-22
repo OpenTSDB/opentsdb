@@ -172,7 +172,8 @@ public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConf
    * @param code An HTTP status code for debugging.
    */
   public void markHostAsBad(final String host, final int code) {
-    if (!tsdb.getConfig().getBoolean(getConfigKey(HEALTH_ENABLE_KEY))) {
+    if (tsdb == null || 
+        !tsdb.getConfig().getBoolean(getConfigKey(HEALTH_ENABLE_KEY))) {
       return;
     }
     
