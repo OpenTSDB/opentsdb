@@ -124,62 +124,67 @@ public class GroupByNumericArrayIterator
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
 
-    executor = node.pipelineContext().tsdb().quickWorkPool();
+    try {
+      executor = node.pipelineContext().tsdb().quickWorkPool();
 
-    this.result = (GroupByResult) result;
-    final NumericArrayAggregatorFactory factory =
-        node.pipelineContext()
-            .tsdb()
-            .getRegistry()
-            .getPlugin(
-                NumericArrayAggregatorFactory.class,
-                ((GroupByConfig) node.config()).getAggregator());
-    if (factory == null) {
-      throw new IllegalArgumentException(
-          "No aggregator factory found of type: "
-              + ((GroupByConfig) node.config()).getAggregator());
-    }
-
-    int size;
-    DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
-    if (null == downsampleConfig) {
-      TemporalAmount temporalAmount = this.result.downstreamResult().timeSpecification().interval();
-      TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
-      int intervals = 0;
-      while (ts.compare(Op.LT, node.pipelineContext().query().endTime())) {
-        intervals++;
-        ts.add(temporalAmount);
+      this.result = (GroupByResult) result;
+      final NumericArrayAggregatorFactory factory =
+          node.pipelineContext()
+              .tsdb()
+              .getRegistry()
+              .getPlugin(
+                  NumericArrayAggregatorFactory.class,
+                  ((GroupByConfig) node.config()).getAggregator());
+      if (factory == null) {
+        throw new IllegalArgumentException(
+            "No aggregator factory found of type: "
+                + ((GroupByConfig) node.config()).getAggregator());
       }
-      size = intervals;
-    } else {
-      size = downsampleConfig.intervals();
-    }
 
-    if(logger.isTraceEnabled()) {
-      logger.trace("Group size is {} and sources size is {} ", size, sources.size());
-    }
-
-    aggregator =
-        factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
-    if (aggregator == null) {
-      throw new IllegalArgumentException(
-          "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
-    }
-
-    // TODO: Need to check if it makes sense to make this threshold configurable
-    NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
-    for (int i = 0; i < valuesCombiner.length; i++) {
-      valuesCombiner[i] = createAggregator(node, factory, size);
-    }
-    
-    if (size == 0 || (sources.iterator() != null && sources.iterator().hasNext() && !(sources
-        .iterator().next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries))) {
-      // Previous node is not a downsample node.
-      for (TimeSeries source : sources) {
-        accumulate(source, null);
+      int size;
+      DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
+      if (null == downsampleConfig) {
+        TemporalAmount temporalAmount = this.result.downstreamResult().timeSpecification().interval();
+        TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
+        int intervals = 0;
+        while (ts.compare(Op.LT, node.pipelineContext().query().endTime())) {
+          intervals++;
+          ts.add(temporalAmount);
+        }
+        size = intervals;
+      } else {
+        size = downsampleConfig.intervals();
       }
-    } else {
-      accumulateInParallel(sources, valuesCombiner);
+
+      if(logger.isTraceEnabled()) {
+        logger.trace("Group size is {} and sources size is {} ", size, sources.size());
+      }
+
+      aggregator =
+          factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
+      if (aggregator == null) {
+        throw new IllegalArgumentException(
+            "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
+      }
+
+      // TODO: Need to check if it makes sense to make this threshold configurable
+      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
+      for (int i = 0; i < valuesCombiner.length; i++) {
+        valuesCombiner[i] = createAggregator(node, factory, size);
+      }
+
+      if (size == 0 || (sources.iterator() != null && sources.iterator().hasNext() && !(sources
+          .iterator().next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries))) {
+        // Previous node is not a downsample node.
+        for (TimeSeries source : sources) {
+          accumulate(source, null);
+        }
+      } else {
+        accumulateInParallel(sources, valuesCombiner);
+      }
+    } catch (Throwable throwable) {
+      logger.error("Error constructing the GroupByNumericArrayIterator", throwable);
+      throw new RuntimeException(throwable);
     }
 
   }
