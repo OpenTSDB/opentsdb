@@ -120,7 +120,9 @@ public abstract class BaseQueryContext implements QueryContext {
 
   @Override
   public void close() {
-    pipeline.close();
+    if (null != pipeline) {
+      pipeline.close();
+    }
     if (local_span != null) {
       // TODO - more stats around the context
       local_span.finish();

@@ -28,6 +28,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -162,8 +163,13 @@ public class GroupBy extends AbstractQueryNode {
         sendUpstream(result);
       }
     } else {
-      final GroupByResult result = new GroupByResult(this, next);
-      sendUpstream(result);
+      try {
+        final GroupByResult result = new GroupByResult(this, next);
+        sendUpstream(result);
+      } catch (Throwable throwable) {
+        LOG.error("Error sending upstream", throwable);
+        sendUpstream(throwable);
+      }
     }
   }
   
