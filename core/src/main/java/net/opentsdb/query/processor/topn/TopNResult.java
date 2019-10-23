@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,10 @@
 package net.opentsdb.query.processor.topn;
 
 import com.google.common.collect.Lists;
-import java.util.ArrayList;
-import java.util.Iterator;
+
+import java.util.Collections;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.TreeMap;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -36,7 +35,7 @@ import net.opentsdb.query.QueryResult;
  * @since 3.0
  */
 public class TopNResult extends BaseWrappedQueryResult implements Runnable {
-
+  
   /** The parent node. */
   protected final TopN node;
   
@@ -68,11 +67,10 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
         return;
       }
       
-      final TreeMap<Double, List<TimeSeries>> sorted_results =
-          new TreeMap<>();
+      final List<SortOnDouble> list = Lists.newArrayListWithExpectedSize(
+          result.timeSeries().size());
       for (final TimeSeries ts : result.timeSeries()) {
         // TODO - parallelize
-        
         final NumericType value;
         if (ts.types().contains(NumericType.TYPE)) {
           final TopNNumericAggregator agg = 
@@ -94,30 +92,17 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
           continue;
         }
         
-        if (value.isInteger()) {
-          sorted_results.computeIfAbsent(value.toDouble(), k -> new ArrayList<>()).add(ts);
-        } else if (!Double.isNaN(value.doubleValue())){
-          sorted_results.computeIfAbsent(value.doubleValue(), k -> new ArrayList<>()).add(ts);
+        if (value.isInteger() ||
+            (!value.isInteger() && !Double.isNaN(value.doubleValue()))) {
+          list.add(new SortOnDouble(value.toDouble(), ts));
         }
       }
+      Collections.sort(list);
       
-      final Iterator<Entry<Double, List<TimeSeries>>> iterator =
-          ((TopNConfig) node.config()).getTop() ?
-              sorted_results.descendingMap().entrySet().iterator() :
-                sorted_results.entrySet().iterator();
-      
-      for (int i = 0; i < ((TopNConfig) node.config()).getCount(); ) {
-        if (!iterator.hasNext()) {
-          break;
-        }
-        Entry<Double, List<TimeSeries>> next = iterator.next();
-        for (TimeSeries ts : next.getValue()) {
-          if (i == ((TopNConfig) node.config()).getCount()) {
-            break;
-          }
-          results.add(ts);
-          i++;
-        }
+      for (int i = 0; 
+           i < list.size() && i < ((TopNConfig) node.config()).getCount(); 
+           i++) {
+        results.add(list.get(i).series);
       }
       node.onNext(this);
     } catch (Exception e) {
@@ -135,4 +120,28 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
     return node;
   }
   
+  class SortOnDouble implements Comparable<SortOnDouble> {
+    final double value;
+    final TimeSeries series;
+    
+    SortOnDouble(final double value, final TimeSeries series) {
+      this.value = value;
+      this.series = series;
+    }
+    
+    @Override
+    public int compareTo(final SortOnDouble o) {
+      if (value == o.value) {
+        // TODO - would be better to sort on the tags but at least this will be
+        // consistent.
+        return Long.compare(series.id().buildHashCode(), 
+            o.series.id().buildHashCode());
+      } else if (((TopNConfig) node.config()).getTop()) {
+        return value > o.value ? -1 : 1;
+      } else {
+        return value > o.value ? 1 : -1;
+      }
+    }
+    
+  }
 }
