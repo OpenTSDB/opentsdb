@@ -1016,10 +1016,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
         return mg;
       } else if (node instanceof ExpressionConfig) {
         return Sets.newHashSet(node.getId() + ":" + 
-            ((ExpressionConfig) node).getAs());
+            (((ExpressionConfig) node).getAs() == null ? node.getId() : 
+              ((ExpressionConfig) node).getAs()));
       } else if (node instanceof ExpressionParseNode) {
         return Sets.newHashSet(node.getId() + ":" + 
-            ((ExpressionParseNode) node).getAs());
+            (((ExpressionParseNode) node).getAs() == null ? node.getId() :
+              ((ExpressionParseNode) node).getAs()));
       }
       
       // fallback for now
@@ -1066,11 +1068,13 @@ public class DefaultQueryPlanner implements QueryPlanner {
         }
         
         return ((TimeSeriesDataSourceConfig) config).getMetric().getMetric();
+      } else if (node instanceof ExpressionConfig) {
+        return ((ExpressionConfig) node).getAs() == null ? node.getId() : 
+          ((ExpressionConfig) node).getAs();
+      } else if (node instanceof ExpressionParseNode) {
+        return ((ExpressionParseNode) node).getAs() == null ? node.getId() : 
+          ((ExpressionParseNode) node).getAs();
       }
-    } else if (node instanceof ExpressionConfig) {
-      return ((ExpressionConfig) node).getAs();
-    } else if (node instanceof ExpressionParseNode) {
-      return ((ExpressionParseNode) node).getAs();
     }
     
     for (final QueryNodeConfig successor : config_graph.successors(node)) {
