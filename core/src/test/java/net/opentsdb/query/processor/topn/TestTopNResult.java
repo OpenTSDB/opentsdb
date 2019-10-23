@@ -317,8 +317,8 @@ public class TestTopNResult {
     TopNResult topn = new TopNResult(node, result);
     topn.run();
     assertEquals(2, topn.results.size());
-    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
-    assertEquals("web02", ((TimeSeriesStringId) topn.results.get(1).id()).tags().get("host"));
+    assertEquals("web03", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
+    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(1).id()).tags().get("host"));
     verify(node, times(1)).onNext(topn);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
@@ -334,8 +334,8 @@ public class TestTopNResult {
     topn = new TopNResult(node, result);
     topn.run();
     assertEquals(2, topn.results.size());
-    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
-    assertEquals("web02", ((TimeSeriesStringId) topn.results.get(1).id()).tags().get("host"));
+    assertEquals("web03", ((TimeSeriesStringId) topn.results.get(0).id()).tags().get("host"));
+    assertEquals("web01", ((TimeSeriesStringId) topn.results.get(1).id()).tags().get("host"));
     verify(node, times(1)).onNext(topn);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
