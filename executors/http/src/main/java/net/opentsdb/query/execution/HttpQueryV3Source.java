@@ -341,12 +341,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 .build());
           } else {
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Successful reseponse from [" + host + endpoint + "] after " 
+              LOG.debug("Successful response from [" + host + endpoint + "] after " 
                     + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
             }
             if (context.query().isDebugEnabled()) {
               context.queryContext().logDebug(HttpQueryV3Source.this, 
-                  "Successful reseponse from [" + host + endpoint + "] after " 
+                  "Successful response from [" + host + endpoint + "] after " 
                   + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms");
             }
             
