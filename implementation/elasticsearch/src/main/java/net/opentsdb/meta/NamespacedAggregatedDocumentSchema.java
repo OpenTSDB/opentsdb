@@ -115,7 +115,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       tsdb.getConfig().register(getConfigKey(CLIENT_ID), null, false, "Meta client id.");
     }
 
-    if (tsdb.getConfig().hasProperty(getConfigKey(SKIP_META))) {
+    if (!tsdb.getConfig().hasProperty(getConfigKey(SKIP_META))) {
       tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
           .setKey(SKIP_META)
           .setDefaultValue(Maps.newHashMap())
