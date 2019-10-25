@@ -1031,7 +1031,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
     Set<String> metrics = Sets.newHashSet();
     final Set<QueryNodeConfig> successors = config_graph.successors(node);
     for (final QueryNodeConfig successor : successors) {
-      metrics.addAll(getMetrics(successor));
+      for(final String metric : getMetrics(successor)) {
+        metrics.add(node.getId() + ":" + metric.substring(metric.indexOf(':') + 1));
+      }
     }
     return metrics;
   }

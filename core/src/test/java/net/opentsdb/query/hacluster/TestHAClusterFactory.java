@@ -53,6 +53,8 @@ import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.JSON;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -1147,6 +1149,30 @@ System.out.println(planner.printConfigGraph());
         planner.nodeForId("m1")));
   }
 
+  @Test
+  public void setupGraphExpressionWithNamedMetricsAndPushdowns() throws Exception {
+    // Real world query.
+    final String json = "{\"start\":1569888000000,\"end\":\"1d-ago\",\"executionGraph\":[{\"id\":\"m0\",\"type\":\"timeSeriesDataSource\",\"metric\":{\"type\":\"MetricLiteral\",\"metric\":\"AWSUtilization.mem.used\"},\"filterId\":\"filter\"},{\"id\":\"m0-sum-downsample\",\"type\":\"downsample\",\"aggregator\":\"sum\",\"interval\":\"1d\",\"fill\":true,\"interpolatorConfigs\":[{\"dataType\":\"numeric\",\"fillPolicy\":\"NAN\",\"realFillPolicy\":\"NONE\"}],\"sources\":[\"m0\"]},{\"id\":\"m0-sum-groupby\",\"type\":\"groupby\",\"aggregator\":\"sum\",\"fill\":true,\"interpolatorConfigs\":[{\"dataType\":\"numeric\",\"fillPolicy\":\"NAN\",\"realFillPolicy\":\"NONE\"}],\"sources\":[\"m0-sum-downsample\"]},{\"id\":\"m1\",\"type\":\"timeSeriesDataSource\",\"metric\":{\"type\":\"MetricLiteral\",\"metric\":\"AWSUtilization.mem.total\"},\"filterId\":\"filter\"},{\"id\":\"m1-sum-downsample\",\"type\":\"downsample\",\"aggregator\":\"sum\",\"interval\":\"1d\",\"fill\":true,\"interpolatorConfigs\":[{\"dataType\":\"numeric\",\"fillPolicy\":\"NAN\",\"realFillPolicy\":\"NONE\"}],\"sources\":[\"m1\"]},{\"id\":\"m1-sum-groupby\",\"type\":\"groupby\",\"aggregator\":\"sum\",\"fill\":true,\"interpolatorConfigs\":[{\"dataType\":\"numeric\",\"fillPolicy\":\"NAN\",\"realFillPolicy\":\"NONE\"}],\"sources\":[\"m1-sum-downsample\"]},{\"id\":\"m2\",\"type\":\"expression\",\"expression\":\"100*(AWSUtilization.mem.used/AWSUtilization.mem.total)\",\"join\":{\"type\":\"Join\",\"joinType\":\"NATURAL\"},\"interpolatorConfigs\":[{\"dataType\":\"numeric\",\"fillPolicy\":\"NAN\",\"realFillPolicy\":\"NONE\"}],\"sources\":[\"m0-sum-groupby\",\"m1-sum-groupby\"]},{\"id\":\"summarizer\",\"summaries\":[\"last\"],\"sources\":[\"m2\"]}],\"filters\":[{\"id\":\"filter\",\"filter\":{\"type\":\"Chain\",\"op\":\"AND\",\"filters\":[{\"type\":\"Chain\",\"op\":\"OR\",\"filters\":[{\"type\":\"TagValueLiteralOr\",\"tagKey\":\"AccountId\",\"filter\":\"096551504575|463085333448|604202103248|664823611037|543549501462|690824931717|299197051097|769611793416|975578775578\"}]}]}}],\"serdesConfigs\":[{\"id\":\"JsonV3QuerySerdes\",\"filter\":[\"m2\",\"summarizer\"]}]}";
+    
+    SemanticQuery query = SemanticQuery.parse(TSDB, JSON.getMapper().readTree(json)).build();
+    QueryContext ctx = mock(QueryContext.class);
+    when(ctx.stats()).thenReturn(mock(QueryStats.class));
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.tsdb()).thenReturn(TSDB);
+    when(context.query()).thenReturn(query);
+    when(context.queryContext()).thenReturn(ctx);
+    when(context.downstreamSources(any(QueryNode.class)))
+        .thenReturn(Lists.newArrayList(SRC_MOCK));
+    QueryNode ctx_node = mock(QueryNode.class);
+    when(context.query()).thenReturn(query);
+    
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, ctx_node);
+    planner.plan(null).join();
+    
+    assertEquals(16, planner.configGraph().nodes().size());
+  }
+  
   @Test
   public void newNode() throws Exception {
     final HAClusterConfig config = mock(HAClusterConfig.class);
