@@ -220,7 +220,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
         final String m = metric.substring(metric.indexOf(':') + 1);
         if (key.equals(m)) {
           for (final String source : sources) {
-            final String ds = source.substring(source.indexOf(':') + 1);
+            final String ds = source.substring(0, source.indexOf(':'));
             if (ds.equals(mid)) {
               if (left) {
                 builder.setLeft(metric.substring(metric.indexOf(':') + 1))

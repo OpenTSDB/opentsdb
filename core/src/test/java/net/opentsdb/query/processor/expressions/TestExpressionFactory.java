@@ -652,7 +652,7 @@ public class TestExpressionFactory {
     when(plan.getDataSourceIds(ds))
       .thenReturn(Lists.newArrayList("downsample:m1"));
     when(plan.getMetrics(ds))
-      .thenReturn(Sets.newHashSet("m1:sys.cpu.user"));
+      .thenReturn(Sets.newHashSet("downsample:sys.cpu.user"));
     
     graph.putEdge(merger, m1);
     graph.putEdge(ds, merger);
