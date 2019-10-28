@@ -631,32 +631,34 @@ public class ESMetaResponse implements MetaResponse {
     }
 
     for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
-      if (result == null) {
-        result =
-            new NamespacedAggregatedDocumentResult(
-                MetaDataStorageResult.MetaResult.DATA, query, meta_query);
-      }
-      Aggregation sub =
-          bucket.getAggregations().get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_AGG);
-      if (sub == null || ((InternalFilter) sub).getDocCount() < 1) {
-        result.addTags(
-            new UniqueKeyPair<String, Long>(bucket.getKey(), bucket.getDocCount()), null);
-      } else {
-        sub =
-            ((InternalFilter) sub)
-                .getAggregations()
-                .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_UNIQUE);
-        if (sub == null) {
+      if (bucket.getKey().equals(query.aggregationField())) {
+        if (result == null) {
+          result =
+              new NamespacedAggregatedDocumentResult(
+                  MetaDataStorageResult.MetaResult.DATA, query, meta_query);
+        }
+        Aggregation sub =
+            bucket.getAggregations().get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_AGG);
+        if (sub == null || ((InternalFilter) sub).getDocCount() < 1) {
           result.addTags(
               new UniqueKeyPair<String, Long>(bucket.getKey(), bucket.getDocCount()), null);
         } else {
-          final List<UniqueKeyPair<String, Long>> tag_values = Lists.newArrayList();
-          for (final Terms.Bucket sub_bucket : ((StringTerms) sub).getBuckets()) {
-            tag_values.add(
-                new UniqueKeyPair<String, Long>(sub_bucket.getKey(), sub_bucket.getDocCount()));
+          sub =
+              ((InternalFilter) sub)
+                  .getAggregations()
+                  .get(NamespacedAggregatedDocumentQueryBuilder.TAGS_SUB_UNIQUE);
+          if (sub == null) {
+            result.addTags(
+                new UniqueKeyPair<String, Long>(bucket.getKey(), bucket.getDocCount()), null);
+          } else {
+            final List<UniqueKeyPair<String, Long>> tag_values = Lists.newArrayList();
+            for (final Terms.Bucket sub_bucket : ((StringTerms) sub).getBuckets()) {
+              tag_values.add(
+                  new UniqueKeyPair<String, Long>(sub_bucket.getKey(), sub_bucket.getDocCount()));
+            }
+            result.addTags(
+                new UniqueKeyPair<String, Long>(bucket.getKey(), bucket.getDocCount()), tag_values);
           }
-          result.addTags(
-              new UniqueKeyPair<String, Long>(bucket.getKey(), bucket.getDocCount()), tag_values);
         }
       }
     }
