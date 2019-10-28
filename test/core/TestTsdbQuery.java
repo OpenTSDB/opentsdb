@@ -12,22 +12,17 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TsdbQuery.ForTesting;
 import net.opentsdb.query.QueryLimitOverride;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
@@ -42,6 +37,13 @@ import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.DeferredGroupException;
 
+import static org.junit.Assert.*;
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.spy;
+
 /**
  * This class is for unit testing the TsdbQuery class. Pretty much making sure
  * the various ctors and methods function as expected. For actually running the
@@ -49,7 +51,7 @@ import com.stumbleupon.async.DeferredGroupException;
  * {@link TestTsdbQueryQueries}
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class })
+@PrepareForTest({ DateTime.class, TsdbQuery.class })
 public final class TestTsdbQuery extends BaseTsdbTest {
   private TsdbQuery query = null;
 
@@ -356,6 +358,26 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     assertNotNull(ForTesting.getRateOptions(query));
   }
 
+  @Test
+  public void configureFromQueryWithForceRaw() throws Exception {
+    setDataPointStorage();
+    mockEnableRollupQuerySplitting();
+
+    final TSQuery ts_query = getTSQuery(TsdbQuery.ROLLUP_USAGE.ROLLUP_NOFALLBACK);
+    ts_query.validateAndSetQuery();
+    query = spy(new TsdbQuery(tsdb));
+    query.configureFromQuery(ts_query, 0, true).joinUninterruptibly();
+
+    assertFalse(query.isRollupQuery());
+    verify(query, never()).transformDownSamplerToRollupQuery(any(), any());
+
+    assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
+    assertEquals(1, ForTesting.getFilters(query).size());
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getGroupBys(query).size());
+    assertNotNull(ForTesting.getRateOptions(query));
+  }
+
   @Test (expected = IllegalArgumentException.class)
   public void configureFromQueryNullSubs() throws Exception {
     final TSQuery ts_query = new TSQuery();
@@ -566,21 +588,174 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     }
   }
 
+  @Test
+  public void needsSplittingReturnsFalseIfDisabled() {
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", false);
+    assertFalse(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsFalseIfNotARollupQuery() {
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", true);
+    Whitebox.setInternalState(query, "rollup_query", (RollupQuery) null);
+    assertFalse(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsFalseIfNoSLAConfigured() {
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", true);
+    RollupInterval oneHourWithDelay = RollupInterval.builder()
+            .setTable("fake-rollup-table")
+            .setPreAggregationTable("fake-preagg-table")
+            .setInterval("1h")
+            .setRowSpan("1d")
+            .setDelaySla(null)
+            .build();
+    RollupQuery rollup_query = new RollupQuery(
+            oneHourWithDelay,
+            Aggregators.SUM,
+            3600000,
+            Aggregators.SUM
+    );
+    Whitebox.setInternalState(query, "rollup_query", rollup_query);
+
+    assertTrue(query.isRollupQuery());
+
+    assertFalse(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsFalseIfNotInBlackoutPeriod() {
+    mockSystemTime(1356998400000L);
+    mockEnableRollupQuerySplitting();
+
+    query.setStartTime(0);
+    query.setEndTime(1);
+
+    assertTrue(query.isRollupQuery());
+
+    assertFalse(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsFalseIfQueryEndsWithLastRollupTimestamp() {
+    mockSystemTime(1356998400000L);
+    mockEnableRollupQuerySplitting();
+
+    query.setStartTime(0);
+    query.setEndTime(query.getRollupQuery().getLastRollupTimestampSeconds() * 1000L);
+
+    assertTrue(query.isRollupQuery());
+
+    assertFalse(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsTrueIfQueryStartsWithLastRollupTimestamp() {
+    long mockNowTimestamp = 1356998400000L;
+    mockSystemTime(mockNowTimestamp);    mockEnableRollupQuerySplitting();
+
+    query.setStartTime(query.getRollupQuery().getLastRollupTimestampSeconds() * 1000L);
+
+    assertTrue(query.isRollupQuery());
+
+    assertTrue(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsTrueIfInBlackoutPeriod() {
+    long mockNowTimestamp = 1356998400000L;
+    mockSystemTime(mockNowTimestamp);
+    mockEnableRollupQuerySplitting();
+
+    query.setStartTime(0L);
+    query.setEndTime(mockNowTimestamp);
+
+    assertTrue(query.isRollupQuery());
+
+    assertTrue(query.needsSplitting());
+  }
+
+  @Test
+  public void needsSplittingReturnsTrueIfStartAndEndInBlackoutPeriod() {
+    long mockNowTimestamp = 1356998400000L;
+    mockSystemTime(mockNowTimestamp);
+    mockEnableRollupQuerySplitting();
+
+    int oneHour =  60 * 60 * 1000;
+
+    query.setStartTime(mockNowTimestamp - oneHour);
+    query.setEndTime(mockNowTimestamp);
+
+    assertTrue(query.isRollupQuery());
+
+    assertTrue(query.needsSplitting());
+  }
+
+  @Test
+  public void split() {
+    mockSystemTime(1356998400000L);
+    mockEnableRollupQuerySplitting();
+
+    TSQuery tsQuery = getTSQuery();
+    TsdbQuery rawQuery = spy(new TsdbQuery(tsdb));
+
+    query.setStartTime(0);
+    rawQuery.setStartTime(42);
+    doReturn(Deferred.fromResult(null)).when(rawQuery).configureFromQuery(eq(tsQuery), eq(0), eq(true));
+
+    query.split(tsQuery, 0, rawQuery);
+
+    verify(rawQuery).configureFromQuery(eq(tsQuery), eq(0), eq(true));
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void splitThrowsIfNotSplittable() {
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", false);
+
+    query.split(getTSQuery(), 0, new TsdbQuery(tsdb));
+  }
+
   /** @return a simple TSQuery object for testing */
   private TSQuery getTSQuery() {
+    return getTSQuery(null);
+  }
+
+  private TSQuery getTSQuery(TsdbQuery.ROLLUP_USAGE rollupUsage) {
     final TSQuery ts_query = new TSQuery();
     ts_query.setStart("1356998400");
 
+    final ArrayList<TSSubQuery> sub_queries = new ArrayList<TSSubQuery>(1);
+    sub_queries.add(getSubQuery(rollupUsage));
+
+    ts_query.setQueries(sub_queries);
+    return ts_query;
+  }
+
+  private TSSubQuery getSubQuery(TsdbQuery.ROLLUP_USAGE rollupUsage) {
     final TSSubQuery sub_query = new TSSubQuery();
     sub_query.setMetric(METRIC_STRING);
     sub_query.setAggregator("sum");
 
     sub_query.setTags(tags);
 
-    final ArrayList<TSSubQuery> sub_queries = new ArrayList<TSSubQuery>(1);
-    sub_queries.add(sub_query);
+    if (rollupUsage != null) {
+      sub_query.setRollupUsage(rollupUsage.name());
+    }
 
-    ts_query.setQueries(sub_queries);
-    return ts_query;
+    return sub_query;
+  }
+
+  private void mockSystemTime(long newTimestamp) {
+    PowerMockito.mockStatic(DateTime.class);
+    PowerMockito.when(DateTime.currentTimeMillis()).thenReturn(newTimestamp);
+    PowerMockito.when(DateTime.getDurationUnits(anyString())).thenCallRealMethod();
+    PowerMockito.when(DateTime.getDurationInterval(anyString())).thenCallRealMethod();
+    PowerMockito.when(DateTime.parseDuration(anyString())).thenCallRealMethod();
+  }
+
+  private void mockEnableRollupQuerySplitting() {
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", true);
+    Whitebox.setInternalState(query, "rollup_query", makeRollupQuery());
   }
 }
