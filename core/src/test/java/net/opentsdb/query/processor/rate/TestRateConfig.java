@@ -53,6 +53,7 @@ public static MockTSDB TSDB;
     RateConfig options = (RateConfig) RateConfig.newBuilder()
         .setCounter(true)
         .setInterval("60s")
+        .setDataInterval("5m")
         .setCounterMax(Integer.MAX_VALUE)
         .setDropResets(true)
         .setDeltaOnly(true)
@@ -62,6 +63,7 @@ public static MockTSDB TSDB;
     String json = JSON.serializeToString(options);
     assertTrue(json.contains("\"counter\":true"));
     assertTrue(json.contains("\"interval\":\"60s\""));
+    assertTrue(json.contains("\"dataInterval\":\"5m\""));
     assertTrue(json.contains("\"counterMax\":" + Integer.MAX_VALUE));
     assertTrue(json.contains("\"dropResets\":true"));
     assertTrue(json.contains("\"deltaOnly\":true"));
@@ -69,11 +71,12 @@ public static MockTSDB TSDB;
     
     json = "{\"id\":\"rate\",\"type\":\"Rate\",\"counter\":true,"
         + "\"interval\":\"60s\",\"dropResets\":true,\"counterMax\":2147483647,"
-        + "\"deltaOnly\":true,\"rateToCount\":true}";
+        + "\"deltaOnly\":true,\"rateToCount\":true,\"dataInterval\":\"5m\"}";
     options = JSON.parseToObject(json, RateConfig.class);
     assertTrue(options.isCounter());
     assertTrue(options.getDropResets());
     assertEquals("60s", options.getInterval());
+    assertEquals("5m", options.getDataInterval());
     assertEquals(Integer.MAX_VALUE, options.getCounterMax());
     assertTrue(options.getDropResets());
     assertTrue(options.getDeltaOnly());
@@ -85,6 +88,7 @@ public static MockTSDB TSDB;
     final RateConfig options = (RateConfig) RateConfig.newBuilder()
         .setCounter(true)
         .setInterval("60s")
+        .setDataInterval("5m")
         .setRateToCount(true)
         .setCounterMax(Integer.MAX_VALUE)
         .setId("rate")
@@ -96,8 +100,10 @@ public static MockTSDB TSDB;
     assertTrue(clone.getRateToCount());
     assertFalse(clone.getDropResets());
     assertEquals("60s", clone.getInterval());
+    assertEquals("5m", clone.getDataInterval());
     assertEquals(0, clone.getResetValue());
     assertEquals(Integer.MAX_VALUE, clone.getCounterMax());
+    assertEquals(300_000, clone.dataIntervalMs());
   }
   
   @Test
@@ -170,6 +176,19 @@ public static MockTSDB TSDB;
     assertNotEquals(r1.hashCode(), r2.hashCode());
     assertNotEquals(r1, r2);
     assertEquals(1, r1.compareTo(r2));
+    
+    r2 = (RateConfig) RateConfig.newBuilder()
+        .setCounter(true)
+        .setDropResets(true)
+        .setInterval("60s")
+        .setDataInterval("5m")  // <-- Diff
+        .setCounterMax(Integer.MAX_VALUE)
+        .setResetValue(-1)
+        .setId("rate")
+        .build();
+    assertNotEquals(r1.hashCode(), r2.hashCode());
+    assertNotEquals(r1, r2);
+    assertEquals(-1, r1.compareTo(r2));
     
     r2 = (RateConfig) RateConfig.newBuilder()
         .setCounter(true)

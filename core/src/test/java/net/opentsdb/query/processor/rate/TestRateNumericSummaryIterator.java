@@ -241,6 +241,71 @@ public class TestRateNumericSummaryIterator {
     assertFalse(it.hasNext());
   }
   
+  @Test
+  public void doublesSumsAsCount() throws Exception {
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericSummaryIterator it = new RateNumericSummaryIterator(node, result,
+        Lists.newArrayList(buildData(true, false, true, false)));
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericSummaryType> v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 3600000, v.timestamp().msEpoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    assertEquals(240, v.value().value(0).doubleValue(), 0.0001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + (3600000 * 2), v.timestamp().msEpoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    assertEquals(360, v.value().value(0).doubleValue(), 0.0001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + (3600000 * 3), v.timestamp().msEpoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    assertTrue(Double.isNaN(v.value().value(0).doubleValue()));
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void doublesSumsAsCountWithDataRate() throws Exception {
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setDataInterval("1m")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericSummaryIterator it = new RateNumericSummaryIterator(node, result,
+        Lists.newArrayList(buildData(true, false, true, false)));
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericSummaryType> v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + 3600000, v.timestamp().msEpoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    assertEquals(14400, v.value().value(0).doubleValue(), 0.0001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + (3600000 * 2), v.timestamp().msEpoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    assertEquals(21600, v.value().value(0).doubleValue(), 0.0001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericSummaryType>) it.next();
+    assertEquals(BASE_TIME + (3600000 * 3), v.timestamp().msEpoch());
+    assertEquals(1, v.value().summariesAvailable().size());
+    assertTrue(Double.isNaN(v.value().value(0).doubleValue()));
+    
+    assertFalse(it.hasNext());
+  }
+  
   // TODO - more UTS.
   
   void setupMock() {

@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.rate;
 
 import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -63,6 +64,9 @@ public class RateNumericArrayIterator implements QueryIterator,
   private long[] long_values;
   private double[] double_values;
   
+  /** The data interval used when asCount is enabled. */
+  private long data_interval;
+  
   /**
    * Constructs a {@link RateNumericArrayIterator} instance.
    * @param node The non-null query node.
@@ -95,6 +99,21 @@ public class RateNumericArrayIterator implements QueryIterator,
     }
     this.result = result;
     config = (RateConfig) node.config();
+    if (config.getRateToCount()) {
+      if (config.dataIntervalMs() > 0) {
+        data_interval = (config.dataIntervalMs() / 1000) / 
+            config.duration().get(ChronoUnit.SECONDS);
+      } else {
+        // we shouldn't be here without a configured data interval as we don't 
+        // know the underlying data reporting interval and we can't infer it. So
+        // no counts for you!
+        data_interval = 1;
+      }
+      if (data_interval <= 0) {
+        data_interval = 1;
+      }
+    }
+    
     final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
@@ -153,16 +172,11 @@ public class RateNumericArrayIterator implements QueryIterator,
         }
       }
       return this;
-    }
-    
+    } 
+
     // init doubles.
     double_values = new double[value.value().end() - value.value().offset()];
     double_values[0] = Double.NaN;
-    
-    // calculate the denom
-    double denom = 
-        (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * TO_NANOS /
-        (double) config.duration().toNanos();
     
     if (config.getRateToCount()) {
       // TODO - treat other intervals than seconds
@@ -170,18 +184,21 @@ public class RateNumericArrayIterator implements QueryIterator,
         // TODO write to a long array.
         final long[] source = value.value().longArray();
         while (idx < value.value().end()) {
-          double_values[write_idx++] = source[idx] * denom;
+          double_values[write_idx++] = source[idx] * data_interval;
           idx++;
         }
       } else {
         final double[] source = value.value().doubleArray();
-        double_values[write_idx++] = source[idx] * denom;
+        double_values[write_idx++] = source[idx] * data_interval;
         idx++;
       }
       return this;
     }
     
-    
+    // calculate the denom
+    double denom = 
+        (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * TO_NANOS /
+        (double) config.duration().toNanos();
     double delta;
     if (value.value().isInteger()) {
       long[] source = value.value().longArray();
@@ -298,4 +315,5 @@ public class RateNumericArrayIterator implements QueryIterator,
   public double[] doubleArray() {
     return double_values;
   }
+  
 }

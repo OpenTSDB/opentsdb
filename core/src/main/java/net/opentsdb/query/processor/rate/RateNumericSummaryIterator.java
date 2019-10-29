@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +67,9 @@ public class RateNumericSummaryIterator implements QueryIterator {
   /** Whether or not the iterator has another real or filled value. */
   private boolean has_next;
   
+  /** The data interval used when asCount is enabled. */
+  private long data_interval;
+  
   public RateNumericSummaryIterator(final QueryNode node, 
                                     final QueryResult result,
                                     final Map<String, TimeSeries> sources) {
@@ -85,6 +89,21 @@ public class RateNumericSummaryIterator implements QueryIterator {
       throw new IllegalArgumentException("Node config cannot be null.");
     }
     config = (RateConfig) node.config();
+    if (config.getRateToCount()) {
+      if (config.dataIntervalMs() > 0) {
+        data_interval = (config.dataIntervalMs() / 1000) / 
+            config.duration().get(ChronoUnit.SECONDS);
+      } else {
+        // we shouldn't be here without a configured data interval as we don't 
+        // know the underlying data reporting interval and we can't infer it. So
+        // no counts for you!
+        data_interval = 1;
+      }
+      if (data_interval <= 0) {
+        data_interval = 1;
+      }
+    }
+    
     final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         sources.iterator().next().iterator(NumericSummaryType.TYPE);
     if (optional.isPresent()) {
@@ -95,7 +114,6 @@ public class RateNumericSummaryIterator implements QueryIterator {
     }
   }
   
-
   /** @return True if there is a valid next value. */
   @Override
   public boolean hasNext() {
@@ -174,7 +192,7 @@ public class RateNumericSummaryIterator implements QueryIterator {
     
     if (config.getRateToCount()) {
       // TODO - support longs
-      final double value = n.toDouble() * time_delta;
+      final double value = n.toDouble() * data_interval;
       next_rate.resetValue(summary, value);
       has_next = true;
       return;
@@ -245,7 +263,6 @@ public class RateNumericSummaryIterator implements QueryIterator {
         }
       } else {
         final double rate = (double) value_delta / time_delta;
-        System.out.println(" RATE: " + rate);
         if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
             rate > config.getResetValue()) {
           next_rate.resetValue(summary, 0.0D);
