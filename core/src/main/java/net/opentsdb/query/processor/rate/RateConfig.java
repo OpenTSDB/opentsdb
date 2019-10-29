@@ -86,6 +86,11 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
   
   /** Whether we want the rate to count. */
   private boolean rate_to_count;
+  
+  /** For the rate to count, a user given data interval we can use to handle
+   * missing values. */
+  private String data_interval;
+  private long data_interval_ms;
 
   /** Parsed values. */
   private Duration duration;
@@ -101,6 +106,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
     counter_max = builder.counterMax;
     reset_value = builder.resetValue;
     interval = builder.interval;
+    data_interval = builder.dataInterval;
     delta_only = builder.deltaOnly;
     rate_to_count = builder.rateToCount;
     
@@ -125,6 +131,10 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
       final long interval_part = DateTime.getDurationInterval(interval);
       units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
       duration = Duration.of(interval_part, units);
+    }
+    
+    if (!Strings.isNullOrEmpty(data_interval)) {
+      data_interval_ms = DateTime.parseDuration(data_interval);
     }
   }
   
@@ -154,6 +164,11 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
     return interval;
   }
   
+  /** @return The optional data interval. */
+  public String getDataInterval() {
+    return data_interval;
+  }
+  
   /** @return Whether or not to return the delta only, not rate. */
   public boolean getDeltaOnly() {
     return delta_only;
@@ -175,6 +190,11 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
     return units;
   }
 
+  /** @return The optional data interval in milliseconds. 0 if not set. */
+  public long dataIntervalMs() {
+    return data_interval_ms;
+  }
+  
   @Override
   public Builder toBuilder() {
     return new Builder()
@@ -190,8 +210,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
         .setType(type)
         .setId(id);
   }
-
-
+  
   @Override
   public boolean pushDown() {
     return true;
@@ -239,6 +258,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
        && Objects.equal(counter_max, options.counter_max)
        && Objects.equal(reset_value, options.reset_value)
        && Objects.equal(interval, options.interval)
+       && Objects.equal(data_interval, options.data_interval)
        && Objects.equal(delta_only, options.delta_only)
        && Objects.equal(id, options.id)
        && Objects.equal(rate_to_count, options.getRateToCount());
@@ -264,6 +284,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
     .putLong(counter_max)
     .putLong(reset_value)
     .putString(interval, Const.UTF8_CHARSET)
+    .putString(data_interval == null ? "" : data_interval, Const.UTF8_CHARSET)
     .putBoolean(rate_to_count);
 
     if (id !=null) {
@@ -283,6 +304,8 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
         .compare(counter_max, other.counter_max)
         .compare(reset_value, other.reset_value)
         .compare(interval, other.interval)
+        .compare(data_interval == null ? "" : data_interval, 
+            other.data_interval == null ? "" : other.data_interval)
         .result();
   }
   
@@ -308,6 +331,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
         .setResetValue(options.reset_value)
         .setDropResets(options.drop_resets)
         .setInterval(options.interval)
+        .setDataInterval(options.data_interval)
         .setRateToCount(options.rate_to_count);
   }
   
@@ -326,6 +350,8 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
     private long resetValue = DEFAULT_RESET_VALUE;
     @JsonProperty
     private String interval = DEFAULT_INTERVAL;
+    @JsonProperty
+    private String dataInterval;
     @JsonProperty
     private boolean deltaOnly;
     @JsonProperty
@@ -363,6 +389,11 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
       return this;
     }
 
+    public Builder setDataInterval(final String data_interval) {
+      dataInterval = data_interval;
+      return this;
+    }
+    
     public Builder setDeltaOnly(final boolean delta_only) {
       this.deltaOnly = delta_only;
       return this;

@@ -37,7 +37,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.pojo.RateOptions;
 
 import org.junit.Test;
 
@@ -150,7 +149,7 @@ public class TestRateNumericArrayIterator {
   }
   
   @Test
-  public void longsAsRate() {
+  public void asCount() {
     setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40),
         new MutableNumericValue(new SecondTimeStamp(60L), 50),
         new MutableNumericValue(new SecondTimeStamp(60L * 2), 40),
@@ -172,8 +171,55 @@ public class TestRateNumericArrayIterator {
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) it.next();
     
-    assertArrayEquals(new double[] { Double.NaN, 3000, 2400, 
-        3000, 2400, 3000 }, 
+    assertArrayEquals(new double[] { Double.NaN, 50, 40, 50, 40, 50 }, 
+        value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+    
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 60),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 0),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 60));
+    
+    it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    value = (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new double[] { Double.NaN, 60, 0, 60, 0, 60 }, 
+        value.value().doubleArray(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void asCountWithDataInterval() {
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L), 50),
+        new MutableNumericValue(new SecondTimeStamp(60L * 2), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L * 3), 50),
+        new MutableNumericValue(new SecondTimeStamp(60L * 4), 40),
+        new MutableNumericValue(new SecondTimeStamp(60L * 5), 50));
+    
+    config = (RateConfig) RateConfig.newBuilder()
+        .setInterval("1s")
+        .setDataInterval("1m")
+        .setRateToCount(true)
+        .setId("foo")
+        .build();
+    
+    setupMock();
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+        Lists.newArrayList(source));
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) it.next();
+    
+    assertArrayEquals(new double[] { Double.NaN, 3000, 2400, 3000, 2400, 3000 }, 
         value.value().doubleArray(), 0.001);
     
     assertFalse(it.hasNext());
