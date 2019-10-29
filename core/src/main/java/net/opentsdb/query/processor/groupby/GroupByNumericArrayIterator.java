@@ -155,11 +155,7 @@ public class GroupByNumericArrayIterator
       } else {
         size = downsampleConfig.intervals();
       }
-
-      if(logger.isTraceEnabled()) {
-        logger.trace("Group size is {} and sources size is {} ", size, sources.size());
-      }
-
+      
       aggregator =
           factory.newAggregator(((GroupByConfig) node.config()).getInfectiousNan());
       if (aggregator == null) {
@@ -229,9 +225,6 @@ public class GroupByNumericArrayIterator
     }
 
     for (NumericArrayAggregator combiner : combiners) {
-      if (logger.isTraceEnabled()) {
-        logger.trace("Group by values: " + combiner.toString());
-      }
       aggregator.combine(combiner);
     }
 

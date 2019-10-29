@@ -321,7 +321,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
     try {
       if (deferreds != null) {
-        return Deferred.group(deferreds)
+        return Deferred.groupInOrder(deferreds)
           .addCallback(new ResolveCB())
           .addErrback(new ErrorCB());
       } else {
