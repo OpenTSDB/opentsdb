@@ -94,4 +94,8 @@ public abstract class BaseWrappedQueryResult implements QueryResult {
     result.close();
   }
 
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
 }

@@ -122,7 +122,8 @@ public class Downsample extends AbstractQueryNode {
     
     /** The snapped final timestamp of the downsample span. */
     private final TimeStamp end;
-    
+    private boolean processInParallel;
+
     /**
      * Default ctor that dumps each time series into a new Downsampler time series.
      * @param results The non-null results set.
@@ -133,6 +134,9 @@ public class Downsample extends AbstractQueryNode {
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
         downsamplers.add(new DownsampleTimeSeries(series));
+        if(!this.processInParallel && config.getProcessAsArrays() && series.types().contains(NumericArrayType.TYPE)) {
+          this.processInParallel = true;
+        }
       }
       if (config.units() == null) {
         resolution = ChronoUnit.FOREVER;
@@ -357,6 +361,10 @@ public class Downsample extends AbstractQueryNode {
       
     }
 
+    @Override
+    public boolean processInParallel() {
+      return processInParallel;
+    }
   }
   
 }

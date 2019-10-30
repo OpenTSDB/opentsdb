@@ -194,5 +194,10 @@ public class MergerResult implements QueryResult {
       }
     }
   }
-  
+
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
 }

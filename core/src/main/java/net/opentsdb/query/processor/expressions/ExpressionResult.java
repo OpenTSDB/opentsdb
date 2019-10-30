@@ -177,5 +177,10 @@ public class ExpressionResult implements QueryResult {
       results.getValue().close();
     }
   }
-  
+
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
 }

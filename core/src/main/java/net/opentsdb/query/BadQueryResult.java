@@ -99,7 +99,12 @@ public class BadQueryResult implements QueryResult {
   public void close() {
     
   }
-  
+
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
