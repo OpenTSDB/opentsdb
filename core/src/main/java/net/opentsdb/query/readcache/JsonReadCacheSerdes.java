@@ -952,7 +952,12 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
     public void close() {
       // TODO Auto-generated method stub
     }
-    
+
+    @Override
+    public boolean processInParallel() {
+      return false;
+    }
+
     class TimeSpec implements TimeSpecification {
 
       private final TimeStamp start;

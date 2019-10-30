@@ -181,7 +181,12 @@ public class Tsdb1xQueryResult implements QueryResult {
       series.close();
     }
   }
-  
+
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
   /** @return True if the byte or data point limit has been exceeded. */
   public boolean isFull() {
     return is_full;

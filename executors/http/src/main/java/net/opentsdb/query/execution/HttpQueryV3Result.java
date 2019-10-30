@@ -211,7 +211,12 @@ public class HttpQueryV3Result implements QueryResult {
   public void close() {
     // TODO Auto-generated method stub
   }
-  
+
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
   class TimeSpec implements TimeSpecification {
 
     private final TimeStamp start;

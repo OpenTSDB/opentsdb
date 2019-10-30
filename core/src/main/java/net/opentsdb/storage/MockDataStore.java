@@ -1050,6 +1050,11 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         }
       }
     }
+
+    @Override
+    public boolean processInParallel() {
+      return false;
+    }
   }
   
   class LastTimeSeries implements TimeSeries {

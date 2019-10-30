@@ -255,6 +255,11 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   }
 
   @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
+  @Override
   public TimeStamp start() {
     return spec_start;
   }

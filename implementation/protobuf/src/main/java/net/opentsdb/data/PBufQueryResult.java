@@ -168,5 +168,10 @@ public class PBufQueryResult implements QueryResult {
     // no-op
   }
 
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
+
 
 }

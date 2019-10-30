@@ -109,5 +109,9 @@ public interface QueryResult {
    * finished to avoid balooning memory.
    */
   public void close();
-  
+
+  /**
+   * @return if the source node supports parallel processing of the time series
+   */
+  public boolean processInParallel();
 }

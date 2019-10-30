@@ -169,14 +169,15 @@ public class GroupByNumericArrayIterator
         valuesCombiner[i] = createAggregator(node, factory, size);
       }
 
-      if (size == 0 || (sources.iterator() != null && sources.iterator().hasNext() && !(sources
-          .iterator().next() instanceof Downsample.DownsampleResult.DownsampleTimeSeries))) {
+      if (result.processInParallel()) {
+        logger.debug("Accumulate in parallel");
+        accumulateInParallel(sources, valuesCombiner);
+      } else {
+        logger.debug("Accumulate in sequence {}", sources.iterator().next().getClass());
         // Previous node is not a downsample node.
         for (TimeSeries source : sources) {
           accumulate(source, null);
         }
-      } else {
-        accumulateInParallel(sources, valuesCombiner);
       }
     } catch (Throwable throwable) {
       logger.error("Error constructing the GroupByNumericArrayIterator", throwable);
@@ -206,6 +207,8 @@ public class GroupByNumericArrayIterator
   private void accumulateInParallel(final Collection<TimeSeries> sources, NumericArrayAggregator[] combiners) {
     List<Future<TimeSeriesValue<NumericArrayType>>> futures = new ArrayList<>(sources.size());
     int i = 0;
+
+    final long start = System.currentTimeMillis();
     for (TimeSeries timeSeries : sources) {
       int index = (i++) % NUM_THREADS;
       ExecutorService executorService = executorList.get(index);
@@ -222,6 +225,13 @@ public class GroupByNumericArrayIterator
       } catch (ExecutionException e) {
         logger.error("Unable to get status of the task", e.getCause());
       }
+    }
+
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Parallel downsample time for {} timeseries is {} ms",
+          sources.size(),
+          System.currentTimeMillis() - start);
     }
 
     for (NumericArrayAggregator combiner : combiners) {
