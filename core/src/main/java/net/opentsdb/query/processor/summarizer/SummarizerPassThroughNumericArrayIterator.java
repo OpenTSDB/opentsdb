@@ -18,7 +18,9 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.QueryIterator;
 
@@ -46,10 +48,31 @@ public class SummarizerPassThroughNumericArrayIterator implements QueryIterator 
     final TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
     if (value.value() != null) {
-      if (value.value().isInteger()) {
-        sts.summarize(value.value().longArray(), value.value().offset(), value.value().end());
-      } else {
-        sts.summarize(value.value().doubleArray(), value.value().offset(), value.value().end());
+      // filter on the query time span.
+      final TimeStamp current = sts.result.timeSpecification().start();
+      int offset = value.value().offset();
+      while (current.compare(Op.LT, 
+          sts.result.summarizerNode().pipelineContext().query().startTime())) {
+        offset++;
+        current.add(sts.result.timeSpecification().interval());
+      }
+      
+      int end = offset;
+      while (end < value.value().end() &&
+          current.compare(Op.LT, 
+              sts.result.summarizerNode().pipelineContext().query().endTime())) {
+        end++;
+        current.add(sts.result.timeSpecification().interval());
+      }
+      if (end > value.value().end()) {          
+        end = value.value().end();
+      }
+      if (offset < end) {
+        if (value.value().isInteger()) {
+          sts.summarize(value.value().longArray(), offset, end);
+        } else {
+          sts.summarize(value.value().doubleArray(), offset, end);
+        }
       }
     }
     return value;
