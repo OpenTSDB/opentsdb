@@ -169,12 +169,11 @@ public class GroupByNumericArrayIterator
         valuesCombiner[i] = createAggregator(node, factory, size);
       }
 
-      if (result.processInParallel()) {
+      if (this.result.isSourceProcessInParallel()) {
         logger.debug("Accumulate in parallel");
         accumulateInParallel(sources, valuesCombiner);
       } else {
-        logger.debug("Accumulate in sequence {}", sources.iterator().next().getClass());
-        // Previous node is not a downsample node.
+        logger.debug("Accumulate in sequence");
         for (TimeSeries source : sources) {
           accumulate(source, null);
         }

@@ -55,6 +55,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
   
   /** The list of groups. */
   protected final List<TimeSeries> results;
+
+  private boolean sourceProcessInParallel;
   
   /**
    * The default ctor.
@@ -70,7 +72,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
     if (next == null) {
       throw new IllegalArgumentException("Query results cannot be null.");
     }
-    
+    this.sourceProcessInParallel = next.processInParallel();
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
@@ -206,5 +208,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
   QueryResult downstreamResult() {
     return result;
   }
-  
+
+  public boolean isSourceProcessInParallel() {
+    return sourceProcessInParallel;
+  }
 }
