@@ -35,6 +35,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A meta query result that handles filtering, storing and sorting the results.
@@ -54,7 +56,8 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   private MetaResult result;
   private final BatchMetaQuery query;
   private final MetaQuery meta_query;
-
+  private static final Logger LOG = LoggerFactory.getLogger(
+      NamespacedAggregatedDocumentResult.class);
   /**
    * Package private ctor to construct a good query. Populates the namespaces
    * if the query type is not a namespace query.
@@ -208,11 +211,14 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    */
   public void addTimeSeries(final TimeSeriesId id, 
                             final MetaQuery meta_query, 
-                            final String metric_only) {
-    if (meta_query != null &&
-        !matchMetric(metric_only, false, meta_query.filter())) {
+                            final String metric_only,
+                            final boolean matchMetric) {
+
+    if (matchMetric && meta_query != null &&
+          !matchMetric(metric_only, false, meta_query.filter())) {
       return;
     }
+
     if (ids == null) {
       ids = Sets.newHashSet();
     }

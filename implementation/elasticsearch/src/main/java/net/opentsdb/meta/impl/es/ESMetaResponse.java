@@ -692,9 +692,9 @@ public class ESMetaResponse implements MetaResponse {
                       MetaDataStorageResult.MetaResult.DATA, query, meta_query);
             }
             result.addTimeSeries(
-                buildTimeseries(meta_query.namespace() + "." + metric, tags), 
+                buildTimeseries(meta_query.namespace() + "." + m, tags),
                 meta_query, 
-                m.get("name.raw"));
+                m.get("name.raw"), true);
           }
         }
       } else {
@@ -703,11 +703,10 @@ public class ESMetaResponse implements MetaResponse {
               new NamespacedAggregatedDocumentResult(
                   MetaDataStorageResult.MetaResult.DATA, query, meta_query);
         }
-        
         result.addTimeSeries(
             buildTimeseries(meta_query.namespace() + "." + metric, tags), 
             meta_query, 
-            metric);
+            metric, false);
       }
     }
     return result;
