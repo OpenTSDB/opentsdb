@@ -69,7 +69,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   public static final String SKIP_META = "skip.meta";
 
   private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  protected static final TypeReference<Map<String, String>> NAMESPACE_FILTERS =
+  public static final TypeReference<Map<String, String>> NAMESPACE_FILTERS =
       new TypeReference<Map<String, String>>() { };
 
   private static Exception skip_meta_ex = new RuntimeException("Skipping meta for this namespace");
@@ -116,12 +116,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     }
 
     if (!tsdb.getConfig().hasProperty(getConfigKey(SKIP_META))) {
+      LOG.info("registering conf " + getConfigKey(SKIP_META));
       tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
           .setKey(getConfigKey(SKIP_META))
           .setDefaultValue(Maps.newHashMap())
           .setDescription("TODO")
           .setType(NAMESPACE_FILTERS)
-          .setSource(this.getClass().toString())
+          .setSource(getClass().toString())
+          .isNullable()
           .isDynamic()
           .build());
     }
@@ -234,9 +236,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       final Span span) {
 
     Map<String, String> namespaces = tsdb.getConfig().getTyped(getConfigKey(SKIP_META), NAMESPACE_FILTERS);
+    // only one metric per query at this point. Strip the namespace.
+    String temp = timeSeriesDataSourceConfig.getMetric().getMetric();
+    int idx = temp.indexOf(".");
+    String namespace = temp.substring(0, idx);
+    final String metric = temp.substring(idx + 1);
 
-    if (namespaces.containsKey(timeSeriesDataSourceConfig.getNamespace())) {
-      String retention = namespaces.get(timeSeriesDataSourceConfig.getNamespace());
+    if (namespaces.containsKey(namespace)) {
+      String retention = namespaces.get(namespace);
       long retention_ms = DateTime.parseDuration(retention);
       if (System.currentTimeMillis() - queryPipelineContext.query().startTime().msEpoch() > retention_ms) {
         NamespacedAggregatedDocumentResult result = new NamespacedAggregatedDocumentResult(
@@ -253,11 +260,6 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     }
 
     try {
-      // only one metric per query at this point. Strip the namespace.
-      String temp = timeSeriesDataSourceConfig.getMetric().getMetric();
-      int idx = temp.indexOf(".");
-      String namespace = temp.substring(0, idx);
-      final String metric = temp.substring(idx + 1);
 
       QueryFilter filter = timeSeriesDataSourceConfig.getFilter();
       if (filter == null &&
