@@ -517,6 +517,9 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   
   boolean fill(final QueryNode node) {
     if (node instanceof Downsampler) {
+      // TODO: This flag would process the v2 type queries as NumericArrays
+      // decide whether to process them in parallel
+      ((DownsampleConfig) node.config()).setProcessAsArrays(false);
       return ((DownsampleConfig) node.config()).getFill();
     }
     
