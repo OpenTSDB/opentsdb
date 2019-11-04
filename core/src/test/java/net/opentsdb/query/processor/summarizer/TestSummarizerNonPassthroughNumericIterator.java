@@ -20,7 +20,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.time.Duration;
 import java.util.Map;
 
 import net.opentsdb.data.*;
@@ -43,12 +42,8 @@ import net.opentsdb.data.types.numeric.aggregators.MaxFactory;
 import net.opentsdb.data.types.numeric.aggregators.MinFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -56,14 +51,10 @@ import net.opentsdb.rollup.RollupInterval;
 public class TestSummarizerNonPassthroughNumericIterator {
   public static MockTSDB TSDB;
   
-  private static final int BASE_TIME = 1546300800;
-  
   private Summarizer node;
   private QueryResult result;
   private SummarizerConfig config;
   private RollupConfig rollup_config;
-  private SemanticQuery query;
-  private QueryPipelineContext context;
   
   @BeforeClass
   public static void beforeClass() {
@@ -98,27 +89,9 @@ public class TestSummarizerNonPassthroughNumericIterator {
     when(result.source()).thenReturn(node);
     when(result.rollupConfig()).thenReturn(rollup_config);
     when(node.config()).thenReturn(config);
-    context = mock(QueryPipelineContext.class);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
     when(context.tsdb()).thenReturn(TSDB);
-    
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME))
-        .setEnd(Integer.toString(BASE_TIME * (3600 * 4)))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
     
     Map<String, NumericAggregator> aggs = Maps.newHashMap();
     when(node.aggregators()).thenReturn(aggs);
@@ -135,9 +108,9 @@ public class TestSummarizerNonPassthroughNumericIterator {
         .setMetric("foo")
         .build());
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42));
+        new MutableNumericValue(new SecondTimeStamp(0L), 42));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24));
+        new MutableNumericValue(new SecondTimeStamp(60L), 24));
     
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
@@ -157,13 +130,13 @@ public class TestSummarizerNonPassthroughNumericIterator {
         .setMetric("foo")
         .build());
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42));
+        new MutableNumericValue(new SecondTimeStamp(0L), 42));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24));
+        new MutableNumericValue(new SecondTimeStamp(60L), 24));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), -8));
+        new MutableNumericValue(new SecondTimeStamp(120L), -8));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1));
+        new MutableNumericValue(new SecondTimeStamp(240L), 1));
     SummarizerNonPassthroughNumericIterator iterator =
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -182,152 +155,32 @@ public class TestSummarizerNonPassthroughNumericIterator {
 
     assertFalse(iterator.hasNext());
   }
-  
-  @Test
-  public void numericTypeLongsFilterMiddle() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + 60))
-        .setEnd(Integer.toString(BASE_TIME + 240))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build());
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), -8));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1));
-    SummarizerNonPassthroughNumericIterator iterator =
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertTrue(iterator.hasNext());
-
-    TimeSeriesValue<NumericSummaryType> value =
-        (TimeSeriesValue<NumericSummaryType>) iterator.next();
-    assertEquals(0, value.timestamp().epoch());
-
-    NumericSummaryType summary = value.value();
-    assertEquals(5, summary.summariesAvailable().size());
-    assertEquals(16, summary.value(0).longValue());
-    assertEquals(2, summary.value(1).longValue());
-    assertEquals(24, summary.value(2).longValue());
-    assertEquals(-8, summary.value(3).longValue());
-    assertEquals(8, summary.value(5).longValue());
-
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void numericTypeLongsFilterEarly() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + 300))
-        .setEnd(Integer.toString(BASE_TIME + 900))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build());
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), -8));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1));
-    SummarizerNonPassthroughNumericIterator iterator =
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void numericTypeLongsFilterLate() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME - 900))
-        .setEnd(Integer.toString(BASE_TIME - 60))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build());
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), -8));
-    ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1));
-    SummarizerNonPassthroughNumericIterator iterator =
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertFalse(iterator.hasNext());
-  }
 
   @Test
   public void numericSummaryTypeLongs() throws Exception {
     TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")
         .build());
-    
+
+    long BASE_TIME = 1000;
+
     MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME));
     v.resetValue(2, -3);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
     v.resetValue(1, 15);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
     v.resetValue(1, 12);
     ((MockTimeSeries) series).addValue(v);
     
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
     v.resetValue(0, 12);
     ((MockTimeSeries) series).addValue(v);
 
@@ -357,24 +210,26 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")
         .build());
-    
+
+    long BASE_TIME = 1000;
+
     MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME));
     v.resetValue(2, -3);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
     v.resetValue(1, 15);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
     v.resetValue(1, 12);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
     v.resetValue(0, 12.43);
     ((MockTimeSeries) series).addValue(v);
 
@@ -404,24 +259,26 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")
         .build());
-    
+
+    long BASE_TIME = 1000;
+
     MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
-    v.resetNull(new SecondTimeStamp(BASE_TIME));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME));
+    v.resetNull(new MillisecondTimeStamp(BASE_TIME));
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
     v.resetValue(1, 15);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
     v.resetValue(1, 12);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
     v.resetValue(0, 12.43);
     ((MockTimeSeries) series).addValue(v);
 
@@ -453,27 +310,29 @@ public class TestSummarizerNonPassthroughNumericIterator {
     TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")
         .build());
-    
+
+    long BASE_TIME = 1000;
+
     MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME));
     v.resetValue(0, 42);
     v.resetValue(1, 6);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
     v.resetValue(0, 15);
     v.resetValue(1, 6);
     ((MockTimeSeries) series).addValue(v);
 
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
     v.resetValue(0, 42);
     v.resetValue(1, 6);
     ((MockTimeSeries) series).addValue(v);
     
     v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L)));
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
     v.resetValue(0, 12);
     v.resetValue(1, 6);
     ((MockTimeSeries) series).addValue(v);
@@ -500,181 +359,18 @@ public class TestSummarizerNonPassthroughNumericIterator {
   }
   
   @Test
-  public void numericSummaryTypeFilterMiddle() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + (3600 * 1)))
-        .setEnd(Integer.toString(BASE_TIME + (3600 * 3)))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build());
-    
-    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
-    v.resetValue(2, -3);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L)));
-    v.resetValue(1, 15);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L)));
-    v.resetValue(1, 12);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L)));
-    v.resetValue(0, 12.43);
-    ((MockTimeSeries) series).addValue(v);
-
-    SummarizerNonPassthroughNumericIterator iterator =
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertTrue(iterator.hasNext());
-
-    TimeSeriesValue<NumericSummaryType> value =
-        (TimeSeriesValue<NumericSummaryType>) iterator.next();
-
-    assertEquals(0, value.timestamp().epoch());
-
-    NumericSummaryType summary = value.value();
-
-    assertEquals(5, summary.summariesAvailable().size());
-    assertEquals(27, summary.value(0).longValue());
-    assertEquals(2, summary.value(1).longValue());
-    assertEquals(15, summary.value(2).longValue());
-    assertEquals(12, summary.value(3).longValue());
-    assertEquals(13.5, summary.value(5).doubleValue(), 0.001);
-
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void numericSummaryTypeFilterEarly() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + (3600 * 4)))
-        .setEnd(Integer.toString(BASE_TIME + (3600 * 6)))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build());
-    
-    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
-    v.resetValue(2, -3);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L)));
-    v.resetValue(1, 15);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L)));
-    v.resetValue(1, 12);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L)));
-    v.resetValue(0, 12.43);
-    ((MockTimeSeries) series).addValue(v);
-
-    SummarizerNonPassthroughNumericIterator iterator =
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void numericSummaryTypeFilterLate() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME - (3600 * 6)))
-        .setEnd(Integer.toString(BASE_TIME - (3600)))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build());
-    
-    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME));
-    v.resetValue(2, -3);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 1L)));
-    v.resetValue(1, 15);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 2L)));
-    v.resetValue(1, 12);
-    ((MockTimeSeries) series).addValue(v);
-
-    v = new MutableNumericSummaryValue();
-    v.resetTimestamp(new SecondTimeStamp(BASE_TIME + (3600 * 3L)));
-    v.resetValue(0, 12.43);
-    ((MockTimeSeries) series).addValue(v);
-
-    SummarizerNonPassthroughNumericIterator iterator =
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
   public void numericTypeDoubles() throws Exception {
     TimeSeries series = new MockTimeSeries(new BaseTimeSeriesStringId.Builder()
         .setMetric("foo")
         .build());
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42.5));
+        new MutableNumericValue(new SecondTimeStamp(0L), 42.5));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24.75));
+        new MutableNumericValue(new SecondTimeStamp(60L), 24.75));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), -8.3));
+        new MutableNumericValue(new SecondTimeStamp(120L), -8.3));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1.2));
+        new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -700,13 +396,13 @@ public class TestSummarizerNonPassthroughNumericIterator {
         .setMetric("foo")
         .build());
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42));
+        new MutableNumericValue(new SecondTimeStamp(0L), 42));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), 24));
+        new MutableNumericValue(new SecondTimeStamp(60L), 24));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), -8.3));
+        new MutableNumericValue(new SecondTimeStamp(120L), -8.3));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1.2));
+        new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -732,13 +428,13 @@ public class TestSummarizerNonPassthroughNumericIterator {
         .setMetric("foo")
         .build());
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42.5));
+        new MutableNumericValue(new SecondTimeStamp(0L), 42.5));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), Double.NaN));
+        new MutableNumericValue(new SecondTimeStamp(60L), Double.NaN));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), Double.NaN));
+        new MutableNumericValue(new SecondTimeStamp(120L), Double.NaN));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1.2));
+        new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -772,13 +468,13 @@ public class TestSummarizerNonPassthroughNumericIterator {
         .setMetric("foo")
         .build());
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 0L), 42.5));
+        new MutableNumericValue(new SecondTimeStamp(0L), 42.5));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 60L), Double.NaN));
+        new MutableNumericValue(new SecondTimeStamp(60L), Double.NaN));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 120L), Double.NaN));
+        new MutableNumericValue(new SecondTimeStamp(120L), Double.NaN));
     ((MockTimeSeries) series).addValue(
-        new MutableNumericValue(new SecondTimeStamp(BASE_TIME + 240L), 1.2));
+        new MutableNumericValue(new SecondTimeStamp(240L), 1.2));
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -807,11 +503,6 @@ public class TestSummarizerNonPassthroughNumericIterator {
     ((NumericArrayTimeSeries) series).add(24);
     ((NumericArrayTimeSeries) series).add(-8);
     ((NumericArrayTimeSeries) series).add(1);
-    
-    TimeSpecification time_spec = mock(TimeSpecification.class);
-    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
-    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
-    when(result.timeSpecification()).thenReturn(time_spec);
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -840,11 +531,6 @@ public class TestSummarizerNonPassthroughNumericIterator {
     ((NumericArrayTimeSeries) series).add(24.75);
     ((NumericArrayTimeSeries) series).add(-8.3);
     ((NumericArrayTimeSeries) series).add(1.2);
-    
-    TimeSpecification time_spec = mock(TimeSpecification.class);
-    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
-    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
-    when(result.timeSpecification()).thenReturn(time_spec);
     SummarizerNonPassthroughNumericIterator iterator = 
         new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertTrue(iterator.hasNext());
@@ -861,131 +547,6 @@ public class TestSummarizerNonPassthroughNumericIterator {
     assertEquals(-8.3, summary.value(3).doubleValue(), 0.001);
     assertEquals(15.037, summary.value(5).doubleValue(), 0.001);
     
-    assertFalse(iterator.hasNext());
-  }
-
-  @Test
-  public void numericArrayTypeFilterMiddle() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + 60))
-        .setEnd(Integer.toString(BASE_TIME + 180))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new NumericArrayTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build(), new SecondTimeStamp(0L));
-    ((NumericArrayTimeSeries) series).add(42);
-    ((NumericArrayTimeSeries) series).add(24);
-    ((NumericArrayTimeSeries) series).add(-8);
-    ((NumericArrayTimeSeries) series).add(1);
-    
-    TimeSpecification time_spec = mock(TimeSpecification.class);
-    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
-    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
-    when(result.timeSpecification()).thenReturn(time_spec);
-    SummarizerNonPassthroughNumericIterator iterator = 
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertTrue(iterator.hasNext());
-    
-    TimeSeriesValue<NumericSummaryType> value = 
-        (TimeSeriesValue<NumericSummaryType>) iterator.next();
-    assertEquals(0, value.timestamp().epoch());
-    
-    NumericSummaryType summary = value.value();
-    assertEquals(5, summary.summariesAvailable().size());
-    assertEquals(16, summary.value(0).longValue());
-    assertEquals(2, summary.value(1).longValue());
-    assertEquals(24, summary.value(2).longValue());
-    assertEquals(-8, summary.value(3).longValue());
-    assertEquals(8, summary.value(5).longValue());
-    
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void numericArrayTypeFilterEarly() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + 240))
-        .setEnd(Integer.toString(BASE_TIME + 360))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new NumericArrayTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build(), new SecondTimeStamp(0L));
-    ((NumericArrayTimeSeries) series).add(42);
-    ((NumericArrayTimeSeries) series).add(24);
-    ((NumericArrayTimeSeries) series).add(-8);
-    ((NumericArrayTimeSeries) series).add(1);
-    
-    TimeSpecification time_spec = mock(TimeSpecification.class);
-    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
-    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
-    when(result.timeSpecification()).thenReturn(time_spec);
-    SummarizerNonPassthroughNumericIterator iterator = 
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void numericArrayTypeFilterLate() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME - 3600))
-        .setEnd(Integer.toString(BASE_TIME - 60))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(SummarizerConfig.newBuilder()
-            .addSummary("sum")
-            .addSource("m1")
-            .setId("summarizer")
-            .build())
-        .build();
-    when(context.query()).thenReturn(query);
-    
-    TimeSeries series = new NumericArrayTimeSeries(new BaseTimeSeriesStringId.Builder()
-        .setMetric("foo")
-        .build(), new SecondTimeStamp(0L));
-    ((NumericArrayTimeSeries) series).add(42);
-    ((NumericArrayTimeSeries) series).add(24);
-    ((NumericArrayTimeSeries) series).add(-8);
-    ((NumericArrayTimeSeries) series).add(1);
-    
-    TimeSpecification time_spec = mock(TimeSpecification.class);
-    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
-    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
-    when(result.timeSpecification()).thenReturn(time_spec);
-    SummarizerNonPassthroughNumericIterator iterator = 
-        new SummarizerNonPassthroughNumericIterator(node, result, series);
     assertFalse(iterator.hasNext());
   }
 }
