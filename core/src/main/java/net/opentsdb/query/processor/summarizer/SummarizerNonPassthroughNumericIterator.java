@@ -18,9 +18,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
@@ -69,7 +67,7 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
   
   /** The data point returned by this iterator. */
   private MutableNumericSummaryValue dp;
-    
+  
   /**
    * The default ctor.
    * @param node The non-null query node we belong to.
@@ -97,13 +95,10 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
     }
     
     if (iterator != null) {
-      // TODO - it's possible though unlikely that we would have a query that
-      // returns data BUT all the summary info is outside of the query window.
-      // In that case we should just return has_next = false. For now, we'll
+      has_next = iterator.hasNext();
       dp = new MutableNumericSummaryValue();
       sum = result.rollupConfig().getIdForAggregator("sum");
       count = result.rollupConfig().getIdForAggregator("count");
-      runSummary();
     } else {
       sum = 0;
       count = 0;
@@ -117,16 +112,6 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
   
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
-    has_next = false;
-    return dp;
-  }
-  
-  @Override
-  public TypeToken<? extends TimeSeriesDataType> getType() {
-    return NumericSummaryType.TYPE;
-  }
-  
-  void runSummary() {
     int offset = 0;
     if (type == NumericArrayType.TYPE) {
       // easiest!
@@ -139,40 +124,14 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
         } else {
           double_values = value.value().doubleArray();
         }
-        
-        // filter on the query time
-        final TimeStamp current = result.timeSpecification().start();
         offset = value.value().offset();
-        while (current.compare(Op.LT, node.pipelineContext().query().startTime())) {
-          offset++;
-          current.add(result.timeSpecification().interval());
-        }
-        
-        idx = offset;
-        while (idx < value.value().end() &&
-            current.compare(Op.LT, node.pipelineContext().query().endTime())) {
-          idx++;
-          current.add(result.timeSpecification().interval());
-        }
-        if (idx > value.value().end()) {          
-          idx = value.value().end();
-        }
-        has_next = true;
+        idx = value.value().end();
       }
     } else if (type == NumericType.TYPE) {
       long_values = new long[8];
       while (iterator.hasNext()) {
         final TimeSeriesValue<NumericType> value = 
             (TimeSeriesValue<NumericType>) iterator.next();
-        if (value.timestamp().compare(Op.LT, 
-            node.pipelineContext().query().startTime())) {
-          continue;
-        }
-        if (value.timestamp().compare(Op.GTE, 
-            node.pipelineContext().query().endTime())) {
-          break;
-        }
-        
         if (value.value() != null) {
           if (value.value().isInteger()) {
             store(value.value().longValue());
@@ -180,21 +139,12 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
             store(value.value().doubleValue());
           }
         }
-        has_next = true;
       }
     } else if (type == NumericSummaryType.TYPE) {
       long_values = new long[8];
       while (iterator.hasNext()) {
         final TimeSeriesValue<NumericSummaryType> value =
             (TimeSeriesValue<NumericSummaryType>) iterator.next();
-        if (value.timestamp().compare(Op.LT, 
-            node.pipelineContext().query().startTime())) {
-          continue;
-        }
-        if (value.timestamp().compare(Op.GTE, 
-            node.pipelineContext().query().endTime())) {
-          break;
-        }
         if (value.value() != null) {
           if (value.value().summariesAvailable().size() == 1) {
             NumericType val = value.value().value(
@@ -212,24 +162,17 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
             NumericType count = value.value().value(this.count);
             if (sum == null || count == null) {
               dp.resetNull(SummarizedTimeSeries.ZERO_TS);
-              has_next = false;
-              return;
+              return dp;
             }
             store(sum.toDouble() / count.toDouble());
           } else {
             // TODO
             dp.resetNull(SummarizedTimeSeries.ZERO_TS);
             has_next = false;
-            return;
+            return dp;
           }
         }
-        has_next = true;
       }
-    }
-    
-    if (offset >= idx) {
-      has_next = false;
-      return;
     }
     
     final MutableNumericValue number = new MutableNumericValue();
@@ -246,6 +189,14 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
       dp.resetValue(result.rollupConfig().getIdForAggregator(entry.getKey()), 
           number.value());
     }
+    
+    has_next = false;
+    return dp;
+  }
+  
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> getType() {
+    return NumericSummaryType.TYPE;
   }
   
   /**

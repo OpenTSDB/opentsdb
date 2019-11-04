@@ -19,7 +19,6 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
@@ -51,12 +50,10 @@ public class SummarizerPassThroughNumericSummaryIterator implements QueryIterato
   @Override
   public boolean hasNext() {
     if (!iterator.hasNext()) {
-      if (idx > 0) {
-        if (long_values != null) {
-          sts.summarize(long_values, 0, idx);
-        } else {
-          sts.summarize(double_values, 0, idx);
-        }
+      if (long_values != null) {
+        sts.summarize(long_values, 0, idx);
+      } else {
+        sts.summarize(double_values, 0, idx);
       }
       return false;
     }
@@ -67,25 +64,18 @@ public class SummarizerPassThroughNumericSummaryIterator implements QueryIterato
   public Object next() {
     final TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
-    if (value.value() != null && 
-        value.timestamp().compare(Op.GTE, 
-            sts.result.summarizerNode().pipelineContext().query().startTime()) &&
-        value.timestamp().compare(Op.LT, 
-            sts.result.summarizerNode().pipelineContext().query().endTime())) {
+    if (value.value() != null) {
       if (value.value().summariesAvailable().size() == 1) {
-        if (summary < 0 && idx <= 0) {
+        if (summary < 0) {
           summary = value.value().summariesAvailable().iterator().next();
         }
         NumericType val = value.value().value(summary);
-        if (val == null) {
-          return value;
-        }
         if (val.isInteger()) {
           store(val.longValue());
         } else {
           store(val.doubleValue());
         }
-        // TODO - actual rollup config and eventually proper sum and count
+        // TODO - actual rollup config
       } else if (value.value().summariesAvailable().size() == 2 && 
           value.value().summariesAvailable().contains(0) && 
           value.value().summariesAvailable().contains(1)) {

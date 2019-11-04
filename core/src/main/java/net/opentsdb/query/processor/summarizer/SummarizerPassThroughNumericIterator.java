@@ -19,7 +19,6 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 
@@ -49,12 +48,10 @@ public class SummarizerPassThroughNumericIterator implements QueryIterator {
   @Override
   public boolean hasNext() {
     if (!iterator.hasNext()) {
-      if (idx > 0) {
-        if (long_values != null) {
-          sts.summarize(long_values, 0, idx);
-        } else if (double_values != null) {
-          sts.summarize(double_values, 0, idx);
-        }
+      if (long_values != null) {
+        sts.summarize(long_values, 0, idx);
+      } else if (double_values != null) {
+        sts.summarize(double_values, 0, idx);
       }
       return false;
     }
@@ -65,11 +62,7 @@ public class SummarizerPassThroughNumericIterator implements QueryIterator {
   public Object next() {
     final TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
-    if (value.value() != null && 
-        value.timestamp().compare(Op.GTE, 
-            sts.result.summarizerNode().pipelineContext().query().startTime()) &&
-        value.timestamp().compare(Op.LT, 
-            sts.result.summarizerNode().pipelineContext().query().endTime())) {
+    if (value.value() != null) {
       if (value.value().isInteger()) {
         store(value.value().longValue());
       } else {
