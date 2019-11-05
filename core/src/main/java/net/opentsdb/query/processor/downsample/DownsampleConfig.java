@@ -84,7 +84,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   private final boolean fill;
   
   /** Whether or not to process the data as arrays. */
-  private final boolean process_as_arrays;
+  private boolean process_as_arrays;
 
   /** The numeric part of the parsed interval. */
   private final int interval_part;
@@ -252,6 +252,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   /** @return Whether or not to process the data as arrays. */
   public boolean getProcessAsArrays() {
     return process_as_arrays;
+  }
+  
+  public void setProcessAsArrays(boolean b) {
+    process_as_arrays = b;
   }
 
   /** @return Whether or not to fill missing values. */
