@@ -468,7 +468,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     @JsonProperty
     private boolean process_as_arrays = true;
     @JsonProperty
-    private boolean fill = true;
+    private boolean fill;
     @JsonProperty
     private String start;
     @JsonProperty
