@@ -134,7 +134,9 @@ public class Downsample extends AbstractQueryNode {
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
         downsamplers.add(new DownsampleTimeSeries(series));
-        if(!this.processInParallel && config.getProcessAsArrays() && series.types().contains(NumericArrayType.TYPE)) {
+        if (!this.processInParallel && config.getProcessAsArrays()
+            && (series.types().contains(NumericArrayType.TYPE)
+                || series.types().contains(NumericType.TYPE))) {
           this.processInParallel = true;
         }
       }
