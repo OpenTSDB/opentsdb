@@ -65,6 +65,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Pojo builder class used for serdes of the expression query
  * @since 2.3
@@ -74,7 +77,6 @@ import java.util.Set;
 @JsonDeserialize(builder = TimeSeriesQuery.Builder.class)
 public class TimeSeriesQuery extends Validatable 
     implements Comparable<TimeSeriesQuery>{
-  
   public static final String RATE_1_TO_RESET_KEY = "tsd.query.convert.2x.rate1toReset";
   
   /** An optional name for the query */
@@ -747,12 +749,11 @@ public class TimeSeriesQuery extends Validatable
                                       final Downsampler downsampler) {
     
     FillPolicy policy = downsampler.getFillPolicy().getPolicy();
-
     DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
         .setAggregator(downsampler.getAggregator())
         .setInterval(downsampler.getInterval())
         .setFill(policy != null && policy != FillPolicy.NONE);
-    ds.setId("downsample_" + metric.getId())
+    ds.setProcessAsArrays(false).setId("downsample_" + metric.getId())
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(policy)
             .setRealFillPolicy(FillWithRealPolicy.NONE)
@@ -763,8 +764,9 @@ public class TimeSeriesQuery extends Validatable
     if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
       ds.setTimeZone(downsampler.getTimezone());
     }
-        
-    return ds.build();
+    DownsampleConfig dc = ds.build();
+    dc.setProcessAsArrays(false);
+    return dc;
   }
   
   /**

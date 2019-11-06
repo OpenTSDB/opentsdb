@@ -57,7 +57,6 @@ import java.util.List;
 @JsonDeserialize(builder = DownsampleConfig.Builder.class)
 public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   DownsampleConfig.Builder, DownsampleConfig> {
-  
   /** The given start timestamp. */
   private final String start;
 
@@ -372,6 +371,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         .setRunAll(run_all)
         .setFill(fill)
         .setStart(start)
+        .setProcessAsArrays(process_as_arrays)
         .setEnd(end)
         .setIntervals(intervals)
         .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
@@ -384,6 +384,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         .setEnd(config.end)
         .setAggregator(config.aggregator)
         .setFill(config.fill)
+        .setProcessAsArrays(config.process_as_arrays)
         .setRunAll(config.run_all)
         .setInfectiousNan(config.infectious_nan)
         .setInterval(config.interval)
@@ -542,7 +543,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     }
     
     /**
-     * @param run_all Whether or not to downsample to a single value.
+     * @param process_as_arrays Whether or not to downsample into arrays.
      * @return The builder.
      */
     public Builder setProcessAsArrays(final boolean process_as_arrays) {

@@ -49,6 +49,7 @@ import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.serdes.SerdesCallback;
 import net.opentsdb.query.serdes.SerdesOptions;
@@ -516,7 +517,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   }
   
   boolean fill(final QueryNode node) {
-    if (node instanceof Downsampler) {
+    if (node instanceof Downsampler || node instanceof Downsample) {
       // TODO: This flag would process the v2 type queries as NumericArrays
       // decide whether to process them in parallel
       ((DownsampleConfig) node.config()).setProcessAsArrays(false);
