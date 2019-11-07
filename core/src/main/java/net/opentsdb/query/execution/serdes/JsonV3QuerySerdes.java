@@ -271,6 +271,12 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   throw new QueryExecutionException("Unexpected exception "
                       + "serializing ts: " + series, 0, e);
                 }
+                if (pair.getValue().types().contains(StatusType.TYPE)
+                    && pair.getValue().id() instanceof BaseTimeSeriesByteId) {
+                  BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) pair.getValue().id();
+                  namespace.append(bid.namespace());
+                  wasStatus.getAndSet(true);
+                }
             })).get();
 
             idx = 0;
