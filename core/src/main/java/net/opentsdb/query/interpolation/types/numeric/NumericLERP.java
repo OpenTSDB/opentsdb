@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
-import java.util.Iterator;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -43,7 +41,6 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
  * @since 3.0
  */
 public class NumericLERP extends NumericInterpolator {
-  
   /**
    * Default ctor. If the source doesn't have data for our type it will
    * always fill.
@@ -73,10 +70,9 @@ public class NumericLERP extends NumericInterpolator {
   public TimeSeriesValue<NumericType> next(final TimeStamp timestamp) {
     // if the iterator is null or it was empty, the next is null and we just 
     // pass the fill value.
-    if (iterator == null || next == null) {
+    if (iterator == null || next == null || next.value() == null) {
       return fill(timestamp);
     }
-    
     has_next = false;
     if (timestamp.compare(Op.EQ, next.timestamp())) {
       if (previous == null) {
