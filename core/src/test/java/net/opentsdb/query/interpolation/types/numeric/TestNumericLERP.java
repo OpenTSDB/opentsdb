@@ -608,6 +608,54 @@ public class TestNumericLERP {
   }
   
   @Test
+  public void fillNextValueNull() throws Exception {
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setDataType(NumericType.TYPE.toString())
+        .build();
+    NumericMillisecondShard source = new NumericMillisecondShard(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("foo")
+        .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
+    source.add(1000, 1);
+    source.add(3000, 10);
+    
+    final NumericLERP lerp = new NumericLERP(source, config);
+    assertTrue(lerp.has_next);
+    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    assertEquals(500, v.timestamp().msEpoch());
+    assertNull(v.value());
+    assertEquals(1000, lerp.nextReal().msEpoch());
+    
+    assertTrue(lerp.has_next);
+    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertEquals(1, v.value().longValue());
+    assertEquals(3000, lerp.nextReal().msEpoch());
+    
+    assertTrue(lerp.has_next);
+    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertEquals(2000, v.timestamp().msEpoch());
+    assertEquals(5, v.value().longValue());
+    assertEquals(3000, lerp.nextReal().msEpoch());
+    
+    assertTrue(lerp.has_next);
+    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertEquals(3000, v.timestamp().msEpoch());
+    assertEquals(10, v.value().longValue());
+    try {
+      lerp.nextReal();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException e) { }
+    
+    assertFalse(lerp.has_next);
+    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertEquals(3500, v.timestamp().msEpoch());
+    assertNull(v.value());
+  }
+  
+  @Test
   public void fillZero() throws Exception {
     config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.ZERO)

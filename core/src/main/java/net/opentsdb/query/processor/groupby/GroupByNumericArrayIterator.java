@@ -170,10 +170,10 @@ public class GroupByNumericArrayIterator
       }
 
       if (this.result.isSourceProcessInParallel()) {
-        logger.debug("Accumulate in parallel");
+        logger.debug("Accumulate in parallel, source size {}", sources.size());
         accumulateInParallel(sources, valuesCombiner);
       } else {
-        logger.debug("Accumulate in sequence");
+        logger.debug("Accumulate in sequence, source size {}", sources.size());
         for (TimeSeries source : sources) {
           accumulate(source, null);
         }
