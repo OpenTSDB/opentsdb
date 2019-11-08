@@ -14,11 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -231,5 +234,220 @@ public class TestFilterUtils {
       FilterUtils.matchesTags(filter, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void desiredTagKeysNonTagRelated() throws Exception {
+    QueryFilter filter = MetricLiteralFilter.newBuilder()
+        .setMetric("sys.cpu.user")
+        .build();
+    assertNull(FilterUtils.desiredTagKeys(filter));
+    
+    filter = ChainFilter.newBuilder()
+        .addFilter(MetricLiteralFilter.newBuilder()
+          .setMetric("sys.cpu.user")
+          .build())
+        .addFilter(AnyFieldRegexFilter.newBuilder()
+            .setFilter("host.*")
+            .build())
+        .build();
+    assertNull(FilterUtils.desiredTagKeys(filter));
+  }
+  
+  @Test
+  public void desiredTagKeysSingles() throws Exception {
+    QueryFilter filter = TagKeyLiteralOrFilter.newBuilder()
+        .setFilter("host")
+        .build();
+    Set<String> keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = TagKeyRegexFilter.newBuilder()
+        .setFilter("host.*")
+        .build();
+    assertNull(FilterUtils.desiredTagKeys(filter));
+    
+    filter = TagValueLiteralOrFilter.newBuilder()
+        .setKey("host")
+        .setFilter("web01")
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = TagValueRegexFilter.newBuilder()
+        .setKey("host")
+        .setFilter("web.*")
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = TagValueWildcardFilter.newBuilder()
+        .setKey("host")
+        .setFilter("web*")
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = TagValueRangeFilter.newBuilder()
+        .setKey("host")
+        .setFilter("web{1-2}")
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+  }
+  
+  @Test
+  public void desiredTagKeysNots() throws Exception {
+    QueryFilter filter = NotFilter.newBuilder()
+        .setFilter(TagKeyLiteralOrFilter.newBuilder()
+          .setFilter("host")
+          .build())
+        .build();
+    Set<String> keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertNull(keys);
+    
+    filter = NotFilter.newBuilder()
+        .setFilter(TagKeyRegexFilter.newBuilder()
+          .setFilter("host.*")
+          .build())
+        .build();
+    assertNull(FilterUtils.desiredTagKeys(filter));
+    
+    filter = NotFilter.newBuilder()
+        .setFilter(TagValueLiteralOrFilter.newBuilder()
+          .setKey("host")
+          .setFilter("web01")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = NotFilter.newBuilder()
+        .setFilter(TagValueRegexFilter.newBuilder()
+          .setKey("host")
+          .setFilter("web.*")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    // equivalent of not tag key
+    filter = NotFilter.newBuilder()
+        .setFilter(TagValueRegexFilter.newBuilder()
+          .setKey("host")
+          .setFilter(".*")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertNull(keys);
+    
+    filter = NotFilter.newBuilder()
+        .setFilter(TagValueWildcardFilter.newBuilder()
+          .setKey("host")
+          .setFilter("web*")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = NotFilter.newBuilder()
+        .setFilter(TagValueWildcardFilter.newBuilder()
+          .setKey("host")
+          .setFilter("*")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertNull(keys);
+    
+    filter = NotFilter.newBuilder()
+        .setFilter(TagValueRangeFilter.newBuilder()
+          .setKey("host")
+          .setFilter("web{1-2}")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+  }
+
+  @Test
+  public void desiredTagKeysNested() throws Exception {
+    QueryFilter filter = ChainFilter.newBuilder()
+        .addFilter(TagKeyLiteralOrFilter.newBuilder()
+          .setFilter("host")
+          .build())
+        .addFilter(TagValueRangeFilter.newBuilder()
+          .setKey("service")
+          .setFilter("web{1-2}")
+          .build())
+        .addFilter(MetricLiteralFilter.newBuilder()
+          .setMetric("sys.cpu.user")
+          .build())
+        .build();
+    Set<String> keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(2, keys.size());
+    assertTrue(keys.contains("host"));
+    assertTrue(keys.contains("service"));
+    
+    filter = ChainFilter.newBuilder()
+        .addFilter(TagKeyLiteralOrFilter.newBuilder()
+          .setFilter("host")
+          .build())
+        .addFilter(NotFilter.newBuilder()
+            .setFilter(TagValueRegexFilter.newBuilder()
+                .setKey("service")
+                .setFilter(".*")
+                .build())
+              .build())
+        .addFilter(MetricLiteralFilter.newBuilder()
+          .setMetric("sys.cpu.user")
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
+    
+    filter = ExplicitTagsFilter.newBuilder()
+        .setFilter(ChainFilter.newBuilder()
+          .addFilter(TagKeyLiteralOrFilter.newBuilder()
+            .setFilter("host")
+            .build())
+          .addFilter(NotFilter.newBuilder()
+              .setFilter(TagValueRegexFilter.newBuilder()
+                  .setKey("service")
+                  .setFilter(".*")
+                  .build())
+                .build())
+          .addFilter(MetricLiteralFilter.newBuilder()
+            .setMetric("sys.cpu.user")
+            .build())
+          .build())
+        .build();
+    keys = FilterUtils.desiredTagKeys(filter);
+    
+    assertEquals(1, keys.size());
+    assertTrue(keys.contains("host"));
   }
 }

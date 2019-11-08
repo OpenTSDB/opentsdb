@@ -43,8 +43,8 @@ public class FilterUtils {
    * filter(s) were not tag filters.
    */
   public static boolean matchesTags(final QueryFilter filter,
-      final Map<String, String> tags,
-      Set<String> matched) {
+                                    final Map<String, String> tags,
+                                    Set<String> matched) {
     if (filter == null) {
       throw new IllegalArgumentException("Filter cannot be null.");
     }
@@ -114,4 +114,57 @@ public class FilterUtils {
     return true;
   }
 
+  /**
+   * Walks the filter recursively to figure out which tag keys would be of
+   * use in the query, particularly for determining pre-aggregates. If a key
+   * is not'ted then we'll omit it.
+   * @param filter A non-null filter to start with.
+   * @return Null if the filter did not have any useful tag key filters, a 
+   * non-empty set if one or more tag keys were found.
+   */
+  public static Set<String> desiredTagKeys(final QueryFilter filter) {
+    return desiredTagKeys(filter, false);
+  }
+  
+  private static Set<String> desiredTagKeys(final QueryFilter filter, 
+                                            final boolean not) {
+    if (filter instanceof NestedQueryFilter) {
+      if (filter instanceof NotFilter) {
+        return desiredTagKeys(((NestedQueryFilter) filter).getFilter(), true);
+      } else {
+        return desiredTagKeys(((NestedQueryFilter) filter).getFilter(), not);
+      }
+    } else if (filter instanceof ChainFilter) {
+      Set<String> tags = null;
+      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+        final Set<String> sub_tags = desiredTagKeys(sub_filter, not);
+        if (sub_tags != null) {
+          if (tags == null) {
+            tags = Sets.newHashSet();
+          }
+          tags.addAll(sub_tags);
+        }
+      }
+      return tags;
+    } else if (filter instanceof TagKeyLiteralOrFilter && !not) {
+      return Sets.newHashSet(((TagKeyLiteralOrFilter) filter).literals());
+    } else if (filter instanceof TagValueRegexFilter) {
+      if (not && ((TagValueRegexFilter) filter).matchesAll()) {
+        // same as if we had a NOT(TagKeyFilter).
+        return null;
+      }
+      return Sets.newHashSet(((TagValueFilter) filter).getTagKey());
+    } else if (filter instanceof TagValueWildcardFilter) {
+      if (not && ((TagValueWildcardFilter) filter).matchesAll()) {
+        // same as if we had a NOT(TagKeyFilter).
+        return null;
+      }
+      return Sets.newHashSet(((TagValueFilter) filter).getTagKey());
+    } else if (filter instanceof TagValueFilter) {
+      // we always need to put these in as we don't know if the user specified
+      // all tags to be "not"ted.
+      return Sets.newHashSet(((TagValueFilter) filter).getTagKey());
+    } 
+    return null;
+  }
 }
