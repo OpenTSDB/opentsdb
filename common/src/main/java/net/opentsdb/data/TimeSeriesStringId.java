@@ -66,6 +66,16 @@ public interface TimeSeriesStringId extends TimeSeriesId,
   public Map<String, String> tags();
 
   /**
+   * Returns the value to which the specified key is mapped, or {@code null} if this map contains no
+   * mapping for the key.
+   *
+   * @param key the key whose associated value is to be returned
+   * @return the value to which the specified key is mapped, or {@code null} if no mapping for the
+   *     key
+   */
+  public String getTagValue(String key);
+
+  /**
    * A list of tag names (tagk) that were represented in every source series
    * but had one or more differing tag values (tagv). This list may be empty if
    * - The underlying store does not support tags.
