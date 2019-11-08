@@ -65,6 +65,8 @@ public interface TimeSeriesStringId extends TimeSeriesId,
    */
   public Map<String, String> tags();
 
+  String getTagValue(String key);
+
   /**
    * A list of tag names (tagk) that were represented in every source series
    * but had one or more differing tag values (tagv). This list may be empty if

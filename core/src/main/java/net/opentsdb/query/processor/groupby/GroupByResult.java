@@ -85,7 +85,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
         if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
           boolean matched = true;
           for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
-            final String tagv = id.tags().get(key);
+            final String tagv = id.getTagValue(key);
             if (tagv == null) {
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Dropping series from group by due to missing tag key: " 

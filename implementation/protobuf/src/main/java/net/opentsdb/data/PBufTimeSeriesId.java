@@ -186,6 +186,11 @@ public class PBufTimeSeriesId implements TimeSeriesStringId {
   }
 
   @Override
+  public String getTagValue(String key) {
+    return tags().get(key);
+  }
+
+  @Override
   public List<String> aggregatedTags() {
     return id.getAggregatedTagsList();
   }
