@@ -111,7 +111,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private List<byte[]> serialized_results = Lists.newArrayList();
   
   /** Used for the parallel stream*/
-  private ForkJoinPool customThreadPool = new ForkJoinPool(8);
+  private static ForkJoinPool customThreadPool = new ForkJoinPool(8);
   /** Lock to parallelize the iterator*/
   private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -272,7 +272,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                       + "serializing ts: " + series, 0, e);
                 }
                 if (pair.getValue().types().contains(StatusType.TYPE)
-                    && pair.getValue().id() instanceof BaseTimeSeriesByteId) {
+                    && pair.getValue().id() instanceof BaseTimeSeriesStringId) {
                   BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) pair.getValue().id();
                   namespace.append(bid.namespace());
                   wasStatus.getAndSet(true);
@@ -298,7 +298,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   spec_start,
                   spec_end,
                   result);
-              if (series.types().contains(StatusType.TYPE) && series.id() instanceof BaseTimeSeriesByteId) {
+              if (series.types().contains(StatusType.TYPE) && series.id() instanceof BaseTimeSeriesStringId) {
                   BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) series.id();
                   namespace.append(bid.namespace());
                   wasStatus.getAndSet(true);
@@ -355,7 +355,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       throw new QueryExecutionException("Failed to resolve IDs", 500, e);
     }
   }
-
+  
   @Override
   public void serializeComplete(final Span span) {
     if (!initialized /* Only on QueryResult */ && partials.size() > 0) {
