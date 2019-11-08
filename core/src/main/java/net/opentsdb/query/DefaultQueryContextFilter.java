@@ -18,6 +18,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 import com.stumbleupon.async.Deferred;
@@ -36,12 +38,17 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.PreAggConfig.MetricPattern;
+import net.opentsdb.query.PreAggConfig.TagsAndAggs;
 import net.opentsdb.query.TimeSeriesQuery.CacheMode;
 import net.opentsdb.query.filter.ChainFilter;
+import net.opentsdb.query.filter.ExplicitTagsFilter;
+import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.NestedQueryFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 /**
@@ -62,8 +69,6 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   protected static final TypeReference<
     Map<String, Map<String, Map<String, String>>>> HEADER_FILTERS =
       new TypeReference<Map<String, Map<String, Map<String, String>>>>() { };
-  protected static final TypeReference<Map<String, PreAggConfig>> PREAGG_FILTERS =
-      new TypeReference<Map<String, PreAggConfig>>() { };
   protected static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
   protected static final String USER_KEY = "tsd.queryfilter.filter.users";
   protected static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
@@ -101,9 +106,9 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     if (!tsdb.getConfig().hasProperty(PREAGG_KEY)) {
       tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
           .setKey(PREAGG_KEY)
-          .setDefaultValue(Maps.newHashMap())
+          .setDefaultValue(Lists.newArrayList())
           .setDescription("TODO")
-          .setType(PREAGG_FILTERS)
+          .setType(PreAggConfig.TYPE_REF)
           .setSource(this.getClass().toString())
           .isDynamic()
           .build());
@@ -179,9 +184,9 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     // TODO - tons of stuff to do here, e.g. nulls from the group by or the 
     // filters.
     Map<String, PreAggConfig> preagg_filters = 
-        tsdb.getConfig().getTyped(PREAGG_KEY, PREAGG_FILTERS);
+        tsdb.getConfig().getTyped(PREAGG_KEY, PreAggConfig.TYPE_REF);
     if (preagg_filters != null && !preagg_filters.isEmpty()) {
-      Map<String, QueryNodeConfig> rebuilt = null;
+      Map<String, QueryNodeConfig> rebuilt = Maps.newHashMap();
       boolean rebuild = false;
       MutableGraph<QueryNodeConfig> graph = null;
       
@@ -203,22 +208,67 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           continue;
         }
         
+        // match the metric to a rule
+        final String metric = tsdc.getMetric().getMetric().substring(
+            tsdc.getMetric().getMetric().indexOf('.') + 1);
+        MetricPattern metric_pattern = null;
+        for (final MetricPattern pattern : preagg.getMetrics()) {
+          if (pattern.getPattern().matcher(metric).find()) {
+            metric_pattern = pattern;
+            break;
+          }
+        }
+        
+        // No rules so we don't need to add "raw".
+        if (metric_pattern == null) {
+          continue;
+        }
+        
+        // make sure we actually have an aggregation, otherwise it's pointless
+        // to look for rules.
+        if (graph == null) {
+          graph = buildGraph(query);
+        }
+        final String agg = findAgg(tsdc.getId(), graph, tsdc);
+        if (agg == null) {
+          tsdc = rebuildRaw(tsdc, rebuilt);
+          rebuild = true;
+          continue;
+        }
+        
+        // next we need to tag keys and see if we match
+        Set<String> desired_tag_keys = null;
         if (!(Strings.isNullOrEmpty(tsdc.getFilterId()))) {
-          if (hasAgg(query.getFilter(tsdc.getFilterId()))) {
-            // Nothing to modify here.
-            continue;
-          }
+          desired_tag_keys = FilterUtils.desiredTagKeys(query.getFilter(tsdc.getFilterId()));
         } else if (tsdc.getFilter() != null) {
-          if (hasAgg(tsdc.getFilter())) {
-            // Nothing to modify here.
-            continue;
-          }
+          desired_tag_keys = FilterUtils.desiredTagKeys(tsdc.getFilter());
+        }
+        
+        if (desired_tag_keys == null) {
+          desired_tag_keys = Sets.newHashSet();
+        }
+        findGroupByTags(graph, tsdc, desired_tag_keys);
+        
+        // now, see if we match an agg.
+        TagsAndAggs tags_and_aggs = metric_pattern.matchingTagsAndAggs(desired_tag_keys);
+        if (tags_and_aggs == null) {
+          tsdc = rebuildRaw(tsdc, rebuilt);
+          rebuild = true;
+          continue;
+        }
+        
+        Integer agg_start = tags_and_aggs.getAggs().get(agg);
+        if (agg_start == null) {
+          tsdc = rebuildRaw(tsdc, rebuilt);
+          rebuild = true;
+          continue;
         }
         
         // check timestamp first. If the query is too early then we can't change
         // it.
-        if (query.startTime().epoch() < preagg.startEpoch) {
-          // TODO - set raw
+        if (query.startTime().epoch() < agg_start) {
+          tsdc = rebuildRaw(tsdc, rebuilt);
+          rebuild = true;
           continue;
         }
         
@@ -226,43 +276,15 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           final TimeStamp ts = query.startTime().getCopy();
           // TODO - previous or next, figure it out.
           ts.add((TemporalAmount) tsdc.timeShifts().getValue()); 
-          if (ts.epoch() < preagg.startEpoch) {
-            // TODO - set raw
+          if (ts.epoch() < agg_start) {
+            tsdc = rebuildRaw(tsdc, rebuilt);
+            rebuild = true;
             continue;
           }
         }
         
-        // see if we match the tags
-        if (!(Strings.isNullOrEmpty(tsdc.getFilterId()))) {
-          if (hasTagKey(query.getFilter(tsdc.getFilterId()), preagg.excludedAggTags)) {
-            if (rebuilt == null) {
-              rebuilt = Maps.newHashMap();
-            }
-            tsdc = (TimeSeriesDataSourceConfig) 
-                ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
-                .setQueryFilter(rebuildFilter(tsdc.getFilter(), "raw"))
-                .build();
-            rebuilt.put(tsdc.getId(), tsdc);
-            continue;
-          }
-        } else if (tsdc.getFilter() != null && 
-                   hasTagKey(tsdc.getFilter(), preagg.excludedAggTags)) {
-          if (rebuilt == null) {
-            rebuilt = Maps.newHashMap();
-          }
-          tsdc = (TimeSeriesDataSourceConfig) 
-              ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
-              .setQueryFilter(rebuildFilter(tsdc.getFilter(), "raw"))
-              .build();
-          rebuilt.put(tsdc.getId(), tsdc);
-          continue;
-        }
-        
+        // matched!
         rebuild = true;
-        if (graph == null) {
-          graph = buildGraph(query);
-        }
-        final String agg = findAgg(tsdc.getId(), graph, tsdc);
         if (!(Strings.isNullOrEmpty(tsdc.getFilterId()))) {
           // re-write
           if (rebuilt == null) {
@@ -272,7 +294,8 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
               ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
               .setFilterId(null)
               .setQueryFilter(rebuildFilter(
-                  query.getFilter(tsdc.getFilterId()), agg.toUpperCase()))
+                  query.getFilter(tsdc.getFilterId()), agg.toUpperCase(), 
+                  desired_tag_keys, tags_and_aggs.getTags()))
               .build();
           rebuilt.put(tsdc.getId(), tsdc);
         } else {
@@ -282,7 +305,8 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           }
           tsdc = (TimeSeriesDataSourceConfig) 
               ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
-              .setQueryFilter(rebuildFilter(tsdc.getFilter(), agg.toUpperCase()))
+              .setQueryFilter(rebuildFilter(tsdc.getFilter(), agg.toUpperCase(),
+                  desired_tag_keys, tags_and_aggs.getTags()))
               .build();
           rebuilt.put(tsdc.getId(), tsdc);
         }
@@ -313,9 +337,27 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     return "DefaultQueryContextFilter";
   }
   
-  public static class PreAggConfig {
-    public int startEpoch;
-    public List<String> excludedAggTags;
+  TimeSeriesDataSourceConfig rebuildRaw(final TimeSeriesDataSourceConfig tsdc, 
+                                        final Map<String, QueryNodeConfig> rebuilt) {
+    TimeSeriesDataSourceConfig new_tsdc = (TimeSeriesDataSourceConfig) 
+        ((TimeSeriesDataSourceConfig.Builder) tsdc.toBuilder())
+        .setQueryFilter(rebuildFilter(tsdc.getFilter(), "raw"))
+        .build();
+    rebuilt.put(new_tsdc.getId(), new_tsdc);
+    return new_tsdc;
+  }
+  
+  void findGroupByTags(final MutableGraph<QueryNodeConfig> graph,
+                       final QueryNodeConfig config,
+                       final Set<String> tag_keys) {
+    if (config instanceof GroupByConfig) {
+      tag_keys.addAll(((GroupByConfig) config).getTagKeys());
+    }
+    
+    // keep going as we may have multiple group bys.
+    for (final QueryNodeConfig pred : graph.predecessors(config)) {
+      findGroupByTags(graph, pred, tag_keys);
+    }
   }
   
   String findAgg(final String id, 
@@ -332,7 +374,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     for (final QueryNodeConfig pred : graph.predecessors(config)) {
       final String agg = findAgg(graph, pred);
       if (!Strings.isNullOrEmpty(agg)) {
-        return agg;
+        return agg.toUpperCase();
       }
     }
     return null;
@@ -381,6 +423,32 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   }
   
   // TODO - these two don't handle all cases like ORs or multiple nestings, etc.
+  QueryFilter rebuildFilter(final QueryFilter filter, 
+                            final String agg,
+                            final Set<String> desired_tag_keys,
+                            final List<String> pre_agg_keys) {
+    
+    QueryFilter rebuilt_filter = rebuildFilter(filter, agg);
+    if (!tagSetsMatch(desired_tag_keys, pre_agg_keys)) {
+      ChainFilter.Builder builder = ChainFilter.newBuilder()
+          .addFilter(rebuilt_filter);
+      for (int i = 0; i < pre_agg_keys.size(); i++) {
+        if (!desired_tag_keys.contains(pre_agg_keys.get(i))) {
+          builder.addFilter(TagValueWildcardFilter.newBuilder()
+              .setFilter("*")
+              .setKey(pre_agg_keys.get(i))
+              .build());
+        }
+      }
+      rebuilt_filter = builder.build();
+    }
+    
+    // TODO - ideally, look for a dupe and avoid it if possible
+    return ExplicitTagsFilter.newBuilder()
+        .setFilter(rebuilt_filter)
+        .build();
+  }
+  
   QueryFilter rebuildFilter(final QueryFilter filter, final String agg) {
     if (filter == null) {
       return TagValueLiteralOrFilter.newBuilder()
@@ -408,6 +476,20 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
       builder.addFilter(sub);
     }
     return builder.build();
+  }
+  
+  boolean tagSetsMatch(final Set<String> desired_tag_keys, List<String> pre_agg_keys) {
+    if (desired_tag_keys.size() != pre_agg_keys.size()) {
+      return false;
+    }
+    
+    for (int i = 0; i < pre_agg_keys.size(); i++) {
+      if (!desired_tag_keys.contains(pre_agg_keys.get(i))) {
+        return false;
+      }
+    }
+    
+    return true;
   }
   
   static MutableGraph<QueryNodeConfig> buildGraph(final TimeSeriesQuery query) {
