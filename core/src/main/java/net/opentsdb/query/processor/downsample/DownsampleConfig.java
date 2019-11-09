@@ -63,9 +63,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   /** The given end timestamp. */
   private final String end;
 
-  /** The raw, original interval string. */
+  /** The raw, original and optional min interval string. */
   private final String interval;
   private final String original_interval;
+  private final String min_interval;
 
   /** The timezone for the downsample snapping. Defaults to UTC. */
   private final ZoneId timezone;
@@ -125,6 +126,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     }
 
     intervals = builder.intervals;
+    min_interval = builder.minInterval;
     timezone = builder.timezone != null ? ZoneId.of(builder.timezone) : Const.UTC;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
@@ -160,7 +162,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
           }
           // TODO - handle smaller scales
           final long delta = end_time.msEpoch() - start_time.msEpoch();
-          interval = DownsampleFactory.getAutoInterval(delta, intervals);
+          interval = DownsampleFactory.getAutoInterval(delta, intervals, min_interval);
         } else {
           // we've just be parsed, not setup, so set back to auto.
           interval = "auto";
@@ -222,6 +224,10 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     return duration;
   }
 
+  public String getMinInterval() {
+    return min_interval;
+  }
+  
   /** @return The non-null timezone. */
   public ZoneId timezone() {
     return timezone;
@@ -365,6 +371,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   public Builder toBuilder() {
     return new Builder()
         .setInterval(interval)
+        .setMinInterval(min_interval)
         .setTimeZone(timezone.toString())
         .setAggregator(aggregator)
         .setInfectiousNan(infectious_nan)
@@ -388,6 +395,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         .setRunAll(config.run_all)
         .setInfectiousNan(config.infectious_nan)
         .setInterval(config.interval)
+        .setMinInterval(config.min_interval)
         .setTimeZone(config.timezone.toString())
         .setIntervals(config.intervals)
         .setOriginalInterval(config.original_interval)
@@ -416,6 +424,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     final DownsampleConfig dsconfig = (DownsampleConfig) o;
     
     return Objects.equal(timezone.toString(), dsconfig.getTimezone())
+            && Objects.equal(min_interval, dsconfig.min_interval)
             && Objects.equal(original_interval, dsconfig.original_interval)
             && Objects.equal(aggregator, dsconfig.getAggregator())
             && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
@@ -433,6 +442,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   public HashCode buildHashCode() {
     final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(min_interval), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(timezone.toString()), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
             .putBoolean(infectious_nan)
@@ -458,6 +468,8 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, DownsampleConfig> {
     @JsonProperty
     private String interval;
+    @JsonProperty
+    private String minInterval;
     @JsonProperty
     private String timezone;
     @JsonProperty
@@ -505,6 +517,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
       return this;
     }
 
+    public Builder setMinInterval(final String interval) {
+      this.minInterval = interval;
+      return this;
+    }
+    
     /**
      * @param timezone An optional timezone. If null, UTC is assumed.
      * @return The builder.

@@ -129,7 +129,11 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
     JsonNode n = node.get("interval");
     if (n != null) {
       builder.setInterval(n.asText());
-//      builder.setOriginal_Interval(n.asText());
+    }
+    
+    n = node.get("minInterval");
+    if (n != null && !n.isNull()) {
+      builder.setMinInterval(n.asText());
     }
     
     n = node.get("id");
@@ -266,14 +270,23 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
    * config.
    * @param delta A non-negative delta in milliseconds.
    * @param intervals The non-null reference to auto intervals.
+   * @param min_interval An optional min interval.
    * @return The configured auto downsample interval.
    * @throws IllegalStateException if the downsampler is not configured properly.
    */
   public static String getAutoInterval(final long delta, 
-                                       final List<Pair<Long, String>> intervals) {
+                                       final List<Pair<Long, String>> intervals,
+                                       final String min_interval) {
     synchronized (intervals) {
       for (final Pair<Long, String> interval : intervals) {
         if (delta >= interval.getKey()) {
+          if (!Strings.isNullOrEmpty(min_interval)) {
+            final long min = DateTime.parseDuration(min_interval);
+            final long iv = DateTime.parseDuration(interval.getValue());
+            if (min > iv) {
+              return min_interval;
+            }
+          }
           return interval.getValue();
         }
       }

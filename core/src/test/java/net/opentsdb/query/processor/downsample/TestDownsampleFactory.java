@@ -708,42 +708,46 @@ public class TestDownsampleFactory {
     intervals.add(new Pair<Long, String>(0L, "1m")); // default
     
     assertEquals("1w", DownsampleFactory.getAutoInterval(
-        86_400L * 365L * 2L * 1000L, intervals));
+        86_400L * 365L * 2L * 1000L, intervals, null));
     assertEquals("1w", DownsampleFactory.getAutoInterval(
-        86_400L * 365L * 1000L, intervals));
+        86_400L * 365L * 1000L, intervals, null));
     assertEquals("1d", DownsampleFactory.getAutoInterval(
-        (86_400L * 365L * 1000L) - 1, intervals));
+        (86_400L * 365L * 1000L) - 1, intervals, null));
     assertEquals("1d", DownsampleFactory.getAutoInterval(
-        86_400L * 30L * 1000L, intervals));
+        86_400L * 30L * 1000L, intervals, null));
     assertEquals("6h", DownsampleFactory.getAutoInterval(
-        (86_400L * 30L * 1000L) - 1, intervals));
+        (86_400L * 30L * 1000L) - 1, intervals, null));
     assertEquals("6h", DownsampleFactory.getAutoInterval(
-        86_400L * 7L * 1000L, intervals));
+        86_400L * 7L * 1000L, intervals, null));
     assertEquals("1h", DownsampleFactory.getAutoInterval(
-        (86_400L * 7L * 1000L) - 1, intervals));
+        (86_400L * 7L * 1000L) - 1, intervals, null));
     assertEquals("1h", DownsampleFactory.getAutoInterval(
-        86_400L * 3L * 1000L, intervals));
+        86_400L * 3L * 1000L, intervals, null));
     assertEquals("15m", DownsampleFactory.getAutoInterval(
-        (86_400L * 3L * 1000L) - 1, intervals));
+        (86_400L * 3L * 1000L) - 1, intervals, null));
     assertEquals("15m", DownsampleFactory.getAutoInterval(
-        86_400L * 2L * 1000L, intervals));
+        86_400L * 2L * 1000L, intervals, null));
     assertEquals("15m", DownsampleFactory.getAutoInterval(
-        86_400L * 1000L, intervals));
+        86_400L * 1000L, intervals, null));
     assertEquals("15m", DownsampleFactory.getAutoInterval(
-        (86_400L * 1000L) - 1, intervals));
+        (86_400L * 1000L) - 1, intervals, null));
     assertEquals("15m", DownsampleFactory.getAutoInterval(
-        3_600L * 12L * 1000L, intervals));
+        3_600L * 12L * 1000L, intervals, null));
     assertEquals("1m", DownsampleFactory.getAutoInterval(
-        (3_600L * 12L * 1000L) - 1 , intervals));
+        (3_600L * 12L * 1000L) - 1 , intervals, null));
     assertEquals("1m", DownsampleFactory.getAutoInterval(
-        3_600L * 6L * 1000L, intervals));
+        3_600L * 6L * 1000L, intervals, null));
     assertEquals("1m", DownsampleFactory.getAutoInterval(
-        (3_600L * 6L * 1000L) - 1, intervals));
+        (3_600L * 6L * 1000L) - 1, intervals, null));
     assertEquals("1m", DownsampleFactory.getAutoInterval(
-        0, intervals));
+        0, intervals, null));
+    
+    // min
+    assertEquals("5m", DownsampleFactory.getAutoInterval(
+        (3_600L * 6L * 1000L) - 1, intervals, "5m"));
     
     try {
-      DownsampleFactory.getAutoInterval(-1, intervals);
+      DownsampleFactory.getAutoInterval(-1, intervals, null);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
