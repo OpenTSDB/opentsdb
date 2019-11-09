@@ -187,7 +187,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           final long delta = context.query().endTime().msEpoch() - 
               context.query().startTime().msEpoch();
           interval = DownsampleFactory.getAutoInterval(delta, 
-              ((DownsampleFactory) factory).intervals());
+              ((DownsampleFactory) factory).intervals(), null);
         } else {
           // normal interval
           interval = ((DownsampleConfig) config).getInterval();
