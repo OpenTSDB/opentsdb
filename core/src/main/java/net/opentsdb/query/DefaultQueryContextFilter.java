@@ -106,7 +106,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     if (!tsdb.getConfig().hasProperty(PREAGG_KEY)) {
       tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
           .setKey(PREAGG_KEY)
-          .setDefaultValue(Lists.newArrayList())
+          .setDefaultValue(Maps.newHashMap())
           .setDescription("TODO")
           .setType(PreAggConfig.TYPE_REF)
           .setSource(this.getClass().toString())
