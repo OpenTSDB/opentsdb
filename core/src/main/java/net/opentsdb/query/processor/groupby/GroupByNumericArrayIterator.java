@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.groupby;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -30,9 +31,11 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.stats.StatsCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,6 +75,8 @@ public class GroupByNumericArrayIterator
   private volatile boolean has_next = false;
 
   ExecutorService executor;
+
+  private StatsCollector statsCollector;
 
   /**
    * Default ctor.
@@ -125,12 +130,12 @@ public class GroupByNumericArrayIterator
     }
 
     try {
-      executor = node.pipelineContext().tsdb().quickWorkPool();
+      TSDB tsdb = node.pipelineContext().tsdb();
+      executor = tsdb.quickWorkPool();
 
       this.result = (GroupByResult) result;
       final NumericArrayAggregatorFactory factory =
-          node.pipelineContext()
-              .tsdb()
+          tsdb
               .getRegistry()
               .getPlugin(
                   NumericArrayAggregatorFactory.class,
@@ -178,11 +183,11 @@ public class GroupByNumericArrayIterator
           accumulate(source, null);
         }
       }
+      this.statsCollector = tsdb.getStatsCollector();
     } catch (Throwable throwable) {
       logger.error("Error constructing the GroupByNumericArrayIterator", throwable);
       throw new IllegalArgumentException(throwable);
     }
-
   }
 
   private NumericArrayAggregator createAggregator(
@@ -212,9 +217,20 @@ public class GroupByNumericArrayIterator
       int index = (i++) % NUM_THREADS;
       ExecutorService executorService = executorList.get(index);
       NumericArrayAggregator combiner = combiners[index];
-      futures.add(executorService.submit(() -> accumulate(timeSeries, combiner)));
+
+      final long s = System.nanoTime();
+      Future<TimeSeriesValue<NumericArrayType>> future =
+          executorService.submit(
+              () -> {
+                statsCollector.addTime("groupby.queue.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+                return accumulate(timeSeries, combiner);
+              });
+
+      futures.add(future);
       has_next = true;
     }
+
+    statsCollector.setGauge("groupby.timeseries.count", sources.size());
 
     for (Future<TimeSeriesValue<NumericArrayType>> future : futures) {
       try {
