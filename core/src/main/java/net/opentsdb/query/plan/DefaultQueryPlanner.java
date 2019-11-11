@@ -920,12 +920,15 @@ public class DefaultQueryPlanner implements QueryPlanner {
   
   @Override
   public QueryNodeFactory getFactory(final QueryNodeConfig node) {
-    final String key;
+    String key;
     if (node instanceof TimeSeriesDataSourceConfig) {
       key = Strings.isNullOrEmpty(((TimeSeriesDataSourceConfig) node)
               .getSourceId()) ? null : 
                 ((TimeSeriesDataSourceConfig) node)
                   .getSourceId().toLowerCase();
+      if (key != null && key.contains(":")) {
+        key = key.substring(0, key.indexOf(":"));
+      }
     } else if (!Strings.isNullOrEmpty(node.getType())) {
       key = node.getType().toLowerCase();
     } else {

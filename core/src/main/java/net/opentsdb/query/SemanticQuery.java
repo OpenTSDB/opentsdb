@@ -436,8 +436,12 @@ public class SemanticQuery implements TimeSeriesQuery {
       QueryNodeFactory config_factory = null;
       JsonNode temp = config.get("sourceId");
       if (temp != null && !temp.isNull()) {
+        String src = temp.asText();
+        if (src.contains(":")) {
+          src = src.substring(0, src.indexOf(":"));
+        }
         config_factory = tsdb.getRegistry()
-            .getQueryNodeFactory(temp.asText());
+            .getQueryNodeFactory(src);
       } else {
         temp = config.get("type");
         if (temp != null && !temp.isNull()) {

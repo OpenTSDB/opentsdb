@@ -137,10 +137,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
       }
       
       for (final TimeSeriesDataSourceConfig source : 
-        cluster_config.getDataSourceConfigs()) {
+          cluster_config.getDataSourceConfigs()) {
         final TimeSeriesDataSourceFactory factory = 
             tsdb.getRegistry().getPlugin(
-                TimeSeriesDataSourceFactory.class, source.getSourceId());
+                TimeSeriesDataSourceFactory.class, 
+                  TimeSeriesDataSourceConfig.getSourceId(source));
         if (factory != null && factory.supportsQuery(context, config)) {
           return true;
         }
@@ -273,7 +274,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         // we have to fix the ID here to avoid dupes and collisions.
         TimeSeriesDataSourceConfig.Builder rebuilt =
             (TimeSeriesDataSourceConfig.Builder)
-                source.toBuilder().setId(new_id + "_" + source.getSourceId());
+                source.toBuilder().setId(new_id + "_" + 
+                    TimeSeriesDataSourceConfig.getSourceId(source));
 
         for (final TimeSeriesDataSourceConfig.Builder extant : new_sources) {
           if (extant.id().equals(rebuilt.id())) {
@@ -285,7 +287,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         final TimeSeriesDataSourceFactory factory = 
             planner.context().tsdb().getRegistry().getPlugin(
               TimeSeriesDataSourceFactory.class, 
-              source.getSourceId());
+              TimeSeriesDataSourceConfig.getSourceId(source));
         if (factory == null) {
           throw new IllegalArgumentException("No data source found for: " 
               + source.getSourceId());
@@ -297,7 +299,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         if (factory.idType() != Const.TS_STRING_ID) {
           needs_id_converter = true;
         }
-        factories.put(source.getSourceId(), factory);
+        factories.put(TimeSeriesDataSourceConfig.getSourceId(source), factory);
         new_sources.add(rebuilt);
       }
     }

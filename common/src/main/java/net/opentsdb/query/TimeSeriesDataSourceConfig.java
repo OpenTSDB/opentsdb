@@ -153,4 +153,19 @@ public interface TimeSeriesDataSourceConfig<
     String sourceId();
     
   }
+
+  /**
+   * Checks for a ":" in the source ID if it isn't null and returns the prefix.
+   * @param config The non-null config to parse.
+   * @return The source ID, potentially null.
+   */
+  public static String getSourceId(final TimeSeriesDataSourceConfig config) {
+    if (config.getSourceId() == null) {
+      return config.getSourceId();
+    }
+    if (config.getSourceId().contains(":")) {
+      return config.getSourceId().substring(config.getSourceId().indexOf(":"));
+    }
+    return config.getSourceId();
+  }
 }
