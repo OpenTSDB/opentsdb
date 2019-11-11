@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SplitRollupSpanGroup implements DataPoints {
+public class SplitRollupSpanGroup extends AbstractSpanGroup {
     private final List<SpanGroup> spanGroups = new ArrayList<>();
 
     public SplitRollupSpanGroup(SpanGroup... groups) {
@@ -413,27 +413,5 @@ public class SplitRollupSpanGroup implements DataPoints {
      */
     public byte[] group() {
         return spanGroups.get(0).group();
-    }
-
-    /**
-     * Finds the {@code i}th data point of this group in {@code O(n)}.
-     * Where {@code n} is the number of data points in this group.
-     */
-    private DataPoint getDataPoint(int i) {
-        if (i < 0) {
-            throw new IndexOutOfBoundsException("negative index: " + i);
-        }
-        final int saved_i = i;
-        final SeekableView it = iterator();
-        DataPoint dp = null;
-        while (it.hasNext() && i >= 0) {
-            dp = it.next();
-            i--;
-        }
-        if (i != -1 || dp == null) {
-            throw new IndexOutOfBoundsException("index " + saved_i
-                    + " too large (it's >= " + size() + ") for " + this);
-        }
-        return dp;
     }
 }

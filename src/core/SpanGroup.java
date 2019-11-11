@@ -45,7 +45,7 @@ import net.opentsdb.rollup.RollupQuery;
  * {@link Aggregator}) are given.  This is done by using a special
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
-final class SpanGroup implements DataPoints {
+final class SpanGroup extends AbstractSpanGroup {
   /** Annotations */
   private final ArrayList<Annotation> annotations;
 
@@ -527,28 +527,6 @@ final class SpanGroup implements DataPoints {
                                   aggregator.interpolationMethod(),
                                   downsampler, query_start, query_end,
                                   rate, rate_options, rollup_query);
-  }
-
-  /**
-   * Finds the {@code i}th data point of this group in {@code O(n)}.
-   * Where {@code n} is the number of data points in this group.
-   */
-  private DataPoint getDataPoint(int i) {
-    if (i < 0) {
-      throw new IndexOutOfBoundsException("negative index: " + i);
-    }
-    final int saved_i = i;
-    final SeekableView it = iterator();
-    DataPoint dp = null;
-    while (it.hasNext() && i >= 0) {
-      dp = it.next();
-      i--;
-    }
-    if (i != -1 || dp == null) {
-      throw new IndexOutOfBoundsException("index " + saved_i
-          + " too large (it's >= " + size() + ") for " + this);
-    }
-    return dp;
   }
 
   public long timestamp(final int i) {
