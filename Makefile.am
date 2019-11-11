@@ -32,6 +32,7 @@ dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb \
   build-aux/rpm/systemd/opentsdb@.service
 tsdb_SRC := \
+	src/core/AbstractQuery.java \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\

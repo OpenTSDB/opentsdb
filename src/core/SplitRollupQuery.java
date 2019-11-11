@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-public class SplitRollupQuery implements Query {
+public class SplitRollupQuery extends AbstractQuery {
 
     private TSDB tsdb;
 
@@ -317,57 +317,6 @@ public class SplitRollupQuery implements Query {
             rollupQuery.downsample(interval, downsampler, fill_policy);
         }
         rawQuery.downsample(interval, downsampler, fill_policy);
-    }
-
-    /**
-     * Runs this query.
-     *
-     * @return The data points matched by this query.
-     * <p>
-     * Each element in the non-{@code null} but possibly empty array returned
-     * corresponds to one time series for which some data points have been
-     * matched by the query.
-     * @throws HBaseException if there was a problem communicating with HBase to
-     *                        perform the search.
-     */
-    @Override
-    public DataPoints[] run() throws HBaseException {
-        // TODO: Avoid duplication
-        try {
-            return runAsync().joinUninterruptibly();
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Should never be here", e);
-        }
-    }
-
-    /**
-     * Runs this query.
-     *
-     * @return The data points matched by this query and applied with percentile calculation
-     * <p>
-     * Each element in the non-{@code null} but possibly empty array returned
-     * corresponds to one time series for which some data points have been
-     * matched by the query.
-     * @throws HBaseException        if there was a problem communicating with HBase to
-     *                               perform the search.
-     * @throws IllegalStateException if the query is not a histogram query
-     */
-    @Override
-    public DataPoints[] runHistogram() throws HBaseException {
-        // TODO: Avoid duplication
-        if (!isHistogramQuery()) {
-            throw new RuntimeException("Should never be here");
-        }
-
-        try {
-            return runHistogramAsync().joinUninterruptibly();
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Should never be here", e);
-        }
     }
 
     /**

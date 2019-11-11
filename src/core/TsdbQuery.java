@@ -61,7 +61,7 @@ import net.opentsdb.utils.DateTime;
 /**
  * Non-synchronized implementation of {@link Query}.
  */
-final class TsdbQuery implements Query {
+final class TsdbQuery extends AbstractQuery {
 
   private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
 
@@ -739,40 +739,7 @@ final class TsdbQuery implements Query {
       }
     }
   }
-  /**
-   * Executes the query.
-   * NOTE: Do not run the same query multiple times. Construct a new query with
-   * the same parameters again if needed
-   * TODO(cl) There are some strange occurrences when unit testing where the end
-   * time, if not set, can change between calls to run()
-   * @return An array of data points with one time series per array value
-   */
-  @Override
-  public DataPoints[] run() throws HBaseException {
-    try {
-      return runAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  @Override
-  public DataPoints[] runHistogram() throws HBaseException {
-    if (!isHistogramQuery()) {
-      throw new RuntimeException("Should never be here");
-    }
-    
-    try {
-      return runHistogramAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
+
   @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     Deferred<DataPoints[]> result = null;
