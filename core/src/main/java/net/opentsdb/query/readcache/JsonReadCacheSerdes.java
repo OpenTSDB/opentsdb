@@ -200,10 +200,10 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
 
   @Override
   public Map<String, ReadCacheQueryResult> deserialize(
-      final QueryPipelineContext context, 
+      final QueryNode node, 
       final byte[] data) {
-    if (context.query().isTraceEnabled()) {
-      context.queryContext().logTrace("Parsing cached segment: " 
+    if (node.pipelineContext().query().isTraceEnabled()) {
+      node.pipelineContext().queryContext().logTrace("Parsing cached segment: " 
           + new String(data, Const.UTF8_CHARSET));
     }
     Map<String, ReadCacheQueryResult> map = Maps.newHashMap();
@@ -211,7 +211,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
       JsonNode results = JSON.getMapper().readTree(data);
       results = results.get("results");
       for (final JsonNode result : results) {
-        ReadCacheQueryResult r = new JsonCachedResult(null, result, ROLLUP_CONFIG);
+        ReadCacheQueryResult r = new JsonCachedResult(node, result, ROLLUP_CONFIG);
         map.put(r.source().config().getId() + ":" + r.dataSource(), r);
       }
     } catch (IOException e) {
@@ -827,10 +827,10 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
      * @param context The non-null context.
      * @param root The non-null root node.
      */
-    JsonCachedResult(final QueryPipelineContext context,
+    JsonCachedResult(final QueryNode node,
                      final JsonNode root, 
                      final RollupConfig rollup_config) {
-      this(context, root, rollup_config, null);
+      this(node, root, rollup_config, null);
     }
     
     /**
@@ -840,7 +840,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
      * @param root The root node. Cannot be null if the exception is null.
      * @param exception An optional exception.
      */
-    JsonCachedResult(final QueryPipelineContext context,
+    JsonCachedResult(final QueryNode node,
                      final JsonNode root, 
                      final RollupConfig rollup_config,
                      final Exception exception) {
@@ -848,7 +848,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         String temp = root.get("source").asText();
         data_source = temp.substring(temp.indexOf(":") + 1);
         this.node = new CachedQueryNode(temp.substring(0, temp.indexOf(":")), 
-            context);
+            node);
         
         this.exception = exception;
         this.rollup_config = rollup_config;

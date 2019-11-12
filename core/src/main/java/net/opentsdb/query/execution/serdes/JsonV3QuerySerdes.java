@@ -36,6 +36,7 @@ import net.opentsdb.data.types.status.StatusType;
 import net.opentsdb.data.types.status.StatusValue;
 import net.opentsdb.query.processor.summarizer.Summarizer;
 import net.opentsdb.query.processor.topn.TopN;
+import net.opentsdb.query.readcache.CachedQueryNode;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,13 +243,21 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           AtomicInteger ai = new AtomicInteger(0);
           AtomicBoolean wasStatus = new AtomicBoolean(false);
           StringBuilder namespace = new StringBuilder();
-          Collection<QueryNode> topNExists = result.source().pipelineContext().downstreamOfType(result.source(), TopN.class);
+          Collection<QueryNode> topNExists;
+          if (result.source() instanceof CachedQueryNode) {
+            topNExists = result.source().pipelineContext().downstreamOfType(
+                ((CachedQueryNode) result.source()).originalNode(), TopN.class);;
+          } else {
+            topNExists = result.source().pipelineContext().downstreamOfType(result.source(), TopN.class);
+          }
           if (topNExists == null || topNExists.size() == 0) {
-            LOG.debug("Processing the iterators parallelly");
+            List<TimeSeries> tss = result.timeSeries();
+            LOG.debug("Processing the iterators parallelly: " + tss.size());
             final List<Pair<Integer, TimeSeries>> pairs =
-                Lists.newArrayListWithExpectedSize(result.timeSeries().size());
+                Lists.newArrayListWithExpectedSize(tss.size());
             idx = 0;
-            for (final TimeSeries ts : result.timeSeries()) {
+            for (int i = 0; i < tss.size(); i++) {
+              TimeSeries ts = tss.get(i);
               pairs.add(new Pair<Integer, TimeSeries>(idx++, ts));
             }
 

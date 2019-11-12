@@ -77,7 +77,7 @@ public class PBufQueryResult implements QueryResult {
     } catch (IOException e) {
       throw new SerdesException("Failed to parse the query results.", e);
     }
-    this.node = new CachedQueryNode(result.getNodeId(), node.pipelineContext());
+    this.node = new CachedQueryNode(result.getNodeId(), node);
   }
   
   /**

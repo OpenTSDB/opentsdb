@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.stats.StatsCollector;
 import org.slf4j.Logger;
@@ -60,7 +59,8 @@ import java.util.concurrent.TimeUnit;
 public class GroupByNumericArrayIterator
     implements QueryIterator, TimeSeriesValue<NumericArrayType> {
 
-  private static final Logger logger = LoggerFactory.getLogger(GroupByNumericArrayIterator.class);
+  private static final Logger logger = LoggerFactory.getLogger(
+      GroupByNumericArrayIterator.class);
 
   /** The result we belong to. */
   private final GroupByResult result;
@@ -69,12 +69,26 @@ public class GroupByNumericArrayIterator
   private final NumericArrayAggregator aggregator;
 
   /**
-   * Whether or not another real value is present. True while at least one of the time series has a
-   * real value.
+   * Whether or not another real value is present. True while at least one of 
+   * the time series has a real value.
    */
   private volatile boolean has_next = false;
 
-  ExecutorService executor;
+  protected static final int NUM_THREADS = 8;
+
+  protected static List<ExecutorService> executorList;
+
+  static {
+    executorList = new ArrayList<>();
+    for (int i = 0; i < NUM_THREADS; i++) {
+      BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+      // One Thread per executor.
+      ExecutorService executor = new ThreadPoolExecutor(1, 1, 1L, TimeUnit.SECONDS, workQueue);
+      executorList.add(executor);
+    }
+  }
+  
+  protected ExecutorService executor;
 
   private StatsCollector statsCollector;
 
@@ -89,20 +103,6 @@ public class GroupByNumericArrayIterator
   public GroupByNumericArrayIterator(
       final QueryNode node, final QueryResult result, final Map<String, TimeSeries> sources) {
     this(node, result, sources == null ? null : sources.values());
-  }
-
-  static final int NUM_THREADS = 8;
-
-  static List<ExecutorService> executorList;
-
-  static {
-    executorList = new ArrayList<>();
-    for (int i = 0; i < NUM_THREADS; i++) {
-      BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
-      // One Thread per executor.
-      ExecutorService executor = new ThreadPoolExecutor(1, 1, 1L, TimeUnit.SECONDS, workQueue);
-      executorList.add(executor);
-    }
   }
 
   /**
@@ -209,7 +209,8 @@ public class GroupByNumericArrayIterator
     return aggregator;
   }
 
-  private void accumulateInParallel(final Collection<TimeSeries> sources, NumericArrayAggregator[] combiners) {
+  private void accumulateInParallel(final Collection<TimeSeries> sources, 
+                                    final NumericArrayAggregator[] combiners) {
     List<Future<TimeSeriesValue<NumericArrayType>>> futures = new ArrayList<>(sources.size());
     int i = 0;
 

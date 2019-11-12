@@ -40,11 +40,12 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
   /** The ID of this node. */
   protected final String id;
   
-  protected final QueryPipelineContext context;
+  protected final QueryNode original_node;
   
-  public CachedQueryNode(final String id, final QueryPipelineContext context) {
+  public CachedQueryNode(final String id, 
+                         final QueryNode node) {
     this.id = id;
-    this.context = context;
+    this.original_node = node;
   }
   
   @Override
@@ -132,7 +133,7 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
 
   @Override
   public QueryPipelineContext pipelineContext() {
-    return context;
+    return original_node.pipelineContext();
   }
 
   @Override
@@ -171,4 +172,8 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
     throw new UnsupportedOperationException();
   }
 
+  public QueryNode originalNode() {
+    return original_node;
+  }
+  
 }
