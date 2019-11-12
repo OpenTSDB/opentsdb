@@ -174,6 +174,8 @@ public class GroupByNumericArrayIterator
         valuesCombiner[i] = createAggregator(node, factory, size);
       }
 
+      this.statsCollector = tsdb.getStatsCollector();
+
       if (this.result.isSourceProcessInParallel()) {
         logger.debug("Accumulate in parallel, source size {}", sources.size());
         accumulateInParallel(sources, valuesCombiner);
@@ -183,7 +185,6 @@ public class GroupByNumericArrayIterator
           accumulate(source, null);
         }
       }
-      this.statsCollector = tsdb.getStatsCollector();
     } catch (Throwable throwable) {
       logger.error("Error constructing the GroupByNumericArrayIterator", throwable);
       throw new IllegalArgumentException(throwable);
