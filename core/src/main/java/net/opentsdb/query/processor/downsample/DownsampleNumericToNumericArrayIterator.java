@@ -77,10 +77,12 @@ import org.slf4j.LoggerFactory;
  * <p>
  * @since 3.0
  */
-public class DownsampleNumericToNumericArrayIterator implements QueryIterator, TimeSeriesValue<NumericArrayType> {
+public class DownsampleNumericToNumericArrayIterator 
+    implements QueryIterator, TimeSeriesValue<NumericArrayType> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(DownsampleNumericToNumericArrayIterator.class);
+  
   /** The result we belong to. */
   private final DownsampleResult result;
 

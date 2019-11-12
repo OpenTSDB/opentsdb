@@ -115,7 +115,7 @@ public class HttpQueryV3Result implements QueryResult {
                     final Exception exception) {
     this.exception = exception;
     this.rollup_config = rollup_config;
-    this.node = new CachedQueryNode(node.config().getId(), node.pipelineContext());
+    this.node = new CachedQueryNode(node.config().getId(), node);
     if (exception == null && root != null) {
       String temp = root.get("source").asText();
       // TEMP - old versions didn't handle IDs correctly so we override the result.

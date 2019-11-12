@@ -391,7 +391,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
                 final QueryNode node, 
                 final String missing_src) {
       super(result);
-      this.node = new CachedQueryNode(missing_src, node.pipelineContext());
+      this.node = new CachedQueryNode(missing_src, node);
       this.missing_src = missing_src;
     }
     
