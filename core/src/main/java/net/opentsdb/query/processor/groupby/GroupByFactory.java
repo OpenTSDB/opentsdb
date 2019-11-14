@@ -138,6 +138,9 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
+      if (type == NumericSummaryType.TYPE && node.getDownsampleConfig() != null) {
+        return new GroupByNumericSummaryParallelIterator(node, result, sources);
+      }
       return new GroupByNumericSummaryIterator(node, result, sources);
     }
 
@@ -146,6 +149,9 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
+      if (type == NumericSummaryType.TYPE && node.getDownsampleConfig() != null) {
+        return new GroupByNumericSummaryParallelIterator(node, result, sources);
+      }
       return new GroupByNumericSummaryIterator(node, result, sources);
     }
     

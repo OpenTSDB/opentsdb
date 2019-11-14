@@ -26,6 +26,7 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
+import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -239,8 +240,10 @@ public class GroupByNumericArrayIterator
         future.get(); // get will block until the future is done
       } catch (InterruptedException e) {
         logger.error("Unable to get the status of a task", e);
+        throw new QueryDownstreamException(e.getMessage(), e);
       } catch (ExecutionException e) {
         logger.error("Unable to get status of the task", e.getCause());
+        throw new QueryDownstreamException(e.getMessage(), e);
       }
     }
 

@@ -488,7 +488,7 @@ public class DownsampleNumericToNumericArrayIterator
   }
 
   /**
-   * Exercise caution while modifying thie class, keep is super light weight
+   * Exercise caution while modifying this class, keep is super light weight
    * 
    * It might be a bad idea to have the Accumulator as an abstract/interface types due to the
    * reference overheads the abstract/interface types brings to the variable access.
