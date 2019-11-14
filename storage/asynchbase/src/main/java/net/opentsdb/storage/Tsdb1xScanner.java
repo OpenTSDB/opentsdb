@@ -102,7 +102,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   protected PooledObject pooled_object;
   
   /** The scanner owner to report to. */
-  private Tsdb1xScanners owner;
+  private volatile Tsdb1xScanners owner;
   
   /** The actual HBase scanner to execute. */
   private Scanner scanner;
@@ -1095,8 +1095,10 @@ public class Tsdb1xScanner implements CloseablePooledObject {
           (ex instanceof DeferredGroupException ? 
               Exceptions.getCause((DeferredGroupException) ex) : ex));
       state = State.EXCEPTION;
-      owner.exception((ex instanceof DeferredGroupException ? 
-          Exceptions.getCause((DeferredGroupException) ex) : ex));
+      if (owner != null) {
+        owner.exception((ex instanceof DeferredGroupException ? 
+            Exceptions.getCause((DeferredGroupException) ex) : ex));
+      }
       scanner.close();
       clear();
       return null;
