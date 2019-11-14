@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import java.util.Iterator;
 import java.util.Optional;
 
 import com.google.common.reflect.TypeToken;
@@ -62,6 +61,9 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
   /** The source iterator. */
   protected final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
+  /** Whether or not we're using an expected reporting interval. */
+  protected final boolean reporting_average;
+  
   /** Values to populate. */
   protected long[] long_values;
   protected double[] double_values;
@@ -89,9 +91,17 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     this.node = node;
     this.result = (DownsampleResult) result;
     
+    String agg = ((DownsampleConfig) node.config()).getAggregator();
+    if (agg.equalsIgnoreCase("AVG") && 
+        ((DownsampleConfig) node.config()).dpsInInterval() > 0) {
+      reporting_average = true;
+      agg = "sum";
+    } else {
+      reporting_average = false;
+    }
+    
     NumericAggregatorFactory factory = node.pipelineContext().tsdb()
-        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
-            ((DownsampleConfig) node.config()).getAggregator());
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, agg);
     if (factory == null) {
       throw new IllegalArgumentException("No aggregator found for type: " 
           + ((DownsampleConfig) node.config()).getAggregator());
@@ -172,17 +182,25 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
       
       if (accumulator.valueIndex() > 0) {
         accumulator.run(aggregator, ((DownsampleConfig) node.config()).getInfectiousNan());
-        if (accumulator.dp().value().isInteger()) {
-          if (long_values != null) {
-            long_values[i] = accumulator.dp().value().longValue();
-          } else {
-            double_values[i] = accumulator.dp().value().toDouble();
-          }
-        } else {
+        if (reporting_average) {
           if (long_values != null) {
             shift();
           }
-          double_values[i] = accumulator.dp().value().toDouble();
+          double_values[i] = accumulator.dp().value().toDouble() / 
+              ((DownsampleConfig) node.config()).dpsInInterval();
+        } else {
+          if (accumulator.dp().value().isInteger()) {
+            if (long_values != null) {
+              long_values[i] = accumulator.dp().value().longValue();
+            } else {
+              double_values[i] = accumulator.dp().value().toDouble();
+            }
+          } else {
+            if (long_values != null) {
+              shift();
+            }
+            double_values[i] = accumulator.dp().value().toDouble();
+          }
         }
         accumulator.reset();
       } else {

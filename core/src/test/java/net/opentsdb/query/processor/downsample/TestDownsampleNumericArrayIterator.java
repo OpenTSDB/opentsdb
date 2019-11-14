@@ -395,6 +395,47 @@ public class TestDownsampleNumericArrayIterator {
   }
 
   @Test
+  public void reportingAverage() throws Exception {
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(1514764800));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    
+    source = new NumericArrayTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build(), new MillisecondTimeStamp(1000));
+    ((NumericArrayTimeSeries) source).add(1);
+    ((NumericArrayTimeSeries) source).add(5);
+    ((NumericArrayTimeSeries) source).add(2);
+    ((NumericArrayTimeSeries) source).add(1);
+    
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("avg")
+        .setId("foo")
+        .setInterval("2m")
+        .setReportingInterval("30s")
+        .setStart("1514764800")
+        .setEnd("1514765040")
+        .addInterpolatorConfig(numeric_config)
+        .build();
+    when(node.config()).thenReturn(config);
+    
+    DownsampleNumericArrayIterator iterator = 
+        new DownsampleNumericArrayIterator(node, result, source);
+    assertEquals(2, iterator.intervals);
+    assertTrue(iterator.hasNext());
+    
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertSame(start, value.timestamp());
+    assertFalse(value.value().isInteger());
+    assertEquals(2, value.value().doubleArray().length);
+    assertEquals(1.5, value.value().doubleArray()[0], 0.001);
+    assertEquals(0.75, value.value().doubleArray()[1], 0.001);
+    assertEquals(0, value.value().offset());
+    assertEquals(2, value.value().end());
+  }
+  
+  @Test
   public void noData() throws Exception {
     when(time_spec.start()).thenReturn(new SecondTimeStamp(1514764800));
     when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));

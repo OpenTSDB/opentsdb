@@ -101,6 +101,9 @@ public class DownsampleNumericIterator implements QueryIterator {
   /** The current interval timestamp marking the start of the interval. */
   private TimeStamp interval_ts;
   
+  /** Whether or not we're using an expected reporting interval. */
+  protected final boolean reporting_average;
+  
   /** Whether or not the iterator has another real or filled value. */
   private boolean has_next;
   
@@ -136,20 +139,29 @@ public class DownsampleNumericIterator implements QueryIterator {
     }
     this.result = (DownsampleResult) result;
     this.source = source;
+    config = (DownsampleConfig) node.config();
+    final QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericType.TYPE);
+    if (interpolator_config == null) {
+      throw new IllegalArgumentException("No interpolator config found for type");
+    }
+    
+    String agg = config.getAggregator();
+    if (agg.equalsIgnoreCase("AVG") && config.dpsInInterval() > 0) {
+      reporting_average = true;
+      agg = "sum";
+    } else {
+      reporting_average = false;
+    }
+    
     NumericAggregatorFactory agg_factory = node.pipelineContext().tsdb()
-        .getRegistry().getPlugin(NumericAggregatorFactory.class, 
-            ((DownsampleConfig) node.config()).getAggregator());
+        .getRegistry().getPlugin(NumericAggregatorFactory.class, agg);
     if (agg_factory == null) {
       throw new IllegalArgumentException("No aggregator found for type: " 
           + ((DownsampleConfig) node.config()).getAggregator());
     }
     aggregator = agg_factory.newAggregator(
         ((DownsampleConfig) node.config()).getInfectiousNan());
-    config = (DownsampleConfig) node.config();
-    final QueryInterpolatorConfig interpolator_config = config.interpolatorConfig(NumericType.TYPE);
-    if (interpolator_config == null) {
-      throw new IllegalArgumentException("No interpolator config found for type");
-    }
+    
     
     final QueryInterpolatorFactory factory = node.pipelineContext()
         .tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
@@ -247,6 +259,11 @@ public class DownsampleNumericIterator implements QueryIterator {
         has_next = true;
       }
     }
+    
+    if (reporting_average) {
+      response.resetValue((double) response.toDouble() / config.dpsInInterval());
+    }
+    
     return response;
   }
   

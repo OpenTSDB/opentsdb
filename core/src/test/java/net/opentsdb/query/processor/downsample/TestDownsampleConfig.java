@@ -68,6 +68,8 @@ public class TestDownsampleConfig {
         .setInterval("15s")
         .setStart("1514843302")
         .setEnd("1514846902")
+        .setMinInterval("5s")
+        .setReportingInterval("1s")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();
@@ -75,6 +77,8 @@ public class TestDownsampleConfig {
     assertEquals("foo", config.getId());
     assertEquals(Duration.of(15, ChronoUnit.SECONDS), config.interval());
     assertEquals(15, config.intervalPart());
+    assertEquals("5s", config.getMinInterval());
+    assertEquals(15, config.dpsInInterval());
     assertFalse(config.getFill());
     assertEquals(ZoneId.of("UTC"), config.timezone());
     assertEquals(ChronoUnit.SECONDS, config.units());
@@ -256,6 +260,8 @@ public class TestDownsampleConfig {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
+        .setMinInterval("5s")
+        .setReportingInterval("1s")
         .setStart("1514843302")
         .setEnd("1514846902")
         .addInterpolatorConfig(numeric_config)
@@ -265,6 +271,8 @@ public class TestDownsampleConfig {
     final String json = JSON.serializeToString(config);
     assertTrue(json.contains("\"id\":\"foo\""));
     assertTrue(json.contains("\"interval\":\"15s\""));
+    assertTrue(json.contains("\"minInterval\":\"5s\""));
+    assertTrue(json.contains("\"reportingInterval\":\"1s\""));
     assertTrue(json.contains("\"timezone\":\"UTC\""));
     assertTrue(json.contains("\"aggregator\":\"sum\""));
     assertTrue(json.contains("\"fill\":false"));
@@ -284,9 +292,6 @@ public class TestDownsampleConfig {
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     
     JsonNode node = JSON.getMapper().readTree(json);
-//    System.out.println("JSON: " + json);
-//    System.out.println(node.get("start").asText());
-
     DownsampleFactory factory = new DownsampleFactory();
     config = (DownsampleConfig) factory.parseConfig(JSON.getMapper(), tsdb, node);
     
@@ -294,12 +299,13 @@ public class TestDownsampleConfig {
     assertEquals("foo", config.getId());
     assertEquals(Duration.of(15, ChronoUnit.SECONDS), config.interval());
     assertEquals(15, config.intervalPart());
+    assertEquals("5s", config.getMinInterval());
+    assertEquals(15, config.dpsInInterval());
     assertFalse(config.getFill());
     assertEquals(ZoneId.of("UTC"), config.timezone());
     assertEquals(ChronoUnit.SECONDS, config.units());
     assertFalse(config.getInfectiousNan());
     assertEquals(15, config.intervalPart());
-//    assertNull(config.startTime());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals(DownsampleFactory.TYPE, config.getType());

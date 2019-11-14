@@ -136,6 +136,11 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
       builder.setMinInterval(n.asText());
     }
     
+    n = node.get("reportingInterval");
+    if (n != null && !n.isNull()) {
+      builder.setReportingInterval(n.asText());
+    }
+    
     n = node.get("id");
     if (n != null) {
       builder.setId(n.asText());

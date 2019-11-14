@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -77,6 +76,9 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
   
   /** The data point returned by this iterator. */
   private MutableNumericSummaryValue dp;
+  
+  /** Whether or not we're using an expected reporting interval. */
+  protected final boolean reporting_average;
   
   /**
    * Default ctor. This will seek to the proper source timestamp.
@@ -172,6 +174,14 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
           this.result.nextTimestamp(interval_ts);
         }
       }
+    }
+    
+    String agg = config.getAggregator();
+    if (agg.equalsIgnoreCase("AVG") && config.dpsInInterval() > 0) {
+      reporting_average = true;
+      agg = "sum";
+    } else {
+      reporting_average = false;
     }
     
     dp = new MutableNumericSummaryValue();
@@ -400,7 +410,8 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
           // no-op since one is missing
           // TODO log or count as a metric
         } else {
-          dp.resetValue(avg_id, (sum.toDouble() / count.toDouble()));
+          dp.resetValue(avg_id, (sum.toDouble() / 
+              (reporting_average ? config.dpsInInterval() : count.toDouble())));
         }
         dp.resetTimestamp(interval_start);
       } else if (aggregator.name().equals("count")) {

@@ -3056,6 +3056,57 @@ public class TestDownsampleNumericIterator {
     assertFalse(it.hasNext());
   }
   
+  @Test
+  public void reportingInterval() throws Exception {
+    // behaves the same with the difference that the old version would return the
+    // first value at BASE_TIME but now we skip it.
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
+          .setMetric("a")
+          .build(), 
+        new MillisecondTimeStamp(BASE_TIME), 
+        new MillisecondTimeStamp(BASE_TIME + 10000000));
+    ((NumericMillisecondShard) source).add(BASE_TIME + 5000L, 1.5);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 15000L, 2.75);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 25000L, 4.0);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 35000L, 8.25);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 45000L, 16.33);
+    ((NumericMillisecondShard) source).add(BASE_TIME + 55000L, 32.6); // falls outside of end interval
+    
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("avg")
+        .setId("foo")
+        .setInterval("15s")
+        .setReportingInterval("1s")
+        .addInterpolatorConfig(numeric_config)
+        .build();
+    
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 55000L);
+    final DownsampleNumericIterator it = 
+        new DownsampleNumericIterator(node, result, source);
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1356998400000L, v.timestamp().msEpoch());
+    assertEquals(1.5 / 15, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1356998415000L, v.timestamp().msEpoch());
+    assertEquals(6.75 / 15, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1356998430000L, v.timestamp().msEpoch());
+    assertEquals(8.25 / 15, v.value().doubleValue(), 0.001);
+    
+    assertTrue(it.hasNext());
+    v = (TimeSeriesValue<NumericType>) it.next();
+    assertEquals(1356998445000L, v.timestamp().msEpoch());
+    assertEquals(48.93 / 15, v.value().doubleValue(), 0.001);
+    
+    assertFalse(it.hasNext());
+  }
+  
   private QueryResult setupMock(final long start, final long end) throws Exception {
     return setupMock(Long.toString(start), Long.toString(end));
   }
