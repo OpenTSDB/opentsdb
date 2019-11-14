@@ -3405,6 +3405,34 @@ public class TestDownsampleNumericSummaryIterator {
     assertEquals(8, i);
   }
   
+  @Test
+  public void reportingInterval() throws Exception {
+    setConfig("avg", "1h", false, BASE_TIME, BASE_TIME + (3600 * 7L * 1000L));
+    
+    config = config.toBuilder()
+        .setReportingInterval("1m")
+        .build();
+    when(node.config()).thenReturn(config);
+    
+    DownsampleNumericSummaryIterator it = 
+        new DownsampleNumericSummaryIterator(node, result, source);
+    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
+      .Downsampler ds = it.new Downsampler();
+    
+    double[] avgs = new double[] { 0.7, 0.4, 0.6, 0.033 };
+    long ts = BASE_TIME;
+    int i = 0;
+    while (ds.hasNext()) {
+      final TimeSeriesValue<NumericSummaryType> tsv = 
+          (TimeSeriesValue<NumericSummaryType>) ds.next();
+      assertEquals(ts, tsv.timestamp().msEpoch());
+      assertEquals(avgs[i++], tsv.value().value(5).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
+    }
+    assertEquals(4, i);
+  }
+  
   void setConfig(final String agg, final String interval, boolean runall, long start, long end) throws Exception {
     setConfig(agg, interval, runall, FillPolicy.NONE, FillWithRealPolicy.NONE, start, end);
   }

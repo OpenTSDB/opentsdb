@@ -748,6 +748,58 @@ public class TestDownsampleNumericToNumericArrayIterator {
     }
 
   }
+  
+  @Test
+  public void reportingInterval() throws Exception {
+    // behaves the same with the difference that the old version would return the
+    // first value at BASE_TIME but now we skip it.
+    long BASE_TIME = 1514764800000L;
+    source = setSource(BASE_TIME);
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("avg")
+        .setId("foo")
+        .setInterval("10s")
+        .setReportingInterval("1s")
+        .setStart("1514764800")
+        .setEnd("1514765040")
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 5000L * 10);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
+        .getPlugin(NumericArrayAggregatorFactory.class, "sum");
+    if (factory == null) {
+      throw new IllegalArgumentException(
+          "No numeric array aggregator factory found for type: " + "sum");
+    }
+
+    NumericArrayAggregator numericArrayAggregator =
+        factory.newAggregator(config.getInfectiousNan());
+
+    double[] nans = new double[config.intervals()];
+    Arrays.fill(nans, Double.NaN);
+    numericArrayAggregator.accumulate(nans);
+
+    it.nextPool(numericArrayAggregator);
+
+    double[] doubleArray = numericArrayAggregator.doubleArray();
+
+    assertEquals(doubleArray.length, 24);
+
+    assertFalse(it.hasNext());
+
+    assertEquals(0.3, doubleArray[0], 0.0);
+    assertEquals(1.2, doubleArray[1], 0.0);
+    assertEquals(4.80, doubleArray[2], 0.0);
+    assertEquals(19.20, doubleArray[3], 0.0);
+    assertEquals(76.80, doubleArray[4], 0.0);
+    for (int i = 5; i < 24; i++) {
+      assertTrue(Double.isNaN(doubleArray[i]));
+    }
+
+  }
 
   @Test
   public void downsample10SecondsDoubleAndLongMix() throws Exception {

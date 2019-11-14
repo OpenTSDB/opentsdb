@@ -67,6 +67,14 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   private final String interval;
   private final String original_interval;
   private final String min_interval;
+  
+  /** An optional reporting interval for regular metrics. */
+  private final String reporting_interval;
+  private final long reporting_interval_ms;
+  
+  /** Compute the number of values we expect in this interval if reporting is
+   * set. */
+  private final int dps_in_interval;
 
   /** The timezone for the downsample snapping. Defaults to UTC. */
   private final ZoneId timezone;
@@ -127,6 +135,12 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
 
     intervals = builder.intervals;
     min_interval = builder.minInterval;
+    reporting_interval = builder.reportingInterval;
+    if (!Strings.isNullOrEmpty(reporting_interval)) {
+      reporting_interval_ms = DateTime.parseDuration(reporting_interval);
+    } else {
+      reporting_interval_ms = 0;
+    }
     timezone = builder.timezone != null ? ZoneId.of(builder.timezone) : Const.UTC;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
@@ -209,6 +223,14 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         end_time.snapToPreviousInterval(interval_part, units);
       }
     }
+    
+    if (reporting_interval_ms > 0 && 
+        (DateTime.parseDuration(interval) % reporting_interval_ms) != 0) {
+      throw new IllegalArgumentException("The interval must be an multiple of "
+          + "the reporting interval.");
+    }
+    dps_in_interval = reporting_interval_ms < 1 ? 0 : 
+      (int) (DateTime.parseDuration(interval) / reporting_interval_ms);
 
     // make sure we have at least one interval in our range
     // TODO - propper difference function
@@ -226,6 +248,14 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
 
   public String getMinInterval() {
     return min_interval;
+  }
+  
+  public String getReportingInterval() {
+    return reporting_interval;
+  }
+  
+  public int dpsInInterval() {
+    return dps_in_interval;
   }
   
   /** @return The non-null timezone. */
@@ -372,6 +402,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     return new Builder()
         .setInterval(interval)
         .setMinInterval(min_interval)
+        .setReportingInterval(reporting_interval)
         .setTimeZone(timezone.toString())
         .setAggregator(aggregator)
         .setInfectiousNan(infectious_nan)
@@ -396,6 +427,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         .setInfectiousNan(config.infectious_nan)
         .setInterval(config.interval)
         .setMinInterval(config.min_interval)
+        .setReportingInterval(config.reporting_interval)
         .setTimeZone(config.timezone.toString())
         .setIntervals(config.intervals)
         .setOriginalInterval(config.original_interval)
@@ -425,6 +457,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     
     return Objects.equal(timezone.toString(), dsconfig.getTimezone())
             && Objects.equal(min_interval, dsconfig.min_interval)
+            && Objects.equal(reporting_interval, dsconfig.reporting_interval)
             && Objects.equal(original_interval, dsconfig.original_interval)
             && Objects.equal(aggregator, dsconfig.getAggregator())
             && Objects.equal(infectious_nan, dsconfig.getInfectiousNan())
@@ -443,6 +476,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(min_interval), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(reporting_interval), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(timezone.toString()), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
             .putBoolean(infectious_nan)
@@ -465,11 +499,14 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder<Builder, DownsampleConfig> {
+  public static class Builder extends 
+      BaseQueryNodeConfigWithInterpolators.Builder<Builder, DownsampleConfig> {
     @JsonProperty
     private String interval;
     @JsonProperty
     private String minInterval;
+    @JsonProperty
+    private String reportingInterval;
     @JsonProperty
     private String timezone;
     @JsonProperty
@@ -519,6 +556,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
 
     public Builder setMinInterval(final String interval) {
       this.minInterval = interval;
+      return this;
+    }
+    
+    public Builder setReportingInterval(final String reporting_interval) {
+      reportingInterval = reporting_interval;
       return this;
     }
     
