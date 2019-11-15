@@ -429,8 +429,8 @@ public class TestDownsampleNumericArrayIterator {
     assertSame(start, value.timestamp());
     assertFalse(value.value().isInteger());
     assertEquals(2, value.value().doubleArray().length);
-    assertEquals(1.5, value.value().doubleArray()[0], 0.001);
-    assertEquals(0.75, value.value().doubleArray()[1], 0.001);
+    assertEquals(0.75, value.value().doubleArray()[0], 0.001);
+    assertEquals(0.375, value.value().doubleArray()[1], 0.001);
     assertEquals(0, value.value().offset());
     assertEquals(2, value.value().end());
   }

@@ -224,14 +224,23 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
       }
     }
     
-    if (reporting_interval_ms > 0 && 
-        (DateTime.parseDuration(interval) % reporting_interval_ms) != 0) {
-      throw new IllegalArgumentException("The interval must be an multiple of "
-          + "the reporting interval.");
+    if (reporting_interval_ms > 0) {
+      if (interval.equalsIgnoreCase("0all")) {
+        dps_in_interval = (int) ((end_time.msEpoch() - start_time.msEpoch()) / reporting_interval_ms);
+      } else if (interval.equalsIgnoreCase("auto")) {
+        dps_in_interval = 0;
+      } else {
+        final long ds = DateTime.parseDuration(interval);
+        if ((ds % reporting_interval_ms) != 0) {
+          throw new IllegalArgumentException("The interval must be an multiple of "
+              + "the reporting interval.");
+        }
+        dps_in_interval = (int) (ds / reporting_interval_ms);
+      }
+    } else {
+      dps_in_interval = 0;
     }
-    dps_in_interval = reporting_interval_ms < 1 ? 0 : 
-      (int) (DateTime.parseDuration(interval) / reporting_interval_ms);
-
+    
     // make sure we have at least one interval in our range
     // TODO - propper difference function
     if (start_time != null && end_time.msEpoch() - start_time.msEpoch() <

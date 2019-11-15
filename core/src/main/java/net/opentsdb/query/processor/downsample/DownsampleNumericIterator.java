@@ -260,10 +260,6 @@ public class DownsampleNumericIterator implements QueryIterator {
       }
     }
     
-    if (reporting_average) {
-      response.resetValue((double) response.toDouble() / config.dpsInInterval());
-    }
-    
     return response;
   }
   
@@ -471,6 +467,21 @@ public class DownsampleNumericIterator implements QueryIterator {
       } else {
         dp.resetTimestamp(interval_start);
         aggregator.run(double_values, 0, value_idx, false/* TODO -!! */, dp);
+      }
+      
+      if (reporting_average) {
+        int count = 0;
+        if (long_values != null) {
+          count = value_idx;
+        } else {
+          for (int i = 0; i < value_idx; i++) {
+            if (!Double.isNaN(double_values[i])) {
+              count++;
+            }
+          }
+        }
+        dp.resetValue((double) dp.toDouble() / 
+            Math.max(config.dpsInInterval(), count));
       }
       
       result.nextTimestamp(interval_start);

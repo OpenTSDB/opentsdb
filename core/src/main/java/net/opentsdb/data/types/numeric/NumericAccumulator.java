@@ -70,6 +70,14 @@ public class NumericAccumulator {
   public int valueIndex() {
     return value_idx;
   }
+    
+  public long[] longValues() {
+    return long_values;
+  }
+  
+  public double[] doubleValues() {
+    return double_values;
+  }
   
   /**
    * Adds a long value to the proper array.

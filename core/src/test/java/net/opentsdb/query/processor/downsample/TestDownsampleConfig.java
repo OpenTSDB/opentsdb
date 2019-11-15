@@ -219,6 +219,20 @@ public class TestDownsampleConfig {
         .build();
     assertEquals("1m", config.getInterval());
     
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("auto")
+        .setReportingInterval("10s")
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .setIntervals(factory.intervals())
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .addSource("m1")
+        .build();
+    assertEquals("1m", config.getInterval());
+    
     // delta to small for auto
     try {
       DownsampleConfig.newBuilder()
