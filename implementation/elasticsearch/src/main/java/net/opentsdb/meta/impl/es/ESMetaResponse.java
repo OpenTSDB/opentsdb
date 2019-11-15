@@ -670,8 +670,9 @@ public class ESMetaResponse implements MetaResponse {
       final MetaQuery meta_query,
       final SearchResponse response,
       NamespacedAggregatedDocumentResult result) {
-    return parseTimeseries(query, meta_query, response, null, result);
+      return parseTimeseries(query, meta_query, response, null, result);
   }
+
 
   NamespacedAggregatedDocumentResult parseTimeseries(
       final BatchMetaQuery query,

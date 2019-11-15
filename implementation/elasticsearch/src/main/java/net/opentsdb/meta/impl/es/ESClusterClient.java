@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.meta.impl.es;
 
+import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.KEY_PREFIX;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -33,9 +35,9 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.meta.DefaultMetaQuery;
 import net.opentsdb.meta.MetaQuery;
-import net.opentsdb.meta.impl.MetaClient;
 import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
 import net.opentsdb.meta.NamespacedKey;
+import net.opentsdb.meta.impl.MetaClient;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 import org.elasticsearch.action.ActionListener;
@@ -52,8 +54,6 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.KEY_PREFIX;
 
 /**
  * A single cluster client.
@@ -95,6 +95,7 @@ public class ESClusterClient extends BaseTSDBPlugin
   public String type() {
     return TYPE;
   }
+
 
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -334,7 +335,6 @@ public class ESClusterClient extends BaseTSDBPlugin
             }
             timeouts.get(idx).cancel();
           }
-
           if (local != null) {
             local.setSuccessTags().setTag("responses", response.getResponses().length).finish();
           }
@@ -407,11 +407,6 @@ public class ESClusterClient extends BaseTSDBPlugin
                         TimeValue.timeValueMillis(tsdb.getConfig().getLong(getConfigKey(QUERY_TIMEOUT_KEY))));
             multi_search.add(request_builder);
 
-            if (context != null) {
-              if (excludes != null && excludes.length > 0) {
-                request_builder.setFetchSource(null, excludes);
-              }
-            }
           }
           if (LOG.isTraceEnabled()) {
             LOG.trace("[" + clusters.get(idx) + "] Sending ES Query: " + query.toString());
@@ -456,9 +451,13 @@ public class ESClusterClient extends BaseTSDBPlugin
   @Override
   public ESMetaQuery buildMultiGetQuery(BatchMetaQuery batchMetaQuery) {
     ESMetaQuery esMetaQuery = buildQuery(batchMetaQuery);
-    for (final Map.Entry<NamespacedKey, List<SearchSourceBuilder>> search_entry: esMetaQuery.getQuery().entrySet()){
+    for (final Map.Entry<NamespacedKey, List<SearchSourceBuilder>> search_entry : esMetaQuery
+        .getQuery().entrySet()) {
       for (SearchSourceBuilder searchSourceBuilder : search_entry.getValue()) {
         searchSourceBuilder.size(tsdb.getConfig().getInt(getConfigKey(MAX_RESULTS_KEY)));
+        if (excludes != null && excludes.length > 0) {
+          searchSourceBuilder.fetchSource(null, excludes);
+        }
       }
     }
     return esMetaQuery;
