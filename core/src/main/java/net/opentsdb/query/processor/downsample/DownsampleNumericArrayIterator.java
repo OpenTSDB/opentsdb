@@ -95,7 +95,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     if (agg.equalsIgnoreCase("AVG") && 
         ((DownsampleConfig) node.config()).dpsInInterval() > 0) {
       reporting_average = true;
-      agg = "sum";
+      //agg = "sum";
     } else {
       reporting_average = false;
     }
@@ -186,8 +186,19 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
           if (long_values != null) {
             shift();
           }
+          // blech, manual avg for now since we need the counts.
+          int count = 0;
+          if (accumulator.longValues() != null) {
+            count = accumulator.valueIndex();
+          } else {
+            for (int x = 0; x < accumulator.valueIndex(); x++) {
+              if (!Double.isNaN(accumulator.doubleValues()[x])) {
+                count++;
+              }
+            }
+          }
           double_values[i] = accumulator.dp().value().toDouble() / 
-              ((DownsampleConfig) node.config()).dpsInInterval();
+              Math.max(((DownsampleConfig) node.config()).dpsInInterval(), count);
         } else {
           if (accumulator.dp().value().isInteger()) {
             if (long_values != null) {

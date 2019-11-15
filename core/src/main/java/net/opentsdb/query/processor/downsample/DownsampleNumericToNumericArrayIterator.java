@@ -358,20 +358,15 @@ public class DownsampleNumericToNumericArrayIterator
 
         break;
       case avg:
-
         if (localDoubleAggs[5] == 0 && localLongAggs[5] == 0) {
           v = (localDoubleAggs[0] + localLongAggs[0]) / 
-              (config.dpsInInterval() > 0 ?
-                  config.dpsInInterval() : 
-                    (localDoubleAggs[1] + localLongAggs[1]));
+              Math.max(config.dpsInInterval(), (localDoubleAggs[1] + localLongAggs[1]));
         } else if (localLongAggs[5] == 0) {
           v = (double) localLongAggs[0] / (double) 
-              (config.dpsInInterval() > 0 ?
-                  config.dpsInInterval() : localLongAggs[1]);
+              Math.max(config.dpsInInterval(), localLongAggs[1]);
         } else if (localDoubleAggs[5] == 0) {
           v = localDoubleAggs[0] / 
-              (config.dpsInInterval() > 0 ?
-                  config.dpsInInterval() : localDoubleAggs[1]);
+              Math.max(config.dpsInInterval() , localDoubleAggs[1]);
         }
 
         break;

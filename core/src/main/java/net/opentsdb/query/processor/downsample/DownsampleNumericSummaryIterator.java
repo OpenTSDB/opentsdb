@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.downsample;
 
 import java.util.Map;
 import java.util.Map.Entry;
+
 import java.util.Optional;
 
 import com.google.common.collect.Maps;
@@ -49,7 +50,6 @@ import net.opentsdb.rollup.DefaultRollupConfig;
  * @since 3.0
  */
 public class DownsampleNumericSummaryIterator implements QueryIterator {
-  
   /** The result we belong to. */
   private final DownsampleResult result;
   
@@ -76,9 +76,6 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
   
   /** The data point returned by this iterator. */
   private MutableNumericSummaryValue dp;
-  
-  /** Whether or not we're using an expected reporting interval. */
-  protected final boolean reporting_average;
   
   /**
    * Default ctor. This will seek to the proper source timestamp.
@@ -178,10 +175,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     
     String agg = config.getAggregator();
     if (agg.equalsIgnoreCase("AVG") && config.dpsInInterval() > 0) {
-      reporting_average = true;
       agg = "sum";
-    } else {
-      reporting_average = false;
     }
     
     dp = new MutableNumericSummaryValue();
@@ -411,7 +405,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
           // TODO log or count as a metric
         } else {
           dp.resetValue(avg_id, (sum.toDouble() / 
-              (reporting_average ? config.dpsInInterval() : count.toDouble())));
+              Math.max(config.dpsInInterval(), count.toDouble())));
         }
         dp.resetTimestamp(interval_start);
       } else if (aggregator.name().equals("count")) {
