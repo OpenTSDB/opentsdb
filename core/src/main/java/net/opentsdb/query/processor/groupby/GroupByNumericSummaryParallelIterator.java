@@ -49,7 +49,6 @@ import net.opentsdb.utils.DateTime;
  *
  */
 public class GroupByNumericSummaryParallelIterator implements QueryIterator {
-
   /** Whether or not NaNs are sentinels or real values. */
   private final boolean infectious_nan;
   
@@ -100,6 +99,8 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     
     // TODO
     expect_sums_and_counts = false;
+    final int num_parallel = Math.min(sources.size(), 
+        GroupByNumericArrayIterator.NUM_THREADS);
     
     DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
     if (null == downsampleConfig) {
@@ -113,7 +114,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     agg = AggEnum.valueOf(((GroupByConfig) node.config()).getAggregator().toLowerCase());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     dp = new MutableNumericSummaryValue();
-    accumulators = new Accumulator[GroupByNumericArrayIterator.NUM_THREADS];
+    accumulators = new Accumulator[num_parallel];
     for (int i = 0; i < accumulators.length; i++) {
       accumulators[i] = new Accumulator(i);
     }
@@ -138,9 +139,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       futures.add(future);
     }
     
-    for (Future<Void> future : futures) {
+    for (i = 0; i < futures.size(); i++) {
       try {
-        future.get(); // get will block until the future is done
+        futures.get(i).get(); // get will block until the future is done
       } catch (InterruptedException e) {
         throw new QueryDownstreamException(e.getMessage(), e);
       } catch (ExecutionException e) {
@@ -187,6 +188,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       case sum:
       case count:
         for (int x = 0; x < intervals; x++) {
+          if (Double.isInfinite(accumulators[i].accumulator[x])) {
+            continue;
+          }
           if (Double.isInfinite(results[x])) {
             results[x] = accumulators[i].accumulator[x];
           } else {
@@ -196,6 +200,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         break;
       case min:
         for (int x = 0; x < intervals; x++) {
+          if (Double.isInfinite(accumulators[i].accumulator[x])) {
+            continue;
+          }
           if (Double.isInfinite(results[x])) {
             results[x] = accumulators[i].accumulator[x];
           } else {
@@ -208,6 +215,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       case max:
       case last: // WARNING: Last has no meaning in group by.
         for (int x = 0; x < intervals; x++) {
+          if (Double.isInfinite(accumulators[i].accumulator[x])) {
+            continue;
+          }
           if (Double.isInfinite(results[x])) {
             results[x] = accumulators[i].accumulator[x];
           } else {
@@ -219,6 +229,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         break;
       case avg:
         for (int x = 0; x < intervals; x++) {
+          if (Double.isInfinite(accumulators[i].accumulator[x])) {
+            continue;
+          }
           if (Double.isInfinite(results[x])) {
             results[x] = accumulators[i].accumulator[x];
           } else {
@@ -233,7 +246,17 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     
     if (agg == AggEnum.avg) {
       for (int i = 0; i < intervals; i++) {
-        results[i] = results[i] / counts[i];
+        if (Double.isInfinite(results[i])) {
+          results[i] = Double.NaN;
+        } else {
+          results[i] = results[i] / counts[i];
+        }
+      }
+    } else {
+      for (int i = 0; i < intervals; i++) {
+        if (Double.isInfinite(results[i])) {
+          results[i] = Double.NaN;
+        }
       }
     }
   }
