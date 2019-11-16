@@ -257,9 +257,39 @@ public class TestGroupByNumericSummaryParallelIterator {
     assertEquals(192, i);
   }
   
+  @Test
+  public void twoSeries() throws Exception {
+    setupDataLongs(0, false, 2);
+    setupMock("sum");
+    
+    GroupByNumericSummaryParallelIterator iterator = 
+        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+    long ts = BASE_TIME;
+    int i = 0;
+    double v = 0;
+    while (iterator.hasNext()) {
+      TimeSeriesValue<NumericSummaryType> tsv = 
+          (TimeSeriesValue<NumericSummaryType>) iterator.next();
+      assertEquals(ts, tsv.timestamp().epoch());
+      assertEquals(v, tsv.value().value(0).doubleValue(), 0.001);
+      ts += 3600;
+      if (v == 0) {
+        v = 2;
+      } else {
+        v += 2;
+      }
+      i++;
+    }
+    assertEquals(192, i);
+  }
+  
   void setupDataLongs(final int summary, final boolean gaps) {
+    setupDataLongs(summary, gaps, 64);
+  }
+  
+  void setupDataLongs(final int summary, final boolean gaps, final int count) {
     time_series = Lists.newArrayList();
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < count; i++) {
       MockTimeSeries series = new MockTimeSeries(
           BaseTimeSeriesStringId.newBuilder()
           .setMetric(Integer.toString(i))
