@@ -193,7 +193,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
       @Override
       public Map<NamespacedKey, MetaDataStorageResult> call(final MetaResponse results) {
-        return results.parse(query, 
+        return results.parse(query,
             tsdb, 
             null, 
             false, 
@@ -306,7 +306,6 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
 
         @Override
         public MetaDataStorageResult call(final MetaResponse results) {
-
           Map<NamespacedKey, MetaDataStorageResult> parse = results.parse(
               query, 
               tsdb, 
