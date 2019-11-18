@@ -199,7 +199,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans, 0, 0);
-    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     HistogramSpan span = spans.get(key_a);
@@ -232,7 +232,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans, 0, 0);
 
-    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     HistogramSpan span = spans.get(key_a);
@@ -267,7 +267,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans, 0, 0);
 
-    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     HistogramSpan span = spans.get(key_a);
@@ -301,7 +301,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, filters, false, null, query_stats, 0, spans, 0, 0);
 
-    assertTrue(Maps.difference(spans, scanner.scan().joinUninterruptibly()).areEqual());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(0, spans.size());
   }
 
