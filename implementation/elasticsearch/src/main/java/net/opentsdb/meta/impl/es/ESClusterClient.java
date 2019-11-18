@@ -430,7 +430,6 @@ public class ESClusterClient extends BaseTSDBPlugin
                     new QueryTimer(),
                     tsdb.getConfig().getLong(getConfigKey(QUERY_TIMEOUT_KEY)),
                     TimeUnit.MILLISECONDS));
-
         multi_search.execute().addListener(new FutureCB());
       } catch (Exception e) {
         LOG.error("Failed to execute query: " + query, e);
