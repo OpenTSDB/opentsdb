@@ -572,8 +572,7 @@ public class DownsampleNumericToNumericArrayIterator
 
   @Override
   public TimeStamp timestamp() {
-    // TODO Auto-generated method stub
-    return null;
+    return result.start();
   }
 
   @Override
