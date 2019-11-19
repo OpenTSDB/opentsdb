@@ -144,5 +144,9 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
     }
     
   }
-  
+
+  @Override
+  public boolean processInParallel() {
+    return false;
+  }
 }

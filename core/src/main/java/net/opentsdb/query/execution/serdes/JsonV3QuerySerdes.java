@@ -243,18 +243,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           AtomicInteger ai = new AtomicInteger(0);
           AtomicBoolean wasStatus = new AtomicBoolean(false);
           StringBuilder namespace = new StringBuilder();
-          Collection<QueryNode> topNExists;
-          if (result.source() instanceof CachedQueryNode) {
-            topNExists = result.source().pipelineContext().downstreamOfType(
-                ((CachedQueryNode) result.source()).originalNode(), TopN.class);;
-          } else {
-            topNExists = result.source().pipelineContext().downstreamOfType(result.source(), TopN.class);
-          }
-          boolean serialize_parallel = result.processInParallel();
-          if (topNExists != null && topNExists.size() != 0) {
-            serialize_parallel = false;
-          }
-          if (serialize_parallel) {
+
+          if (result.processInParallel()) {
             List<TimeSeries> tss = result.timeSeries();
             LOG.debug("Processing the iterators parallelly: " + tss.size());
             final List<Pair<Integer, TimeSeries>> pairs =
