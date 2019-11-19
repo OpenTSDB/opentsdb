@@ -292,7 +292,7 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().doubleValue(), 0.001);
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
@@ -727,15 +727,15 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
   }
   
   @Test
@@ -814,15 +814,15 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(8, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
   }
   
 }

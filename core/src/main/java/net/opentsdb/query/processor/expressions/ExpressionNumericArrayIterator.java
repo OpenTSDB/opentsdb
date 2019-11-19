@@ -767,6 +767,7 @@ public class ExpressionNumericArrayIterator extends
             double_values[idx++] = -right[right_idx++];
           } else if (Double.isNaN(right[right_idx])) {
             double_values[idx++] = -left[left_idx];
+            right_idx++;
           } else {
             double_values[idx++] = -(left[left_idx] + right[right_idx++]);
           }
@@ -780,6 +781,7 @@ public class ExpressionNumericArrayIterator extends
             double_values[idx++] = right[right_idx++];
           } else if (Double.isNaN(right[right_idx])) {
             double_values[idx++] = left[left_idx];
+            right_idx++;
           } else {
             double_values[idx++] = left[left_idx] + right[right_idx++];
           }
@@ -839,6 +841,7 @@ public class ExpressionNumericArrayIterator extends
             double_values[idx++] = -right[right_idx++];
           } else if (Double.isNaN(right[right_idx])) {
             double_values[idx++] = -left[left_idx];
+            right_idx++;
           } else {
             double_values[idx++] = -(left[left_idx] - right[right_idx++]);
           }
@@ -852,6 +855,7 @@ public class ExpressionNumericArrayIterator extends
             double_values[idx++] = right[right_idx++];
           } else if (Double.isNaN(right[right_idx])) {
             double_values[idx++] = left[left_idx];
+            right_idx++;
           } else {
             double_values[idx++] = left[left_idx] - right[right_idx++];
           }
@@ -895,7 +899,7 @@ public class ExpressionNumericArrayIterator extends
           double_values[idx++] = -(left[left_idx] / right[right_idx++]);
         } else if (Double.isNaN(left[left_idx]) || 
                   (Double.isNaN(right[right_idx]))) {
-          double_values[idx++] = 0;
+          double_values[idx++] = Double.NaN;
           right_idx++;
         } else {
           double_values[idx++] = -(left[left_idx] / right[right_idx++]);
@@ -911,7 +915,7 @@ public class ExpressionNumericArrayIterator extends
           double_values[idx++] = left[left_idx] / right[right_idx++];
         } else if (Double.isNaN(left[left_idx]) || 
             (Double.isNaN(right[right_idx]))) {
-          double_values[idx++] = 0;
+          double_values[idx++] = Double.NaN;
           right_idx++;
         } else {
           double_values[idx++] = left[left_idx] / right[right_idx++];
@@ -971,7 +975,7 @@ public class ExpressionNumericArrayIterator extends
             double_values[idx++] = -(left[left_idx] * right[right_idx++]);
           } else if (Double.isNaN(left[left_idx]) || 
               (Double.isNaN(right[right_idx]))) {
-            double_values[idx++] = 0;
+            double_values[idx++] = Double.NaN;
             right_idx++;
           } else {
             double_values[idx++] = -(left[left_idx] * right[right_idx++]);
@@ -984,7 +988,7 @@ public class ExpressionNumericArrayIterator extends
             double_values[idx++] = left[left_idx] * right[right_idx++];
           } else if (Double.isNaN(left[left_idx]) || 
               (Double.isNaN(right[right_idx]))) {
-            double_values[idx++] = 0;
+            double_values[idx++] = Double.NaN;
             right_idx++;
           } else {
             double_values[idx++] = left[left_idx] * right[right_idx++];
