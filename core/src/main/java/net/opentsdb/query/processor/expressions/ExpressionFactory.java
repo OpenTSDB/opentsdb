@@ -87,7 +87,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
                          final ExpressionConfig config,
                          final QueryPlanner plan) {
     // parse the expression
-    final ExpressionConfig c = config;
+    ExpressionConfig c = config;
     final ExpressionParser parser = new ExpressionParser(c);
     final List<ExpressionParseNode> configs = parser.parse();
     
@@ -98,6 +98,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     
     final List<QueryNodeConfig> new_nodes = 
         Lists.newArrayListWithCapacity(configs.size());
+    int variables = 0;
     for (final ExpressionParseNode parse_node : configs) {
       ExpressionParseNode.Builder builder = parse_node.toBuilder()
           .setSources(Lists.newArrayList());
@@ -111,6 +112,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
       // we may need to fix up variable names. Do so by searching 
       // recursively.
       if (parse_node.getLeftType() == OperandType.VARIABLE) {
+        variables++;
         String ds = validate(builder, true, plan, config, 0);
         if (ds == null) {
           throw new RuntimeException("Failed to find a data source for the "
@@ -121,6 +123,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
       
       // TODO - this double walk is silly and ugly, fix me!
       if (parse_node.getRightType() == OperandType.VARIABLE) {
+        variables++;
         String ds = validate(builder, false, plan, config, 0);
         if (ds == null) {
           throw new RuntimeException("Failed to find a data source for the "
@@ -136,25 +139,34 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     }
     configs.clear();
     
+    if (variables <= 1 && !config.getInfectiousNan()) {
+      // We need to set infectious nan to true in case we have only one metric.
+      ExpressionConfig new_config = (ExpressionConfig) c.toBuilder()
+          .setInfectiousNan(true)
+          .build();
+      plan.replace(config, new_config);
+      c = new_config;
+    }
+    
     // remove the old config and get the in and outgoing edges.
     final List<QueryNodeConfig> upstream = Lists.newArrayList();
-    for (final QueryNodeConfig n : plan.configGraph().predecessors(config)) {
+    for (final QueryNodeConfig n : plan.configGraph().predecessors(c)) {
       upstream.add(n);
     }
     for (final QueryNodeConfig n : upstream) {
-      plan.configGraph().removeEdge(n, config);
+      plan.configGraph().removeEdge(n, c);
     }
     
     final List<QueryNodeConfig> downstream = Lists.newArrayList();
-    for (final QueryNodeConfig n : plan.configGraph().successors(config)) {
+    for (final QueryNodeConfig n : plan.configGraph().successors(c)) {
       downstream.add(n);
     }
     for (final QueryNodeConfig n : downstream) {
-      plan.configGraph().removeEdge(config, n);
+      plan.configGraph().removeEdge(c, n);
     }
     
     // now yank ourselves out and link.
-    plan.configGraph().removeNode(config);
+    plan.configGraph().removeNode(c);
     for (final QueryNodeConfig node : new_nodes) {
       List<String> sources = node.getSources();
       for (final String source : sources) {

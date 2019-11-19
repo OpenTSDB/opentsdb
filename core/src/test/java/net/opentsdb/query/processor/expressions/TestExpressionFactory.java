@@ -21,14 +21,18 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Set;
 
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -104,7 +108,8 @@ public class TestExpressionFactory {
           .addSource("m1")
           .build());
     
-    QueryPlanner plan = mock(QueryPlanner.class);
+    List<QueryNodeConfig> replacements = Lists.newArrayList();
+    QueryPlanner plan = mockPlanner(replacements, graph);
     when(plan.configGraph()).thenReturn(graph);
     when(plan.getMetricForDataSource(any(QueryNodeConfig.class), anyString()))
       .thenReturn("sys.cpu.user");
@@ -164,7 +169,8 @@ public class TestExpressionFactory {
         .addInterpolatorConfig(NUMERIC_CONFIG);
     builder.setId("expression");
     ExpressionConfig exp = builder.build();
-    QueryPlanner plan = mock(QueryPlanner.class);
+    List<QueryNodeConfig> replacements = Lists.newArrayList();
+    QueryPlanner plan = mockPlanner(replacements, graph);
     when(plan.configGraph()).thenReturn(graph);
     when(plan.getMetricForDataSource(any(QueryNodeConfig.class), anyString()))
       .thenReturn("sys.cpu.user");
@@ -234,6 +240,14 @@ public class TestExpressionFactory {
     builder.setId("expression");
     ExpressionConfig exp = builder.build();
     DefaultQueryPlanner plan = mock(DefaultQueryPlanner.class);
+    List<QueryNodeConfig> replacements = Lists.newArrayList();
+    doAnswer(new Answer() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        replacements.add((QueryNodeConfig) invocation.getArguments()[1]);
+        return null;
+      }
+    }).when(plan).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
     when(plan.configGraph()).thenReturn(graph);
     when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
       .thenReturn("sys.cpu.user");
@@ -271,6 +285,7 @@ public class TestExpressionFactory {
     assertEquals("downsample:m2", p1.getRightId());
     assertEquals(OperandType.VARIABLE, p1.getRightType());
     assertEquals(ExpressionOp.ADD, p1.getOperator());
+    assertTrue(replacements.isEmpty());
   }
   
   @Test
@@ -645,7 +660,8 @@ public class TestExpressionFactory {
     builder.setId("expression");
     ExpressionConfig exp = builder.build();
     
-    QueryPlanner plan = mock(QueryPlanner.class);
+    List<QueryNodeConfig> replacements = Lists.newArrayList();
+    QueryPlanner plan = mockPlanner(replacements, graph);
     when(plan.configGraph()).thenReturn(graph);
     when(plan.getMetricForDataSource(any(QueryNodeConfig.class), eq("m1")))
       .thenReturn("sys.cpu.user");
@@ -768,6 +784,131 @@ public class TestExpressionFactory {
     assertFalse(graph.hasEdgeConnecting(SINK, b1));
   }
   
+  @Test
+  public void setupGraph1MetricSetsInfectiousNan() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    List<QueryNodeConfig> query = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+          .setMetric(MetricLiteralFilter.newBuilder()
+              .setMetric("sys.cpu.user")
+              .build())
+          .setFilterId("f1")
+          .setId("m1")
+          .build(),
+        ExpressionConfig.newBuilder()
+          .setExpression("m1 + 42")
+          .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+              .setJoinType(JoinType.NATURAL)
+              .build())
+          .addInterpolatorConfig(NUMERIC_CONFIG)
+          .setId("expression")
+          .addSource("m1")
+          .build());
+    
+    List<QueryNodeConfig> replacements = Lists.newArrayList();
+    QueryPlanner plan = mockPlanner(replacements, graph);
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), anyString()))
+      .thenReturn("sys.cpu.user");
+    when(plan.getDataSourceIds(any(QueryNodeConfig.class)))
+      .thenReturn(Lists.newArrayList("m1:m1"));
+    
+    graph.putEdge(query.get(1), query.get(0));
+    graph.putEdge(SINK, query.get(1));
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), 
+        (ExpressionConfig) query.get(1), plan);
+    assertEquals(3, graph.nodes().size());
+    assertTrue(graph.nodes().contains(query.get(0)));
+    assertFalse(graph.nodes().contains(query.get(1)));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    QueryNodeConfig b1 = graph.predecessors(query.get(0)).iterator().next();
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.hasEdgeConnecting(b1, query.get(0)));
+    assertTrue(graph.hasEdgeConnecting(SINK, b1));
+    
+    ExpressionParseNode p1 = (ExpressionParseNode) b1;
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1:m1", p1.getLeftId());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals(42, ((NumericLiteral) p1.getRight()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertNull(p1.getRightId());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
+    assertTrue(((ExpressionConfig) replacements.get(0)).getInfectiousNan());
+  }
+  
+  @Test
+  public void setupGraph1MetricAlreadyInfectious() throws Exception {
+    ExpressionFactory factory = new ExpressionFactory();
+    MutableGraph<QueryNodeConfig> graph = GraphBuilder.directed()
+        .allowsSelfLoops(false).build();
+    
+    List<QueryNodeConfig> query = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+          .setMetric(MetricLiteralFilter.newBuilder()
+              .setMetric("sys.cpu.user")
+              .build())
+          .setFilterId("f1")
+          .setId("m1")
+          .build(),
+        ExpressionConfig.newBuilder()
+          .setExpression("m1 + 42")
+          .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+              .setJoinType(JoinType.NATURAL)
+              .build())
+          .setInfectiousNan(true)
+          .addInterpolatorConfig(NUMERIC_CONFIG)
+          .setId("expression")
+          .addSource("m1")
+          .build());
+    
+    QueryPlanner plan = mock(QueryPlanner.class);
+    List<QueryNodeConfig> replacements = Lists.newArrayList();
+    doAnswer(new Answer() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        replacements.add((QueryNodeConfig) invocation.getArguments()[1]);
+        return null;
+      }
+    }).when(plan).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
+    when(plan.configGraph()).thenReturn(graph);
+    when(plan.getMetricForDataSource(any(QueryNodeConfig.class), anyString()))
+      .thenReturn("sys.cpu.user");
+    when(plan.getDataSourceIds(any(QueryNodeConfig.class)))
+      .thenReturn(Lists.newArrayList("m1:m1"));
+    
+    graph.putEdge(query.get(1), query.get(0));
+    graph.putEdge(SINK, query.get(1));
+    
+    factory.setupGraph(mock(QueryPipelineContext.class), 
+        (ExpressionConfig) query.get(1), plan);
+    assertEquals(3, graph.nodes().size());
+    assertTrue(graph.nodes().contains(query.get(0)));
+    assertFalse(graph.nodes().contains(query.get(1)));
+    assertTrue(graph.nodes().contains(SINK));
+    
+    QueryNodeConfig b1 = graph.predecessors(query.get(0)).iterator().next();
+    assertEquals("BinaryExpression", b1.getType());
+    assertTrue(graph.hasEdgeConnecting(b1, query.get(0)));
+    assertTrue(graph.hasEdgeConnecting(SINK, b1));
+    
+    ExpressionParseNode p1 = (ExpressionParseNode) b1;
+    assertEquals("expression", p1.getId());
+    assertEquals("sys.cpu.user", p1.getLeft());
+    assertEquals("m1:m1", p1.getLeftId());
+    assertEquals(OperandType.VARIABLE, p1.getLeftType());
+    assertEquals(42, ((NumericLiteral) p1.getRight()).longValue());
+    assertEquals(OperandType.LITERAL_NUMERIC, p1.getRightType());
+    assertNull(p1.getRightId());
+    assertEquals(ExpressionOp.ADD, p1.getOperator());
+    assertTrue(replacements.isEmpty());
+  }
   // TODO - this requires more work to function correctly. We need the expression
   // node to take ANY metric from `m1` instead of a single metric.
 //  @Test
@@ -837,5 +978,33 @@ public class TestExpressionFactory {
 //    assertTrue(graph.hasEdgeConnecting(SINK, p1));
 //    assertEquals(1, graph.predecessors(p1).size());
 //  }
-  
+ 
+  QueryPlanner mockPlanner(List<QueryNodeConfig> replacements,
+                           MutableGraph<QueryNodeConfig> graph) {
+    QueryPlanner plan = mock(QueryPlanner.class);
+    doAnswer(new Answer() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        QueryNodeConfig replacement = (QueryNodeConfig) invocation.getArguments()[1];
+        replacements.add(replacement);
+        QueryNodeConfig extant = (QueryNodeConfig) invocation.getArguments()[0];
+        Set<QueryNodeConfig> pred = Sets.newHashSet(graph.predecessors(extant));
+        Set<QueryNodeConfig> suc = Sets.newHashSet(graph.successors(extant));
+        
+        for (final QueryNodeConfig node : pred) {
+          graph.removeEdge(node, extant);
+          graph.putEdge(node, replacement);
+        }
+        
+        for (final QueryNodeConfig node : suc) {
+          graph.removeEdge(extant, node);
+          graph.putEdge(extant, node);
+        }
+        
+        graph.removeNode(extant);
+        return null;
+      }
+    }).when(plan).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
+    return plan;
+  }
 }
