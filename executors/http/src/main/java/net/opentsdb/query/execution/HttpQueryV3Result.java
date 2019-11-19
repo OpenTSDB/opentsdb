@@ -214,7 +214,7 @@ public class HttpQueryV3Result implements QueryResult {
 
   @Override
   public boolean processInParallel() {
-    return false;
+    return true;
   }
 
   class TimeSpec implements TimeSpecification {

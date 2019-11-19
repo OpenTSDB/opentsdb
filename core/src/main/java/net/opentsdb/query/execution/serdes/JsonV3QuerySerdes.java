@@ -250,7 +250,11 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           } else {
             topNExists = result.source().pipelineContext().downstreamOfType(result.source(), TopN.class);
           }
-          if (topNExists == null || topNExists.size() == 0) {
+          boolean serialize_parallel = result.processInParallel();
+          if (topNExists != null && topNExists.size() != 0) {
+            serialize_parallel = false;
+          }
+          if (serialize_parallel) {
             List<TimeSeries> tss = result.timeSeries();
             LOG.debug("Processing the iterators parallelly: " + tss.size());
             final List<Pair<Integer, TimeSeries>> pairs =
