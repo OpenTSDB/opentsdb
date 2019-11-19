@@ -17,7 +17,6 @@ package net.opentsdb.query.processor.downsample;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -305,7 +304,9 @@ public class Downsample extends AbstractQueryNode {
         
         if (config.getProcessAsArrays() && type == NumericArrayType.TYPE) {
           final TypedTimeSeriesIterator<TimeSeriesDataType> iterator =
-              new DownsampleNumericToNumericArrayIterator(Downsample.this, DownsampleResult.this,
+              new DownsampleNumericToNumericArrayIterator(
+                  Downsample.this, 
+                  DownsampleResult.this,
                   source);
           return Optional.of(iterator);
         }
@@ -328,18 +329,20 @@ public class Downsample extends AbstractQueryNode {
         final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
             Lists.newArrayListWithCapacity(types.size());
         
-        for (final TypeToken<? extends TimeSeriesDataType> type : types) {
-          if (config.getProcessAsArrays() && type == NumericArrayType.TYPE) {
+        for (final TypeToken<? extends TimeSeriesDataType> type : source.types()) {
+          if (config.getProcessAsArrays() && type == NumericType.TYPE) {
             final TypedTimeSeriesIterator<TimeSeriesDataType> iterator =
-                new DownsampleNumericToNumericArrayIterator(Downsample.this, DownsampleResult.this,
+                new DownsampleNumericToNumericArrayIterator(
+                    Downsample.this, 
+                    DownsampleResult.this,
                     source);
             iterators.add(iterator);
           } else {
-          iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
-              type, 
-              Downsample.this, 
-              DownsampleResult.this,
-              Lists.newArrayList(source)));
+            iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
+                type, 
+                Downsample.this, 
+                DownsampleResult.this,
+                Lists.newArrayList(source)));
           }
         }
         return iterators;
@@ -348,8 +351,9 @@ public class Downsample extends AbstractQueryNode {
       @Override
       public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
         // TODO - join with the factories supported.
-        if (config.getProcessAsArrays() && (source.types().contains(NumericType.TYPE)
-            || source.types().contains(NumericArrayType.TYPE))) {
+        if (config.getProcessAsArrays() && 
+            (source.types().contains(NumericType.TYPE)
+              || source.types().contains(NumericArrayType.TYPE))) {
           return Lists.newArrayList(NumericArrayType.TYPE);
         } else {
           return source.types();

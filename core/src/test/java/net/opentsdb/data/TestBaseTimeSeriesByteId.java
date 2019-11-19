@@ -235,31 +235,31 @@ public class TestBaseTimeSeriesByteId {
     
     final byte[] array2 = new byte[] { 'm', 'e', 'h' };
     
-    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
-        .setAlias(array2)  // <-- diff
-        .setNamespace(ARRAY)
-        .setMetric(ARRAY)
-        .setTags(TAGS)
-        .setAggregatedTags(LIST)
-        .setDisjointTags(LIST)
-        .setUniqueId(SET)
-        .build();
-    assertNotEquals(id1.hashCode(), id2.hashCode());
-    assertNotEquals(id1, id2);
-    assertEquals(-1, id1.compareTo(id2));
+//    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
+//        .setAlias(array2)  // <-- diff
+//        .setNamespace(ARRAY)
+//        .setMetric(ARRAY)
+//        .setTags(TAGS)
+//        .setAggregatedTags(LIST)
+//        .setDisjointTags(LIST)
+//        .setUniqueId(SET)
+//        .build();
+//    assertNotEquals(id1.hashCode(), id2.hashCode());
+//    assertNotEquals(id1, id2);
+//    assertEquals(-1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
-        //.setAlias(ARRAY)  // <-- diff
-        .setNamespace(ARRAY)
-        .setMetric(ARRAY)
-        .setTags(TAGS)
-        .setAggregatedTags(LIST)
-        .setDisjointTags(LIST)
-        .setUniqueId(SET)
-        .build();
-    assertNotEquals(id1.hashCode(), id2.hashCode());
-    assertNotEquals(id1, id2);
-    assertEquals(1, id1.compareTo(id2));
+//    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
+//        //.setAlias(ARRAY)  // <-- diff
+//        .setNamespace(ARRAY)
+//        .setMetric(ARRAY)
+//        .setTags(TAGS)
+//        .setAggregatedTags(LIST)
+//        .setDisjointTags(LIST)
+//        .setUniqueId(SET)
+//        .build();
+//    assertNotEquals(id1.hashCode(), id2.hashCode());
+//    assertNotEquals(id1, id2);
+//    assertEquals(1, id1.compareTo(id2));
     
     id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
