@@ -178,8 +178,14 @@ public class GroupByNumericArrayIterator
       this.statsCollector = tsdb.getStatsCollector();
 
       if (this.result.isSourceProcessInParallel()) {
+        if (logger.isTraceEnabled()) {
+          logger.trace("Accumulate in parallel, source size {}", sources.size());
+        }
         accumulateInParallel(sources, valuesCombiner);
       } else {
+        if (logger.isTraceEnabled()) {
+          logger.trace("Accumulate in sequence, source size {}", sources.size());
+        }
         for (TimeSeries source : sources) {
           accumulate(source, null);
         }
