@@ -49,6 +49,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       new MutableNumericType(0);
   public static final MutableNumericType ONE_SUBSTITUTE = 
       new MutableNumericType(1);
+  public static final MutableNumericType NAN_SUBSTITUTE = 
+      new MutableNumericType(Double.NaN);
   
   /** The node we belong to */
   protected final BinaryExpressionNode node;
@@ -462,10 +464,10 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         return null;
       }
       if (left == null) {
-        left = ZERO_SUBSTITUTE;
+        left = NAN_SUBSTITUTE;
       }
       if (right == null) {
-        right = ONE_SUBSTITUTE;
+        right = NAN_SUBSTITUTE;
       }
     }
     
@@ -482,12 +484,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       }
     } else {
       if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
-        if (infectious_nan || 
-            (Double.isNaN(left.toDouble()) && Double.isNaN(right.toDouble()))) {
-          value.set(Double.NaN);
-        } else {
-          value.set(0.0);
-        }
+        value.set(Double.NaN);
       } else {
         if (Math.abs(0.0 - right.toDouble()) <= EPSILON) {
           value.set(0.0);
@@ -526,10 +523,10 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
         return null;
       }
       if (left == null) {
-        left = ONE_SUBSTITUTE;
+        left = NAN_SUBSTITUTE;
       }
       if (right == null) {
-        right = ONE_SUBSTITUTE;
+        right = NAN_SUBSTITUTE;
       }
     }
     
@@ -542,12 +539,7 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       }
     } else {
       if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
-        if (infectious_nan || 
-            (Double.isNaN(left.toDouble()) && Double.isNaN(right.toDouble()))) {
-          value.set(Double.NaN);
-        } else {
-          value.set(0.0);
-        }
+        value.set(Double.NaN);
       } else {
         if (((ExpressionParseNode) node.config()).getNegate()) {
           value.set(-(left.toDouble() * right.toDouble())); 

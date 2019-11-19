@@ -202,9 +202,9 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
     
     final TimeSeriesByteId id = (TimeSeriesByteId) o;
     
-    if (Bytes.memcmpMaybeNull(alias, id.alias()) != 0) {
-      return false;
-    }
+//    if (Bytes.memcmpMaybeNull(alias, id.alias()) != 0) {
+//      return false;
+//    }
     if (Bytes.memcmpMaybeNull(namespace(), id.namespace()) != 0) {
       return false;
     }
@@ -238,9 +238,9 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   public long buildHashCode() {
     try {
       final ByteArrayOutputStream buf = new ByteArrayOutputStream();
-      if (!Bytes.isNullOrEmpty(alias)) {
-        buf.write(alias);
-      }
+//      if (!Bytes.isNullOrEmpty(alias)) {
+//        buf.write(alias);
+//      }
       if (!Bytes.isNullOrEmpty(namespace)) {
         buf.write(namespace);
       }
