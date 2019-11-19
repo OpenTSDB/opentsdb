@@ -184,7 +184,7 @@ public class Tsdb1xQueryResult implements QueryResult {
 
   @Override
   public boolean processInParallel() {
-    return false;
+    return true;
   }
 
   /** @return True if the byte or data point limit has been exceeded. */
