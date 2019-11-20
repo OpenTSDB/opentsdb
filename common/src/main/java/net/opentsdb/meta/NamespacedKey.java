@@ -30,6 +30,7 @@ public class NamespacedKey {
   /*** Id of the query. Default is -1. Passthrough constructor, not modifiable */
   private final String id;
 
+
   /***
    * Constructor
    * @param namespace namespace of the query
@@ -66,4 +67,14 @@ public class NamespacedKey {
   public int hashCode() {
     return Objects.hashCode(namespace, id);
   }
+
+  @Override
+  public String toString() {
+    return "NamespacedKey{" +
+        "namespace='" + namespace + '\'' +
+        ", id='" + id + '\'' +
+        '}';
+  }
+
 }
+

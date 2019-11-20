@@ -131,26 +131,24 @@ public class TestNamespacedAggregatedDocumentQuery {
     String s = source.get(0).toString().replaceAll("\n", "")
         .replaceAll(" ", "");
     assertTrue(s.contains("\"size\":0"));
-    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":"
-        + "{\"bool\":{\"must\":[{\"regexp\":{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":"
-        + "\".*\"}}]}},\"path\":\"tags\"}}}},{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":"
-        + "{\"AM_nested.name.lowercase\":[\"system.cpu.busy\"]}}}},\"path\":\"AM_nested\"}}]}},"
-        + "\"aggregations\":{\"tagk_agg\":{\"nested\":{\"path\":\"tags\"},\"aggregations\":"
-        + "{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":{\"must\":[{\"regexp\":"
-        + "{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":\".*\"}}]}}}},\"aggregations\":"
-        + "{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}"));
+    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":"
+        + "{\"filter\":{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}},\"path\":\"tags\"}}}},"
+        + "{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\":"
+        + "[\"system.cpu.busy\"]}}}},\"path\":\"AM_nested\"}}]}},\"aggregations\":{\"tagk_agg\":{\"nested\":"
+        + "{\"path\":\"tags\"},\"aggregations\":{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":"
+        + "{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}}}},\"aggregations\":{\"unique_tagks\":"
+        + "{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}}"));
 
     s = source.get(1).toString().replaceAll("\n", "")
         .replaceAll(" ", "");
     assertTrue(s.contains("\"size\":0"));
     assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":"
-        + "{\"bool\":{\"must\":[{\"regexp\":{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":"
-        + "\".*\"}}]}},\"path\":\"tags\"}}}},{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":"
-        + "{\"AM_nested.name.lowercase\":[\"system.cpu.idle\"]}}}},\"path\":\"AM_nested\"}}]}},"
-        + "\"aggregations\":{\"tagk_agg\":{\"nested\":{\"path\":\"tags\"},\"aggregations\":"
-        + "{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":{\"must\":[{\"regexp\":"
-        + "{\"tags.value\":\".*\"}},{\"regexp\":{\"tags.key.lowercase\":\".*\"}}]}}}},\"aggregations\":"
-        + "{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}"));
+        + "{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}},\"path\":\"tags\"}}}},"
+        + "{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\":"
+        + "[\"system.cpu.idle\"]}}}},\"path\":\"AM_nested\"}}]}},\"aggregations\":{\"tagk_agg\":"
+        + "{\"nested\":{\"path\":\"tags\"},\"aggregations\":{\"unique_tagks\":{\"filter\":{\"bool\":"
+        + "{\"must\":{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}}}},\"aggregations\":"
+        + "{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}}"));
 
   }
 
