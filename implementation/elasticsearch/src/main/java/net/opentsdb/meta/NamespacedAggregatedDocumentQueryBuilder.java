@@ -444,6 +444,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return null;
   }
 
+
   public static NamespacedAggregatedDocumentQueryBuilder newBuilder(
       final BatchMetaQuery query) {
     return new NamespacedAggregatedDocumentQueryBuilder(query);
