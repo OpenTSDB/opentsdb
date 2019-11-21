@@ -449,7 +449,9 @@ public class ESClusterClient extends BaseTSDBPlugin
 
   @Override
   public ESMetaQuery buildMultiGetQuery(BatchMetaQuery batchMetaQuery) {
-    ESMetaQuery esMetaQuery = buildQuery(batchMetaQuery);
+    Map<NamespacedKey, List<SearchSourceBuilder>> search_source_builder =
+        NamespacedAggregatedDocumentQueryBuilder.newBuilder(batchMetaQuery).setIsMultiGet().build();
+    ESMetaQuery esMetaQuery = new ESMetaQuery(search_source_builder);
     for (final Map.Entry<NamespacedKey, List<SearchSourceBuilder>> search_entry : esMetaQuery
         .getQuery().entrySet()) {
       for (SearchSourceBuilder searchSourceBuilder : search_entry.getValue()) {
