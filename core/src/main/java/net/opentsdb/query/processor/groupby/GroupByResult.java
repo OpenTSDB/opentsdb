@@ -36,6 +36,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
 /**
  * A result from the {@link GroupBy} node for a segment. The grouping is 
@@ -72,7 +73,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
     if (next == null) {
       throw new IllegalArgumentException("Query results cannot be null.");
     }
-    this.sourceProcessInParallel = next.processInParallel();
+    // TODO - temp hack around till we can get the proper method.
+    this.sourceProcessInParallel = next instanceof DownsampleResult; //next.processInParallel();
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
