@@ -75,7 +75,6 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   public static final String TAGS_UNIQUE = "unique_tags";
   public static final String TAGS_SUB_AGG = "tags_sub_agg";
   public static final String TAGS_SUB_UNIQUE = "unique_sub_tags";
-  public static final String TAG_KEYS_INDEX_SUFFIX = "_tagkeys";
 
   public final Map<NamespacedKey, List<SearchSourceBuilder>> search_source_builders;
 
@@ -215,10 +214,14 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof TagKeyLiteralOrFilter) {
       String filter_str = filter.filter().toLowerCase();
       String[] filter_literals = filter_str.split("\\|");
-      ((BoolFilterBuilder) builder).must(FilterBuilders.termsFilter(QUERY_TAG_KEY_KEY, filter_literals));
+      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter
+              (QUERY_TAG_VALUE_KEY, ".*"))
+              .must(FilterBuilders.termsFilter(QUERY_TAG_KEY_KEY, filter_literals));
 
     } else if (filter instanceof TagKeyRegexFilter) {
-      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, convertToLuceneRegex(filter.filter())));
+      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, ".*"))
+              .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, convertToLuceneRegex(filter
+                .filter())));
     }
     if (nested) {
       return FilterBuilders.nestedFilter(TAG_PATH, builder);
@@ -441,20 +444,6 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return null;
   }
 
-  private boolean containsTagValueFilter(QueryFilter filter) {
-
-    if (filter instanceof TagValueFilter) {
-      return true;
-    }
-
-    if (filter instanceof ChainFilter) {
-      for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-        return containsTagValueFilter(sub_filter);
-      }
-    }
-    return false;
-  }
-
   public static NamespacedAggregatedDocumentQueryBuilder newBuilder(
       final BatchMetaQuery query) {
     return new NamespacedAggregatedDocumentQueryBuilder(query);
@@ -558,11 +547,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
             search_source_builders_list.add(search_source_builder);
           }
         }
-
-        String index = containsTagValueFilter(meta_query.filter()) ? meta_query.namespace().toLowerCase() :
-            (meta_query.namespace()+TAG_KEYS_INDEX_SUFFIX).toLowerCase();
         search_source_builders
-            .put(new NamespacedKey(index, meta_query.id()),
+            .put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
                 search_source_builders_list);
       }
 
