@@ -65,6 +65,9 @@ public interface TimeSeriesDataSourceConfig<
   /** @return Whether or not to fetch just the last (latest) value. */
   public boolean getFetchLast();
 
+  /** @return Whether or not to fetch just the summary*/
+  public boolean getSummaryOnly();
+
   /** @return An optional summary interval from an upstream downsampler. */
   public String getSummaryInterval();
 
@@ -123,6 +126,8 @@ public interface TimeSeriesDataSourceConfig<
     B setQueryFilter(final QueryFilter filter);
     
     B setFetchLast(final boolean fetch_last);
+
+    B setSummaryOnly(final boolean summary_only);
 
     B setSummaryInterval(final String summary_interval);
 

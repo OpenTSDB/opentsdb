@@ -86,6 +86,9 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   /** Whether or not to fetch only the last value. */
   private final boolean fetch_last;
 
+  /** Whether or not to fetch only the summary. */
+  private final boolean summary_only;
+
   /** An optional list of nodes to push down to the driver. */
   private final List<QueryNodeConfig> push_down_nodes;
 
@@ -130,6 +133,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     filter_id = builder.filterId;
     filter = builder.filter;
     fetch_last = builder.fetchLast;
+    summary_only = builder.summaryOnly;
     push_down_nodes = builder.push_down_nodes == null ?
         Collections.emptyList() : builder.push_down_nodes;
     summary_interval = builder.summary_interval;
@@ -208,6 +212,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   @Override
   public boolean getFetchLast() {
     return fetch_last;
+  }
+
+  @Override
+  public boolean getSummaryOnly() {
+    return summary_only;
   }
 
   @Override
@@ -305,6 +314,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
             && Objects.equal(metric, tsconfig.getMetric())
             && Objects.equal(filter, tsconfig.getFilter())
             && Objects.equal(fetch_last, tsconfig.getFetchLast())
+            && Objects.equal(summary_only, tsconfig.getSummaryOnly())
             && Objects.equal(interval, tsconfig.getTimeShiftInterval());
 
     if (!result) {
@@ -332,7 +342,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
             .putString(Strings.nullToEmpty(namespace), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(filter_id), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
-            .putBoolean(fetch_last);
+            .putBoolean(fetch_last)
+            .putBoolean(summary_only);
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(4);
 
@@ -368,6 +379,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
         .setFilterId(config.getFilterId())
         .setQueryFilter(config.getFilter())
         .setFetchLast(config.getFetchLast())
+        .setSummaryOnly(config.getSummaryOnly())
         .setFrom(config.getFrom())
         .setSize(config.getSize())
         .setDataSourceId(config.getDataSourceId())
@@ -468,6 +480,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     n = node.get("fetchLast");
     if (n != null) {
       builder.setFetchLast(n.asBoolean());
+    }
+
+    n = node.get("summaryOnly");
+    if (n != null) {
+      builder.setSummaryOnly(n.asBoolean());
     }
 
     n = node.get("filterId");
@@ -585,6 +602,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     protected QueryFilter filter;
     @JsonProperty
     protected boolean fetchLast;
+    @JsonProperty
+    protected boolean summaryOnly;
     protected List<QueryNodeConfig> push_down_nodes;
     protected String summary_interval;
     protected List<String> summary_aggregations;
@@ -674,6 +693,12 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     @Override
     public B setFetchLast(final boolean fetch_last) {
       this.fetchLast = fetch_last;
+      return self();
+    }
+
+    @Override
+    public B setSummaryOnly(boolean summary_only) {
+      this.summaryOnly = summary_only;
       return self();
     }
 

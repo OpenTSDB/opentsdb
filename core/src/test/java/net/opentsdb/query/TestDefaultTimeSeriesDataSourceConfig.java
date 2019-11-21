@@ -127,6 +127,19 @@ public class TestDefaultTimeSeriesDataSourceConfig {
             .setId("c1")
             .build();
 
+    QueryNodeConfig config4 = DefaultTimeSeriesDataSourceConfig.newBuilder()
+        .setSourceId("HBase")
+        .setNamespace("Verizon")
+        .setTypes(Lists.newArrayList("type1, type2"))
+        .setMetric(MetricLiteralFilter.newBuilder()
+            .setMetric("system.cpu.user")
+            .build())
+        .setFilterId("f1")
+        .setQueryFilter(filter)
+        .setFetchLast(true)
+        .setSummaryOnly(true)
+        .setId("c1")
+        .build();
 
     assertTrue(config.equals(config2));
     assertTrue(!config.equals(config3));
@@ -304,8 +317,7 @@ public class TestDefaultTimeSeriesDataSourceConfig {
     assertTrue(!config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
 
-
-
+    assertTrue(!config.equals(config4));
   }
 
 

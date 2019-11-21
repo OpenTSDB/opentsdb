@@ -133,6 +133,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             .setKey("host")
             .build())
         .setFetchLast(true)
+        .setSummaryOnly(true)
         .addPushDownNode(TopNConfig.newBuilder()
             .setTop(true)
             .setCount(10)
@@ -156,6 +157,7 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"type\":\"MetricLiteral\""));
     assertTrue(json.contains("\"filterId\":\"f1\""));
     assertTrue(json.contains("\"fetchLast\":true"));
+    assertTrue(json.contains("\"summaryOnly\":true"));
     assertTrue(json.contains("\"pushDownNodes\":["));
     assertTrue(json.contains("\"id\":\"Toppy\""));
     assertTrue(json.contains("\"type\":\"TopN\""));

@@ -105,6 +105,7 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
             && Objects.equal(getMetric(), wrappedconfig.getMetric())
             && Objects.equal(getFilter(), wrappedconfig.getFilter())
             && Objects.equal(getFetchLast(), wrappedconfig.getFetchLast())
+            && Objects.equal(getSummaryOnly(), wrappedconfig.getSummaryOnly())
             && Objects.equal(getTimeShiftInterval(), wrappedconfig.getTimeShiftInterval());
 
     if (!result) {
@@ -232,6 +233,11 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   @Override
   public boolean getFetchLast() {
     return config.getFetchLast();
+  }
+
+  @Override
+  public boolean getSummaryOnly() {
+    return config.getSummaryOnly();
   }
 
   @Override
