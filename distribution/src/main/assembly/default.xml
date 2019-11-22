@@ -29,6 +29,7 @@
         <include>net.opentsdb:opentsdb-executors-http</include>
         <include>net.opentsdb:opentsdb-elasticsearch-transportclient</include>
         <include>net.opentsdb:opentsdb-redis</include>
+        <include>net.opentsdb:opentsdb-egads</include>
       </includes>
       <outputDirectory>lib</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
