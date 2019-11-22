@@ -979,7 +979,12 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         // TODO - get the proper units.
         //units = ChronoUnit(node.get("units").asText());
         units = null;
-        time_zone = ZoneId.of(node.get("timeZone").asText());
+        JsonNode n = node.get("timeZone");
+        if (n != null && !n.isNull()) {
+          time_zone = ZoneId.of(n.asText());
+        } else {
+          time_zone = Const.UTC;
+        }
       }
       
       @Override
