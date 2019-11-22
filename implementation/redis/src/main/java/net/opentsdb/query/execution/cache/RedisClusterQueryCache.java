@@ -65,10 +65,10 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
   public static final String SERDES_KEY = "redis.query.cache.serdes.id";
   
   /** Redis flag: Write if the key does not exist. */
-  static final byte[] NX = new byte[] { 'N', 'X' };
+  public static final byte[] NX = new byte[] { 'N', 'X' };
   
   /** Redis flag: Expiration time is in ms. */
-  static final byte[] EXP = new byte[] { 'P', 'X' };
+  public static final byte[] EXP = new byte[] { 'P', 'X' };
   
   /** The TSDB we belong to. */
   private TSDB tsdb;
