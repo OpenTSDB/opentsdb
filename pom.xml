@@ -89,7 +89,7 @@
     <module>common</module>
     <module>core</module>
     <module>executors/http</module>
-    <module>implementation/stormpot</module>
+    <module>implementation/egads</module>
     <module>implementation/http-config</module>
     <module>implementation/elasticsearch</module>
     <module>implementation/protobuf</module>
