@@ -89,7 +89,11 @@ public class MockTSDB implements TSDB {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
-        runnables.add((Runnable) invocation.getArguments()[0]);
+        if (run_immediately) {
+          ((Runnable) invocation.getArguments()[0]).run();
+        } else {
+          runnables.add((Runnable) invocation.getArguments()[0]);
+        }
         return null;
       }
     }).when(query_pool).submit(any(Runnable.class));
