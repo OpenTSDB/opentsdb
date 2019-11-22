@@ -19,6 +19,8 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 
+import java.util.Map;
+
 public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
 
   private String application;
@@ -26,11 +28,13 @@ public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
   private byte[] statusCodeArray;
   private byte statusType;
   private String message;
+  private Map<String, String> tags;
   private TimeStamp lastUpdateTime;
   private TimeStamp[] timestampArray;
 
   public StatusValue(
       final String application,
+      final Map<String, String> tags,
       final byte statusCode,
       final byte[] statusCodeArray,
       final byte statusType,
@@ -38,6 +42,7 @@ public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
       final TimeStamp lastUpdateTime,
       final TimeStamp[] timestampArray) {
     this.application = application;
+    this.tags = tags;
     this.statusCode = statusCode;
     this.statusCodeArray = statusCodeArray;
     this.statusType = statusType;
@@ -69,6 +74,11 @@ public class StatusValue implements StatusType, TimeSeriesValue<StatusType> {
   @Override
   public String application() {
     return application;
+  }
+
+  @Override
+  public Map<String, String> tags() {
+    return tags;
   }
 
   @Override

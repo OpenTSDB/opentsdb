@@ -16,35 +16,41 @@
 package net.opentsdb.data.types.status;
 
 import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 
-import java.util.Map;
+public class StatusGroupValue implements StatusGroupType, TimeSeriesValue<StatusGroupType> {
 
-/**
- * Represents a status
- *
- * @since 3.0
- */
-public interface StatusType extends TimeSeriesDataType<StatusType> {
+  private StatusValue[] statuses;
+  private Summary summary;
 
-  TypeToken<StatusType> TYPE = TypeToken.of(StatusType.class);
+  public StatusGroupValue(StatusValue[] statuses, Summary summary) {
+    this.statuses = statuses;
+    this.summary = summary;
+  }
 
-  String application();
+  @Override
+  public TimeStamp timestamp() {
+    return null;
+  }
 
-  String message();
+  @Override
+  public StatusGroupType value() {
+    return null;
+  }
 
-  Map<String, String> tags();
+  @Override
+  public TypeToken<StatusGroupType> type() {
+    return StatusGroupType.TYPE;
+  }
 
-  byte statusCode();
+  @Override
+  public StatusValue[] statuses() {
+    return statuses;
+  }
 
-  byte[] statusCodeArray();
-
-  TimeStamp timestamp();
-
-  TimeStamp[] timestampArray();
-
-  byte statusType();
-
-  TimeStamp lastUpdateTime();
+  @Override
+  public Summary summary() {
+    return summary;
+  }
 }
