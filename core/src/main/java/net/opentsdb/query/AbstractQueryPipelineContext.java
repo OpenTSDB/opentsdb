@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.opentsdb.data.types.status.StatusGroupQueryResult;
+import net.opentsdb.data.types.status.Summary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -403,7 +405,14 @@ public abstract class AbstractQueryPipelineContext implements
   
   @Override
   public void onNext(final QueryResult next) {
-    final ResultWrapper wrapped = new ResultWrapper(next);
+
+    ResultWrapper wrapped;
+    if (next instanceof StatusGroupQueryResult) {
+      wrapped = new StatusGroupResultWrapper((StatusGroupQueryResult) next);
+    } else {
+      wrapped = new ResultWrapper(next);
+    }
+
     for (final QuerySink sink : sinks) {
       try {
         sink.onNext(wrapped);
@@ -671,5 +680,26 @@ public abstract class AbstractQueryPipelineContext implements
   class PartialTimeSetWrapper {
     AtomicInteger counter = new AtomicInteger();
     AtomicInteger max = new AtomicInteger(-1);
+  }
+
+  public class StatusGroupResultWrapper extends ResultWrapper implements StatusGroupQueryResult {
+
+    private StatusGroupQueryResult result;
+
+    StatusGroupResultWrapper(StatusGroupQueryResult result) {
+      super(result);
+      this.result = result;
+    }
+
+
+    @Override
+    public Summary resultSummary() {
+      return result.resultSummary();
+    }
+
+    @Override
+    public Summary totalSummary() {
+      return result.totalSummary();
+    }
   }
 }

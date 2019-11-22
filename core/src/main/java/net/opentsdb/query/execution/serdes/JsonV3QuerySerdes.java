@@ -14,6 +14,60 @@
 // limitations under the License.
 package net.opentsdb.query.execution.serdes;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
+import net.opentsdb.common.Const;
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.PartialTimeSeriesSet;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.event.EventGroupType;
+import net.opentsdb.data.types.event.EventType;
+import net.opentsdb.data.types.event.EventsGroupValue;
+import net.opentsdb.data.types.event.EventsValue;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericLongArrayType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.status.StatusGroupType;
+import net.opentsdb.data.types.status.StatusGroupValue;
+import net.opentsdb.data.types.status.StatusType;
+import net.opentsdb.data.types.status.StatusValue;
+import net.opentsdb.data.types.status.Summary;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.pools.PooledObject;
+import net.opentsdb.pools.StringBuilderPool;
+import net.opentsdb.query.AbstractQueryPipelineContext;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesQuery.LogLevel;
+import net.opentsdb.query.processor.summarizer.Summarizer;
+import net.opentsdb.query.serdes.SerdesCallback;
+import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Exceptions;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,64 +81,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import net.opentsdb.data.types.event.EventGroupType;
-import net.opentsdb.data.types.event.EventsGroupValue;
-import net.opentsdb.data.types.status.StatusType;
-import net.opentsdb.data.types.status.StatusValue;
-import net.opentsdb.query.processor.summarizer.Summarizer;
-import net.opentsdb.query.processor.topn.TopN;
-import net.opentsdb.query.readcache.CachedQueryNode;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.types.event.EventType;
-import net.opentsdb.data.types.event.EventsValue;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericLongArrayType;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.pools.StringBuilderPool;
-import net.opentsdb.pools.PooledObject;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery.LogLevel;
-import net.opentsdb.query.serdes.SerdesCallback;
-import net.opentsdb.query.serdes.SerdesOptions;
-import net.opentsdb.query.serdes.TimeSeriesSerdes;
-import net.opentsdb.stats.QueryStats;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.Exceptions;
-import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Pair;
 
 public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(
@@ -257,7 +254,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
 
             final List<String> sets =
                 Lists.newArrayListWithExpectedSize(result.timeSeries().size());
-            customThreadPool.submit(() -> 
+            customThreadPool.submit(() ->
               pairs.stream().parallel().forEach((pair) -> {
                 try {
                   serializeSeries(opts,
@@ -315,6 +312,18 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
             json.writeStringField(NAMESPACE, namespace.toString());
           }
 
+          if (result instanceof AbstractQueryPipelineContext.StatusGroupResultWrapper) {
+            AbstractQueryPipelineContext.StatusGroupResultWrapper statusGroupQueryResult = (AbstractQueryPipelineContext.StatusGroupResultWrapper) result;
+            Summary resultSummary = statusGroupQueryResult.resultSummary();
+            Summary totalSummary = statusGroupQueryResult.totalSummary();
+            if (null != resultSummary) {
+              writeSummary(resultSummary, "resultSummary", json);
+            }
+            if (null != totalSummary) {
+              writeSummary(totalSummary, "totalSummary", json);
+            }
+          }
+
           json.writeEndObject();
         } catch (Exception e) {
           LOG.error("Unexpected exception", e);
@@ -358,7 +367,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       throw new QueryExecutionException("Failed to resolve IDs", 500, e);
     }
   }
-  
+
   @Override
   public void serializeComplete(final Span span) {
     if (!initialized /* Only on QueryResult */ && partials.size() > 0) {
@@ -543,6 +552,13 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
             }
             json.writeStartObject();
             writeStatus((StatusValue) value, json);
+            wrote_values = true;
+          } else if(iterator.getType() == StatusGroupType.TYPE) {
+            if (!was_status) {
+              was_status = true;
+            }
+            json.writeStartObject();
+            writeStatusGroup((StatusGroupValue) value, json);
             wrote_values = true;
           } else if (iterator.getType() == EventType.TYPE) {
             was_event = true;
@@ -1154,7 +1170,36 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     }
 
   }
-  
+
+  private void writeStatusGroup(StatusGroupValue statusGroupValue, JsonGenerator json)
+      throws IOException {
+    StatusValue[] statuses = statusGroupValue.statuses();
+    if (null != statuses) {
+      json.writeArrayFieldStart("statuses");
+      for (StatusValue statusValue : statuses) {
+        json.writeStartObject();
+        writeStatus(statusValue, json);
+        json.writeEndObject();
+      }
+      json.writeEndArray();
+    }
+
+    Summary summary = statusGroupValue.summary();
+    if (null != summary) {
+      writeSummary(summary, "summary", json);
+    }
+  }
+
+  private void writeSummary(Summary summary, String name, JsonGenerator json) throws IOException {
+    json.writeObjectFieldStart(name);
+    json.writeNumberField("good", summary.good);
+    json.writeNumberField("bad", summary.bad);
+    json.writeNumberField("warn", summary.warn);
+    json.writeNumberField("unknown", summary.unknown);
+    json.writeNumberField("missing", summary.missing);
+    json.writeEndObject();
+  }
+
   private void writeStatus(StatusValue statusValue, final JsonGenerator json) throws IOException {
 
     byte[] statusCodeArray = statusValue.statusCodeArray();
@@ -1182,6 +1227,14 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     json.writeNumberField("statusType", statusValue.statusType());
     json.writeStringField("message", statusValue.message());
     json.writeStringField("application", statusValue.application());
+    Map<String, String> tags = statusValue.tags();
+    if (tags != null) {
+      json.writeObjectFieldStart("tags");
+      for (final Entry<String, String> entry : tags.entrySet()) {
+        json.writeStringField(entry.getKey(), entry.getValue());
+      }
+      json.writeEndObject();
+    }
   }
 
   /**

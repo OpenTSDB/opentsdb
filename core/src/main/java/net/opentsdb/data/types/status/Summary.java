@@ -15,36 +15,10 @@
 
 package net.opentsdb.data.types.status;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeStamp;
-
-import java.util.Map;
-
-/**
- * Represents a status
- *
- * @since 3.0
- */
-public interface StatusType extends TimeSeriesDataType<StatusType> {
-
-  TypeToken<StatusType> TYPE = TypeToken.of(StatusType.class);
-
-  String application();
-
-  String message();
-
-  Map<String, String> tags();
-
-  byte statusCode();
-
-  byte[] statusCodeArray();
-
-  TimeStamp timestamp();
-
-  TimeStamp[] timestampArray();
-
-  byte statusType();
-
-  TimeStamp lastUpdateTime();
+public class Summary {
+  public int good;
+  public int bad;
+  public int warn;
+  public int unknown;
+  public int missing;
 }

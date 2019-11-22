@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2019  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,41 +17,19 @@ package net.opentsdb.data.types.status;
 
 import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 
-import java.util.Map;
+public class StatusGroupIterator extends StatusGroupValue implements TypedTimeSeriesIterator<StatusGroupType> {
 
-public class StatusIterator extends StatusValue implements TypedTimeSeriesIterator<StatusType> {
-
-  private String namespace;
   boolean has_next = true;
 
-  public StatusIterator(
-      String namespace,
-      String application,
-      Map<String, String> tags,
-      byte statusCode,
-      byte[] statusCodeArray,
-      byte statusType,
-      String message,
-      TimeStamp lastUpdateTime,
-      TimeStamp[] timestampArray) {
-    super(
-        application,
-        tags,
-        statusCode,
-        statusCodeArray,
-        statusType,
-        message,
-        lastUpdateTime,
-        timestampArray);
-    this.namespace = namespace;
+  public StatusGroupIterator(StatusValue[] statuses, Summary summary) {
+    super(statuses, summary);
   }
 
   @Override
-  public TypeToken<StatusType> getType() {
-    return StatusType.TYPE;
+  public TypeToken<StatusGroupType> getType() {
+    return type();
   }
 
   @Override
@@ -62,11 +40,7 @@ public class StatusIterator extends StatusValue implements TypedTimeSeriesIterat
   }
 
   @Override
-  public TimeSeriesValue<StatusType> next() {
+  public TimeSeriesValue<StatusGroupType> next() {
     return this;
-  }
-
-  public String namespace() {
-    return namespace;
   }
 }
