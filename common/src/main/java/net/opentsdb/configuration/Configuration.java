@@ -1244,7 +1244,9 @@ public class Configuration implements Closeable {
    */
   private void loadProviders(final String[] cli_args, 
                              final MapProvider map_provider) {
-    final String[] raw_sources = StringUtils.splitString(provider_config, ',');
+    final String[] raw_sources = StringUtils.splitString(
+        Strings.isNullOrEmpty(provider_config) ? CONFIG_PROVIDERS_DEFAULT : 
+          provider_config, ',');
     if (raw_sources.length < 1) {
       throw new IllegalArgumentException("No sources found!");
     }
