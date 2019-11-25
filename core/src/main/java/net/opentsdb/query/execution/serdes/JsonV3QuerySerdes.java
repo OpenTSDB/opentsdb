@@ -34,6 +34,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.event.EventGroupType;
 import net.opentsdb.data.types.event.EventType;
 import net.opentsdb.data.types.event.EventsGroupValue;
@@ -112,7 +113,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private static ForkJoinPool customThreadPool = new ForkJoinPool(8);
   /** Lock to parallelize the iterator*/
   private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
 
   /**
    * Default ctor.
@@ -540,61 +540,67 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     boolean was_status = false;
     boolean was_event = false;
     boolean was_event_group = false;
-    for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
-
-      lock.writeLock().lock(); // since json is not thread safe and we need to form the json in order
-      try {
-        while (iterator.hasNext()) {
-          TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
-          if (iterator.getType() == StatusType.TYPE) {
-            if (!was_status) {
-              was_status = true;
-            }
-            json.writeStartObject();
-            writeStatus((StatusValue) value, json);
-            wrote_values = true;
-          } else if(iterator.getType() == StatusGroupType.TYPE) {
-            if (!was_status) {
-              was_status = true;
-            }
-            json.writeStartObject();
-            writeStatusGroup((StatusGroupValue) value, json);
-            wrote_values = true;
-          } else if (iterator.getType() == EventType.TYPE) {
-            was_event = true;
-            json.writeStartObject();
-            json.writeObjectFieldStart("EventsType");
-            writeEvents((EventsValue) value, json);
-            json.writeEndObject();
-            wrote_values = true;
-          } else if (iterator.getType() == EventGroupType.TYPE) {
-            was_event_group = true;
-            json.writeStartObject();
-            writeEventGroup((EventsGroupValue) value, json, id);
-            wrote_values = true;
-          } else {
-            if (value == null) {
-              continue;
-            }
-            if (iterator.getType() == NumericType.TYPE) {
-              if (writeNumeric((TimeSeriesValue<NumericType>) value, options, 
-                    iterator, json, result, start, end, wrote_values)) {
-                wrote_values = true;
-              }
-            } else if (iterator.getType() == NumericSummaryType.TYPE) {
-              if (writeNumericSummary(value, options, iterator, json, result, 
-                    start, end, wrote_values)) {
-                wrote_values = true;
-              }
-            } else if (iterator.getType() == NumericArrayType.TYPE) {
-              if(writeNumericArray((TimeSeriesValue<NumericArrayType>) value, 
-                    options, iterator, json, result, start, end, wrote_values)) {
-                wrote_values = true;
-              }
-            }
+    lock.writeLock().lock(); // since json is not thread safe and we need to form the json in order
+    try {
+      for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
+        if (!iterator.hasNext()) {
+          continue;
+        }
+        
+        TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
+        if (value == null) {
+          continue;
+        }
+        
+        if (iterator.getType() == StatusType.TYPE) {
+          if (!was_status) {
+            was_status = true;
           }
+          json.writeStartObject();
+          writeStatus((StatusValue) value, json);
+          wrote_values = true;
+        } else if(iterator.getType() == StatusGroupType.TYPE) {
+          if (!was_status) {
+            was_status = true;
+          }
+          json.writeStartObject();
+          writeStatusGroup((StatusGroupValue) value, json);
+          wrote_values = true;
+        } else if (iterator.getType() == EventType.TYPE) {
+          was_event = true;
+          json.writeStartObject();
+          json.writeObjectFieldStart("EventsType");
+          writeEvents((EventsValue) value, json);
+          json.writeEndObject();
+          wrote_values = true;
+        } else if (iterator.getType() == EventGroupType.TYPE) {
+          was_event_group = true;
+          json.writeStartObject();
+          writeEventGroup((EventsGroupValue) value, json, id);
+          wrote_values = true;
+        } else if (iterator.getType() == NumericType.TYPE) {
+          if (writeNumeric((TimeSeriesValue<NumericType>) value, options, 
+                iterator, json, result, start, end, wrote_values)) {
+            wrote_values = true;
+          }
+        } else if (iterator.getType() == NumericSummaryType.TYPE) {
+          if (writeNumericSummary(value, options, iterator, json, result, 
+                start, end, wrote_values)) {
+            wrote_values = true;
+          }
+        } else if (iterator.getType() == NumericArrayType.TYPE) {
+          if(writeNumericArray((TimeSeriesValue<NumericArrayType>) value, 
+                options, iterator, json, result, start, end, wrote_values)) {
+            wrote_values = true;
+          }
+        } else if (iterator.getType() == AlertType.TYPE) {
+          if (writeAlert((TimeSeriesValue<AlertType>) value, options, 
+                iterator, json, result, start, end, wrote_values)) {
+            wrote_values = true;
+          }
+        }
       }
-  
+      
       if (wrote_values) {
         // serialize the ID
         if(!was_status && !was_event) {
@@ -628,9 +634,9 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       } else {
         json.flush();
       }
+      
     } finally {
       lock.writeLock().unlock();
-    }
     }
   }
 
@@ -1047,8 +1053,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final TimeStamp start,
       final TimeStamp end,
       boolean wrote_values) throws IOException {
-
-    if (value.value().end() < 1) {
+    if (value.value().end() <= value.value().offset()) {
       // no data
       return false;
     }
@@ -1106,10 +1111,65 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
         json.writeNumber(value.value().doubleArray()[i]);
       }
     }
-    json.writeEndArray();
+    if (wrote_type) {
+      json.writeEndArray();
+    }
     return wrote_type;
   }
 
+  private boolean writeAlert(
+      TimeSeriesValue<AlertType> value,
+      final JsonV3QuerySerdesOptions options,
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
+      final JsonGenerator json,
+      final QueryResult result,
+      final TimeStamp start,
+      final TimeStamp end,
+      boolean wrote_values) throws IOException {
+    boolean wrote_type = false;
+    while (value != null) {
+      if (!wrote_values) {
+        json.writeStartObject();
+        wrote_values = true;
+      }
+      if (!wrote_type) {
+        json.writeObjectFieldStart("AlertType"); // yeah, it's numeric.
+        wrote_type = true;
+      }
+
+      json.writeObjectFieldStart(Long.toString(value.timestamp().epoch()));
+      json.writeStringField("level", value.value().state().toString());
+      json.writeStringField("message", value.value().message());
+      if (value.value().dataPoint() == null) {
+        json.writeNullField("value");
+      } else if (value.value().dataPoint().isInteger()) {
+        json.writeNumberField("value", value.value().dataPoint().longValue());
+      } else {
+        json.writeNumberField("value", value.value().dataPoint().doubleValue());
+      }
+      if (value.value().threshold() != null) {
+        if (value.value().threshold().isInteger()) {
+          json.writeNumberField("threshold", value.value().threshold().longValue());
+        } else {
+          json.writeNumberField("threshold", value.value().threshold().doubleValue());
+        }
+      }
+      json.writeStringField("type", value.value().thresholdType());
+      json.writeEndObject();
+
+      if (iterator.hasNext()) {
+        value = (TimeSeriesValue<AlertType>) iterator.next();
+      } else {
+        value = null;
+      }
+    }
+
+    if (wrote_type) {
+      json.writeEndObject();
+    }
+    return wrote_type;
+  }
+  
   private void writeEventGroup(EventsGroupValue eventsGroupValue, final JsonGenerator json,
       final TimeSeriesStringId id)
       throws IOException {
