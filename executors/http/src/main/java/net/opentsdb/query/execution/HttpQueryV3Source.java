@@ -129,30 +129,63 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         .setTimeZone(context.query().getTimezone())
         .setLogLevel(context.query().getLogLevel());
 
-    TimeSeriesDataSourceConfig.Builder source_builder =
-        (Builder) config.toBuilder()
-        .setPushDownNodes(null)
-        .setSourceId(null) // TODO - we may want to make this configurable
-        .setDataSourceId(config.getId())
-        .setId(config.getDataSourceId())
-        .setType("TimeSeriesDataSource");
-    
-    builder.addExecutionGraphNode(source_builder.build());
-    for (QueryNodeConfig c : config.getPushDownNodes()) {
-      if (c.getSources() != null && c.getSources().contains(config.getId())) {
-        // TODO copy properly eventually.
-        if (c instanceof DownsampleConfig) {
-          DownsampleConfig downsampleConfig = (DownsampleConfig) c;
-          DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
-          DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
-          c = newBuilder.setStart(context.query().getStart())
-              .setEnd(context.query().getEnd())
-              .setId(c.getId()).build();
-        }
-        c.getSources().remove(config.getId());
-        c.getSources().add(config.getDataSourceId());
+    // TEMP! Breakfix. Find the real solution.
+    final boolean event_query = config.getTypes() != null && 
+        config.getTypes().contains("events");
+    if (event_query) {
+      if (config.getPushDownNodes() != null && !config.getPushDownNodes().isEmpty()) {
+        TimeSeriesDataSourceConfig.Builder source_builder =
+            (Builder) config.toBuilder()
+            .setPushDownNodes(null)
+            .setSourceId(null) // TODO - we may want to make this configurable
+            // TODO - flip flop shouldn't be required.
+            .setDataSourceId(config.getDataSourceId())
+            .setId(config.getDataSourceId())
+            .setType("TimeSeriesDataSource");
+        
+        builder.addExecutionGraphNode(source_builder.build());
+      } else {
+        TimeSeriesDataSourceConfig.Builder source_builder =
+            (Builder) config.toBuilder()
+            .setPushDownNodes(null)
+            .setSourceId(null) // TODO - we may want to make this configurable
+            // TODO - flip flop shouldn't be required.
+            .setType("TimeSeriesDataSource");
+        
+        builder.addExecutionGraphNode(source_builder.build());
       }
-      builder.addExecutionGraphNode(c);
+      if (config.getPushDownNodes() != null) {
+        for (int i = 0; i < config.getPushDownNodes().size(); i++) {
+          builder.addExecutionGraphNode(config.getPushDownNodes().get(i));
+        }
+      }
+    } else {
+      TimeSeriesDataSourceConfig.Builder source_builder =
+          (Builder) config.toBuilder()
+          .setPushDownNodes(null)
+          .setSourceId(null) // TODO - we may want to make this configurable
+          // TODO - flip flop shouldn't be required.
+          .setDataSourceId(config.getId())
+          .setId(config.getDataSourceId())
+          .setType("TimeSeriesDataSource");
+      
+      builder.addExecutionGraphNode(source_builder.build());
+      for (QueryNodeConfig c : config.getPushDownNodes()) {
+        if (c.getSources() != null && c.getSources().contains(config.getId())) {
+          // TODO copy properly eventually.
+          if (c instanceof DownsampleConfig) {
+            DownsampleConfig downsampleConfig = (DownsampleConfig) c;
+            DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
+            DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
+            c = newBuilder.setStart(context.query().getStart())
+                .setEnd(context.query().getEnd())
+                .setId(c.getId()).build();
+          }
+          c.getSources().remove(config.getId());
+          c.getSources().add(config.getDataSourceId());
+        }
+        builder.addExecutionGraphNode(c);
+      }
     }
 
     if (!Strings.isNullOrEmpty(config.getFilterId())) {
