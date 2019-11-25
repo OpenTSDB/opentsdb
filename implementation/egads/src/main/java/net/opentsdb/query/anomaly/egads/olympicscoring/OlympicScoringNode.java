@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +115,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
   
   protected final OlympicScoringConfig config;
   protected final PredictionCache cache;
-  protected final CountDownLatch latch;
+  protected final AtomicInteger latch;
   protected final int jitter;
   protected final AtomicBoolean failed;
   protected final AtomicBoolean building_prediction;
@@ -139,7 +140,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
                             final OlympicScoringConfig config) {
     super(factory, context);
     this.config = config;
-    latch = new CountDownLatch(2);
+    latch = new AtomicInteger(2);
     failed = new AtomicBoolean();
     building_prediction = new AtomicBoolean();
     baseline_period = DateTime.parseDuration2(config.getBaselinePeriod());
@@ -611,8 +612,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
   }
   
   void countdown() {
-    latch.countDown();
-    if (latch.getCount() == 0) {
+    if (latch.decrementAndGet() == 0) {
       run();
     }
   }
