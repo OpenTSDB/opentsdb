@@ -181,7 +181,12 @@ public class GroupByNumericArrayIterator
         if (logger.isTraceEnabled()) {
           logger.trace("Accumulate in parallel, source size {}", sources.size());
         }
-        accumulateInParallel(sources, valuesCombiner);
+        if (sources instanceof List) {
+          accumulateInParallel((List) sources, valuesCombiner);
+        } else {
+          logger.debug("Accumulation of type {}", sources.getClass().getName());
+          accumulateInParallel(sources, valuesCombiner);
+        }
       } else {
         if (logger.isTraceEnabled()) {
           logger.trace("Accumulate in sequence, source size {}", sources.size());
@@ -262,6 +267,59 @@ public class GroupByNumericArrayIterator
       aggregator.combine(combiner);
     }
 
+  }
+
+  private void accumulateInParallel(
+      final List<TimeSeries> tsList, final NumericArrayAggregator[] combiners) {
+
+    final int tsCount = tsList.size();
+    final int threadCount = Math.min(NUM_THREADS, tsCount);
+    final List<Future<?>> futures = new ArrayList<>(threadCount);
+    final long start = System.currentTimeMillis();
+
+    for (int threadIndex = 0; threadIndex < threadCount; threadIndex++) {
+      ExecutorService executorService = executorList.get(threadIndex);
+      NumericArrayAggregator combiner = combiners[threadIndex];
+      final int fThreadIndex = threadIndex;
+      final long s = System.nanoTime();
+      Future<?> future =
+          executorService.submit(
+              () -> {
+                statsCollector.addTime(
+                    "groupby.queue.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+                for (int tsIndex = fThreadIndex; tsIndex < tsCount; tsIndex += NUM_THREADS) {
+                  TimeSeries timeSeries = tsList.get(tsIndex);
+                  accumulate(timeSeries, combiner);
+                }
+              });
+      futures.add(future);
+      has_next = true;
+    }
+
+    statsCollector.setGauge("groupby.timeseries.count", tsCount);
+
+    for (Future<?> future : futures) {
+      try {
+        future.get(); // get will block until the future is done
+      } catch (InterruptedException e) {
+        logger.error("Unable to get the status of a task", e);
+        throw new QueryDownstreamException(e.getMessage(), e);
+      } catch (ExecutionException e) {
+        logger.error("Unable to get status of the task", e.getCause());
+        throw new QueryDownstreamException(e.getMessage(), e);
+      }
+    }
+
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Parallel downsample time for {} timeseries is {} ms",
+          tsCount,
+          System.currentTimeMillis() - start);
+    }
+
+    for (NumericArrayAggregator combiner : combiners) {
+      aggregator.combine(combiner);
+    }
   }
 
   private TimeSeriesValue<NumericArrayType> accumulate(TimeSeries source,
