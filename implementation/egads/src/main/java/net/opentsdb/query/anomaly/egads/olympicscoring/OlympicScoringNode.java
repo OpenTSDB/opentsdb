@@ -156,7 +156,6 @@ public class OlympicScoringNode extends AbstractQueryNode {
     if (ds == null) {
       throw new IllegalStateException("Downsample can't be null.");
     }
-    
     final long query_time_span = context.query().endTime().msEpoch() - 
         context.query().startTime().msEpoch();
     if (ds.getInterval().equalsIgnoreCase("AUTO")) {
