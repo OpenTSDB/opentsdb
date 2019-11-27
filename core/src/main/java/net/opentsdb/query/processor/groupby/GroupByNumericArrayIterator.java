@@ -77,18 +77,12 @@ public class GroupByNumericArrayIterator
 
   protected static final int NUM_THREADS = 8;
 
-  protected static List<ExecutorService> executorList;
+  protected static ExecutorService executorService;
 
   static {
-    executorList = new ArrayList<>();
-    for (int i = 0; i < NUM_THREADS; i++) {
-      BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
-      // One Thread per executor.
-      ExecutorService executor = new ThreadPoolExecutor(1, 1, 1L, TimeUnit.SECONDS, workQueue);
-      executorList.add(executor);
-    }
+    executorService = new ThreadPoolExecutor(NUM_THREADS, NUM_THREADS, 1L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
   }
-  
+
   protected ExecutorService executor;
 
   private StatsCollector statsCollector;
@@ -170,7 +164,8 @@ public class GroupByNumericArrayIterator
       }
 
       // TODO: Need to check if it makes sense to make this threshold configurable
-      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[NUM_THREADS];
+      final int jobCount = Math.min(NUM_THREADS, sources.size());
+      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[jobCount];
       for (int i = 0; i < valuesCombiner.length; i++) {
         valuesCombiner[i] = createAggregator(node, factory, size);
       }
@@ -227,7 +222,6 @@ public class GroupByNumericArrayIterator
     final long start = System.currentTimeMillis();
     for (TimeSeries timeSeries : sources) {
       int index = (i++) % NUM_THREADS;
-      ExecutorService executorService = executorList.get(index);
       NumericArrayAggregator combiner = combiners[index];
 
       final long s = System.nanoTime();
@@ -273,22 +267,30 @@ public class GroupByNumericArrayIterator
       final List<TimeSeries> tsList, final NumericArrayAggregator[] combiners) {
 
     final int tsCount = tsList.size();
-    final int threadCount = Math.min(NUM_THREADS, tsCount);
-    final List<Future<?>> futures = new ArrayList<>(threadCount);
+    final int jobCount = combiners.length;
+    final int tsPerJob = tsCount / jobCount;
+    final List<Future<?>> futures = new ArrayList<>(jobCount);
     final long start = System.currentTimeMillis();
 
-    for (int threadIndex = 0; threadIndex < threadCount; threadIndex++) {
-      ExecutorService executorService = executorList.get(threadIndex);
-      NumericArrayAggregator combiner = combiners[threadIndex];
-      final int fThreadIndex = threadIndex;
+    for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+
+      NumericArrayAggregator combiner = combiners[jobIndex];
+      final int startIndex = jobIndex * tsPerJob; // inclusive
+      final int endIndex; // exclusive
+      if ((startIndex + tsPerJob) > tsCount) {
+        endIndex = tsCount;
+      } else {
+        endIndex = startIndex + tsPerJob;
+      }
+
       final long s = System.nanoTime();
       Future<?> future =
           executorService.submit(
               () -> {
                 statsCollector.addTime(
                     "groupby.queue.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
-                for (int tsIndex = fThreadIndex; tsIndex < tsCount; tsIndex += NUM_THREADS) {
-                  TimeSeries timeSeries = tsList.get(tsIndex);
+                for (int i = startIndex; i < endIndex; i++) {
+                  TimeSeries timeSeries = tsList.get(i);
                   accumulate(timeSeries, combiner);
                 }
               });

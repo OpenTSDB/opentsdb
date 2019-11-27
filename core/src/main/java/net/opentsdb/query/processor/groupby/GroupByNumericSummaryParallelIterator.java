@@ -124,8 +124,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     int i = 0;
     for (final TimeSeries source : sources) {
       int index = (i++) % GroupByNumericArrayIterator.NUM_THREADS;
-      final ExecutorService executorService = 
-          GroupByNumericArrayIterator.executorList.get(index);
+      final ExecutorService executorService = GroupByNumericArrayIterator.executorService;
       
       final long s = System.nanoTime();
       Future<Void> future =
