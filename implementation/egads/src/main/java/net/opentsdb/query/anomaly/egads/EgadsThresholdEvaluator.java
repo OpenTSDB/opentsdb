@@ -466,7 +466,7 @@ public class EgadsThresholdEvaluator {
               + "thresholds [" + idx + "]. Make sure to set the report_len "
               + "properly in the ctor.");
         }
-        lower_bad_thresholds[threshold_idx] = threshold;
+        lower_warn_thresholds[threshold_idx] = threshold;
         if (threshold_idx > idx) {
           idx = threshold_idx;
         }

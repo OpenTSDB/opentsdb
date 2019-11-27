@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -51,6 +52,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -59,7 +61,9 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
@@ -97,6 +101,7 @@ public class TestOlympicScoringNode {
   private static final String TAGV_B_STRING = "web02";
   private static NumericInterpolatorConfig INTERPOLATOR;
   private static MockTSDB TSDB;
+  private static OlympicScoringFactory osf;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -124,8 +129,8 @@ public class TestOlympicScoringNode {
     cache.initialize(TSDB, null);
     ((DefaultRegistry) TSDB.registry).registerPlugin(PredictionCache.class, null, cache);
     
-    OlympicScoringFactory f = (OlympicScoringFactory) TSDB.registry.getPlugin(ProcessorFactory.class, OlympicScoringFactory.TYPE);
-    f.setCache(cache);
+    osf = (OlympicScoringFactory) TSDB.registry.getPlugin(ProcessorFactory.class, OlympicScoringFactory.TYPE);
+    osf.setCache(cache);
     
 //    byte[] ck = new byte[] { 54, 75, 38, -45, 109, -48, 104, -124, -3, -50, 94, 33, 92, 43, 72, -88 };
 //    AnomalyPredictionState state = new AnomalyPredictionState();
@@ -141,6 +146,64 @@ public class TestOlympicScoringNode {
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
         .build();
+  }
+  
+  @Test
+  public void testLowerWarning() {
+    
+    SemanticQuery baseline_query = SemanticQuery.newBuilder()
+        .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 300))
+        .setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(HOULRY_METRIC)
+                .build())
+            .setId("m1")
+            .build())
+        .addExecutionGraphNode(DownsampleConfig.newBuilder()
+            .setInterval("1m")
+            .setAggregator("avg")
+            .setFill(true)
+            .addInterpolatorConfig(INTERPOLATOR)
+            .addSource("m1")
+            .setId("ds")
+            .build())
+        .build();
+//    QueryNodeFactory factory;
+    QueryPipelineContext context;
+    OlympicScoringConfig config =
+        OlympicScoringConfig.newBuilder()
+    .setBaselinePeriod("1h")
+    .setBaselineNumPeriods(3)
+    .setBaselineAggregator("avg")
+    .setBaselineQuery(baseline_query)
+    .setSerializeObserved(true)
+    .setSerializeThresholds(true)
+    .setLowerThresholdBad(100)
+    //.setUpperThreshold(100)
+    //.setMode(ExecutionMode.CONFIG)
+    .setMode(ExecutionMode.EVALUATE)
+    .addInterpolatorConfig(INTERPOLATOR)
+    .addSource("ds")
+    .setId("egads")
+    .build();
+    
+    QueryPipelineContext ctx = mock(QueryPipelineContext.class);
+    QueryNode src = mock(QueryNode.class);
+    when(src.pipelineContext()).thenReturn(ctx);
+    when(ctx.downstream(any(QueryNode.class))).thenReturn(Lists.newArrayList());
+    final SemanticQuery egads_query = getEgadsQuery(baseline_query);
+    when(ctx.query()).thenReturn(egads_query);
+    OlympicScoringNode osn = new OlympicScoringNode(osf, ctx, config);
+    TimeStamp st = new SecondTimeStamp(System.currentTimeMillis()/1000l);
+    
+    Assert.assertNotNull(osn);
+    
+//    osn.onNext(next);
+//    when(ega.endTime()).thenReturn(st);  
+//    osn.run();
+
   }
   
   //@Test
@@ -166,46 +229,7 @@ public class TestOlympicScoringNode {
             .build())
         .build();
     
-    final SemanticQuery egads_query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 300))
-        //.setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
-        .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + 600))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(HOULRY_METRIC)
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(DownsampleConfig.newBuilder()
-            .setInterval("1m")
-            .setAggregator("avg")
-            .setFill(true)
-            .addInterpolatorConfig(INTERPOLATOR)
-            .addSource("m1")
-            .setId("ds")
-            .build())
-        .addExecutionGraphNode(OlympicScoringConfig.newBuilder()
-            .setBaselinePeriod("1h")
-            .setBaselineNumPeriods(3)
-            .setBaselineAggregator("avg")
-            .setBaselineQuery(baseline_query)
-            .setSerializeObserved(true)
-            .setSerializeThresholds(true)
-            .setLowerThresholdBad(100)
-            //.setUpperThreshold(100)
-            //.setMode(ExecutionMode.CONFIG)
-            .setMode(ExecutionMode.EVALUATE)
-            .addInterpolatorConfig(INTERPOLATOR)
-            .addSource("ds")
-            .setId("egads")
-            .build())
-//        .addSerdesConfig(JsonV3QuerySerdesOptions.newBuilder()
-//            .setId("foo")
-//            .addFilter("egads")
-//            .addFilter("ds")
-//            .build())
-        .build();
+    final SemanticQuery egads_query = getEgadsQuery(baseline_query);
     System.out.println(JSON.serializeToString(egads_query));
     
     boolean[] flag = new boolean[1];
@@ -391,6 +415,50 @@ public class TestOlympicScoringNode {
       waity.wait(10000);
     }
     System.out.println("---- EXIT ----");
+  }
+
+  private SemanticQuery getEgadsQuery(SemanticQuery baseline_query) {
+    final SemanticQuery egads_query = SemanticQuery.newBuilder()
+        .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 300))
+        //.setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
+        .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + 600))
+        .setMode(QueryMode.SINGLE)
+        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric(HOULRY_METRIC)
+                .build())
+            .setId("m1")
+            .build())
+        .addExecutionGraphNode(DownsampleConfig.newBuilder()
+            .setInterval("1m")
+            .setAggregator("avg")
+            .setFill(true)
+            .addInterpolatorConfig(INTERPOLATOR)
+            .addSource("m1")
+            .setId("ds")
+            .build())
+        .addExecutionGraphNode(OlympicScoringConfig.newBuilder()
+            .setBaselinePeriod("1h")
+            .setBaselineNumPeriods(3)
+            .setBaselineAggregator("avg")
+            .setBaselineQuery(baseline_query)
+            .setSerializeObserved(true)
+            .setSerializeThresholds(true)
+            .setLowerThresholdBad(100)
+            //.setUpperThreshold(100)
+            //.setMode(ExecutionMode.CONFIG)
+            .setMode(ExecutionMode.EVALUATE)
+            .addInterpolatorConfig(INTERPOLATOR)
+            .addSource("ds")
+            .setId("egads")
+            .build())
+//        .addSerdesConfig(JsonV3QuerySerdesOptions.newBuilder()
+//            .setId("foo")
+//            .addFilter("egads")
+//            .addFilter("ds")
+//            .build())
+        .build();
+    return egads_query;
   }
   
   //@Test
