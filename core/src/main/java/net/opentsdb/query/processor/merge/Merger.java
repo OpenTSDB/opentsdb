@@ -71,7 +71,7 @@ public class Merger extends AbstractQueryNode {
     if (LOG.isTraceEnabled()) {
       LOG.trace("Expect to have results: " + results);
     }
-    return INITIALIZED;
+    return Deferred.fromResult(null);
   }
   
   @Override

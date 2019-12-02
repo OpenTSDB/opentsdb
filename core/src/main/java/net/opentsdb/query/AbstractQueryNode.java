@@ -36,11 +36,6 @@ public abstract class AbstractQueryNode<T extends QueryNodeConfig> implements Qu
   private static final Logger LOG = 
       LoggerFactory.getLogger(AbstractQueryNode.class);
   
-  /** Return if nothing happens in the {@link #initialize(Span)} method
-   * asynchronously. */
-  protected static final Deferred<Void> INITIALIZED = 
-      Deferred.fromResult(null);
-  
   /** A reference to the query node factory that generated this node. */
   protected QueryNodeFactory factory;
   
@@ -85,7 +80,7 @@ public abstract class AbstractQueryNode<T extends QueryNodeConfig> implements Qu
     if (child != null) {
       child.setSuccessTags().finish();
     }
-    return INITIALIZED;
+    return Deferred.fromResult(null);
   }
   
   @Override
