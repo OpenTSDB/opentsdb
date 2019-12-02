@@ -85,7 +85,7 @@ public class Summarizer extends AbstractQueryNode {
     if (child != null) {
       child.setSuccessTags().finish();
     }
-    return INITIALIZED;
+    return Deferred.fromResult(null);
   }
 
   @Override

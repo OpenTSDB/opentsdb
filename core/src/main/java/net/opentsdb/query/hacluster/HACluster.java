@@ -236,7 +236,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
       return Deferred.fromError(new IllegalStateException(
           "Missing downstream sources."));
     }
-    return INITIALIZED;
+    return Deferred.fromResult(null);
   }
 
   @Override
