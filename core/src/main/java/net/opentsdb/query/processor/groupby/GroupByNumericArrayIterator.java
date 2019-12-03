@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.groupby;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -43,7 +44,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -97,7 +97,7 @@ public class GroupByNumericArrayIterator
    */
   public GroupByNumericArrayIterator(
       final QueryNode node, final QueryResult result, final Map<String, TimeSeries> sources) {
-    this(node, result, sources == null ? null : sources.values());
+    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()));
   }
 
   /**
@@ -277,7 +277,8 @@ public class GroupByNumericArrayIterator
       NumericArrayAggregator combiner = combiners[jobIndex];
       final int startIndex = jobIndex * tsPerJob; // inclusive
       final int endIndex; // exclusive
-      if ((startIndex + tsPerJob) > tsCount) {
+      if (jobIndex == jobCount - 1) {
+        // last job
         endIndex = tsCount;
       } else {
         endIndex = startIndex + tsPerJob;

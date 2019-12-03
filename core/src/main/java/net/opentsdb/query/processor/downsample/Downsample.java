@@ -127,7 +127,7 @@ public class Downsample extends AbstractQueryNode {
      * Default ctor that dumps each time series into a new Downsampler time series.
      * @param results The non-null results set.
      */
-    DownsampleResult(final QueryResult results) {
+    public DownsampleResult(final QueryResult results) {
       super(results);
       latch = new CountDownLatch(Downsample.this.upstream.size());
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
@@ -282,7 +282,7 @@ public class Downsample extends AbstractQueryNode {
        * Default ctor.
        * @param source The non-null source to pull data from.
        */
-      private DownsampleTimeSeries(final TimeSeries source) {
+      public DownsampleTimeSeries(final TimeSeries source) {
         this.source = source;
       }
       
@@ -301,13 +301,18 @@ public class Downsample extends AbstractQueryNode {
         if (!config.getProcessAsArrays() && !source.types().contains(type)) {
           return Optional.empty();
         }
-        
+
         if (config.getProcessAsArrays() && type == NumericArrayType.TYPE) {
-          final TypedTimeSeriesIterator<TimeSeriesDataType> iterator =
-              new DownsampleNumericToNumericArrayIterator(
-                  Downsample.this, 
-                  DownsampleResult.this,
-                  source);
+          final TypedTimeSeriesIterator<TimeSeriesDataType> iterator;
+          if (source.types().contains(NumericType.TYPE)) {
+            iterator =
+                new DownsampleNumericToNumericArrayIterator(
+                    Downsample.this, DownsampleResult.this, source);
+          } else {
+            iterator =
+                new DownsampleNumericArrayIterator(Downsample.this, DownsampleResult.this, source);
+          }
+
           return Optional.of(iterator);
         }
         
