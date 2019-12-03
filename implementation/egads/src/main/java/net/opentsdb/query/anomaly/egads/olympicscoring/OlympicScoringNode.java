@@ -648,8 +648,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(start - 300))
         .setEnd(Integer.toString(end));
-    if (config.getBaselineQuery().getFilters() != null) {
-      builder.setFilters(config.getBaselineQuery().getFilters());
+    // TODO - figure out why the config.getBaselineQuery() is missing the query 
+    // filters. Hmm.
+    if (context.query().getFilters() != null) {
+      builder.setFilters(context.query().getFilters());
     }
     
     for (final QueryNodeConfig config : config.getBaselineQuery().getExecutionGraph()) {
