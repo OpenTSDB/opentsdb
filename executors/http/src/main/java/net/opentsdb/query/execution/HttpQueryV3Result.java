@@ -90,6 +90,9 @@ public class HttpQueryV3Result implements QueryResult {
 
   /** Object Mapper for serdes. */
   private final ObjectMapper mapper = new ObjectMapper();
+
+  /** Flag to know if we need to process series parallely */
+  private boolean process_parallel = true;
   
   /**
    * Default ctor without an exception.
@@ -214,7 +217,7 @@ public class HttpQueryV3Result implements QueryResult {
 
   @Override
   public boolean processInParallel() {
-    return true;
+    return process_parallel;
   }
 
   class TimeSpec implements TimeSpecification {
@@ -360,11 +363,13 @@ public class HttpQueryV3Result implements QueryResult {
       temp = node.get("EventsType");
       if (temp != null && !temp.isNull()) {
         types.add(EventType.TYPE);
+        process_parallel = false;
       }
 
       temp = node.get("EventsGroupType");
       if (temp != null && !temp.isNull()) {
         types.add(EventGroupType.TYPE);
+        process_parallel = false;
       }
     }
     
