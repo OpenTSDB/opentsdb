@@ -115,7 +115,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
     if (context.query().isDebugEnabled()) {
       StringBuilder buf = new StringBuilder();
       for (int i = 0; i < sources.size(); i++) {
-        if (i >= 0) {
+        if (i >= 0 && buf.length() > 0) {
           buf.append(", ");
         }
         buf.append(sources.get(i).getSourceId());
@@ -132,7 +132,6 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
     // TODO - when we do time offsets we can add timestamps for each
     // data source. In the mean time we just pass the same query to each.
     if (sources.size() == 1) {
-
       TimeSeriesDataSourceConfig.Builder builder = 
           (TimeSeriesDataSourceConfig.Builder) config.toBuilder();
       builder.setSourceId(sources.get(0).getSourceId());

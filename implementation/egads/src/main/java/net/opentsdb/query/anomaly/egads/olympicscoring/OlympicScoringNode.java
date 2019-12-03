@@ -218,6 +218,11 @@ public class OlympicScoringNode extends AbstractQueryNode {
       cache_key = ((OlympicScoringFactory) factory)
           .generateCacheKey(context.query(), (int) prediction_start);
       LOG.info("Set cache key to: " + Bytes.pretty(cache_key));
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("EGADs Key hash: " + Arrays.toString(cache_key));
+        context.queryContext().logTrace("EGADs evaluation jitter: " + jitter);
+        context.queryContext().logTrace("EGADs Model duration: 1 " + model_units);
+      }
       break;
     default:
       throw new IllegalStateException("Unhandled config mode: " + config.getMode());
@@ -293,6 +298,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
             config.getLowerThresholdWarn(),
             config.isLowerIsScalar(),
             config.getSerializeThresholds() ? /* TODO */ 4096: 0,
+            config.getSerializeDeltas(),
             cur,
             current,
             series,
@@ -307,6 +313,17 @@ public class OlympicScoringNode extends AbstractQueryNode {
         }
         
         result.addPredictionsAndThresholds(pred_ts, prediction);
+        
+        if (config.getSerializeDeltas()) {
+          final TimeSeries ts = new EgadsThresholdTimeSeries(
+              cur.id(), 
+              "delta", 
+              prediction.timeSpecification().start(), 
+              eval.deltas(), 
+              eval.index(),
+              OlympicScoringFactory.TYPE);
+          result.addPredictionsAndThresholds(ts, prediction);
+        }
         
         if (config.getSerializeThresholds()) {
           if (config.getUpperThresholdBad() != 0) {
@@ -393,6 +410,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
     properties.setProperty("PERIOD", 
         Long.toString(prediction_interval * prediction_intervals));
     
+    if (context.query().isTraceEnabled()) {
+      context.queryContext().logTrace("EGADS Properties: " + properties.toString());
+    }
      // TODO - parallelize
     final List<TimeSeries> computed = Lists.newArrayList();
     TLongObjectIterator<OlympicScoringBaseline> it = join.iterator();
@@ -504,8 +524,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         }
         baseline.append(series, next);
       }
-      // TODO - do we want to update before and after or either/or?
-      updateState(State.RUNNING, null);
+      
       next.close();
     }
 
@@ -592,6 +611,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
                                      (int) end.epoch(), 
                                      context.queryContext(), 
                                      query);
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("Baseline query at [" + i + "] " + 
+            JSON.serializeToString(query.sub_context.query()));
+      }
       start.add(baseline_period);
       end.add(baseline_period);
     }
@@ -703,6 +726,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         } else {
           expiration = 86400 * 2 * 1000;
         }
+        
         cache.cache(cache_key, expiration, result, null)
           .addCallback(new SuccessCB())
           .addErrback(new CacheErrorCB());
@@ -797,12 +821,35 @@ public class OlympicScoringNode extends AbstractQueryNode {
     if (state == null) {
       LOG.error("No state found. Maybe we need to stop?");
       return;
+    } else if (state.state == State.COMPLETE && 
+        (DateTime.currentTimeMillis() / 1000) - state.lastUpdateTime < 120) {
+      LOG.warn("Already complete?!?!");
+      return;
     }
     
     state.state = new_state;
     state.lastUpdateTime = DateTime.currentTimeMillis() / 1000;
     state.exception = e == null ? "" : e.getMessage();
-    cache.setState(cache_key, state, 300_000); // TODO config  
+    cache.setState(cache_key, state, 300_000); // TODO config
+    
+    AnomalyPredictionState cas = cache.getState(cache_key);
+    int cnt = 0;
+    while (!cas.equals(state) && cnt++ < 5) { 
+      LOG.error("Whoops? Failed cas?: " + cas);
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e1) {
+        LOG.error("Unexpected interruption", e1);
+        return;
+      }
+      cache.setState(cache_key, state, 300_000); // TODO config
+      cas = cache.getState(cache_key);
+    }
+    if (cas.equals(state)) {
+      LOG.info("Set EGADs state to " + new_state + " for " + Arrays.toString(cache_key));
+    } else {
+      LOG.warn("Failed to update the state!!!!");
+    }
   }
   
   void clearState() {

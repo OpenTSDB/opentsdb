@@ -42,12 +42,14 @@ public abstract class BaseAnomalyConfig
   protected final ExecutionMode mode;
   protected final boolean serialize_observed;
   protected final boolean serialize_thresholds;
+  protected final boolean serialize_deltas;
   
   protected BaseAnomalyConfig(final Builder builder) {
     super(builder);
     mode = builder.mode;
     serialize_observed = builder.serializeObserved;
     serialize_thresholds = builder.serializeThresholds;
+    serialize_deltas = builder.serializeDeltas;
   }
   
   @Override
@@ -63,6 +65,10 @@ public abstract class BaseAnomalyConfig
   @Override
   public boolean getSerializeThresholds() {
     return serialize_thresholds;
+  }
+  
+  public boolean getSerializeDeltas() {
+    return serialize_deltas;
   }
   
   @Override
@@ -105,6 +111,7 @@ public abstract class BaseAnomalyConfig
     protected ExecutionMode mode;
     protected boolean serializeObserved;
     protected boolean serializeThresholds;
+    protected boolean serializeDeltas;
     
     public B setMode(final ExecutionMode mode) {
       this.mode = mode;
@@ -118,6 +125,11 @@ public abstract class BaseAnomalyConfig
     
     public B setSerializeThresholds(final boolean serialize_thresholds) {
       serializeThresholds = serialize_thresholds;
+      return self();
+    }
+    
+    public B setSerializeDeltas(final boolean serialize_deltas) {
+      this.serializeDeltas = serialize_deltas;
       return self();
     }
     
@@ -171,6 +183,11 @@ public abstract class BaseAnomalyConfig
       n = node.get("serializeThresholds");
       if (n != null && !n.isNull()) {
         builder.setSerializeThresholds(n.asBoolean());
+      }
+      
+      n = node.get("serializeDeltas");
+      if (n != null && !n.isNull()) {
+        builder.setSerializeDeltas(n.asBoolean());
       }
     }
   }

@@ -175,6 +175,9 @@ public class OlympicScoringFactory extends BaseQueryNodeFactory<
     final byte[] cache_key = generateCacheKey(context.query(), prediction_start);
     AnomalyPredictionState state = cache.getState(cache_key);
     if (state == null) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("No state found for " + Arrays.toString(cache_key));
+      }
       return;
     }
     
