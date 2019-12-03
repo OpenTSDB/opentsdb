@@ -205,6 +205,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
         .setDeltaOnly(delta_only)
         .setResetValue(reset_value)
         .setRateToCount(rate_to_count)
+        .setDataInterval(data_interval)
         .setOverrides(overrides)
         .setSources(sources)
         .setType(type)
