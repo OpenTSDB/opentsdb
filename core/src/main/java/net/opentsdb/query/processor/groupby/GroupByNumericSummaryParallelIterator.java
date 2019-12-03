@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,10 +22,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
@@ -35,6 +38,7 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
@@ -82,7 +86,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       final QueryNode node, 
       final QueryResult result,
       final Map<String, TimeSeries> sources) {
-    this(node, result, sources == null ? null : sources.values());
+    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()));
   }
   
   /**
@@ -99,9 +103,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     
     // TODO
     expect_sums_and_counts = false;
-    final int num_parallel = Math.min(sources.size(), 
-        GroupByNumericArrayIterator.NUM_THREADS);
-    
+
     DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
     if (null == downsampleConfig) {
       throw new IllegalStateException("Shouldn't be here if the downsample was null.");
@@ -114,30 +116,76 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     agg = AggEnum.valueOf(((GroupByConfig) node.config()).getAggregator().toLowerCase());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     dp = new MutableNumericSummaryValue();
-    accumulators = new Accumulator[num_parallel];
+    final int jobCount = Math.min(sources.size(),
+        GroupByNumericArrayIterator.NUM_THREADS);
+    accumulators = new Accumulator[jobCount];
     for (int i = 0; i < accumulators.length; i++) {
       accumulators[i] = new Accumulator(i);
     }
+    if (sources instanceof List) {
+      accumulateInParallel((List) sources);
+    } else {
+      accumulateInParallel(sources);
+    }
+  }
 
-    List<Future<Void>> futures = 
-        new ArrayList<>(sources.size());
+  private void accumulateInParallel(List<TimeSeries> sources) {
+    final int tsCount = sources.size();
+    final int jobCount = accumulators.length;
+    final int tsPerJob = tsCount / jobCount;
+    final List<Future<?>> futures = new ArrayList<>(jobCount);
+    final ExecutorService executorService = GroupByNumericArrayIterator.executorService;
+    for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+      Accumulator accumulator = accumulators[jobIndex];
+      final int startIndex = jobIndex * tsPerJob; // inclusive
+      final int endIndex; // exclusive
+      if (jobIndex == jobCount - 1) {
+        // last job
+        endIndex = tsCount;
+      } else {
+        endIndex = startIndex + tsPerJob;
+      }
+
+      Future<?> future =
+          executorService.submit(
+              () -> {
+                for (int i = startIndex; i < endIndex; i++) {
+                  accumulator.accumulate(sources.get(i));
+                }
+              });
+      futures.add(future);
+    }
+
+    for (Future<?> future : futures) {
+      try {
+        future.get(); // get will block until the future is done
+      } catch (InterruptedException e) {
+        throw new QueryDownstreamException(e.getMessage(), e);
+      } catch (ExecutionException e) {
+        throw new QueryDownstreamException(e.getMessage(), e);
+      }
+    }
+
+    combine();
+  }
+
+  private void accumulateInParallel(Collection<TimeSeries> sources) {
+    List<Future<Void>> futures = new ArrayList<>(sources.size());
     int i = 0;
     for (final TimeSeries source : sources) {
       int index = (i++) % GroupByNumericArrayIterator.NUM_THREADS;
       final ExecutorService executorService = GroupByNumericArrayIterator.executorService;
-      
-      final long s = System.nanoTime();
+
       Future<Void> future =
           executorService.submit(
               () -> {
-                //statsCollector.addTime("groupby.queue.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
                 accumulators[index].accumulate(source);
                 return null;
               });
 
       futures.add(future);
     }
-    
+
     for (i = 0; i < futures.size(); i++) {
       try {
         futures.get(i).get(); // get will block until the future is done
@@ -147,10 +195,10 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         throw new QueryDownstreamException(e.getMessage(), e);
       }
     }
-    
+
     combine();
   }
-  
+
   @Override
   public boolean hasNext() {
     return idx < results.length;
