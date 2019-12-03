@@ -75,6 +75,7 @@ public class EgadsThresholdEvaluator {
   private double[] upper_warn_thresholds;
   private double[] lower_bad_thresholds;
   private double[] lower_warn_thresholds;
+  private double[] deltas;
   private List<AlertValue> alerts;
   
   public EgadsThresholdEvaluator(final double upper_bad,
@@ -84,6 +85,7 @@ public class EgadsThresholdEvaluator {
                                  final double lower_warn,
                                  final boolean lower_is_scalar, 
                                  final int report_len,
+                                 final boolean report_deltas,
                                  final TimeSeries current,
                                  final QueryResult current_result,
                                  final TimeSeries prediction,
@@ -114,6 +116,10 @@ public class EgadsThresholdEvaluator {
       }
     } else {
       this.report_thresholds = false;
+    }
+    if (report_deltas) {
+      deltas = new double[Math.max(report_len, 4096)];
+      Arrays.fill(deltas, Double.NaN);
     }
     this.current = current;
     this.current_result = current_result;
@@ -473,6 +479,18 @@ public class EgadsThresholdEvaluator {
       }
     }
     
+    if (deltas != null) {
+      if (threshold_idx >= deltas.length) {
+        throw new IllegalStateException("Attempted to write too many deltas [" 
+            + idx + "]. Make sure to set the report_len "
+            + "properly in the ctor.");
+      }
+      deltas[threshold_idx] = current - prediction; 
+      if (threshold_idx > idx) {
+        idx = threshold_idx;
+      }
+    }
+    
     idx++;
     return result;
   }
@@ -492,6 +510,11 @@ public class EgadsThresholdEvaluator {
   public double[] lowerWarnThresholds() {
     return lower_warn_thresholds;
   }
+  
+  public double[] deltas() {
+    return deltas;
+  }
+  
   
   public int index() {
     return idx;

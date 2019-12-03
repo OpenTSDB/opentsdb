@@ -34,13 +34,13 @@ public class AnomalyPredictionState {
     ERROR
   }
   
-  public String host;
-  public long startTime;
-  public long predictionStartTime;
-  public long lastUpdateTime;
-  public State state;
-  public long hash;
-  public String exception;
+  public volatile String host;
+  public volatile long startTime;
+  public volatile long predictionStartTime;
+  public volatile long lastUpdateTime;
+  public volatile State state;
+  public volatile long hash;
+  public volatile String exception;
   
   @Override
   public boolean equals(final Object o) {
