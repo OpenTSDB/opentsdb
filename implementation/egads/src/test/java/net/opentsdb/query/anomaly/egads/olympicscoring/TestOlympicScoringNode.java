@@ -28,6 +28,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -69,6 +70,7 @@ import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
+import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
 import net.opentsdb.query.anomaly.AnomalyPredictionState.State;
 import net.opentsdb.query.anomaly.AnomalyPredictionState;
@@ -178,12 +180,12 @@ public class TestOlympicScoringNode {
     .setBaselineNumPeriods(3)
     .setBaselineAggregator("avg")
     .setBaselineQuery(baseline_query)
+    .setMode(ExecutionMode.EVALUATE)
     .setSerializeObserved(true)
     .setSerializeThresholds(true)
     .setLowerThresholdBad(100)
     //.setUpperThreshold(100)
     //.setMode(ExecutionMode.CONFIG)
-    .setMode(ExecutionMode.EVALUATE)
     .addInterpolatorConfig(INTERPOLATOR)
     .addSource("ds")
     .setId("egads")
@@ -208,29 +210,48 @@ public class TestOlympicScoringNode {
   
   //@Test
   public void hourly() throws Exception {
-    
-    SemanticQuery baseline_query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 300))
-        .setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(HOULRY_METRIC)
-                .build())
-            .setId("m1")
-            .build())
-        .addExecutionGraphNode(DownsampleConfig.newBuilder()
-            .setInterval("1m")
-            .setAggregator("avg")
-            .setFill(true)
-            .addInterpolatorConfig(INTERPOLATOR)
-            .addSource("m1")
-            .setId("ds")
-            .build())
-        .build();
-    
-    final SemanticQuery egads_query = getEgadsQuery(baseline_query);
-    System.out.println(JSON.serializeToString(egads_query));
+    SemanticQuery query;
+    if (false) {
+      query = SemanticQuery.newBuilder()
+      .setStart(Integer.toString(BASE_TIME + (3600 * 11)))
+      .setEnd(Integer.toString(BASE_TIME + (3600 * 12)))
+      .setMode(QueryMode.SINGLE)
+      .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+          .setMetric(MetricLiteralFilter.newBuilder()
+              .setMetric(HOULRY_METRIC)
+              .build())
+          .setId("m1")
+          .build())
+      .addExecutionGraphNode(DownsampleConfig.newBuilder()
+          .setInterval("1m")
+          .setAggregator("avg")
+          .setFill(true)
+          .addInterpolatorConfig(INTERPOLATOR)
+          .addSource("m1")
+          .setId("ds")
+          .build())
+      .build();
+    } else {
+      query = getEgadsQuery(SemanticQuery.newBuilder()
+          .setStart(Integer.toString(BASE_TIME + (3600 * 0)))
+          .setEnd(Integer.toString(BASE_TIME + (3600 * 10)))
+          .setMode(QueryMode.SINGLE)
+          .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+              .setMetric(MetricLiteralFilter.newBuilder()
+                  .setMetric(HOULRY_METRIC)
+                  .build())
+              .setId("m1")
+              .build())
+          .addExecutionGraphNode(DownsampleConfig.newBuilder()
+              .setInterval("1m")
+              .setAggregator("avg")
+              .setFill(true)
+              .addInterpolatorConfig(INTERPOLATOR)
+              .addSource("m1")
+              .setId("ds")
+              .build())
+          .build());
+    }
     
     boolean[] flag = new boolean[1];
     Object waity = new Object();
@@ -238,7 +259,7 @@ public class TestOlympicScoringNode {
       TimeSeriesSerdes serdes = null;
       ByteArrayOutputStream baos;
 
-      Sink() {
+      Sink(final TimeSeriesQuery query) {
         baos = new ByteArrayOutputStream();
         SerdesOptions options = JsonV3QuerySerdesOptions.newBuilder()
             .setId("serdes")
@@ -247,7 +268,8 @@ public class TestOlympicScoringNode {
             .getPlugin(SerdesFactory.class, options.getType());
         QueryContext ctx = mock(QueryContext.class);
         when(ctx.tsdb()).thenReturn(TSDB);
-        when(ctx.query()).thenReturn(egads_query);
+        when(ctx.query()).thenReturn(query);
+        System.out.println("                [TESt] " + query.endTime().epoch());
         serdes = factory.newInstance(ctx, options, baos);
       }
       
@@ -257,7 +279,24 @@ public class TestOlympicScoringNode {
         System.out.println("DONE!!");
         try {
           serdes.serializeComplete(null);
-          System.out.println("[JSON]: " + new String(baos.toByteArray()));
+          final String json = new String(baos.toByteArray());
+          System.out.println("[JSON]: " + json);
+          
+          JsonNode n = JSON.getMapper().readTree(json);
+          n = n.get("results");
+          for (JsonNode entry : n) {
+            for (JsonNode data : entry.get("data")) {
+              int cnt = 0;
+              for (JsonNode v : data.get("NumericType")) {
+                cnt++;
+              }
+              if (cnt != 15) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!! BAD COUNT: " + cnt + " => "
+                    + data.get("metric"));
+              }
+            }
+          }
+          
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -270,35 +309,35 @@ public class TestOlympicScoringNode {
         } else {
           flag[0] = true;
           System.out.println("------------ RUNNING NEXT QUERY!!!!!!!----------------------------------------------");
-          try {
-            Thread.sleep(1000);
-          } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          }
-          SemanticQuery q = egads_query.toBuilder()
-              .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 360))
-              //.setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
-              .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + 660))
-              .build();
-          QueryContext ctx = SemanticQueryContext.newBuilder()
-              .setTSDB(TSDB)
-              .addSink(new Sink())
-              .setQuery(q)
-              //.setQuery(baseline_query)
-              .setMode(QueryMode.SINGLE)
-              .build();
-          try {
-            ctx.initialize(null).join();
-          } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          }
-          System.out.println("  INITIALIZED. now fetching next");
-          ctx.fetchNext(null);
+//          try {
+//            Thread.sleep(1000);
+//          } catch (InterruptedException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//          }
+//          SemanticQuery q = egads_query.toBuilder()
+//              .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 360))
+//              //.setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
+//              .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + 660))
+//              .build();
+//          QueryContext ctx = SemanticQueryContext.newBuilder()
+//              .setTSDB(TSDB)
+//              .addSink(new Sink())
+//              .setQuery(q)
+//              //.setQuery(baseline_query)
+//              .setMode(QueryMode.SINGLE)
+//              .build();
+//          try {
+//            ctx.initialize(null).join();
+//          } catch (InterruptedException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//          } catch (Exception e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//          }
+//          System.out.println("  INITIALIZED. now fetching next");
+//          ctx.fetchNext(null);
         }
       }
 
@@ -394,22 +433,43 @@ public class TestOlympicScoringNode {
       @Override
       public void onError(Throwable t) {
         // TODO Auto-generated method stub
+        System.out.println("WTF? " + t.getMessage());
         t.printStackTrace();
         waity.notify();
       }
       
     }
     
-    QueryContext ctx = SemanticQueryContext.newBuilder()
-        .setTSDB(TSDB)
-        .addSink(new Sink())
-        .setQuery(egads_query)
-        //.setQuery(baseline_query)
-        .setMode(QueryMode.SINGLE)
-        .build();
-    ctx.initialize(null).join();
-    System.out.println("  INITIALIZED. now fetching next");
-    ctx.fetchNext(null);
+    if (false) {
+      QueryContext ctx = SemanticQueryContext.newBuilder()
+          .setTSDB(TSDB)
+          .addSink(new Sink(query))
+          .setQuery(query)
+          .setMode(QueryMode.SINGLE)
+          .build();
+      ctx.initialize(null).join();
+      System.out.println("  INITIALIZED. now fetching next for simple basline query.");
+      ctx.fetchNext(null);
+    } else {
+      for (int i = 0; i < 61; i++) {
+        query = query.toBuilder()
+//            .setStart(Long.toString(BASE_TIME + (3600 * 10) + 3300))
+//            .setEnd(Long.toString(BASE_TIME + (3600 * 10) + 4200))
+            .setStart(Long.toString(BASE_TIME + (3600 * 10) + (i * 60)))
+            .setEnd(Long.toString(BASE_TIME + (3600 * 10) + (i * 60) + 900))
+            .build();
+        QueryContext ctx = SemanticQueryContext.newBuilder()
+            .setTSDB(TSDB)
+            .addSink(new Sink(query))
+            .setQuery(query)
+            //.setQuery(baseline_query)
+            .setMode(QueryMode.SINGLE)
+            .build();
+        ctx.initialize(null).join();
+        System.out.println("  INITIALIZED. now fetching next");
+        ctx.fetchNext(null);
+      }
+    }
     
     synchronized (waity) {
       waity.wait(10000);
@@ -419,7 +479,7 @@ public class TestOlympicScoringNode {
 
   private SemanticQuery getEgadsQuery(SemanticQuery baseline_query) {
     final SemanticQuery egads_query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + (3600 * 11) + 300))
+        .setStart(Integer.toString(BASE_TIME + (3600 * 11)))
         //.setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
         .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + 600))
         .setMode(QueryMode.SINGLE)
@@ -444,8 +504,9 @@ public class TestOlympicScoringNode {
             .setBaselineQuery(baseline_query)
             .setSerializeObserved(true)
             .setSerializeThresholds(true)
-            .setLowerThresholdBad(100)
-            //.setUpperThreshold(100)
+            .setSerializeDeltas(true)
+            .setLowerThresholdBad(25)
+            .setUpperThresholdBad(25)
             //.setMode(ExecutionMode.CONFIG)
             .setMode(ExecutionMode.EVALUATE)
             .addInterpolatorConfig(INTERPOLATOR)
@@ -696,17 +757,15 @@ public class TestOlympicScoringNode {
         
         MutableNumericValue v = 
             new MutableNumericValue(new SecondTimeStamp(ts), value);
-        store.write(null, TimeSeriesDatum.wrap(id_a, v), null).join();
-        
         if (ts == 1546340580) {
           v = new MutableNumericValue(new SecondTimeStamp(1546340610), value * 10);
-          store.write(null, TimeSeriesDatum.wrap(id_a, v), null).join();
-          wrote++;
         }
-        
+        store.write(null, TimeSeriesDatum.wrap(id_a, v), null).join();
+                
         v = new MutableNumericValue(new SecondTimeStamp(ts), value * 10);
         store.write(null, TimeSeriesDatum.wrap(id_b, v), null).join();
         ts += 60;
+        System.out.println(ts + "  " + v.doubleValue());
         wrote++;
       }
     }

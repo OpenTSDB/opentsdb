@@ -100,7 +100,7 @@ public class OlympicScoringBaseline {
     }
   }
 
-  TimeSeries predict(final Properties properties) {
+  TimeSeries predict(final Properties properties, final long prediction_start) {
     if (baseline.size() < 2) {
       LOG.warn("Not enough data points to predict: " + baseline.size());
       return null;
@@ -111,7 +111,7 @@ public class OlympicScoringBaseline {
     final double[] results = new double[(int) node.predictionIntervals()];
     
     // fill the prediction with nans at the proper timestamps
-    long ts = node.predictionStart();
+    long ts = prediction_start;
     for (int i = 0; i < results.length; i++) {
       try {
         prediction.append(ts, Float.NaN);
@@ -134,7 +134,7 @@ public class OlympicScoringBaseline {
     final Iterator<com.yahoo.egads.data.TimeSeries.Entry> it = 
         prediction.data.iterator();
     int i = 0;
-    ts = node.predictionStart();
+    ts = prediction_start;
     while (it.hasNext()) {
       com.yahoo.egads.data.TimeSeries.Entry entry = it.next();
       if (entry.time != ts) {
@@ -147,7 +147,7 @@ public class OlympicScoringBaseline {
     }
     
     return new EgadsPredictionTimeSeries(id, results, 
-        new SecondTimeStamp(node.prediction_start));
+        new SecondTimeStamp(prediction_start));
   }
 
   void processNumeric(final TypedTimeSeriesIterator iterator) {

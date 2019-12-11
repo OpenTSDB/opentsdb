@@ -17,6 +17,7 @@ package net.opentsdb.query.anomaly;
 import java.util.List;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +44,12 @@ public abstract class BaseAnomalyConfig
   protected final boolean serialize_observed;
   protected final boolean serialize_thresholds;
   protected final boolean serialize_deltas;
+  protected final double upper_threshold_bad;
+  protected final double upper_threshold_warn;
+  protected final boolean upper_is_scalar;
+  protected final double lower_threshold_bad;
+  protected final double lower_threshold_warn;
+  protected final boolean lower_is_scalar;
   
   protected BaseAnomalyConfig(final Builder builder) {
     super(builder);
@@ -50,6 +57,12 @@ public abstract class BaseAnomalyConfig
     serialize_observed = builder.serializeObserved;
     serialize_thresholds = builder.serializeThresholds;
     serialize_deltas = builder.serializeDeltas;
+    upper_threshold_bad = builder.upperThresholdBad;
+    upper_threshold_warn = builder.upperThresholdWarn;
+    upper_is_scalar = builder.upperIsScalar;
+    lower_threshold_bad = builder.lowerThresholdBad;
+    lower_threshold_warn = builder.lowerThresholdWarn;
+    lower_is_scalar = builder.lowerIsScalar;
   }
   
   @Override
@@ -71,6 +84,30 @@ public abstract class BaseAnomalyConfig
     return serialize_deltas;
   }
   
+  public double getUpperThresholdBad() {
+    return upper_threshold_bad;
+  }
+  
+  public double getUpperThresholdWarn() {
+    return upper_threshold_warn;
+  }
+
+  public boolean isUpperIsScalar() {
+    return upper_is_scalar;
+  }
+
+  public double getLowerThresholdBad() {
+    return lower_threshold_bad;
+  }
+  
+  public double getLowerThresholdWarn() {
+    return lower_threshold_warn;
+  }
+
+  public boolean isLowerIsScalar() {
+    return lower_is_scalar;
+  }
+  
   @Override
   public boolean equals(final Object o) {
     if (o == null) {
@@ -87,6 +124,12 @@ public abstract class BaseAnomalyConfig
     
     BaseAnomalyConfig other = (BaseAnomalyConfig) o;
     return Objects.equals(mode, other.mode) &&
+        Objects.equals(upper_threshold_bad, other.upper_threshold_bad) &&
+        Objects.equals(upper_threshold_warn, other.upper_threshold_warn) &&
+        Objects.equals(upper_is_scalar, other.upper_is_scalar) &&
+        Objects.equals(lower_threshold_bad, other.lower_threshold_bad) &&
+        Objects.equals(lower_threshold_warn, other.lower_threshold_warn) &&
+        Objects.equals(lower_is_scalar, other.lower_is_scalar) &&
         super.equals(other);
   }
   
@@ -102,16 +145,33 @@ public abstract class BaseAnomalyConfig
     final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
     hashes.add(hash);
     hashes.add(super.buildHashCode());
+    // NOTE: Purposely leaving out the thresholds.
     return Hashing.combineOrdered(hashes);
   }
   
   public static abstract class Builder<B extends Builder<B, C>, 
                                        C extends BaseQueryNodeConfigWithInterpolators> 
       extends BaseQueryNodeConfigWithInterpolators.Builder<B, C> {
+    @JsonProperty
     protected ExecutionMode mode;
+    @JsonProperty
     protected boolean serializeObserved;
+    @JsonProperty
     protected boolean serializeThresholds;
+    @JsonProperty
     protected boolean serializeDeltas;
+    @JsonProperty
+    private double upperThresholdBad;
+    @JsonProperty
+    private double upperThresholdWarn;
+    @JsonProperty
+    private boolean upperIsScalar;
+    @JsonProperty
+    private double lowerThresholdBad;
+    @JsonProperty
+    private double lowerThresholdWarn;
+    @JsonProperty
+    private boolean lowerIsScalar;
     
     public B setMode(final ExecutionMode mode) {
       this.mode = mode;
@@ -130,6 +190,36 @@ public abstract class BaseAnomalyConfig
     
     public B setSerializeDeltas(final boolean serialize_deltas) {
       this.serializeDeltas = serialize_deltas;
+      return self();
+    }
+
+    public B setUpperThresholdBad(final double upper_threshold) {
+      upperThresholdBad = upper_threshold;
+      return self();
+    }
+    
+    public B setUpperThresholdWarn(final double upper_threshold) {
+      upperThresholdWarn = upper_threshold;
+      return self();
+    }
+    
+    public B setUpperIsScalar(final boolean upper_is_scalar) {
+      upperIsScalar = upper_is_scalar;
+      return self();
+    }
+    
+    public B setLowerThresholdBad(final double lower_treshold) {
+      lowerThresholdBad = lower_treshold;
+      return self();
+    }
+    
+    public B setLowerThresholdWarn(final double lower_treshold) {
+      lowerThresholdWarn = lower_treshold;
+      return self();
+    }
+    
+    public B setLowerIsScalar(final boolean lower_is_scalar) {
+      lowerIsScalar = lower_is_scalar;
       return self();
     }
     
@@ -189,6 +279,37 @@ public abstract class BaseAnomalyConfig
       if (n != null && !n.isNull()) {
         builder.setSerializeDeltas(n.asBoolean());
       }
+      
+      n = node.get("upperThresholdBad");
+      if (n != null && !n.isNull()) {
+        builder.setUpperThresholdBad(n.asDouble());
+      }
+      
+      n = node.get("upperThresholdWarn");
+      if (n != null && !n.isNull()) {
+        builder.setUpperThresholdWarn(n.asDouble());
+      }
+      
+      n = node.get("upperIsScalar");
+      if (n != null && !n.isNull()) {
+        builder.setUpperIsScalar(n.asBoolean());
+      }
+      
+      n = node.get("lowerThresholdBad");
+      if (n != null && !n.isNull()) {
+        builder.setLowerThresholdBad(n.asDouble());
+      }
+      
+      n = node.get("lowerThresholdWarn");
+      if (n != null && !n.isNull()) {
+        builder.setLowerThresholdWarn(n.asDouble());
+      }
+      
+      n = node.get("lowerIsScalar");
+      if (n != null && !n.isNull()) {
+        builder.setLowerIsScalar(n.asBoolean());
+      }
+      
     }
   }
 }

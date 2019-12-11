@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly.egads;
 
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -30,11 +32,13 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.alert.AlertValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.query.QueryResult;
 
 /**
  * A time series used to store the predictions generated off a baseline via a 
@@ -46,7 +50,7 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
  * @since 3.0
  */
 public class EgadsPredictionTimeSeries implements TimeSeries {
-  protected final TimeSeries source;
+  protected final TimeSeries[] sources;
   protected final TimeSeriesId id;
   protected final TimeStamp timestamp;
   protected final double[] results;
@@ -55,18 +59,70 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
   public EgadsPredictionTimeSeries(final TimeSeriesId id, 
                                    final double[] results, 
                                    final TimeStamp timestamp) {
-    this.source = null;
+    this.sources = null;
     this.id = id;
     this.results = results;
     this.timestamp = timestamp;
   }
   
-  public EgadsPredictionTimeSeries(final TimeSeries source, 
+  public EgadsPredictionTimeSeries(final TimeSeries[] sources, 
+                                   final QueryResult[] predictions,
                                    final String suffix, 
                                    final String model) {
-    this.source = source;
+    this.sources = sources;
     // TODO - handle byte IDs somehow.
-    final TimeSeriesStringId string_id = (TimeSeriesStringId) source.id();
+    TimeSeriesStringId string_id = null;
+    if (sources.length == 1) {
+      string_id = (TimeSeriesStringId) sources[0].id();
+      this.results = null;
+      this.timestamp = null;
+    } else {
+      TimeSpecification spec = null;
+      for (int i = 0; i < sources.length; i++) {
+        if (sources[i] == null) {
+          continue;
+        }
+        
+        string_id = (TimeSeriesStringId) sources[i].id();
+        spec = predictions[i].timeSpecification();
+        break;
+      }
+      
+      // blech, we need to merge these predictions into one array for now.
+      // TODO - note that right now we're assuming all of the results have the
+      // same length.
+      long dps = (spec.end().epoch() - spec.start().epoch()) / 
+          spec.interval().get(ChronoUnit.SECONDS);
+      results = new double[(int) dps * sources.length];
+      // TODO - proper timestamp back-dated if we're missing the first preds.
+      timestamp = spec.start().getCopy();
+      Arrays.fill(results, Double.NaN);
+      int write_idx = 0;
+      for (int i = 0; i < sources.length; i++) {
+        if (sources[i] == null) {
+          write_idx += dps;
+          continue;
+        }
+        
+        Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op =
+            sources[i].iterator(NumericArrayType.TYPE);
+        if (!op.isPresent()) {
+          write_idx += dps;
+          continue;
+        }
+        
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = op.get();
+        if (!iterator.hasNext()) {
+          write_idx += dps;
+          continue;
+        }
+        
+        TimeSeriesValue<NumericArrayType> value = (TimeSeriesValue<NumericArrayType>) iterator.next();
+        final int length = value.value().end() - value.value().offset();
+        System.arraycopy(value.value().doubleArray(), value.value().offset(), results, write_idx, length);
+        write_idx += length;
+      }
+    }
     BaseTimeSeriesStringId.Builder builder = BaseTimeSeriesStringId.newBuilder()
         .setAlias(string_id.alias())
         .setNamespace(string_id.namespace())
@@ -80,8 +136,6 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
     tags.put(EgadsTimeSeries.MODEL_TAG_KEY, model);
     builder.setTags(tags);
     this.id = builder.build();
-    this.results = null;
-    this.timestamp = null;
   }
   
   public void addAlerts(final List<AlertValue> results) {
@@ -104,8 +158,8 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
   public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       TypeToken<? extends TimeSeriesDataType> type) {
     if (type == NumericArrayType.TYPE) {
-      if (source != null) {
-        return source.iterator(type);
+      if (sources != null && sources.length == 1) {
+        return sources[0].iterator(type);
       }
       return Optional.of(new ArrayIterator());
     } else if (type == AlertType.TYPE && alerts != null && !alerts.isEmpty()) {
@@ -118,9 +172,9 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
   public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
     final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> its = 
         Lists.newArrayList();
-    if (source != null) {
+    if (sources != null && sources.length == 1) {
       final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op = 
-          source.iterator(NumericArrayType.TYPE);
+          sources[0].iterator(NumericArrayType.TYPE);
       if (op.isPresent()) {
         its.add(op.get());
       }
@@ -144,8 +198,10 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
 
   @Override
   public void close() {
-    if (source != null) {
-      source.close();
+    if (sources != null) {
+      for (int i = 0; i < sources.length; i++) {
+        sources[i].close();
+      }
     }
   }
   

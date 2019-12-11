@@ -39,12 +39,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
   private final String baseline_aggregator;
   private final int exclude_max;
   private final int exclude_min;
-  private final double upper_threshold_bad;
-  private final double upper_threshold_warn;
-  private final boolean upper_is_scalar;
-  private final double lower_threshold_bad;
-  private final double lower_threshold_warn;
-  private final boolean lower_is_scalar;
   
   protected OlympicScoringConfig(final Builder builder) {
     super(builder);
@@ -54,12 +48,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
     baseline_aggregator = builder.baselineAggregator;
     exclude_max = builder.excludeMax;
     exclude_min = builder.excludeMin;
-    upper_threshold_bad = builder.upperThresholdBad;
-    upper_threshold_warn = builder.upperThresholdWarn;
-    upper_is_scalar = builder.upperIsScalar;
-    lower_threshold_bad = builder.lowerThresholdBad;
-    lower_threshold_warn = builder.lowerThresholdWarn;
-    lower_is_scalar = builder.lowerIsScalar;
   }
   
   public SemanticQuery getBaselineQuery() {
@@ -84,30 +72,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
 
   public int getExcludeMin() {
     return exclude_min;
-  }
-
-  public double getUpperThresholdBad() {
-    return upper_threshold_bad;
-  }
-  
-  public double getUpperThresholdWarn() {
-    return upper_threshold_warn;
-  }
-
-  public boolean isUpperIsScalar() {
-    return upper_is_scalar;
-  }
-
-  public double getLowerThresholdBad() {
-    return lower_threshold_bad;
-  }
-  
-  public double getLowerThresholdWarn() {
-    return lower_threshold_warn;
-  }
-
-  public boolean isLowerIsScalar() {
-    return lower_is_scalar;
   }
 
   @Override
@@ -151,12 +115,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
         Objects.equals(baseline_aggregator, config.baseline_aggregator) &&
         Objects.equals(exclude_max, config.exclude_max) &&
         Objects.equals(exclude_min, config.exclude_min) &&
-        Objects.equals(upper_threshold_bad, config.upper_threshold_bad) &&
-        Objects.equals(upper_threshold_warn, config.upper_threshold_warn) &&
-        Objects.equals(upper_is_scalar, config.upper_is_scalar) &&
-        Objects.equals(lower_threshold_bad, config.lower_threshold_bad) &&
-        Objects.equals(lower_threshold_warn, config.lower_threshold_warn) &&
-        Objects.equals(lower_is_scalar, config.lower_is_scalar) &&
         baseline_query.equals(config.baseline_query) &&
         super.equals(config);
   }
@@ -174,7 +132,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
         .putString(baseline_aggregator, Const.UTF8_CHARSET)
         .putInt(exclude_max)
         .putInt(exclude_min)
-        // NOTE: Purposely leaving out the thresholds.
         .hash();
     final List<HashCode> hashes = Lists.newArrayListWithCapacity(3);
     hashes.add(hash);
@@ -202,18 +159,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
     private int excludeMax;
     @JsonProperty
     private int excludeMin;
-    @JsonProperty
-    private double upperThresholdBad;
-    @JsonProperty
-    private double upperThresholdWarn;
-    @JsonProperty
-    private boolean upperIsScalar;
-    @JsonProperty
-    private double lowerThresholdBad;
-    @JsonProperty
-    private double lowerThresholdWarn;
-    @JsonProperty
-    private boolean lowerIsScalar;
     
     Builder() {
       setType(OlympicScoringFactory.TYPE);
@@ -246,36 +191,6 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
     
     public Builder setExcludeMin(final int exclude_min) {
       excludeMin = exclude_min;
-      return this;
-    }
-    
-    public Builder setUpperThresholdBad(final double upper_threshold) {
-      upperThresholdBad = upper_threshold;
-      return this;
-    }
-    
-    public Builder setUpperThresholdWarn(final double upper_threshold) {
-      upperThresholdWarn = upper_threshold;
-      return this;
-    }
-    
-    public Builder setUpperIsScalar(final boolean upper_is_scalar) {
-      upperIsScalar = upper_is_scalar;
-      return this;
-    }
-    
-    public Builder setLowerThresholdBad(final double lower_treshold) {
-      lowerThresholdBad = lower_treshold;
-      return this;
-    }
-    
-    public Builder setLowerThresholdWarn(final double lower_treshold) {
-      lowerThresholdWarn = lower_treshold;
-      return this;
-    }
-    
-    public Builder setLowerIsScalar(final boolean lower_is_scalar) {
-      lowerIsScalar = lower_is_scalar;
       return this;
     }
     

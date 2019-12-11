@@ -70,9 +70,9 @@ public class EgadsResult implements QueryResult {
   }
 
   public void addPredictionsAndThresholds(final TimeSeries ts, 
-                                          final QueryResult result) {
+                                          final QueryResult[] results) {
     if (ts.types().contains(NumericArrayType.TYPE)) {
-      series.add(new AlignedArrayTimeSeries(ts, result));
+      series.add(new AlignedArrayTimeSeries(ts, results));
     } else {
       series.add(ts);
     }
@@ -140,11 +140,11 @@ public class EgadsResult implements QueryResult {
 
   class AlignedArrayTimeSeries implements TimeSeries {
     final TimeSeries source;
-    final QueryResult result;
+    final QueryResult[] results;
 
-    AlignedArrayTimeSeries(final TimeSeries source, final QueryResult result) {
+    AlignedArrayTimeSeries(final TimeSeries source, final QueryResult[] results) {
       this.source = source;
-      this.result = result;
+      this.results = results;
     }
 
     @Override
@@ -211,7 +211,7 @@ public class EgadsResult implements QueryResult {
         }
 
         value = (TimeSeriesValue<NumericArrayType>) iterator.next();
-        TimeStamp ts = result.timeSpecification().start().getCopy();
+        TimeStamp ts = results[0].timeSpecification().start().getCopy();
         int i = value.value().offset();
         int x = i;
         while (ts.compare(Op.LT, original_result.timeSpecification().start())) {
