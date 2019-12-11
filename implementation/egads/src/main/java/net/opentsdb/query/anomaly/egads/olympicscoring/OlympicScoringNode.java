@@ -15,18 +15,11 @@
 package net.opentsdb.query.anomaly.egads.olympicscoring;
 
 import java.time.Duration;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,40 +27,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import com.yahoo.egads.models.tsmm.OlympicModel2;
 
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
-import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.types.alert.AlertType;
-import net.opentsdb.data.types.alert.AlertTypeList;
-import net.opentsdb.data.types.alert.AlertValue;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseQueryContext;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -76,7 +52,6 @@ import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
-import net.opentsdb.query.AbstractQueryPipelineContext.ResultWrapper;
 import net.opentsdb.query.anomaly.AnomalyPredictionState;
 import net.opentsdb.query.anomaly.AnomalyPredictionState.State;
 import net.opentsdb.query.anomaly.PredictionCache;
@@ -88,12 +63,9 @@ import net.opentsdb.query.anomaly.egads.EgadsThresholdTimeSeries;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
-import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Pair;
 
 /**
  * A node that runs the OlympicScoring algorithm from EGADs. This node will
@@ -119,19 +91,21 @@ public class OlympicScoringNode extends AbstractQueryNode {
   protected final int jitter;
   protected final AtomicBoolean failed;
   protected final AtomicBoolean building_prediction;
-  protected volatile boolean cache_hit;
-  private BaselineQuery[] baseline_queries;
-  private final TemporalAmount baseline_period;
+  protected final AtomicBoolean cache_error;
+  protected final boolean cache_hits[];
+  protected volatile BaselineQuery[][] baseline_queries;
+  protected final TemporalAmount baseline_period;
   protected Properties properties;
-  protected long prediction_start;
-  protected volatile QueryResult prediction;
+  protected final long[] prediction_starts;
+  protected volatile QueryResult[] predictions;
   protected volatile QueryResult current;
   protected final TLongObjectMap<OlympicScoringBaseline> join = 
       new TLongObjectHashMap<OlympicScoringBaseline>();
   protected final ChronoUnit model_units;
-  protected final byte[] cache_key;
-  protected long prediction_intervals;
-  protected long prediction_interval;
+  protected final byte[][] cache_keys;
+  protected final long prediction_intervals;
+  protected final long prediction_interval;
+  protected final int threshold_dps;
   protected String ds_interval;
   protected volatile String data_source;
   
@@ -142,6 +116,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
     this.config = config;
     latch = new AtomicInteger(2);
     failed = new AtomicBoolean();
+    cache_error = new AtomicBoolean();
     building_prediction = new AtomicBoolean();
     baseline_period = DateTime.parseDuration2(config.getBaselinePeriod());
     
@@ -180,10 +155,12 @@ public class OlympicScoringNode extends AbstractQueryNode {
     case CONFIG:
       jitter = 0;
       model_units = null;
-      prediction_start = context.query().startTime().epoch();
+      prediction_starts = new long[] { context.query().startTime().epoch() };
       prediction_intervals = query_time_span / (prediction_interval * 1000);
-      cache_key = null;
-      LOG.info("CONFIG Set cache key to: " + Bytes.pretty(cache_key));
+      threshold_dps = (int) prediction_intervals;
+      cache_keys = null;
+      cache_hits = new boolean[0];
+      predictions = new QueryResult[1];
       break;
     case EVALUATE:
     case PREDICT:
@@ -211,17 +188,41 @@ public class OlympicScoringNode extends AbstractQueryNode {
             Duration.ofHours(1) : Duration.ofDays(1));
       }
       
-      prediction_start = start.epoch();
       prediction_intervals = (model_units == 
           ChronoUnit.HOURS ? 3600 : 86400) * 1000 / (prediction_interval * 1000);
       
-      cache_key = ((OlympicScoringFactory) factory)
-          .generateCacheKey(context.query(), (int) prediction_start);
-      LOG.info("Set cache key to: " + Bytes.pretty(cache_key));
+      // we need to see how many predictions we need for this eval as the query time
+      // range may span the boundary.
+      int num_predictions = 0;
+      long ts = start.epoch();
+      while (ts < context.query().endTime().epoch()) {
+        num_predictions++;
+        ts += (model_units == ChronoUnit.HOURS ? 3600 : 86400);
+      }
+      prediction_starts = new long[num_predictions];
+      predictions = new QueryResult[num_predictions];
+      if (num_predictions > 1) {
+        latch.set(num_predictions + 1);
+      }
+      cache_keys = new byte[num_predictions][];
+      ts = start.epoch();
+      int i = 0;
+      while (ts < context.query().endTime().epoch()) {
+        prediction_starts[i] = ts;
+        cache_keys[i++] = ((OlympicScoringFactory) factory)
+          .generateCacheKey(context.query(), (int) ts);
+        ts += (model_units == ChronoUnit.HOURS ? 3600 : 86400);
+      }
+      threshold_dps = (int) (prediction_intervals * predictions.length);
+      cache_hits = new boolean[num_predictions];
+      
       if (context.query().isTraceEnabled()) {
-        context.queryContext().logTrace("EGADs Key hash: " + Arrays.toString(cache_key));
         context.queryContext().logTrace("EGADs evaluation jitter: " + jitter);
         context.queryContext().logTrace("EGADs Model duration: 1 " + model_units);
+      }
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("EGADs evaluation jitter: " + jitter);
+        LOG.trace("EGADs Model duration: 1 " + model_units);
       }
       break;
     default:
@@ -236,11 +237,15 @@ public class OlympicScoringNode extends AbstractQueryNode {
       public Void call(final Void arg) throws Exception {
         // trigger the cache lookup.
         if (cache != null && config.getMode() != ExecutionMode.CONFIG) {
-          cache.fetch(pipelineContext(), cache_key, null)
-            .addCallback(new CacheCB())
-            .addErrback(new CacheErrCB());
+          for (int i = 0; i < predictions.length; i++) {
+            cache.fetch(pipelineContext(), cache_keys[i], null)
+              .addCallback(new CacheCB(i))
+              .addErrback(new CacheErrCB(i));
+          }
         } else {
-          fetchBaselineData();
+          for (int i = 0; i < predictions.length; i++) {
+            fetchBaselineData(i);
+          }
         }
         return null;
       }
@@ -274,106 +279,148 @@ public class OlympicScoringNode extends AbstractQueryNode {
   
   void run() {
     // Got baseline and current data, yay!
-    final TLongObjectMap<TimeSeries> map = new TLongObjectHashMap<TimeSeries>();
+    TLongObjectMap<TimeSeries> map = new TLongObjectHashMap<TimeSeries>();
     
     for (final TimeSeries series : current.timeSeries()) {
       final long hash = series.id().buildHashCode();
       map.put(hash, series);
     }
     
-    int series_limit = prediction.timeSeries().size();
     final EgadsResult result = new EgadsResult(
         this, current, config.getSerializeObserved());
-    
-    for (int i = 0; i < series_limit; i++) {
-      final TimeSeries series = prediction.timeSeries().get(i);
-      final long hash = series.id().buildHashCode();
-      TimeSeries cur = map.remove(hash);
-      if (cur != null) {
-        final EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(
-            config.getUpperThresholdBad(),
-            config.getUpperThresholdWarn(),
-            config.isUpperIsScalar(),
-            config.getLowerThresholdBad(),
-            config.getLowerThresholdWarn(),
-            config.isLowerIsScalar(),
-            config.getSerializeThresholds() ? /* TODO */ 4096: 0,
-            config.getSerializeDeltas(),
-            cur,
-            current,
-            series,
-            prediction);
-        eval.evaluate();
-        //final EgadsTimeSeries egads_ts = new EgadsTimeSeries(series);
-        
-        final EgadsPredictionTimeSeries pred_ts = new EgadsPredictionTimeSeries(
-            series, "prediction", OlympicScoringFactory.TYPE);
-        if (eval.alerts() != null && !eval.alerts().isEmpty()) {
-          pred_ts.addAlerts(eval.alerts());
-        }
-        
-        result.addPredictionsAndThresholds(pred_ts, prediction);
-        
-        if (config.getSerializeDeltas()) {
-          final TimeSeries ts = new EgadsThresholdTimeSeries(
-              cur.id(), 
-              "delta", 
-              prediction.timeSpecification().start(), 
-              eval.deltas(), 
-              eval.index(),
-              OlympicScoringFactory.TYPE);
-          result.addPredictionsAndThresholds(ts, prediction);
-        }
-        
-        if (config.getSerializeThresholds()) {
-          if (config.getUpperThresholdBad() != 0) {
-            final TimeSeries ts = new EgadsThresholdTimeSeries(
-                cur.id(), 
-                "upperBad", 
-                prediction.timeSpecification().start(), 
-                eval.upperBadThresholds(), 
-                eval.index(),
-                OlympicScoringFactory.TYPE);
-            result.addPredictionsAndThresholds(ts, prediction);
+    if (predictions.length > 1) {
+      // join first then eval
+      final TLongObjectMap<TimeSeries[]> series_arrays = 
+          new TLongObjectHashMap<TimeSeries[]>();
+      for (int i = 0; i < predictions.length; i++) {
+        final int series_limit = predictions[i].timeSeries().size();
+        for (int x = 0; x < series_limit; x++) {
+          final TimeSeries series = predictions[i].timeSeries().get(x);
+          final long hash = series.id().buildHashCode();
+          TimeSeries[] array = series_arrays.get(hash);
+          if (array == null) {
+            array = new TimeSeries[predictions.length];
+            series_arrays.put(hash, array);
           }
-          if (config.getUpperThresholdWarn() != 0) {
-            final TimeSeries ts = new EgadsThresholdTimeSeries(
-                cur.id(), 
-                "upperWarn", 
-                prediction.timeSpecification().start(), 
-                eval.upperWarnThresholds(), 
-                eval.index(),
-                OlympicScoringFactory.TYPE);
-            result.addPredictionsAndThresholds(ts, prediction);
-          }
-          if (config.getLowerThresholdBad() != 0) {
-            final TimeSeries ts = new EgadsThresholdTimeSeries(
-                cur.id(), 
-                "lowerBad", 
-                prediction.timeSpecification().start(), 
-                eval.lowerBadThresholds(), 
-                eval.index(),
-                OlympicScoringFactory.TYPE);
-            result.addPredictionsAndThresholds(ts, prediction);
-          }
-          if (config.getLowerThresholdWarn() != 0) {
-            final TimeSeries ts = new EgadsThresholdTimeSeries(
-                cur.id(), 
-                "lowerWarn", 
-                prediction.timeSpecification().start(), 
-                eval.lowerWarnThresholds(), 
-                eval.index(),
-                OlympicScoringFactory.TYPE);
-            result.addPredictionsAndThresholds(ts, prediction);
-          }
+          array[i] = series;
         }
       }
+      
+      TLongObjectIterator<TimeSeries[]> iterator = series_arrays.iterator();
+      while (iterator.hasNext()) {
+        iterator.advance();
+        TimeSeries series = null;
+        for (int i = 0; i < predictions.length; i++) {
+          if (iterator.value()[i] == null) {
+            continue;
+          }
+          
+          series = iterator.value()[i];
+          break;
+        }
+        
+        if (series == null) {
+          LOG.warn("Whoops, null series in predictions?? Shouldn't happen!");
+          continue;
+        }
+        
+        final long hash = series.id().buildHashCode();
+        TimeSeries cur = map.remove(hash);
+        evaluate(cur, iterator.value(), result);
+      }
+    } else {
+      final int series_limit = predictions[0].timeSeries().size();
+      for (int i = 0; i < series_limit; i++) {
+        final TimeSeries series = predictions[0].timeSeries().get(i);
+        final long hash = series.id().buildHashCode();
+        TimeSeries cur = map.remove(hash);
+        evaluate(cur, series, result);
+      }
     }
-    
+    map = null; // release to GC
     sendUpstream(result);
   }
   
-  void runBaseline() {
+  void evaluate(final TimeSeries cur, final TimeSeries prediction, final EgadsResult result) {
+    evaluate(cur, new TimeSeries[] { prediction }, result);
+  }
+  
+  void evaluate(final TimeSeries cur, final TimeSeries[] preds, final EgadsResult result) {
+    if (cur != null) {
+      final EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(
+          config,
+          threshold_dps,
+          cur,
+          current,
+          preds,
+          predictions);
+      eval.evaluate();
+      
+      final EgadsPredictionTimeSeries pred_ts = new EgadsPredictionTimeSeries(
+          preds, predictions, "prediction", OlympicScoringFactory.TYPE);
+      if (eval.alerts() != null && !eval.alerts().isEmpty()) {
+        pred_ts.addAlerts(eval.alerts());
+      }
+      
+      result.addPredictionsAndThresholds(pred_ts, predictions);
+      
+      if (config.getSerializeDeltas()) {
+        final TimeSeries ts = new EgadsThresholdTimeSeries(
+            cur.id(), 
+            "delta", 
+            prediction_starts[0], 
+            eval.deltas(), 
+            eval.index(),
+            OlympicScoringFactory.TYPE);
+        result.addPredictionsAndThresholds(ts, predictions);
+      }
+      
+      if (config.getSerializeThresholds()) {
+        if (config.getUpperThresholdBad() != 0) {
+          final TimeSeries ts = new EgadsThresholdTimeSeries(
+              cur.id(), 
+              "upperBad", 
+              prediction_starts[0], 
+              eval.upperBadThresholds(), 
+              eval.index(),
+              OlympicScoringFactory.TYPE);
+          result.addPredictionsAndThresholds(ts, predictions);
+        }
+        if (config.getUpperThresholdWarn() != 0) {
+          final TimeSeries ts = new EgadsThresholdTimeSeries(
+              cur.id(), 
+              "upperWarn", 
+              prediction_starts[0], 
+              eval.upperWarnThresholds(), 
+              eval.index(),
+              OlympicScoringFactory.TYPE);
+          result.addPredictionsAndThresholds(ts, predictions);
+        }
+        if (config.getLowerThresholdBad() != 0) {
+          final TimeSeries ts = new EgadsThresholdTimeSeries(
+              cur.id(), 
+              "lowerBad", 
+              prediction_starts[0], 
+              eval.lowerBadThresholds(), 
+              eval.index(),
+              OlympicScoringFactory.TYPE);
+          result.addPredictionsAndThresholds(ts, predictions);
+        }
+        if (config.getLowerThresholdWarn() != 0) {
+          final TimeSeries ts = new EgadsThresholdTimeSeries(
+              cur.id(), 
+              "lowerWarn", 
+              prediction_starts[0], 
+              eval.lowerWarnThresholds(), 
+              eval.index(),
+              OlympicScoringFactory.TYPE);
+          result.addPredictionsAndThresholds(ts, predictions);
+        }
+      }
+    }
+  }
+  
+  void runBaseline(final int prediction_idx) {
     TypeToken<? extends TimeSeriesId> id_type = null;
     properties = new Properties();
     properties.setProperty("TS_MODEL", "OlympicModel2");
@@ -399,7 +446,11 @@ public class OlympicScoringNode extends AbstractQueryNode {
         config.getBaselineNumPeriods()));
     properties.setProperty("WINDOW_AGGREGATOR", 
         config.getBaselineAggregator().toUpperCase());
-    properties.setProperty("MODEL_START", Long.toString(prediction_start));
+    if (prediction_idx > 0) {
+      properties.setProperty("MODEL_START", Long.toString(prediction_starts[prediction_idx]));
+    } else {
+      properties.setProperty("MODEL_START", Long.toString(prediction_starts[prediction_idx]));
+    }
     properties.setProperty("ENABLE_WEIGHTING", "TRUE");
     properties.setProperty("AGGREGATOR",
         config.getBaselineAggregator().toUpperCase());
@@ -418,12 +469,12 @@ public class OlympicScoringNode extends AbstractQueryNode {
     TLongObjectIterator<OlympicScoringBaseline> it = join.iterator();
     while (it.hasNext()) {
       it.advance();
-      TimeSeries ts = it.value().predict(properties);
+      TimeSeries ts = it.value().predict(properties, prediction_starts[prediction_idx]);
       if (ts != null) {
         computed.add(ts);
       }
     }
-    TimeStamp start = new SecondTimeStamp(prediction_start);
+    TimeStamp start = new SecondTimeStamp(prediction_starts[prediction_idx]);
     TimeStamp end = start.getCopy();
     end.add(modelDuration() == ChronoUnit.HOURS ? Duration.ofHours(1) : Duration.ofDays(1));
 
@@ -434,9 +485,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
                                           start, 
                                           end, 
                                           Lists.newArrayList(computed), 
-                                          id_type));
+                                          id_type),
+                 prediction_idx);
     }
-    prediction = new EgadsPredictionResult(this, 
+    predictions[prediction_idx] = new EgadsPredictionResult(this, 
                                            data_source, 
                                            start, 
                                            end, 
@@ -446,6 +498,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
   }
   
   class CacheCB implements Callback<Void, QueryResult> {
+    final int index;
+    CacheCB(final int index) {
+      this.index = index;
+    }
 
     @Override
     public Void call(final QueryResult result) throws Exception {
@@ -453,12 +509,12 @@ public class OlympicScoringNode extends AbstractQueryNode {
       // If result == null ? fire baseline, else store and use to match.
       if (result != null) {
         context.queryContext().logDebug("Prediction cache hit for query.");
-        prediction = result;
-        cache_hit = true;
+        predictions[index] = result;
+        cache_hits[index] = true;
         countdown();
       } else {
         context.queryContext().logDebug("Prediction cache miss for query.");
-        fetchBaselineData();
+        fetchBaselineData(index);
       }
       
       return null;
@@ -467,22 +523,28 @@ public class OlympicScoringNode extends AbstractQueryNode {
   }
   
   class CacheErrCB implements Callback<Void, Exception> {
-
+    final int index;
+    CacheErrCB(final int index) {
+      this.index = index;
+    }
+    
     @Override
     public Void call(final Exception e) throws Exception {
       LOG.warn("Cache exception", e);
-      fetchBaselineData();
+      fetchBaselineData(index);
       return null;
     }
     
   }
   
   class BaselineQuery implements QuerySink {
-    final int idx;
+    final int prediction_idx;
+    final int period_idx;
     QueryContext sub_context;
     
-    BaselineQuery(final int idx) {
-      this.idx = idx;
+    BaselineQuery(final int prediction_idx, final int period_idx) {
+      this.prediction_idx = prediction_idx;
+      this.period_idx = period_idx;
     }
     
     @Override
@@ -491,19 +553,20 @@ public class OlympicScoringNode extends AbstractQueryNode {
         return;
       }
       
-      if (idx + 1 < baseline_queries.length) {
+      if (period_idx + 1 < baseline_queries.length) {
         // fire next
-        baseline_queries[idx + 1].sub_context.initialize(null)
-          .addCallback(new SubQueryCB(baseline_queries[idx + 1].sub_context))
+        baseline_queries[prediction_idx][period_idx + 1].sub_context.initialize(null)
+          .addCallback(new SubQueryCB( 
+              baseline_queries[prediction_idx][period_idx + 1].sub_context))
           .addErrback(new ErrorCB());
       } else {
-        runBaseline();
+        runBaseline(prediction_idx);
       }
     }
 
     @Override
     public void onNext(final QueryResult next) {
-      updateState(State.RUNNING, null);
+      updateState(State.RUNNING, prediction_idx, null);
       // TODO filter, for now assume one result
       
       if (data_source == null) {
@@ -514,7 +577,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         }
       }
       
-      LOG.info("BASELINE [" + idx + "] got " + next.timeSeries().size() + " results!");
+      LOG.info("BASELINE [" + period_idx + "] got " + next.timeSeries().size() + " results!");
       for (final TimeSeries series : next.timeSeries()) {
         final long hash = series.id().buildHashCode();
         OlympicScoringBaseline baseline = join.get(hash);
@@ -538,11 +601,11 @@ public class OlympicScoringNode extends AbstractQueryNode {
     @Override
     public void onError(final Throwable t) {
       if (failed.compareAndSet(false, true)) {
-        LOG.error("OOOPS on sub query: " + idx + " " + t.getMessage());
+        LOG.error("OOOPS on sub query: " + period_idx + " " + t.getMessage());
         if (t instanceof Exception) {
-          handleError((Exception) t, true);
+          handleError((Exception) t, prediction_idx, true);
         } else {
-          handleError(new RuntimeException(t), true);
+          handleError(new RuntimeException(t), prediction_idx, true);
         }
       } else {
         if (LOG.isDebugEnabled()) {
@@ -582,14 +645,22 @@ public class OlympicScoringNode extends AbstractQueryNode {
     
   }
 
-  void fetchBaselineData() {
+  void fetchBaselineData(final int prediction_index) {
     // see we should actually start by checking the state cache.
-    if (!startPrediction()) {
+    if (!startPrediction(prediction_index)) {
       return;
     }
     
-    baseline_queries = new BaselineQuery[config.getBaselineNumPeriods()];
-    final TimeStamp start = new SecondTimeStamp(prediction_start);
+    if (baseline_queries == null) {
+      synchronized (this) {
+        if (baseline_queries == null) {
+          baseline_queries = new BaselineQuery[predictions.length][];          
+        }
+      }
+    }
+    
+    baseline_queries[prediction_index] = new BaselineQuery[config.getBaselineNumPeriods()];
+    final TimeStamp start = new SecondTimeStamp(prediction_starts[prediction_index]);
     final TemporalAmount period = DateTime.parseDuration2(config.getBaselinePeriod());
     
     // advance to the oldest time first
@@ -605,8 +676,8 @@ public class OlympicScoringNode extends AbstractQueryNode {
     
     // fire!
     for (int i = 0; i < config.getBaselineNumPeriods(); i++) {
-      final BaselineQuery query = new BaselineQuery(i);
-      baseline_queries[i] = query;
+      final BaselineQuery query = new BaselineQuery(prediction_index, i);
+      baseline_queries[prediction_index][i] = query;
       query.sub_context = buildQuery((int) start.epoch(), 
                                      (int) end.epoch(), 
                                      context.queryContext(), 
@@ -619,22 +690,24 @@ public class OlympicScoringNode extends AbstractQueryNode {
       end.add(baseline_period);
     }
 
-    baseline_queries[0].sub_context.initialize(null)
-      .addCallback(new SubQueryCB(baseline_queries[0].sub_context))
+    baseline_queries[prediction_index][0].sub_context.initialize(null)
+      .addCallback(new SubQueryCB(baseline_queries[prediction_index][0].sub_context))
       .addErrback(new ErrorCB());
     
     if (config.getMode() == ExecutionMode.PREDICT) {
       // return here.
-      final AnomalyPredictionState state = cache.getState(cache_key);
+      final AnomalyPredictionState state = cache.getState(cache_keys[prediction_index]);
       QueryExecutionException e = new QueryExecutionException("Successfully "
-          + "started prediction start [" + prediction_start + "] and key " 
-          + Arrays.toString(cache_key) + " State: " + JSON.serializeToString(state), 423);
+          + "started prediction start [" + prediction_starts[prediction_index] + "] and key " 
+          + Arrays.toString(cache_keys[prediction_index]) + " State: " 
+          + JSON.serializeToString(state), 423);
       sendUpstream(e);
     }
   }
   
   void countdown() {
-    if (latch.decrementAndGet() == 0) {
+    int ct = latch.decrementAndGet();
+    if (ct == 0) {
       run();
     }
   }
@@ -681,9 +754,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
     return model_units;
   }
   
-  long predictionStart() {
-    return prediction_start;
-  }
+//  long predictionStart() {
+//    return prediction_start;
+//  }
   
   long predictionIntervals() {
     return prediction_intervals;
@@ -693,8 +766,8 @@ public class OlympicScoringNode extends AbstractQueryNode {
     return prediction_interval;
   }
   
-  void writeCache(final QueryResult result) {
-    if (cache_hit || cache == null) {
+  void writeCache(final QueryResult result, final int prediction_index) {
+    if (cache_hits[prediction_index] || cache == null) {
       return;
     }
     
@@ -705,7 +778,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
           @Override
           public Object call(final Exception e) throws Exception {
             LOG.warn("Failed to cache EGADs prediction", e);
-            clearState();
+            clearState(prediction_index);
             return null;
           }
         }
@@ -715,9 +788,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
           public Object call(final Void ignored) throws Exception {
             if (LOG.isTraceEnabled()) {
               LOG.trace("Successfully cached EGADs prediction at " 
-                  + Arrays.toString(cache_key));
+                  + Arrays.toString(cache_keys[prediction_index]));
             }
-            updateState(State.COMPLETE, null);
+            
+            updateState(State.COMPLETE, prediction_index, null);
             return null;
           }
         }
@@ -729,30 +803,32 @@ public class OlympicScoringNode extends AbstractQueryNode {
           expiration = 86400 * 2 * 1000;
         }
         
-        cache.cache(cache_key, expiration, result, null)
+        cache.cache(cache_keys[prediction_index], expiration, result, null)
           .addCallback(new SuccessCB())
           .addErrback(new CacheErrorCB());
       }
     });
   }
 
-  void handleError(final Exception e, final boolean update_state) {
+  void handleError(final Exception e, 
+                   final int prediction_index, 
+                   final boolean update_state) {
     if (!failed.compareAndSet(false, true)) {
       sendUpstream(e);
       if (update_state) {
-        updateState(State.ERROR, e);
+        updateState(State.ERROR, prediction_index, e);
       }
     } else {
       LOG.warn("Exception after failure", e);
     }
   }
   
-  boolean startPrediction() {
+  boolean startPrediction(final int prediction_index) {
     if (cache == null || config.getMode() == ExecutionMode.CONFIG) {
       return true;
     }
     
-    AnomalyPredictionState state = cache.getState(cache_key);
+    AnomalyPredictionState state = cache.getState(cache_keys[prediction_index]);
     if (state == null) {
       state = new AnomalyPredictionState();
       state.host = ((OlympicScoringFactory) factory).hostName();
@@ -760,31 +836,39 @@ public class OlympicScoringNode extends AbstractQueryNode {
       state.startTime = state.lastUpdateTime = DateTime.currentTimeMillis() / 1000;
       state.state = State.RUNNING;
       
-      cache.setState(cache_key, state, 300_000); // TODO config
+      cache.setState(cache_keys[prediction_index], state, 300_000); // TODO config
       
-      AnomalyPredictionState present = cache.getState(cache_key);
+      AnomalyPredictionState present = cache.getState(cache_keys[prediction_index]);
       if (!state.equals(present)) {
         if (present == null) {
           handleError(new QueryExecutionException("Failed to set the prediction state."
-              + "Retry later for prediction start [" + prediction_start + "] and key " 
-              + Arrays.toString(cache_key) + " State: " + JSON.serializeToString(state), 424),
+              + "Retry later for prediction start [" + prediction_starts[prediction_index] + "] and key " 
+              + Arrays.toString(cache_keys[prediction_index]) + " State: " 
+              + JSON.serializeToString(state), 424),
+              prediction_index,
               false);
         } else if (present.state == State.COMPLETE) {
           // TODO - handle infinite loops here, we need to inc a volatile and
           // fail if we hit too many retries.
-          cache.fetch(pipelineContext(), cache_key, null)
-            .addCallback(new CacheCB())
-            .addErrback(new CacheErrCB());
+          for (int i = 0; i < predictions.length; i++) {
+            cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
+              .addCallback(new CacheCB(i))
+              .addErrback(new CacheErrCB(i));
+          }
           
         } else if (present.state == State.RUNNING) {
           handleError(new QueryExecutionException("Lost a race building "
-              + "prediction for prediction start [" + prediction_start + "] and key " 
-              + Arrays.toString(cache_key) + " State: " + JSON.serializeToString(present), 423),
+              + "prediction for prediction start [" + prediction_starts[prediction_index] + "] and key " 
+              + Arrays.toString(cache_keys[prediction_index]) + " State: " 
+              + JSON.serializeToString(present), 423),
+              prediction_index,
               false);
         } else {
           handleError(new QueryExecutionException("Unexpected exception or error state."
-              + "Retry later for prediction start [" + prediction_start + "] and key " 
-              + Arrays.toString(cache_key) + " State: " + JSON.serializeToString(state), 424),
+              + "Retry later for prediction start [" + prediction_starts[prediction_index] + "] and key " 
+              + Arrays.toString(cache_keys[prediction_index]) + " State: " 
+              + JSON.serializeToString(state), 424),
+              prediction_index,
               false);
         }
         return false;
@@ -797,29 +881,37 @@ public class OlympicScoringNode extends AbstractQueryNode {
     } else if (state.state == State.COMPLETE) {
       // TODO - handle infinite loops here, we need to inc a volatile and
       // fail if we hit too many retries.
-      cache.fetch(pipelineContext(), cache_key, null)
-        .addCallback(new CacheCB())
-        .addErrback(new CacheErrCB());
+      for (int i = 0; i < predictions.length; i++) {
+        cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
+          .addCallback(new CacheCB(i))
+          .addErrback(new CacheErrCB(i));
+      }
       
     } else if (state.state == State.RUNNING) {
       handleError(new QueryExecutionException("Lost a race building "
-          + "prediction for prediction start [" + prediction_start + "] and key " 
-          + Arrays.toString(cache_key) + " State: " + JSON.serializeToString(state), 423),
+          + "prediction for prediction start [" + prediction_starts[prediction_index] + "] and key " 
+          + Arrays.toString(cache_keys[prediction_index]) + " State: " 
+          + JSON.serializeToString(state), 423),
+          prediction_index,
           false);
     } else {
       handleError(new QueryExecutionException("Unexpected exception or error state."
-          + "Retry later for prediction start [" + prediction_start + "] and key " 
-          + Arrays.toString(cache_key) + " State: " + JSON.serializeToString(state), 424),
+          + "Retry later for prediction start [" + prediction_starts[prediction_index] + "] and key " 
+          + Arrays.toString(cache_keys[prediction_index]) + " State: " 
+          + JSON.serializeToString(state), 424),
+          prediction_index,
           false);
     }
     return false;
   }
 
-  void updateState(final State new_state, final Exception e) {
+  void updateState(final State new_state, 
+                   final int prediction_index, 
+                   final Exception e) {
     if (cache == null || config.getMode() == ExecutionMode.CONFIG) {
       return;
     }
-    AnomalyPredictionState state = cache.getState(cache_key);
+    AnomalyPredictionState state = cache.getState(cache_keys[prediction_index]);
     if (state == null) {
       LOG.error("No state found. Maybe we need to stop?");
       return;
@@ -832,9 +924,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
     state.state = new_state;
     state.lastUpdateTime = DateTime.currentTimeMillis() / 1000;
     state.exception = e == null ? "" : e.getMessage();
-    cache.setState(cache_key, state, 300_000); // TODO config
+    cache.setState(cache_keys[prediction_index], state, 300_000); // TODO config
     
-    AnomalyPredictionState cas = cache.getState(cache_key);
+    AnomalyPredictionState cas = cache.getState(cache_keys[prediction_index]);
     int cnt = 0;
     while (!cas.equals(state) && cnt++ < 5) { 
       LOG.error("Whoops? Failed cas?: " + cas);
@@ -844,20 +936,21 @@ public class OlympicScoringNode extends AbstractQueryNode {
         LOG.error("Unexpected interruption", e1);
         return;
       }
-      cache.setState(cache_key, state, 300_000); // TODO config
-      cas = cache.getState(cache_key);
+      cache.setState(cache_keys[prediction_index], state, 300_000); // TODO config
+      cas = cache.getState(cache_keys[prediction_index]);
     }
     if (cas.equals(state)) {
-      LOG.info("Set EGADs state to " + new_state + " for " + Arrays.toString(cache_key));
+      LOG.info("Set EGADs state to " + new_state + " for " 
+          + Arrays.toString(cache_keys[prediction_index]));
     } else {
       LOG.warn("Failed to update the state!!!!");
     }
   }
   
-  void clearState() {
+  void clearState(final int prediction_index) {
     if (cache == null || config.getMode() == ExecutionMode.CONFIG) {
       return;
     }
-    cache.delete(cache_key);
+    cache.delete(cache_keys[prediction_index]);
   }
 }

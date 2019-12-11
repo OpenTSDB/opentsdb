@@ -37,6 +37,7 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.anomaly.BaseAnomalyConfig;
 
 /**
  * A class that takes a time series to evaluate and the matching prediction
@@ -58,17 +59,11 @@ public class EgadsThresholdEvaluator {
   public static final String LOWER_BAD = "lowerBad";
   public static final String LOWER_WARN = "lowerWarn";
   
-  private final double upper_bad;
-  private final double upper_warn;
-  private final boolean upper_is_scalar;
-  private final double lower_bad;
-  private final double lower_warn;
-  private final boolean lower_is_scalar;
-  private final boolean report_thresholds;
+  private final BaseAnomalyConfig config;
   private final TimeSeries current;
   private final QueryResult current_result;
-  private final TimeSeries prediction;
-  private final QueryResult prediction_result;
+  private final TimeSeries[] predictions;
+  private final QueryResult[] prediction_results;
   
   private int idx;
   private double[] upper_bad_thresholds;
@@ -78,66 +73,58 @@ public class EgadsThresholdEvaluator {
   private double[] deltas;
   private List<AlertValue> alerts;
   
-  public EgadsThresholdEvaluator(final double upper_bad,
-                                 final double upper_warn, 
-                                 final boolean upper_is_scalar,
-                                 final double lower_bad,
-                                 final double lower_warn,
-                                 final boolean lower_is_scalar, 
-                                 final int report_len,
-                                 final boolean report_deltas,
+  public EgadsThresholdEvaluator(final BaseAnomalyConfig config, 
+                                 final int threshold_dps,
                                  final TimeSeries current,
                                  final QueryResult current_result,
-                                 final TimeSeries prediction,
-                                 final QueryResult prediction_result) {
-    this.upper_bad = upper_bad;
-    this.upper_warn = upper_warn;
-    this.upper_is_scalar = upper_is_scalar;
-    this.lower_bad = lower_bad;
-    this.lower_warn = lower_warn;
-    this.lower_is_scalar = lower_is_scalar;
-    if (report_len > 0) {
-      this.report_thresholds = true;
-      if (upper_bad != 0) {
-        upper_bad_thresholds = new double[report_len];
+                                 final TimeSeries[] predictions,
+                                 final QueryResult[] prediction_results) {
+    this.config = config;
+    if (config.getSerializeThresholds()) {
+      if (config.getUpperThresholdBad() != 0) {
+        upper_bad_thresholds = new double[threshold_dps];
         Arrays.fill(upper_bad_thresholds, Double.NaN);
       }
-      if (upper_warn != 0) {
-        upper_warn_thresholds = new double[report_len];
+      if (config.getUpperThresholdWarn() != 0) {
+        upper_warn_thresholds = new double[threshold_dps];
         Arrays.fill(upper_warn_thresholds, Double.NaN);
       }
-      if (lower_bad != 0) {
-        lower_bad_thresholds = new double[report_len];
+      if (config.getLowerThresholdBad() != 0) {
+        lower_bad_thresholds = new double[threshold_dps];
         Arrays.fill(lower_bad_thresholds, Double.NaN);
       }
-      if (lower_warn != 0) {
-        lower_warn_thresholds = new double[report_len];
+      if (config.getLowerThresholdWarn() != 0) {
+        lower_warn_thresholds = new double[threshold_dps];
         Arrays.fill(lower_warn_thresholds, Double.NaN);
       }
-    } else {
-      this.report_thresholds = false;
     }
-    if (report_deltas) {
-      deltas = new double[Math.max(report_len, 4096)];
+    if (config.getSerializeDeltas()) {
+      deltas = new double[threshold_dps];
       Arrays.fill(deltas, Double.NaN);
     }
     this.current = current;
     this.current_result = current_result;
-    this.prediction = prediction;
-    this.prediction_result = prediction_result;
+    this.predictions = predictions;
+    this.prediction_results = prediction_results;
   }
   
   public boolean evaluate() {
-    if (prediction == null) {
+    if (predictions == null || predictions.length == 0) {
       // TODO - meh
-      LOG.warn("Prediction was null.");
+      LOG.warn("Predictions was null or empty.");
       return false;
     }
     
-    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
-        prediction.iterator(NumericArrayType.TYPE);
+    int pred_idx = 0;
+    Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
+        predictions[pred_idx].iterator(NumericArrayType.TYPE);
+    
+    // TODO - handle missing time series inbetween preds (or at start or end)
+    while (!pred_op.isPresent() && pred_idx < predictions.length) {
+      pred_op = predictions[++pred_idx].iterator(NumericArrayType.TYPE);
+    }
     if (!pred_op.isPresent()) {
-      LOG.warn("No array iterator for prediction.");
+      LOG.warn("No array iterators for prediction.");
       return false;
     }
     
@@ -198,16 +185,43 @@ public class EgadsThresholdEvaluator {
   
   void runNumericType(
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
-      final TimeSeriesValue<NumericArrayType> prediction) {
-    final long prediction_base = prediction_result.timeSpecification().start().epoch();
+      TimeSeriesValue<NumericArrayType> prediction) {
+    int pred_idx = 0;
+    long prediction_base = prediction_results[pred_idx]
+        .timeSpecification().start().epoch();
+    final long threshold_base = prediction_base;
     // TODO - won't work for biiiiig time ranges
-    final long prediction_interval = prediction_result.timeSpecification()
+    long prediction_interval = prediction_results[pred_idx].timeSpecification()
         .interval().get(ChronoUnit.SECONDS);
+    int summary = -1;
     
     while (iterator.hasNext()) {
       final TimeSeriesValue<NumericType> value = 
           (TimeSeriesValue<NumericType>) iterator.next();
-      if (value.timestamp().compare(Op.LT, prediction_result.timeSpecification().start())) {
+      if (value.timestamp().compare(Op.GTE, prediction_results[pred_idx]
+          .timeSpecification().end())) {
+        if (++pred_idx > predictions.length) {
+          // out of bounds now
+          return;
+        }
+        
+        Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
+            predictions[pred_idx].iterator(NumericArrayType.TYPE);
+        if (!pred_op.isPresent()) {
+          return;
+        }
+        
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = 
+            pred_op.get();
+        if (!pred_it.hasNext()) {
+          return;
+        }
+        prediction = (TimeSeriesValue<NumericArrayType>) pred_it.next();
+        prediction_base = prediction_results[pred_idx].timeSpecification().start().epoch();
+      }
+      
+      if (value.timestamp().compare(Op.LT, prediction_results[pred_idx]
+          .timeSpecification().start())) {
         continue;
       }
       
@@ -219,7 +233,7 @@ public class EgadsThresholdEvaluator {
       AlertValue av = eval(value.timestamp(), value.value().toDouble(), 
           (prediction.value().isInteger() ? (double) prediction.value().longArray()[idx] :
             prediction.value().doubleArray()[idx]),
-          idx);
+          (int) ((value.timestamp().epoch() - threshold_base) / prediction_interval));
       if (av != null) {
         if (alerts == null) {
           alerts = Lists.newArrayList();
@@ -231,18 +245,40 @@ public class EgadsThresholdEvaluator {
   
   void runNumericArrayType(
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
-      final TimeSeriesValue<NumericArrayType> prediction) {
-    final long prediction_base = prediction_result.timeSpecification().start().epoch();
+      TimeSeriesValue<NumericArrayType> prediction) {
+    int pred_idx = 0;
+    long prediction_base = prediction_results[pred_idx]
+        .timeSpecification().start().epoch();
+    final long threshold_base = prediction_base;
     // TODO - won't work for biiiiig time ranges
-    final long prediction_interval = prediction_result.timeSpecification()
+    long prediction_interval = prediction_results[pred_idx].timeSpecification()
         .interval().get(ChronoUnit.SECONDS);
     final TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    
     final TimeStamp ts = current_result.timeSpecification().start().getCopy();
-    int wrote = 0;
     for (int i = value.value().offset(); i < value.value().end(); i++) {
-      if (ts.compare(Op.LT, prediction_result.timeSpecification().start())) {
+      if (ts.compare(Op.GTE, prediction_results[pred_idx].timeSpecification().end())) {
+        if (++pred_idx >= predictions.length) {
+          // out of bounds now
+          return;
+        }
+        
+        Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
+            predictions[pred_idx].iterator(NumericArrayType.TYPE);
+        if (!pred_op.isPresent()) {
+          return;
+        }
+        
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = 
+            pred_op.get();
+        if (!pred_it.hasNext()) {
+          return;
+        }
+        prediction = (TimeSeriesValue<NumericArrayType>) pred_it.next();
+        prediction_base = prediction_results[pred_idx].timeSpecification().start().epoch();
+      }
+      
+      if (ts.compare(Op.LT, prediction_results[pred_idx].timeSpecification().start())) {
         ts.add(current_result.timeSpecification().interval());
         continue;
       }
@@ -258,7 +294,7 @@ public class EgadsThresholdEvaluator {
             value.value().doubleArray()[i]), 
           (prediction.value().isInteger() ? (double) prediction.value().longArray()[idx] :
             prediction.value().doubleArray()[idx]),
-          idx);
+          (int) ((ts.epoch() - threshold_base) / prediction_interval));
       if (av != null) {
         if (alerts == null) {
           alerts = Lists.newArrayList();
@@ -267,27 +303,54 @@ public class EgadsThresholdEvaluator {
       }
       
       ts.add(current_result.timeSpecification().interval());
-      wrote++;
     }
+    
   }
   
   void runNumericSummaryType(
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
-      final TimeSeriesValue<NumericArrayType> prediction) {
-    final long prediction_base = prediction_result.timeSpecification().start().epoch();
+      TimeSeriesValue<NumericArrayType> prediction) {
+    int pred_idx = 0;
+    long prediction_base = prediction_results[pred_idx]
+        .timeSpecification().start().epoch();
+    final long threshold_base = prediction_base;
     // TODO - won't work for biiiiig time ranges
-    final long prediction_interval = prediction_result.timeSpecification()
+    long prediction_interval = prediction_results[pred_idx].timeSpecification()
         .interval().get(ChronoUnit.SECONDS);
     int summary = -1;
     
     while (iterator.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> value = 
           (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      if (value.timestamp().compare(Op.LT, prediction_result.timeSpecification().start())) {
+      if (value.timestamp().compare(Op.GTE, prediction_results[pred_idx]
+          .timeSpecification().end())) {
+        if (++pred_idx > predictions.length) {
+          // out of bounds now
+          return;
+        }
+        
+        Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
+            predictions[pred_idx].iterator(NumericArrayType.TYPE);
+        if (!pred_op.isPresent()) {
+          return;
+        }
+        
+        TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = 
+            pred_op.get();
+        if (!pred_it.hasNext()) {
+          return;
+        }
+        prediction = (TimeSeriesValue<NumericArrayType>) pred_it.next();
+        prediction_base = prediction_results[pred_idx].timeSpecification().start().epoch();
+      }
+      
+      if (value.timestamp().compare(Op.LT, prediction_results[pred_idx]
+          .timeSpecification().start())) {
         continue;
       }
       
-      int idx = (int) ((value.timestamp().epoch() - prediction_base) / prediction_interval);
+      int idx = (int) ((value.timestamp().epoch() - prediction_base) / 
+          prediction_interval);
       if (idx + prediction.value().offset() >= prediction.value().end()) {
         LOG.warn(idx + " beyond the prediction range.");
       }
@@ -295,10 +358,11 @@ public class EgadsThresholdEvaluator {
       if (summary < 0) {
         summary = value.value().summariesAvailable().iterator().next();
       }
-      AlertValue av = eval(value.timestamp(), value.value().value(summary).toDouble(), 
+      AlertValue av = eval(value.timestamp(), value.value().value(summary)
+          .toDouble(), 
           (prediction.value().isInteger() ? (double) prediction.value().longArray()[idx] :
             prediction.value().doubleArray()[idx]),
-          idx);
+          (int) ((value.timestamp().epoch() - threshold_base) / prediction_interval));
       if (av != null) {
         if (alerts == null) {
           alerts = Lists.newArrayList();
@@ -313,14 +377,15 @@ public class EgadsThresholdEvaluator {
                          final double prediction,
                          final int threshold_idx) {
     AlertValue result = null;
-    if (upper_bad != 0) {
+    if (config.getUpperThresholdBad() != 0) {
       final double threshold;
-      if (upper_is_scalar) {
-        threshold = prediction + upper_bad;
+      if (config.isUpperIsScalar()) {
+        threshold = prediction + config.getUpperThresholdBad();
       } else {
-        threshold = prediction + Math.abs((prediction * (upper_bad / 100)));
+        threshold = prediction + Math.abs((prediction * (
+            config.getUpperThresholdBad() / 100)));
       }
-      if (upper_is_scalar && current > threshold) {
+      if (config.isUpperIsScalar() && current > threshold) {
         result = AlertValue.newBuilder()
             .setState(State.BAD)
             .setDataPoint(current)
@@ -333,14 +398,15 @@ public class EgadsThresholdEvaluator {
         result = AlertValue.newBuilder()
             .setState(State.BAD)
             .setDataPoint(current)
-            .setMessage("** TEMP " + current + " is greater than " + threshold + " which is > than " + upper_bad + "%")
+            .setMessage("** TEMP " + current + " is greater than " + threshold 
+                + " which is > than " + config.getUpperThresholdBad() + "%")
             .setTimestamp(timestamp)
             .setThreshold(threshold)
             .setThresholdType(UPPER_BAD)
             .build();
       }
       
-      if (report_thresholds) {
+      if (config.getSerializeThresholds()) {
         if (threshold_idx >= upper_bad_thresholds.length) {
           throw new IllegalStateException("Attempted to write too many upper "
               + "thresholds [" + idx + "]. Make sure to set the report_len "
@@ -353,14 +419,15 @@ public class EgadsThresholdEvaluator {
       }
     }
     
-    if (upper_warn != 0) {
+    if (config.getUpperThresholdWarn() != 0) {
       final double threshold;
-      if (upper_is_scalar) {
-        threshold = prediction + upper_warn;
+      if (config.isUpperIsScalar()) {
+        threshold = prediction + config.getUpperThresholdWarn();
       } else {
-        threshold = prediction + Math.abs((prediction * (upper_warn / 100)));
+        threshold = prediction + Math.abs((prediction * (
+            config.getUpperThresholdWarn() / 100)));
       }
-      if (upper_is_scalar && current > threshold) {
+      if (config.isUpperIsScalar() && current > threshold) {
         result = AlertValue.newBuilder()
             .setState(State.WARN)
             .setDataPoint(current)
@@ -373,14 +440,15 @@ public class EgadsThresholdEvaluator {
         result = AlertValue.newBuilder()
             .setState(State.WARN)
             .setDataPoint(current)
-            .setMessage("** TEMP " + current + " is greater than " + threshold + " which is > than " + upper_warn + "%")
+            .setMessage("** TEMP " + current + " is greater than " + threshold 
+                + " which is > than " + config.getUpperThresholdWarn() + "%")
             .setTimestamp(timestamp)
             .setThreshold(threshold)
             .setThresholdType(UPPER_WARN)
             .build();
       }
       
-      if (report_thresholds) {
+      if (config.getSerializeThresholds()) {
         if (threshold_idx >= upper_warn_thresholds.length) {
           throw new IllegalStateException("Attempted to write too many upper "
               + "thresholds [" + idx + "]. Make sure to set the report_len "
@@ -393,14 +461,15 @@ public class EgadsThresholdEvaluator {
       }
     }
     
-    if (lower_bad != 0) {
+    if (config.getLowerThresholdBad() != 0) {
       final double threshold;
-      if (lower_is_scalar) {
-        threshold = prediction - lower_bad;
+      if (config.isLowerIsScalar()) {
+        threshold = prediction - config.getLowerThresholdBad();
       } else {
-        threshold = prediction - Math.abs((prediction * (lower_bad / (double) 100)));
+        threshold = prediction - Math.abs((prediction * (
+            config.getLowerThresholdBad() / (double) 100)));
       }
-      if (lower_is_scalar && current < threshold) {
+      if (config.isLowerIsScalar() && current < threshold) {
         if (result == null) {
           result = AlertValue.newBuilder()
               .setState(State.BAD)
@@ -416,14 +485,15 @@ public class EgadsThresholdEvaluator {
           result = AlertValue.newBuilder()
               .setState(State.BAD)
               .setDataPoint(current)
-              .setMessage("** TEMP " + current + " is less than " + threshold + " which is < than " + lower_bad + "%")
+              .setMessage("** TEMP " + current + " is less than " + threshold 
+                  + " which is < than " + config.getLowerThresholdBad() + "%")
               .setTimestamp(timestamp)
               .setThreshold(threshold)
               .setThresholdType(LOWER_BAD)
               .build();
         }
       }
-      if (report_thresholds) {
+      if (config.getSerializeThresholds()) {
         if (threshold_idx >= lower_bad_thresholds.length) {
           throw new IllegalStateException("Attempted to write too many lower "
               + "thresholds [" + idx + "]. Make sure to set the report_len "
@@ -436,14 +506,15 @@ public class EgadsThresholdEvaluator {
       }
     }
     
-    if (lower_warn != 0) {
+    if (config.getLowerThresholdWarn() != 0) {
       final double threshold;
-      if (lower_is_scalar) {
-        threshold = prediction - lower_warn;
+      if (config.isLowerIsScalar()) {
+        threshold = prediction - config.getLowerThresholdWarn();
       } else {
-        threshold = prediction - Math.abs((prediction * (lower_warn / (double) 100)));
+        threshold = prediction - Math.abs((prediction * (
+            config.getLowerThresholdWarn() / (double) 100)));
       }
-      if (lower_is_scalar && current < threshold) {
+      if (config.isLowerIsScalar() && current < threshold) {
         if (result == null) {
           result = AlertValue.newBuilder()
               .setState(State.WARN)
@@ -459,14 +530,15 @@ public class EgadsThresholdEvaluator {
           result = AlertValue.newBuilder()
               .setState(State.WARN)
               .setDataPoint(current)
-              .setMessage("** TEMP " + current + " is less than " + threshold + " which is < than " + lower_warn + "%")
+              .setMessage("** TEMP " + current + " is less than " + threshold 
+                  + " which is < than " + config.getLowerThresholdWarn() + "%")
               .setTimestamp(timestamp)
               .setThreshold(threshold)
               .setThresholdType(LOWER_WARN)
               .build();
         }
       }
-      if (report_thresholds) {
+      if (config.getSerializeThresholds()) {
         if (threshold_idx >= lower_warn_thresholds.length) {
           throw new IllegalStateException("Attempted to write too many lower "
               + "thresholds [" + idx + "]. Make sure to set the report_len "
@@ -514,7 +586,6 @@ public class EgadsThresholdEvaluator {
   public double[] deltas() {
     return deltas;
   }
-  
   
   public int index() {
     return idx;

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly.egads;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
@@ -49,7 +51,7 @@ public class EgadsThresholdTimeSeries implements TimeSeries {
   
   public EgadsThresholdTimeSeries(final TimeSeriesId id, 
                                   final String suffix,
-                                  final TimeStamp timestamp,
+                                  final long prediction_start,
                                   final double[] values, 
                                   final int end_idx,
                                   final String model) {
@@ -68,7 +70,7 @@ public class EgadsThresholdTimeSeries implements TimeSeries {
     tags.put(EgadsTimeSeries.MODEL_TAG_KEY, model);
     builder.setTags(tags);
     this.id = builder.build();
-    this.timestamp = timestamp;
+    this.timestamp = new SecondTimeStamp(prediction_start);
     this.values = values;
     this.end_idx = end_idx;
   }

@@ -279,7 +279,6 @@ public class TestOlympicScoringBaseline {
   public void predict() throws Exception {
     when(node.predictionIntervals()).thenReturn(60L);
     when(node.predictionInterval()).thenReturn(60L);
-    when(node.predictionStart()).thenReturn(BASE_TIME + (3600 * 3));
     
     TimeSpecification time_spec = mock(TimeSpecification.class);
     when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
@@ -320,7 +319,7 @@ public class TestOlympicScoringBaseline {
     properties.setProperty("NUM_TO_DROP_HIGHEST","0");
     properties.setProperty("PERIOD", "3600");
     
-    TimeSeries result = baseline.predict(properties);
+    TimeSeries result = baseline.predict(properties, BASE_TIME + (3600 * 3));
     
     TypedTimeSeriesIterator iterator = result.iterator(NumericArrayType.TYPE).get();
     assertTrue(iterator.hasNext());
@@ -340,7 +339,6 @@ public class TestOlympicScoringBaseline {
   public void predictNoBaseline() throws Exception {
     when(node.predictionIntervals()).thenReturn(60L);
     when(node.predictionInterval()).thenReturn(60L);
-    when(node.predictionStart()).thenReturn(BASE_TIME + (3600 * 3));
     
     TimeSpecification time_spec = mock(TimeSpecification.class);
     when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
@@ -371,7 +369,7 @@ public class TestOlympicScoringBaseline {
     properties.setProperty("NUM_TO_DROP_HIGHEST","0");
     properties.setProperty("PERIOD", "3600");
     
-    assertNull(baseline.predict(properties));
+    assertNull(baseline.predict(properties, BASE_TIME + (3600 * 3)));
   }
   
 }

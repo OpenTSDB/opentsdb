@@ -115,36 +115,6 @@ public class OlympicScoringFactory extends BaseQueryNodeFactory<
       builder.setExcludeMin(n.asInt());
     }
     
-    n = node.get("upperThresholdBad");
-    if (n != null && !n.isNull()) {
-      builder.setUpperThresholdBad(n.asDouble());
-    }
-    
-    n = node.get("upperThresholdWarn");
-    if (n != null && !n.isNull()) {
-      builder.setUpperThresholdWarn(n.asDouble());
-    }
-    
-    n = node.get("upperIsScalar");
-    if (n != null && !n.isNull()) {
-      builder.setUpperIsScalar(n.asBoolean());
-    }
-    
-    n = node.get("lowerThresholdBad");
-    if (n != null && !n.isNull()) {
-      builder.setLowerThresholdBad(n.asDouble());
-    }
-    
-    n = node.get("lowerThresholdWarn");
-    if (n != null && !n.isNull()) {
-      builder.setLowerThresholdWarn(n.asDouble());
-    }
-    
-    n = node.get("lowerIsScalar");
-    if (n != null && !n.isNull()) {
-      builder.setLowerIsScalar(n.asBoolean());
-    }
-    
     return builder.build();
   }
 
