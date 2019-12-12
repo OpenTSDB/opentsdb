@@ -16,6 +16,8 @@ package net.opentsdb.data.types.numeric;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
@@ -65,6 +67,14 @@ public class MockNumericTimeSeries implements TimeSeries {
       throw new IllegalArgumentException("Value can't be null!");
     }
     data.add(value);
+  }
+  
+  public void add(final long second_timestamp, final long value) {
+    data.add(new MutableNumericValue(new SecondTimeStamp(second_timestamp), value));
+  }
+  
+  public void add(final long second_timestamp, final double value) {
+    data.add(new MutableNumericValue(new SecondTimeStamp(second_timestamp), value));
   }
   
   @Override
