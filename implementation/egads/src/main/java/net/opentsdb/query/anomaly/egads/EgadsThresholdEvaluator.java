@@ -59,19 +59,21 @@ public class EgadsThresholdEvaluator {
   public static final String LOWER_BAD = "lowerBad";
   public static final String LOWER_WARN = "lowerWarn";
   
-  private final BaseAnomalyConfig config;
-  private final TimeSeries current;
-  private final QueryResult current_result;
-  private final TimeSeries[] predictions;
-  private final QueryResult[] prediction_results;
+  protected final BaseAnomalyConfig config;
+  protected final TimeSeries current;
+  protected final QueryResult current_result;
+  protected final TimeSeries[] predictions;
+  protected final QueryResult[] prediction_results;
   
-  private int idx;
-  private double[] upper_bad_thresholds;
-  private double[] upper_warn_thresholds;
-  private double[] lower_bad_thresholds;
-  private double[] lower_warn_thresholds;
-  private double[] deltas;
-  private List<AlertValue> alerts;
+  protected int idx;
+  protected double[] upper_bad_thresholds;
+  protected double[] upper_warn_thresholds;
+  protected double[] lower_bad_thresholds;
+  protected double[] lower_warn_thresholds;
+  protected double[] deltas;
+  protected List<AlertValue> alerts;
+  protected int prediction_index;
+  protected long threshold_base;
   
   public EgadsThresholdEvaluator(final BaseAnomalyConfig config, 
                                  final int threshold_dps,
@@ -114,23 +116,50 @@ public class EgadsThresholdEvaluator {
       LOG.warn("Predictions was null or empty.");
       return false;
     }
-    
-    int pred_idx = 0;
-    Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
-        predictions[pred_idx].iterator(NumericArrayType.TYPE);
-    
-    // TODO - handle missing time series inbetween preds (or at start or end)
-    while (!pred_op.isPresent() && pred_idx < predictions.length) {
-      pred_op = predictions[++pred_idx].iterator(NumericArrayType.TYPE);
+
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = null;
+    while (prediction_index < predictions.length) {
+      if (predictions[prediction_index] == null) {
+        prediction_index++;
+        if (threshold_base == 0) {
+          threshold_base = -1;
+        }
+        continue;
+      }
+      
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
+          predictions[prediction_index].iterator(NumericArrayType.TYPE);
+      if (!pred_op.isPresent()) {
+        LOG.warn("No array iterators for prediction at: " + prediction_index);
+        continue;
+      }
+      
+      pred_it = pred_op.get();
+      if (!pred_it.hasNext()) {
+        LOG.warn("No data in the prediction array at: " + prediction_index);
+        continue;
+      }
+      
+      // set the threshold base
+      if (threshold_base == 0) {
+        threshold_base = prediction_results[prediction_index]
+            .timeSpecification().start().epoch();
+      } else if (threshold_base < 0) {
+        // need to set the expected threshold start time based on the interval;
+        threshold_base = prediction_results[prediction_index]
+            .timeSpecification().start().epoch();
+        for (int i = 0; i < prediction_index; i++) {
+          threshold_base -= (prediction_results[prediction_index]
+            .timeSpecification().end().epoch() - 
+              prediction_results[prediction_index]
+                .timeSpecification().start().epoch());
+        }
+      }
+      break;
     }
-    if (!pred_op.isPresent()) {
-      LOG.warn("No array iterators for prediction.");
-      return false;
-    }
-    
-    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = pred_op.get();
-    if (!pred_it.hasNext()) {
-      LOG.warn("No data in the prediction array.");
+
+    if (pred_it == null) {
+      LOG.warn("No prediction data.");
       return false;
     }
     
@@ -186,27 +215,29 @@ public class EgadsThresholdEvaluator {
   void runNumericType(
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       TimeSeriesValue<NumericArrayType> prediction) {
-    int pred_idx = 0;
-    long prediction_base = prediction_results[pred_idx]
+    long prediction_base = prediction_results[prediction_index]
         .timeSpecification().start().epoch();
-    final long threshold_base = prediction_base;
     // TODO - won't work for biiiiig time ranges
-    long prediction_interval = prediction_results[pred_idx].timeSpecification()
+    long prediction_interval = prediction_results[prediction_index].timeSpecification()
         .interval().get(ChronoUnit.SECONDS);
-    int summary = -1;
     
     while (iterator.hasNext()) {
       final TimeSeriesValue<NumericType> value = 
           (TimeSeriesValue<NumericType>) iterator.next();
-      if (value.timestamp().compare(Op.GTE, prediction_results[pred_idx]
+      if (value.timestamp().compare(Op.GTE, prediction_results[prediction_index]
           .timeSpecification().end())) {
-        if (++pred_idx > predictions.length) {
+        while (++prediction_index < predictions.length && 
+               predictions[prediction_index] == null) {
+          continue;
+        }
+        
+        if (prediction_index >= predictions.length) {
           // out of bounds now
           return;
         }
         
         Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
-            predictions[pred_idx].iterator(NumericArrayType.TYPE);
+            predictions[prediction_index].iterator(NumericArrayType.TYPE);
         if (!pred_op.isPresent()) {
           return;
         }
@@ -217,10 +248,11 @@ public class EgadsThresholdEvaluator {
           return;
         }
         prediction = (TimeSeriesValue<NumericArrayType>) pred_it.next();
-        prediction_base = prediction_results[pred_idx].timeSpecification().start().epoch();
+        prediction_base = prediction_results[prediction_index]
+            .timeSpecification().start().epoch();
       }
       
-      if (value.timestamp().compare(Op.LT, prediction_results[pred_idx]
+      if (value.timestamp().compare(Op.LT, prediction_results[prediction_index]
           .timeSpecification().start())) {
         continue;
       }
@@ -246,25 +278,30 @@ public class EgadsThresholdEvaluator {
   void runNumericArrayType(
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       TimeSeriesValue<NumericArrayType> prediction) {
-    int pred_idx = 0;
-    long prediction_base = prediction_results[pred_idx]
+    long prediction_base = prediction_results[prediction_index]
         .timeSpecification().start().epoch();
-    final long threshold_base = prediction_base;
+    
     // TODO - won't work for biiiiig time ranges
-    long prediction_interval = prediction_results[pred_idx].timeSpecification()
+    long prediction_interval = prediction_results[prediction_index].timeSpecification()
         .interval().get(ChronoUnit.SECONDS);
     final TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
     final TimeStamp ts = current_result.timeSpecification().start().getCopy();
     for (int i = value.value().offset(); i < value.value().end(); i++) {
-      if (ts.compare(Op.GTE, prediction_results[pred_idx].timeSpecification().end())) {
-        if (++pred_idx >= predictions.length) {
+      if (ts.compare(Op.GTE, prediction_results[prediction_index]
+            .timeSpecification().end())) {
+        while (++prediction_index < predictions.length && 
+               predictions[prediction_index] == null) {
+          continue;
+        }
+        
+        if (prediction_index >= predictions.length) {
           // out of bounds now
           return;
         }
         
         Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
-            predictions[pred_idx].iterator(NumericArrayType.TYPE);
+            predictions[prediction_index].iterator(NumericArrayType.TYPE);
         if (!pred_op.isPresent()) {
           return;
         }
@@ -275,10 +312,12 @@ public class EgadsThresholdEvaluator {
           return;
         }
         prediction = (TimeSeriesValue<NumericArrayType>) pred_it.next();
-        prediction_base = prediction_results[pred_idx].timeSpecification().start().epoch();
+        prediction_base = prediction_results[prediction_index]
+            .timeSpecification().start().epoch();
       }
       
-      if (ts.compare(Op.LT, prediction_results[pred_idx].timeSpecification().start())) {
+      if (ts.compare(Op.LT, prediction_results[prediction_index]
+            .timeSpecification().start())) {
         ts.add(current_result.timeSpecification().interval());
         continue;
       }
@@ -310,27 +349,25 @@ public class EgadsThresholdEvaluator {
   void runNumericSummaryType(
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       TimeSeriesValue<NumericArrayType> prediction) {
-    int pred_idx = 0;
-    long prediction_base = prediction_results[pred_idx]
+    long prediction_base = prediction_results[prediction_index]
         .timeSpecification().start().epoch();
-    final long threshold_base = prediction_base;
     // TODO - won't work for biiiiig time ranges
-    long prediction_interval = prediction_results[pred_idx].timeSpecification()
+    long prediction_interval = prediction_results[prediction_index].timeSpecification()
         .interval().get(ChronoUnit.SECONDS);
     int summary = -1;
     
     while (iterator.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> value = 
           (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      if (value.timestamp().compare(Op.GTE, prediction_results[pred_idx]
+      if (value.timestamp().compare(Op.GTE, prediction_results[prediction_index]
           .timeSpecification().end())) {
-        if (++pred_idx > predictions.length) {
-          // out of bounds now
-          return;
-        }
+        while (++prediction_index < predictions.length && 
+                predictions[prediction_index] == null) {
+           continue;
+         }
         
         Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
-            predictions[pred_idx].iterator(NumericArrayType.TYPE);
+            predictions[prediction_index].iterator(NumericArrayType.TYPE);
         if (!pred_op.isPresent()) {
           return;
         }
@@ -341,10 +378,11 @@ public class EgadsThresholdEvaluator {
           return;
         }
         prediction = (TimeSeriesValue<NumericArrayType>) pred_it.next();
-        prediction_base = prediction_results[pred_idx].timeSpecification().start().epoch();
+        prediction_base = prediction_results[prediction_index]
+            .timeSpecification().start().epoch();
       }
       
-      if (value.timestamp().compare(Op.LT, prediction_results[pred_idx]
+      if (value.timestamp().compare(Op.LT, prediction_results[prediction_index]
           .timeSpecification().start())) {
         continue;
       }
@@ -372,10 +410,10 @@ public class EgadsThresholdEvaluator {
     }
   }
   
-  public AlertValue eval(final TimeStamp timestamp, 
-                         final double current, 
-                         final double prediction,
-                         final int threshold_idx) {
+  AlertValue eval(final TimeStamp timestamp, 
+                  final double current, 
+                  final double prediction,
+                  final int threshold_idx) {
     AlertValue result = null;
     if (config.getUpperThresholdBad() != 0) {
       final double threshold;
@@ -409,8 +447,8 @@ public class EgadsThresholdEvaluator {
       if (config.getSerializeThresholds()) {
         if (threshold_idx >= upper_bad_thresholds.length) {
           throw new IllegalStateException("Attempted to write too many upper "
-              + "thresholds [" + idx + "]. Make sure to set the report_len "
-                  + "properly in the ctor.");
+              + "thresholds [" + threshold_idx + "]. Make sure to set the threshold_dps ["
+              + upper_bad_thresholds.length + "] properly in the ctor.");
         }
         upper_bad_thresholds[threshold_idx] = threshold;
         if (threshold_idx > idx) {
