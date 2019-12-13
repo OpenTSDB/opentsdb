@@ -228,6 +228,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
     default:
       throw new IllegalStateException("Unhandled config mode: " + config.getMode());
     }
+    context.tsdb().getStatsCollector().incrementCounter("amomaly.EGADS.query.count", 
+        "model", OlympicScoringFactory.TYPE,
+        "mode", config.getMode().toString());
   }
   
   @Override
@@ -511,9 +514,17 @@ public class OlympicScoringNode extends AbstractQueryNode {
         context.queryContext().logDebug("Prediction cache hit for query.");
         predictions[index] = result;
         cache_hits[index] = true;
+        context.tsdb().getStatsCollector().incrementCounter(
+            "amomaly.EGADS.query.prediction.cache.hit", 
+            "model", OlympicScoringFactory.TYPE,
+            "mode", config.getMode().toString());
         countdown();
       } else {
         context.queryContext().logDebug("Prediction cache miss for query.");
+        context.tsdb().getStatsCollector().incrementCounter(
+            "amomaly.EGADS.query.prediction.cache.miss", 
+            "model", OlympicScoringFactory.TYPE,
+            "mode", config.getMode().toString());
         fetchBaselineData(index);
       }
       
@@ -531,6 +542,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
     @Override
     public Void call(final Exception e) throws Exception {
       LOG.warn("Cache exception", e);
+      context.tsdb().getStatsCollector().incrementCounter(
+          "amomaly.EGADS.query.prediction.cache.errors", 
+          "model", OlympicScoringFactory.TYPE,
+          "mode", config.getMode().toString());
       fetchBaselineData(index);
       return null;
     }
@@ -559,9 +574,17 @@ public class OlympicScoringNode extends AbstractQueryNode {
           .addCallback(new SubQueryCB( 
               baseline_queries[prediction_idx][period_idx + 1].sub_context))
           .addErrback(new ErrorCB());
+        context.tsdb().getStatsCollector().incrementCounter(
+            "amomaly.EGADS.query.prediction.baseline.query.count", 
+            "model", OlympicScoringFactory.TYPE,
+            "mode", config.getMode().toString());
       } else {
         runBaseline(prediction_idx);
       }
+      context.tsdb().getStatsCollector().incrementCounter(
+          "amomaly.EGADS.query.prediction.baseline.query.success", 
+          "model", OlympicScoringFactory.TYPE,
+          "mode", config.getMode().toString());
     }
 
     @Override
@@ -612,6 +635,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
           LOG.debug("Failure in baseline query after initial failure", t);
         }
       }
+      context.tsdb().getStatsCollector().incrementCounter(
+          "amomaly.EGADS.query.prediction.baseline.query.errors", 
+          "model", OlympicScoringFactory.TYPE,
+          "mode", config.getMode().toString());
     }
     
   }
@@ -640,6 +667,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
       } else {
         LOG.warn("Failure launching baseline query after initial failure", e);
       }
+      context.tsdb().getStatsCollector().incrementCounter(
+          "amomaly.EGADS.query.prediction.baseline.query.errors", 
+          "model", OlympicScoringFactory.TYPE,
+          "mode", config.getMode().toString());
       return null;
     }
     
@@ -693,6 +724,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
     baseline_queries[prediction_index][0].sub_context.initialize(null)
       .addCallback(new SubQueryCB(baseline_queries[prediction_index][0].sub_context))
       .addErrback(new ErrorCB());
+    context.tsdb().getStatsCollector().incrementCounter(
+        "amomaly.EGADS.query.prediction.baseline.query.count", 
+        "model", OlympicScoringFactory.TYPE,
+        "mode", config.getMode().toString());
     
     if (config.getMode() == ExecutionMode.PREDICT) {
       // return here.
@@ -754,10 +789,6 @@ public class OlympicScoringNode extends AbstractQueryNode {
     return model_units;
   }
   
-//  long predictionStart() {
-//    return prediction_start;
-//  }
-  
   long predictionIntervals() {
     return prediction_intervals;
   }
@@ -806,6 +837,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
         cache.cache(cache_keys[prediction_index], expiration, result, null)
           .addCallback(new SuccessCB())
           .addErrback(new CacheErrorCB());
+        context.tsdb().getStatsCollector().incrementCounter(
+            "amomaly.EGADS.query.prediction.cache.write", 
+            "model", OlympicScoringFactory.TYPE,
+            "mode", config.getMode().toString());
       }
     });
   }

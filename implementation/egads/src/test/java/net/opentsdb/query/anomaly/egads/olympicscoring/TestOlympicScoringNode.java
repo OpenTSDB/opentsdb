@@ -88,6 +88,7 @@ import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
@@ -173,7 +174,6 @@ public class TestOlympicScoringNode {
             .build())
         .build();
 //    QueryNodeFactory factory;
-    QueryPipelineContext context;
     OlympicScoringConfig config =
         OlympicScoringConfig.newBuilder()
     .setBaselinePeriod("1h")
@@ -192,6 +192,7 @@ public class TestOlympicScoringNode {
     .build();
     
     QueryPipelineContext ctx = mock(QueryPipelineContext.class);
+    when(ctx.tsdb()).thenReturn(TSDB);
     QueryNode src = mock(QueryNode.class);
     when(src.pipelineContext()).thenReturn(ctx);
     when(ctx.downstream(any(QueryNode.class))).thenReturn(Lists.newArrayList());
