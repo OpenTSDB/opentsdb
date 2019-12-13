@@ -164,10 +164,10 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
     byte[] raw = null;
     try {
       raw = cluster.get(key);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.get", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.get", 
           (String[]) null);
     } catch (Exception e) {
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.get.exception", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.get.exception", 
           (String[]) null);
       LOG.warn("Exception querying Redis for cache data", e);
     }
@@ -202,12 +202,12 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
       final byte[] data = serdes.serialize(Lists.newArrayList(results));
       cluster.set(key, data, RedisClusterQueryCache.NX, 
           RedisClusterQueryCache.EXP, expiration);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.set", 
           (String[]) null);
       return Deferred.fromResult(null);
     } catch (Exception e) {
       LOG.error("Unexpected exception writing to Redis.", e);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.set.exception", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.set.exception", 
           (String[]) null);
       return Deferred.fromError(e);
     }
@@ -217,12 +217,12 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
   public Deferred<Void> delete(final byte[] key) {
     try {
       cluster.del(key);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.del", 
           (String[]) null);
       return Deferred.fromResult(null);
     } catch (Exception e) {
       LOG.error("Unexpected exception deleting from Redis.", e);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del.exception", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.del.exception", 
           (String[]) null);
       return Deferred.fromError(e);
     }
@@ -237,10 +237,10 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
     byte[] raw = null;
     try {
       raw = cluster.get(prefixed_key);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.get", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.get", 
           (String[]) null);
     } catch (Exception e) {
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.get.exception", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.get.exception", 
           (String[]) null);
       LOG.warn("Exception querying Redis for cache data", e);
     }
@@ -263,11 +263,11 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
     final byte[] data = JSON.serializeToBytes(state);
     try {
       cluster.setex(prefixed_key, (int) expiration / 1000, data);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.setex", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.setex", 
           (String[]) null);
     } catch (Exception e) {
       LOG.error("Unexpected exception writing to Redis.", e);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.set.exception", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.set.exception", 
           (String[]) null);
     }
   }
@@ -280,11 +280,11 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
     
     try {
       cluster.del(prefixed_key);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.del", 
           (String[]) null);
     } catch (Exception e) {
       LOG.error("Unexpected exception deleting from Redis.", e);
-      tsdb.getStatsCollector().incrementCounter("query.cache.redis.del.exception", 
+      tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.del.exception", 
           (String[]) null);
     }
   }
