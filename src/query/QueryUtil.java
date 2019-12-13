@@ -403,4 +403,24 @@ public class QueryUtil {
     }
     return buf.toString();
   }
+
+  /**
+   * Compares two timestamps where either can be in seconds or milliseconds.
+   *
+   * @param ts1 The first timestamp in either seconds or milliseconds.
+   * @param ts2 The second timestamp in either seconds or milliseconds.
+   * @return Whether the first timestamp is before the second
+   */
+  public static boolean isTimestampBefore(long ts1, long ts2) {
+    boolean ts1InSeconds = (ts1 & Const.SECOND_MASK) == 0;
+    boolean ts2InSeconds = (ts2 & Const.SECOND_MASK) == 0;
+
+    if (ts1InSeconds && !ts2InSeconds) {
+      ts1 *= 1000L;
+    } else if (!ts1InSeconds && ts2InSeconds) {
+      ts2 *= 1000L;
+    }
+
+    return ts1 < ts2;
+  }
 }

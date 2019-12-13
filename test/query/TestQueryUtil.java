@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -19,6 +21,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import net.opentsdb.core.Query;
+import net.opentsdb.utils.DateTime;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList;
 import org.hbase.async.KeyRegexpFilter;
@@ -144,5 +148,21 @@ public class TestQueryUtil {
     verify(scanner, times(1)).setFilter(any(FilterList.class));
     verify(scanner, times(1)).setStartKey(any(byte[].class));
     verify(scanner, times(1)).setStopKey(any(byte[].class));
+  }
+
+  @Test
+  public void timestampComparison() {
+    long now = DateTime.currentTimeMillis() / 1000L;
+    assertTrue(QueryUtil.isTimestampBefore(now*1000, now+1));
+    assertTrue(QueryUtil.isTimestampBefore(now-1, now*1000L));
+    assertTrue(QueryUtil.isTimestampBefore(now-1, now));
+    assertTrue(QueryUtil.isTimestampBefore((now-1)*1000L, now*1000L));
+
+    assertFalse(QueryUtil.isTimestampBefore(now+1, now*1000L));
+    assertFalse(QueryUtil.isTimestampBefore(now*1000L, now-1));
+    assertFalse(QueryUtil.isTimestampBefore(now, now-1));
+    assertFalse(QueryUtil.isTimestampBefore(now*1000L, (now-1)*1000L));
+
+    assertFalse(QueryUtil.isTimestampBefore(now, now));
   }
 }

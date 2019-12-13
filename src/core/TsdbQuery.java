@@ -448,15 +448,42 @@ final class TsdbQuery extends AbstractQuery {
 
     Deferred<Object> rawResolutionDeferred = rawQuery.configureFromQuery(query, index, true);
 
-    long lastAvailableMillis = rollup_query.getLastRollupTimestampSeconds() * 1000L;
-    boolean isRawOnlyQuery = lastAvailableMillis <= getStartTime();
+    long lastRollupTimestampMillis = rollup_query.getLastRollupTimestampSeconds() * 1000L;
 
+    boolean isRawOnlyQuery = QueryUtil.isTimestampBefore(lastRollupTimestampMillis, getStartTime());
     if (!isRawOnlyQuery) {
-      setEndTime(lastAvailableMillis);
-      rawQuery.setStartTime(lastAvailableMillis);
+      updateRollupSplitTimes(rawQuery, lastRollupTimestampMillis);
     }
 
     return rawResolutionDeferred;
+  }
+
+  /**
+   * Updates the timestamp of this query and the corresponding raw part in the case of a split.
+   *
+   * Sets the start and end times for this query so that it hits the rollup table until the given timestamp.
+   * Also updates the passed {@param rawQuery} with the new start time so that it hits the raw table for points from the
+   * given timestamp onwards.
+   *
+   * Makes sure that all timestamps are in milliseconds.
+   *
+   * @param rawQuery        The raw query part
+   * @param splitTimestamp  The timestamp until when rollup data is guaranteed to be available
+   */
+  private void updateRollupSplitTimes(final TsdbQuery rawQuery, long splitTimestamp) {
+    setEndTime(splitTimestamp);
+
+    boolean isStartTimeInSeconds = (getStartTime() & Const.SECOND_MASK) == 0;
+    if (isStartTimeInSeconds) {
+      setStartTime(getStartTime() * 1000L);
+    }
+
+    boolean isRawEndTimeInSeconds = (rawQuery.getEndTime() & Const.SECOND_MASK) == 0;
+    if (isRawEndTimeInSeconds) {
+      rawQuery.setEndTime(rawQuery.getEndTime() * 1000L);
+    }
+
+    rawQuery.setStartTime(splitTimestamp);
   }
 
   @Override

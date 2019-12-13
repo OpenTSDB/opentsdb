@@ -53,6 +53,9 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ DateTime.class, TsdbQuery.class })
 public final class TestTsdbQuery extends BaseTsdbTest {
+
+  private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
   private TsdbQuery query = null;
 
   @Before
@@ -694,19 +697,25 @@ public final class TestTsdbQuery extends BaseTsdbTest {
 
   @Test
   public void split() {
-    mockSystemTime(1356998400000L);
+    long mockSystemTime = 1356998400000L;
+    mockSystemTime(mockSystemTime);
     mockEnableRollupQuerySplitting();
 
     TSQuery tsQuery = getTSQuery();
     TsdbQuery rawQuery = spy(new TsdbQuery(tsdb));
 
-    query.setStartTime(0);
-    rawQuery.setStartTime(42);
+    query.setStartTime(mockSystemTime - 7 * ONE_DAY_MS);
+
     doReturn(Deferred.fromResult(null)).when(rawQuery).configureFromQuery(eq(tsQuery), eq(0), eq(true));
 
     query.split(tsQuery, 0, rawQuery);
 
     verify(rawQuery).configureFromQuery(eq(tsQuery), eq(0), eq(true));
+
+    assertEquals(mockSystemTime - 7 * ONE_DAY_MS, query.getStartTime());
+    assertEquals(mockSystemTime - 2 * ONE_DAY_MS, query.getEndTime());
+    assertEquals(mockSystemTime - 2 * ONE_DAY_MS, rawQuery.getStartTime());
+    assertEquals(mockSystemTime, rawQuery.getEndTime());
   }
 
   @Test(expected = IllegalStateException.class)

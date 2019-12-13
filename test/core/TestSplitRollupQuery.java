@@ -44,8 +44,8 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
     @Test
     public void setStartTime() {
         queryUnderTest.setStartTime(42L);
-        assertEquals(42L, queryUnderTest.getStartTime());
-        assertEquals(42L, rollupQuery.getStartTime());
+        assertEquals(42000L, queryUnderTest.getStartTime());
+        assertEquals(42000L, rollupQuery.getStartTime());
     }
 
     @Test
@@ -56,7 +56,7 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
         rollupQuery.setEndTime(41L);
         queryUnderTest.setStartTime(42L);
 
-        assertEquals(42L, queryUnderTest.getStartTime());
+        assertEquals(42000L, queryUnderTest.getStartTime());
     }
 
     @Test
@@ -67,7 +67,7 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
 
         queryUnderTest.setStartTime(42L);
 
-        assertEquals(42L, queryUnderTest.getStartTime());
+        assertEquals(42000L, queryUnderTest.getStartTime());
     }
 
     @Test
@@ -75,20 +75,21 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
         TsdbQuery rawQuery = new TsdbQuery(tsdb);
         Whitebox.setInternalState(queryUnderTest, "rawQuery", rawQuery);
 
-        rollupQuery.setEndTime(21L);
-        rawQuery.setStartTime(21L);
+        rollupQuery.setStartTime(0);
+        rollupQuery.setEndTime(21000L);
+        rawQuery.setStartTime(21000L);
 
         queryUnderTest.setEndTime(42L);
 
-        assertEquals(42L, queryUnderTest.getEndTime());
-        assertEquals(21L, rollupQuery.getEndTime());
-        assertEquals(42L, rawQuery.getEndTime());
+        assertEquals(42000L, queryUnderTest.getEndTime());
+        assertEquals(21000L, rollupQuery.getEndTime());
+        assertEquals(42000L, rawQuery.getEndTime());
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void setEndTimeBeforeRawStartTime() {
         TsdbQuery rawQuery = new TsdbQuery(tsdb);
-        rawQuery.setStartTime(84L);
+        rawQuery.setStartTime(DateTime.currentTimeMillis());
 
         Whitebox.setInternalState(queryUnderTest, "rawQuery", rawQuery);
 

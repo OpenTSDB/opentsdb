@@ -60,7 +60,7 @@ public class SplitRollupQuery extends AbstractQuery {
     }
 
     /**
-     * Sets the start time of the graph.
+     * Sets the start time of the graph. Converts the timestamp to milliseconds if necessary.
      *
      * @param timestamp The start time, all the data points returned will have a
      *                  timestamp greater than or equal to this one.
@@ -71,6 +71,8 @@ public class SplitRollupQuery extends AbstractQuery {
      */
     @Override
     public void setStartTime(long timestamp) {
+        if ((timestamp & Const.SECOND_MASK) == 0) { timestamp *= 1000L; }
+
         if (rollupQuery == null) {
             rawQuery.setStartTime(timestamp);
             return;
@@ -101,7 +103,7 @@ public class SplitRollupQuery extends AbstractQuery {
     }
 
     /**
-     * Sets the end time of the graph.
+     * Sets the end time of the graph. Converts the timestamp to milliseconds if necessary.
      *
      * @param timestamp The end time, all the data points returned will have a
      *                  timestamp less than or equal to this one.
@@ -112,6 +114,8 @@ public class SplitRollupQuery extends AbstractQuery {
      */
     @Override
     public void setEndTime(long timestamp) {
+        if ((timestamp & Const.SECOND_MASK) == 0) { timestamp *= 1000L; }
+
         rawQuery.setEndTime(timestamp);
     }
 
