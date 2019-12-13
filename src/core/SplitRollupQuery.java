@@ -71,6 +71,11 @@ public class SplitRollupQuery extends AbstractQuery {
      */
     @Override
     public void setStartTime(long timestamp) {
+        if (rollupQuery == null) {
+            rawQuery.setStartTime(timestamp);
+            return;
+        }
+
         if (rollupQuery.getEndTime() <= timestamp) {
             rollupQuery = null;
             rawQuery.setStartTime(timestamp);

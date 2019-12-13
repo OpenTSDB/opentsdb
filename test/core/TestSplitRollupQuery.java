@@ -60,6 +60,17 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
     }
 
     @Test
+    public void setStartTimeWithoutRollupQuery() {
+        TsdbQuery rawQuery = new TsdbQuery(tsdb);
+        Whitebox.setInternalState(queryUnderTest, "rollupQuery", (TsdbQuery)null);
+        Whitebox.setInternalState(queryUnderTest, "rawQuery", rawQuery);
+
+        queryUnderTest.setStartTime(42L);
+
+        assertEquals(42L, queryUnderTest.getStartTime());
+    }
+
+    @Test
     public void setEndTime() {
         TsdbQuery rawQuery = new TsdbQuery(tsdb);
         Whitebox.setInternalState(queryUnderTest, "rawQuery", rawQuery);
