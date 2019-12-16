@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -28,7 +27,6 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -38,7 +36,6 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.Span;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +64,8 @@ public class GroupBy extends AbstractQueryNode {
    * when running in parallel.
    */
   private DownsampleConfig downsampleConfig;
+
+  private int timeSeriesCount;
 
   /**
    * Default ctor.
@@ -123,7 +122,9 @@ public class GroupBy extends AbstractQueryNode {
         config.getEncodedTagKeys() == null &&
         config.getTagKeys() != null && 
         !config.getTagKeys().isEmpty()) {
-      
+
+      this.timeSeriesCount = next.timeSeries().size();
+
       class ResolveCB implements Callback<Object, List<byte[]>> {
         @Override
         public Object call(List<byte[]> arg) throws Exception {
@@ -187,4 +188,7 @@ public class GroupBy extends AbstractQueryNode {
     return downsampleConfig;
   }
 
+  public int count() {
+    return timeSeriesCount;
+  }
 }

@@ -14,19 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.google.common.collect.Lists;
-
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -38,15 +26,24 @@ import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestGroupByNumericSummaryParallelIterator {
   public static MockTSDB TSDB;
@@ -60,7 +57,7 @@ public class TestGroupByNumericSummaryParallelIterator {
   private NumericSummaryInterpolatorConfig interpolator_config;
   private DownsampleConfig ds_config;
   private DefaultRollupConfig rollup_config;
-  private QueryResult result;
+  private GroupByResult result;
   
   // TODO - test floats, gaps, nans, etc.
   
@@ -104,9 +101,9 @@ public class TestGroupByNumericSummaryParallelIterator {
         .addInterpolatorConfig(interpolator_config)
         .setId("Testing")
         .build();
-    result = mock(QueryResult.class);
+    result = mock(GroupByResult.class);
     when(result.rollupConfig()).thenReturn(rollup_config);
-    
+
     ds_config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("sum")
         .setId("foo")
@@ -312,8 +309,8 @@ public class TestGroupByNumericSummaryParallelIterator {
     }
   }
   
-  private void setupMock(final String agg) throws Exception {
-    config = (GroupByConfig) GroupByConfig.newBuilder()
+  private void setupMock(final String agg) {
+    config = GroupByConfig.newBuilder()
         .setAggregator(agg)
         .addTagKey("dc")
         .addInterpolatorConfig(interpolator_config)
@@ -330,5 +327,6 @@ public class TestGroupByNumericSummaryParallelIterator {
     final QueryPipelineContext context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
     when(context.tsdb()).thenReturn(TSDB);
+    when(result.source()).thenReturn(node);
   }
 }

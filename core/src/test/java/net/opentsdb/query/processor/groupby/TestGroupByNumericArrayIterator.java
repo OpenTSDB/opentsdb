@@ -123,6 +123,7 @@ public class TestGroupByNumericArrayIterator {
     when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
         .thenReturn(new SumFactory());
     when(result.downstreamResult()).thenReturn(source_result);
+    when(result.source()).thenReturn(node);
     when(source_result.timeSpecification()).thenReturn(time_spec);
     when(time_spec.start()).thenReturn(new MillisecondTimeStamp(1000));
     when(tsdb.getStatsCollector()).thenReturn(statsCollector);
