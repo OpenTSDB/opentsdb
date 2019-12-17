@@ -73,8 +73,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
     if (next == null) {
       throw new IllegalArgumentException("Query results cannot be null.");
     }
-    // TODO - temp hack around till we can get the proper method.
-    this.sourceProcessInParallel = next instanceof DownsampleResult; //next.processInParallel();
+    
+    this.sourceProcessInParallel = next.processInParallel();
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
