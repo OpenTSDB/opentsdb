@@ -568,7 +568,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         return;
       }
       
-      if (period_idx + 1 < baseline_queries.length) {
+      if (period_idx + 1 < config.getBaselineNumPeriods()) {
         // fire next
         baseline_queries[prediction_idx][period_idx + 1].sub_context.initialize(null)
           .addCallback(new SubQueryCB( 
