@@ -1678,9 +1678,6 @@ final class TsdbQuery implements Query {
           rollup_query = new RollupQuery(best_match_rollups.remove(0), 
                   downsampler.getFunction(), downsampler.getInterval(),
                   group_by);
-          if (group_by == Aggregators.COUNT) {
-            aggregator = Aggregators.SUM;
-          }
         }
         catch (NoSuchRollupForIntervalException nre) {
           LOG.error("There is no such rollup for the downsample interval "
