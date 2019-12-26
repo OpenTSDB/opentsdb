@@ -1742,7 +1742,6 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     assertEquals(300, dps[0].aggregatedSize());
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
-      assertTrue(scanner.getFilter() instanceof FilterList);
       FilterList filter_list = (FilterList) scanner.getFilter();
       assertEquals(2, filter_list.size());
       assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
