@@ -129,7 +129,7 @@ public class TestQueryUtil {
   
   @Test
   public void setDataTableScanFilterEnableBoth() throws Exception {
-    when(scanner.getCurrentKey()).thenReturn(new byte[] { 0, 0, 0, 1 });
+    when(scanner.getCurrentKey()).thenReturn(new byte[] { 0, 0, 0, 0, 0, 0, 1 });
     final ByteMap<byte[][]> tags = new ByteMap<byte[][]>();
     tags.put(new byte[] { 0, 0, 1 }, new byte[][] { new byte[] {0, 0, 1} });
     QueryUtil.setDataTableScanFilter(
