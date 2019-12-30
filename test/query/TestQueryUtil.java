@@ -153,16 +153,16 @@ public class TestQueryUtil {
   @Test
   public void timestampComparison() {
     long now = DateTime.currentTimeMillis() / 1000L;
-    assertTrue(QueryUtil.isTimestampBefore(now*1000, now+1));
-    assertTrue(QueryUtil.isTimestampBefore(now-1, now*1000L));
-    assertTrue(QueryUtil.isTimestampBefore(now-1, now));
-    assertTrue(QueryUtil.isTimestampBefore((now-1)*1000L, now*1000L));
+    assertFalse(QueryUtil.isTimestampAfter(now*1000, now+1));
+    assertFalse(QueryUtil.isTimestampAfter(now-1, now*1000L));
+    assertFalse(QueryUtil.isTimestampAfter(now-1, now));
+    assertFalse(QueryUtil.isTimestampAfter((now-1)*1000L, now*1000L));
 
-    assertFalse(QueryUtil.isTimestampBefore(now+1, now*1000L));
-    assertFalse(QueryUtil.isTimestampBefore(now*1000L, now-1));
-    assertFalse(QueryUtil.isTimestampBefore(now, now-1));
-    assertFalse(QueryUtil.isTimestampBefore(now*1000L, (now-1)*1000L));
+    assertTrue(QueryUtil.isTimestampAfter(now+1, now*1000L));
+    assertTrue(QueryUtil.isTimestampAfter(now*1000L, now-1));
+    assertTrue(QueryUtil.isTimestampAfter(now, now-1));
+    assertTrue(QueryUtil.isTimestampAfter(now*1000L, (now-1)*1000L));
 
-    assertFalse(QueryUtil.isTimestampBefore(now, now));
+    assertFalse(QueryUtil.isTimestampAfter(now, now));
   }
 }

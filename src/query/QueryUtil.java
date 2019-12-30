@@ -409,9 +409,9 @@ public class QueryUtil {
    *
    * @param ts1 The first timestamp in either seconds or milliseconds.
    * @param ts2 The second timestamp in either seconds or milliseconds.
-   * @return Whether the first timestamp is before the second
+   * @return Whether the first timestamp is after the second
    */
-  public static boolean isTimestampBefore(long ts1, long ts2) {
+  public static boolean isTimestampAfter(long ts1, long ts2) {
     boolean ts1InSeconds = (ts1 & Const.SECOND_MASK) == 0;
     boolean ts2InSeconds = (ts2 & Const.SECOND_MASK) == 0;
 
@@ -421,6 +421,6 @@ public class QueryUtil {
       ts2 *= 1000L;
     }
 
-    return ts1 < ts2;
+    return ts1 > ts2;
   }
 }

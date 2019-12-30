@@ -450,8 +450,8 @@ final class TsdbQuery extends AbstractQuery {
 
     long lastRollupTimestampMillis = rollup_query.getLastRollupTimestampSeconds() * 1000L;
 
-    boolean isRawOnlyQuery = QueryUtil.isTimestampBefore(lastRollupTimestampMillis, getStartTime());
-    if (!isRawOnlyQuery) {
+    boolean needsRawAndRollupData = QueryUtil.isTimestampAfter(lastRollupTimestampMillis, getStartTime());
+    if (needsRawAndRollupData) {
       updateRollupSplitTimes(rawQuery, lastRollupTimestampMillis);
     }
 
