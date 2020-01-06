@@ -121,6 +121,12 @@ public class GroupByNumericArrayIterator
       doneSignal.countDown();
     }
 
+    /**
+     * The aggregating class would have to provide the implementation.
+     *
+     * @param timeSeries the time series being aggregated.
+     * @param combiner is the partial aggregator.
+     */
     public abstract void doRun(TimeSeries timeSeries, Combiner combiner);
   }
 
