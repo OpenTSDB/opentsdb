@@ -234,8 +234,8 @@ public class TestOlympicScoringNode {
       .build();
     } else {
       query = getEgadsQuery(SemanticQuery.newBuilder()
-          .setStart(Integer.toString(BASE_TIME + (3600 * 0)))
-          .setEnd(Integer.toString(BASE_TIME + (3600 * 10)))
+          .setStart(Integer.toString(BASE_TIME + (3600 * 7)))
+          .setEnd(Integer.toString(BASE_TIME + (3600 * 10) - 180))
           .setMode(QueryMode.SINGLE)
           .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
               .setMetric(MetricLiteralFilter.newBuilder()
@@ -259,8 +259,10 @@ public class TestOlympicScoringNode {
     class Sink implements QuerySink {
       TimeSeriesSerdes serdes = null;
       ByteArrayOutputStream baos;
-
+      final TimeSeriesQuery query;
+      
       Sink(final TimeSeriesQuery query) {
+        this.query = query;
         baos = new ByteArrayOutputStream();
         SerdesOptions options = JsonV3QuerySerdesOptions.newBuilder()
             .setId("serdes")
@@ -291,7 +293,7 @@ public class TestOlympicScoringNode {
               for (JsonNode v : data.get("NumericType")) {
                 cnt++;
               }
-              if (cnt != 15) {
+              if (cnt != ((query.endTime().epoch() - query.startTime().epoch()) / 60)) {
                 System.out.println("!!!!!!!!!!!!!!!!!!!!!!!! BAD COUNT: " + cnt + " => "
                     + data.get("metric"));
               }
@@ -441,7 +443,7 @@ public class TestOlympicScoringNode {
       
     }
     
-    if (false) {
+    if (true) {
       QueryContext ctx = SemanticQueryContext.newBuilder()
           .setTSDB(TSDB)
           .addSink(new Sink(query))
@@ -480,9 +482,9 @@ public class TestOlympicScoringNode {
 
   private SemanticQuery getEgadsQuery(SemanticQuery baseline_query) {
     final SemanticQuery egads_query = SemanticQuery.newBuilder()
-        .setStart(Integer.toString(BASE_TIME + (3600 * 11)))
+        .setStart(Integer.toString(BASE_TIME + (3600 * 8) + (20 * 60)))
         //.setEnd(Integer.toString(BASE_TIME + (3600 * 12) + 300))
-        .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + 600))
+        .setEnd(Integer.toString(BASE_TIME + (3600 * 11) + (17 * 60)))
         .setMode(QueryMode.SINGLE)
         .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
@@ -505,10 +507,12 @@ public class TestOlympicScoringNode {
             .setBaselineQuery(baseline_query)
             .setSerializeObserved(true)
             .setSerializeThresholds(true)
-            .setSerializeDeltas(true)
-            .setLowerThresholdBad(25)
-            .setUpperThresholdBad(25)
-            //.setMode(ExecutionMode.CONFIG)
+//            .setSerializeDeltas(true)
+//            .setLowerThresholdBad(25)
+            .setUpperThresholdBad(125)
+            .setUpperThresholdWarn(100)
+            .setExcludeMin(1)
+            .setMode(ExecutionMode.CONFIG)
             .setMode(ExecutionMode.EVALUATE)
             .addInterpolatorConfig(INTERPOLATOR)
             .addSource("ds")
@@ -766,7 +770,7 @@ public class TestOlympicScoringNode {
         v = new MutableNumericValue(new SecondTimeStamp(ts), value * 10);
         store.write(null, TimeSeriesDatum.wrap(id_b, v), null).join();
         ts += 60;
-        System.out.println(ts + "  " + v.doubleValue());
+        //System.out.println(ts + "  " + v.doubleValue());
         wrote++;
       }
     }

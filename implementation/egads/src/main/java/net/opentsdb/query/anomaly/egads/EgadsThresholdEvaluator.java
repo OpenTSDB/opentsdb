@@ -423,7 +423,8 @@ public class EgadsThresholdEvaluator {
         threshold = prediction + Math.abs((prediction * (
             config.getUpperThresholdBad() / 100)));
       }
-      if (config.isUpperIsScalar() && current > threshold) {
+      if (config.getSerializeAlerts() && 
+          config.isUpperIsScalar() && current > threshold) {
         result = AlertValue.newBuilder()
             .setState(State.BAD)
             .setDataPoint(current)
@@ -432,7 +433,7 @@ public class EgadsThresholdEvaluator {
             .setThreshold(threshold)
             .setThresholdType(UPPER_BAD)
             .build();
-      } else if (current > threshold) {
+      } else if (config.getSerializeAlerts() && current > threshold) {
         result = AlertValue.newBuilder()
             .setState(State.BAD)
             .setDataPoint(current)
@@ -465,7 +466,8 @@ public class EgadsThresholdEvaluator {
         threshold = prediction + Math.abs((prediction * (
             config.getUpperThresholdWarn() / 100)));
       }
-      if (config.isUpperIsScalar() && current > threshold) {
+      if (config.getSerializeAlerts() && 
+          config.isUpperIsScalar() && current > threshold) {
         result = AlertValue.newBuilder()
             .setState(State.WARN)
             .setDataPoint(current)
@@ -474,7 +476,7 @@ public class EgadsThresholdEvaluator {
             .setThreshold(threshold)
             .setThresholdType(UPPER_WARN)
             .build();
-      } else if (current > threshold) {
+      } else if (config.getSerializeAlerts() && current > threshold) {
         result = AlertValue.newBuilder()
             .setState(State.WARN)
             .setDataPoint(current)
@@ -507,7 +509,8 @@ public class EgadsThresholdEvaluator {
         threshold = prediction - Math.abs((prediction * (
             config.getLowerThresholdBad() / (double) 100)));
       }
-      if (config.isLowerIsScalar() && current < threshold) {
+      if (config.getSerializeAlerts() && 
+          config.isLowerIsScalar() && current < threshold) {
         if (result == null) {
           result = AlertValue.newBuilder()
               .setState(State.BAD)
@@ -518,7 +521,7 @@ public class EgadsThresholdEvaluator {
               .setThresholdType(LOWER_BAD)
               .build();
         }
-      } else if (current < threshold) {
+      } else if (config.getSerializeAlerts() && current < threshold) {
         if (result == null) {
           result = AlertValue.newBuilder()
               .setState(State.BAD)
@@ -552,7 +555,8 @@ public class EgadsThresholdEvaluator {
         threshold = prediction - Math.abs((prediction * (
             config.getLowerThresholdWarn() / (double) 100)));
       }
-      if (config.isLowerIsScalar() && current < threshold) {
+      if (config.getSerializeAlerts() && 
+          config.isLowerIsScalar() && current < threshold) {
         if (result == null) {
           result = AlertValue.newBuilder()
               .setState(State.WARN)
@@ -563,7 +567,7 @@ public class EgadsThresholdEvaluator {
               .setThresholdType(LOWER_WARN)
               .build();
         }
-      } else if (current < threshold) {
+      } else if (config.getSerializeAlerts() && current < threshold) {
         if (result == null) {
           result = AlertValue.newBuilder()
               .setState(State.WARN)

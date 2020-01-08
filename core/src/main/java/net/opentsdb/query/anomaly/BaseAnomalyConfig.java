@@ -44,6 +44,7 @@ public abstract class BaseAnomalyConfig
   protected final boolean serialize_observed;
   protected final boolean serialize_thresholds;
   protected final boolean serialize_deltas;
+  protected final boolean serialize_alerts;
   protected final double upper_threshold_bad;
   protected final double upper_threshold_warn;
   protected final boolean upper_is_scalar;
@@ -57,6 +58,7 @@ public abstract class BaseAnomalyConfig
     serialize_observed = builder.serializeObserved;
     serialize_thresholds = builder.serializeThresholds;
     serialize_deltas = builder.serializeDeltas;
+    serialize_alerts = builder.serializeAlerts;
     upper_threshold_bad = builder.upperThresholdBad;
     upper_threshold_warn = builder.upperThresholdWarn;
     upper_is_scalar = builder.upperIsScalar;
@@ -82,6 +84,10 @@ public abstract class BaseAnomalyConfig
   
   public boolean getSerializeDeltas() {
     return serialize_deltas;
+  }
+  
+  public boolean getSerializeAlerts() {
+    return serialize_alerts;
   }
   
   public double getUpperThresholdBad() {
@@ -161,6 +167,8 @@ public abstract class BaseAnomalyConfig
     @JsonProperty
     protected boolean serializeDeltas;
     @JsonProperty
+    protected boolean serializeAlerts = true;
+    @JsonProperty
     private double upperThresholdBad;
     @JsonProperty
     private double upperThresholdWarn;
@@ -190,6 +198,11 @@ public abstract class BaseAnomalyConfig
     
     public B setSerializeDeltas(final boolean serialize_deltas) {
       this.serializeDeltas = serialize_deltas;
+      return self();
+    }
+    
+    public B setSerializeAlerts(final boolean serialize_alerts) {
+      this.serializeAlerts = serialize_alerts;
       return self();
     }
 
@@ -278,6 +291,11 @@ public abstract class BaseAnomalyConfig
       n = node.get("serializeDeltas");
       if (n != null && !n.isNull()) {
         builder.setSerializeDeltas(n.asBoolean());
+      }
+      
+      n = node.get("serializeAlerts");
+      if (n != null && !n.isNull()) {
+        builder.setSerializeAlerts(n.asBoolean());
       }
       
       n = node.get("upperThresholdBad");
