@@ -217,14 +217,10 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     if (filter instanceof TagKeyLiteralOrFilter) {
       String filter_str = filter.filter().toLowerCase();
       String[] filter_literals = filter_str.split("\\|");
-      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter
-              (QUERY_TAG_VALUE_KEY, ".*"))
-              .must(FilterBuilders.termsFilter(QUERY_TAG_KEY_KEY, filter_literals));
+      ((BoolFilterBuilder) builder).must(FilterBuilders.termsFilter(QUERY_TAG_KEY_KEY, filter_literals));
 
     } else if (filter instanceof TagKeyRegexFilter) {
-      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, ".*"))
-              .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, convertToLuceneRegex(filter
-                .filter())));
+      ((BoolFilterBuilder) builder).must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, convertToLuceneRegex(filter.filter())));
     }
     if (nested) {
       return FilterBuilders.nestedFilter(TAG_PATH, builder);
