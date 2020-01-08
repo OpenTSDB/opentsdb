@@ -115,8 +115,10 @@ public class GroupByNumericArrayIterator
     public abstract void doRun(TimeSeries timeSeries, Combiner combiner);
   }
 
-  protected static final int NUM_THREADS = 8;
+  //TODO make it configurable
+  protected static final int NUM_THREADS = 16;
 
+  //TODO make it configurable
   protected static final int MAX_TS_PER_JOB = 10_000;
 
   protected static ExecutorService executorService =
