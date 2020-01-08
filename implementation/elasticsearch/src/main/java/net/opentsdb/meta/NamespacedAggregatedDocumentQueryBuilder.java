@@ -75,10 +75,13 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   public static final String TAGS_UNIQUE = "unique_tags";
   public static final String TAGS_SUB_AGG = "tags_sub_agg";
   public static final String TAGS_SUB_UNIQUE = "unique_sub_tags";
+  private static final String TAG_KEYS_INDEX_SUFFIX = "_tagkeys";
 
   public final Map<NamespacedKey, List<SearchSourceBuilder>> search_source_builders;
 
   private final BatchMetaQuery query;
+
+  private boolean isMultiGet;
 
 
   private NamespacedAggregatedDocumentQueryBuilder(final BatchMetaQuery query) {
@@ -444,9 +447,15 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return null;
   }
 
+
   public static NamespacedAggregatedDocumentQueryBuilder newBuilder(
       final BatchMetaQuery query) {
     return new NamespacedAggregatedDocumentQueryBuilder(query);
+  }
+
+  public NamespacedAggregatedDocumentQueryBuilder setIsMultiGet() {
+    this.isMultiGet = true;
+    return this;
   }
 
   public Map<NamespacedKey, List<SearchSourceBuilder>> build() {
@@ -547,8 +556,15 @@ public class NamespacedAggregatedDocumentQueryBuilder {
             search_source_builders_list.add(search_source_builder);
           }
         }
+
+        int count = 0;
+        String index =
+            (NamespacedAggregatedDocumentSchema.countTagValueFilters(meta_query.filter(), count) > 0
+                || isMultiGet)
+                ? meta_query.namespace().toLowerCase() :
+                (meta_query.namespace() + TAG_KEYS_INDEX_SUFFIX).toLowerCase();
         search_source_builders
-            .put(new NamespacedKey(meta_query.namespace().toLowerCase(), meta_query.id()),
+            .put(new NamespacedKey(index, meta_query.id()),
                 search_source_builders_list);
       }
 
