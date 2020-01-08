@@ -65,8 +65,6 @@ public class GroupBy extends AbstractQueryNode {
    */
   private DownsampleConfig downsampleConfig;
 
-  private int timeSeriesCount;
-
   /**
    * Default ctor.
    * @param factory The non-null factory for generating iterators.
@@ -122,8 +120,6 @@ public class GroupBy extends AbstractQueryNode {
         config.getEncodedTagKeys() == null &&
         config.getTagKeys() != null && 
         !config.getTagKeys().isEmpty()) {
-
-      this.timeSeriesCount = next.timeSeries().size();
 
       class ResolveCB implements Callback<Object, List<byte[]>> {
         @Override
@@ -188,7 +184,4 @@ public class GroupBy extends AbstractQueryNode {
     return downsampleConfig;
   }
 
-  public int count() {
-    return timeSeriesCount;
-  }
 }

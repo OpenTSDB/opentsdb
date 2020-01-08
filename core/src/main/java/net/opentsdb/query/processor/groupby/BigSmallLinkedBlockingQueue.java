@@ -115,4 +115,13 @@ public class BigSmallLinkedBlockingQueue<T> {
     takeFromBigQ = !takeFromBigQ;
     return next;
   }
+
+  public int bigQSize() {
+    return bigQ.size();
+  }
+
+  public int smallQSize() {
+    return smallQ.size();
+  }
+
 }

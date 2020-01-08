@@ -51,6 +51,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 /**
  * An iterator for grouping arrays. This should be much faster for numerics than the regular
@@ -63,26 +64,6 @@ public class GroupByNumericArrayIterator
 
   private static final Logger logger = LoggerFactory.getLogger(
       GroupByNumericArrayIterator.class);
-
-  /** The result we belong to. */
-  private final GroupByResult result;
-
-  /** The aggregator. */
-  private final NumericArrayAggregator aggregator;
-
-  /**
-   * Whether or not another real value is present. True while at least one of 
-   * the time series has a real value.
-   */
-  private volatile boolean has_next = false;
-
-  protected static final int NUM_THREADS = 8;
-
-  protected static final int MAX_TS_PER_JOB = 10_000;
-
-  protected static ExecutorService executorService;
-
-  protected static Thread[] threads;
 
   public static abstract class GroupByJob<Combiner> implements Runnable {
     private int totalTsCount;
@@ -109,12 +90,16 @@ public class GroupByNumericArrayIterator
       this.combiner = combiner;
       this.doneSignal = doneSignal;
       this.statsCollector = statsCollector;
-      statsCollector.setGauge("groupby.timeseries.count", tsList.size());
     }
 
     @Override
     public void run() {
-      statsCollector.addTime("groupby.queue.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+      boolean isBig = bigJobPredicate.test(this);
+      if(isBig) {
+        statsCollector.addTime("groupby.queue.big.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+      } else {
+        statsCollector.addTime("groupby.queue.small.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+      }
       for (int i = startIndex; i < endIndex; i++) {
         doRun(tsList.get(i), combiner);
       }
@@ -130,17 +115,21 @@ public class GroupByNumericArrayIterator
     public abstract void doRun(TimeSeries timeSeries, Combiner combiner);
   }
 
-  protected static BigSmallLinkedBlockingQueue<GroupByJob> blockingQueue =
-      new BigSmallLinkedBlockingQueue<>((groupByJob -> groupByJob.totalTsCount > MAX_TS_PER_JOB));
+  protected static final int NUM_THREADS = 8;
+
+  protected static final int MAX_TS_PER_JOB = 10_000;
+
+  protected static ExecutorService executorService =
+      new ThreadPoolExecutor(
+          NUM_THREADS, NUM_THREADS, 1L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+
+  protected static Thread[] threads = new Thread[NUM_THREADS];
+
+  private  static Predicate<GroupByJob> bigJobPredicate = groupByJob -> groupByJob.totalTsCount > MAX_TS_PER_JOB;
+  protected static BigSmallLinkedBlockingQueue<GroupByJob> blockingQueue = new BigSmallLinkedBlockingQueue<>(bigJobPredicate);
 
   static {
-    executorService =
-        new ThreadPoolExecutor(
-            NUM_THREADS, NUM_THREADS, 1L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-
-    threads = new Thread[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < threads.length; i++) {
       Thread thread = new Thread(() -> {
         while (true) {
           try {
@@ -157,6 +146,18 @@ public class GroupByNumericArrayIterator
       threads[i] = thread;
     }
   }
+
+  /** The result we belong to. */
+  private final GroupByResult result;
+
+  /** The aggregator. */
+  private final NumericArrayAggregator aggregator;
+
+  /**
+   * Whether or not another real value is present. True while at least one of
+   * the time series has a real value.
+   */
+  private volatile boolean has_next = false;
 
   protected ExecutorService executor;
 
@@ -349,8 +350,7 @@ public class GroupByNumericArrayIterator
     }
     final int jobCount = tsCount / tsPerJob;
     final long start = System.currentTimeMillis();
-    GroupBy node = (GroupBy) this.result.source();
-    final int totalTsCount = node.count();
+    final int totalTsCount = this.result.timeSeries().size();
 
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
@@ -363,6 +363,7 @@ public class GroupByNumericArrayIterator
       } else {
         endIndex = startIndex + tsPerJob;
       }
+
       blockingQueue.put(new GroupByJob<NumericArrayAggregator>(totalTsCount, tsList, startIndex, endIndex, combiner, doneSignal, statsCollector) {
         @Override
         public void doRun(TimeSeries timeSeries, NumericArrayAggregator combiner) {
@@ -371,6 +372,9 @@ public class GroupByNumericArrayIterator
       });
       has_next = true;
     }
+
+    statsCollector.setGauge("groupby.queue.big.job", blockingQueue.bigQSize());
+    statsCollector.setGauge("groupby.queue.small.job", blockingQueue.smallQSize());
 
     try {
       doneSignal.await();

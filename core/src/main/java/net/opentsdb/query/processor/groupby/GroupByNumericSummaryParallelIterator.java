@@ -153,8 +153,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       tsPerJob = MAX_TS_PER_JOB;
     }
     final int jobCount = tsCount / tsPerJob;
-    GroupBy node = (GroupBy) this.result.source();
-    final int totalTsCount = node.count();
+    final int totalTsCount = this.result.timeSeries().size();
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
       Accumulator combiner = accumulators[jobIndex % threadCount];
@@ -175,6 +174,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
             }
           });
     }
+
+    statsCollector.setGauge("groupby.queue.big.job", blockingQueue.bigQSize());
+    statsCollector.setGauge("groupby.queue.small.job", blockingQueue.smallQSize());
 
     try {
       doneSignal.await();
