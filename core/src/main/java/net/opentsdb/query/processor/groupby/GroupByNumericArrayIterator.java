@@ -17,7 +17,6 @@ package net.opentsdb.query.processor.groupby;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
@@ -53,7 +52,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 /**
  * An iterator for grouping arrays. This should be much faster for numerics than the regular
@@ -67,84 +65,11 @@ public class GroupByNumericArrayIterator
   private static final Logger logger = LoggerFactory.getLogger(
       GroupByNumericArrayIterator.class);
 
-//  public static abstract class GroupByJob<Combiner> implements Runnable {
-//    private int totalTsCount;
-//    private final List<TimeSeries> tsList;
-//    private final int startIndex;
-//    private final int endIndex;
-//    private final Combiner combiner;
-//    private final CountDownLatch doneSignal;
-//    private StatsCollector statsCollector;
-//    private final long s = System.nanoTime();
-//
-//    public GroupByJob(
-//        int totalTsCount,
-//        List<TimeSeries> tsList,
-//        int startIndex,
-//        int endIndex,
-//        Combiner combiner,
-//        CountDownLatch doneSignal,
-//        StatsCollector statsCollector) {
-//      this.totalTsCount = totalTsCount;
-//      this.tsList = tsList;
-//      this.startIndex = startIndex;
-//      this.endIndex = endIndex;
-//      this.combiner = combiner;
-//      this.doneSignal = doneSignal;
-//      this.statsCollector = statsCollector;
-//    }
-//
-//    @Override
-//    public void run() {
-//      boolean isBig = bigJobPredicate.test(this);
-//      if(isBig) {
-//        statsCollector.addTime("groupby.queue.big.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
-//      } else {
-//        statsCollector.addTime("groupby.queue.small.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
-//      }
-//      for (int i = startIndex; i < endIndex; i++) {
-//        doRun(tsList.get(i), combiner);
-//      }
-//      doneSignal.countDown();
-//    }
-//
-//    /**
-//     * The aggregating class would have to provide the implementation.
-//     *
-//     * @param timeSeries the time series being aggregated.
-//     * @param combiner is the partial aggregator.
-//     */
-//    public abstract void doRun(TimeSeries timeSeries, Combiner combiner);
-//  }
-
   protected static final int NUM_THREADS = 8;
 
   protected static ExecutorService executorService =
       new ThreadPoolExecutor(
           NUM_THREADS, NUM_THREADS, 1L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-
-//  protected static Thread[] threads = new Thread[NUM_THREADS];
-
-//  private  static Predicate<GroupByJob> bigJobPredicate = groupByJob -> groupByJob.totalTsCount > MAX_TS_PER_JOB;
-
-//  static {
-//    for (int i = 0; i < threads.length; i++) {
-//      Thread thread = new Thread(() -> {
-//        while (true) {
-//          try {
-//            blockingQueue.take().run();
-//          } catch (InterruptedException ignored) {
-//            logger.error("GroupBy thread interrupted", ignored);
-//          }catch (Throwable throwable) {
-//            logger.error("Error running GroupBy job", throwable);
-//          }
-//        }
-//      }, "Group by thread: " + (i + 1));
-//      thread.setDaemon(true);
-//      thread.start();
-//      threads[i] = thread;
-//    }
-//  }
 
   /** The result we belong to. */
   private final GroupByResult result;
