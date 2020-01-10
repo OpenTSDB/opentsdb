@@ -229,6 +229,10 @@ public class GroupByNumericArrayIterator
                 + ((GroupByConfig) node.config()).getAggregator());
       }
 
+      if(logger.isDebugEnabled()) {
+        logger.debug("Group by queue threshold {}", queueThreshold);
+      }
+
       int size;
       DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
       if (null == downsampleConfig) {
