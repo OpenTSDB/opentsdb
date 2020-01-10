@@ -48,7 +48,8 @@ import static org.mockito.Mockito.when;
 public class TestGroupByNumericSummaryParallelIterator {
   public static MockTSDB TSDB;
   public static NumericInterpolatorConfig NUMERIC_CONFIG;
-  
+  private static GroupByFactory groupByFactory;
+
   private GroupByConfig config;
   private GroupBy node;
   private QueryContext query_context;
@@ -58,6 +59,7 @@ public class TestGroupByNumericSummaryParallelIterator {
   private DownsampleConfig ds_config;
   private DefaultRollupConfig rollup_config;
   private GroupByResult result;
+  private int queueThreshold = 1000;
   
   // TODO - test floats, gaps, nans, etc.
   
@@ -72,6 +74,8 @@ public class TestGroupByNumericSummaryParallelIterator {
       .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
       .setDataType(NumericType.TYPE.toString())
       .build();
+
+    groupByFactory = (GroupByFactory) TSDB.registry.getQueryNodeFactory(GroupByFactory.TYPE);
   }
   
   @Before
@@ -120,7 +124,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("sum");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -146,7 +150,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("avg");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -168,7 +172,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("max");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -190,7 +194,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("min");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -212,7 +216,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("count");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 64;
@@ -233,7 +237,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("avg");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -260,7 +264,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("sum");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -316,7 +320,7 @@ public class TestGroupByNumericSummaryParallelIterator {
         .addInterpolatorConfig(interpolator_config)
         .setId("Testing")
         .build();
-    
+
     node = mock(GroupBy.class);
     when(node.config()).thenReturn(config);
     when(node.getDownsampleConfig()).thenReturn(ds_config);
@@ -328,5 +332,6 @@ public class TestGroupByNumericSummaryParallelIterator {
     when(node.pipelineContext()).thenReturn(context);
     when(context.tsdb()).thenReturn(TSDB);
     when(result.source()).thenReturn(node);
+    when(node.factory()).thenReturn(groupByFactory);
   }
 }

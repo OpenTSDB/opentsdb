@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.processor.groupby;
+package net.opentsdb.utils;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,7 +33,7 @@ import java.util.function.Predicate;
  *
  * @param <T>
  */
-public class BigSmallLinkedBlockingQueue<T> {
+public class BigSmallLinkedBlockingQueue<T> implements TSDBQueryQueue<T> {
 
   private final ConcurrentLinkedQueue<T> bigQ;
   private final ConcurrentLinkedQueue<T> smallQ;
@@ -57,6 +57,10 @@ public class BigSmallLinkedBlockingQueue<T> {
 
   public int size() {
     return count.get();
+  }
+
+  @Override
+  public void shutdown() {
   }
 
   public void put(T t) {

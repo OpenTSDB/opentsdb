@@ -29,8 +29,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
@@ -41,6 +44,7 @@ import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.stats.StatsCollector;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -70,6 +74,10 @@ import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestGroupByNumericArrayIterator {
 
+  public static MockTSDB TSDB;
+  public static NumericInterpolatorConfig NUMERIC_CONFIG;
+  private static GroupByFactory groupByFactory;
+
   private Registry registry;
   private NumericInterpolatorConfig numeric_config;
   private TimeSpecification time_spec;
@@ -83,6 +91,20 @@ public class TestGroupByNumericArrayIterator {
   private QueryResult source_result;
   private StatsCollector statsCollector;
   private QueryPipelineContext context;
+  private int queueThreshold = 1000;
+
+  @BeforeClass
+  public static void beforeClass() {
+    TSDB = MockTSDBDefault.getMockTSDB();
+    NUMERIC_CONFIG =
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+            .setDataType(NumericType.TYPE.toString())
+            .build();
+
+    groupByFactory = (GroupByFactory) TSDB.registry.getQueryNodeFactory(GroupByFactory.TYPE);
+  }
   
   @Before
   public void before() throws Exception {
@@ -109,6 +131,7 @@ public class TestGroupByNumericArrayIterator {
     when(node.config()).thenReturn(config);
     context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
+    when(node.factory()).thenReturn(groupByFactory);
     final TSDB tsdb = mock(TSDB.class);
     when(context.tsdb()).thenReturn(tsdb);
     final TimeSeriesQuery q = mock(TimeSeriesQuery.class);
@@ -164,44 +187,44 @@ public class TestGroupByNumericArrayIterator {
   @Test
   public void ctor() throws Exception {
     GroupByNumericArrayIterator iterator = 
-        new GroupByNumericArrayIterator(node, result, source_map);
+        new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
-    iterator = new GroupByNumericArrayIterator(node, result, source_map.values());
+    iterator = new GroupByNumericArrayIterator(node, result, source_map.values(), queueThreshold);
     assertTrue(iterator.hasNext());
     
     try {
-      new GroupByNumericArrayIterator(null, result, source_map);
+      new GroupByNumericArrayIterator(null, result, source_map, queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericArrayIterator(node, result, (Map<String, TimeSeries>) null);
+      new GroupByNumericArrayIterator(node, result, (Map<String, TimeSeries>) null, queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericArrayIterator(node, result, Maps.newHashMap());
+      new GroupByNumericArrayIterator(node, result, Maps.newHashMap(), queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericArrayIterator(null, result, source_map.values());
+      new GroupByNumericArrayIterator(null, result, source_map.values(), queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericArrayIterator(node, result, (Collection<TimeSeries>) null);
+      new GroupByNumericArrayIterator(node, result, (Collection<TimeSeries>) null, queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericArrayIterator(node, result, Lists.newArrayList());
+      new GroupByNumericArrayIterator(node, result, Lists.newArrayList(), queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupByNumericArrayIterator(node, result, Lists.newArrayList(ts1, null, ts3));
+      new GroupByNumericArrayIterator(node, result, Lists.newArrayList(ts1, null, ts3), queueThreshold);
 //      fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -216,14 +239,14 @@ public class TestGroupByNumericArrayIterator {
     when(registry.getPlugin(any(Class.class), anyString()))
       .thenReturn(null);
     try {
-      new GroupByNumericArrayIterator(node, result, source_map.values());
+      new GroupByNumericArrayIterator(node, result, source_map.values(), queueThreshold);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
 
   @Test
   public void iterateLongsAlligned() {
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -251,7 +274,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -282,7 +305,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -331,7 +354,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -353,7 +376,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", new MockSeries());
     source_map.put("c", ts3);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -375,7 +398,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", new MockSeries());
     source_map.put("c", new MockSeries());
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertFalse(iterator.hasNext());
   }
   
@@ -409,7 +432,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -455,7 +478,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("b", ts2);
     source_map.put("c", ts3);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map);
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -530,7 +553,7 @@ public class TestGroupByNumericArrayIterator {
     when(node.getDownsampleConfig()).thenReturn(dsConfig);
 
     GroupByNumericArrayIterator iterator =
-        new GroupByNumericArrayIterator(node, this.result, source_map);
+        new GroupByNumericArrayIterator(node, this.result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
 
     assertTrue(iterator.hasNext());
@@ -590,7 +613,7 @@ public class TestGroupByNumericArrayIterator {
     source_map.put("i", dsResult.new DownsampleTimeSeries(ts9));
 
     iterator =
-        new GroupByNumericArrayIterator(node, this.result, source_map);
+        new GroupByNumericArrayIterator(node, this.result, source_map, queueThreshold);
     assertTrue(iterator.hasNext());
 
     assertTrue(iterator.hasNext());

@@ -31,6 +31,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +47,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-
-import static net.opentsdb.query.processor.groupby.GroupByNumericArrayIterator.MAX_TS_PER_JOB;
-import static net.opentsdb.query.processor.groupby.GroupByNumericArrayIterator.blockingQueue;
 
 /**
  * TODO - longs!
@@ -85,20 +83,25 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   private final TimeStamp ts;
   private final GroupByResult result;
   private StatsCollector statsCollector;
-  
+  private GroupByFactory groupByFactory;
+  private BigSmallLinkedBlockingQueue<GroupByFactory.GroupByJob> blockingQueue;
+  private int queueThreshold;
+
   /**
    * Default ctor from a map of time series.
+   *
    * @param node The non-null owner.
    * @param result A query result to pull the rollup config from.
    * @param sources A non-null map of sources.
    */
   public GroupByNumericSummaryParallelIterator(
-      final QueryNode node, 
+      final QueryNode node,
       final QueryResult result,
-      final Map<String, TimeSeries> sources) {
-    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()));
+      final Map<String, TimeSeries> sources,
+      final int queueThreshold) {
+    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()), queueThreshold);
   }
-  
+
   /**
    * Alternate ctor with a collection of sources.
    * @param node The non-null owner.
@@ -108,7 +111,8 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   public GroupByNumericSummaryParallelIterator(
       final QueryNode node, 
       final QueryResult result,
-      final Collection<TimeSeries> sources) {
+      final Collection<TimeSeries> sources,
+      final int queueThreshold) {
     expected_summary = -1;
     
     // TODO
@@ -118,6 +122,10 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
 
     TSDB tsdb = node.pipelineContext().tsdb();
     this.statsCollector = tsdb.getStatsCollector();
+
+    this.groupByFactory = (GroupByFactory) ((GroupBy) node).factory();
+    this.blockingQueue = groupByFactory.getQueue();
+    this.queueThreshold = queueThreshold;
 
     DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
     if (null == downsampleConfig) {
@@ -149,8 +157,8 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     final int tsCount = sources.size();
     final int threadCount = accumulators.length;
     int tsPerJob = tsCount / threadCount;
-    if(tsPerJob > MAX_TS_PER_JOB) {
-      tsPerJob = MAX_TS_PER_JOB;
+    if(tsPerJob > queueThreshold) {
+      tsPerJob = queueThreshold;
     }
     final int jobCount = tsCount / tsPerJob;
     final int totalTsCount = this.result.timeSeries().size();
@@ -166,7 +174,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         endIndex = startIndex + tsPerJob;
       }
       blockingQueue.put(
-          new GroupByNumericArrayIterator.GroupByJob<Accumulator>(
+          groupByFactory.new GroupByJob<Accumulator>(
               totalTsCount, sources, startIndex, endIndex, combiner, doneSignal, statsCollector) {
             @Override
             public void doRun(TimeSeries timeSeries, Accumulator accumulator) {
@@ -177,6 +185,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
 
     statsCollector.setGauge("groupby.queue.big.job", blockingQueue.bigQSize());
     statsCollector.setGauge("groupby.queue.small.job", blockingQueue.smallQSize());
+    statsCollector.setGauge("groupby.timeseries.count", totalTsCount);
 
     try {
       doneSignal.await();

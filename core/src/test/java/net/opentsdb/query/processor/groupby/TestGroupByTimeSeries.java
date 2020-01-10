@@ -162,10 +162,6 @@ public class TestGroupByTimeSeries {
     ts.addSource(source_b);
     assertEquals(2, ts.sources().size());
     
-    // add same is fine, hashed :)
-    ts.addSource(source_a);
-    assertEquals(2, ts.sources().size());
-    
     try {
       ts.addSource(null);
       fail("Expected IllegalArgumentException");
@@ -186,10 +182,6 @@ public class TestGroupByTimeSeries {
           .build());
     ts.addSource(source_a);
     ts.addSource(source_b);
-    assertEquals(2, ts.sources().size());
-    
-    // add same is fine, hashed :)
-    ts.addSource(source_a);
     assertEquals(2, ts.sources().size());
     
     try {

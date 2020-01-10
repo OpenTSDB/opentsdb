@@ -17,6 +17,8 @@ package net.opentsdb.query.processor.groupby;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -65,89 +67,84 @@ public class GroupByNumericArrayIterator
   private static final Logger logger = LoggerFactory.getLogger(
       GroupByNumericArrayIterator.class);
 
-  public static abstract class GroupByJob<Combiner> implements Runnable {
-    private int totalTsCount;
-    private final List<TimeSeries> tsList;
-    private final int startIndex;
-    private final int endIndex;
-    private final Combiner combiner;
-    private final CountDownLatch doneSignal;
-    private StatsCollector statsCollector;
-    private final long s = System.nanoTime();
+//  public static abstract class GroupByJob<Combiner> implements Runnable {
+//    private int totalTsCount;
+//    private final List<TimeSeries> tsList;
+//    private final int startIndex;
+//    private final int endIndex;
+//    private final Combiner combiner;
+//    private final CountDownLatch doneSignal;
+//    private StatsCollector statsCollector;
+//    private final long s = System.nanoTime();
+//
+//    public GroupByJob(
+//        int totalTsCount,
+//        List<TimeSeries> tsList,
+//        int startIndex,
+//        int endIndex,
+//        Combiner combiner,
+//        CountDownLatch doneSignal,
+//        StatsCollector statsCollector) {
+//      this.totalTsCount = totalTsCount;
+//      this.tsList = tsList;
+//      this.startIndex = startIndex;
+//      this.endIndex = endIndex;
+//      this.combiner = combiner;
+//      this.doneSignal = doneSignal;
+//      this.statsCollector = statsCollector;
+//    }
+//
+//    @Override
+//    public void run() {
+//      boolean isBig = bigJobPredicate.test(this);
+//      if(isBig) {
+//        statsCollector.addTime("groupby.queue.big.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+//      } else {
+//        statsCollector.addTime("groupby.queue.small.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
+//      }
+//      for (int i = startIndex; i < endIndex; i++) {
+//        doRun(tsList.get(i), combiner);
+//      }
+//      doneSignal.countDown();
+//    }
+//
+//    /**
+//     * The aggregating class would have to provide the implementation.
+//     *
+//     * @param timeSeries the time series being aggregated.
+//     * @param combiner is the partial aggregator.
+//     */
+//    public abstract void doRun(TimeSeries timeSeries, Combiner combiner);
+//  }
 
-    public GroupByJob(
-        int totalTsCount,
-        List<TimeSeries> tsList,
-        int startIndex,
-        int endIndex,
-        Combiner combiner,
-        CountDownLatch doneSignal,
-        StatsCollector statsCollector) {
-      this.totalTsCount = totalTsCount;
-      this.tsList = tsList;
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-      this.combiner = combiner;
-      this.doneSignal = doneSignal;
-      this.statsCollector = statsCollector;
-    }
-
-    @Override
-    public void run() {
-      boolean isBig = bigJobPredicate.test(this);
-      if(isBig) {
-        statsCollector.addTime("groupby.queue.big.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
-      } else {
-        statsCollector.addTime("groupby.queue.small.wait.time", System.nanoTime() - s, ChronoUnit.NANOS);
-      }
-      for (int i = startIndex; i < endIndex; i++) {
-        doRun(tsList.get(i), combiner);
-      }
-      doneSignal.countDown();
-    }
-
-    /**
-     * The aggregating class would have to provide the implementation.
-     *
-     * @param timeSeries the time series being aggregated.
-     * @param combiner is the partial aggregator.
-     */
-    public abstract void doRun(TimeSeries timeSeries, Combiner combiner);
-  }
-
-  //TODO make it configurable
-  protected static final int NUM_THREADS = 16;
-
-  //TODO make it configurable
-  protected static final int MAX_TS_PER_JOB = 10_000;
+  protected static final int NUM_THREADS = 8;
 
   protected static ExecutorService executorService =
       new ThreadPoolExecutor(
           NUM_THREADS, NUM_THREADS, 1L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
-  protected static Thread[] threads = new Thread[NUM_THREADS];
+//  protected static Thread[] threads = new Thread[NUM_THREADS];
 
-  private  static Predicate<GroupByJob> bigJobPredicate = groupByJob -> groupByJob.totalTsCount > MAX_TS_PER_JOB;
-  protected static BigSmallLinkedBlockingQueue<GroupByJob> blockingQueue = new BigSmallLinkedBlockingQueue<>(bigJobPredicate);
+//  private  static Predicate<GroupByJob> bigJobPredicate = groupByJob -> groupByJob.totalTsCount > MAX_TS_PER_JOB;
 
-  static {
-    for (int i = 0; i < threads.length; i++) {
-      Thread thread = new Thread(() -> {
-        while (true) {
-          try {
-            blockingQueue.take().run();
-          } catch (InterruptedException ignored) {
-            logger.error("GroupBy thread interrupted", ignored);
-          }catch (Throwable throwable) {
-            logger.error("Error running GroupBy job", throwable);
-          }
-        }
-      }, "Group by thread: " + (i + 1));
-      thread.setDaemon(true);
-      thread.start();
-      threads[i] = thread;
-    }
-  }
+//  static {
+//    for (int i = 0; i < threads.length; i++) {
+//      Thread thread = new Thread(() -> {
+//        while (true) {
+//          try {
+//            blockingQueue.take().run();
+//          } catch (InterruptedException ignored) {
+//            logger.error("GroupBy thread interrupted", ignored);
+//          }catch (Throwable throwable) {
+//            logger.error("Error running GroupBy job", throwable);
+//          }
+//        }
+//      }, "Group by thread: " + (i + 1));
+//      thread.setDaemon(true);
+//      thread.start();
+//      threads[i] = thread;
+//    }
+//  }
 
   /** The result we belong to. */
   private final GroupByResult result;
@@ -165,6 +162,10 @@ public class GroupByNumericArrayIterator
 
   private StatsCollector statsCollector;
 
+  private BigSmallLinkedBlockingQueue<GroupByFactory.GroupByJob> blockingQueue;
+  private GroupByFactory groupByFactory;
+  private int queueThreshold;
+
   /**
    * Default ctor.
    *
@@ -174,8 +175,15 @@ public class GroupByNumericArrayIterator
    * @throws IllegalArgumentException if a required parameter or config is not present.
    */
   public GroupByNumericArrayIterator(
-      final QueryNode node, final QueryResult result, final Map<String, TimeSeries> sources) {
-    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()));
+      final QueryNode node,
+      final QueryResult result,
+      final Map<String, TimeSeries> sources,
+      final int queueThreshold) {
+    this(
+        node,
+        result,
+        sources == null ? null : Lists.newArrayList(sources.values()),
+        queueThreshold);
   }
 
   /**
@@ -187,8 +195,7 @@ public class GroupByNumericArrayIterator
    * @throws IllegalArgumentException if a required parameter or config is not present.
    */
   public GroupByNumericArrayIterator(
-      final QueryNode node, final QueryResult result, final Collection<TimeSeries> sources) {
-
+      final QueryNode node, final QueryResult result, final Collection<TimeSeries> sources, final int queueThreshold) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
     }
@@ -206,6 +213,9 @@ public class GroupByNumericArrayIterator
       TSDB tsdb = node.pipelineContext().tsdb();
       executor = tsdb.quickWorkPool();
 
+      this.groupByFactory = (GroupByFactory) ((GroupBy) node).factory();
+      this.blockingQueue = groupByFactory.getQueue();
+      this.queueThreshold = queueThreshold;
       this.result = (GroupByResult) result;
       final NumericArrayAggregatorFactory factory =
           tsdb
@@ -347,8 +357,8 @@ public class GroupByNumericArrayIterator
     final int tsCount = tsList.size();
     final int threadCount = combiners.length;
     int tsPerJob = tsCount / threadCount;
-    if(tsPerJob > MAX_TS_PER_JOB) {
-      tsPerJob = MAX_TS_PER_JOB;
+    if(tsPerJob > queueThreshold) {
+      tsPerJob = queueThreshold;
     }
     final int jobCount = tsCount / tsPerJob;
     final long start = System.currentTimeMillis();
@@ -366,7 +376,7 @@ public class GroupByNumericArrayIterator
         endIndex = startIndex + tsPerJob;
       }
 
-      blockingQueue.put(new GroupByJob<NumericArrayAggregator>(totalTsCount, tsList, startIndex, endIndex, combiner, doneSignal, statsCollector) {
+      blockingQueue.put( groupByFactory.new GroupByJob<NumericArrayAggregator>(totalTsCount, tsList, startIndex, endIndex, combiner, doneSignal, statsCollector) {
         @Override
         public void doRun(TimeSeries timeSeries, NumericArrayAggregator combiner) {
           accumulate(timeSeries, combiner);
@@ -377,6 +387,7 @@ public class GroupByNumericArrayIterator
 
     statsCollector.setGauge("groupby.queue.big.job", blockingQueue.bigQSize());
     statsCollector.setGauge("groupby.queue.small.job", blockingQueue.smallQSize());
+    statsCollector.setGauge("groupby.timeseries.count", totalTsCount);
 
     try {
       doneSignal.await();
