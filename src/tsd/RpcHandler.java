@@ -70,7 +70,6 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
    * Constructor that loads the CORS domain list and prepares for
    * handling requests. This constructor creates its own {@link RpcManager}.
    * @param tsdb The TSDB to use.
-   * @param manager instance of a ready-to-use {@link RpcManager}.
    * @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
