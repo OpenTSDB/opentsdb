@@ -15,28 +15,28 @@
 
 KRYO_VERSION := 2.21.1
 KRYO := third_party/kryo/kryo-$(KRYO_VERSION).jar
-KRYO_BASE_URL := http://central.maven.org/maven2/com/esotericsoftware/kryo/kryo/$(KRYO_VERSION)
+KRYO_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/kryo/kryo/$(KRYO_VERSION)
 
 $(KRYO): $(KRYO).md5
 	set dummy "$(KRYO_BASE_URL)" "$(KRYO)"; shift; $(FETCH_DEPENDENCY)
 
 REFLECTASM_VERSION := 1.07
 REFLECTASM := third_party/kryo/reflectasm-$(REFLECTASM_VERSION)-shaded.jar
-REFLECTASM_BASE_URL := http://central.maven.org/maven2/com/esotericsoftware/reflectasm/reflectasm/$(REFLECTASM_VERSION)
+REFLECTASM_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/reflectasm/reflectasm/$(REFLECTASM_VERSION)
 
 $(REFLECTASM): $(REFLECTASM).md5
 	set dummy "$(REFLECTASM_BASE_URL)" "$(REFLECTASM)"; shift; $(FETCH_DEPENDENCY)
 
 ASM_VERSION := 4.0
 ASM := third_party/kryo/asm-$(ASM_VERSION).jar
-ASM_BASE_URL := http://central.maven.org/maven2/org/ow2/asm/asm/$(ASM_VERSION)
+ASM_BASE_URL := https://repo1.maven.org/maven2/org/ow2/asm/asm/$(ASM_VERSION)
 
 $(ASM): $(ASM).md5
 	set dummy "$(ASM_BASE_URL)" "$(ASM)"; shift; $(FETCH_DEPENDENCY)
 
 MINLOG_VERSION := 1.2
 MINLOG := third_party/kryo/minlog-$(MINLOG_VERSION).jar
-MINLOG_BASE_URL := http://central.maven.org/maven2/com/esotericsoftware/minlog/minlog/$(MINLOG_VERSION)
+MINLOG_BASE_URL := https://repo1.maven.org/maven2/com/esotericsoftware/minlog/minlog/$(MINLOG_VERSION)
 
 $(MINLOG): $(MINLOG).md5
 	set dummy "$(MINLOG_BASE_URL)" "$(MINLOG)"; shift; $(FETCH_DEPENDENCY)
