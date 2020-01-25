@@ -42,5 +42,3 @@ $(MINLOG): $(MINLOG).md5
 	set dummy "$(MINLOG_BASE_URL)" "$(MINLOG)"; shift; $(FETCH_DEPENDENCY)
 
 THIRD_PARTY += $(KRYO) $(REFLECTASM) $(ASM) $(MINLOG)
-
-https://repo1.maven.org/maven2/com/esotericsoftware/reflectasm/1.10.0/reflectasm-1.10.0-shaded.jar
