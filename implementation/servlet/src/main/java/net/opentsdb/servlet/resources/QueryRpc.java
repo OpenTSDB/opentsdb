@@ -972,11 +972,16 @@ final public class QueryRpc {
       throw new WebApplicationException("The query string was empty",
           Response.Status.BAD_REQUEST);
     }
+
+    // m=avg:10s-avg:ssp.nex.health.cachePartialLoad{corp:Environment=staging,version=11.177.0}
+    //   avg, 10s-avg, ssp.nex.health.cachePartialLoad{corp:Environment=staging,version=11.177.0}
+    //   avg:10s-avg:ssp.nex.health.cachePartialLoad, corp:Environment=staging,version=11.177.0}
+    //   [avg, 10s-avg, ssp.nex.health.cachePartialLoad][corp:Environment=staging,version=11.177.0}]
     
     // m is of the following forms:
     // agg:[interval-agg:][rate:]metric[{tag=value,...}]
     // where the parts in square brackets `[' .. `]' are optional.
-    final String[] parts = StringUtils.splitString(query_string, ':');
+    final String[] parts = StringUtils.splitStringProtectBrackets(query_string, ':');
     int i = parts.length;
     if (i < 2 || i > 5) {
       throw new WebApplicationException("Invalid parameter m=" + query_string + " ("
@@ -989,6 +994,7 @@ final public class QueryRpc {
     sub_query.setAggregator(parts[0]);
     
     i--; // Move to the last part (the metric name).
+
     List<TagVFilter> filters = new ArrayList<TagVFilter>();
     sub_query.setMetric(Tags.parseWithMetricAndFilters(parts[i], filters));
     sub_query.setFilters(filters);
