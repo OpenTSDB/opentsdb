@@ -15,7 +15,7 @@
 
 JGRAPHT_VERSION := 0.9.1
 JGRAPHT := third_party/jgrapht/jgrapht-core-$(JGRAPHT_VERSION).jar
-JGRAPHT_BASE_URL := http://central.maven.org/maven2/org/jgrapht/jgrapht-core/$(JGRAPHT_VERSION)
+JGRAPHT_BASE_URL := https://repo1.maven.org/maven2/org/jgrapht/jgrapht-core/$(JGRAPHT_VERSION)
 
 $(JGRAPHT): $(JGRAPHT).md5
 	set dummy "$(JGRAPHT_BASE_URL)" "$(JGRAPHT)"; shift; $(FETCH_DEPENDENCY)

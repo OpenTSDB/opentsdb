@@ -15,7 +15,7 @@
 
 MOCKITO_VERSION := 1.9.5
 MOCKITO := third_party/mockito/mockito-core-$(MOCKITO_VERSION).jar
-MOCKITO_BASE_URL := http://central.maven.org/maven2/org/mockito/mockito-core/$(MOCKITO_VERSION)
+MOCKITO_BASE_URL := https://repo1.maven.org/maven2/org/mockito/mockito-core/$(MOCKITO_VERSION)
 
 $(MOCKITO): $(MOCKITO).md5
 	set dummy "$(MOCKITO_BASE_URL)" "$(MOCKITO)"; shift; $(FETCH_DEPENDENCY)

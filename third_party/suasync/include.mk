@@ -15,7 +15,7 @@
 
 SUASYNC_VERSION := 1.4.0
 SUASYNC := third_party/suasync/async-$(SUASYNC_VERSION).jar
-SUASYNC_BASE_URL := http://central.maven.org/maven2/com/stumbleupon/async/$(SUASYNC_VERSION)
+SUASYNC_BASE_URL := https://repo1.maven.org/maven2/com/stumbleupon/async/$(SUASYNC_VERSION)
 
 $(SUASYNC): $(SUASYNC).md5
 	set dummy "$(SUASYNC_BASE_URL)" "$(SUASYNC)"; shift; $(FETCH_DEPENDENCY)

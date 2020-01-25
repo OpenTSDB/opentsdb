@@ -17,7 +17,7 @@ GWT_VERSION := 2.6.0
 
 GWT_DEV_VERSION := $(GWT_VERSION)
 GWT_DEV := third_party/gwt/gwt-dev-$(GWT_DEV_VERSION).jar
-GWT_DEV_BASE_URL := http://central.maven.org/maven2/com/google/gwt/gwt-dev/$(GWT_DEV_VERSION)
+GWT_DEV_BASE_URL := https://repo1.maven.org/maven2/com/google/gwt/gwt-dev/$(GWT_DEV_VERSION)
 
 $(GWT_DEV): $(GWT_DEV).md5
 	set dummy "$(GWT_DEV_BASE_URL)" "$(GWT_DEV)"; shift; $(FETCH_DEPENDENCY)
@@ -25,14 +25,14 @@ $(GWT_DEV): $(GWT_DEV).md5
 
 GWT_USER_VERSION := $(GWT_VERSION)
 GWT_USER := third_party/gwt/gwt-user-$(GWT_USER_VERSION).jar
-GWT_USER_BASE_URL := http://central.maven.org/maven2/com/google/gwt/gwt-user/$(GWT_USER_VERSION)
+GWT_USER_BASE_URL := https://repo1.maven.org/maven2/com/google/gwt/gwt-user/$(GWT_USER_VERSION)
 
 $(GWT_USER): $(GWT_USER).md5
 	set dummy "$(GWT_USER_BASE_URL)" "$(GWT_USER)"; shift; $(FETCH_DEPENDENCY)
 
 GWT_THEME_VERSION := 1.0.0
 GWT_THEME := third_party/gwt/opentsdb-gwt-theme-$(GWT_THEME_VERSION).jar
-GWT_THEME_BASE_URL := http://central.maven.org/maven2/net/opentsdb/opentsdb-gwt-theme/$(GWT_THEME_VERSION)
+GWT_THEME_BASE_URL := https://repo1.maven.org/maven2/net/opentsdb/opentsdb-gwt-theme/$(GWT_THEME_VERSION)
 
 $(GWT_THEME): $(GWT_THEME).md5
 	set dummy "$(GWT_THEME_BASE_URL)" "$(GWT_THEME)"; shift; $(FETCH_DEPENDENCY)

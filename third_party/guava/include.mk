@@ -25,7 +25,7 @@
 
 GUAVA_VERSION := 18.0
 GUAVA := third_party/guava/guava-$(GUAVA_VERSION).jar
-GUAVA_BASE_URL := http://central.maven.org/maven2/com/google/guava/guava/$(GUAVA_VERSION)
+GUAVA_BASE_URL := https://repo1.maven.org/maven2/com/google/guava/guava/$(GUAVA_VERSION)
 
 $(GUAVA): $(GUAVA).md5
 	set dummy "$(GUAVA_BASE_URL)" "$(GUAVA)"; shift; $(FETCH_DEPENDENCY)
