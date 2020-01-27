@@ -24,9 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.AsyncContext;
@@ -34,7 +31,6 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -74,7 +70,6 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.servlet.resources.RawQueryRpc.RunTSDQuery;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
@@ -973,15 +968,16 @@ final public class QueryRpc {
           Response.Status.BAD_REQUEST);
     }
 
-    // m=avg:10s-avg:ssp.nex.health.cachePartialLoad{corp:Environment=staging,version=11.177.0}
-    //   avg, 10s-avg, ssp.nex.health.cachePartialLoad{corp:Environment=staging,version=11.177.0}
-    //   avg:10s-avg:ssp.nex.health.cachePartialLoad, corp:Environment=staging,version=11.177.0}
-    //   [avg, 10s-avg, ssp.nex.health.cachePartialLoad][corp:Environment=staging,version=11.177.0}]
-    
     // m is of the following forms:
     // agg:[interval-agg:][rate:]metric[{tag=value,...}]
     // where the parts in square brackets `[' .. `]' are optional.
-    final String[] parts = StringUtils.splitStringProtectBrackets(query_string, ':');
+    final String[] parts;
+    try {
+      parts = StringUtils.splitStringWithBrackets(query_string, ':');
+    } catch (Exception e) {
+      throw new WebApplicationException(e.getMessage());
+    }
+
     int i = parts.length;
     if (i < 2 || i > 5) {
       throw new WebApplicationException("Invalid parameter m=" + query_string + " ("
@@ -994,7 +990,6 @@ final public class QueryRpc {
     sub_query.setAggregator(parts[0]);
     
     i--; // Move to the last part (the metric name).
-
     List<TagVFilter> filters = new ArrayList<TagVFilter>();
     sub_query.setMetric(Tags.parseWithMetricAndFilters(parts[i], filters));
     sub_query.setFilters(filters);
