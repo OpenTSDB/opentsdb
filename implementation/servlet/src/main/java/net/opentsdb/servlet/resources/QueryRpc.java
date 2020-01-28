@@ -24,9 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.AsyncContext;
@@ -34,7 +31,6 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -74,7 +70,6 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.servlet.resources.RawQueryRpc.RunTSDQuery;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
@@ -972,11 +967,17 @@ final public class QueryRpc {
       throw new WebApplicationException("The query string was empty",
           Response.Status.BAD_REQUEST);
     }
-    
+
     // m is of the following forms:
     // agg:[interval-agg:][rate:]metric[{tag=value,...}]
     // where the parts in square brackets `[' .. `]' are optional.
-    final String[] parts = StringUtils.splitString(query_string, ':');
+    final String[] parts;
+    try {
+      parts = StringUtils.splitStringWithBrackets(query_string, ':');
+    } catch (Exception e) {
+      throw new WebApplicationException(e.getMessage());
+    }
+
     int i = parts.length;
     if (i < 2 || i > 5) {
       throw new WebApplicationException("Invalid parameter m=" + query_string + " ("

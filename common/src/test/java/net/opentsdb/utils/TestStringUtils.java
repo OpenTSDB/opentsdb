@@ -63,4 +63,65 @@ public class TestStringUtils {
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
   }
+
+  @Test
+  public void splitStringWithBrackets() throws Exception {
+    // repeat the case of SplitString to validate it still works
+    String[] splits = StringUtils.splitStringWithBrackets("Space Separated Chars", ' ');
+    assertEquals(3, splits.length);
+    assertEquals("Space", splits[0]);
+    assertEquals("Separated", splits[1]);
+    assertEquals("Chars", splits[2]);
+
+    splits = StringUtils.splitStringWithBrackets("NoSpace", ' ');
+    assertEquals(1, splits.length);
+    assertEquals("NoSpace", splits[0]);
+
+    splits = StringUtils.splitStringWithBrackets("", ' ');
+    assertEquals(1, splits.length);
+    assertEquals("", splits[0]);
+
+    try {
+      StringUtils.splitStringWithBrackets(null, ' ');
+      fail("Expected NullPointerException");
+    } catch (NullPointerException e) { }
+
+    // m-type query with brackets
+    splits = StringUtils.splitStringWithBrackets("avg:1s-avg:metric.name{tagPre:tagPost=value,tag2=value2}", ':');
+    assertEquals(3, splits.length);
+    assertEquals("avg", splits[0]);
+    assertEquals("1s-avg", splits[1]);
+    assertEquals("metric.name{tagPre:tagPost=value,tag2=value2}", splits[2]);
+
+    // test for nesting brackets
+    splits = StringUtils.splitStringWithBrackets("a:b:c{(::)}{:}(:)[:]:d", ':');
+    assertEquals(4, splits.length);
+    assertEquals("a", splits[0]);
+    assertEquals("b", splits[1]);
+    assertEquals("c{(::)}{:}(:)[:]", splits[2]);
+    assertEquals("d", splits[3]);
+
+    // test for nesting exception
+    try {
+      splits = StringUtils.splitStringWithBrackets("a:b:c{(::]}{:}(:)[:]:d", ':');
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertEquals("bracket open/close mismatch", e.getMessage());
+    }
+
+    try {
+      splits = StringUtils.splitStringWithBrackets("a:b:c{(::[)]}{:}(:)[:]:d", ':');
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertEquals("bracket open/close mismatch", e.getMessage());
+    }
+
+    try {
+      splits = StringUtils.splitStringWithBrackets("a:b:c{(({[[[(({[::[)]}{:}(:)[:]:d", ':');
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertEquals("more than 10 nested brackets", e.getMessage());
+    }
+
+  }
 }

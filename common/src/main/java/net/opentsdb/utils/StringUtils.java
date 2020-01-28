@@ -90,4 +90,68 @@ public class StringUtils {
     result[i] = new String(chars, start, pos - start);
     return result;
   }
+
+  /**
+   * Same as {@code StringUtils#splitString} but preserves anything in
+   * brackets as defined by open-close pairs of \{\}, \[\] and \(\).
+   * Preserves bracket ordering and nesting.
+   * @param s The string to split.
+   * @param c The separator to use to split the string.
+   * @return A non-null, non-empty array.
+   * @throws IllegalArgumentException if separator is a supported bracket character,
+   *  bracket open/close mismatch or too many brackets are nested (max limit = 10)
+   * @since 3.0
+   */
+  public static String[] splitStringWithBrackets(final String s, final char c) {
+    if (c == '{' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']') {
+      throw new IllegalArgumentException("separator is a bracket character");
+    }
+    final char[] chars = s.toCharArray();
+    int num_substrings = 1;
+    final char[] bracketStack = new char[10]; // max depth of 10
+    int stackHeadPos = -1;
+    for (final char x : chars) {
+      if (x == '{' || x == '(' || x == '[') {
+        if (stackHeadPos == bracketStack.length - 1) {
+          throw new IllegalArgumentException("more than 10 nested brackets");
+        }
+        bracketStack[++stackHeadPos] = x;
+      } else if (x == '}' || x == ')' || x == ']') {
+          if (stackHeadPos < 0) {
+            throw new IllegalArgumentException("too many brackets closed w/o open");
+          }
+          if ((x == '}' && bracketStack[stackHeadPos] != '{') ||
+              (x == ')' && bracketStack[stackHeadPos] != '(') ||
+              (x == ']' && bracketStack[stackHeadPos] != '[') ) {
+            throw new IllegalArgumentException("bracket open/close mismatch");
+          }
+          stackHeadPos--;
+      } else if (x == c) {
+          if (stackHeadPos == -1) num_substrings++;
+      }
+    }
+    final String[] result = new String[num_substrings];
+    final int len = chars.length;
+    int start = 0;  // starting index in chars of the current substring.
+    int pos = 0;    // current index in chars.
+    int i = 0;      // number of the current substring.
+    int brackets = 0; // within bracket context or not
+    for (; pos < len; pos++) {
+      final char x = chars[pos];
+      if (x == '{' || x == '(' || x == '[') {
+        brackets++;
+      } else if (x == '}' || x == ')' || x == ']') {
+        brackets--;
+      } else if (x == c) {
+        if (brackets == 0) {
+          result[i++] = new String(chars, start, pos - start);
+          start = pos + 1;
+        }
+      }
+
+    }
+    result[i] = new String(chars, start, pos - start);
+    return result;
+  }
 }
+
