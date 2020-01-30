@@ -159,7 +159,7 @@ public class Downsample extends AbstractQueryNode {
       if (config.getRunAll()) {
         start = query.startTime();
         end = query.endTime();
-      } else if (config.timezone() != Const.UTC) {
+      } else if (!config.timezone().equals(Const.UTC)) {
         start = new ZonedNanoTimeStamp(query.startTime().epoch(), 
             query.startTime().nanos(), config.timezone());
         start.snapToPreviousInterval(config.intervalPart(), config.units());
