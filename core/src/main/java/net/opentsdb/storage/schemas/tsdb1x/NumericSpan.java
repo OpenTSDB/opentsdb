@@ -21,12 +21,11 @@ import java.util.NoSuchElementException;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.common.Const;
+import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 
@@ -139,7 +138,7 @@ public class NumericSpan implements Span<NumericType> {
     
     /** The timestamp. Since the API says consumers can't keep this 
      * reference, we can keep re-using it to save memory. */
-    private ZonedNanoTimeStamp ts = new ZonedNanoTimeStamp(0, 0, Const.UTC);
+    private MillisecondTimeStamp ts = new MillisecondTimeStamp(0);
     
     @Override
     public boolean isInteger() {
