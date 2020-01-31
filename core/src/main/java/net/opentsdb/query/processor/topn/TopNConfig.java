@@ -128,6 +128,9 @@ public class TopNConfig extends BaseQueryNodeConfig<TopNConfig.Builder, TopNConf
 
   @Override
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putInt(count)
             .putBoolean(top)
@@ -142,7 +145,8 @@ public class TopNConfig extends BaseQueryNodeConfig<TopNConfig.Builder, TopNConf
 
     hashes.add(hc);
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override

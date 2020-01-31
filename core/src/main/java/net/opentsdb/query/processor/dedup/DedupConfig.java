@@ -64,7 +64,11 @@ public class DedupConfig extends BaseQueryNodeConfig<DedupConfig.Builder, DedupC
 
   @Override
   public HashCode buildHashCode() {
-    return super.buildHashCode();
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    cached_hash = super.buildHashCode();
+    return cached_hash;
   }
 
   @Override

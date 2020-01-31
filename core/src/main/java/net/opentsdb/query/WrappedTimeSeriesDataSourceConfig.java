@@ -48,6 +48,9 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   /** Whether or not we've been setup. */
   public final boolean has_been_setup;
   
+  /** Cached hash code. */
+  public volatile HashCode cached_hash;
+  
   /**
    * Default ctor.
    * @param id A non-null and non-empty ID.
@@ -126,6 +129,10 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
 
   @Override
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
             .hash();
@@ -136,7 +143,8 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
 
     hashes.add(config.buildHashCode());
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override

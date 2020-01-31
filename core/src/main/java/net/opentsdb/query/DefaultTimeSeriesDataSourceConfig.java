@@ -19,6 +19,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashCode;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -62,11 +64,20 @@ public class DefaultTimeSeriesDataSourceConfig
   }
 
   @Override
-  public int compareTo(DefaultTimeSeriesDataSourceConfig o) {
+  public int compareTo(final DefaultTimeSeriesDataSourceConfig o) {
     // TODO Auto-generated method stub
     return 0;
   }
 
+  @Override
+  public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    cached_hash = super.buildHashCode();
+    return cached_hash;
+  }
+  
   public static void setupTimeShift(
       final TimeSeriesDataSourceConfig<DefaultTimeSeriesDataSourceConfig.Builder, DefaultTimeSeriesDataSourceConfig> config,
       final QueryPlanner planner) {
