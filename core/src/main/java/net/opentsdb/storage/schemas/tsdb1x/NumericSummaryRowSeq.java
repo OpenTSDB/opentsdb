@@ -271,11 +271,10 @@ public class NumericSummaryRowSeq implements RowSeq {
       
       // if we made it here we need to dedupe and sort. Normalize to longs
       // then flush.
-      // TODO - any primitive tree maps out there? Or maybe there's just an
-      // all around better way to do this. For now this should be fast enough.
       // The value is a concatenation of the offset and length into a long.
       // The first 32 bits are the offset, the last 32 the width to copy.
-      TreeMap<Long,Long> map = new TreeMap<Long, Long>();
+      final long[] array = new long[data.length];
+      int array_idx = 0;
       idx = 0;
       local_dps = 0;
       int vlen;
@@ -306,33 +305,62 @@ public class NumericSummaryRowSeq implements RowSeq {
           idx += NumericCodec.S_Q_WIDTH + vlen;
         }
         
-        // now copy the data into the buffer then store it
-        if (keep_earliest) {
-          map.putIfAbsent(current_offset, encoded_value);
-        } else {
-          map.put(current_offset, encoded_value);
+        // and now a little merge sort with overwrites.
+        int i = array_idx;
+        if (i == 0) {
+          array[i] = current_offset;
+          array[i + 1] = encoded_value;
+          array_idx += 2;
+          continue;
         }
+        
+        i -= 2;
+        while (i > 0 && array[i] > current_offset) {
+          i -= 2;
+        }
+        
+        if (array[i] < current_offset) {
+          i += 2;
+          if (i != array_idx) {
+            shift(array, i, array_idx);
+          }
+          array[i] = current_offset;
+          array[i + 1] = encoded_value;
+          array_idx += 2;
+          continue;
+        }
+        
+        if (array[i] == current_offset) {
+          if (!keep_earliest) {
+            array[i + 1] = encoded_value;
+          }
+          continue;
+        }
+        
+        shift(array, i, array_idx);
+        array[i] = current_offset;
+        array[i + 1] = encoded_value;
+        array_idx += 2;
       }
-      
-      final byte[] sorted = new byte[data.length];
-      final Iterator<Entry<Long, Long>> iterator;
-      if (reverse) {
-        iterator = map.descendingMap().entrySet().iterator();
-      } else {
-        iterator = map.entrySet().iterator();
-      }
-      idx = 0;
       
       int offset = 0;
       int width = 0;
-      
-      while (iterator.hasNext()) {
-        final long value = iterator.next().getValue();
-        offset = (int) (value >> 32);
-        width = (int) value;
-        System.arraycopy(data, offset, sorted, idx, width);
-        idx += width;
-        local_dps++;
+      final byte[] sorted = new byte[data.length];
+      idx = 0;
+      if (reverse) {
+        for (int i = array_idx - 1; i >= 0; i -= 2) {
+          offset = (int) (array[i] >> 32);
+          width = (int) array[i];
+          System.arraycopy(data, offset, sorted, idx, width);
+          idx += width;
+        }
+      } else {
+        for (int i = 1; i < array_idx; i += 2) {
+          offset = (int) (array[i] >> 32);
+          width = (int) array[i];
+          System.arraycopy(data, offset, sorted, idx, width);
+          idx += width;
+        }
       }
       
       // truncate if necessary
@@ -343,7 +371,7 @@ public class NumericSummaryRowSeq implements RowSeq {
         summary_data.put(entry.getKey(), sorted);
         size += data.length;
       }
-      dps += local_dps;
+      dps += array_idx / 2;
     }
     return resolution;
   }
@@ -419,6 +447,18 @@ public class NumericSummaryRowSeq implements RowSeq {
       }
       
       summary_data.put(entry.getKey(), reversed);
+    }
+  }
+
+  /**
+   * Simple little shift function.
+   * @param array The array to shift.
+   * @param idx The shift point.
+   * @param end The end of the array (to avoid some shifts)
+   */
+  static void shift(final long[] array, final int idx, final int end) {
+    for (int i = end - 1; i >= idx; i--) {
+      array[i + 2] = array[i];
     }
   }
 }
