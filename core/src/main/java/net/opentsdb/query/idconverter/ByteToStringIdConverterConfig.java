@@ -110,11 +110,14 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStr
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
-
+  
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(2);
 
@@ -130,7 +133,8 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStr
       hashes.add(hasher.hash());
     }
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   public static Builder newBuilder() {

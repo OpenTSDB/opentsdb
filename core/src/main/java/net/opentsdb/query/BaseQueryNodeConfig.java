@@ -39,7 +39,8 @@ import net.opentsdb.utils.Comparators;
  * @since 3.0
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<B, C>, C extends BaseQueryNodeConfig> implements QueryNodeConfig<B, C> {
+public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<B, C>, 
+    C extends BaseQueryNodeConfig> implements QueryNodeConfig<B, C> {
 
   /** A unique name for this config. */
   protected final String id;
@@ -52,6 +53,9 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   
   /** The optional map of overrides. */
   protected final Map<String, String> overrides;
+  
+  /** The cached hash code. */
+  protected volatile HashCode cached_hash;
   
   /**
    * Protected ctor.
@@ -209,15 +213,15 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
     return true;
   }
 
-
-
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
-
-  /** @return A HashCode object for deterministic, non-secure hashing */
+  
+  /**
+   * <b>WARNING:</b> This method won't set the cached hash.
+   * @return A HashCode object for deterministic, non-secure hashing 
+   */
   public HashCode buildHashCode() {
     final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)

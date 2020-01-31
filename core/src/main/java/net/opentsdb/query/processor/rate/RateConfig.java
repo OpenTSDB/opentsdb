@@ -273,6 +273,10 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(3);
 
@@ -294,7 +298,8 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
 
     hashes.add(hasher.hash());
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
   
   @Override

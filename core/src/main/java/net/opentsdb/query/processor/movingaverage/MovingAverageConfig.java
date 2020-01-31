@@ -162,6 +162,10 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
 
   @Override
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putInt(samples)
             .putString(Strings.nullToEmpty(interval), net.opentsdb.core.Const.UTF8_CHARSET)
@@ -176,7 +180,8 @@ public class MovingAverageConfig extends BaseQueryNodeConfig<MovingAverageConfig
         Lists.newArrayListWithCapacity(2);
     hashes.add(super.buildHashCode());
     hashes.add(hc);
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override

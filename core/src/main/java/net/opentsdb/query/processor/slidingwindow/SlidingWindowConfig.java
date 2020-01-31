@@ -109,9 +109,12 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig<SlidingWindowConfig
     return null;
   }
 
-
   @Override
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(window_size), net.opentsdb.core.Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
@@ -125,7 +128,8 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig<SlidingWindowConfig
 
     hashes.add(hc);
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override

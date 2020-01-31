@@ -102,6 +102,10 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
 
   @Override
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final HashCode hc = net.opentsdb.core.Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(timeShiftInterval), Const.UTF8_CHARSET)
             .hash();
@@ -112,7 +116,8 @@ public class TimeShiftConfig extends BaseQueryNodeConfig<TimeShiftConfig.Builder
 
     hashes.add(hc);
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override

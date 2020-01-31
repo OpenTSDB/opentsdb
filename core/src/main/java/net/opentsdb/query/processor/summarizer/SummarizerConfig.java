@@ -113,6 +113,10 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
 
   @Override
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putBoolean(infectious_nan);
 
@@ -130,7 +134,8 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
       hashes.add(hc.hash());
     }
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override

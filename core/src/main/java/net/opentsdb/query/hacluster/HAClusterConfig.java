@@ -191,6 +191,10 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
   @Override
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final Hasher hc = Const.HASH_FUNCTION().newHasher()
             .putString(Strings.nullToEmpty(merge_aggregator), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(secondary_timeout), Const.UTF8_CHARSET)
@@ -216,7 +220,8 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
       }
     }
 
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override
