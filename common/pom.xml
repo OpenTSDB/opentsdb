@@ -20,6 +20,17 @@
       <maven.source.plugin.version>3.0.1</maven.source.plugin.version>
     </properties>
     
+    <dependencyManagement>
+      <dependencies>
+        <!-- API, java.xml.bind module for JDK 11+ -->
+        <dependency>
+          <groupId>jakarta.xml.bind</groupId>
+          <artifactId>jakarta.xml.bind-api</artifactId>
+          <version>2.3.2</version>
+        </dependency>
+      </dependencies>
+    </dependencyManagement>
+    
     <dependencies>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -48,6 +59,11 @@
       <dependency>
         <groupId>com.fasterxml.jackson.dataformat</groupId>
         <artifactId>jackson-dataformat-yaml</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>jakarta.xml.bind</groupId>
+        <artifactId>jakarta.xml.bind-api</artifactId>
       </dependency>
       
       <!-- TESTING Deps -->    
