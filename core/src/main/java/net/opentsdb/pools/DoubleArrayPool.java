@@ -26,15 +26,11 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class DoubleArrayPool extends BaseObjectPoolAllocator {
+public class DoubleArrayPool extends BaseArrayObjectPoolAllocator {
   public static final String TYPE = "DoubleArrayPool";
   
-  private static final String LENGTH_KEY = "primitive.array.length";
   private static final TypeToken<?> TYPE_TOKEN = TypeToken.of(double[].class);
-  
-  /** The length of each array to allocate. */
-  private int length;
-  
+    
   @Override
   public String type() {
     return TYPE;
@@ -49,8 +45,7 @@ public class DoubleArrayPool extends BaseObjectPoolAllocator {
     }
     
     registerConfigs(tsdb.getConfig(), TYPE);
-    length = tsdb.getConfig().getInt(configKey(LENGTH_KEY, TYPE));
-    size = (8 * length) +  + 16 /* 64-bit overhead */;
+    size = pool_length + 16 /* 64-bit overhead */;
     
     final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setAllocator(this)
@@ -68,6 +63,11 @@ public class DoubleArrayPool extends BaseObjectPoolAllocator {
   
   @Override
   public Object allocate() {
+    return new double[pool_length];
+  }
+  
+  @Override
+  public Object allocate(int length) {
     return new double[length];
   }
   
@@ -84,4 +84,6 @@ public class DoubleArrayPool extends BaseObjectPoolAllocator {
           "The length of each array to allocate");
     }
   }
+
+  
 }

@@ -39,8 +39,8 @@ public class TestDoubleArrayPool {
   
   @Test
   public void initialize() throws Exception {
-    ObjectPool pool = mock(ObjectPool.class);
-    ObjectPoolFactory factory = mock(ObjectPoolFactory.class);
+    ArrayObjectPool pool = mock(ArrayObjectPool.class);
+    ArrayObjectPoolFactory factory = mock(ArrayObjectPoolFactory.class);
     when(factory.newPool(any(ObjectPoolConfig.class))).thenReturn(pool);
     
     DoubleArrayPool allocator = new DoubleArrayPool();
@@ -49,24 +49,24 @@ public class TestDoubleArrayPool {
     verify(TSDB.getRegistry(), atLeast(1)).registerObjectPool(
         any(DummyObjectPool.class));
     verify(TSDB.getRegistry(), never()).registerObjectPool(pool);
-    assertEquals(4096, ((double[]) allocator.allocate()).length);
+    assertEquals(1024, ((double[]) allocator.allocate()).length);
     
-    when(TSDB.getRegistry().getPlugin(ObjectPoolFactory.class, null))
+    when(TSDB.getRegistry().getPlugin(ArrayObjectPoolFactory.class, null))
       .thenReturn(factory);
     assertNull(allocator.initialize(TSDB, null).join());
     verify(TSDB.getRegistry(), times(1)).registerObjectPool(pool);
     assertEquals(DoubleArrayPool.TYPE, allocator.id());
-    assertEquals(4096, ((double[]) allocator.allocate()).length);
+    assertEquals(1024, ((double[]) allocator.allocate()).length);
     
     allocator.id = "foo";
     allocator.registerConfigs(TSDB.config, DoubleArrayPool.TYPE);
     TSDB.config.override("objectpool.foo.pool.id", "myfactory");
     TSDB.config.override("objectpool.foo.count.initial", "42");
-    TSDB.config.override("objectpool.foo.primitive.array.length", "16");
-    ObjectPool pool2 = mock(ObjectPool.class);
-    ObjectPoolFactory factory2 = mock(ObjectPoolFactory.class);
+    TSDB.config.override("objectpool.foo.array.length", "16");
+    ArrayObjectPool pool2 = mock(ArrayObjectPool.class);
+    ArrayObjectPoolFactory factory2 = mock(ArrayObjectPoolFactory.class);
     when(factory2.newPool(any(ObjectPoolConfig.class))).thenReturn(pool2);
-    when(TSDB.getRegistry().getPlugin(ObjectPoolFactory.class, "myfactory"))
+    when(TSDB.getRegistry().getPlugin(ArrayObjectPoolFactory.class, "myfactory"))
       .thenReturn(factory);
     
     assertNull(allocator.initialize(TSDB, "foo").join());

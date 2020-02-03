@@ -26,14 +26,9 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class ByteArrayPool extends BaseObjectPoolAllocator {
+public class ByteArrayPool extends BaseArrayObjectPoolAllocator {
   public static final String TYPE = "ByteArrayPool";
   public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(byte[].class);
-  
-  private static final String LENGTH_KEY = "primitive.array.length";
-  
-  /** The length of each array to allocate. */
-  private int length;
   
   @Override
   public String type() {
@@ -49,8 +44,7 @@ public class ByteArrayPool extends BaseObjectPoolAllocator {
     }
     
     registerConfigs(tsdb.getConfig(), TYPE);
-    length = tsdb.getConfig().getInt(configKey(LENGTH_KEY, TYPE));
-    size = length + 16 /* 64-bit overhead */;
+    size = pool_length + 16 /* 64-bit overhead */;
     
     final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setAllocator(this)
@@ -68,6 +62,11 @@ public class ByteArrayPool extends BaseObjectPoolAllocator {
   
   @Override
   public Object allocate() {
+    return new byte[pool_length];
+  }
+  
+  @Override
+  public Object allocate(int length) {
     return new byte[length];
   }
   

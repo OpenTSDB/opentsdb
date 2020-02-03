@@ -17,12 +17,12 @@ package net.opentsdb.pools;
 import net.opentsdb.core.BaseTSDBPlugin;
 
 /**
- * Generates blocking queue object pools.
+ * Generates blocking queue object pools for arrays.
  * 
  * @since 3.0
  */
-public class BlockingQueueObjectPoolFactory extends BaseTSDBPlugin 
-  implements ObjectPoolFactory {
+public class BlockingQueueArrayObjectPoolFactory extends BaseTSDBPlugin 
+  implements ArrayObjectPoolFactory {
 
   @Override
   public ObjectPool newPool(final ObjectPoolConfig config) {
@@ -31,7 +31,7 @@ public class BlockingQueueObjectPoolFactory extends BaseTSDBPlugin
 
   @Override
   public String type() {
-    return "BlockingQueueObjectPoolFactory";
+    return "BlockingQueueArrayObjectPoolFactory";
   }
 
   @Override
