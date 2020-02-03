@@ -84,8 +84,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       throw new IllegalArgumentException("Timestamp cannot be null.");
     }
     this.timestamp = ZonedDateTime.from(timestamp);
-    epoch = Instant.from(timestamp).getEpochSecond();
-    nanos = Instant.from(timestamp).getNano();
+    epoch = timestamp.toEpochSecond();
+    nanos = timestamp.getNano();
   }
   
   public ZonedNanoTimeStamp(long epoch_millis, ZoneId zone) {
@@ -93,8 +93,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       throw new IllegalArgumentException("Zone cannot be null.");
     }
     timestamp = ZonedDateTime.ofInstant(Instant.ofEpochMilli(epoch_millis), zone);
-    epoch = Instant.from(timestamp).getEpochSecond();
-    nanos = Instant.from(timestamp).getNano();
+    epoch = timestamp.toEpochSecond();
+    nanos = timestamp.getNano();
   }
   
   public ZonedNanoTimeStamp(final long epoch, final long nano, final ZoneId zone) {
@@ -102,8 +102,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       throw new IllegalArgumentException("Zone cannot be null.");
     }
     timestamp = ZonedDateTime.ofInstant(Instant.ofEpochSecond(epoch, nano), zone);
-    this.epoch = Instant.from(timestamp).getEpochSecond();
-    nanos = Instant.from(timestamp).getNano();
+    this.epoch = timestamp.toEpochSecond();
+    nanos = timestamp.getNano();
   }
   
   @Override
@@ -129,16 +129,16 @@ public class ZonedNanoTimeStamp implements TimeStamp {
   public void updateMsEpoch(final long timestamp) {
     this.timestamp = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp), 
         this.timestamp.getZone());
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
 
   @Override
   public void updateEpoch(final long timestamp) {
     this.timestamp = ZonedDateTime.ofInstant(Instant.ofEpochSecond(timestamp), 
         this.timestamp.getZone());
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
 
   @Override
@@ -150,8 +150,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
     this.timestamp = ZonedDateTime.ofInstant(
         Instant.ofEpochSecond(timestamp.epoch(), timestamp.nanos()), 
         timestamp.timezone());
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
 
   @Override
@@ -159,8 +159,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
     this.timestamp = ZonedDateTime.ofInstant(
         Instant.ofEpochSecond(epoch, nano), 
         this.timestamp.getZone());
-    this.epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    this.epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
 
   @Override
@@ -246,8 +246,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
     // try to pull out the millis. Instead we have to set to max Int for epoch
     timestamp = ZonedDateTime.ofInstant(
         Instant.ofEpochSecond(Integer.MAX_VALUE, 999999999), timestamp.getZone());
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
 
   @Override
@@ -266,8 +266,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       throw new IllegalArgumentException("Amount cannot be null.");
     }
     timestamp = timestamp.plus(amount);
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
   
   @Override
@@ -276,8 +276,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       throw new IllegalArgumentException("Amount cannot be null.");
     }
     timestamp = timestamp.minus(amount);
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
   
   @Override
@@ -474,8 +474,8 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       ++incremented;
     }
     
-    epoch = Instant.from(this.timestamp).getEpochSecond();
-    nanos = Instant.from(this.timestamp).getNano();
+    epoch = this.timestamp.toEpochSecond();
+    nanos = this.timestamp.getNano();
   }
   
   @Override
