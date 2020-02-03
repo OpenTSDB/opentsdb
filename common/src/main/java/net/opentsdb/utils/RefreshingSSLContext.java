@@ -21,7 +21,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
-import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -29,6 +28,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -36,7 +36,6 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPrivateKeySpec;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -61,9 +60,6 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
-import sun.security.provider.certpath.X509CertPath;
-import sun.security.util.DerInputStream;
-import sun.security.util.DerValue;
 
 /**
  * First stab at a refreshing SSL context that watches the given params for
@@ -441,24 +437,28 @@ public class RefreshingSSLContext implements TimerTask {
     } else if (cert_secret instanceof byte[]) {
       raw_certs = new String((byte[]) cert_secret, Const.UTF8_CHARSET);
       hasher.putString(raw_certs, Const.UTF8_CHARSET);
-    } else if (cert_secret instanceof X509CertPath) {
+    } else if (cert_secret instanceof CertPath) {
       raw_certs = null;
       certificates = Lists.newArrayList();
       keystore = KeyStore.getInstance("JKS");
       keystore.load(null);
-      X509CertPath p = (X509CertPath) cert_secret;
+      CertPath p = (CertPath) cert_secret;
       hasher.putBytes(p.getEncoded());
       boolean have_server_cert = false;
-      for (final X509Certificate c : p.getCertificates()) {
+      for (final Certificate c : p.getCertificates()) {
+        if (!(c instanceof X509Certificate)) {
+          LOG.warn("Not an X509Certificate: " + c.getClass());
+          continue;
+        }
         certificates.add(c);
-        String cn = getCN(c);
-        boolean is_server_cert = isServerCert(c);
+        String cn = getCN((X509Certificate) c);
+        boolean is_server_cert = isServerCert((X509Certificate) c);
         if (have_server_cert && is_server_cert) {
           throw new IllegalStateException("Multiple server certs in "
               + "the PEM are not allowed.");
         } else if (is_server_cert) {
           have_server_cert = is_server_cert;
-          LOG.info("Successfully loaded server certificate with CN:: " + cn);
+          LOG.info("Successfully loaded server certificate with CN: " + cn);
         } else {
           LOG.info("Successfully loaded intermediate or CA cert with CN: " + cn);
         }
@@ -627,21 +627,23 @@ public class RefreshingSSLContext implements TimerTask {
    */
   private static RSAPrivateKey parsePKCS1Key(final String key) throws 
       IOException, GeneralSecurityException {
-    final DerInputStream stream = new DerInputStream(
-        DatatypeConverter.parseBase64Binary(key));
-    final DerValue[] seq = stream.getSequence(0);
-
-    if (seq.length < 9) {
-      throw new GeneralSecurityException("Failed parsing the PKCS1 "
-          + "formatted key as it didn't have the right number of sequences.");
-    }
-
-    final BigInteger modulus = seq[1].getBigInteger();
-    final BigInteger private_exponent = seq[3].getBigInteger();
-    final RSAPrivateKeySpec spec = 
-        new RSAPrivateKeySpec(modulus, private_exponent);
-    final KeyFactory factory = KeyFactory.getInstance("RSA");
-    return (RSAPrivateKey) factory.generatePrivate(spec);
+//    final DerInputStream stream = new DerInputStream(
+//      DatatypeConverter.parseBase64Binary(key));
+//    final DerValue[] seq = stream.getSequence(0);
+//    
+//    if (seq.length < 9) {
+//    throw new GeneralSecurityException("Failed parsing the PKCS1 "
+//        + "formatted key as it didn't have the right number of sequences.");
+//    }
+//    
+//    final BigInteger modulus = seq[1].getBigInteger();
+//    final BigInteger private_exponent = seq[3].getBigInteger();
+//    final RSAPrivateKeySpec spec = 
+//      new RSAPrivateKeySpec(modulus, private_exponent);
+//    final KeyFactory factory = KeyFactory.getInstance("RSA");
+//    return (RSAPrivateKey) factory.generatePrivate(spec);
+    throw new RuntimeException("Unable to parse a PKCS1Key at this time. "
+        + "May need to import Bouncy Castle or use the Sun private APIs in JDK 9+.");
   }
   
   /**
