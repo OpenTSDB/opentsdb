@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,29 +14,24 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
-import net.opentsdb.core.BaseTSDBPlugin;
-
 /**
- * Generates blocking queue object pools.
+ * An object pool of fixed size arrays that allows for allocating new arrays of
+ * a larger length without being pooled.
  * 
  * @since 3.0
  */
-public class BlockingQueueObjectPoolFactory extends BaseTSDBPlugin 
-  implements ObjectPoolFactory {
+public interface ArrayObjectPoolAllocator extends ObjectPoolAllocator {
 
-  @Override
-  public ObjectPool newPool(final ObjectPoolConfig config) {
-    return new BlockingQueueObjectPool(tsdb, config);
-  }
-
-  @Override
-  public String type() {
-    return "BlockingQueueObjectPoolFactory";
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
-  }
+  public static final String LENGTH_KEY = "array.length";
+  
+  /**
+   * Return an object of the given length. 
+   * @param length the length of the array.
+   * @return A new object of the type {@link #dataType()}.
+   */
+  public Object allocate(final int length);
+  
+  /** @return The length of arrays in the pool. */
+  public int pooledLength();
 
 }

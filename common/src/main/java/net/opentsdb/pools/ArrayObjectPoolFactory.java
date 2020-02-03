@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,29 +14,22 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
-import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDBPlugin;
 
 /**
- * Generates blocking queue object pools.
+ * A factory plugin that returns {@link ObjectPool} instances for handling
+ * arrays.
  * 
  * @since 3.0
  */
-public class BlockingQueueObjectPoolFactory extends BaseTSDBPlugin 
-  implements ObjectPoolFactory {
+public interface ArrayObjectPoolFactory extends TSDBPlugin {
 
-  @Override
-  public ObjectPool newPool(final ObjectPoolConfig config) {
-    return new BlockingQueueObjectPool(tsdb, config);
-  }
-
-  @Override
-  public String type() {
-    return "BlockingQueueObjectPoolFactory";
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
-  }
-
+  /**
+   * Instantiates a new pool with the given config.
+   * @param config A non-null config.
+   * @return A non-null pool or an exception if the config was missing required
+   * information.
+   */
+  public ObjectPool newPool(final ObjectPoolConfig config);
+  
 }

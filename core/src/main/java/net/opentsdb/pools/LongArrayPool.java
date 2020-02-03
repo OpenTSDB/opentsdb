@@ -18,7 +18,6 @@ import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
 
 /**
@@ -26,14 +25,9 @@ import net.opentsdb.core.TSDB;
  * 
  * @since 3.0
  */
-public class LongArrayPool extends BaseObjectPoolAllocator {
+public class LongArrayPool extends BaseArrayObjectPoolAllocator {
   public static final String TYPE = "LongArrayPool";
   public static final TypeToken<?> TYPE_TOKEN = TypeToken.of(long[].class);
-  
-  private static final String LENGTH_KEY = "primitive.array.length";
-  
-  /** The length of each array to allocate. */
-  private int length;
   
   @Override
   public String type() {
@@ -49,8 +43,7 @@ public class LongArrayPool extends BaseObjectPoolAllocator {
     }
     
     registerConfigs(tsdb.getConfig(), TYPE);
-    length = tsdb.getConfig().getInt(configKey(LENGTH_KEY, TYPE));
-    size = (8 * length) +  + 16 /* 64-bit overhead */;
+    size = pool_length + 16 /* 64-bit overhead */;
     
     final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
         .setAllocator(this)
@@ -68,6 +61,11 @@ public class LongArrayPool extends BaseObjectPoolAllocator {
   
   @Override
   public Object allocate() {
+    return new long[pool_length];
+  
+  }
+  @Override
+  public Object allocate(final int length) {
     return new long[length];
   }
   
@@ -76,20 +74,4 @@ public class LongArrayPool extends BaseObjectPoolAllocator {
     return TYPE_TOKEN;
   }
   
-  @Override
-  protected void registerConfigs(final Configuration config, final String type) {
-    if (!config.hasProperty(configKey(POOL_ID_KEY, type))) {
-      config.register(configKey(POOL_ID_KEY, type), null, false, 
-          "The ID of an object pool factory plugin to use for this pool. "
-              + "Can be null to use the default.");
-    }
-    if (!config.hasProperty(configKey(COUNT_KEY, type))) {
-      config.register(configKey(COUNT_KEY, type), 4096, false, 
-          "The number of initial objects to allocate in this pool.");
-    }
-    if (!config.hasProperty(configKey(LENGTH_KEY, TYPE))) {
-      config.register(configKey(LENGTH_KEY, TYPE), 4096, false, 
-          "The length of each array to allocate");
-    }
-  }
 }
