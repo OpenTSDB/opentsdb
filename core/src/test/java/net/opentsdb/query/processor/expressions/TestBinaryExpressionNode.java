@@ -735,6 +735,94 @@ public class TestBinaryExpressionNode {
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
     assertSame(node.results, ((ExpressionResult) node.result).results);
   }
+
+  @Test
+  public void onNextByteSameOperand() throws Exception {
+    expression_config = ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setExpressionOp(ExpressionOp.ADD)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+
+    BinaryExpressionNode node = new BinaryExpressionNode(
+            factory, context, expression_config);
+    node.initialize(null);
+
+    QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn("a");
+    QueryNode n1 = mock(QueryNode.class);
+    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    when(c1.getId()).thenReturn("a");
+    when(n1.config()).thenReturn(c1);
+    when(r1.source()).thenReturn(n1);
+    when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    TimeSeries ts = mock(TimeSeries.class);
+    TimeSeriesByteId id = mock(TimeSeriesByteId.class);
+    TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
+    when(ts.id()).thenReturn(id);
+    when(id.dataStore()).thenReturn(store);
+    when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+            .thenReturn(Lists.newArrayList(ts))
+            .thenReturn(Lists.newArrayList(ts))
+            .thenReturn(Lists.newArrayList(ts))
+            .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
+
+    Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
+    Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
+    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+            .thenReturn(metrics);
+    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+            .thenReturn(tags);
+
+    node.onNext(r1);
+    assertSame(r1, node.results.getKey());
+    assertNull(((ExpressionResult) node.result).results);
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    assertNull(node.left_metric);
+    assertNull(node.right_metric);
+    assertNull(node.joiner.encodedJoins());
+
+    // callback.
+    metrics.callback(Lists.newArrayList(new byte[] { 0, 0, 2 }));
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    assertArrayEquals(new byte[] { 0, 0, 2 }, node.left_metric);
+    assertNotNull(node.right_metric);
+    assertNull(node.joiner.encodedJoins());
+
+    // callback tags now
+    tags.callback(Lists.newArrayList(new byte[] { 0, 0, 3 }, new byte[] { 0, 0, 3 }));
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    assertEquals(1, node.joiner.encodedJoins().size());
+    assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
+    assertSame(node.results, ((ExpressionResult) node.result).results);
+  }
   
   @Test
   public void onNextByteMetricException() throws Exception {

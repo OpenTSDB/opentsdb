@@ -161,6 +161,11 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setKey(next);
       }
+      if (right_source != null && right_source.equals(left_source)) {
+        synchronized (this) {
+          results.setValue(next);
+        }
+      }
       LOG.trace("[" + config.getId() + "] Matched left source: " + id);
     } else if (right_source != null && 
         (right_source.equals(next.dataSource()) || 
@@ -216,7 +221,12 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
         public Object call(final List<byte[]> uids) throws Exception {
           int idx = 0;
           if (expression_config.getLeftType() == OperandType.VARIABLE) {
-            left_metric = uids.get(idx++);
+            left_metric = uids.get(idx);
+            if (expression_config.getRightType() != OperandType.VARIABLE ||
+                !expression_config.getRight().equals(expression_config.getLeft())) {
+                // ie, left and right are not the same metric
+                idx++;
+            }
           }
           
           if (expression_config.getRightType() == OperandType.VARIABLE) {

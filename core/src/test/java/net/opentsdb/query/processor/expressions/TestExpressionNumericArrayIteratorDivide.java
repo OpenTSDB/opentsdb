@@ -731,4 +731,32 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
+
+  @Test
+  public void testSelfDivide() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID,
+            new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(2);
+
+    right = new NumericArrayTimeSeries(RIGHT_ID,
+            new SecondTimeStamp(60));
+
+    ExpressionNumericArrayIterator iterator =
+            new ExpressionNumericArrayIterator(node, RESULT,
+                    (Map) ImmutableMap.builder()
+                            .put(ExpressionTimeSeries.LEFT_KEY, left)
+                            .put(ExpressionTimeSeries.RIGHT_KEY, left)
+                            .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value =
+            (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 1, 1, 1 },
+            value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
 }
