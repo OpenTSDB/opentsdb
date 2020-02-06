@@ -353,7 +353,7 @@ public class DefaultTSDB implements TSDB {
     // TODO: might have to size this queue
     BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
     // TODO: Need to check if it makes sense to make the threadpool size configurable
-    executor = new ThreadPoolExecutor(8, 8, 1L, TimeUnit.SECONDS, workQueue);
+    executor = new ThreadPoolExecutor(16, 16, 1L, TimeUnit.SECONDS, workQueue);
     
   }
   

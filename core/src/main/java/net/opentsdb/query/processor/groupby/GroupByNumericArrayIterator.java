@@ -89,7 +89,7 @@ public class GroupByNumericArrayIterator
 
   private BigSmallLinkedBlockingQueue<GroupByFactory.GroupByJob> blockingQueue;
   private GroupByFactory groupByFactory;
-  private int queueThreshold;
+  private int timeSeriesPerJob;
 
   /**
    * Default ctor.
@@ -103,12 +103,15 @@ public class GroupByNumericArrayIterator
       final QueryNode node,
       final QueryResult result,
       final Map<String, TimeSeries> sources,
-      final int queueThreshold) {
+      final int queueThreshold,
+      final int timeSeriesPerJob) {
     this(
         node,
         result,
         sources == null ? null : Lists.newArrayList(sources.values()),
-        queueThreshold);
+        queueThreshold,
+        timeSeriesPerJob
+    );
   }
 
   /**
@@ -120,7 +123,7 @@ public class GroupByNumericArrayIterator
    * @throws IllegalArgumentException if a required parameter or config is not present.
    */
   public GroupByNumericArrayIterator(
-      final QueryNode node, final QueryResult result, final Collection<TimeSeries> sources, final int queueThreshold) {
+      final QueryNode node, final QueryResult result, final Collection<TimeSeries> sources, final int queueThreshold, final int timeSeriesPerJob) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
     }
@@ -140,7 +143,7 @@ public class GroupByNumericArrayIterator
 
       this.groupByFactory = (GroupByFactory) ((GroupBy) node).factory();
       this.blockingQueue = groupByFactory.getQueue();
-      this.queueThreshold = queueThreshold;
+      this.timeSeriesPerJob = timeSeriesPerJob;
       this.result = (GroupByResult) result;
       final NumericArrayAggregatorFactory factory =
           tsdb
@@ -181,8 +184,9 @@ public class GroupByNumericArrayIterator
       }
 
       // TODO: Need to check if it makes sense to make this threshold configurable
-      final int threadCount = Math.min(NUM_THREADS, sources.size());
-      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[threadCount];
+      final int jobCount = (int) Math.ceil((double) sources.size() / timeSeriesPerJob);
+      final int aggrCount = Math.min(NUM_THREADS, jobCount);
+      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[aggrCount];
       for (int i = 0; i < valuesCombiner.length; i++) {
         valuesCombiner[i] = createAggregator(node, factory, size);
       }
@@ -194,7 +198,7 @@ public class GroupByNumericArrayIterator
           logger.trace("Accumulate in parallel, source size {}", sources.size());
         }
         if (sources instanceof List) {
-          accumulateInParallel((List) sources, valuesCombiner);
+          accumulateInParallel((List) sources, jobCount, valuesCombiner);
         } else {
           logger.debug("Accumulation of type {}", sources.getClass().getName());
           accumulateInParallel(sources, valuesCombiner);
@@ -237,8 +241,9 @@ public class GroupByNumericArrayIterator
     int i = 0;
 
     final long start = System.currentTimeMillis();
+    int threadCount = combiners.length;
     for (TimeSeries timeSeries : sources) {
-      int index = (i++) % NUM_THREADS;
+      int index = (i++) % threadCount;
       NumericArrayAggregator combiner = combiners[index];
 
       final long s = System.nanoTime();
@@ -281,28 +286,23 @@ public class GroupByNumericArrayIterator
   }
 
   private void accumulateInParallel(
-      final List<TimeSeries> tsList, final NumericArrayAggregator[] combiners) {
+      final List<TimeSeries> tsList, final int jobCount, final NumericArrayAggregator[] combiners) {
 
     final int tsCount = tsList.size();
-    final int threadCount = combiners.length;
-    int tsPerJob = tsCount / threadCount;
-    if(tsPerJob > queueThreshold) {
-      tsPerJob = queueThreshold;
-    }
-    final int jobCount = tsCount / tsPerJob;
+
     final long start = System.currentTimeMillis();
     final int totalTsCount = this.result.timeSeries().size();
 
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
-      NumericArrayAggregator combiner = combiners[jobIndex % threadCount];
-      final int startIndex = jobIndex * tsPerJob; // inclusive
+      NumericArrayAggregator combiner = combiners[jobIndex % jobCount];
+      final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
       final int endIndex; // exclusive
       if (jobIndex == jobCount - 1) {
         // last job
         endIndex = tsCount;
       } else {
-        endIndex = startIndex + tsPerJob;
+        endIndex = startIndex + timeSeriesPerJob;
       }
 
       blockingQueue.put( groupByFactory.new GroupByJob<NumericArrayAggregator>(totalTsCount, tsList, startIndex, endIndex, combiner, doneSignal, statsCollector) {

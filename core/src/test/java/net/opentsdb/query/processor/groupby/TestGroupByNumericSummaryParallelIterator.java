@@ -60,6 +60,8 @@ public class TestGroupByNumericSummaryParallelIterator {
   private DefaultRollupConfig rollup_config;
   private GroupByResult result;
   private int queueThreshold = 1000;
+  private int threadCount = 8;
+  private int timeSeriesPerJob = 512;
   
   // TODO - test floats, gaps, nans, etc.
   
@@ -124,7 +126,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("sum");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -150,7 +152,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("avg");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -172,7 +174,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("max");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -194,7 +196,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("min");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -216,7 +218,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("count");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 64;
@@ -237,7 +239,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("avg");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;
@@ -264,7 +266,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     setupMock("sum");
     
     GroupByNumericSummaryParallelIterator iterator = 
-        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold);
+        new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
     int i = 0;
     double v = 0;

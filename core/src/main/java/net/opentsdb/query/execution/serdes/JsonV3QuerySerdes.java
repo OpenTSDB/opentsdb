@@ -109,8 +109,6 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
   private Map<String, Map<Long, SeriesWrapper>> partials = Maps.newConcurrentMap();
   private List<byte[]> serialized_results = Lists.newArrayList();
   
-  /** Used for the parallel stream*/
-  private static ForkJoinPool customThreadPool = new ForkJoinPool(8);
   /** Lock to parallelize the iterator*/
   private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -244,40 +242,33 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           if (result.processInParallel()) {
             List<TimeSeries> tss = result.timeSeries();
             LOG.debug("Processing the iterators parallelly: " + tss.size());
-            final List<Pair<Integer, TimeSeries>> pairs =
-                Lists.newArrayListWithExpectedSize(tss.size());
-            idx = 0;
             for (int i = 0; i < tss.size(); i++) {
               TimeSeries ts = tss.get(i);
-              pairs.add(new Pair<Integer, TimeSeries>(idx++, ts));
+              try {
+                serializeSeries(
+                    opts,
+                    ts,
+                    ids != null ? ids.get(i) : (TimeSeriesStringId) ts.id(),
+                    json,
+                    null,
+                    spec_start,
+                    spec_end,
+                    result);
+              } catch (Exception e) {
+                LOG.error("Failed to serialize ts: " + series, e);
+                throw new QueryExecutionException(
+                    "Unexpected exception " + "serializing ts: " + series, 0, e);
+              }
+              if (ts.types().contains(StatusType.TYPE)
+                  && ts.id() instanceof BaseTimeSeriesStringId) {
+                BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) ts.id();
+                namespace.append(bid.namespace());
+                wasStatus.getAndSet(true);
+              }
             }
 
             final List<String> sets =
                 Lists.newArrayListWithExpectedSize(result.timeSeries().size());
-            customThreadPool.submit(() ->
-              pairs.stream().parallel().forEach((pair) -> {
-                try {
-                  serializeSeries(opts,
-                      pair.getValue(),
-                      ids != null ? ids.get(pair.getKey()) :
-                        (TimeSeriesStringId) pair.getValue().id(),
-                      json,
-                      null,
-                      spec_start,
-                      spec_end,
-                      result);
-                } catch (Exception e) {
-                  LOG.error("Failed to serialize ts: " + series, e);
-                  throw new QueryExecutionException("Unexpected exception "
-                      + "serializing ts: " + series, 0, e);
-                }
-                if (pair.getValue().types().contains(StatusType.TYPE)
-                    && pair.getValue().id() instanceof BaseTimeSeriesStringId) {
-                  BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) pair.getValue().id();
-                  namespace.append(bid.namespace());
-                  wasStatus.getAndSet(true);
-                }
-            })).get();
 
             idx = 0;
             for (final String set : sets) {

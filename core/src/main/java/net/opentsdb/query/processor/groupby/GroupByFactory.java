@@ -59,12 +59,16 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
   public static final String GROUPBY_QUEUE_THRESHOLD_KEY = "groupby.queue.threshold";
   public static final int DEFAULT_GROUPBY_QUEUE_THRESHOLD = 10_000;
 
+  public static final String GROUPBY_TIMESERIES_PER_JOB_KEY = "groupby.timesereis.perjob";
+  public static final int DEFAULT_GROUPBY_TIMESERIES_PER_JOB = 512;
+
   public static final String GROUPBY_THREAD_COUNT_KEY = "groupby.thread.count";
   public static final int DEFAULT_GROUPBY_THREAD_COUNT = 8;
 
   private Configuration configuration;
   private Predicate<GroupByJob> bigJobPredicate;
   private BigSmallLinkedBlockingQueue<GroupByJob> queue;
+  private int threadCount;
   private Thread[] threads;
 
   public abstract class GroupByJob<Combiner> implements Runnable {
@@ -154,11 +158,17 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
         false,
         "group by worker thread count");
 
+    configuration.register(
+        GROUPBY_TIMESERIES_PER_JOB_KEY,
+        DEFAULT_GROUPBY_TIMESERIES_PER_JOB,
+        true,
+        "maximum number of timeseries per group by job");
+
     bigJobPredicate =
         groupByJob -> groupByJob.totalTsCount > configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY); // look up the configuration object every time for hot deployment
 
     queue = new BigSmallLinkedBlockingQueue<>(bigJobPredicate);
-    int threadCount = configuration.getInt(GROUPBY_THREAD_COUNT_KEY);
+    threadCount = configuration.getInt(GROUPBY_THREAD_COUNT_KEY);
     threads = new Thread[threadCount];
 
     logger.info(
@@ -254,7 +264,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == NumericSummaryType.TYPE && node.getDownsampleConfig() != null) {
-        return new GroupByNumericSummaryParallelIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY));
+        return new GroupByNumericSummaryParallelIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY), threadCount);
       }
       return new GroupByNumericSummaryIterator(node, result, sources);
     }
@@ -265,7 +275,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
       if (type == NumericSummaryType.TYPE && node.getDownsampleConfig() != null) {
-        return new GroupByNumericSummaryParallelIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY));
+        return new GroupByNumericSummaryParallelIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY), threadCount);
       }
       return new GroupByNumericSummaryIterator(node, result, sources);
     }
@@ -286,7 +296,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY));
+      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY));
     }
 
     @Override
@@ -294,7 +304,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY));
+      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY));
     }
 
     @Override

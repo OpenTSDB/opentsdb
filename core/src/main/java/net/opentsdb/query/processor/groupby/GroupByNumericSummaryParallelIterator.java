@@ -64,7 +64,8 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   
   /** [max_threads][interval]*/
   private final Accumulator[] accumulators;
-  
+  private int timeSeriesPerJob;
+
   // TEMP
   enum AggEnum {
     sum, count, min, max, last, avg;
@@ -98,8 +99,10 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       final QueryNode node,
       final QueryResult result,
       final Map<String, TimeSeries> sources,
-      final int queueThreshold) {
-    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()), queueThreshold);
+      final int queueThreshold,
+      final int timeSeriesPerJob,
+      final int threadCount) {
+    this(node, result, sources == null ? null : Lists.newArrayList(sources.values()), queueThreshold, timeSeriesPerJob, threadCount);
   }
 
   /**
@@ -112,7 +115,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       final QueryNode node, 
       final QueryResult result,
       final Collection<TimeSeries> sources,
-      final int queueThreshold) {
+      final int queueThreshold,
+      final int timeSeriesPerJob,
+      final int threadCount) {
     expected_summary = -1;
     
     // TODO
@@ -126,6 +131,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     this.groupByFactory = (GroupByFactory) ((GroupBy) node).factory();
     this.blockingQueue = groupByFactory.getQueue();
     this.queueThreshold = queueThreshold;
+    this.timeSeriesPerJob = timeSeriesPerJob;
 
     DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
     if (null == downsampleConfig) {
@@ -139,8 +145,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     agg = AggEnum.valueOf(((GroupByConfig) node.config()).getAggregator().toLowerCase());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     dp = new MutableNumericSummaryValue();
-    final int jobCount = Math.min(sources.size(),
-        GroupByNumericArrayIterator.NUM_THREADS);
+    final int jobCount = Math.min(sources.size(), threadCount);
     accumulators = new Accumulator[jobCount];
     for (int i = 0; i < accumulators.length; i++) {
       accumulators[i] = new Accumulator(i);
@@ -155,23 +160,19 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   private void accumulateInParallel(List<TimeSeries> sources) {
 
     final int tsCount = sources.size();
-    final int threadCount = accumulators.length;
-    int tsPerJob = tsCount / threadCount;
-    if(tsPerJob > queueThreshold) {
-      tsPerJob = queueThreshold;
-    }
-    final int jobCount = tsCount / tsPerJob;
+    final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
+
     final int totalTsCount = this.result.timeSeries().size();
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
-      Accumulator combiner = accumulators[jobIndex % threadCount];
-      final int startIndex = jobIndex * tsPerJob; // inclusive
+      Accumulator combiner = accumulators[jobIndex % jobCount];
+      final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
       final int endIndex; // exclusive
       if (jobIndex == jobCount - 1) {
         // last job
         endIndex = tsCount;
       } else {
-        endIndex = startIndex + tsPerJob;
+        endIndex = startIndex + timeSeriesPerJob;
       }
       blockingQueue.put(
           groupByFactory.new GroupByJob<Accumulator>(
