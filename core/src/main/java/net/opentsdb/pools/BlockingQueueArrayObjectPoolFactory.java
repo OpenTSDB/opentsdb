@@ -26,7 +26,7 @@ public class BlockingQueueArrayObjectPoolFactory extends BaseTSDBPlugin
 
   @Override
   public ObjectPool newPool(final ObjectPoolConfig config) {
-    return new BlockingQueueObjectPool(tsdb, config);
+    return new BlockingQueueArrayObjectPool(tsdb, config);
   }
 
   @Override
