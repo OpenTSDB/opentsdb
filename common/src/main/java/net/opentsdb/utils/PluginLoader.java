@@ -397,7 +397,8 @@ public final class PluginLoader {
   private static void addURL(final URL url) throws SecurityException, 
   NoSuchMethodException, IllegalArgumentException, IllegalAccessException, 
   InvocationTargetException {
-    URLClassLoader sysloader = new URLClassLoader(new URL[] { url });
+    //URLClassLoader sysloader = new URLClassLoader(new URL[] { url });
+    URLClassLoader sysloader = (URLClassLoader)ClassLoader.getSystemClassLoader();
     Class<?> sysclass = URLClassLoader.class;
     
     Method method = sysclass.getDeclaredMethod("addURL", PARAMETER_TYPES);
