@@ -82,5 +82,5 @@ public interface TSDB {
    * @return True if the query was found and closed, false if not.
    */
   public boolean completeRunningQuery(final long hash);
-  
+
 }

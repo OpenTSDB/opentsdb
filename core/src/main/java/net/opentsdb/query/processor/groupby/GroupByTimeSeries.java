@@ -56,7 +56,7 @@ public class GroupByTimeSeries implements TimeSeries {
   protected final MergedTimeSeriesId.Builder merging_id;
   
   /** The list of sources for this series. */
-  protected Set<TimeSeries> sources;
+  protected List<TimeSeries> sources;
   
   /** Whether or not the types have been unioned yet with the factories supported. */
   protected boolean types_unioned = false;
@@ -110,7 +110,7 @@ public class GroupByTimeSeries implements TimeSeries {
       throw new IllegalArgumentException("Source cannot be null.");
     }
     if (sources == null) {
-      sources = Sets.newHashSet();
+      sources = Lists.newArrayList();
     }
     if (((GroupByConfig) node.config()).getMergeIds() || 
         ((GroupByConfig) node.config()).getFullMerge()) {
@@ -182,7 +182,7 @@ public class GroupByTimeSeries implements TimeSeries {
   }
   
   @VisibleForTesting
-  Set<TimeSeries> sources() {
+  List<TimeSeries> sources() {
     return sources;
   }
 }

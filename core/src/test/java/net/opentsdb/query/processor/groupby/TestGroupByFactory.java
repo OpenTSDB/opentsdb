@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.configuration.Configuration;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -69,7 +70,10 @@ public class TestGroupByFactory {
     final GroupByFactory factory = new GroupByFactory();
     assertEquals(3, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    factory.initialize(mock(TSDB.class), null).join(1);
+    Configuration configuration = mock(Configuration.class);
+    TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(configuration);
+    factory.initialize(tsdb, null).join(1);
     assertEquals(GroupByFactory.TYPE, factory.id());
   }
   
