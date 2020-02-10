@@ -350,7 +350,7 @@ public class TestHttpQueryV3Result {
   @Test
   public void exception() throws Exception {
     RuntimeException ex = new RuntimeException("Boo!");
-    QueryNodeConfig cfg = mock(QueryNodeConfig.class);
+    TimeSeriesDataSourceConfig cfg = mock(TimeSeriesDataSourceConfig.class);
     when(cfg.getId()).thenReturn("m1");
     when(query_node.config()).thenReturn(cfg);
     HttpQueryV3Result result = new HttpQueryV3Result(query_node, null, null, ex);
