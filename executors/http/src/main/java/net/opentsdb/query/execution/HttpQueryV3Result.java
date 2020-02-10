@@ -17,6 +17,7 @@ package net.opentsdb.query.execution;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
@@ -29,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import java.util.Optional;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -119,11 +121,11 @@ public class HttpQueryV3Result implements QueryResult {
     this.exception = exception;
     this.rollup_config = rollup_config;
     this.node = new CachedQueryNode(node.config().getId(), node);
+    TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
     if (exception == null && root != null) {
-      String temp = root.get("source").asText();
       // TEMP - old versions didn't handle IDs correctly so we override the result.
-      TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
-      data_source = cfg.getDataSourceId();
+      data_source = !Strings.isNullOrEmpty(cfg.getDataSourceId()) ?
+          cfg.getDataSourceId() : cfg.getId();
       
       JsonNode n = root.get("timeSpecification");
       if (n != null && !n.isNull()) {
@@ -153,7 +155,8 @@ public class HttpQueryV3Result implements QueryResult {
       }
     } else {
       series = Collections.emptyList();
-      data_source = node.config().getId();
+      data_source = !Strings.isNullOrEmpty(cfg.getDataSourceId()) ?
+          cfg.getDataSourceId() : cfg.getId();
     }
     
   }
