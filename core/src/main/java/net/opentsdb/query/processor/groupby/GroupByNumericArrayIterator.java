@@ -104,13 +104,15 @@ public class GroupByNumericArrayIterator
       final QueryResult result,
       final Map<String, TimeSeries> sources,
       final int queueThreshold,
-      final int timeSeriesPerJob) {
+      final int timeSeriesPerJob,
+      final int threadCount) {
     this(
         node,
         result,
         sources == null ? null : Lists.newArrayList(sources.values()),
         queueThreshold,
-        timeSeriesPerJob
+        timeSeriesPerJob,
+        threadCount
     );
   }
 
@@ -123,7 +125,7 @@ public class GroupByNumericArrayIterator
    * @throws IllegalArgumentException if a required parameter or config is not present.
    */
   public GroupByNumericArrayIterator(
-      final QueryNode node, final QueryResult result, final Collection<TimeSeries> sources, final int queueThreshold, final int timeSeriesPerJob) {
+      final QueryNode node, final QueryResult result, final Collection<TimeSeries> sources, final int queueThreshold, final int timeSeriesPerJob, final int threadCount) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
     }
@@ -184,8 +186,7 @@ public class GroupByNumericArrayIterator
       }
 
       // TODO: Need to check if it makes sense to make this threshold configurable
-      final int jobCount = (int) Math.ceil((double) sources.size() / timeSeriesPerJob);
-      final int aggrCount = Math.min(NUM_THREADS, jobCount);
+      final int aggrCount = Math.min(sources.size(), threadCount);
       NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[aggrCount];
       for (int i = 0; i < valuesCombiner.length; i++) {
         valuesCombiner[i] = createAggregator(node, factory, size);
@@ -198,7 +199,7 @@ public class GroupByNumericArrayIterator
           logger.trace("Accumulate in parallel, source size {}", sources.size());
         }
         if (sources instanceof List) {
-          accumulateInParallel((List) sources, jobCount, valuesCombiner);
+          accumulateInParallel((List) sources, valuesCombiner);
         } else {
           logger.debug("Accumulation of type {}", sources.getClass().getName());
           accumulateInParallel(sources, valuesCombiner);
@@ -286,9 +287,10 @@ public class GroupByNumericArrayIterator
   }
 
   private void accumulateInParallel(
-      final List<TimeSeries> tsList, final int jobCount, final NumericArrayAggregator[] combiners) {
+      final List<TimeSeries> tsList, final NumericArrayAggregator[] combiners) {
 
     final int tsCount = tsList.size();
+    final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
 
     final long start = System.currentTimeMillis();
     final int totalTsCount = this.result.timeSeries().size();
