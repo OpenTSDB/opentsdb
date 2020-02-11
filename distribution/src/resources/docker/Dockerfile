@@ -1,6 +1,6 @@
-FROM java:openjdk-8-alpine
+FROM openjdk:8-slim
 
-MAINTAINER clarsen@yahoo-inc.com
+MAINTAINER clarsen@verizonmedia.com
 
 # Important, must be passed in e.g. "$ docker build --build-arg projectVersion=3.0.0-SNAPSHOT"
 ARG       projectVersion
