@@ -297,7 +297,7 @@ public class GroupByNumericArrayIterator
 
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
-      NumericArrayAggregator combiner = combiners[jobIndex % jobCount];
+      NumericArrayAggregator combiner = combiners[jobIndex % combiners.length];
       final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
       final int endIndex; // exclusive
       if (jobIndex == jobCount - 1) {
