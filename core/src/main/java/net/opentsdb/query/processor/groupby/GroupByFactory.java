@@ -296,7 +296,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY));
+      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY), threadCount);
     }
 
     @Override
@@ -304,7 +304,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY));
+      return new GroupByNumericArrayIterator(node, result, sources, configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY), threadCount);
     }
 
     @Override
