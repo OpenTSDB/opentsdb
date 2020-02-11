@@ -17,6 +17,7 @@ package net.opentsdb.utils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -27,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.jar.JarFile;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +44,14 @@ import com.google.common.reflect.ClassPath;
  * then search for a specific plugin type or any plugins that match a given 
  * class. This isn't meant to be a rich plugin manager, it only handles the 
  * basics of searching and instantiating a given class.
+ * <p>
+ * <b>Warning:</b> For JDK 9+, make sure to load this class as a Java agent. 
+ * The system class loader is no longer a URL Class Loader so the old reflection
+ * hack of adding a Jar to the class path is unavailable. Load the common
+ * module via <code>-javaagent:lib/opentsdb-common.jar</code> with the
+ * appropriate path to the proper version.
+ * 
+ * Thanks to https://cgjennings.ca/articles/java-9-dynamic-jar-loading/.
  * <p>
  * If plugins were not compiled into a fat jar or included on the class path, 
  * before attempting any of the plugin loader calls, users should call one or 
@@ -79,6 +89,11 @@ import com.google.common.reflect.ClassPath;
  */
 public final class PluginLoader {
   private static final Logger LOG = LoggerFactory.getLogger(PluginLoader.class);
+  
+  /** The Instrumentation object from the JVM that has a nifty method in JDK 9+
+   * we can (ab)use to append the jar files to the system class loader.
+   */
+  private static Instrumentation INSTRUMENTATION;
   
   /** Static list of types for the class loader */
   private static final Class<?>[] PARAMETER_TYPES = new Class[] {
@@ -395,15 +410,43 @@ public final class PluginLoader {
    * @throws InvocationTargetException if there is an issue loading the jar
    */
   private static void addURL(final URL url) throws SecurityException, 
-  NoSuchMethodException, IllegalArgumentException, IllegalAccessException, 
-  InvocationTargetException {
-    //URLClassLoader sysloader = new URLClassLoader(new URL[] { url });
-    URLClassLoader sysloader = (URLClassLoader)ClassLoader.getSystemClassLoader();
-    Class<?> sysclass = URLClassLoader.class;
+    NoSuchMethodException, IllegalArgumentException, IllegalAccessException, 
+    InvocationTargetException {
     
-    Method method = sysclass.getDeclaredMethod("addURL", PARAMETER_TYPES);
+    final ClassLoader class_loader;
+    if (INSTRUMENTATION != null) {
+      try {
+        INSTRUMENTATION.appendToSystemClassLoaderSearch(new JarFile(url.getFile()));
+        LOG.debug("Successfully added JAR to class loader: " + url.getFile());
+      } catch (IOException e) {
+        throw new IllegalArgumentException("Failed to load JAR: " + url, e);
+      }
+      return;
+    } else if (ClassLoader.getSystemClassLoader() instanceof URLClassLoader) {
+      // Yay! The old pre-JDK9 hack will most likely work      
+      class_loader = ClassLoader.getSystemClassLoader();
+    } else if (Thread.currentThread().getContextClassLoader() instanceof URLClassLoader) {
+      // OK for unit tests and single-threaded apps but will break most
+      // instances.
+      LOG.warn("**************************************************************");
+      LOG.warn("* Using a thread-local class loader.                         *");
+      LOG.warn("* Use -javaagent:<path to common jar> to properly load JARs. *");
+      LOG.warn("**************************************************************");
+      class_loader = Thread.currentThread().getContextClassLoader();
+    } else {
+      // OK for unit tests but will break prod, particularly containers.
+      LOG.warn("**************************************************************");
+      LOG.warn("* Using a stand-alone class loader.                          *");
+      LOG.warn("* Use -javaagent:<path to common jar> to properly load JARs. *");
+      LOG.warn("**************************************************************");
+      class_loader = new URLClassLoader(new URL[] { url });
+    }
+    
+    final Class<?> sysclass = URLClassLoader.class;
+    
+    final Method method = sysclass.getDeclaredMethod("addURL", PARAMETER_TYPES);
     method.setAccessible(true);
-    method.invoke(sysloader, new Object[]{ url }); 
+    method.invoke(class_loader, new Object[]{ url }); 
     LOG.debug("Successfully added JAR to class loader: " + url.getFile());
   }
 
@@ -437,4 +480,12 @@ public final class PluginLoader {
       matches.add(haystack);
     }
   }
+
+  // The JRE will call method before launching your main()
+  public static void premain(final String args, 
+                             final Instrumentation instrumentation) {
+    LOG.info("Initialized Instrumentation class for PluginLoader.");
+    PluginLoader.INSTRUMENTATION = instrumentation;
+  }
+  
 }
