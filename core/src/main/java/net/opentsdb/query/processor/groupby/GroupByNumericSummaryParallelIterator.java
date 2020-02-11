@@ -165,7 +165,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     final int totalTsCount = this.result.timeSeries().size();
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
-      Accumulator combiner = accumulators[jobIndex % jobCount];
+      Accumulator combiner = accumulators[jobIndex % accumulators.length];
       final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
       final int endIndex; // exclusive
       if (jobIndex == jobCount - 1) {
