@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaQuery;
@@ -29,6 +30,7 @@ import net.opentsdb.meta.impl.MetaResponse;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
+import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
@@ -76,6 +78,7 @@ public class ESMetaResponse implements MetaResponse {
     final Map<NamespacedKey, MetaDataStorageResult> final_results = new LinkedHashMap<>();
 
     if (isMultiGet) {
+      // NOTE: For multigets, case matters so we have to match with the original query.
       final NamespacedAggregatedDocumentResult result;
 
       MetaQuery metaQuery = query.metaQueries().get(0);
@@ -122,6 +125,7 @@ public class ESMetaResponse implements MetaResponse {
           return final_results;
         }
       }
+      
       result =
           new NamespacedAggregatedDocumentResult(
               max_hits > 0
@@ -134,12 +138,12 @@ public class ESMetaResponse implements MetaResponse {
       if (max_hits > 0) {
         for (final Map.Entry<String, MultiSearchResponse> response_entry : response.entrySet()) {
           final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
-          parseTimeseries(query, metaQuery, response, metric, result);
+          parseTimeseries(query, metaQuery, response, metric, isMultiGet, result);
         }
       }
       result.setTotalHits(max_hits);
       if (LOGGER.isTraceEnabled()) {
-        LOGGER.trace("Total meta results: " + result.timeSeries().size());
+        LOGGER.trace("Total meta results: " + result.timeSeries().size() + " Multiget? " + isMultiGet);
       }
 
       final_results.put(namespacedKey, result);
@@ -340,9 +344,9 @@ public class ESMetaResponse implements MetaResponse {
                   }
                 case TIMESERIES:
                   if (result == null) {
-                    result = parseTimeseries(query, meta_query, response, null);
+                    result = parseTimeseries(query, meta_query, response, isMultiGet, null);
                   } else {
-                    parseTimeseries(query, meta_query, response, result);
+                    parseTimeseries(query, meta_query, response, isMultiGet, result);
                   }
                   break;
                 default:
@@ -672,16 +676,17 @@ public class ESMetaResponse implements MetaResponse {
       final BatchMetaQuery query,
       final MetaQuery meta_query,
       final SearchResponse response,
+      final boolean isMultiGet,
       NamespacedAggregatedDocumentResult result) {
-      return parseTimeseries(query, meta_query, response, null, result);
+      return parseTimeseries(query, meta_query, response, null, isMultiGet, result);
   }
-
-
+  
   NamespacedAggregatedDocumentResult parseTimeseries(
       final BatchMetaQuery query,
       final MetaQuery meta_query,
       final SearchResponse response,
       final String metric,
+      final boolean isMultiGet,
       NamespacedAggregatedDocumentResult result) {
     for (final SearchHit hit : response.getHits().hits()) {
       final Map<String, Object> source = hit.getSource();
@@ -695,10 +700,20 @@ public class ESMetaResponse implements MetaResponse {
                   new NamespacedAggregatedDocumentResult(
                       MetaDataStorageResult.MetaResult.DATA, query, meta_query);
             }
-            result.addTimeSeries(
-                buildTimeseries(meta_query.namespace() + "." + m, tags),
-                meta_query, 
-                m.get("name.raw"), true);
+            
+            final TimeSeriesId id = buildTimeseries(
+                meta_query.namespace() + "." + m, tags);
+            if (isMultiGet) {
+              if (!FilterUtils.matchesTags(meta_query.filter(), 
+                  ((TimeSeriesStringId) id).tags(), null)) {
+                if (LOGGER.isTraceEnabled()) {
+                  LOGGER.trace("Dropping ES meta response " + id 
+                      + " as it doesn't match our tags.");
+                }
+                continue;
+              }
+            }
+            result.addTimeSeries(id, meta_query, m.get("name.raw"), true);
           }
         }
       } else {
@@ -707,10 +722,19 @@ public class ESMetaResponse implements MetaResponse {
               new NamespacedAggregatedDocumentResult(
                   MetaDataStorageResult.MetaResult.DATA, query, meta_query);
         }
-        result.addTimeSeries(
-            buildTimeseries(meta_query.namespace() + "." + metric, tags), 
-            meta_query, 
-            metric, false);
+        final TimeSeriesId id = buildTimeseries(
+            meta_query.namespace() + "." + metric, tags);
+        if (isMultiGet) {
+          if (!FilterUtils.matchesTags(meta_query.filter(), 
+              ((TimeSeriesStringId) id).tags(), null)) {
+            if (LOGGER.isTraceEnabled()) {
+              LOGGER.trace("Dropping ES meta response " + id 
+                  + " as it doesn't match our tags.");
+            }
+            continue;
+          }
+        }
+        result.addTimeSeries(id, meta_query, metric, false);
       }
     }
     return result;
@@ -718,7 +742,6 @@ public class ESMetaResponse implements MetaResponse {
 
   private TimeSeriesId buildTimeseries(final String metric, 
                                        final List<Map<String, String>> tags) {
-
     final BaseTimeSeriesStringId.Builder builder = 
         BaseTimeSeriesStringId.newBuilder()
           .setMetric(metric);
