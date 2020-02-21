@@ -65,8 +65,8 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * @param query A non-null query.
    */
   public NamespacedAggregatedDocumentResult(final MetaResult result,
-                                     final BatchMetaQuery query,
-                                     final MetaQuery meta_query) {
+                                            final BatchMetaQuery query,
+                                            final MetaQuery meta_query) {
     this.result = result;
     this.query = query;
     if (query != null && query.type() != null &&
@@ -77,8 +77,8 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   }
 
   public NamespacedAggregatedDocumentResult(final MetaResult result,
-                                     final Throwable throwable,
-                                     final BatchMetaQuery query) {
+                                            final Throwable throwable,
+                                            final BatchMetaQuery query) {
     this.result = result;
     this.throwable = throwable;
     this.query = query;
@@ -361,6 +361,13 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     return true;
   }
 
+  public void resetResult(final MetaResult result) {
+    this.result = result;
+    if (result == MetaResult.NO_DATA) {
+      total_hits = 0;
+    }
+  }
+  
   /**
    * A comparator for the UniqueKeyPair keys in lexical order.
    */

@@ -26,6 +26,7 @@ import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
 import net.opentsdb.meta.NamespacedAggregatedDocumentResult;
 import net.opentsdb.meta.NamespacedKey;
+import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.impl.MetaResponse;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.ChainFilter;
@@ -736,6 +737,10 @@ public class ESMetaResponse implements MetaResponse {
         }
         result.addTimeSeries(id, meta_query, metric, false);
       }
+    }
+    
+    if (isMultiGet && result.timeSeries().isEmpty()) {
+      result.resetResult(MetaResult.NO_DATA);
     }
     return result;
   }
