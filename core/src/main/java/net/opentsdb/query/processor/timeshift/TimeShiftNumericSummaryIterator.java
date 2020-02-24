@@ -72,4 +72,9 @@ public class TimeShiftNumericSummaryIterator implements QueryIterator {
     return NumericSummaryType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

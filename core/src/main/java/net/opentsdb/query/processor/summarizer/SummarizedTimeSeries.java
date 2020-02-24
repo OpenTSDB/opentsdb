@@ -148,5 +148,10 @@ public class SummarizedTimeSeries implements TimeSeries {
       return NumericSummaryType.TYPE;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 }

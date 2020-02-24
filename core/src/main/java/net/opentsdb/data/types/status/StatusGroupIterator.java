@@ -33,6 +33,11 @@ public class StatusGroupIterator extends StatusGroupValue implements TypedTimeSe
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public boolean hasNext() {
     boolean had = has_next;
     has_next = false;

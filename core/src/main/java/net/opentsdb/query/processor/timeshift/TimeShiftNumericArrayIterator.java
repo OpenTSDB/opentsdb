@@ -75,6 +75,11 @@ public class TimeShiftNumericArrayIterator implements QueryIterator,
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public TimeStamp timestamp() {
     return result.timeSpecification().start();
   }

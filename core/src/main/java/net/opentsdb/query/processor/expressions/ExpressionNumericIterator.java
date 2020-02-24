@@ -235,4 +235,9 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
     return NumericType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

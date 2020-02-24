@@ -171,6 +171,11 @@ public class MockTimeSeries implements TimeSeries {
       return type;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
   
 }

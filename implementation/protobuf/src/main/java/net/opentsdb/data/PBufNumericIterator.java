@@ -154,6 +154,11 @@ public class PBufNumericIterator implements TypedTimeSeriesIterator {
     return NumericType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Advances to the next segment in the protobuf.
    * @throws InvalidProtocolBufferException If decoding failed.

@@ -164,6 +164,11 @@ public class MergerNumericIterator implements QueryIterator,
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public boolean hasNext() {
     return has_next;
   }

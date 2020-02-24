@@ -322,6 +322,12 @@ public class NumericMillisecondShard implements TimeSeries {
     public TypeToken<NumericType> getType() {
       return NumericType.TYPE;
     }
+  
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
   
   public TimeStamp startTime() {
@@ -444,5 +450,4 @@ public class NumericMillisecondShard implements TimeSeries {
     return encode_on;
   }
 
-  
 }

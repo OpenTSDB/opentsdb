@@ -223,6 +223,11 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
       return AlertType.TYPE;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
   
   class ArrayIterator implements TypedTimeSeriesIterator<NumericArrayType>, 
@@ -271,6 +276,11 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
       return NumericArrayType.TYPE;
     }
 
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
     @Override
     public TypeToken<NumericArrayType> type() {
       return NumericArrayType.TYPE;

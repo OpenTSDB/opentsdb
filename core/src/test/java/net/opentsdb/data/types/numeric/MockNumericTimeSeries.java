@@ -130,5 +130,10 @@ public class MockNumericTimeSeries implements TimeSeries {
       return NumericType.TYPE;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 }

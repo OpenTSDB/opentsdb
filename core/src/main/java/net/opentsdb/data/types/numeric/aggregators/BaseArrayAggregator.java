@@ -89,6 +89,11 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public int offset() {
     return 0;
   }

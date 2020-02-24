@@ -140,6 +140,11 @@ public class RateNumericIterator implements QueryIterator {
     return NumericType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Populate the next rate.
    */

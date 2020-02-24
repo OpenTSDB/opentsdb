@@ -93,4 +93,9 @@ public class CombinedCachedNumeric implements TypedTimeSeriesIterator<NumericTyp
     return NumericType.TYPE;
   }
 
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

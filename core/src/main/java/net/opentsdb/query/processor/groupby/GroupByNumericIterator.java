@@ -263,6 +263,11 @@ public class GroupByNumericIterator implements QueryIterator,
     return NumericType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Helper that moves all of the longs to the doubles array.
    */

@@ -145,6 +145,11 @@ public class EgadsThresholdTimeSeries implements TimeSeries {
     }
 
     @Override
+    public void close() {
+      // no-op for now
+    }
+    
+    @Override
     public int offset() {
       return 0;
     }

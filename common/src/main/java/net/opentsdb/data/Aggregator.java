@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import java.io.Closeable;
+
 /**
  * The interface for an aggregation function combining multiple time series
  * data type values into one.
@@ -22,8 +24,9 @@ package net.opentsdb.data;
  * 
  * @since 3.0
  */
-public interface Aggregator<T extends TimeSeriesDataType> {
+public interface Aggregator<T extends TimeSeriesDataType> extends Closeable {
   
   /** @return A non-null and non-empty descriptive name for this aggregator. */
   public String name();
+  
 }

@@ -255,5 +255,10 @@ public class NumericSpan implements Span<NumericType> {
       return NumericType.TYPE;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 }

@@ -78,4 +78,9 @@ public class TimeShiftNumericIterator implements QueryIterator {
     return NumericType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

@@ -272,6 +272,11 @@ public class EgadsResult implements QueryResult {
       }
 
       @Override
+      public void close() {
+        // no-op for now
+      }
+      
+      @Override
       public int offset() {
         return start_idx;
       }
