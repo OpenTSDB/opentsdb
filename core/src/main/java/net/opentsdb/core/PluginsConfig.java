@@ -112,10 +112,6 @@ public class PluginsConfig extends Validatable {
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.query.interpolation.QueryInterpolatorFactory"));
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
-        "net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory"));
-    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
-        "net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory"));
-    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.storage.DatumIdValidator"));
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.uid.UniqueIdFactory"));
@@ -132,6 +128,10 @@ public class PluginsConfig extends Validatable {
   static {
     POST_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.pools.ObjectPoolAllocator"));   
+    POST_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory"));
+    POST_LOAD_DEFAULTS.add(Lists.newArrayList(
+        "net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory"));
   }
   
   /** The list of plugin configs. */
