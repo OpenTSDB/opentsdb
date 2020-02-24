@@ -1192,6 +1192,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
       }
 
       @Override
+      public void close() {
+        // no-op for now
+      }
+      
+      @Override
       public boolean hasNext() {
         return iterator.hasNext();
       }
@@ -1275,6 +1280,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         return NumericArrayType.TYPE;
       }
 
+      @Override
+      public void close() {
+        // no-op for now
+      }
+      
       @Override
       public boolean hasNext() {
         return !was_read;
@@ -1372,6 +1382,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         return NumericSummaryType.TYPE;
       }
       
+      @Override
+      public void close() {
+        // no-op for now
+      }
+      
     }
 
     class EventData implements TypedTimeSeriesIterator {
@@ -1405,6 +1420,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         return EventType.TYPE;
       }
 
+      @Override
+      public void close() {
+        // no-op for now
+      }
+      
     }
 
     class EventGroupData implements TypedTimeSeriesIterator {
@@ -1438,6 +1458,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         return EventGroupType.TYPE;
       }
 
+      @Override
+      public void close() {
+        // no-op for now
+      }
+      
     }
     
     /**

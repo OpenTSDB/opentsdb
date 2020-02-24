@@ -93,4 +93,9 @@ public class CombinedCachedNumericSummary implements
     return NumericSummaryType.TYPE;
   }
 
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

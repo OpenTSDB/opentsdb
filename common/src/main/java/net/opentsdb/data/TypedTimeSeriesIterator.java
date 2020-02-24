@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 package net.opentsdb.data;
 
 import com.google.common.reflect.TypeToken;
+
+import java.io.Closeable;
 import java.util.Iterator;
 
 /**
@@ -23,7 +25,8 @@ import java.util.Iterator;
  * 
  * @since 3.0
  */
-public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> extends Iterator<TimeSeriesValue<T>> {
+public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> 
+    extends Iterator<TimeSeriesValue<T>>, Closeable {
 
   /**
    * @return The non-null type of data returned in the iterator.
@@ -35,7 +38,8 @@ public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> extends I
    * @param aggregator
    * @return
    */
-  public default TimeSeriesValue<? extends TimeSeriesDataType> nextPool(Aggregator aggregator) {
+  public default TimeSeriesValue<? extends TimeSeriesDataType> nextPool(
+      final Aggregator aggregator) {
     return null;
   }
   

@@ -351,4 +351,10 @@ public class ExpressionNumericSummaryIterator extends
   public TypeToken<? extends TimeSeriesDataType> getType() {
     return NumericSummaryType.TYPE;
   }
+
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

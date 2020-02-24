@@ -251,6 +251,11 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     return NumericSummaryType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   void combine() {
     results = new double[intervals];
     Arrays.fill(results, Double.POSITIVE_INFINITY); // sentinel

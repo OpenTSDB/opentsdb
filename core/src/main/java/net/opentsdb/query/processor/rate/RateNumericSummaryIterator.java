@@ -132,6 +132,11 @@ public class RateNumericSummaryIterator implements QueryIterator {
     return NumericSummaryType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Populate the next rate.
    */

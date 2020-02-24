@@ -55,6 +55,11 @@ public class StatusIterator extends StatusValue implements TypedTimeSeriesIterat
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public boolean hasNext() {
     boolean had = has_next;
     has_next = false;

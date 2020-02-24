@@ -235,6 +235,11 @@ public class ExpressionNumericArrayIterator extends
   }
   
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public TypeToken<NumericArrayType> type() {
     return NumericArrayType.TYPE;
   }

@@ -173,6 +173,12 @@ public class SlicedTimeSeries implements TimeSeries {
     public TypeToken<? extends TimeSeriesDataType> getType() {
       return type;
     }
+  
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
   
 }

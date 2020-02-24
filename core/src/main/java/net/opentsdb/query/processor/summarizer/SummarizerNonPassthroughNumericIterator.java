@@ -199,6 +199,11 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
     return NumericSummaryType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Stores a long.
    * @param value The value.

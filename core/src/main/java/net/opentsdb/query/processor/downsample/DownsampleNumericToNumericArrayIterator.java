@@ -571,6 +571,11 @@ public class DownsampleNumericToNumericArrayIterator
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public TimeStamp timestamp() {
     return result.start();
   }

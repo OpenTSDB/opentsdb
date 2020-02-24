@@ -214,6 +214,11 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     return NumericSummaryType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * A class that actually performs the downsampling calculation on real
    * values from the source timeseries. It's a child class so we share the same
@@ -450,6 +455,11 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     @Override
     public TypeToken<? extends TimeSeriesDataType> getType() {
       return NumericSummaryType.TYPE;
+    }
+    
+    @Override
+    public void close() {
+      // no-op for now
     }
     
     private void resetIndices() {

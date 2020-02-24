@@ -462,6 +462,11 @@ public class HttpQueryV3Result implements QueryResult {
     }
 
     @Override
+    public void close() {
+      // no-op for now
+    }
+    
+    @Override
     public boolean hasNext() {
       return iterator.hasNext();
     }
@@ -545,6 +550,11 @@ public class HttpQueryV3Result implements QueryResult {
       return NumericArrayType.TYPE;
     }
 
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
     @Override
     public boolean hasNext() {
       return !was_read;
@@ -642,6 +652,11 @@ public class HttpQueryV3Result implements QueryResult {
       return NumericSummaryType.TYPE;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 
   class EventData implements TypedTimeSeriesIterator {
@@ -675,6 +690,11 @@ public class HttpQueryV3Result implements QueryResult {
       return EventType.TYPE;
     }
 
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 
   class EventGroupData implements TypedTimeSeriesIterator {
@@ -708,6 +728,11 @@ public class HttpQueryV3Result implements QueryResult {
       return EventGroupType.TYPE;
     }
 
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
   
   /**

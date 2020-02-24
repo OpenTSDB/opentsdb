@@ -278,6 +278,11 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
     }
     
     @Override
+    public void close() {
+      // no-op for now
+    }
+    
+    @Override
     public Collection<Integer> summariesAvailable() {
       return data_points.keySet();
     }

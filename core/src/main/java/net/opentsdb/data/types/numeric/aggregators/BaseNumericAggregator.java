@@ -51,6 +51,11 @@ public abstract class BaseNumericAggregator implements NumericAggregator {
     return name;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * An implementation of a numeric value. Takes either a long or a double and
    * implements the {@link NumericType} over it.

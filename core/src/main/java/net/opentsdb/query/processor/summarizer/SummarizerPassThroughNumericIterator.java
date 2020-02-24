@@ -77,6 +77,11 @@ public class SummarizerPassThroughNumericIterator implements QueryIterator {
     return NumericType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Stores a long.
    * @param value The value.

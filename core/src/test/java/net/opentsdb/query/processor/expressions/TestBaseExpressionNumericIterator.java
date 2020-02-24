@@ -231,5 +231,10 @@ public class TestBaseExpressionNumericIterator extends BaseNumericTest {
       return null;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 }

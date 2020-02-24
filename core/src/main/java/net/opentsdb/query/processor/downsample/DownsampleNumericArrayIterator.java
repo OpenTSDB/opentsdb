@@ -244,6 +244,11 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public boolean isInteger() {
     return long_values == null ? false : true;
   }

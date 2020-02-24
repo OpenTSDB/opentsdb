@@ -216,5 +216,11 @@ public class NumericArrayTimeSeries implements TimeSeries {
     public TypeToken<? extends TimeSeriesDataType> getType() {
       return NumericArrayType.TYPE;
     }
+  
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 }

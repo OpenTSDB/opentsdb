@@ -61,5 +61,10 @@ public class AlertTypeList {
       return AlertType.TYPE;
     }
     
+    @Override
+    public void close() {
+      // no-op for now
+    }
+    
   }
 }

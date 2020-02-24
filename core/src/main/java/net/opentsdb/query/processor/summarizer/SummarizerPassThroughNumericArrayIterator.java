@@ -60,4 +60,9 @@ public class SummarizerPassThroughNumericArrayIterator implements QueryIterator 
     return NumericArrayType.TYPE;
   }
   
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
 }

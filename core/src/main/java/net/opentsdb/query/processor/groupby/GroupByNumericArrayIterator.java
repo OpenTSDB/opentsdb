@@ -398,6 +398,11 @@ public class GroupByNumericArrayIterator
   }
 
   @Override
+  public void close() {
+    // no-op for now
+  }
+  
+  @Override
   public TimeStamp timestamp() {
     return result.downstreamResult().timeSpecification().start();
   }
