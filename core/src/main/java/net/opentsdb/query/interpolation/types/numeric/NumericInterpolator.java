@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
-import java.util.Iterator;
+import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -54,7 +54,7 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
   protected final QueryFillPolicy<NumericType> fill_policy;
   
   /** The iterator pulled from the source. May be null. */
-  protected final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
+  protected TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** The previous real value. */
   protected MutableNumericValue previous;
@@ -176,6 +176,17 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
     return fill_policy;
   }
 
+  @Override
+  public void close() {
+    try {
+      iterator.close();
+    } catch (IOException e) {
+      // Don't bother logging.
+      e.printStackTrace();
+    }
+    iterator = null;
+  }
+  
   protected TimeSeriesValue<NumericType> fill(final TimeStamp timestamp) {
     switch (config.getRealFillPolicy()) {
     case PREVIOUS_ONLY:

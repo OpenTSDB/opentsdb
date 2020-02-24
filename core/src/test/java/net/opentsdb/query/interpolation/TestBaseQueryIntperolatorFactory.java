@@ -179,6 +179,9 @@ public class TestBaseQueryIntperolatorFactory {
     @Override
     public QueryFillPolicy<NumericType> fillPolicy() { return null; }
     
+    @Override
+    public void close() { }
+    
   }
   
   static class MockInterpolator2 implements QueryInterpolator<NumericType> {
@@ -210,6 +213,9 @@ public class TestBaseQueryIntperolatorFactory {
     @Override
     public QueryFillPolicy<NumericType> fillPolicy() { return null; }
     
+    @Override
+    public void close() { }
+    
   }
   
   static class MockInterpolatorMissTimeSeries implements 
@@ -236,6 +242,9 @@ public class TestBaseQueryIntperolatorFactory {
     @Override
     public QueryFillPolicy<NumericType> fillPolicy() { return null; }
     
+    @Override
+    public void close() { }
+    
   }
   
   static class MockInterpolatorMissIterator implements 
@@ -261,5 +270,7 @@ public class TestBaseQueryIntperolatorFactory {
     @Override
     public QueryFillPolicy<NumericType> fillPolicy() { return null; }
     
+    @Override
+    public void close() { }
   }
 }
