@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ public abstract class BaseObjectPoolConfig implements ObjectPoolConfig {
   protected final int initial_count;
   protected final int max_count;
   protected final String id;
+  protected final int array_length;
   
   /**
    * Default builder ctor.
@@ -38,13 +39,17 @@ public abstract class BaseObjectPoolConfig implements ObjectPoolConfig {
     if (Strings.isNullOrEmpty(builder.id)) {
       throw new IllegalArgumentException("ID cannot be null or empty.");
     }
-    if (builder.max_count < builder.initial_count) {
+    if (builder.max_count <= 0) {
+      max_count = builder.initial_count;
+    } else if (builder.max_count < builder.initial_count) {
       throw new IllegalArgumentException("Max count cannot be less than initial count.");
+    } else {
+      max_count = builder.max_count;
     }
     
     allocator = builder.allocator;
     initial_count = builder.initial_count;
-    max_count = builder.max_count;
+    array_length = builder.array_length;
     id = builder.id;
   }
   
@@ -68,6 +73,10 @@ public abstract class BaseObjectPoolConfig implements ObjectPoolConfig {
     return id;
   }
   
+  public int arrayLength() {
+    return array_length;
+  }
+  
   /**
    * An abstract builder implementation to set common fields.
    * 
@@ -78,6 +87,7 @@ public abstract class BaseObjectPoolConfig implements ObjectPoolConfig {
     protected int initial_count;
     protected int max_count;
     protected String id;
+    protected int array_length;
     
     public Builder setAllocator(final ObjectPoolAllocator allocator) {
       this.allocator = allocator;
@@ -96,6 +106,11 @@ public abstract class BaseObjectPoolConfig implements ObjectPoolConfig {
     
     public Builder setId(final String id) {
       this.id = id;
+      return this;
+    }
+    
+    public Builder setArrayLength(final int array_length) {
+      this.array_length = array_length;
       return this;
     }
     
