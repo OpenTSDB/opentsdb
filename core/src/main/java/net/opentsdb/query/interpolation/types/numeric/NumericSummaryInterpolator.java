@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
-import java.util.Iterator;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
@@ -57,7 +57,7 @@ public class NumericSummaryInterpolator implements
   protected final QueryFillPolicy<NumericSummaryType> fill_policy;
   
   /** The iterator pulled from the source. May be null. */
-  protected final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
+  protected TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
   
   /** A map of summary IDs to real value interpolators. */
   protected Map<Integer, ReadAheadNumericInterpolator> data;
@@ -163,6 +163,19 @@ public class NumericSummaryInterpolator implements
     return fill_policy;
   }
 
+  @Override
+  public void close() {
+    if (iterator != null) {
+      try {
+        iterator.close();
+      } catch (IOException e) {
+        // Don't bother logging.
+        e.printStackTrace();
+      }
+    }
+    iterator = null;
+  }
+  
   /**
    * Fills the value for the given timestamp.
    * @param timestamp A non-null timestamp to fill at.

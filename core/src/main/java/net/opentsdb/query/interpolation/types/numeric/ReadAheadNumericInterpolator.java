@@ -148,6 +148,11 @@ public class ReadAheadNumericInterpolator implements
     return fill_policy;
   }
 
+  @Override
+  public void close() {
+    // no-op for now
+  }
+  
   /**
    * Local method to fill the value from previous or next.
    * @param timestamp A non-null timestamp to fill with.
