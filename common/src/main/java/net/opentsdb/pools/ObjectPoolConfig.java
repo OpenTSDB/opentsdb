@@ -32,4 +32,9 @@ public interface ObjectPoolConfig {
   
   /** @return A non-null and non-empty ID for the config and the pool. */
   public String id();
+  
+  /** @return A default array length for array object pools only. Serves as the
+   * max length for growable object pools. */
+  public int arrayLength();
+  
 }
