@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -407,6 +406,9 @@ public class GroupByNumericArrayIterator
           pooled_arrays[x].release();
         }
       }
+    }
+    if (aggregator.end() < 1) {
+      has_next = false;
     }
   }
 
