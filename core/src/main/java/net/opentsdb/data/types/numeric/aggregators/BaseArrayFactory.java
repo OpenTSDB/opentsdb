@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,10 @@
 package net.opentsdb.data.types.numeric.aggregators;
 
 import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.pools.ArrayObjectPool;
+import net.opentsdb.pools.DoubleArrayPool;
+import net.opentsdb.pools.LongArrayPool;
 
 /**
  * Simple base to implement the plugin.
@@ -24,9 +28,32 @@ import net.opentsdb.core.BaseTSDBPlugin;
 public abstract class BaseArrayFactory extends BaseTSDBPlugin implements 
     NumericArrayAggregatorFactory {
   
+  protected ArrayObjectPool long_pool;
+  protected ArrayObjectPool double_pool;
+  
   @Override
   public String version() {
     return "3.0.0";
+  }
+  
+  /**
+   * Fetches the object pool implementations from storage.
+   * @param tsdb The non-null TSDB to pull the pools from.
+   */
+  protected void setPools(final TSDB tsdb) {
+    long_pool = (ArrayObjectPool) tsdb.getRegistry().getObjectPool(
+        LongArrayPool.TYPE);
+    double_pool = (ArrayObjectPool) tsdb.getRegistry().getObjectPool(
+        DoubleArrayPool.TYPE);
+  }
+  
+  /** Getters for UTs. */
+  ArrayObjectPool longPool() {
+    return long_pool;
+  }
+  
+  ArrayObjectPool doublePool() {
+    return double_pool;
   }
   
 }
