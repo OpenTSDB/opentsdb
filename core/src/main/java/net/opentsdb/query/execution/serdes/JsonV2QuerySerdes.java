@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -177,47 +177,48 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                   if (iterators.isEmpty()) {
                     return;
                   }
-                  // NOTE: We should only have one here.
-                  final TypedTimeSeriesIterator iterator = 
-                      iterators.iterator().next();
-                  if (!iterator.hasNext()) {
-                    return;
-                  }
-                  TimeSeriesValue<? extends TimeSeriesDataType> value = 
-                      (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
-                  while (value != null && value.timestamp().compare(Op.LT, start)) {
-                    if (iterator.hasNext()) {
-                      value = (TimeSeriesValue<NumericType>) iterator.next();
-                    } else {
-                      value = null;
+                  // NOTE: We should only have one here and we have to close it.
+                  try (final TypedTimeSeriesIterator iterator = 
+                      iterators.iterator().next()) {
+                    if (!iterator.hasNext()) {
+                      return;
                     }
+                    TimeSeriesValue<? extends TimeSeriesDataType> value = 
+                        (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
+                    while (value != null && value.timestamp().compare(Op.LT, start)) {
+                      if (iterator.hasNext()) {
+                        value = (TimeSeriesValue<NumericType>) iterator.next();
+                      } else {
+                        value = null;
+                      }
+                    }
+                    
+                    if (value == null) {
+                      return;
+                    }
+                    if (value.timestamp().compare(Op.LT, start) ||
+                        value.timestamp().compare(Op.GT, end)) {
+                      return;
+                    }
+                    
+                    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    final JsonGenerator json = JSON.getFactory().createGenerator(baos);
+                    json.writeStartObject();
+                    
+                    final TimeSeriesStringId id;
+                    if (ids != null) {
+                      id = (ids.get(pair.getKey()));
+                    } else {
+                      id = (TimeSeriesStringId) pair.getValue().id();
+                    }
+                    
+                    serializeSeries(opts, value, iterator, id, json, result, fill);
+                    json.close();
+                    synchronized(sets) {
+                      sets.add(new String(baos.toByteArray(), Const.UTF8_CHARSET));
+                    }
+                    baos.close();
                   }
-                  
-                  if (value == null) {
-                    return;
-                  }
-                  if (value.timestamp().compare(Op.LT, start) ||
-                      value.timestamp().compare(Op.GT, end)) {
-                    return;
-                  }
-                  
-                  final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                  final JsonGenerator json = JSON.getFactory().createGenerator(baos);
-                  json.writeStartObject();
-                  
-                  final TimeSeriesStringId id;
-                  if (ids != null) {
-                    id = (ids.get(pair.getKey()));
-                  } else {
-                    id = (TimeSeriesStringId) pair.getValue().id();
-                  }
-                  
-                  serializeSeries(opts, value, iterator, id, json, result, fill);
-                  json.close();
-                  synchronized(sets) {
-                    sets.add(new String(baos.toByteArray(), Const.UTF8_CHARSET));
-                  }
-                  baos.close();
                 } catch (Exception e) {
                   LOG.error("Failed to serialize ts: " + series, e);
                   throw new QueryExecutionException("Unexpected exception "
@@ -241,28 +242,29 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                 if (iterators.isEmpty()) {
                   continue;
                 }
-                // NOTE: We should only have one here.
-                final TypedTimeSeriesIterator iterator = 
-                    iterators.iterator().next();
-                if (!iterator.hasNext()) {
-                  continue;
+                // NOTE: We should only have one here and we need to close it.
+                try (final TypedTimeSeriesIterator iterator = 
+                    iterators.iterator().next()) {
+                  if (!iterator.hasNext()) {
+                    continue;
+                  }
+                  
+                  TimeSeriesValue<? extends TimeSeriesDataType> value = 
+                      (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
+                  if (value == null) {
+                    continue;
+                  }
+                  
+                  json.writeStartObject();
+                  
+                  final TimeSeriesStringId id;
+                  if (ids != null) {
+                    id = (ids.get(idx++));
+                  } else {
+                    id = (TimeSeriesStringId) series.id();
+                  }
+                  serializeSeries(opts, value, iterator, id, json, result, fill);
                 }
-                
-                TimeSeriesValue<? extends TimeSeriesDataType> value = 
-                    (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
-                if (value == null) {
-                  continue;
-                }
-                
-                json.writeStartObject();
-                
-                final TimeSeriesStringId id;
-                if (ids != null) {
-                  id = (ids.get(idx++));
-                } else {
-                  id = (TimeSeriesStringId) series.id();
-                }
-                serializeSeries(opts, value, iterator, id, json, result, fill);
                 json.flush();
               }
             }

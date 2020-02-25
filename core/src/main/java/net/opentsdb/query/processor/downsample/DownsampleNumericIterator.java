@@ -33,6 +33,7 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
+import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -270,7 +271,21 @@ public class DownsampleNumericIterator implements QueryIterator {
   
   @Override
   public void close() {
-    // no-op for now
+    if (interpolator != null) {
+      try {
+        interpolator.close();
+      } catch (IOException e) {
+        // don't bother logging.
+        e.printStackTrace();
+      }
+    }
+
+    try {
+      aggregator.close();
+    } catch (IOException e) {
+      // don't bother logging.
+      e.printStackTrace();
+    }
   }
   
   /**

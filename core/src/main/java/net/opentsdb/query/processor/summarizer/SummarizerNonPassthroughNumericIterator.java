@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
+import java.io.IOException;
 import java.util.Map.Entry;
 
 /**
@@ -173,6 +174,14 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
           }
         }
       }
+      
+      try {
+        iterator.close();
+      } catch (IOException e) {
+        // Don't bother logging.
+        e.printStackTrace();
+      }
+      iterator = null;
     }
     
     final MutableNumericValue number = new MutableNumericValue();
@@ -201,7 +210,15 @@ public class SummarizerNonPassthroughNumericIterator implements QueryIterator {
   
   @Override
   public void close() {
-    // no-op for now
+    if (iterator != null) {
+      try {
+        iterator.close();
+      } catch (IOException e) {
+        // Don't bother logging.
+        e.printStackTrace();
+      }
+      iterator = null;
+    }
   }
   
   /**

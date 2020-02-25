@@ -17,6 +17,7 @@ package net.opentsdb.query.serdes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Iterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,16 +248,22 @@ public class PBufSerdes implements TimeSeriesSerdes {
               .build()
               .pbufID());
       
-      for (final TypedTimeSeriesIterator iterator : ts.iterators()) {
-        final PBufIteratorSerdes serdes = factory.serdesForType(iterator.getType());
-        if (serdes == null) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Skipping serialization of unknown type: " 
-                + iterator.getType());
+      final Iterator<TypedTimeSeriesIterator<?>> iterators = ts.iterators().iterator();
+      while (iterators.hasNext()) {
+        try (final TypedTimeSeriesIterator<?> iterator = iterators.next()) {
+          final PBufIteratorSerdes serdes = factory.serdesForType(iterator.getType());
+          if (serdes == null) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Skipping serialization of unknown type: " 
+                  + iterator.getType());
+            }
+            continue;
           }
-          continue;
+          serdes.serialize(ts_builder, context, options, result, iterator);
+        } catch (IOException e) {
+          // don't bother logging.
+          e.printStackTrace();
         }
-        serdes.serialize(ts_builder, context, options, result, iterator);
       }
       
       result_builder.addTimeseries(ts_builder);

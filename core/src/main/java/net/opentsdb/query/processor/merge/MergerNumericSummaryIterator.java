@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -41,7 +42,6 @@ import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
-import net.opentsdb.rollup.DefaultRollupConfig;
 
 /**
  * A group by iterator for summary data. Note that for the special case
@@ -261,7 +261,25 @@ public class MergerNumericSummaryIterator implements QueryIterator,
   
   @Override
   public void close() {
-    // no-op for now
+    try {
+      aggregator.close();
+    } catch (IOException e) {
+      // don't bother logging.
+      e.printStackTrace();
+    }
+    
+    if (interpolators != null) {
+      for (int i = 0; i < interpolators.length; i++) {
+        if (interpolators[i] != null) {
+          try {
+            interpolators[i].close();
+          } catch (IOException e) {
+            // don't bother logging.
+            e.printStackTrace();
+          }
+        }
+      }
+    }
   }
   
   @Override

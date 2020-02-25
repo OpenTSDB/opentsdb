@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly.egads;
 
+import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
@@ -118,98 +119,118 @@ public class EgadsThresholdEvaluator {
     }
 
     TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = null;
-    while (prediction_index < predictions.length) {
-      if (predictions[prediction_index] == null) {
-        prediction_index++;
+    TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = null;
+    try {
+      while (prediction_index < predictions.length) {
+        if (predictions[prediction_index] == null) {
+          prediction_index++;
+          if (threshold_base == 0) {
+            threshold_base = -1;
+          }
+          continue;
+        }
+        
+        final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
+            predictions[prediction_index].iterator(NumericArrayType.TYPE);
+        if (!pred_op.isPresent()) {
+          LOG.warn("No array iterators for prediction at: " + prediction_index);
+          continue;
+        }
+        
+        pred_it = pred_op.get();
+        if (!pred_it.hasNext()) {
+          LOG.warn("No data in the prediction array at: " + prediction_index);
+          continue;
+        }
+        
+        // set the threshold base
         if (threshold_base == 0) {
-          threshold_base = -1;
+          threshold_base = prediction_results[prediction_index]
+              .timeSpecification().start().epoch();
+        } else if (threshold_base < 0) {
+          // need to set the expected threshold start time based on the interval;
+          threshold_base = prediction_results[prediction_index]
+              .timeSpecification().start().epoch();
+          for (int i = 0; i < prediction_index; i++) {
+            threshold_base -= (prediction_results[prediction_index]
+              .timeSpecification().end().epoch() - 
+                prediction_results[prediction_index]
+                  .timeSpecification().start().epoch());
+          }
         }
-        continue;
-      }
-      
-      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
-          predictions[prediction_index].iterator(NumericArrayType.TYPE);
-      if (!pred_op.isPresent()) {
-        LOG.warn("No array iterators for prediction at: " + prediction_index);
-        continue;
-      }
-      
-      pred_it = pred_op.get();
-      if (!pred_it.hasNext()) {
-        LOG.warn("No data in the prediction array at: " + prediction_index);
-        continue;
-      }
-      
-      // set the threshold base
-      if (threshold_base == 0) {
-        threshold_base = prediction_results[prediction_index]
-            .timeSpecification().start().epoch();
-      } else if (threshold_base < 0) {
-        // need to set the expected threshold start time based on the interval;
-        threshold_base = prediction_results[prediction_index]
-            .timeSpecification().start().epoch();
-        for (int i = 0; i < prediction_index; i++) {
-          threshold_base -= (prediction_results[prediction_index]
-            .timeSpecification().end().epoch() - 
-              prediction_results[prediction_index]
-                .timeSpecification().start().epoch());
-        }
-      }
-      break;
-    }
-
-    if (pred_it == null) {
-      LOG.warn("No prediction data.");
-      return false;
-    }
-    
-    final TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) pred_it.next();
-    if (value.value() == null) {
-      LOG.warn("Null value?");
-      return false;
-    }
-    
-    TypeToken<? extends TimeSeriesDataType> current_type = null;
-    for (final TypeToken<? extends TimeSeriesDataType> type : current.types()) {
-      if (type == NumericType.TYPE ||
-          type == NumericArrayType.TYPE ||
-          type == NumericSummaryType.TYPE) {
-        current_type = type;
         break;
       }
+  
+      if (pred_it == null) {
+        LOG.warn("No prediction data.");
+        return false;
+      }
+      
+      final TimeSeriesValue<NumericArrayType> value = 
+          (TimeSeriesValue<NumericArrayType>) pred_it.next();
+      if (value.value() == null) {
+        LOG.warn("Null value?");
+        return false;
+      }
+      
+      TypeToken<? extends TimeSeriesDataType> current_type = null;
+      for (final TypeToken<? extends TimeSeriesDataType> type : current.types()) {
+        if (type == NumericType.TYPE ||
+            type == NumericArrayType.TYPE ||
+            type == NumericSummaryType.TYPE) {
+          current_type = type;
+          break;
+        }
+      }
+      
+      if (current_type == null) {
+        LOG.warn("No type for current?");
+        return false;
+      }
+      
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> current_op =
+          current.iterator(current_type);
+      if (!current_op.isPresent()) {
+        LOG.warn("No data for type: " + current_type + " in current?");
+        return false;
+      }
+      
+      iterator = current_op.get();
+      if (!iterator.hasNext()) {
+        LOG.warn("No next type: " + current_type + " in current?");
+        return false;
+      }
+      
+      if (current_type == NumericType.TYPE) {
+        runNumericType(iterator, value);
+      } else if (current_type == NumericArrayType.TYPE) {
+        runNumericArrayType(iterator, value);
+      } else if (current_type == NumericSummaryType.TYPE) {
+        runNumericSummaryType(iterator, value);
+      } else {
+        LOG.warn("Ummm, don't handle this type?");
+        return false;
+      }
+      return true;
+    } finally {
+      if (pred_it != null) {
+        try {
+          pred_it.close();
+        } catch (IOException e) {
+          // don't bother logging.
+          e.printStackTrace();
+        }
+      }
+      
+      if (iterator != null) {
+        try {
+          iterator.close();
+        } catch (IOException e) {
+          // don't bother logging.
+          e.printStackTrace();
+        }
+      }
     }
-    
-    if (current_type == null) {
-      LOG.warn("No type for current?");
-      return false;
-    }
-    
-    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> current_op =
-        current.iterator(current_type);
-    if (!current_op.isPresent()) {
-      LOG.warn("No data for type: " + current_type + " in current?");
-      return false;
-    }
-    
-    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
-        current_op.get();
-    if (!iterator.hasNext()) {
-      LOG.warn("No next type: " + current_type + " in current?");
-      return false;
-    }
-    
-    if (current_type == NumericType.TYPE) {
-      runNumericType(iterator, value);
-    } else if (current_type == NumericArrayType.TYPE) {
-      runNumericArrayType(iterator, value);
-    } else if (current_type == NumericSummaryType.TYPE) {
-      runNumericSummaryType(iterator, value);
-    } else {
-      LOG.warn("Ummm, don't handle this type?");
-      return false;
-    }
-    return true;
   }
   
   void runNumericType(

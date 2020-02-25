@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -253,7 +253,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   
   @Override
   public void close() {
-    // no-op for now
+    // TODO
   }
   
   void combine() {

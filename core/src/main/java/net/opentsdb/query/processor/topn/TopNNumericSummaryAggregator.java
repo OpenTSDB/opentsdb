@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,10 +23,12 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
 
+import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -106,114 +108,117 @@ public class TopNNumericSummaryAggregator {
     if (!optional.isPresent()) {
       return null;
     }
-    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-    
-    long[] long_values = sum_id >= 0 ? null : new long[16];
-    double[] double_values = sum_id >= 0 ? new double[16] : null;
-    double[] counts = null;
-    int idx = 0;
-    int count_idx = 0;
-    
-    while(iterator.hasNext()) {
-      @SuppressWarnings("unchecked")
-      final TimeSeriesValue<NumericSummaryType> value = 
-          (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      if (value.value() == null) {
-        continue;
-      }
+    try (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+        optional.get()) {
+      long[] long_values = sum_id >= 0 ? null : new long[16];
+      double[] double_values = sum_id >= 0 ? new double[16] : null;
+      double[] counts = null;
+      int idx = 0;
+      int count_idx = 0;
       
-      NumericType v = value.value().value(summary);
-      if (sum_id >= 0 && (v == null || count_idx > 0)) {
-        final NumericType sum = value.value().value(sum_id);
-        if (sum == null) {
+      while(iterator.hasNext()) {
+        @SuppressWarnings("unchecked")
+        final TimeSeriesValue<NumericSummaryType> value = 
+            (TimeSeriesValue<NumericSummaryType>) iterator.next();
+        if (value.value() == null) {
           continue;
         }
-        final NumericType count = value.value().value(count_id);
-        if (count == null) {
-          continue;
-        }
-
-        // roll back any that snuck in.
-        if (idx > count_idx) {
-          idx = count_idx;
-        }
         
-        if (idx >= double_values.length) {
-          // grow
-          double[] temp = new double[double_values.length + 
-                                     (double_values.length >= 1024 ? 32 : double_values.length)];
-          System.arraycopy(double_values, 0, temp, 0, double_values.length);
-          double_values = temp;
-        }
-        double_values[idx++] = sum.toDouble();
-        
-        if (counts == null) {
-          counts = new double[16];
-        }
-        if (count_idx >= counts.length) {
-          // grow
-          double[] temp = new double[counts.length + 
-                                     (counts.length >= 1024 ? 32 : counts.length)];
-          System.arraycopy(counts, 0, temp, 0, counts.length);
-          counts = temp;
-        }
-        counts[count_idx++] = count.toDouble();
-        
-        continue;
-      }
-      
-      if (v.isInteger() && long_values != null) {
-        if (idx >= long_values.length) {
-          // grow
-          long[] temp = new long[long_values.length + 
-                                 (long_values.length >= 1024 ? 32 : long_values.length)];
-          System.arraycopy(long_values, 0, temp, 0, long_values.length);
-          long_values = temp;
-        }
-        long_values[idx++] = v.longValue();
-      } else {
-        if (double_values == null) {
-          // shift
-          double_values = new double[long_values.length];
-          for (int i = 0; i < idx; i++) {
-            double_values[i] = (double) long_values[i];
+        NumericType v = value.value().value(summary);
+        if (sum_id >= 0 && (v == null || count_idx > 0)) {
+          final NumericType sum = value.value().value(sum_id);
+          if (sum == null) {
+            continue;
           }
-          long_values = null;
+          final NumericType count = value.value().value(count_id);
+          if (count == null) {
+            continue;
+          }
+  
+          // roll back any that snuck in.
+          if (idx > count_idx) {
+            idx = count_idx;
+          }
+          
+          if (idx >= double_values.length) {
+            // grow
+            double[] temp = new double[double_values.length + 
+                                       (double_values.length >= 1024 ? 32 : double_values.length)];
+            System.arraycopy(double_values, 0, temp, 0, double_values.length);
+            double_values = temp;
+          }
+          double_values[idx++] = sum.toDouble();
+          
+          if (counts == null) {
+            counts = new double[16];
+          }
+          if (count_idx >= counts.length) {
+            // grow
+            double[] temp = new double[counts.length + 
+                                       (counts.length >= 1024 ? 32 : counts.length)];
+            System.arraycopy(counts, 0, temp, 0, counts.length);
+            counts = temp;
+          }
+          counts[count_idx++] = count.toDouble();
+          
+          continue;
         }
         
-        if (idx >= double_values.length) {
-          // grow
-          double[] temp = new double[double_values.length + 
-                                     (double_values.length >= 1024 ? 32 : double_values.length)];
-          System.arraycopy(double_values, 0, temp, 0, double_values.length);
-          double_values = temp;
+        if (v.isInteger() && long_values != null) {
+          if (idx >= long_values.length) {
+            // grow
+            long[] temp = new long[long_values.length + 
+                                   (long_values.length >= 1024 ? 32 : long_values.length)];
+            System.arraycopy(long_values, 0, temp, 0, long_values.length);
+            long_values = temp;
+          }
+          long_values[idx++] = v.longValue();
+        } else {
+          if (double_values == null) {
+            // shift
+            double_values = new double[long_values.length];
+            for (int i = 0; i < idx; i++) {
+              double_values[i] = (double) long_values[i];
+            }
+            long_values = null;
+          }
+          
+          if (idx >= double_values.length) {
+            // grow
+            double[] temp = new double[double_values.length + 
+                                       (double_values.length >= 1024 ? 32 : double_values.length)];
+            System.arraycopy(double_values, 0, temp, 0, double_values.length);
+            double_values = temp;
+          }
+          double_values[idx++] = v.toDouble();
         }
-        double_values[idx++] = v.toDouble();
       }
-    }
-    
-    if (idx <= 0) {
-      return null;
-    }
-    
-    final MutableNumericValue dp = new MutableNumericValue();
-    if (count_idx > 0) {
-      final MutableNumericValue sums = new MutableNumericValue();
-      aggregator.run(double_values, 0, idx, 
-          ((TopNConfig) node.config()).getInfectiousNan(), sums);
-      final MutableNumericValue count_sum = new MutableNumericValue();
-      aggregator.run(counts, 0, count_idx, 
-          ((TopNConfig) node.config()).getInfectiousNan(), count_sum);
-      dp.resetValue(sums.toDouble() / count_sum.toDouble());
-    } else {
-      if (long_values != null) {
-        aggregator.run(long_values, 0, idx, dp);
-      } else {
+      
+      if (idx <= 0) {
+        return null;
+      }
+      
+      final MutableNumericValue dp = new MutableNumericValue();
+      if (count_idx > 0) {
+        final MutableNumericValue sums = new MutableNumericValue();
         aggregator.run(double_values, 0, idx, 
-            ((TopNConfig) node.config()).getInfectiousNan(), dp);
+            ((TopNConfig) node.config()).getInfectiousNan(), sums);
+        final MutableNumericValue count_sum = new MutableNumericValue();
+        aggregator.run(counts, 0, count_idx, 
+            ((TopNConfig) node.config()).getInfectiousNan(), count_sum);
+        dp.resetValue(sums.toDouble() / count_sum.toDouble());
+      } else {
+        if (long_values != null) {
+          aggregator.run(long_values, 0, idx, dp);
+        } else {
+          aggregator.run(double_values, 0, idx, 
+              ((TopNConfig) node.config()).getInfectiousNan(), dp);
+        }
       }
+      return dp.value();
+    } catch (IOException e) {
+      throw new QueryDownstreamException(e.getMessage(), e);
     }
-    return dp.value();
   }
   
 }

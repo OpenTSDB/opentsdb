@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
+import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Map;
@@ -48,7 +49,7 @@ public class RateNumericSummaryIterator implements QueryIterator {
   private static final long TO_NANOS = 1000000000L;
   
   /** A sequence of data points to compute rates. */
-  private final TypedTimeSeriesIterator<? extends TimeSeriesDataType> source;
+  private TypedTimeSeriesIterator<? extends TimeSeriesDataType> source;
   
   /** Options for calculating rates. */
   private final RateConfig config;
@@ -134,7 +135,13 @@ public class RateNumericSummaryIterator implements QueryIterator {
   
   @Override
   public void close() {
-    // no-op for now
+    try {
+      source.close();
+    } catch (IOException e) {
+      // Don't bother logging.
+      e.printStackTrace();
+    }
+    source = null;
   }
   
   /**

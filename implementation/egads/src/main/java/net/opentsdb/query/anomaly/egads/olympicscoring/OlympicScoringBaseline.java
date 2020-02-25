@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly.egads.olympicscoring;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Properties;
@@ -91,12 +92,17 @@ public class OlympicScoringBaseline {
       return;
     }
     
-    if (type == NumericType.TYPE) {
-      processNumeric(optional.get());
-    } else if (type == NumericArrayType.TYPE) {
-      processNumericArray(optional.get(), result);
-    } else if (type == NumericSummaryType.TYPE) {
-      processSummary(optional.get());
+    try (final TypedTimeSeriesIterator<?> iterator = optional.get()) {
+      if (type == NumericType.TYPE) {
+        processNumeric(iterator);
+      } else if (type == NumericArrayType.TYPE) {
+        processNumericArray(iterator, result);
+      } else if (type == NumericSummaryType.TYPE) {
+        processSummary(iterator);
+      }
+    } catch (IOException e) {
+      // don't bother logging.
+      e.printStackTrace();
     }
   }
 

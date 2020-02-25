@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2012018  The OpenTSDB Authors.
+// Copyright (C) 2012-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -221,12 +220,14 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
                 }
                 final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
                 if (!iterator.hasNext()) {
+                  iterator.close();
                   continue;
                 }
                 interp = factory.newInterpolator(NumericSummaryType.TYPE, iterator, nic);
               } else {
                 final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
                 if (!iterator.hasNext()) {
+                  iterator.close();
                   continue;
                 }
                 interp = factory.newInterpolator(NumericType.TYPE, iterator, nic);
@@ -293,6 +294,12 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
               if (has_next) {
                 next_ts.update(next_next_ts);
               }
+            }
+            
+            // shut-em down.
+            for (int i = 0; i < iterators.size(); i++) {
+              iterators.get(i).close();
+              iterators.set(i, null);
             }
             
             json.writeEndArray();

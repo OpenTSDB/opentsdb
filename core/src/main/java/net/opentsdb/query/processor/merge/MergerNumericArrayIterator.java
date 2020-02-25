@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
+import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
@@ -111,25 +111,30 @@ public class MergerNumericArrayIterator implements QueryIterator,
       final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
           source.iterator(NumericArrayType.TYPE);
       if (optional.isPresent()) {
-        final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-        if (iterator.hasNext()) {
-          has_next = true;
-          final TimeSeriesValue<NumericArrayType> array = 
-              (TimeSeriesValue<NumericArrayType>) iterator.next();
-          // skip empties.
-          if (array.value().end() - array.value().offset() > 0) {
-            if (array.value().isInteger()) {
-              if (array.value().longArray().length > 0) {
-                aggregator.accumulate(array.value().longArray(), 
+        try (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+            optional.get()) {
+          if (iterator.hasNext()) {
+            has_next = true;
+            final TimeSeriesValue<NumericArrayType> array = 
+                (TimeSeriesValue<NumericArrayType>) iterator.next();
+            // skip empties.
+            if (array.value().end() - array.value().offset() > 0) {
+              if (array.value().isInteger()) {
+                if (array.value().longArray().length > 0) {
+                  aggregator.accumulate(array.value().longArray(), 
+                      array.value().offset(), array.value().end());
+                }
+              } else if (array.value().doubleArray().length > 0) {
+                aggregator.accumulate(array.value().doubleArray(),
                     array.value().offset(), array.value().end());
               }
-            } else if (array.value().doubleArray().length > 0) {
-              aggregator.accumulate(array.value().doubleArray(),
-                  array.value().offset(), array.value().end());
             }
           }
-        }
-      }
+        } catch (IOException e) {
+          // don't bother logging.
+          e.printStackTrace();
+        }         
+      }  
     }
   }
 
@@ -151,7 +156,12 @@ public class MergerNumericArrayIterator implements QueryIterator,
   
   @Override
   public void close() {
-    // no-op for now
+    try {
+      aggregator.close();
+    } catch (IOException e) {
+      // don't bother logging.
+      e.printStackTrace();
+    }
   }
   
   @Override

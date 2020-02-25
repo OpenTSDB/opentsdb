@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2019  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.timeshift;
 
-import java.util.Iterator;
+import java.io.IOException;
 import java.util.Optional;
 
 import com.google.common.reflect.TypeToken;
@@ -24,9 +24,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryResult;
 
@@ -76,7 +74,15 @@ public class TimeShiftNumericArrayIterator implements QueryIterator,
 
   @Override
   public void close() {
-    // no-op for now
+    if (iterator != null) {
+      try {
+        iterator.close();
+      } catch (IOException e) {
+        // Don't bother logging.
+        e.printStackTrace();
+      }
+      iterator = null;
+    }
   }
   
   @Override
