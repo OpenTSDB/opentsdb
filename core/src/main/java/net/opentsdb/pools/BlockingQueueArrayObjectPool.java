@@ -66,13 +66,17 @@ public class BlockingQueueArrayObjectPool implements ArrayObjectPool, TimerTask 
     }
     pool = new ArrayBlockingQueue<PooledObject>(count);
     for (int i = 0; i < count; i++) {
-      final Object obj = config.allocator().allocate();
+      final Object obj = config.arrayLength() > 0 ? 
+          ((ArrayObjectPoolAllocator) config.allocator()).allocate(config.arrayLength())
+          : config.allocator().allocate();
       pool.offer(new LocalPooled(obj, true));
     }
     tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Instantiated object pool with " + count + " entries for " 
-          + config.id());
+          + config.id() + " with an array size of " + 
+          (config.arrayLength() > 0 ? config.arrayLength() : 
+            ((ArrayObjectPoolAllocator) config.allocator()).pooledLength()));
     }
   }
   
