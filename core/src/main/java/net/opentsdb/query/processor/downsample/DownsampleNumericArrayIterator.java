@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.data.Aggregator;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -29,6 +30,7 @@ import net.opentsdb.data.types.numeric.NumericAccumulator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -296,6 +298,25 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     return intervals;
   }
 
+  @Override
+  public TimeSeriesValue<NumericArrayType> nextPool(final Aggregator aggregator) {
+    if (iterator == null) {
+      return null;
+    }
+
+    final NumericArrayAggregator agg = (NumericArrayAggregator) aggregator;
+
+    // TODO - Optimize this with thread local arrays, etc. For now we can just
+    // run the agg and 
+    next();
+    if (long_values != null) {
+      agg.accumulate(long_values, 0, intervals);
+    } else {
+      agg.accumulate(double_values, 0, intervals);
+    }
+    return null;
+  }
+  
   /**
    * Helper to fill a value.
    * TODO - for now it's just a NaN.
