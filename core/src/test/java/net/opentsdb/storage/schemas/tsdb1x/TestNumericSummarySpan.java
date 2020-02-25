@@ -20,9 +20,12 @@ import static org.junit.Assert.fail;
 
 import java.util.Iterator;
 
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -41,6 +44,8 @@ public class TestNumericSummarySpan {
   private static DefaultRollupConfig CONFIG;
   private static RollupInterval RAW;
   private static RollupInterval TENMIN;
+  
+  private TSDB tsdb;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -68,37 +73,42 @@ public class TestNumericSummarySpan {
         .build();
   }
   
+  @Before
+  public void before() {
+    tsdb = new MockTSDB();
+  }
+  
   @Test
   public void addSequence() throws Exception {
     NumericSummarySpan span = new NumericSummarySpan(false);
     
     try {
-      span.addSequence(null, false);
+      span.addSequence(tsdb, null, false);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     NumericSummaryRowSeq seq = newSeq(BASE_TIME + 3600, RAW);
     assertEquals(0, span.rows.size());
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(1, span.rows.size());
     assertEquals(BASE_TIME + 3600, span.rows.get(0).base_timestamp);
     
     // empty rows are skipped
     seq = new NumericSummaryRowSeq(BASE_TIME + (3600 * 2), RAW);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(1, span.rows.size());
     assertEquals(BASE_TIME + 3600, span.rows.get(0).base_timestamp);
     
     // earlier row
     seq = newSeq(BASE_TIME, RAW);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(2, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
     
     // later row
     seq = newSeq(BASE_TIME + (3600 * 3), RAW);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(3, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -106,7 +116,7 @@ public class TestNumericSummarySpan {
     
     // merge earlier
     seq = newSeq(BASE_TIME, RAW);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(3, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -114,7 +124,7 @@ public class TestNumericSummarySpan {
     
     // insert earlier
     seq = newSeq(BASE_TIME + (3600 * 2), RAW);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(4, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -133,8 +143,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 900), (short) 0, 0, RAW);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericSummaryRowSeq(base_time, RAW);
@@ -142,8 +152,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 900), (short) 0, 0, RAW);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericSummaryRowSeq(base_time, RAW);
@@ -151,8 +161,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 900), (short) 0, 0, RAW);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -178,8 +188,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) 0, 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -187,8 +197,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) 0, 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -196,8 +206,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) 0, 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -223,8 +233,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) 0, 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -232,8 +242,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) 0, 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -241,8 +251,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) 0, 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, new byte[] { (byte) value++ });
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 11;
@@ -268,8 +278,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) (7 | NumericCodec.FLAG_FLOAT), 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, Bytes.fromLong(Double.doubleToLongBits(value++)));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -277,8 +287,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) (7 | NumericCodec.FLAG_FLOAT), 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, Bytes.fromLong(Double.doubleToLongBits(value++)));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -286,8 +296,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) (7 | NumericCodec.FLAG_FLOAT), 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, Bytes.fromLong(Double.doubleToLongBits(value++)));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
@@ -313,8 +323,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) (7 | NumericCodec.FLAG_FLOAT), 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, Bytes.fromLong(Double.doubleToLongBits(value++)));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -322,8 +332,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) (7 | NumericCodec.FLAG_FLOAT), 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, Bytes.fromLong(Double.doubleToLongBits(value++)));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -331,8 +341,8 @@ public class TestNumericSummarySpan {
       byte[] qualifier = RollupUtils.buildRollupQualifier(base_time + (i * 21600), (short) (7 | NumericCodec.FLAG_FLOAT), 0, TENMIN);
       seq.addColumn(PREFIX, qualifier, Bytes.fromLong(Double.doubleToLongBits(value++)));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 11.5;
@@ -370,8 +380,8 @@ public class TestNumericSummarySpan {
         (short) 0, 0, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) (long) value });
     value += 1.5;
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -391,8 +401,8 @@ public class TestNumericSummarySpan {
         (short) 0, 0, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) (long) value });
     value += 1.5;
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -412,8 +422,8 @@ public class TestNumericSummarySpan {
         (short) 0, 0, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) (long) value });
     value += 1.5;
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
@@ -456,8 +466,8 @@ public class TestNumericSummarySpan {
         (short) 0, 0, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) (long) value });
     value += 1.5;
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -477,8 +487,8 @@ public class TestNumericSummarySpan {
         (short) 0, 0, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) (long) value });
     value += 1.5;
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -498,8 +508,8 @@ public class TestNumericSummarySpan {
         (short) 0, 0, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) (long) value });
     value += 1.5;
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 17.0;
@@ -554,8 +564,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -586,8 +596,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -638,8 +648,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -670,8 +680,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 7;
@@ -722,8 +732,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -754,8 +764,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     base_time = BASE_TIME;
@@ -817,8 +827,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 86400;
     seq = new NumericSummaryRowSeq(base_time, TENMIN);
@@ -849,8 +859,8 @@ public class TestNumericSummarySpan {
     qualifier = RollupUtils.buildRollupQualifier(base_time + (21600L * 3), 
         (short) 0, 2, TENMIN);
     seq.addColumn(PREFIX, qualifier, new byte[] { (byte) count++ });
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     base_time = BASE_TIME + (86400 * 2) - 21600;

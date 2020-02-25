@@ -20,8 +20,11 @@ import static org.junit.Assert.fail;
 
 import java.util.Iterator;
 
+import org.junit.Before;
 import org.junit.Test;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
@@ -31,12 +34,19 @@ public class TestNumericSpan {
   private static final byte[] APPEND_Q = 
       new byte[] { Schema.APPENDS_PREFIX, 0, 0 };
   
+  private TSDB tsdb;
+  
+  @Before
+  public void before() {
+    tsdb = new MockTSDB();
+  }
+  
   @Test
   public void addSequence() throws Exception {
     NumericSpan span = new NumericSpan(false);
     
     try {
-      span.addSequence(null, false);
+      span.addSequence(tsdb, null, false);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -45,12 +55,12 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
     
     assertEquals(0, span.rows.size());
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(1, span.rows.size());
     
     // empty rows are skipped
     seq = new NumericRowSeq(BASE_TIME + (3600 * 2));
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(1, span.rows.size());
     assertEquals(BASE_TIME + 3600, span.rows.get(0).base_timestamp);
     
@@ -59,7 +69,7 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
     
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(2, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -68,7 +78,7 @@ public class TestNumericSpan {
     seq = new NumericRowSeq(BASE_TIME + (3600 * 3));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(3, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -78,7 +88,7 @@ public class TestNumericSpan {
     seq = new NumericRowSeq(BASE_TIME);
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(3, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -88,7 +98,7 @@ public class TestNumericSpan {
     seq = new NumericRowSeq(BASE_TIME + (3600 * 2));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(4, span.rows.size());
     assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
     assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
@@ -107,8 +117,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(1, span.rows.size());
     
     // simulate split row
@@ -117,8 +127,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     assertEquals(1, span.rows.size());
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
@@ -145,8 +155,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -154,8 +164,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -163,8 +173,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -189,8 +199,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -198,8 +208,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -207,8 +217,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 11;
@@ -233,8 +243,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -242,8 +252,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -251,8 +261,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
@@ -277,8 +287,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -286,8 +296,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -295,8 +305,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 11.5;
@@ -321,8 +331,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -330,8 +340,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -339,8 +349,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -365,8 +375,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -374,8 +384,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -383,8 +393,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29;
@@ -409,8 +419,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -418,8 +428,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -427,8 +437,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
@@ -453,8 +463,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -462,8 +472,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -471,8 +481,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29.5;
@@ -497,8 +507,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -506,8 +516,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -515,8 +525,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -541,8 +551,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -550,8 +560,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -559,8 +569,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29;
@@ -585,8 +595,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -594,8 +604,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -603,8 +613,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
@@ -629,8 +639,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -638,8 +648,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -647,8 +657,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29.5;
@@ -677,8 +687,8 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value++));
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -690,8 +700,8 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -703,8 +713,8 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -733,8 +743,8 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value++));
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -746,8 +756,8 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -759,8 +769,8 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
@@ -793,8 +803,8 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value));
     value += 1.5;
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -810,8 +820,8 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value));
     value += 1.5;
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -827,8 +837,8 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value));
     value += 1.5;
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 00;
@@ -859,8 +869,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
         
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -885,8 +895,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
         
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 3;
@@ -911,8 +921,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     // nope!
@@ -921,8 +931,8 @@ public class TestNumericSpan {
 //      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
 //          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
 //    }
-//    seq.dedupe(false, false);
-//    span.addSequence(seq, false);
+//    seq.dedupe(tsdb, false, false);
+//    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -930,8 +940,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, false);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
@@ -959,8 +969,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     // nope!
@@ -969,8 +979,8 @@ public class TestNumericSpan {
 //      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
 //          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
 //    }
-//    seq.dedupe(false, false);
-//    span.addSequence(seq, false);
+//    seq.dedupe(tsdb, false, false);
+//    span.addSequence(tsdb, seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -978,8 +988,8 @@ public class TestNumericSpan {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
-    span.addSequence(seq, false);
+    seq.dedupe(tsdb, false, true);
+    span.addSequence(tsdb, seq, false);
     
     Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 7;

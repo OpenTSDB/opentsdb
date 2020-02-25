@@ -25,12 +25,15 @@ import static org.mockito.Mockito.mock;
 import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Strings;
 import com.google.common.primitives.Bytes;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -51,6 +54,8 @@ public class TestNumericSummaryRowSeq {
   private static DefaultRollupConfig CONFIG;
   private static RollupInterval RAW;
   private static RollupInterval TENMIN;
+  
+  private TSDB tsdb;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -76,6 +81,11 @@ public class TestNumericSummaryRowSeq {
         .addInterval(RAW)
         .addInterval(TENMIN)
         .build();
+  }
+  
+  @Before
+  public void before() {
+    tsdb = new MockTSDB();
   }
   
   @Test
@@ -149,9 +159,9 @@ public class TestNumericSummaryRowSeq {
         extant, qualifier, value), seq.summary_data.get(2));
     extant = seq.summary_data.get(2);
     
-    seq.dedupe(true, false);
+    seq.dedupe(tsdb, true, false);
     NumericSummarySpan span = new NumericSummarySpan(false);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = span.iterator();
     assertTrue(it.hasNext());
     
@@ -365,9 +375,9 @@ public class TestNumericSummaryRowSeq {
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 39, seq.size());
     assertEquals(8, seq.dataPoints());
     assertEquals(2, seq.summary_data.size());
-    seq.dedupe(true, false);
+    seq.dedupe(tsdb, true, false);
     NumericSummarySpan span = new NumericSummarySpan(false);
-    span.addSequence(seq, false);
+    span.addSequence(tsdb, seq, false);
     Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> it = span.iterator();
     assertTrue(it.hasNext());
     
@@ -650,7 +660,7 @@ public class TestNumericSummaryRowSeq {
     byte[] expected_sum = seq.summary_data.get(0);
     byte[] expected_count = seq.summary_data.get(2);
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -680,7 +690,7 @@ public class TestNumericSummaryRowSeq {
             new byte[] { 4 })
         ); 
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -740,7 +750,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(6, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 28, seq.size());
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -796,7 +806,7 @@ public class TestNumericSummaryRowSeq {
             new byte[] { 4 })
         ); 
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -870,7 +880,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(10, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 43, seq.size());
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -941,7 +951,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(10, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 43, seq.size());
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -1012,7 +1022,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(10, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 43, seq.size());
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -1040,7 +1050,7 @@ public class TestNumericSummaryRowSeq {
         RollupUtils.buildRollupQualifier(BASE_TIME + 1200, (short) 0, 0, RAW), 
         new byte[] { 5 });
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(2, seq.dataPoints());
@@ -1118,7 +1128,7 @@ public class TestNumericSummaryRowSeq {
             new byte[] { 4 })
         ); 
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());

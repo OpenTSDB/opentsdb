@@ -127,13 +127,15 @@ public class Tsdb1xQueryResult extends
     }
     
     if (numerics != null) {
-      final ChronoUnit resolution = numerics.dedupe(keep_earliest, reversed);
+      final ChronoUnit resolution = numerics.dedupe(node.pipelineContext().tsdb(), 
+          keep_earliest, reversed);
       addSequence(hash, tsuid, numerics, resolution);
     }
     
     if (row_sequences != null) {
       for (final RowSeq sequence : row_sequences.values()) {
-        final ChronoUnit resolution = sequence.dedupe(keep_earliest, reversed);
+        final ChronoUnit resolution = sequence.dedupe(node.pipelineContext().tsdb(), 
+            keep_earliest, reversed);
         addSequence(hash, tsuid, sequence, resolution);
       }
     }

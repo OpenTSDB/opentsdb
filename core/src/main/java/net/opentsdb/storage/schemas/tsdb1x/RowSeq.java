@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 
 /**
@@ -55,6 +56,7 @@ public interface RowSeq {
    * Iterates over the results, checking for out-of-order or duplicate
    * values. Assumes the data is in time ascending order and will 
    * re-order when called.
+   * @param tsdb The TSDB from which we can use pools.
    * @param keep_earliest True to keep the first data point recorded via
    * {@link #addColumn(byte, byte[], byte[])} or false to keep the
    * last value recorded.
@@ -62,7 +64,9 @@ public interface RowSeq {
    * descending order.
    * @return The highest resolution timestamp for this sequence.
    */
-  public ChronoUnit dedupe(final boolean keep_earliest, final boolean reverse);
+  public ChronoUnit dedupe(final TSDB tsdb,
+                           final boolean keep_earliest, 
+                           final boolean reverse);
   
   /** @return The size of this object in bytes, including header. */
   public int size();

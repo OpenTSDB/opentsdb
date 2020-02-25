@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,12 +24,15 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.pools.ArrayObjectPool;
+import net.opentsdb.pools.LongArrayPool;
+import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
-
-import java.util.TreeMap;
 
 /**
  * Represents a read-only sequence of continuous Rollup or Summary values
@@ -216,7 +219,9 @@ public class NumericSummaryRowSeq implements RowSeq {
   }
   
   @Override
-  public ChronoUnit dedupe(final boolean keep_earliest, final boolean reverse) {
+  public ChronoUnit dedupe(final TSDB tsdb,
+                           final boolean keep_earliest, 
+                           final boolean reverse) {
     dps = 0;
     size = 0;
     ChronoUnit resolution = null;
@@ -273,7 +278,16 @@ public class NumericSummaryRowSeq implements RowSeq {
       // then flush.
       // The value is a concatenation of the offset and length into a long.
       // The first 32 bits are the offset, the last 32 the width to copy.
-      final long[] array = new long[data.length];
+      final ObjectPool long_pool = tsdb.getRegistry().getObjectPool(LongArrayPool.TYPE);
+      final PooledObject pooled;
+      final long[] array;
+      if (long_pool != null) {
+        pooled = ((ArrayObjectPool) long_pool).claim(data.length);
+        array = (long[]) pooled.object();
+      } else {
+        pooled = null;
+        array = new long[data.length];
+      }
       int array_idx = 0;
       idx = 0;
       local_dps = 0;
@@ -361,6 +375,10 @@ public class NumericSummaryRowSeq implements RowSeq {
           System.arraycopy(data, offset, sorted, idx, width);
           idx += width;
         }
+      }
+      
+      if (pooled != null) {
+        pooled.release();
       }
       
       // truncate if necessary

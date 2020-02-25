@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 
@@ -32,12 +33,14 @@ public interface Span<T extends TimeSeriesDataType> extends
    * the previous time and the row has data. If the row's data array is
    * null or empty, the row is skipped.
    * 
+   * @param TSDB A non-null TSDB to pull pools from.
    * @param sequence A non-null and non-empty row sequence.
    * @param keep_earliest Whether or not to keep the earliest or latest
    * values.
    * @throws IllegalArgumentException if the sequence was null.
    * @throws IllegalStateException if the row was out of order.
    */
-  public void addSequence(final RowSeq sequence, 
+  public void addSequence(final TSDB tsdb,
+                          final RowSeq sequence, 
                           final boolean keep_earliest);
 }

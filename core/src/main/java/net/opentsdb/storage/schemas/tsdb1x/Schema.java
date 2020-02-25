@@ -1028,6 +1028,10 @@ public class Schema implements WritableTimeSeriesDataStore {
     return tag_values;
   }
   
+  TSDB tsdb() {
+    return tsdb;
+  }
+  
   public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
                                                     final Span span) {
     final Span child;
