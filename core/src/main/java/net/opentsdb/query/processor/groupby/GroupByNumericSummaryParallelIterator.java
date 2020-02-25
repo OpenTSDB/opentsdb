@@ -25,17 +25,24 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.exceptions.QueryDownstreamException;
+import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.groupby.GroupByFactory.Accumulator;
+import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.TSDBQueryQueue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,15 +62,14 @@ import java.util.concurrent.Future;
  *
  */
 public class GroupByNumericSummaryParallelIterator implements QueryIterator {
-
-  private static final Logger logger = LoggerFactory.getLogger(
+  private static final Logger LOG = LoggerFactory.getLogger(
       GroupByNumericSummaryParallelIterator.class);
 
   /** Whether or not NaNs are sentinels or real values. */
   private final boolean infectious_nan;
   
   /** [max_threads][interval]*/
-  private final Accumulator[] accumulators;
+  private final Acc[] accumulators;
   private int timeSeriesPerJob;
 
   // TEMP
@@ -85,7 +91,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   private final GroupByResult result;
   private StatsCollector statsCollector;
   private GroupByFactory groupByFactory;
-  private BigSmallLinkedBlockingQueue<GroupByFactory.GroupByJob> blockingQueue;
+  private TSDBQueryQueue<GroupByFactory.GroupByJob> blockingQueue;
   private int queueThreshold;
 
   /**
@@ -146,9 +152,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     dp = new MutableNumericSummaryValue();
     final int jobCount = Math.min(sources.size(), threadCount);
-    accumulators = new Accumulator[jobCount];
+    accumulators = new Acc[jobCount];
     for (int i = 0; i < accumulators.length; i++) {
-      accumulators[i] = new Accumulator(i);
+      accumulators[i] = new Acc(i);
     }
     if (sources instanceof List) {
       accumulateInParallel((List) sources);
@@ -157,15 +163,17 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     }
   }
 
-  private void accumulateInParallel(List<TimeSeries> sources) {
+  private void accumulateInParallel(final List<TimeSeries> sources) {
 
     final int tsCount = sources.size();
     final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
 
     final int totalTsCount = this.result.timeSeries().size();
+    
+    final PooledObject[] jobs = new PooledObject[jobCount];
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
     for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
-      Accumulator combiner = accumulators[jobIndex % accumulators.length];
+      Acc combiner = accumulators[jobIndex % accumulators.length];
       final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
       final int endIndex; // exclusive
       if (jobIndex == jobCount - 1) {
@@ -174,28 +182,33 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       } else {
         endIndex = startIndex + timeSeriesPerJob;
       }
-      blockingQueue.put(
-          groupByFactory.new GroupByJob<Accumulator>(
-              totalTsCount, sources, startIndex, endIndex, combiner, doneSignal, statsCollector) {
-            @Override
-            public void doRun(TimeSeries timeSeries, Accumulator accumulator) {
-              accumulator.accumulate(timeSeries);
-            }
-          });
+      
+      jobs[jobIndex] = groupByFactory.jobPool().claim();
+      final GroupByJob job = (GroupByJob) jobs[jobIndex].object();
+      job.reset(sources, combiner, totalTsCount, startIndex, endIndex, null, doneSignal);
+      blockingQueue.put(job);
     }
 
-    statsCollector.setGauge("groupby.queue.big.job", blockingQueue.bigQSize());
-    statsCollector.setGauge("groupby.queue.small.job", blockingQueue.smallQSize());
+    if (blockingQueue instanceof BigSmallLinkedBlockingQueue) {
+      statsCollector.setGauge("groupby.queue.big.job", 
+          ((BigSmallLinkedBlockingQueue) blockingQueue).bigQSize());
+      statsCollector.setGauge("groupby.queue.small.job", 
+          ((BigSmallLinkedBlockingQueue) blockingQueue).smallQSize());
+    }
     statsCollector.setGauge("groupby.timeseries.count", totalTsCount);
 
     try {
       doneSignal.await();
     } catch (InterruptedException e) {
-      logger.error("GroupBy Summary interrupted", e);
+      LOG.error("GroupBy Summary interrupted", e);
     }
 
+    // release the jobs.
+    for (int i = 0; i < jobs.length; i++) {
+      jobs[i].release();
+    }
+    
     combine();
-
   }
 
   private void accumulateInParallel(Collection<TimeSeries> sources) {
@@ -208,7 +221,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       Future<Void> future =
           executorService.submit(
               () -> {
-                accumulators[index].accumulate(source);
+                accumulators[index].accumulate(source, null);
                 return null;
               });
 
@@ -252,8 +265,8 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   }
   
   @Override
-  public void close() {
-    // TODO
+  public void close() throws IOException {
+    // no-op for now
   }
   
   void combine() {
@@ -342,12 +355,12 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     }
   }
   
-  class Accumulator {
+  class Acc implements Accumulator {
     final int index;
     double[] accumulator;
     long[] counts;
     
-    Accumulator(final int index) {
+    Acc(final int index) {
       this.index = index;
       accumulator = new double[intervals];
       Arrays.fill(accumulator, Double.POSITIVE_INFINITY);
@@ -358,7 +371,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       }
     }
     
-    void accumulate(final TimeSeries source) {
+    @Override
+    public void accumulate(final TimeSeries source,
+                           final NumericArrayAggregator aggregator) {
       final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op = 
           source.iterator(NumericSummaryType.TYPE);
       if (!op.isPresent()) {
