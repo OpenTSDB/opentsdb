@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
-
-import java.util.Arrays;
 
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
@@ -33,20 +31,20 @@ public class ArrayMinFactory extends BaseArrayFactory {
   
   @Override
   public NumericArrayAggregator newAggregator() {
-    return new ArrayMin(false);
+    return new ArrayMin(false, this);
   }
   
   @Override
   public NumericArrayAggregator newAggregator(final AggregatorConfig config) {
-    if (config != null && config instanceof NumericAggregatorConfig) {
-      return new ArrayMin(((NumericAggregatorConfig) config).infectiousNan());
+    if (config != null && config instanceof NumericArrayAggregatorConfig) {
+      return new ArrayMin((NumericArrayAggregatorConfig) config, this);
     }
-    return new ArrayMin(false);
+    return new ArrayMin(false, this);
   }
   
   @Override
   public NumericArrayAggregator newAggregator(final boolean infectious_nan) {
-    return new ArrayMin(infectious_nan);
+    return new ArrayMin(infectious_nan, this);
   }
 
   @Override
@@ -59,13 +57,20 @@ public class ArrayMinFactory extends BaseArrayFactory {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
     tsdb.getRegistry().registerPlugin(NumericArrayAggregatorFactory.class, 
         "MimMin", this);
+    setPools(tsdb);
     return Deferred.fromResult(null);
   }
   
   public static class ArrayMin extends BaseArrayAggregator {
 
-    public ArrayMin(final boolean infectious_nans) {
-      super(infectious_nans);
+    public ArrayMin(final boolean infectious_nans,
+                    final BaseArrayFactory factory) {
+      super(infectious_nans, factory);
+    }
+    
+    public ArrayMin(final NumericArrayAggregatorConfig config,
+                    final BaseArrayFactory factory) {
+      super(config, factory);
     }
 
     @Override
@@ -73,15 +78,14 @@ public class ArrayMinFactory extends BaseArrayFactory {
                            final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
-        long_accumulator = Arrays.copyOfRange(values, from, to);
+        initLong(values, from, to);
         return;
       }
       
       if (long_accumulator != null) {
-        if (to - from != long_accumulator.length) {
+        if (to - from != end) {
           throw new IllegalArgumentException("Values of length " 
-              + (to - from) + " did not match the original lengh of " 
-              + long_accumulator.length);
+              + (to - from) + " did not match the original lengh of " + end);
         }
         int idx = 0;
         for (int i = from; i < to; i++) {
@@ -91,10 +95,9 @@ public class ArrayMinFactory extends BaseArrayFactory {
           idx++;
         }
       } else {
-        if (to - from != double_accumulator.length) {
+        if (to - from != end) {
           throw new IllegalArgumentException("Values of length " 
-              + (to - from) + " did not match the original lengh of " 
-              + double_accumulator.length);
+              + (to - from) + " did not match the original lengh of " + end);
         }
         int idx = 0;
         for (int i = from; i < to; i++) {
@@ -107,42 +110,21 @@ public class ArrayMinFactory extends BaseArrayFactory {
     }
 
     @Override
-    public void accumulate(double value, int index) {
-      if (Double.isNaN(value)) {
-        if (infectious_nans) {
-          double_accumulator[index] = Double.NaN;
-        }
-      } else {
-        if (Double.isNaN(double_accumulator[index]) && !infectious_nans) {
-          double_accumulator[index] = value;
-        } else {
-          if (value < double_accumulator[index]) {
-            double_accumulator[index] = value;
-          }
-        }
-      }
-    }
-
-    @Override
     public void accumulate(final double[] values, 
                            final int from, 
                            final int to) {
       if (double_accumulator == null && long_accumulator == null) {
-        double_accumulator = Arrays.copyOfRange(values, from, to);
+        initDouble(values, from, to);
+        return;
       }
       
       if (double_accumulator == null) {
-        double_accumulator = new double[long_accumulator.length];
-        for (int i = 0; i < long_accumulator.length; i++) {
-          double_accumulator[i] = long_accumulator[i];
-        }
-        long_accumulator = null;
+        toDouble();
       }
       
-      if (to - from != double_accumulator.length) {
+      if (to - from != end) {
         throw new IllegalArgumentException("Values of length " 
-            + (to - from) + " did not match the original lengh of " 
-            + double_accumulator.length);
+            + (to - from) + " did not match the original lengh of " + end);
       }
       
       int idx = 0;
@@ -164,6 +146,38 @@ public class ArrayMinFactory extends BaseArrayFactory {
       }
     }
    
+    @Override
+    public void accumulate(final double value, final int index) {
+      if (long_accumulator == null && double_accumulator == null) {
+        if (config == null || config.arraySize() < 1) {
+          throw new IllegalStateException("The accumulator has not been initialized.");
+        } else {
+          initDouble(config.arraySize());
+        }
+      } else if (long_accumulator != null) {
+        toDouble();
+      }
+      
+      if (index >= end) {
+        throw new IllegalArgumentException("Index [" + index 
+            + "] is out of bounds [" + end + "]");
+      }
+      
+      if (Double.isNaN(value)) {
+        if (infectious_nans) {
+          double_accumulator[index] = Double.NaN;
+        }
+      } else {
+        if (Double.isNaN(double_accumulator[index]) && !infectious_nans) {
+          double_accumulator[index] = value;
+        } else {
+          if (value < double_accumulator[index]) {
+            double_accumulator[index] = value;
+          }
+        }
+      }
+    }
+    
     @Override
     public String name() {
       return ArrayMinFactory.TYPE;
