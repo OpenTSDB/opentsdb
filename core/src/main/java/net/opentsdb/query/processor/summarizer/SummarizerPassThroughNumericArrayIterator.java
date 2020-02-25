@@ -40,7 +40,7 @@ public class SummarizerPassThroughNumericArrayIterator implements QueryIterator 
   
   @Override
   public boolean hasNext() {
-    return iterator.hasNext();
+    return iterator != null && iterator.hasNext();
   }
   
   @Override
