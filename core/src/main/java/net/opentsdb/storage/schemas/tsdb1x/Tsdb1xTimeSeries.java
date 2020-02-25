@@ -119,6 +119,6 @@ public class Tsdb1xTimeSeries implements TimeSeries {
         }
       }
     }
-    span.addSequence(sequence, keep_earliest);
+    span.addSequence(schema.tsdb(), sequence, keep_earliest);
   }
 }

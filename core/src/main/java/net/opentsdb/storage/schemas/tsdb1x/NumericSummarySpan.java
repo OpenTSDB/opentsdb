@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -65,7 +66,8 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
   }
   
   @Override
-  public synchronized void addSequence(final RowSeq sequence,
+  public synchronized void addSequence(final TSDB tsdb,
+                                       final RowSeq sequence,
                                        final boolean keep_earliest) {
     if (sequence == null) {
       throw new IllegalArgumentException("Sequence cannot be null.");
@@ -90,7 +92,7 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
       // in this case we had a row continuation across a scan, which
       // can easily happen with wide rows so add it.
       rows.get(idx).appendSeq(seq);
-      rows.get(idx).dedupe(keep_earliest, reversed);
+      rows.get(idx).dedupe(tsdb, keep_earliest, reversed);
       return;
     } else if (rows.get(idx).base_timestamp >= seq.base_timestamp) {
       // out of order so  walk back till we find a match the location
@@ -99,7 +101,7 @@ public class NumericSummarySpan implements Span<NumericSummaryType> {
         final long ts = rows.get(idx).base_timestamp;
         if (ts == seq.base_timestamp) {
           rows.get(idx).appendSeq(seq);
-          rows.get(idx).dedupe(keep_earliest, reversed);
+          rows.get(idx).dedupe(tsdb, keep_earliest, reversed);
           return;
         }
         

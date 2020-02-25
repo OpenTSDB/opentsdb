@@ -204,7 +204,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.MILLIS);
@@ -251,7 +251,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
@@ -280,7 +280,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.MILLIS);
@@ -327,7 +327,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
+    seq.dedupe(tsdb, false, true);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
@@ -356,7 +356,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
+    seq.dedupe(tsdb, false, true);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);

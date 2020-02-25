@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Test;
@@ -81,7 +80,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     
     Tsdb1xTimeSeries series = new Tsdb1xTimeSeries(TSUID, schema());
     assertFalse(series.iterator(NumericType.TYPE).isPresent());
@@ -126,7 +125,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
+    seq.dedupe(tsdb, false, true);
     
     Tsdb1xTimeSeries series = new Tsdb1xTimeSeries(TSUID, schema());
     assertFalse(series.iterator(NumericType.TYPE).isPresent());
@@ -171,7 +170,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     
     Tsdb1xTimeSeries series = new Tsdb1xTimeSeries(TSUID, schema());
     series.addSequence(seq, false, false, schema());
@@ -182,7 +181,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     series.addSequence(seq, false, false, schema());
     
     assertEquals(1, series.data.size());
@@ -221,7 +220,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
+    seq.dedupe(tsdb, false, true);
     
     Tsdb1xTimeSeries series = new Tsdb1xTimeSeries(TSUID, schema());
     series.addSequence(seq, true, false, schema());
@@ -232,7 +231,7 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
-    seq.dedupe(false, true);
+    seq.dedupe(tsdb, false, true);
     series.addSequence(seq, true, false, schema());
     
     assertEquals(1, series.data.size());

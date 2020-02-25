@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.primitives.Bytes;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.LongArrayPool;
+import net.opentsdb.pools.MockArrayObjectPool;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
@@ -35,6 +42,13 @@ public class TestNumericRowSeq {
   private static final long BASE_TIME = 1514764800;
   private static final byte[] APPEND_Q = 
       new byte[] { Schema.APPENDS_PREFIX, 0, 0 };
+  
+  private TSDB tsdb;
+  
+  @Before
+  public void before() {
+    tsdb = new MockTSDB();
+  }
   
   @Test
   public void addColumnPuts() throws Exception {
@@ -217,7 +231,7 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -1)), 
           seq.data);
     
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 0, 42), 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24),
@@ -265,7 +279,7 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 180000, -1)), 
           seq.data);
     
-    seq.dedupe(false, false);
+    seq.dedupe(tsdb, false, false);
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 0, 42), 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 60000, 24),
@@ -354,14 +368,14 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
           seq.data);
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 60, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
         seq.data);
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 180, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -389,7 +403,7 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2)), 
           seq.data);
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 30, 2),
@@ -410,7 +424,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 180, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
@@ -430,7 +444,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 30, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 1), 
@@ -449,7 +463,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 30, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
@@ -468,7 +482,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 30, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
@@ -487,7 +501,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
     
-    assertEquals(ChronoUnit.SECONDS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.SECONDS, 30, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
@@ -515,7 +529,7 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2)), 
           seq.data);
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
@@ -535,7 +549,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 1000, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
@@ -555,7 +569,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1), 
@@ -574,7 +588,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
@@ -593,7 +607,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
@@ -612,7 +626,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
@@ -640,7 +654,7 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2)), 
           seq.data);
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
@@ -660,7 +674,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 1000, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
@@ -680,7 +694,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 1), 
@@ -699,7 +713,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
@@ -718,7 +732,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
@@ -737,7 +751,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 2),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
@@ -762,14 +776,14 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1)), 
           seq.data);
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 250, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1)), 
         seq.data);
     
-    assertEquals(ChronoUnit.MILLIS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.MILLIS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 750, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
@@ -793,14 +807,14 @@ public class TestNumericRowSeq {
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42)), 
           seq.data);
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42)), 
         seq.data);
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, true));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, true));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 750, -42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
@@ -823,7 +837,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24),
@@ -844,7 +858,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 250, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24),
@@ -865,7 +879,7 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(false, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, false, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.MILLIS, 120000, -42)), 
         seq.data);
@@ -883,10 +897,51 @@ public class TestNumericRowSeq {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
     
-    assertEquals(ChronoUnit.NANOS, seq.dedupe(true, false));
+    assertEquals(ChronoUnit.NANOS, seq.dedupe(tsdb, true, false));
     assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
         OffsetResolution.NANOS, 120000000000L, 42)), 
         seq.data);
+  }
+  
+  @Test
+  public void dedupePool() throws Exception {
+    MockArrayObjectPool long_pool = new MockArrayObjectPool(
+        DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new LongArrayPool())
+        .setArrayLength(1024)
+        .setInitialCount(5)
+        .setId(LongArrayPool.TYPE)
+        .build());
+    when(tsdb.getRegistry().getObjectPool(LongArrayPool.TYPE)).thenReturn(long_pool);
+    
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.SECONDS, 120, 24), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2)), 
+          seq.data);
+    
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(tsdb, false, false));
+    
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 30, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
+        seq.data);
+    assertEquals(4, seq.dataPoints());
+    assertEquals(1, long_pool.claim_success);
+    assertEquals(1, long_pool.released);
   }
   
   @Test

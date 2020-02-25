@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.NoSuchElementException;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -55,7 +56,8 @@ public class NumericSpan implements Span<NumericType> {
   }
   
   @Override
-  public synchronized void addSequence(final RowSeq sequence,
+  public synchronized void addSequence(final TSDB tsdb,
+                                       final RowSeq sequence,
                                        final boolean keep_earliest) {
     if (sequence == null) {
       throw new IllegalArgumentException("Sequence cannot be null.");
@@ -81,7 +83,7 @@ public class NumericSpan implements Span<NumericType> {
       // can easily happen with wide rows so add it.
       rows.get(idx).addColumn(Schema.APPENDS_PREFIX, 
           new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
-      rows.get(idx).dedupe(keep_earliest, reversed);
+      rows.get(idx).dedupe(tsdb, keep_earliest, reversed);
       return;
     } else if (rows.get(idx).base_timestamp >= seq.base_timestamp) {
       // out of order so  walk back till we find a match the location
@@ -91,7 +93,7 @@ public class NumericSpan implements Span<NumericType> {
         if (ts == seq.base_timestamp) {
           rows.get(idx).addColumn(Schema.APPENDS_PREFIX, 
               new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
-          rows.get(idx).dedupe(keep_earliest, reversed);
+          rows.get(idx).dedupe(tsdb, keep_earliest, reversed);
           return;
         }
         
